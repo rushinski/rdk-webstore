@@ -1,0 +1,43 @@
+{
+  "scripts": {
+    "env:check": "tsx ./src/config/env.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.81.1",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.35.6",
+    "dayjs": "^1.11.19",
+    "flags": "^4.0.2",
+    "jose": "^6.1.1",
+    "nanoid": "^5.1.6",
+    "next": "^16.0.3",
+    "pino": "^10.1.0",
+    "pino-pretty": "^13.1.2",
+    "posthog-js": "^1.292.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "stripe": "^19.3.1",
+    "uuid": "^13.0.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@redocly/cli": "^2.11.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.4",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^9.39.1",
+    "eslint-config-next": "^16.0.3",
+    "globby": "^15.0.0",
+    "jest": "^30.2.0",
+    "postcss": "^8.5.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.7.1",
+    "tailwindcss": "^3.4.18",
+    "ts-jest": "^29.4.5",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

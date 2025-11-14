@@ -1,0 +1,3 @@
+:3001 {
+reverse_proxy localhost:3000
+}

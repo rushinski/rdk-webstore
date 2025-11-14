@@ -1,0 +1,24 @@
+# Env
+.env.local
+.env.production
+.env.staging
+
+# Node
+node_modules/
+dist/
+.next/
+
+# Logs
+*.log
+
+# Supabase
+supabase/.temp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# vscode
+.vscode/
+
+
