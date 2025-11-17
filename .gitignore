@@ -1,24 +1,72 @@
-# Env
-.env.local
-.env.production
-.env.staging
-
 # Node
 node_modules/
-dist/
-.next/
+npm-debug.log*
+yarn-debug*/ 
+yarn-error*/ 
 
-# Logs
-*.log
+# Next.js
+.next/
+out/
+dist/
+.build/
+
+# Environment Variables (critical)
+.env
+.env.*
+!.env.example        # keep example, ignore all real env files
 
 # Supabase
-supabase/.temp
+supabase/.temp/
+supabase/.branches/
+supabase/.metadata
+supabase/.config
+supabase/.env
+supabase/migrations/*-shadow.sql   # shadow migrations (local-only)
 
-# OS
-.DS_Store
+# Playwright
+test-results/
+playwright-report/
+blob-report/
+.trace/
+.playwright/
+
+# Jest
+coverage/
+.cache/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# OS JUNK — Windows + cross-platform
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# vscode
+# macOS (just in case)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Caddy (when you add local reverse proxy)
+caddy/data/
+caddy/config/
+
+# Docker (future-proofing)
+docker-data/
+docker-storage/
+
+# IDE files
 .vscode/
+.idea/
+*.swp
 
+# TypeScript
+*.tsbuildinfo
 
+# Misc build outputs
+*.pid
+*.seed
+*.tgz

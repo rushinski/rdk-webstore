@@ -1,9 +1,8 @@
 export const ProductsRepository = {
   async list() {
-  return [];
+    return [];
   },
   async get(id: string) {
     return null;
-  }
+  },
 };
-

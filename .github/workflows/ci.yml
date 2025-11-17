@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [jacob-dev]
+    tags: ["v*"] # Only version tags trigger Production
+  pull_request:
+    branches: [jacob-dev, main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Installs exactly what is in package-lock.json
+      - name: Install deps
+        run: npm ci
+
+      # Runs the script to ensure our env blueprint represents our actual env
+      - name: Env Validation (Zod)
+        env:
+          NODE_ENV: test
+        run: npm run env:check
+      
+      # Runs the script that ensures our envs follow case requirements
+      - name: Env Variable Case Enforcement
+        run: npm run check:env-case
+
+      # Runs the script that ensures our files follow case requirements
+      - name: File Case Enforcement
+        run: npm run check:case
+
+      # Runs ESLint config and ensures we follow our listed rules and Typecheck that ensures our codebase is structually correct
+      - name: Lint & Typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+
+      # Performs logic tests on files in the tests folder (Jest)
+      - name: Unit Tests
+        run: npm test -- --ci
+
+      # Validates Next.js build correctness
+      - name: Build
+        run: npm run build
+
+      # Compares our local migrations to our remote staging db and validates the migrations work 
+      - name: Schema Lint / Dry Run (Staging)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_STAGING_PROJECT_ID }}
+        run: |
+          npx supabase db lint --project-ref $SUPABASE_PROJECT_ID
+
+  # This runs if we push to jacob-dev branch
+  deploy-staging:
+    needs: build-test
+    if: github.ref == 'refs/heads/jacob-dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Apply Migrations to Staging
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_STAGING_PROJECT_ID }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_STAGING_DB_URL }}
+        run: |
+          npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
+
+      - name: Deploy to Vercel (Staging)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}
+        run: |
+          npx vercel --token $VERCEL_TOKEN --yes --scope $VERCEL_SCOPE --prod=false
+
+      - name: Run E2E + RLS Tests against Staging
+        env:
+          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+        run: |
+          npm run test:e2e
+          npm run test:rls
+
+  release:
+    needs: build-test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Env Validation (Production Config)
+        env:
+          NODE_ENV: production
+        run: npm run env:check
+
+      - name: Apply Migrations to Production
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROD_PROJECT_ID }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_PROD_DB_URL }}
+        run: |
+          npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
+
+      - name: Deploy to Vercel (Production)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx vercel --token $VERCEL_TOKEN --prod --confirm
+
+      - name: Post-Deploy Smoke Tests
+        env:
+          PROD_BASE_URL: https://realdealkickzsc.com
+        run: |
+          npm run smoke
+
+      - name: GitHub Release Notes
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
