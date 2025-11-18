@@ -39,7 +39,7 @@ function walk(dir: string): void {
     // If entry is in IGNORE_DIRS we go to the next element in the array
     if (IGNORE_DIRS.has(entry)) continue;
 
-    // Stores the stats of full as a object. Ex. "isFile: [Function], isDirectory: [Function], ...""
+    // Stores the stats of full as a object. Ex. "isFile: [Function], isDirectory: [Function], ..."" 
     const stat = fs.statSync(full);
 
     // If stat.Directory returns true the path is a folder
@@ -58,39 +58,68 @@ walk(ROOT);
 
 // Validator var. If we find a error this will become true
 let hasError = false;
-// Set to store any env vars we have that arent declared in env.ts. It is a set so we don't have duplicates
-const illegalEnvVars = new Set();
+
+// Map to store undeclared env vars AND where they were found
+// Key: ENV NAME
+// Value: Array of { file, line }
+const illegalEnvLocations = new Map<
+  string,
+  Array<{ file: string; line: number }>
+>();
 
 // Loops through all elements in the filesToScan array
 for (const file of filesToScan) {
   // Gets the plain text contents of file
   const code = fs.readFileSync(file, "utf8");
+  const lines = code.split(/\r?\n/);
 
-  // Matches is a array that contains all occurances of process.env. and uses a regex to see what follows it. /g returns all matches
-  const matches = Array.from(code.matchAll(/process\.env\.([A-Za-z0-9_]+)/g));
-  // We loop through the elements of matches
-  for (const m of matches) {
-    // m looks like "process.env.STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY", index: 35, input: "...entire file...". We get the 1 index
-    const key = m[1];
+  // Check each line for process.env.<VAR>
+  for (let lineNumber = 0; lineNumber < lines.length; lineNumber++) {
+    const line = lines[lineNumber];
 
-    // Check for env var is not proper
-    if (!/^[A-Z0-9_]+$/.test(key)) {
-      console.error(`Invalid casing for env var "${key}" in ${file}`);
-      hasError = true;
-    }
+    // Matches is a array that contains all occurrences of process.env. and uses a regex to see what follows it. /g returns all matches
+    const matches = Array.from(line.matchAll(/process\.env\.([A-Za-z0-9_]+)/g));
 
-    // Check if env var is not in env.ts meaning it would be illegal
-    if (!declaredEnvVars.includes(key)) {
-      illegalEnvVars.add(key);
-      hasError = true;
+    // We loop through the elements of matches
+    for (const m of matches) {
+      // m looks like "process.env.STRIPE_SECRET_KEY", "STRIPE_SECRET_KEY", index: 35, input: "...entire line...". We get index 1
+      const key = m[1];
+
+      // Check for env var is not proper
+      if (!/^[A-Z0-9_]+$/.test(key)) {
+        console.error(
+          `Invalid casing for env var "${key}" in ${file}:${lineNumber + 1}`
+        );
+        hasError = true;
+      }
+
+      // Check if env var is not in env.ts meaning it would be illegal
+      if (!declaredEnvVars.includes(key)) {
+        if (!illegalEnvLocations.has(key)) {
+          illegalEnvLocations.set(key, []);
+        }
+
+        illegalEnvLocations.get(key)!.push({
+          file,
+          line: lineNumber + 1,
+        });
+
+        hasError = true;
+      }
     }
   }
 }
 
-// If illegalEnvVars contains anything our check fails and we output the failures
-if (illegalEnvVars.size > 0) {
+// If illegalEnvLocations contains anything our check fails and we output the failures
+if (illegalEnvLocations.size > 0) {
   console.error("\nERROR: Env vars found in code but NOT declared in env.ts:");
-  for (const key of illegalEnvVars) console.error(`  - ${key}`);
+
+  for (const [key, locations] of illegalEnvLocations.entries()) {
+    console.error(`  - ${key}`);
+    for (const loc of locations) {
+      console.error(`      ${loc.file}:${loc.line}`);
+    }
+  }
 }
 
 // If hasError is true we fail

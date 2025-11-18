@@ -1,7 +1,7 @@
 console.log("Smoke tests not implemented yet");
 
 async function run() {
-  const url = process.env.PROD_BASE_URL || "https://example.com";
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://example.com";
 
   try {
     const res = await fetch(url);
