@@ -1,6 +1,7 @@
 {
   "scripts": {
     "env:check": "tsx ./src/config/env.ts",
+    "ci-env:check": "tsx ./src/config/ciEnv.ts",
     "check:env-case": "tsx scripts/check-env-case.mts",
     "check:file-case": "tsx scripts/check-file-case.mts",
     "lint": "eslint .",

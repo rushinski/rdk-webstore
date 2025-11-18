@@ -28,10 +28,8 @@ jobs:
         run: npm ci
 
       # Runs the script to ensure our env blueprint represents our actual env
-      - name: Env Validation (Zod)
-        env:
-          NODE_ENV: test
-        run: npm run env:check
+      - name: CI Env Validation (Zod)
+        run: npm run ci-env:check
 
       # Runs the script that ensures our envs follow case requirements
       - name: Env Variable Case Enforcement
@@ -95,9 +93,8 @@ jobs:
       - name: Deploy to Vercel (Staging)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_SCOPE: ${{ secrets.VERCEL_SCOPE }}
         run: |
-          npx vercel --token $VERCEL_TOKEN --yes --scope $VERCEL_SCOPE --prod=false
+          npx vercel --token $VERCEL_TOKEN --yes --prod=false
 
       - name: Run E2E + RLS Tests against Staging
         env:
