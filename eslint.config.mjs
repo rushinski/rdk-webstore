@@ -6,8 +6,10 @@ import prettierPlugin from "eslint-plugin-prettier";
 // Begins exporting a ESLint config object
 export default [
   {
+    ignores: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+  },
+  {
     files: ["**/*.{ts,tsx}"], // Targets all ts and tsx files in the repo for linting
-    ignores: ["node_modules/**", "dist/**"], // Ignores built outputs and dependency folders        
 
     languageOptions: {
       parser: tsparser, // We use the TypeScript parser so ESLint understands TS Syntas

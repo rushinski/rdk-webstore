@@ -32,14 +32,14 @@ jobs:
         env:
           NODE_ENV: test
         run: npm run env:check
-      
+
       # Runs the script that ensures our envs follow case requirements
       - name: Env Variable Case Enforcement
         run: npm run check:env-case
 
       # Runs the script that ensures our files follow case requirements
       - name: File Case Enforcement
-        run: npm run check:case
+        run: npm run check:file-case
 
       # Runs ESLint config and ensures we follow our listed rules and Typecheck that ensures our codebase is structually correct
       - name: Lint & Typecheck
@@ -55,7 +55,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Compares our local migrations to our remote staging db and validates the migrations work 
+      # Compares our local migrations to our remote staging db and validates the migrations work
       - name: Schema Lint / Dry Run (Staging)
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
