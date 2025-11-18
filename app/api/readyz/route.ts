@@ -1,7 +1,8 @@
+import Stripe from "stripe"; // Imports Stripes SDK call we will instantiate with our secert key to confirm Stripe is configured
 import { NextResponse } from "next/server"; // Next.js helper to build HTTP responses in App Router route handlers
 import { createClient } from "@supabase/supabase-js"; // Imports factory function for creating Supabase client
+
 import { env } from "@/config/env"; // Imports our env validator
-import Stripe from "stripe"; // Imports Stripes SDK call we will instantiate with our secert key to confirm Stripe is configured 
 
 export async function GET() {
   // We have a try catch block so if we have any error we will log it safely
@@ -23,15 +24,14 @@ export async function GET() {
     if (error) {
       return NextResponse.json(
         { ready: false, error: "Supabase query failed", details: error.message },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     return NextResponse.json({ ready: true }, { status: 200 });
-  } catch (err: any) {
-    return NextResponse.json(
-      { ready: false, error: err.message },
-      { status: 500 }
-    );
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Unexpected error";
+
+    return NextResponse.json({ ready: false, error: message }, { status: 500 });
   }
 }

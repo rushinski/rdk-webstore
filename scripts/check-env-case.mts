@@ -39,7 +39,7 @@ function walk(dir: string): void {
     // If entry is in IGNORE_DIRS we go to the next element in the array
     if (IGNORE_DIRS.has(entry)) continue;
 
-    // Stores the stats of full as a object. Ex. "isFile: [Function], isDirectory: [Function], ..."" 
+    // Stores the stats of full as a object. Ex. "isFile: [Function], isDirectory: [Function], ...""
     const stat = fs.statSync(full);
 
     // If stat.Directory returns true the path is a folder
@@ -62,10 +62,7 @@ let hasError = false;
 // Map to store undeclared env vars AND where they were found
 // Key: ENV NAME
 // Value: Array of { file, line }
-const illegalEnvLocations = new Map<
-  string,
-  Array<{ file: string; line: number }>
->();
+const illegalEnvLocations = new Map<string, Array<{ file: string; line: number }>>();
 
 // Loops through all elements in the filesToScan array
 for (const file of filesToScan) {
@@ -87,9 +84,7 @@ for (const file of filesToScan) {
 
       // Check for env var is not proper
       if (!/^[A-Z0-9_]+$/.test(key)) {
-        console.error(
-          `Invalid casing for env var "${key}" in ${file}:${lineNumber + 1}`
-        );
+        console.error(`Invalid casing for env var "${key}" in ${file}:${lineNumber + 1}`);
         hasError = true;
       }
 

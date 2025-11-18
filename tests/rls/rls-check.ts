@@ -1,4 +1,4 @@
-console.log("RLS tests not implemented yet");
+console.info("RLS tests not implemented yet");
 
 // Structure for future use:
 // import { createClient } from '@supabase/supabase-js';
