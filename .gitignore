@@ -71,5 +71,3 @@ docker-storage/
 *.seed
 *.tgz
 
-# Vercel 
-.vercel/

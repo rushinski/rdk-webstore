@@ -90,8 +90,12 @@ jobs:
       - name: Apply Migrations to Staging
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
+      - name: Select Vercel Project (Staging)
+        run: cp .vercel-staging/project.json .vercel/project.json
+
       - name: Deploy to Vercel (Staging)
         run: |
-          cp .vercel-staging/project.json .vercel/project.json
-          npx vercel deploy --yes --token $VERCEL_TOKEN
-
+          npx vercel deploy \
+            --yes \
+            --token $VERCEL_TOKEN \
+            --scope ${{ secrets.VERCEL_SCOPE }}
