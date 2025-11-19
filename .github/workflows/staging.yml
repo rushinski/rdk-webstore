@@ -82,12 +82,11 @@ jobs:
         run: npm run build
 
       - name: Install Supabase CLI
-        run: |
-          curl -fsSL https://cli.supabase.com/install/linux | sh
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+        uses: supabase/setup-cli@v1
 
       - name: Schema Lint / Dry Run
         run: supabase db lint --db-url "$SUPABASE_DB_URL"
+
       - name: Apply Migrations to Staging
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
