@@ -11,6 +11,7 @@ jobs:
     environment: staging
     env:
       # Repo secrets (global)
+      SUPABASE_PROD_IPV4_DB_URL: ${{ secrets.SUPABASE_PROD_IPV4_DB_URL }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
@@ -84,11 +85,14 @@ jobs:
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
 
-      - name: Schema Lint / Dry Run
-        run: supabase db lint --db-url "$SUPABASE_DB_URL"
+      - name: Schema Lint (Prod only)
+        run: supabase db lint --db-url "$SUPABASE_PROD_IPV4_DB_URL"
 
-      - name: Apply Migrations to Staging
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
+      - name: Sync Migrations to Staging
+        run: |
+          supabase db push \
+            --project-ref "$SUPABASE_PROJECT_ID" \
+            --password "$SUPABASE_SERVICE_ROLE_KEY"
 
       - name: Select Vercel Project (Staging)
         run: cp .vercel-staging/project.json .vercel/project.json
