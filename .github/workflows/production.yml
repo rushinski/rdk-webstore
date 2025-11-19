@@ -3,7 +3,7 @@ name: Production CI
 on:
   push:
     tags:
-      - "v*.*.*"   # Example: v1.0.0, v2.3.5
+      - "v*.*.*" # Example: v1.0.0, v2.3.5
 
 jobs:
   production-build:
@@ -52,7 +52,7 @@ jobs:
 
       - name: Env Variable Case Enforcement
         run: npm run check:env-case
-      
+
       - name: File Case Enforcement
         run: npm run check:file-case
 

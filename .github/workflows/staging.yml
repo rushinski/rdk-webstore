@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -54,7 +54,7 @@ jobs:
       # Runs the script that ensures our envs follow case requirements
       - name: Env Variable Case Enforcement
         run: npm run check:env-case
-      
+
       # Runs the script that ensures our files follow case requirements
       - name: File Case Enforcement
         run: npm run check:file-case
@@ -62,29 +62,29 @@ jobs:
       # Runs ESLint config and follows our custom rules
       - name: Lint
         run: npm run lint
-      
+
       # Runs typecheck that ensures our codebase is structually correct
       - name: Typecheck
         run: npm run typecheck
-      
+
       # Performs logic tests on files in the tests folder (Jest)
       - name: Unit Tests
         run: npm test -- --ci
-      
+
       # Validates Next.js build correctness
       - name: Build
         run: npm run build
-      
+
       # Compares our local migrations to our remote staging db and validates the migrations work
-      - name: Schema Lint / Dry Run 
+      - name: Schema Lint / Dry Run
         run: npx supabase db lint --project-ref $SUPABASE_PROJECT_ID
 
       - name: Apply Migrations to Staging
         run: npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
 
-      - name: Deploy to Vercel 
+      - name: Deploy to Vercel
         run: npx vercel --token $VERCEL_TOKEN --yes --preload
-      
+
       - name: Run E2E Tests
         run: npm run test:e2e
 
