@@ -91,5 +91,7 @@ jobs:
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Deploy to Vercel (Staging)
-        run: npx vercel deploy --yes --token $VERCEL_TOKEN --cwd ./.vercel-staging
+        run: |
+          cp .vercel-staging/project.json .vercel/project.json
+          npx vercel deploy --yes --token $VERCEL_TOKEN
 

@@ -72,8 +72,4 @@ docker-storage/
 *.tgz
 
 # Vercel 
-.vercel-staging/*
-.vercel-prod/*
-
-!.vercel-staging/project.json
-!.vercel-prod/project.json
+.vercel/
