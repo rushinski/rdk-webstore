@@ -81,9 +81,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      # Compares our local migrations to our remote staging db and validates the migrations work
+      - name: Install Postgres + SSL dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev postgresql-client openssl ca-certificates
+
       - name: Schema Lint / Dry Run
-        run: npx supabase db lint --db-url $SUPABASE_DB_URL
+        run: npx supabase db lint --db-url "$SUPABASE_DB_URL"
 
       - name: Apply Migrations to Staging
         run: npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
