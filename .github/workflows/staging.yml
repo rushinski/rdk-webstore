@@ -1,3 +1,5 @@
+name: Staging CI
+
 on:
   push:
     branches:
@@ -7,7 +9,6 @@ jobs:
   staging-build:
     runs-on: ubuntu-latest
     environment: staging
-
     env:
       # Repo secrets (global)
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -26,7 +27,7 @@ jobs:
 
       UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
       UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
-      
+
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
       POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
