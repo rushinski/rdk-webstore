@@ -91,4 +91,5 @@ jobs:
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Deploy to Vercel
-        run: npx vercel --token $VERCEL_TOKEN --yes --preload
+        run: npx vercel --token $VERCEL_TOKEN --yes
+
