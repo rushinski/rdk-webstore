@@ -58,6 +58,10 @@ jobs:
       # Runs the script that ensures our files follow case requirements
       - name: File Case Enforcement
         run: npm run check:file-case
+      
+      # Runs ESLint config and follows our custom rules
+      - name: Lint
+        run: npm run lint
 
       # Runs typecheck that ensures our codebase is structually correct
       - name: Typecheck
@@ -77,24 +81,14 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Start Supabase Tunnel
-        run: |
-          npx supabase tunnel start --project-id $SUPABASE_PROJECT_ID --password $SUPABASE_TUNNEL_PASSWORD --detach
-
-      # Runs ESLint config and follows our custom rules
-      - name: Lint
-        run: npm run lint
-
-      - name: Install Postgres + SSL dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libpq-dev postgresql-client openssl ca-certificates
+      - name: Install Supabase CLI
+        run: npm install -g supabase@latest
 
       - name: Schema Lint / Dry Run
-        run: npx supabase db lint --db-url "$SUPABASE_DB_URL"
+        run: supabase db lint --db-url "$SUPABASE_DB_URL"
 
       - name: Apply Migrations to Staging
-        run: npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Deploy to Vercel
         run: npx vercel --token $VERCEL_TOKEN --yes --preload
