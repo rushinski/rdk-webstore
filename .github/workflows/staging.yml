@@ -1,0 +1,91 @@
+on:
+  push:
+    branches:
+      - jacob-dev
+
+jobs:
+  staging-build:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    env:
+      # Repo secrets (global)
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      # Environment secrets (per-env)
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+      UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
+      UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+      
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+      POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Installs exactly what is in package-lock.json
+      - name: Install Dependencies
+        run: npm ci
+
+      # Runs the script to ensure our CI Env blueprint represents our actual env
+      - name: CI Env Validation (Zod)
+        run: npm run ci-env:check
+
+      # Runs the script that ensures our envs follow case requirements
+      - name: Env Variable Case Enforcement
+        run: npm run check:env-case
+      
+      # Runs the script that ensures our files follow case requirements
+      - name: File Case Enforcement
+        run: npm run check:file-case
+
+      # Runs ESLint config and follows our custom rules
+      - name: Lint
+        run: npm run lint
+      
+      # Runs typecheck that ensures our codebase is structually correct
+      - name: Typecheck
+        run: npm run typecheck
+      
+      # Performs logic tests on files in the tests folder (Jest)
+      - name: Unit Tests
+        run: npm test -- --ci
+      
+      # Validates Next.js build correctness
+      - name: Build
+        run: npm run build
+      
+      # Compares our local migrations to our remote staging db and validates the migrations work
+      - name: Schema Lint / Dry Run 
+        run: npx supabase db lint --project-ref $SUPABASE_PROJECT_ID
+
+      - name: Apply Migrations to Staging
+        run: npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
+
+      - name: Deploy to Vercel 
+        run: npx vercel --token $VERCEL_TOKEN --yes --preload
+      
+      - name: Run E2E Tests
+        run: npm run test:e2e
+
+      - name: Run RLS Tests
+        run: npm run test:rls

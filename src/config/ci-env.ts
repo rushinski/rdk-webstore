@@ -1,16 +1,25 @@
 import { z } from "zod";
 
 const ciSchema = z.object({
+  // Repo secrets 
   SUPABASE_ACCESS_TOKEN: z.string(),
   VERCEL_TOKEN: z.string(),
 
-  SUPABASE_STAGING_PROJECT_ID: z.string().optional(),
-  SUPABASE_STAGING_DB_URL: z.string().url().optional(),
-  STAGING_BASE_URL: z.string().url().optional(),
+  // Environment secrets 
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
+  SUPABASE_PROJECT_ID: z.string(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string(),
+  SUPABASE_DB_URL: z.string().url(),
 
-  SUPABASE_PROD_PROJECT_ID: z.string().optional(),
-  SUPABASE_PROD_DB_URL: z.string().url().optional(),
-  PROD_BASE_URL: z.string().url().optional(),
+  STRIPE_SECRET_KEY: z.string(),
+  STRIPE_WEBHOOK_SECRET: z.string(),
+
+  UPSTASH_REDIS_REST_URL: z.string().url(),
+  UPSTASH_REDIS_REST_TOKEN: z.string(),
+  
+  SENTRY_DSN: z.string(),
+  POSTHOG_API_KEY: z.string()
 });
 
 export const ciEnv = ciSchema.parse(process.env);

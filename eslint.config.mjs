@@ -6,7 +6,7 @@ import prettierPlugin from "eslint-plugin-prettier";
 // Begins exporting a ESLint config object
 export default [
   {
-    ignores: ["**/node_modules/**", "**/dist/**", "**/.next/**"],
+    ignores: ["**/node_modules/**", "**/dist/**", "**/.next/**", "next-env.d.ts"],
   },
   {
     files: ["**/*.{ts,tsx}"], // Targets all ts and tsx files in the repo for linting
