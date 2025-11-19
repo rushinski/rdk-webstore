@@ -6,7 +6,7 @@ on:
       - jacob-dev
 
 jobs:
-  staging-build:
+  build-test:
     runs-on: ubuntu-latest
     environment: staging
     env:
@@ -66,6 +66,12 @@ jobs:
       # Runs typecheck that ensures our codebase is structually correct
       - name: Typecheck
         run: npm run typecheck
+      
+      - name: Run E2E Tests
+        run: npm run test:e2e
+
+      - name: Run RLS Tests
+        run: npm run test:rls
 
       # Performs logic tests on files in the tests folder (Jest)
       - name: Unit Tests
@@ -77,16 +83,10 @@ jobs:
 
       # Compares our local migrations to our remote staging db and validates the migrations work
       - name: Schema Lint / Dry Run
-        run: npx supabase db lint --project-ref $SUPABASE_PROJECT_ID
+        run: npx supabase db lint --db-url $SUPABASE_DB_URL
 
       - name: Apply Migrations to Staging
         run: npx supabase db push --project-ref $SUPABASE_PROJECT_ID --db-url $SUPABASE_DB_URL
 
       - name: Deploy to Vercel
         run: npx vercel --token $VERCEL_TOKEN --yes --preload
-
-      - name: Run E2E Tests
-        run: npm run test:e2e
-
-      - name: Run RLS Tests
-        run: npm run test:rls
