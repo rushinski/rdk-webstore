@@ -70,3 +70,5 @@ docker-storage/
 *.pid
 *.seed
 *.tgz
+.vercel-prod
+.vercel-staging
