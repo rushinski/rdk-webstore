@@ -97,5 +97,4 @@ jobs:
         run: |
           npx vercel deploy \
             --yes \
-            --token $VERCEL_TOKEN \
-            --scope ${{ secrets.VERCEL_SCOPE }}
+            --token $VERCEL_TOKEN 
