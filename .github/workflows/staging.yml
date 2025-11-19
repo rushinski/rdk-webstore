@@ -90,6 +90,10 @@ jobs:
       - name: Apply Migrations to Staging
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
-      - name: Deploy to Vercel
-        run: npx vercel --token $VERCEL_TOKEN --yes
+      - name: Deploy to Vercel (Staging)
+        run: npx vercel deploy --yes \
+          --token ${{ secrets.VERCEL_TOKEN }} \
+          --scope realdealkickzsc \
+          --project rdk-staging
+
 
