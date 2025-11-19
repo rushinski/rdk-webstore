@@ -85,7 +85,7 @@ jobs:
         uses: supabase/setup-cli@v1
 
       - name: Schema Lint / Dry Run
-        run: supabase db lint --db-url "$SUPABASE_DB_URL"
+        run: supabase db lint --project-ref "$SUPABASE_PROJECT_ID"
 
       - name: Apply Migrations to Staging
         run: supabase db push --db-url "$SUPABASE_DB_URL"
