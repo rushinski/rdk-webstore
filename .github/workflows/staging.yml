@@ -82,7 +82,8 @@ jobs:
         run: npm run build
 
       - name: Install Supabase CLI
-        run: npm install -g supabase@latest
+        run: |
+          curl -fsSL https://cli.supabase.com/install/linux | sh
 
       - name: Schema Lint / Dry Run
         run: supabase db lint --db-url "$SUPABASE_DB_URL"
