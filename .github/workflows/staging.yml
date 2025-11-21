@@ -33,7 +33,7 @@ jobs:
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # Local simulated DB URL (not the cloud DB)
-      SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+      SUPABASE_DB_URL: "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
 
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
@@ -84,10 +84,10 @@ jobs:
         uses: supabase/setup-cli@v1
 
       - name: Apply Migrations (Local Simulation)
-        run: supabase db push --db-url "$LOCAL_DB_URL"
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Lint Schema (Local)
-        run: supabase db lint --db-url "$LOCAL_DB_URL"
+        run: supabase db lint --db-url "$SUPABASE_DB_URL"
 
   push-migrations:
     needs: upstream-validation
