@@ -17,7 +17,7 @@ jobs:
           - 5432:5432
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rdk_ci_${{ github.run_id }}
+          POSTGRES_DB: rdk_ci_staging_${{ github.run_id }}
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
