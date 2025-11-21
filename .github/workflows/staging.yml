@@ -123,6 +123,7 @@ jobs:
         run: |
           npx vercel deploy \
             --yes \
+            --prod \
             --token $VERCEL_TOKEN
 
       - name: Run E2E Tests Against Staging
