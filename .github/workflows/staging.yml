@@ -103,11 +103,8 @@ jobs:
         uses: supabase/setup-cli@v1
 
       - name: Push Migrations to Supabase (Staging)
-        run: |
-          supabase db push \
-            --project-ref $SUPABASE_PROJECT_ID \
-            --db-url "$SUPABASE_DB_URL"
-
+        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        
   deploy-staging:
     needs: push-migrations
     runs-on: ubuntu-latest
