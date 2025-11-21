@@ -17,6 +17,7 @@ jobs:
           - 5432:5432
         env:
           POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rdk_ci_${{ github.run_id }}
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -24,18 +25,16 @@ jobs:
           --health-retries 5
 
     env:
-      # CI secrets
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # GitHub Repo Secerts
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }} 
 
+      # GitHub Staging Environment Secerts
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      # Local simulated DB URL (not the cloud DB)
-      LOCAL_SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
+      
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
@@ -45,7 +44,8 @@ jobs:
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
       POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
-      NODE_ENV: "test"
+      # GitHub Staging Variables (no ci-env validation)
+      LOCAL_SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/rdk_ci_staging_${{ github.run_id }}"
 
     steps:
       - name: Checkout
@@ -69,6 +69,15 @@ jobs:
       - name: Enforce File Case Rules
         run: npm run check:file-case
 
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+
+      - name: Apply Migrations (Local Simulation)
+        run: supabase db push --db-url "$LOCAL_SUPABASE_DB_URL"
+
+      - name: Lint Schema (Local)
+        run: supabase db lint --db-url "$LOCAL_SUPABASE_DB_URL"
+
       - name: Lint
         run: npm run lint
 
@@ -80,15 +89,12 @@ jobs:
 
       - name: Build
         run: npm run build
-
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
-
-      - name: Apply Migrations (Local Simulation)
-        run: supabase db push --db-url "$LOCAL_SUPABASE_DB_URL"
-
-      - name: Lint Schema (Local)
-        run: supabase db lint --db-url "$LOCAL_SUPABASE_DB_URL"
+      
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: rdk-build
+          path: .next
 
   push-migrations:
     needs: upstream-validation
@@ -97,8 +103,6 @@ jobs:
 
     env:
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
 
     steps:
       - name: Checkout
@@ -117,23 +121,32 @@ jobs:
 
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      STAGING_BASE_URL: "https://rdk-staging.vercel.app/"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Vercel Project (Staging)
-        run: cp .vercel-staging/project.json .vercel/project.json
+      - name: Link Vercel Project (Staging)
+        run: |
+          npx vercel link --project rdk-staging --org realdealkickz --token $VERCEL_TOKEN --yes
+
 
       - name: Deploy to Vercel (Staging)
         run: |
           npx vercel deploy \
+            --prebuilt \
             --yes \
-            --prod \
             --token $VERCEL_TOKEN
+      
+      - name: Smoke Test Staging
+        run: |
+          curl -f "$STAGING_BASE_URL/api/healthz"
+          curl -f "$STAGING_BASE_URL/api/readyz"
 
-      - name: Run E2E Tests Against Staging
-        run: npm run test:e2e
 
       - name: Run RLS Tests Against Staging
         run: npm run test:rls
+
+      - name: Run E2E Tests Against Staging
+        run: npm run test:e2e

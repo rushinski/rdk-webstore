@@ -15,10 +15,8 @@ const schema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url(), // secert must be a string + valid URL
   UPSTASH_REDIS_REST_TOKEN: z.string(),
 
-  SENTRY_DSN: z.string().optional(), // secert is allowed to be undefined
-  POSTHOG_API_KEY: z.string().optional(),
-
-  NODE_ENV: z.enum(["development", "production", "test"]), // secert must be either development, production, or test
+  SENTRY_DSN: z.string(), // secert is allowed to be undefined
+  POSTHOG_API_KEY: z.string(),
 });
 
 // process.env is loaded dependant on how it is being ran. Local vs Vercel vs GitHub Actions
