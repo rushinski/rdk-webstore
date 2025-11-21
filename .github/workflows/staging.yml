@@ -12,12 +12,11 @@ jobs:
 
     services:
       supabase-db:
-        image: postgres:17
+        image: public.ecr.aws/supabase/postgres:17.6.1.043
         ports:
           - 5432:5432
         env:
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: rdk_ci_staging_${{ github.run_id }}
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 10s
@@ -45,7 +44,7 @@ jobs:
       POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
       # GitHub Staging Variables (no ci-env validation)
-      LOCAL_SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/rdk_ci_staging_${{ github.run_id }}"
+      LOCAL_SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
 
     steps:
       - name: Checkout
