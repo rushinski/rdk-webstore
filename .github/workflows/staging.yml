@@ -99,7 +99,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Upload Migrations to Supabase (Staging)
-        uses: supabase/setup-cli@v1
+        uses: supabase/migrations-action@v1
         with:
           project-id: ${{ secrets.SUPABASE_PROJECT_ID }}
           access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
