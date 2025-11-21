@@ -6,22 +6,34 @@ on:
       - jacob-dev
 
 jobs:
-  build-test:
+  upstream-validation:
     runs-on: ubuntu-latest
     environment: staging
+
+    services:
+      supabase-db:
+        image: supabase/postgres
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
-      # Repo secrets (global)
-      SUPABASE_PROD_IPV4_DB_URL: ${{ secrets.SUPABASE_PROD_IPV4_DB_URL }}
+      # CI secrets
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
-      # Environment secrets (per-env)
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-
       SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      # Local simulated DB URL (not the cloud DB)
+      SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
 
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
@@ -32,11 +44,11 @@ jobs:
       SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
       POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
 
+      NODE_ENV: "test"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -44,55 +56,65 @@ jobs:
           node-version: 20
           cache: npm
 
-      # Installs exactly what is in package-lock.json
       - name: Install Dependencies
         run: npm ci
 
-      # Runs the script to ensure our CI Env blueprint represents our actual env
-      - name: CI Env Validation (Zod)
+      - name: Validate CI Env
         run: npm run ci-env:check
 
-      # Runs the script that ensures our envs follow case requirements
-      - name: Env Variable Case Enforcement
+      - name: Enforce Env Case Rules
         run: npm run check:env-case
 
-      # Runs the script that ensures our files follow case requirements
-      - name: File Case Enforcement
+      - name: Enforce File Case Rules
         run: npm run check:file-case
 
-      # Runs ESLint config and follows our custom rules
       - name: Lint
         run: npm run lint
 
-      # Runs typecheck that ensures our codebase is structually correct
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run E2E Tests
-        run: npm run test:e2e
-
-      - name: Run RLS Tests
-        run: npm run test:rls
-
-      # Performs logic tests on files in the tests folder (Jest)
       - name: Unit Tests
         run: npm test -- --ci
 
-      # Validates Next.js build correctness
       - name: Build
         run: npm run build
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
 
-      - name: Schema Lint (Prod only)
-        run: supabase db lint --db-url "$SUPABASE_PROD_IPV4_DB_URL"
+      - name: Apply Migrations (Local Simulation)
+        run: supabase db push --db-url "$LOCAL_DB_URL"
 
-      - name: Sync Migrations to Staging
-        run: |
-          supabase db push \
-            --project-ref "$SUPABASE_PROJECT_ID" \
-            --password "$SUPABASE_SERVICE_ROLE_KEY"
+      - name: Lint Schema (Local)
+        run: supabase db lint --db-url "$LOCAL_DB_URL"
+
+  push-migrations:
+    needs: upstream-validation
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload Migrations to Supabase (Staging)
+        uses: supabase/migrations-action@v1
+        with:
+          project-id: ${{ secrets.SUPABASE_PROJECT_ID }}
+          access-token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  deploy-staging:
+    needs: push-migrations
+    runs-on: ubuntu-latest
+    environment: staging
+
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Select Vercel Project (Staging)
         run: cp .vercel-staging/project.json .vercel/project.json
@@ -101,4 +123,10 @@ jobs:
         run: |
           npx vercel deploy \
             --yes \
-            --token $VERCEL_TOKEN 
+            --token $VERCEL_TOKEN
+
+      - name: Run E2E Tests Against Staging
+        run: npm run test:e2e
+
+      - name: Run RLS Tests Against Staging
+        run: npm run test:rls
