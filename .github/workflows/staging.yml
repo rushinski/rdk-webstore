@@ -34,7 +34,7 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       # Local simulated DB URL (not the cloud DB)
       LOCAL_SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
-      SUPABASE_DB_URL: "${{ secrets.SUPABASE_DB_URL }}"
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
@@ -104,7 +104,7 @@ jobs:
 
       - name: Push Migrations to Supabase (Staging)
         run: supabase db push --db-url "$SUPABASE_DB_URL"
-        
+
   deploy-staging:
     needs: push-migrations
     runs-on: ubuntu-latest
