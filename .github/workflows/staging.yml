@@ -122,12 +122,9 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm i -g vercel
-      
-      - name: CLI Login
-        run: vercel login --token $VERCEL_TOKEN
 
       - name: Link Vercel Project (Staging)
-        run: vercel link --yes --project rdk-staging
+        run: vercel link --yes --project rdk-staging --token $VERCEL_TOKEN
 
       - name: Deploy to Vercel (Staging)
         run: |
