@@ -120,16 +120,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Link Vercel Project (Staging)
-        run: |
-          npx vercel link --project rdk-staging --org realdealkickz --token $VERCEL_TOKEN --yes
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+      
+      - name: CLI Login
+        run: vercel login --token $VERCEL_TOKEN
 
+      - name: Link Vercel Project (Staging)
+        run: vercel link --yes --project rdk-staging
 
       - name: Deploy to Vercel (Staging)
         run: |
           npx vercel deploy \
             --yes \
-            --prod \
             --token $VERCEL_TOKEN
       
       - name: Smoke Test Staging
