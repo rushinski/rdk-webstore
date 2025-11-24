@@ -8,6 +8,7 @@ const schema = z.object({
 
   SUPABASE_SERVICE_ROLE_KEY: z.string(), // secert must be a string
   SUPABASE_DB_URL: z.string(),
+  SUPABASE_JWT_SECRET: z.string(),
 
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),

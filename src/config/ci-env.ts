@@ -10,6 +10,7 @@ const ciSchema = z.object({
 
   SUPABASE_SERVICE_ROLE_KEY: z.string(),
   SUPABASE_DB_URL: z.string().url(),
+  SUPABASE_JWT_SECRET: z.string(),
 
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),

@@ -25,15 +25,16 @@ jobs:
 
     env:
       # GitHub Repo Secerts
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }} 
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
       # GitHub Staging Environment Secerts
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-      
+
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      
+      SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
@@ -130,13 +131,13 @@ jobs:
         run: |
           npx vercel deploy \
             --yes \
+            --prod \
             --token $VERCEL_TOKEN
-      
+
       - name: Smoke Test Staging
         run: |
           curl -f "$STAGING_BASE_URL/api/healthz"
           curl -f "$STAGING_BASE_URL/api/readyz"
-
 
       - name: Run RLS Tests Against Staging
         run: npm run test:rls

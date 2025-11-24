@@ -1,37 +1,56 @@
-import Stripe from "stripe"; // Imports Stripes SDK call we will instantiate with our secert key to confirm Stripe is configured
-import { NextResponse } from "next/server"; // Next.js helper to build HTTP responses in App Router route handlers
-import { createClient } from "@supabase/supabase-js"; // Imports factory function for creating Supabase client
+import Stripe from "stripe";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { Redis } from "@upstash/redis";
 
-import { env } from "@/config/env"; // Imports our env validator
+import { env } from "@/config/env";
 
 export async function GET() {
-  // We have a try catch block so if we have any error we will log it safely
+  const start = Date.now();
+
   try {
-    // env validation
-    const stripeKey = env.STRIPE_SECRET_KEY;
-    const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceRole = env.SUPABASE_SERVICE_ROLE_KEY;
+    const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
-    // Stripe readiness check (client init only)
-    new Stripe(stripeKey);
+    const supabase = createClient(
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      env.SUPABASE_SERVICE_ROLE_KEY,
+    );
 
-    // Supabase basic readiness check. We base our url and service role so we can communicate with the DB
-    const supabase = createClient(supabaseUrl, supabaseServiceRole);
+    const redis = new Redis({
+      url: env.UPSTASH_REDIS_REST_URL,
+      token: env.UPSTASH_REDIS_REST_TOKEN,
+    });
 
-    // Simple DB query
-    const { error } = await supabase.from("products").select("id").limit(1);
+    const { error: dbError } = await supabase.from("products").select("id").limit(1);
 
-    if (error) {
+    if (dbError) {
       return NextResponse.json(
-        { ready: false, error: "Supabase query failed", details: error.message },
+        { ready: false, error: "Supabase query failed", details: dbError.message },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({ ready: true }, { status: 200 });
+    const pong = await redis.ping(); // If PONG is returned Redis is working 
+
+    if (pong !== "PONG") {
+      return NextResponse.json(
+        { ready: false, error: "Upstash returned invalid response" },
+        { status: 500 },
+      );
+    }
+
+    const latency = Date.now() - start;
+
+    if (latency > 500) {
+      return NextResponse.json(
+        { ready: true, message: "Upstash latency degraded", latency_ms: latency },
+        { status: 200 },
+      );
+    }
+
+    return NextResponse.json({ ready: true, latency_ms: latency }, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unexpected error";
-
     return NextResponse.json({ ready: false, error: message }, { status: 500 });
   }
 }
