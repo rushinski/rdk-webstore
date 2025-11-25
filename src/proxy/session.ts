@@ -1,4 +1,3 @@
-// src/proxy/session.ts
 import { jwtVerify } from "jose";
 import type { NextRequest } from "next/server";
 import { env } from "@/config/env";
@@ -29,33 +28,39 @@ export async function getSessionFromRequest(req: NextRequest, requestId?: string
   const accessToken = req.cookies.get("sb-access-token")?.value;
 
   if (!accessToken) {
-    log("warn", "session_missing_token", {
-      layer: "proxy",
-      event: "session_parse",
+    log({
+      level: "warn",
+      layer: "auth",
+      message: "session_missing_token",
+      requestId: requestId,
       route: req.nextUrl.pathname,
-      requestId,
+      event: "session_parse", 
     });
     return { user: null };
   }
 
   const payload = await verifyJwt(accessToken);
   if (!payload) {
-    log("warn", "session_invalid_jwt", {
-      layer: "proxy",
-      event: "session_parse",
+    log({
+      level: "warn",
+      layer: "auth",
+      message: "session_invalid_jwt",
+      requestId: requestId,
       route: req.nextUrl.pathname,
-      requestId,
+      event: "session_parse", 
     });
     return { user: null };
   }
 
   const userId = payload.sub ?? payload.user_id;
   if (!userId) {
-    log("warn", "session_missing_user_id", {
-      layer: "proxy",
-      event: "session_parse",
+    log({
+      level: "warn",
+      layer: "auth",
+      message: "session_missing_user_id",
+      requestId: requestId,
       route: req.nextUrl.pathname,
-      requestId,
+      event: "session_parse", 
     });
     return { user: null };
   }

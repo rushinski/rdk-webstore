@@ -1,50 +1,44 @@
-// src/proxy/canonicalize.ts
+// NextRequest Object exposes a mutable URL object with cookies, IP, and headers
+// NextResponse lets you rewrite requests, redirect requests, and add headers
 import { NextResponse, type NextRequest } from "next/server";
+import { log } from "@/lib/log"; // Import log function incase we need to log anything
 
-/**
- * Canonicalize the URL path:
- *  - removes extra slashes
- *  - removes trailing slash (except "/")
- *  - forces lowercase
- *  - resolves "../" segments
- */
 export function canonicalizePath(request: NextRequest, requestId: string) {
-  const url = request.nextUrl;
-  let originalPath = url.pathname;
+  const url = request.nextUrl; // Full URL object representing the request
+  // URL pathname users try to visit - e.g. /api/audit . We only want the pathname so we dont try and change the origins format
+  let originalPath = url.pathname; 
+  const initial = originalPath; // We save the raw path to compare if it changed later on
 
-  const initial = originalPath;
+  // Regex : /\/+$/ <- means 1 or more slashes at the end. Remove trailing slashes - e.g. /products/ -> /products
+  // Regex : /\/{2,}/g <- 2 or more slashes = replace with 1 slash. Collapse mutlti slashes - e.g. /products//nike -> /products/nike
+  originalPath = originalPath.replace(/\/+$/, "").replace(/\/{2,}/g, "/"); // apply changes to the path
 
-  // 1. Normalize double slashes
-  originalPath = originalPath.replace(/\/+$/, "").replace(/\/{2,}/g, "/");
-
-  // 2. Remove trailing slash
-  if (originalPath !== "/" && originalPath.endsWith("/")) {
-    originalPath = originalPath.slice(0, -1);
-  }
-
-  // 3. Lowercase
+  // Sets everything to lowercase. This means our intended URL format must always be lowercase
   originalPath = originalPath.toLowerCase();
 
-  // 4. Resolve "../" segments
+  // Creates the full URL and resolves URL paths - e.g. admin/../audit -> /audit - meaning a 404 will be thrown
   const normalizedUrl = new URL(originalPath, url.origin);
 
-  console.log("canonicalize", {
-    layer: "proxy",
-    requestId,
-    initial,
-    normalized: normalizedUrl.pathname,
-    event: "canonicalize",
-  });
-
-  // Path changed → redirect
+  // Checks if the URL path actually changed or not during this process
   if (normalizedUrl.pathname !== initial) {
-    const redirectUrl = new URL(url.toString());
-    redirectUrl.pathname = normalizedUrl.pathname;
+    // Logs normalization
+    log({
+      level: "info",
+      layer: "proxy",
+      message: "canonicalize_redirect",
+      requestId: requestId,
+      route: originalPath,
+      status: 308, // Permanent Redirect 
+      normalized: normalizedUrl.pathname,
+      event: "path_normalization",
+    });
 
+    const redirectUrl = new URL(url.toString()); // Creating a modifiable clone of the full orginal URL
+    redirectUrl.pathname = normalizedUrl.pathname; // Overwriting the pathname to our canonicalized pathname
+
+    // NextResponse.redirect creates a brand new response object. Sets Location header as our correct URL as a string (expected)
     const res = NextResponse.redirect(redirectUrl.toString(), 308);
-    res.headers.set("x-request-id", requestId);
     return res;
   }
-
-  return null;
+  return null; 
 }

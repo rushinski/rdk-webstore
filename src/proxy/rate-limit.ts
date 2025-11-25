@@ -1,4 +1,3 @@
-// src/proxy/rate-limit.ts
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { NextResponse, type NextRequest } from "next/server";
@@ -16,7 +15,7 @@ const limiter = new Ratelimit({
   limiter: Ratelimit.slidingWindow(30, "1 m"),
 });
 
-// Robust IP extraction for Vercel → Proxy → Browser
+// Robust IP extraction for Vercel -> Proxy -> Browser
 function getClientIp(req: NextRequest) {
   return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -25,24 +24,23 @@ function getClientIp(req: NextRequest) {
   );
 }
 
-
 export async function applyRateLimit(request: NextRequest, requestId: string) {
   const ip = getClientIp(request);
   const { pathname } = request.nextUrl;
-
-  const { success, reset, remaining, limit } = await limiter.limit(ip);
+  const { success } = await limiter.limit(ip);
 
   if (!success) {
     // Log the hit
-    log("warn", "rate_limit_block", {
+    log({
+      level: "warn",
       layer: "proxy",
-      requestId,
-      ip,
+      message: "rate_limit_block",
+      requestId: requestId,
       route: pathname,
-      limit: `${limit}/min`,
-      remaining,
-      reset,
-      event: "rate_limit_exceeded",
+      status: 429, // Rate limit exceeded
+      event: "rate_limit_exceeded", 
+      origin: origin,
+      ip: ip,
     });
 
     // Return 429 response
@@ -53,10 +51,7 @@ export async function applyRateLimit(request: NextRequest, requestId: string) {
       },
       { status: 429 }
     );
-
-    res.headers.set("x-request-id", requestId);
     return res;
   }
-
   return null;
 }
