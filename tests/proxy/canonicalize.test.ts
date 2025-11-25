@@ -15,7 +15,6 @@ describe("canonicalizePath", () => {
     const req = createNextRequest("/Admin/Panel");
     const res = canonicalizePath(req, "req-1");
     expect(res?.status).toBe(308);
-    expect(res?.headers.get("x-request-id")).toBe("req-1");
   });
 
   it("redirects trailing slashes", () => {

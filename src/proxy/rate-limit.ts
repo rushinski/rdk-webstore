@@ -39,7 +39,6 @@ export async function applyRateLimit(request: NextRequest, requestId: string) {
       route: pathname,
       status: 429, // Rate limit exceeded
       event: "rate_limit_exceeded", 
-      origin: origin,
       ip: ip,
     });
 

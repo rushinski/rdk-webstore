@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test("blocks empty user-agent", async ({ request }) => {
-  const res = await request.get("/login", {
+  const res = await request.get("/api", {
     headers: { "User-Agent": "" }
   });
 
@@ -9,7 +9,7 @@ test("blocks empty user-agent", async ({ request }) => {
 });
 
 test("blocks curl user-agent", async ({ request }) => {
-  const res = await request.get("/login", {
+  const res = await request.get("/api", {
     headers: { "User-Agent": "curl/8.0" }
   });
 
@@ -17,7 +17,7 @@ test("blocks curl user-agent", async ({ request }) => {
 });
 
 test("allows Googlebot", async ({ request }) => {
-  const res = await request.get("/login", {
+  const res = await request.get("/api", {
     headers: { "User-Agent": "Googlebot" }
   });
 
