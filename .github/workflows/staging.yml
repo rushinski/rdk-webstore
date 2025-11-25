@@ -85,7 +85,7 @@ jobs:
         run: npm run typecheck
 
       - name: Unit Tests
-        run: npm test -- --ci
+        run: npm test:jest -- --ci
 
       - name: Build
         run: npm run build
