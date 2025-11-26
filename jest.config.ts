@@ -11,7 +11,7 @@ const config: Config = {
     "^@/lib/(.*)$": "<rootDir>/src/lib/$1",
     "^@/proxy/(.*)$": "<rootDir>/src/proxy/$1",
     "^@/(.*)$": "<rootDir>/src/$1",
-  }
+  },
 };
 
 export default config;

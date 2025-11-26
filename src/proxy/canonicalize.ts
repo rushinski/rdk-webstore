@@ -1,12 +1,13 @@
 // NextRequest Object exposes a mutable URL object with cookies, IP, and headers
 // NextResponse lets you rewrite requests, redirect requests, and add headers
 import { NextResponse, type NextRequest } from "next/server";
+
 import { log } from "@/lib/log"; // Import log function incase we need to log anything
 
 export function canonicalizePath(request: NextRequest, requestId: string) {
   const url = request.nextUrl; // Full URL object representing the request
   // URL pathname users try to visit - e.g. /api/audit . We only want the pathname so we dont try and change the origins format
-  let originalPath = url.pathname; 
+  let originalPath = url.pathname;
   const initial = originalPath; // We save the raw path to compare if it changed later on
 
   // Regex : /\/+$/ <- means 1 or more slashes at the end. Remove trailing slashes - e.g. /products/ -> /products
@@ -28,7 +29,7 @@ export function canonicalizePath(request: NextRequest, requestId: string) {
       message: "canonicalize_redirect",
       requestId: requestId,
       route: originalPath,
-      status: 308, // Permanent Redirect 
+      status: 308, // Permanent Redirect
       normalized: normalizedUrl.pathname,
       event: "path_normalization",
     });
@@ -40,5 +41,5 @@ export function canonicalizePath(request: NextRequest, requestId: string) {
     const res = NextResponse.redirect(redirectUrl.toString(), 308);
     return res;
   }
-  return null; 
+  return null;
 }

@@ -5,7 +5,7 @@ const mockLimiterInstance = {
     remaining: 10,
     reset: 123,
     limit: 30,
-  })
+  }),
 };
 
 // Mock class Ratelimit
@@ -27,5 +27,5 @@ class Redis {
 module.exports = {
   Ratelimit,
   Redis,
-  mockLimiterInstance
+  mockLimiterInstance,
 };

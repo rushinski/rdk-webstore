@@ -1,8 +1,10 @@
 // src/lib/supabase.ts
 
 import { createClient } from "@supabase/supabase-js";
-import { logError } from "./log";
+
 import { env } from "@/config/env";
+
+import { logError } from "./log";
 
 /**
  * This creates a Supabase client that respects RLS and user access tokens.
@@ -20,14 +22,16 @@ export function createRlsClient(accessToken?: string, requestId?: string) {
             ...(requestId ? { "x-request-id": requestId } : {}),
           },
         },
-      }
+      },
     );
 
     return client;
   } catch (err) {
     logError(err, {
+      layer: "infra",
+      message: "Failed to initialize RLS Supabase client",
+      requestId,
       event: "supabase_rls_init_failed",
-      requestId
     });
     throw err;
   }
@@ -43,22 +47,24 @@ export function createRlsClient(accessToken?: string, requestId?: string) {
 export function createAdminClient(requestId?: string) {
   try {
     const client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!, // server only
+      env.SUPABASE_DB_URL!,
+      env.SUPABASE_SERVICE_ROLE_KEY!, // server only
       {
         global: {
           headers: {
-            ...(requestId ? { "x-request-id": requestId } : {})
+            ...(requestId ? { "x-request-id": requestId } : {}),
           },
         },
-      }
+      },
     );
 
     return client;
   } catch (err) {
     logError(err, {
+      layer: "infra",
+      message: "Failed to initialize admin Supabase client",
+      requestId,
       event: "supabase_admin_init_failed",
-      requestId
     });
     throw err;
   }

@@ -1,20 +1,20 @@
-export type LogLevel = 
-  | "info"          // Normal system operations
-  | "warn"          // Suspicious, abnormal, or security-relevant behavior
-  | "error";        // Failures that break correctness or availability
+export type LogLevel =
+  | "info" // Normal system operations
+  | "warn" // Suspicious, abnormal, or security-relevant behavior
+  | "error"; // Failures that break correctness or availability
 
 export type LogLayer =
-  | "proxy"         // Canonicalize, bot, csrf, rate-limit, admin guard
-  | "auth"          // Sessions, login, 2FA, Supabase auth
-  | "api"           // Next.js route handlers (controllers)
-  | "service"       // Domain logic (OrderService, ProductService)
-  | "repository"    // DB queries + RLS checks
-  | "job"           // Async work, Stripe webhooks, cache invalidation
-  | "stripe"        // Payments, webhook validation, checkout flow
-  | "cache"         // ISR, revalidateTag, stale cache behavior
-  | "infra"         // Migrations, env validation, CI/CD, config issues
+  | "proxy" // Canonicalize, bot, csrf, rate-limit, admin guard
+  | "auth" // Sessions, login, 2FA, Supabase auth
+  | "api" // Next.js route handlers (controllers)
+  | "service" // Domain logic (OrderService, ProductService)
+  | "repository" // DB queries + RLS checks
+  | "job" // Async work, Stripe webhooks, cache invalidation
+  | "stripe" // Payments, webhook validation, checkout flow
+  | "cache" // ISR, revalidateTag, stale cache behavior
+  | "infra" // Migrations, env validation, CI/CD, config issues
   | "observability" // Sentry/PostHog events & ingestion
-  | "frontend";     // Client-side logs (hydration, UI errors)
+  | "frontend"; // Client-side logs (hydration, UI errors)
 
 export interface LogEntry {
   level: LogLevel;

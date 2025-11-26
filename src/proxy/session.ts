@@ -1,5 +1,6 @@
 import { jwtVerify } from "jose";
 import type { NextRequest } from "next/server";
+
 import { env } from "@/config/env";
 import { log } from "@/lib/log";
 
@@ -24,7 +25,10 @@ async function verifyJwt(token: string): Promise<any | null> {
   }
 }
 
-export async function getSessionFromRequest(req: NextRequest, requestId?: string): Promise<Session> {
+export async function getSessionFromRequest(
+  req: NextRequest,
+  requestId?: string,
+): Promise<Session> {
   const accessToken = req.cookies.get("sb-access-token")?.value;
 
   if (!accessToken) {
@@ -34,7 +38,7 @@ export async function getSessionFromRequest(req: NextRequest, requestId?: string
       message: "session_missing_token",
       requestId: requestId,
       route: req.nextUrl.pathname,
-      event: "session_parse", 
+      event: "session_parse",
     });
     return { user: null };
   }
@@ -47,7 +51,7 @@ export async function getSessionFromRequest(req: NextRequest, requestId?: string
       message: "session_invalid_jwt",
       requestId: requestId,
       route: req.nextUrl.pathname,
-      event: "session_parse", 
+      event: "session_parse",
     });
     return { user: null };
   }
@@ -60,7 +64,7 @@ export async function getSessionFromRequest(req: NextRequest, requestId?: string
       message: "session_missing_user_id",
       requestId: requestId,
       route: req.nextUrl.pathname,
-      event: "session_parse", 
+      event: "session_parse",
     });
     return { user: null };
   }
@@ -68,17 +72,12 @@ export async function getSessionFromRequest(req: NextRequest, requestId?: string
   const role =
     typeof payload.role === "string"
       ? payload.role
-      : payload.user_metadata?.role ?? "customer";
+      : (payload.user_metadata?.role ?? "customer");
 
   const email =
-    typeof payload.email === "string"
-      ? payload.email
-      : payload.user_metadata?.email;
+    typeof payload.email === "string" ? payload.email : payload.user_metadata?.email;
 
-  const twofa =
-    payload.user_metadata?.twofa_enabled ??
-    payload.twofa_enabled ??
-    false;
+  const twofa = payload.user_metadata?.twofa_enabled ?? payload.twofa_enabled ?? false;
 
   return {
     user: {

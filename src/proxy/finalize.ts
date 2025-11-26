@@ -1,5 +1,6 @@
+import type { NextResponse } from "next/server";
+
 import { applySecurityHeaders } from "@/proxy/security-headers";
-import { NextResponse } from "next/server";
 
 // We use this helper function in order to ensure the URL holds the same headers for all proxy processes
 export function finalizeProxyResponse(res: NextResponse, requestId: string) {

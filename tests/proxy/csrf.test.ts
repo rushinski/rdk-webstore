@@ -8,6 +8,7 @@ global.crypto = {
 } as any;
 
 import { checkCsrf } from "@/proxy/csrf";
+
 import { createNextRequest } from "../mock/mockNext";
 
 describe("csrf", () => {

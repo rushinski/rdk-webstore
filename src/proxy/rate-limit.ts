@@ -1,6 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { NextResponse, type NextRequest } from "next/server";
+
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -38,7 +39,7 @@ export async function applyRateLimit(request: NextRequest, requestId: string) {
       requestId: requestId,
       route: pathname,
       status: 429, // Rate limit exceeded
-      event: "rate_limit_exceeded", 
+      event: "rate_limit_exceeded",
       ip: ip,
     });
 
@@ -48,7 +49,7 @@ export async function applyRateLimit(request: NextRequest, requestId: string) {
         error: "Rate limit exceeded",
         requestId,
       },
-      { status: 429 }
+      { status: 429 },
     );
     return res;
   }

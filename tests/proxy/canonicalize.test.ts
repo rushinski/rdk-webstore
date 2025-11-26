@@ -8,6 +8,7 @@ global.crypto = {
 } as any;
 
 import { canonicalizePath } from "@/proxy/canonicalize";
+
 import { createNextRequest } from "../mock/mockNext";
 
 describe("canonicalizePath", () => {

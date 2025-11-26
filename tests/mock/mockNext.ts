@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
 import { URL } from "url";
+
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export function createNextRequest(path: string, options: any = {}) {
   const url = new URL(`https://example.com${path}`);

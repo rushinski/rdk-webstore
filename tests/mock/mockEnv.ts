@@ -11,5 +11,5 @@ module.exports = {
     UPSTASH_REDIS_REST_TOKEN: "test",
     SENTRY_DSN: "dsn",
     POSTHOG_API_KEY: "ph",
-  }
+  },
 };

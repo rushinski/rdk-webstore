@@ -8,6 +8,7 @@ global.crypto = {
 } as any;
 
 import { checkBot } from "@/proxy/bot";
+
 import { createNextRequest } from "../mock/mockNext";
 
 describe("bot check", () => {

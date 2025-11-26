@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionFromRequest } from "./session";
+
 import { log } from "@/lib/log";
+
+import { getSessionFromRequest } from "./session";
 
 export async function protectAdminRoute(req: NextRequest, requestId: string) {
   const { pathname } = req.nextUrl;
@@ -17,13 +19,13 @@ export async function protectAdminRoute(req: NextRequest, requestId: string) {
       requestId: requestId,
       route: pathname,
       status: 401, // Unauthorized
-      event: "admin_guard", 
+      event: "admin_guard",
     });
 
     if (pathname.startsWith("/api")) {
       const res = NextResponse.json(
         { error: "Unauthorized", requestId },
-        { status: 401 }
+        { status: 401 },
       );
       return res;
     }
@@ -42,16 +44,13 @@ export async function protectAdminRoute(req: NextRequest, requestId: string) {
       requestId: requestId,
       route: pathname,
       status: 403, // Forbidden
-      event: "admin_guard", 
+      event: "admin_guard",
       userId: user.id,
       role: user.role,
     });
-    
+
     if (pathname.startsWith("/api")) {
-      const res = NextResponse.json(
-        { error: "Forbidden", requestId },
-        { status: 403 }
-      );
+      const res = NextResponse.json({ error: "Forbidden", requestId }, { status: 403 });
       return res;
     }
 

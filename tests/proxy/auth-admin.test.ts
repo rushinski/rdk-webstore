@@ -10,29 +10,29 @@ global.crypto = {
   randomUUID: () => "test-uuid",
 } as any;
 
-import { protectAdminRoute } from "@/proxy/auth";
-import { getSessionFromRequest } from "../mock/mockSession";
-import { createNextRequest } from "../mock/mockNext";
 import { NextResponse } from "next/server";
 
+import { protectAdminRoute } from "@/proxy/auth";
+
+import { getSessionFromRequest } from "../mock/mockSession";
+import { createNextRequest } from "../mock/mockNext";
+
 // --- FIX: Mock redirect() so relative URLs work in Jest ---
-jest
-  .spyOn(NextResponse, "redirect")
-  .mockImplementation(((url: string | URL) => {
-    return {
-      status: 302,
-      headers: new Map(),
-      redirected: true,
-      url
-    } as any;
-  }) as any);
+jest.spyOn(NextResponse, "redirect").mockImplementation(((url: string | URL) => {
+  return {
+    status: 302,
+    headers: new Map(),
+    redirected: true,
+    url,
+  } as any;
+}) as any);
 
 describe("admin guard", () => {
   it("redirects when no session", async () => {
     getSessionFromRequest.mockResolvedValue({ user: null });
 
     const req = createNextRequest("/admin", {
-      headers: { host: "localhost" }
+      headers: { host: "localhost" },
     });
 
     const res = await protectAdminRoute(req, "req-1");
@@ -45,7 +45,7 @@ describe("admin guard", () => {
     });
 
     const req = createNextRequest("/admin", {
-      headers: { host: "localhost" }
+      headers: { host: "localhost" },
     });
 
     const res = await protectAdminRoute(req, "req-2");
@@ -58,7 +58,7 @@ describe("admin guard", () => {
     });
 
     const req = createNextRequest("/admin", {
-      headers: { host: "localhost" }
+      headers: { host: "localhost" },
     });
 
     const res = await protectAdminRoute(req, "req-3");

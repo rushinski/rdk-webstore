@@ -7,8 +7,9 @@ global.crypto = {
   randomUUID: () => "test-uuid",
 } as any;
 
-import { applySecurityHeaders } from "@/proxy/security-headers";
 import { NextResponse } from "next/server";
+
+import { applySecurityHeaders } from "@/proxy/security-headers";
 
 describe("security headers", () => {
   it("applies core headers", () => {

@@ -30,7 +30,7 @@ export async function GET() {
       );
     }
 
-    const pong = await redis.ping(); // If PONG is returned Redis is working 
+    const pong = await redis.ping(); // If PONG is returned Redis is working
 
     if (pong !== "PONG") {
       return NextResponse.json(

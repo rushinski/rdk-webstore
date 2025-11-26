@@ -6,10 +6,7 @@ export function applySecurityHeaders(response: NextResponse) {
   response.headers.set("X-Content-Type-Options", "nosniff"); // Prevents MIME-type spoofing = protects script/style execution
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin"); // Sends only the origin on external navs = protects URL leakage
   // Explicitly disables browser features you're not using
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=()"
-  );
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   // Controls where scripts, styles, images, frames, and network requests may come from
   response.headers.set(
@@ -17,20 +14,20 @@ export function applySecurityHeaders(response: NextResponse) {
     [
       "default-src 'self'", // Ressources can only come from my domain
       "img-src 'self' https: data:", // Images can only come from my down, any https url, or URIs
-      "script-src 'self'",  // Scripts can only be ran from my own domain
+      "script-src 'self'", // Scripts can only be ran from my own domain
       "style-src 'self' 'unsafe-inline'", // Styles may only come from my domain
       "object-src 'none'", // Prevents embedding
       "base-uri 'self'", // <base> HTML tag must come from my own origin
       "connect-src 'self' https:", // Blocks insecure HTTP connections
       "frame-ancestors 'none'", // Prevents embedding inside <iframe> on site. Redundant but safe
-    ].join("; ")
+    ].join("; "),
   );
 
   // HSTS - production only
   if (process.env.NODE_ENV === "production") {
     response.headers.set(
       "Strict-Transport-Security",
-      "max-age=63072000; includeSubDomains; preload"
+      "max-age=63072000; includeSubDomains; preload",
     );
   }
 

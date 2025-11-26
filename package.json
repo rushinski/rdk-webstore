@@ -13,7 +13,8 @@
     "format": "prettier --write .",
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "gen:types": "npx supabase gen types typescript --project-id yuqtcuzatxfhqamhyohb --schema public > src/types/database.types.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.81.1",
