@@ -1,35 +1,66 @@
+// src/proxy/security-headers.ts
 import type { NextResponse } from "next/server";
 
 export function applySecurityHeaders(response: NextResponse) {
-  // Core security headers
-  response.headers.set("X-Frame-Options", "DENY"); // Prevents site from being placed inside a <iframe> = mitigates clickjacking
-  response.headers.set("X-Content-Type-Options", "nosniff"); // Prevents MIME-type spoofing = protects script/style execution
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin"); // Sends only the origin on external navs = protects URL leakage
-  // Explicitly disables browser features you're not using
+  const isDev = process.env.NODE_ENV !== "production";
+
+  //
+  // Shared headers (dev + prod)
+  //
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
-  // Controls where scripts, styles, images, frames, and network requests may come from
+  //
+  // Development CSP (relaxed for local testing)
+  //
+  if (isDev) {
+    response.headers.set(
+      "Content-Security-Policy",
+      [
+        "default-src 'self'",
+        "img-src 'self' data: https:",
+        "style-src 'self' 'unsafe-inline'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js dev mode
+        [
+          "connect-src",
+          "'self'",
+          "ws://localhost:*",
+          "http://localhost:*",
+          "http://127.0.0.1:*",        // <-- Added for local Supabase CLI
+          "https:"
+        ].join(" "),
+        "object-src 'none'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+      ].join("; ")
+    );
+
+    return response;
+  }
+
+  //
+  // Production CSP (strict — do not relax)
+  //
   response.headers.set(
     "Content-Security-Policy",
     [
-      "default-src 'self'", // Ressources can only come from my domain
-      "img-src 'self' https: data:", // Images can only come from my down, any https url, or URIs
-      "script-src 'self'", // Scripts can only be ran from my own domain
-      "style-src 'self' 'unsafe-inline'", // Styles may only come from my domain
-      "object-src 'none'", // Prevents embedding
-      "base-uri 'self'", // <base> HTML tag must come from my own origin
-      "connect-src 'self' https:", // Blocks insecure HTTP connections
-      "frame-ancestors 'none'", // Prevents embedding inside <iframe> on site. Redundant but safe
-    ].join("; "),
+      "default-src 'self'",
+      "img-src 'self' https: data:",
+      "script-src 'self'",
+      "style-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "connect-src 'self' https:",
+      "frame-ancestors 'none'",
+    ].join("; ")
   );
 
-  // HSTS - production only
-  if (process.env.NODE_ENV === "production") {
-    response.headers.set(
-      "Strict-Transport-Security",
-      "max-age=63072000; includeSubDomains; preload",
-    );
-  }
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload"
+  );
 
   return response;
 }

@@ -1,3 +1,4 @@
+// src/proxy/canonicalize.ts
 // NextRequest Object exposes a mutable URL object with cookies, IP, and headers
 // NextResponse lets you rewrite requests, redirect requests, and add headers
 import { NextResponse, type NextRequest } from "next/server";

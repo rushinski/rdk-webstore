@@ -1,3 +1,4 @@
+// src/proxy/finalize.ts
 import type { NextResponse } from "next/server";
 
 import { applySecurityHeaders } from "@/proxy/security-headers";

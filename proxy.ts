@@ -1,17 +1,20 @@
-import { NextResponse, type NextRequest } from "next/server";
-
+// proxy.ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { applyRateLimit } from "@/proxy/rate-limit";
 import { protectAdminRoute } from "@/proxy/auth";
-import { createRequestId } from "@/proxy/request-id";
 import { checkCsrf } from "@/proxy/csrf";
 import { checkBot } from "@/proxy/bot";
 import { canonicalizePath } from "@/proxy/canonicalize";
 import { finalizeProxyResponse } from "@/proxy/finalize";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+const { crypto } = globalThis;
 
 // Proxy will only return a url if we are redirecting, otherwise we attach headers to the response and decide if the request is allowed
 export async function proxy(request: NextRequest) {
-  // Calls the function from request-ids to generate a id and store it to use across all proxy process
-  const requestId = createRequestId();
+  // Generates a ID to recgonize requests across layers within logs 
+  const requestId = `$req-${crypto.randomUUID()}`;
 
   // Stores what canonicalizePath will return. Either null or a object (NextResponse)
   const canon = canonicalizePath(request, requestId);
@@ -24,7 +27,7 @@ export async function proxy(request: NextRequest) {
   // nextUrl is a Next.js-generated URL object built from the incoming HTTP request
   const { pathname } = request.nextUrl; // Gets the pathname. Raw = request.nextUrl.pathname
 
-  // Create base response & apply security + request-id
+   // Create base response & apply security + request-id
   let response = NextResponse.next();
   response = finalizeProxyResponse(response, requestId);
 
@@ -64,16 +67,17 @@ export async function proxy(request: NextRequest) {
 
   // Admin guard
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
-    const adminGuardResult = await protectAdminRoute(request, requestId); // auth.ts
-    if (adminGuardResult) {
-      return finalizeProxyResponse(adminGuardResult, requestId);
-    }
+    const supabase = await createSupabaseServerClient();
+    const adminRes = await protectAdminRoute(request, requestId, supabase);
+    if (adminRes) return finalizeProxyResponse(adminRes, requestId);
   }
 
   return response;
 }
 
 // This is what our proxy ignores
-export const config = {
-  matcher: ["/((?!_next|static|favicon.ico|robots.txt|sitemap.xml).*)"],
+export const config = { 
+  matcher: [
+    "/((?!_next|static|favicon.ico|robots.txt|sitemap.xml).*)"
+  ],
 };

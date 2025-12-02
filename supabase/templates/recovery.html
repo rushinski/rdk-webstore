@@ -1,0 +1,11 @@
+<h2>Reset password</h2>
+
+<p>Follow this link to reset the password for your user:</p>
+
+<p>
+  <a 
+    href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/password/update"
+  >
+    Reset password
+  </a>
+</p>

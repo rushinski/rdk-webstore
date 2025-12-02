@@ -1,3 +1,4 @@
+// src/proxy/bot.ts
 import { NextResponse, type NextRequest } from "next/server";
 
 import { log } from "@/lib/log";
