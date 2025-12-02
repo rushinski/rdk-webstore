@@ -21,17 +21,13 @@ export class ProfileRepository {
     return data;
   }
 
-  async ensureProfile(userId: string, defaults?: Partial<Profile>) {
+  async ensureProfile(userId: string, email: string) {
+    const existing = await this.getByUserId(userId);
+    if (existing) return;
+
     const { error } = await this.supabase
       .from("profiles")
-      .upsert(
-        {
-          id: userId,
-          role: defaults?.role ?? "customer",
-          twofa_enabled: defaults?.twofa_enabled ?? false,
-        },
-        { onConflict: "id" }
-      );
+      .insert({ id: userId, email });
 
     if (error) throw error;
   }
@@ -49,6 +45,15 @@ export class ProfileRepository {
     const { error } = await this.supabase
       .from("profiles")
       .update({ twofa_enabled: true })
+      .eq("id", userId);
+
+    if (error) throw error;
+  }
+
+  async setRole(userId: string, role: ProfileRole) {
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ role })
       .eq("id", userId);
 
     if (error) throw error;

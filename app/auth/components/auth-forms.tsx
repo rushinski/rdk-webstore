@@ -129,7 +129,7 @@ export function UpdatePasswordForm() {
     });
 
     const json = await res.json();
-    setStatus(json.ok ? "Password updated. You can now log in." : json.error ?? "Update failed");
+    setStatus(json.ok ? "Password updated. You are now logged in." : json.error ?? "Update failed");
   }
 
   return (

@@ -29,7 +29,7 @@ export class AuthService {
 
     const repo = new ProfileRepository(supabase);
 
-    await repo.ensureProfile(data.user.id, { role: "customer" });
+    await repo.ensureProfile(data.user.id, email);
 
     const profile = await repo.getByUserId(data.user.id);
 
