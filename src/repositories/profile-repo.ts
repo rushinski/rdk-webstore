@@ -32,24 +32,6 @@ export class ProfileRepository {
     if (error) throw error;
   }
 
-  async setTwoFASecret(userId: string, secret: string) {
-    const { error } = await this.supabase
-      .from("profiles")
-      .update({ totp_secret: secret })
-      .eq("id", userId);
-
-    if (error) throw error;
-  }
-
-  async markTwoFAEnabled(userId: string) {
-    const { error } = await this.supabase
-      .from("profiles")
-      .update({ twofa_enabled: true })
-      .eq("id", userId);
-
-    if (error) throw error;
-  }
-
   async setRole(userId: string, role: ProfileRole) {
     const { error } = await this.supabase
       .from("profiles")

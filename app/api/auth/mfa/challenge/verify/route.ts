@@ -1,10 +1,13 @@
+// app/api/auth/mfa/challenge/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { TwoFAService } from "@/services/twofa-service";
 import { ProfileRepository } from "@/repositories/profile-repo";
 
-export async function POST(_req: NextRequest) {
-  const supabase = await createSupabaseServerClient(); // FIX
+export async function POST(req: NextRequest) {
+  const { factorId, challengeId, code } = await req.json();
+
+  const supabase = await createSupabaseServerClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -14,12 +17,17 @@ export async function POST(_req: NextRequest) {
   const repo = new ProfileRepository(supabase);
   const profile = await repo.getByUserId(user.id);
 
-  if (!profile || profile.role !== "admin") {
+  if (!profile || profile.role !== "admin")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
-  const { secret } = await TwoFAService.ensureAdminHasSecret(user.id);
+  const { error: verifyError } = await supabase.auth.mfa.verify({
+    factorId,
+    challengeId,
+    code,
+  });
 
-  return NextResponse.json({ secret });
+  if (verifyError)
+    return NextResponse.json({ error: verifyError.message }, { status: 400 });
+
+  return NextResponse.json({ ok: true });
 }
-

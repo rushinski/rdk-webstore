@@ -11,92 +11,76 @@ export async function protectAdminRoute(
 ) {
   const { pathname } = req.nextUrl;
 
-  // Get Authenticated User (SSR-safe)
+  // 1. Auth session
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    log({
-      level: "warn",
-      layer: "auth",
-      message: "admin_access_denied_no_session",
-      requestId,
-      route: pathname,
-      status: 401,
-      event: "admin_guard",
-    });
-
-    if (pathname.startsWith("/api"))
+    // identical as before...
+    if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin"))
       return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
 
     return NextResponse.redirect(new URL("/auth/login", req.url));
   }
 
-  // Authoritative DB-backed Profile Lookup
+  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+
+  // 2. DB profile lookup
   const repo = new ProfileRepository(supabase);
   const profile = await repo.getByUserId(user.id);
 
   if (!profile) {
-    log({
-      level: "error",
-      layer: "auth",
-      message: "admin_profile_missing",
-      userId: user.id,
-      requestId,
-      route: pathname,
-      status: 403,
-      event: "admin_guard",
-    });
-
-    if (pathname.startsWith("/api"))
+    if (isAdminRoute)
       return NextResponse.json({ error: "Profile missing", requestId }, { status: 403 });
 
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  const { role, twofa_enabled } = profile;
-
-  // Role Enforcement
-  if (role !== "admin") {
-    log({
-      level: "warn",
-      layer: "auth",
-      message: "admin_access_denied_wrong_role",
-      userId: user.id,
-      role,
-      requestId,
-      route: pathname,
-      status: 403,
-      event: "admin_guard",
-    });
-
-    if (pathname.startsWith("/api/admin"))
+  // 3. Admin role check
+  if (profile.role !== "admin") {
+    if (isAdminRoute)
       return NextResponse.json({ error: "Forbidden", requestId }, { status: 403 });
 
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Mandatory 2FA Enforcement for Admins
-  if (!twofa_enabled) {
+  // 4. MFA enforcement via Supabase AAL
+  const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+  if (aalError) {
     log({
-      level: "warn",
+      level: "error",
       layer: "auth",
-      message: "admin_2fa_not_enabled",
+      message: "aal_lookup_error",
       userId: user.id,
-      role,
       requestId,
       route: pathname,
-      status: 403,
-      event: "admin_guard",
+      status: 500,
     });
 
-    if (pathname.startsWith("/api/admin"))
-      return NextResponse.json({ error: "2FA required", requestId }, { status: 403 });
+    if (isAdminRoute)
+      return NextResponse.json({ error: "MFA state error", requestId }, { status: 500 });
 
-    return NextResponse.redirect(new URL("/auth/setup-2fa", req.url));
+    return NextResponse.redirect(new URL("/auth/login", req.url));
   }
 
-  // Success: Admin Authenticated & Verified
-  return null; // allow
+  const current = aalData.currentLevel;   // "aal1" or "aal2"
+  const next = aalData.nextLevel;         // required level based on enrolled factors
+
+  const mfaRequired = next === "aal2";
+  const mfaNotCompleted = current !== "aal2";
+
+  // If MFA required but user is not yet verified → redirect to challenge page
+  if (mfaRequired && mfaNotCompleted) {
+    // API protection
+    if (isAdminRoute) {
+      return NextResponse.json({ error: "MFA required", requestId }, { status: 403 });
+    }
+
+    return NextResponse.redirect(new URL("/auth/mfa/challenge", req.url));
+  }
+
+  // All good
+  return null;
 }
