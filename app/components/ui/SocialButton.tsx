@@ -1,0 +1,102 @@
+// app/components/ui/SocialButton.tsx
+"use client";
+
+import type { ButtonHTMLAttributes } from "react";
+
+type Provider = "google" | "facebook" | "apple";
+
+interface SocialButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  provider: Provider;
+  label: string;
+}
+
+function GoogleIcon() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M21.6 12.2273C21.6 11.5182 21.5364 10.8364 21.4182 10.1818H12V14.05H17.3818C17.15 15.3 16.4545 16.3455 15.4091 17.0455V19.5546H18.6C20.4727 17.8364 21.6 15.2727 21.6 12.2273Z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 21.9999C14.7 21.9999 16.9636 21.1045 18.6 19.5545L15.4091 17.0454C14.5091 17.6454 13.3545 18.0045 12 18.0045C9.39095 18.0045 7.19095 16.2727 6.4045 13.9H3.1095V16.4909C4.73677 19.759 8.09095 21.9999 12 21.9999Z"
+        fill="#34A853"
+      />
+      <path
+        d="M6.40455 13.9C6.19546 13.3 6.08182 12.6545 6.08182 11.9999C6.08182 11.3454 6.19546 10.6999 6.40455 10.0999V7.50903H3.10955C2.40455 8.86358 2 10.3863 2 11.9999C2 13.6136 2.40455 15.1363 3.10955 16.4908L6.40455 13.9Z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 5.99545C13.4864 5.99545 14.8182 6.50909 15.8773 7.5L18.6727 4.70455C16.9636 3.10455 14.7 2.00001 12 2.00001C8.09095 2.00001 4.73677 4.24092 3.1095 7.5091L6.4045 10.1C7.19095 7.72728 9.39095 5.99545 12 5.99545Z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M22 12.06C22 6.505 17.523 2 12 2S2 6.505 2 12.06C2 17.083 5.657 21.245 10.438 22v-6.999H7.898v-2.94h2.54V9.845c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.196 2.238.196v2.47h-1.26c-1.243 0-1.63.775-1.63 1.567v1.882h2.773l-.443 2.94h-2.33V22C18.343 21.245 22 17.083 22 12.06Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+function AppleIcon() {
+  return (
+    <svg
+      className="h-5 w-5"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M16.365 2c-.983.067-2.165.692-2.862 1.505-.626.73-1.146 1.9-.943 3.01 1.073.033 2.19-.6 2.852-1.41.652-.8 1.123-1.96.953-3.105zM19.54 8.263c-1.071-1.344-2.58-2.128-4.077-2.128-1.914 0-2.72.915-4.053.915-1.363 0-2.399-.913-4.06-.913-1.637 0-3.37.996-4.447 2.696C1.94 10.63 2.27 13.94 4 16.47c.84 1.243 1.962 2.64 3.395 2.652 1.29.012 1.654-.852 3.422-.86 1.767-.01 2.097.87 3.387.857 1.435-.012 2.587-1.54 3.427-2.783.595-.886.817-1.332 1.281-2.338-3.36-1.278-3.887-6.007-1.372-8.036z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+export function SocialButton({ provider, label, className = "", ...props }: SocialButtonProps) {
+  const base =
+    "flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-white/80 dark:focus-visible:ring-red-500/80";
+
+  const providerClasses =
+    provider === "google"
+      ? "bg-white text-neutral-900 border border-neutral-200 hover:bg-neutral-50"
+      : provider === "facebook"
+      ? "bg-[#1877F2] text-white hover:bg-[#1664CC]"
+      : "bg-black text-white hover:bg-neutral-900";
+
+  const icon =
+    provider === "google" ? (
+      <GoogleIcon />
+    ) : provider === "facebook" ? (
+      <FacebookIcon />
+    ) : (
+      <AppleIcon />
+    );
+
+  return (
+    <button
+      type="button"
+      className={`${base} ${providerClasses} ${className}`}
+      {...props}
+    >
+      <span className="flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 p-1.5">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}

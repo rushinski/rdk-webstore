@@ -1,0 +1,9 @@
+/* src/styles/global.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Optional: background + font defaults */
+body {
+  @apply bg-neutral-950 text-neutral-50 antialiased;
+}

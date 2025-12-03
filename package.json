@@ -40,6 +40,7 @@
     "@babel/preset-typescript": "^7.28.5",
     "@playwright/test": "^1.56.1",
     "@redocly/cli": "^2.11.1",
+    "@tailwindcss/postcss": "^4.1.17",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.4",
