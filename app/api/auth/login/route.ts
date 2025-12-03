@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     // 1) Correct: listFactors() shape is { totp: Factor[], all: Factor[], ... }
     const { data: factorData } = await supabase.auth.mfa.listFactors();
 
-    // 🔥 No need to filter — factorData.totp already contains ONLY totp factors
+    // No need to filter — factorData.totp already contains ONLY totp factors
     const totpFactors: Factor[] = factorData?.totp ?? [];
 
     // 2) Fetch AAL (Authenticator Assurance Level)

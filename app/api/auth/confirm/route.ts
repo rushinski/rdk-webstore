@@ -3,6 +3,7 @@ import { type NextRequest } from "next/server";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { ProfileRepository } from "@/repositories/profile-repo";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -13,9 +14,21 @@ export async function GET(request: NextRequest) {
 
   if (token_hash && type) {
     const supabase = await createSupabaseServerClient(); // FIX
-    const { error } = await supabase.auth.verifyOtp({ type, token_hash });
+    const { data, error } = await supabase.auth.verifyOtp({ type, token_hash });
 
-    if (!error) redirect(nextPath);
+    if (!error) {
+      const user = data.user;
+
+      if (user) {
+        const repo = new ProfileRepository(supabase);
+
+        // Ensure profile exists (idempotent)
+        await repo.ensureProfile(user.id, user.email!);
+      }
+
+      redirect(nextPath);
+    }
+
     redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
   }
 
