@@ -21,13 +21,15 @@ export class ProfileRepository {
     return data;
   }
 
-  async ensureProfile(userId: string, email: string) {
+  async ensureProfile(userId: string, email: string, updatesOptIn: boolean) {
     const existing = await this.getByUserId(userId);
     if (existing) return;
 
-    const { error } = await this.supabase
-      .from("profiles")
-      .insert({ id: userId, email });
+    const { error } = await this.supabase.from("profiles").insert({
+      id: userId,
+      email,
+      updates_opt_in: updatesOptIn,
+    });
 
     if (error) throw error;
   }

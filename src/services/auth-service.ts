@@ -3,17 +3,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 
 export class AuthService {
-  static async signUp(email: string, password: string) {
+  static async signUp(email: string, password: string, updatesOptIn: boolean) {
     const supabase = await createSupabaseServerClient();
 
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          updatesOptIn: updatesOptIn ? "true" : "false"
+        }
+      }
     });
 
     if (error) throw error;
-
-    return data;
   }
 
   static async signIn(email: string, password: string) {

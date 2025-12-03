@@ -17,7 +17,7 @@ export function SignupForm() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [updatesOptIn, setUpdatesOptIn] = useState(true);
+  const [updatesOptIn, setUpdatesOptIn] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -50,10 +50,9 @@ export function SignupForm() {
     try {
       setIsSubmitting(true);
 
-      // 🔒 DO NOT CHANGE: existing signup fetch logic
       const res = await fetch("/api/auth/signup", {
         method: "POST",
-        body: JSON.stringify({ email, password: passwordValue }),
+        body: JSON.stringify({ email, password: passwordValue, updatesOptIn }),
       });
 
       const json = await res.json();
@@ -62,9 +61,6 @@ export function SignupForm() {
         setError(json.error ?? "Sign up failed");
         return;
       }
-
-      // updatesOptIn is stored client-side only for now (per spec)
-      // console.log("Marketing opt-in:", updatesOptIn);
 
       router.push("/auth/signup-success");
     } catch (err: any) {

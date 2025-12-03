@@ -4,7 +4,7 @@
 
 <p>
   <a 
-    href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/"
+    href="{{ .SiteURL }}/api/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/&updatesOptIn={{ .Data.updatesOptIn }}"
   >
     Confirm your email address
   </a>

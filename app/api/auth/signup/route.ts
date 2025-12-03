@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json();
+  const { email, password, updatesOptIn } = await req.json();
 
   try {
-    await AuthService.signUp(email, password);
+    await AuthService.signUp(email, password, updatesOptIn);
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return NextResponse.json(
