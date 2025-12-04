@@ -39,7 +39,7 @@ export function LoginForm() {
     const json = await res.json();
 
     if (json.requiresEmailVerification) {
-      router.push(`/auth/verify-email?flow=login&email=${encodeURIComponent(email)}`);
+      router.push(`/auth/verify-email?flow=login&email=${encodeURIComponent(email)}&auto=1`);
       return;
     }
 

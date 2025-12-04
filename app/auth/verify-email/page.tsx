@@ -24,7 +24,7 @@ export default function VerifyEmailPage() {
     return () => clearTimeout(id);
   }, [cooldown]);
 
-  async function sendVerificationEmail(mode: "auto" | "manual" = "manual") {
+  async function sendVerificationEmail(mode: "auto" | "manual") {
     if (!email || isSending) return;
 
     try {
@@ -40,22 +40,15 @@ export default function VerifyEmailPage() {
       const json = await res.json();
 
       if (!json.ok) {
-        // Ignore Supabase cooldown errors for auto mode
-        if (mode === "auto" && json.error?.includes("For security purposes")) {
-          return;
-        }
-
-        setError(json.error ?? "Could not send verification email.");
-      } else {
-        // Only show success message when *manually* clicked
-        if (mode === "manual") setSent(true);
-
-        setCooldown(60);
+        if (mode === "manual") setError(json.error);
+        return;
       }
-    } catch (err: any) {
+
       if (mode === "manual") {
-        setError(err?.message ?? "Could not send verification email.");
+        setSent(true);
+        setCooldown(60); // Manual only
       }
+
     } finally {
       setIsSending(false);
     }
@@ -70,21 +63,18 @@ export default function VerifyEmailPage() {
   useEffect(() => {
     if (!email) return;
 
-    // Session-scoped key: prevents auto-resend on refresh but allows manual resends.
-    const storageKey = `rdk:verify-email:initial-sent:${email}:${flow}`;
+    if (flow === "signup") return;
 
-    try {
-      if (typeof window === "undefined") return;
+    const auto = params.get("auto");
+    if (auto !== "1") return; // Only auto-send on intentional redirect
 
-      const hasSent = window.sessionStorage.getItem(storageKey);
-      if (hasSent) return;
+    const key = `rdk:auto:${email}:${flow}`;
+    const alreadySent = sessionStorage.getItem(key);
+    if (alreadySent) return;  // Prevent duplicate sends in same session view
 
-      window.sessionStorage.setItem(storageKey, "true");
-      // Fire and forget — same logic as manual resend.
-      void sendVerificationEmail("auto");
-    } catch {
-      // If sessionStorage is unavailable, we fail silently and only manual resend works.
-    }
+    sessionStorage.setItem(key, "true");
+
+    void sendVerificationEmail("auto");
   }, [email, flow]);
 
   // Copy variants
