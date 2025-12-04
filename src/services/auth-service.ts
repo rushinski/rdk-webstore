@@ -54,4 +54,16 @@ export class AuthService {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
   }
+
+  static async resendVerification(email: string) {
+    const supabase = await createSupabaseServerClient();
+
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+
+    if (error) throw error;
+  }
 }
+

@@ -35,6 +35,11 @@ export function LoginForm() {
 
     const json = await res.json();
 
+    if (json.requiresEmailVerification) {
+      router.push(`/auth/verify-email`);
+      return;
+    }
+
     if (!json.ok) {
       setError(json.error ?? "Login failed");
       setIsSubmitting(false);

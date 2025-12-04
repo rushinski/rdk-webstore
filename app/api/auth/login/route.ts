@@ -1,3 +1,4 @@
+// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -43,7 +44,14 @@ export async function POST(req: NextRequest) {
       requiresTwoFASetup,
       requiresTwoFAChallenge,
     });
-  } catch (error: any) {
+    } catch (error: any) {
+    if (error?.message?.includes("Email not confirmed")) {
+      return NextResponse.json(
+        { ok: false, requiresEmailVerification: true },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
       { ok: false, error: error.message ?? "Login failed" },
       { status: 400 }

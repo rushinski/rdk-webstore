@@ -62,7 +62,7 @@ export function SignupForm() {
         return;
       }
 
-      router.push("/auth/signup-success");
+      router.push("/auth/verify-email");
     } catch (err: any) {
       setError(err?.message ?? "Something went wrong. Please try again.");
     } finally {
