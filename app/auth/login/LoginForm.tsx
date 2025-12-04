@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SocialButton } from "../../components/ui/SocialButton";
 import { Checkbox } from "../../components/ui/Checkbox";
+import { PasswordField } from "../../components/ui/PasswordField";
 
 export function LoginForm() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export function LoginForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [staySignedIn, setStaySignedIn] = useState(true);
+  const [password, setPassword] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -125,33 +127,21 @@ export function LoginForm() {
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label
-            htmlFor="password"
-            className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+        <PasswordField
+          name="password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+        />
+
+        <div className="flex justify-end">
+          <Link
+            href="/auth/password/forgot"
+            className="text-xs text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2"
           >
-            Password
-          </label>
-
-          <input
-            id="password"
-            name="password"
-            type="password"
-            required
-            autoComplete="current-password"
-            placeholder="••••••••"
-            className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm"
-          />
-
-          {/* Forgot Password Link */}
-          <div className="flex justify-end">
-            <Link
-              href="/auth/password/forgot"
-              className="text-xs text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2"
-            >
-              Forgot password?
-            </Link>
-          </div>
+            Forgot password?
+          </Link>
         </div>
 
         {/* Stay signed in */}
