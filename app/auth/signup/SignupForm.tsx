@@ -62,7 +62,9 @@ export function SignupForm() {
         return;
       }
 
-      router.push("/auth/verify-email");
+      router.push(
+        `/auth/verify-email?flow=signup&email=${encodeURIComponent(email)}`
+      );
     } catch (err: any) {
       setError(err?.message ?? "Something went wrong. Please try again.");
     } finally {

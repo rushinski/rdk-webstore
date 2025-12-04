@@ -1,23 +1,28 @@
 // app/api/auth/resend-verification/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AuthService, type VerificationFlow } from "@/services/auth-service";
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json();
+  const { email, flow }: { email?: string; flow?: VerificationFlow } =
+    await req.json();
 
-  const supabase = await createSupabaseServerClient();
-
-  const { error } = await supabase.auth.resend({
-    type: "signup",
-    email,
-  });
-
-  if (error) {
+  if (!email || typeof email !== "string") {
     return NextResponse.json(
-      { ok: false, error: error.message },
-      { status: 400 }
+      { ok: false, error: "Email is required" },
+      { status: 400 },
     );
   }
 
-  return NextResponse.json({ ok: true });
+  const normalizedEmail = email.trim();
+  const verificationFlow: VerificationFlow = flow === "signin" ? "signin" : "signup";
+
+  try {
+    await AuthService.resendVerification(normalizedEmail, verificationFlow);
+    return NextResponse.json({ ok: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { ok: false, error: error.message ?? "Could not resend verification email." },
+      { status: 400 },
+    );
+  }
 }

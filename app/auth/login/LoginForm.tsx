@@ -1,3 +1,4 @@
+// app/auth/login/LoginForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -36,7 +37,7 @@ export function LoginForm() {
     const json = await res.json();
 
     if (json.requiresEmailVerification) {
-      router.push(`/auth/verify-email`);
+      router.push(`/auth/verify-email?flow=login&email=${encodeURIComponent(email)}`);
       return;
     }
 
