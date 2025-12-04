@@ -4,9 +4,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+
 import { SocialButton } from "../../components/ui/SocialButton";
 import { PasswordField } from "../../components/ui/PasswordField";
-import { PasswordStrength, evaluateRequirements } from "../../components/ui/PasswordStrength";
+import { PasswordRequirements, evaluateRequirements } from "../../components/ui/PasswordRequirements";
 import { Checkbox } from "../../components/ui/Checkbox";
 
 export function RegisterForm() {
@@ -16,7 +17,6 @@ export function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [updatesOptIn, setUpdatesOptIn] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -28,22 +28,13 @@ export function RegisterForm() {
 
     const email = String(formData.get("email") ?? "").trim();
     const passwordValue = String(formData.get("password") ?? "");
-    const confirmPasswordValue = String(formData.get("confirmPassword") ?? "");
 
-    // Client-side validation (confirm password)
-    if (passwordValue !== confirmPasswordValue) {
-      setError("Passwords do not match.");
-      return;
-    }
+    // Password requirement validation
+    const req = evaluateRequirements(passwordValue);
+    const allPass = Object.values(req).every(Boolean);
 
-    // Password rules validation
-    const rules = evaluateRequirements(passwordValue);
-    const allRulesPass = Object.values(rules).every(Boolean);
-
-    if (!allRulesPass) {
-      setError(
-        "Password must be at least 8 characters, contain letters, include a number or symbol, and cannot be a repeated character.",
-      );
+    if (!allPass) {
+      setError("Password does not meet minimum requirements.");
       return;
     }
 
@@ -85,37 +76,18 @@ export function RegisterForm() {
         </p>
       </div>
 
-      {/* Error banner */}
+      {/* Error */}
       {error && (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
           {error}
         </div>
       )}
 
-      {/* Social buttons */}
+      {/* Social */}
       <div className="space-y-3">
-        <SocialButton
-          provider="google"
-          label="Sign up with Google"
-          onClick={() => {
-            // TODO: Hook up Supabase OAuth later
-            console.warn("Google signup not implemented yet.");
-          }}
-        />
-        <SocialButton
-          provider="facebook"
-          label="Sign up with Facebook"
-          onClick={() => {
-            console.warn("Facebook signup not implemented yet.");
-          }}
-        />
-        <SocialButton
-          provider="apple"
-          label="Sign up with Apple"
-          onClick={() => {
-            console.warn("Apple signup not implemented yet.");
-          }}
-        />
+        <SocialButton provider="google" label="Sign up with Google" />
+        <SocialButton provider="facebook" label="Sign up with Facebook" />
+        <SocialButton provider="apple" label="Sign up with Apple" />
       </div>
 
       {/* Divider */}
@@ -125,7 +97,7 @@ export function RegisterForm() {
         <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
       </div>
 
-      {/* Email + Password fields */}
+      {/* Email + Password */}
       <div className="space-y-4">
         {/* Email */}
         <div className="space-y-1.5">
@@ -141,7 +113,7 @@ export function RegisterForm() {
             type="email"
             required
             autoComplete="email"
-            className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+            className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm"
             placeholder="you@example.com"
           />
         </div>
@@ -155,66 +127,44 @@ export function RegisterForm() {
           autoComplete="new-password"
         />
 
-        {/* Confirm Password */}
-        <PasswordField
-          name="confirmPassword"
-          label="Confirm password"
-          value={confirmPassword}
-          onChange={setConfirmPassword}
-          autoComplete="new-password"
-        />
-
-        {/* Strength + Requirements UI */}
-        <PasswordStrength password={password} />
+        {/* Always-visible password requirements */}
+        <PasswordRequirements password={password} />
       </div>
 
-      {/* Updates checkbox */}
-      <div>
-        <Checkbox
-          name="updatesOptIn"
-          checked={updatesOptIn}
-          onChange={(e) => setUpdatesOptIn(e.currentTarget.checked)}
-          label="Send me product updates, drop alerts, and store news."
-        />
-      </div>
+      {/* Updates Checkbox */}
+      <Checkbox
+        name="updatesOptIn"
+        checked={updatesOptIn}
+        onChange={(e) => setUpdatesOptIn(e.currentTarget.checked)}
+        label="Send me product updates, drop alerts, and store news."
+      />
 
-      {/* Submit button */}
-      <div className="space-y-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 hover:from-red-500 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500"
-        >
-          {isSubmitting ? "Creating account..." : "Create account"}
-        </button>
+      {/* Submit Button */}
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 hover:from-red-500 hover:to-red-500 disabled:opacity-60 transition-all"
+      >
+        {isSubmitting ? "Creating account..." : "Create account"}
+      </button>
 
-        {/* Terms & Privacy */}
-        <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 text-center leading-snug">
-          By signing up, you agree to our{" "}
-          <Link
-            href="/legal/terms"
-            className="font-medium text-neutral-800 dark:text-neutral-200 hover:text-red-500 dark:hover:text-red-400 underline underline-offset-2"
-          >
-            Terms of Service
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="/legal/privacy"
-            className="font-medium text-neutral-800 dark:text-neutral-200 hover:text-red-500 dark:hover:text-red-400 underline underline-offset-2"
-          >
-            Privacy Policy
-          </Link>
-          .
-        </p>
-      </div>
+      {/* Terms */}
+      <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 text-center leading-snug">
+        By signing up, you agree to our{" "}
+        <Link href="/legal/terms" className="font-medium underline underline-offset-2">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href="/legal/privacy" className="font-medium underline underline-offset-2">
+          Privacy Policy
+        </Link>
+        .
+      </p>
 
-      {/* Sign in link */}
+      {/* Login Link */}
       <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
         Already have an account?{" "}
-        <Link
-          href="/auth/login"
-          className="font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-        >
+        <Link href="/auth/login" className="font-medium text-red-600 hover:text-red-500">
           Sign in
         </Link>
       </p>
