@@ -1,4 +1,4 @@
-// app/api/auth/signup/route.ts
+// app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { ok: false, error: error.message ?? "Sign up failed" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

@@ -1,8 +1,8 @@
-// app/auth/signup/page.tsx
+// app/auth/register/page.tsx
 import AuthCard from "../../components/ui/AuthCard";
-import { SignupForm } from "./SignupForm";
+import { RegisterForm } from "./RegisterForm";
 
-export default function SignupPage() {
+export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       <div className="flex min-h-screen flex-col md:flex-row">
@@ -47,7 +47,7 @@ export default function SignupPage() {
         {/* Right form panel */}
         <main className="flex w-full md:w-7/12 lg:w-1/2 items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
           <AuthCard className="bg-white dark:bg-neutral-950">
-            <SignupForm />
+            <RegisterForm />
           </AuthCard>
         </main>
       </div>

@@ -43,7 +43,7 @@ export default function VerifyEmailPage() {
         if (mode === "manual") setError(json.error);
         return;
       }
-
+      
       if (mode === "manual") {
         setSent(true);
         setCooldown(60); // Manual only

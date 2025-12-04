@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-
 export function ForgotPasswordForm() {
   const [status, setStatus] = useState<string | null>(null);
 

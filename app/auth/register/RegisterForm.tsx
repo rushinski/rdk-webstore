@@ -1,4 +1,4 @@
-// app/auth/signup/SignupForm.tsx
+// app/auth/register/RegisterForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SocialButton } from "../../components/ui/SocialButton";
 import { PasswordField } from "../../components/ui/PasswordField";
-import { PasswordStrength, evaluatePassword } from "../../components/ui/PasswordStrength";
+import { PasswordStrength, evaluateRequirements } from "../../components/ui/PasswordStrength";
 import { Checkbox } from "../../components/ui/Checkbox";
 
-export function SignupForm() {
+export function RegisterForm() {
   const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);
@@ -37,12 +37,12 @@ export function SignupForm() {
     }
 
     // Password rules validation
-    const { rules } = evaluatePassword(passwordValue);
+    const rules = evaluateRequirements(passwordValue);
     const allRulesPass = Object.values(rules).every(Boolean);
 
     if (!allRulesPass) {
       setError(
-        "Password must be at least 8 characters and include an uppercase letter, a number, and a special character.",
+        "Password must be at least 8 characters, contain letters, include a number or symbol, and cannot be a repeated character.",
       );
       return;
     }
@@ -50,7 +50,7 @@ export function SignupForm() {
     try {
       setIsSubmitting(true);
 
-      const res = await fetch("/api/auth/signup", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ email, password: passwordValue, updatesOptIn }),
       });
@@ -62,9 +62,7 @@ export function SignupForm() {
         return;
       }
 
-      router.push(
-        `/auth/verify-email?flow=signup&email=${encodeURIComponent(email)}`
-      );
+      router.push(`/auth/verify-email?flow=signup&email=${encodeURIComponent(email)}`);
     } catch (err: any) {
       setError(err?.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -166,7 +164,7 @@ export function SignupForm() {
           autoComplete="new-password"
         />
 
-        {/* Strength indicator */}
+        {/* Strength + Requirements UI */}
         <PasswordStrength password={password} />
       </div>
 

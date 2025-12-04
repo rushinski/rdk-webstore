@@ -13,9 +13,9 @@ export class AuthService {
       password,
       options: {
         data: {
-          updatesOptIn: updatesOptIn ? "true" : "false"
-        }
-      }
+          updatesOptIn: updatesOptIn ? "true" : "false",
+        },
+      },
     });
 
     if (error) throw error;
@@ -57,10 +57,7 @@ export class AuthService {
     if (error) throw error;
   }
 
-  static async resendVerification(
-    email: string,
-    flow: VerificationFlow = "signup",
-  ) {
+  static async resendVerification(email: string, flow: VerificationFlow = "signup") {
     const supabase = await createSupabaseServerClient();
 
     // Currently both flows use Supabase's "signup" OTP type for email confirmation.
@@ -74,4 +71,3 @@ export class AuthService {
     // Flow param is here for future branching / logging if needed.
   }
 }
-
