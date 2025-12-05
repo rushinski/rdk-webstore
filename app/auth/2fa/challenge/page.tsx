@@ -1,5 +1,5 @@
 // app/auth/2fa/challenge/page.tsx
-import { ChallengeForm } from "../../components/mfa/ChallengeForm";
+import { ChallengeForm } from "./components/ChallengeForm";
 
 export default function Page() {
   return (

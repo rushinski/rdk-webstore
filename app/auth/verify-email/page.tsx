@@ -3,7 +3,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import AuthCard from "../../components/ui/AuthCard";
+import AuthCard from "../components/AuthCard";
 
 type Flow = "signup" | "signin";
 
@@ -43,12 +43,11 @@ export default function VerifyEmailPage() {
         if (mode === "manual") setError(json.error);
         return;
       }
-      
+
       if (mode === "manual") {
         setSent(true);
         setCooldown(60); // Manual only
       }
-
     } finally {
       setIsSending(false);
     }
@@ -70,7 +69,7 @@ export default function VerifyEmailPage() {
 
     const key = `rdk:auto:${email}:${flow}`;
     const alreadySent = sessionStorage.getItem(key);
-    if (alreadySent) return;  // Prevent duplicate sends in same session view
+    if (alreadySent) return; // Prevent duplicate sends in same session view
 
     sessionStorage.setItem(key, "true");
 
@@ -112,9 +111,7 @@ export default function VerifyEmailPage() {
               </div>
 
               {/* Heading */}
-              <h1 className="text-xl sm:text-2xl font-semibold text-white">
-                {heading}
-              </h1>
+              <h1 className="text-xl sm:text-2xl font-semibold text-white">{heading}</h1>
 
               {/* Flow-based description */}
               <p className="text-xs sm:text-sm text-neutral-300 leading-snug">
@@ -144,9 +141,7 @@ export default function VerifyEmailPage() {
               {/* Success/Error Messages */}
               <div className="min-h-[16px] mt-1">
                 {sent && (
-                  <p className="text-xs text-green-400">
-                    Verification email resent.
-                  </p>
+                  <p className="text-xs text-green-400">Verification email resent.</p>
                 )}
                 {error && <p className="text-xs text-red-400">{error}</p>}
               </div>

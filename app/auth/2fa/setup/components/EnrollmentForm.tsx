@@ -1,4 +1,4 @@
-// app/auth/components/2fa/EnrollmentForm.tsx
+// app/auth/components/mfa/EnrollmentForm.tsx
 "use client";
 
 import { useState } from "react";
@@ -53,4 +53,3 @@ export function EnrollmentForm() {
     </div>
   );
 }
-

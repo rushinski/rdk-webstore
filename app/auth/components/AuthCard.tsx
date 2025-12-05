@@ -1,4 +1,4 @@
-// app/components/ui/AuthCard.tsx
+// app/auth/components/AuthCard.tsx
 import type { ReactNode } from "react";
 
 interface AuthCardProps {

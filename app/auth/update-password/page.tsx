@@ -1,5 +1,5 @@
 // app/auth/update-password/page.tsx
-import { UpdatePasswordForm } from "../components/auth-forms";
+import { UpdatePasswordForm } from "./components/UpdatePasswordForm";
 
 export default function UpdatePasswordPage() {
   return (

@@ -13,7 +13,7 @@ const { crypto } = globalThis;
 
 // Proxy will only return a url if we are redirecting, otherwise we attach headers to the response and decide if the request is allowed
 export async function proxy(request: NextRequest) {
-  // Generates a ID to recgonize requests across layers within logs 
+  // Generates a ID to recognize requests across layers within logs 
   const requestId = `$req-${crypto.randomUUID()}`;
 
   // Stores what canonicalizePath will return. Either null or a object (NextResponse)

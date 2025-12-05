@@ -1,4 +1,4 @@
-import AuthCard from "../../components/ui/AuthCard";
+import AuthCard from "../components/AuthCard";
 import { LoginForm } from "./LoginForm";
 
 export default function LoginPage() {
@@ -25,7 +25,8 @@ export default function LoginPage() {
               </h2>
 
               <p className="mt-4 max-w-md text-sm text-neutral-200/80">
-                Fast login. Strong security. Built for resellers who live in the secondary market.
+                Fast login. Strong security. Built for resellers who live in the secondary
+                market.
               </p>
             </div>
 

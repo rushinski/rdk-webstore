@@ -1,4 +1,5 @@
 // app/auth/layout.tsx
+// sets noindex for all auth routes
 export const metadata = {
   robots: {
     index: false,

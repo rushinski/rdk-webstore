@@ -4,9 +4,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { SocialButton } from "../../components/ui/SocialButton";
-import { Checkbox } from "../../components/ui/Checkbox";
-import { PasswordField } from "../../components/ui/PasswordField";
+import { SocialButton } from "../components/SocialButton";
+import { Checkbox } from "../../components/Checkbox";
+import { PasswordField } from "../register/components/PasswordField";
 
 export function LoginForm() {
   const router = useRouter();
@@ -39,7 +39,9 @@ export function LoginForm() {
     const json = await res.json();
 
     if (json.requiresEmailVerification) {
-      router.push(`/auth/verify-email?flow=login&email=${encodeURIComponent(email)}&auto=1`);
+      router.push(
+        `/auth/verify-email?flow=login&email=${encodeURIComponent(email)}&auto=1`,
+      );
       return;
     }
 
@@ -64,7 +66,6 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-
       {/* Header */}
       <div className="space-y-2 text-center">
         <div className="inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500">

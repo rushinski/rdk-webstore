@@ -1,14 +1,17 @@
-// app/auth/register/RegisterForm.tsx
+// app/auth/register/components/RegisterForm.tsx
 "use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { SocialButton } from "../../components/ui/SocialButton";
-import { PasswordField } from "../../components/ui/PasswordField";
-import { PasswordRequirements, evaluateRequirements } from "../../components/ui/PasswordRequirements";
-import { Checkbox } from "../../components/ui/Checkbox";
+import { SocialButton } from "../../components/SocialButton";
+import { PasswordField } from "../components/PasswordField";
+import {
+  PasswordRequirements,
+  evaluateRequirements,
+} from "../../components/PasswordRequirements";
+import { Checkbox } from "../../../components/Checkbox";
 
 export function RegisterForm() {
   const router = useRouter();

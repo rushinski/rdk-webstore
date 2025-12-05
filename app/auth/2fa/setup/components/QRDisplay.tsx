@@ -1,4 +1,4 @@
-// app/auth/components/2fa/QRDisplay.tsx
+// app/auth/components/mfa/QRDisplay.tsx
 export function QRDisplay({ qrCode }: { qrCode: string }) {
   return (
     <div className="flex justify-center">
