@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /admin
+Disallow: /auth
+Disallow: /checkout
+Disallow: /api
+
+# Allow public-facing pages
+Allow: /
+
+# Sitemap (generate this in Next.js)
+Sitemap: https://realdealkickzsc.com/sitemap.xml

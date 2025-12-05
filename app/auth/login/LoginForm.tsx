@@ -50,12 +50,12 @@ export function LoginForm() {
     }
 
     if (json.isAdmin && json.requiresTwoFASetup) {
-      router.push("/auth/mfa/setup");
+      router.push("/auth/2fa/setup");
       return;
     }
 
     if (json.isAdmin && json.requiresTwoFAChallenge) {
-      router.push("/auth/mfa/challenge");
+      router.push("/auth/2fa/challenge");
       return;
     }
 
@@ -137,7 +137,7 @@ export function LoginForm() {
 
         <div className="flex justify-end">
           <Link
-            href="/auth/password/forgot"
+            href="/auth/forgot-password"
             className="text-xs text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2"
           >
             Forgot password?

@@ -1,4 +1,4 @@
-// app/api/auth/mfa/challenge/verify/route.ts
+// app/api/auth/2fa/challenge/verify/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";

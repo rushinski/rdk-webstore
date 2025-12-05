@@ -62,7 +62,7 @@ export async function protectAdminRoute(
     if (isAdminApi)
       return NextResponse.json({ error: "MFA required", requestId }, { status: 403 });
 
-    return NextResponse.redirect(new URL("/auth/mfa/challenge", req.url));
+    return NextResponse.redirect(new URL("/auth/2fa/challenge", req.url));
   }
 
   return null;

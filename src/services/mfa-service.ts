@@ -1,11 +1,11 @@
 // src/services/mfa-service.ts
 export async function mfaEnroll() {
-  const res = await fetch("/api/auth/mfa/enroll", { method: "POST" });
+  const res = await fetch("/api/auth/2fa/enroll", { method: "POST" });
   return res.json();
 }
 
 export async function mfaVerifyEnrollment(factorId: string, code: string) {
-  const res = await fetch("/api/auth/mfa/verify-enrollment", {
+  const res = await fetch("/api/auth/2fa/verify-enrollment", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ factorId, code }),
@@ -15,7 +15,7 @@ export async function mfaVerifyEnrollment(factorId: string, code: string) {
 }
 
 export async function mfaStartChallenge() {
-  const res = await fetch("/api/auth/mfa/challenge/start", {
+  const res = await fetch("/api/auth/2fa/challenge/start", {
     method: "POST",
   });
 
@@ -27,7 +27,7 @@ export async function mfaVerifyChallenge(
   challengeId: string,
   code: string
 ) {
-  const res = await fetch("/api/auth/mfa/challenge/verify", {
+  const res = await fetch("/api/auth/2fa/challenge/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ factorId, challengeId, code }),

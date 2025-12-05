@@ -1,4 +1,4 @@
-// app/api/auth/mfa/enroll/route.ts
+// app/api/auth/2fa/enroll/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";

@@ -1,4 +1,4 @@
-// app/api/auth/password/update/route.ts
+// app/api/auth/update-password/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 

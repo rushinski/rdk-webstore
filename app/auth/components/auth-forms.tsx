@@ -10,7 +10,7 @@ export function ForgotPasswordForm() {
     const form = e.currentTarget as HTMLFormElement;
     const email = String(new FormData(form).get("email"));
 
-    const res = await fetch("/api/auth/password/forgot", {
+    const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({ email }),
     });
@@ -35,7 +35,7 @@ export function UpdatePasswordForm() {
     e.preventDefault();
     const password = String(new FormData(e.currentTarget as HTMLFormElement).get("password"));
 
-    const res = await fetch("/api/auth/password/update", {
+    const res = await fetch("/api/auth/update-password", {
       method: "POST",
       body: JSON.stringify({ password }),
     });
