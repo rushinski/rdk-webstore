@@ -1,6 +1,7 @@
 // app/api/auth/resend-verification/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { AuthService, type VerificationFlow } from "@/services/auth-service";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function POST(req: NextRequest) {
   const { email, flow }: { email?: string; flow?: VerificationFlow } =
@@ -17,7 +18,11 @@ export async function POST(req: NextRequest) {
   const verificationFlow: VerificationFlow = flow === "signin" ? "signin" : "signup";
 
   try {
-    await AuthService.resendVerification(normalizedEmail, verificationFlow);
+    const supabase = await createSupabaseServerClient();
+    const authService = new AuthService(supabase);
+    
+    await authService.resendVerification(normalizedEmail, verificationFlow);
+
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     return NextResponse.json(

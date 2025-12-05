@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const nextPath = next?.startsWith("/") ? next : "/";
 
   if (!token_hash || !type) {
-    return redirect(`/auth/error?error=Missing token hash or type`);
+    redirect(`/auth/error?error=Missing token hash or type`);
   }
 
   const supabase = await createSupabaseServerClient();
@@ -25,16 +25,16 @@ export async function GET(request: NextRequest) {
   });
 
   if (error) {
-    return redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
+    redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
   }
 
   const user = data.user;
   if (!user) {
-    return redirect(`/auth/error?error=User not found`);
+    redirect(`/auth/error?error=User not found`);
   }
 
   const repo = new ProfileRepository(supabase);
   await repo.ensureProfile(user.id, user.email!, updatesOptIn);
 
-  return redirect(nextPath);
+  redirect(nextPath);
 }

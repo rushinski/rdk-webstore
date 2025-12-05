@@ -1,6 +1,6 @@
 // src/repositories/profile-repo.ts
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database.types";
+import type { TypedSupabaseClient } from "@/lib/supabase/server";
 
 export type ProfileRole = "customer" | "admin";
 
@@ -8,7 +8,7 @@ export type ProfileRole = "customer" | "admin";
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export class ProfileRepository {
-  constructor(private readonly supabase: SupabaseClient<Database>) {}
+  constructor(private readonly supabase: TypedSupabaseClient) {}
 
   async getByUserId(userId: string): Promise<Profile | null> {
     const { data, error } = await this.supabase

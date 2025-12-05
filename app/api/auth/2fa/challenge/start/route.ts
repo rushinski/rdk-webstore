@@ -19,7 +19,7 @@ export async function POST() {
   if (!profile || profile.role !== "admin")
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // 🔥 Correct Supabase v2 shape:
+  // Correct Supabase v2 shape:
   // { all: Factor[], totp: Factor[], phone: Factor[], webauthn: Factor[] }
   const { data: factorsData, error: factorErr } =
     await supabase.auth.mfa.listFactors();
@@ -27,7 +27,7 @@ export async function POST() {
   if (factorErr)
     return NextResponse.json({ error: factorErr.message }, { status: 400 });
 
-  // 🔥 Correct, typed extraction of TOTP factors
+  // Correct, typed extraction of TOTP factors
   const totpFactors: Factor[] = factorsData.totp ?? [];
 
   if (totpFactors.length === 0)

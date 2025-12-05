@@ -8,7 +8,14 @@ export async function POST(req: NextRequest) {
   const { email, password } = await req.json();
 
   try {
-    const { user, profile } = await AuthService.signIn(email, password);
+    // 1) Create Supabase client for this request
+    const supabase = await createSupabaseServerClient();
+
+    // 2) Pass it into the AuthService
+    const authService = new AuthService(supabase);
+
+    // 3) Sign the user in (correct RLS + cookie session)
+    const { user, profile } = await authService.signIn(email, password);
 
     if (!user) {
       return NextResponse.json(
@@ -18,8 +25,6 @@ export async function POST(req: NextRequest) {
     }
 
     const isAdmin = profile?.role === "admin";
-
-    const supabase = await createSupabaseServerClient();
 
     // 1) Correct: listFactors() shape is { totp: Factor[], all: Factor[], ... }
     const { data: factorData } = await supabase.auth.mfa.listFactors();
