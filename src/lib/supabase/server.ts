@@ -6,7 +6,7 @@ import type { Database } from "@/types/database.types";
 
 export type TypedSupabaseClient = SupabaseClient<Database>;
 
-export async function createSupabaseServerClient(): Promise<TypedSupabaseClient> {
+export async function createSupabaseServerClient(staySignedIn?: boolean): Promise<TypedSupabaseClient> {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -19,9 +19,18 @@ export async function createSupabaseServerClient(): Promise<TypedSupabaseClient>
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value }) => cookieStore.set(name, value));
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, {
+                ...options,
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/",
+                maxAge: staySignedIn ? 14 * 24 * 60 * 60 : undefined, // 14 days or session-only
+              });
+            });
           } catch {
-            // Server Component case; proxy refreshes sessions.
+            // Server Component case
           }
         },
       },

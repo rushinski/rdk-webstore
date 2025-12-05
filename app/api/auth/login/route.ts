@@ -5,11 +5,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Factor } from "@supabase/supabase-js";
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json();
+  const { email, password, staySignedIn } = await req.json();
 
   try {
     // 1) Create Supabase client for this request
-    const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient(staySignedIn);
 
     // 2) Pass it into the AuthService
     const authService = new AuthService(supabase);
