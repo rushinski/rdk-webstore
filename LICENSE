@@ -1,0 +1,122 @@
+realdealkickzllc — Proprietary Developer-Owned License (2025)
+
+Copyright © 2025 — Jacob Rushinski
+All Rights Reserved.
+
+1. Ownership of Source Code
+
+All source code, scripts, components, services, repositories, jobs, configuration files, architecture designs, migration files, infrastructure definitions, and all derivative works (collectively, the “Software Code”) are and shall remain the exclusive property of the Developer, Jacob Rushinski.
+
+The Client (Real Deal Kickz SC) gains no ownership of the Software Code through use, deployment, payment, or operation of the realdealkickzllc platform.
+
+2. License Granted to Client
+
+The Developer grants the Client a perpetual, non-exclusive, non-transferable, non-sublicensable license to:
+
+Operate the realdealkickzllc website and backend
+
+Use the Software Code solely for the realdealkickzllc business
+
+Modify content, settings, environment variables, and assets
+
+Access the admin dashboard and all operator tools
+
+This license does not permit the Client to:
+
+Copy, sell, resell, or redistribute the Software Code
+
+Hire a third-party developer to repurpose or rebuild the Software Code
+
+Use the Software Code for other businesses or unrelated projects
+
+Claim ownership of any part of the underlying intellectual property
+
+3. Developer Reuse Rights
+
+The Developer retains full, unrestricted rights to:
+
+Reuse any portion of the Software Code
+
+Modify or extend the Software Code for other clients
+
+Build derivative platforms, architectures, or systems
+
+Commercialize similar or identical codebases
+
+No exclusivity is granted to the Client regarding the Software Code or its design.
+
+4. What the Client Owns
+
+The Client owns:
+
+The “realdealkickzllc” brand, logos, and trademarks
+
+All product and catalog data
+
+All customer data, order history, and analytics
+
+All business records and operational content
+
+The deployed website instance (runtime), not the underlying source code
+
+5. Restrictions on the Client
+
+The Client may not:
+
+Copy or redistribute the Software Code
+
+Give third parties access to the codebase
+
+Reverse engineer, decompile, or extract proprietary logic
+
+Use the Software Code beyond the realdealkickzllc business
+
+Remove or alter copyright notices
+
+Any violation voids this license.
+
+6. Developer Access Rights
+
+To provide updates, patches, maintenance, and deployments, the Developer retains:
+
+Access to the code repository
+
+Access to staging and production runtime environments
+
+Authority to manage CI/CD workflows and deployments
+
+These rights may be restricted only by mutual written agreement.
+
+7. Termination
+
+The Developer may terminate this license if:
+
+Payments or obligations are breached
+
+Unauthorized third parties modify or access the Software Code
+
+The Client attempts to claim ownership of the code
+
+Confidentiality terms are violated
+
+Upon termination:
+
+The Client may continue using the last deployed version of the platform
+
+The Client will no longer receive updates, patches, or developer support
+
+The Client may not access, modify, or extend the Software Code
+
+8. Confidentiality
+
+All source code, system designs, CI/CD processes, infra configurations, and technical documents are confidential intellectual property of the Developer.
+
+9. No Warranty
+
+The Software Code is provided “as is”, without warranty of any kind.
+The Developer is not liable for damages resulting from misuse, unauthorized modification, or operation outside intended scope.
+
+10. Governing Law
+
+This License shall be governed and interpreted according to the laws of the Commonwealth of Pennsylvania, without regard to conflict-of-laws principles.
+Any disputes arising under this License shall be brought exclusively in the state or federal courts located within Pennsylvania.
