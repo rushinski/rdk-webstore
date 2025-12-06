@@ -6,9 +6,9 @@ const ciSchema = z.object({
 
   // Environment secrets
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string(),
 
-  SUPABASE_SERVICE_ROLE_KEY: z.string(),
+  SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_DB_URL: z.string().url(),
 
   STRIPE_SECRET_KEY: z.string(),

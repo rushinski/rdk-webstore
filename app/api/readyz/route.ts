@@ -32,7 +32,7 @@ export async function GET() {
     // Supabase readiness (Service Role Key)
     const supabase = createClient(
       env.NEXT_PUBLIC_SUPABASE_URL,
-      env.SUPABASE_SERVICE_ROLE_KEY
+      env.SUPABASE_SECRET_KEY
     );
 
     const { error: dbError } = await supabase

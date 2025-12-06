@@ -1,8 +1,8 @@
 module.exports = {
   env: {
     NEXT_PUBLIC_SUPABASE_URL: "http://localhost",
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: "test",
-    SUPABASE_SERVICE_ROLE_KEY: "test",
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test",
+    SUPABASE_SECRET_KEY: "test",
     SUPABASE_DB_URL: "postgresql://test",
     SUPABASE_JWT_SECRET: "jwtsecret",
     STRIPE_SECRET_KEY: "test",
