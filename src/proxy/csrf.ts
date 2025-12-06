@@ -14,7 +14,7 @@ export function checkCsrf(request: NextRequest, requestId: string) {
   const { pathname } = request.nextUrl;
 
   // Bypass CSRF checks for known non-browser endpoints (e.g. Stripe webhooks)
-  const csrfBypassPaths = ["/api/stripe/webhook"];
+  const csrfBypassPaths = ["/api/stripe/webhook", "/api/auth/2fa/challenge/verify"];
   if (csrfBypassPaths.some((p) => pathname.startsWith(p))) {
     return null;
   }

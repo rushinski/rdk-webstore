@@ -6,7 +6,7 @@ import type { Database } from "@/types/database.types";
 
 export type TypedSupabaseClient = SupabaseClient<Database>;
 
-export async function createSupabaseServerClient(staySignedIn?: boolean): Promise<TypedSupabaseClient> {
+export async function createSupabaseServerClient(): Promise<TypedSupabaseClient> {
   const cookieStore = await cookies();
 
   return createServerClient<Database>(
@@ -26,7 +26,6 @@ export async function createSupabaseServerClient(staySignedIn?: boolean): Promis
                 secure: process.env.NODE_ENV === "production",
                 sameSite: "lax",
                 path: "/",
-                maxAge: staySignedIn ? 14 * 24 * 60 * 60 : undefined, // 14 days or session-only
               });
             });
           } catch {

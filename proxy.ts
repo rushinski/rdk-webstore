@@ -66,7 +66,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // Admin guard
-  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+  if (
+  (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
+  !pathname.startsWith("/api/auth/2fa")   
+  ) {
     const supabase = await createSupabaseServerClient();
     const adminRes = await protectAdminRoute(request, requestId, supabase);
     if (adminRes) return finalizeProxyResponse(adminRes, requestId);

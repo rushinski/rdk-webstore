@@ -46,7 +46,7 @@ function walk(dir: string): void {
     if (stat.isDirectory()) {
       // We then call the function again with full as our dir this time
       walk(full);
-      // If full ends with one of these extentions...
+      // If full ends with one of these extensions...
     } else if (full.endsWith(".ts") || full.endsWith(".tsx") || full.endsWith(".mts")) {
       // We push full (the file path) to filesToScan
       filesToScan.push(full);

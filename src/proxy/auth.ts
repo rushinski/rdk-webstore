@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { verifyAdminSessionToken } from "@/lib/crypto/admin-session";
 
 export async function protectAdminRoute(
   req: NextRequest,
@@ -44,7 +45,47 @@ export async function protectAdminRoute(
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // 4. MFA check
+  // 4. Admin session cookie (bind admin access to extra token)
+  const adminCookie = req.cookies.get("admin_session")?.value;
+
+  if (!adminCookie) {
+    await supabase.auth.signOut();
+
+    const res = isAdminApi
+      ? NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 })
+      : NextResponse.redirect(new URL("/auth/login", req.url));
+
+    res.cookies.delete("admin_session");
+    res.headers.set("x-request-id", requestId);
+    return res;
+  }
+
+  const adminSession = await verifyAdminSessionToken(adminCookie);
+
+  if (!adminSession) {
+    await supabase.auth.signOut();
+
+    const res = isAdminApi
+      ? NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 })
+      : NextResponse.redirect(new URL("/auth/login", req.url));
+
+    res.cookies.delete("admin_session");
+    res.headers.set("x-request-id", requestId);
+    return res;
+  }
+
+  if (adminSession.sub && adminSession.sub !== user.id) {
+    await supabase.auth.signOut();
+
+    const res = isAdminApi
+      ? NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 })
+      : NextResponse.redirect(new URL("/auth/login", req.url));
+
+    res.cookies.delete("admin_session");
+    return res;
+  }
+
+  // 5. MFA check
   const { data: aalData, error: aalError } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 

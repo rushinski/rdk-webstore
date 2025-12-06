@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { AdminSessionService } from "@/services/admin-session-service";
 
 export async function POST(req: NextRequest) {
   const { factorId, challengeId, code } = await req.json();
@@ -29,5 +30,12 @@ export async function POST(req: NextRequest) {
   if (verifyError)
     return NextResponse.json({ error: verifyError.message }, { status: 400 });
 
-  return NextResponse.json({ ok: true });
+  let res = NextResponse.json<{ ok: true; isAdmin: true }>({
+    ok: true,
+    isAdmin: true,
+  });
+
+  res = await AdminSessionService.attachAdminSessionCookie(res, user.id);
+
+  return res;
 }

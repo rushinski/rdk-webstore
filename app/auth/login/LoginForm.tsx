@@ -5,7 +5,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { SocialButton } from "../components/SocialButton";
-import { Checkbox } from "../../components/Checkbox";
 import { PasswordField } from "../register/components/PasswordField";
 
 export function LoginForm() {
@@ -13,7 +12,6 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [staySignedIn, setStaySignedIn] = useState(true);
   const [password, setPassword] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -32,7 +30,6 @@ export function LoginForm() {
       body: JSON.stringify({
         email,
         password,
-        staySignedIn,
       }),
     });
 
@@ -144,13 +141,6 @@ export function LoginForm() {
             Forgot password?
           </Link>
         </div>
-
-        {/* Stay signed in */}
-        <Checkbox
-          label="Stay signed in for 14 days"
-          checked={staySignedIn}
-          onChange={(e) => setStaySignedIn(e.currentTarget.checked)}
-        />
       </div>
 
       {/* Submit */}

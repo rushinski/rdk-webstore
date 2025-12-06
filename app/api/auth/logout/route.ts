@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AdminSessionService } from "@/services/admin-session-service";
 
 export async function POST(_req: NextRequest) {
   try {
@@ -13,6 +14,10 @@ export async function POST(_req: NextRequest) {
 
     // 3) Perform the sign-out (session cleanup + cookie update)
     await authService.signOut();
+
+    // Build response and clear admin_session cookie
+    let res = NextResponse.json({ ok: true });
+    res = AdminSessionService.clearAdminSessionCookie(res);
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
