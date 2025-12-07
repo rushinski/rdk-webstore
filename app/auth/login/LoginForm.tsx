@@ -4,8 +4,9 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { PasswordLoginForm } from "./PasswordLoginForm";
 import { OtpLoginForm } from "./OtpLoginForm";
 import { VerifyEmailForm } from "./VerifyEmailForm";
+import { ForgotPasswordForm } from "./ForgotPasswordForm";
 
-type Mode = "password" | "otp" | "verifyEmail";
+type Mode = "password" | "otp" | "verifyEmail" | "forgotPassword";
 type VerifyFlow = "signup" | "signin";
 
 export function LoginForm() {
@@ -15,12 +16,13 @@ export function LoginForm() {
   // -----------------------------
   // Derive state from URL
   // Query scheme:
-  //   /auth/login                       -> password login (default)
-  //   /auth/login?flow=otp             -> OTP login
+  //   /auth/login                          -> password login (default)
+  //   /auth/login?flow=otp                 -> OTP login
   //   /auth/login?flow=verify-email
-  //        &email=...&verifyFlow=...   -> verify email screen
+  //        &email=...&verifyFlow=...       -> verify email screen
+  //   /auth/login?flow=forgot-password     -> forgot password flow
   // -----------------------------
-  const flowParam = params.get("flow"); // "otp" | "verify-email" | null
+  const flowParam = params.get("flow"); // "otp" | "verify-email" | "forgot-password" | null
   const emailParam = (params.get("email") ?? "").trim();
   const verifyFlowParam: VerifyFlow =
     params.get("verifyFlow") === "signup" ? "signup" : "signin";
@@ -30,6 +32,8 @@ export function LoginForm() {
     mode = "otp";
   } else if (flowParam === "verify-email") {
     mode = "verifyEmail";
+  } else if (flowParam === "forgot-password") {
+    mode = "forgotPassword";
   }
 
   // -----------------------------
@@ -39,7 +43,7 @@ export function LoginForm() {
   function goToPassword() {
     const search = new URLSearchParams(Array.from(params.entries()));
 
-    // Password mode is the default; we can clear the flow-related params
+    // Password mode is the default; clear flow-related params
     search.delete("flow");
     search.delete("email");
     search.delete("verifyFlow");
@@ -64,11 +68,19 @@ export function LoginForm() {
   function goToVerifyEmail(email: string, flow: VerifyFlow = "signin") {
     const search = new URLSearchParams();
 
-    // Reuse your existing pattern:
     // flow=verify-email&verifyFlow=signup|signin&email=...
     search.set("flow", "verify-email");
     search.set("verifyFlow", flow);
     search.set("email", email.trim());
+
+    router.push(`/auth/login?${search.toString()}`);
+  }
+
+  function goToForgotPassword() {
+    const search = new URLSearchParams();
+
+    // Forgot password is represented by flow=forgot-password
+    search.set("flow", "forgot-password");
 
     router.push(`/auth/login?${search.toString()}`);
   }
@@ -96,6 +108,10 @@ export function LoginForm() {
     );
   }
 
+  if (mode === "forgotPassword") {
+    return <ForgotPasswordForm onBackToLogin={goToPassword} />;
+  }
+
   // default: password mode
   return (
     <PasswordLoginForm
@@ -103,6 +119,7 @@ export function LoginForm() {
         goToVerifyEmail(email, "signin")
       }
       onSwitchToOtp={goToOtp}
+      onForgotPassword={goToForgotPassword}
     />
   );
 }

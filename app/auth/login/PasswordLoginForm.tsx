@@ -9,11 +9,13 @@ import { PasswordField } from "../register/components/PasswordField";
 interface PasswordLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
   onSwitchToOtp: () => void;
+  onForgotPassword: () => void;
 }
 
 export function PasswordLoginForm({
   onRequiresEmailVerification,
   onSwitchToOtp,
+  onForgotPassword,
 }: PasswordLoginFormProps) {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -141,12 +143,13 @@ export function PasswordLoginForm({
         />
 
         <div className="flex justify-end">
-          <Link
-            href="/auth/forgot-password"
+          <button
+            type="button"
+            onClick={onForgotPassword}
             className="text-xs text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2"
           >
             Forgot password?
-          </Link>
+          </button>
         </div>
       </div>
 
