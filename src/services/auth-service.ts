@@ -65,4 +65,38 @@ export class AuthService {
 
     // Flow param is here for future branching / logging if needed.
   }
+
+  async requestEmailOtpForSignIn(email: string) {
+    const { error } = await this.supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      },
+    });
+
+    // We intentionally DO NOT throw on "User not found" to avoid email enumeration.
+    if (error && !error.message.toLowerCase().includes("user not found")) {
+      throw error;
+    }
+  }
+
+  /**
+   * Verify a one-time code and create a session.
+   * Mirrors signIn() return shape.
+   */
+  async verifyEmailOtpForSignIn(email: string, code: string) {
+    const { data, error } = await this.supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "email", // email OTP flow
+    });
+
+    if (error) throw error;
+    if (!data.user) return { user: null, profile: null };
+
+    const repo = new ProfileRepository(this.supabase);
+    const profile = await repo.getByUserId(data.user.id);
+
+    return { user: data.user, profile };
+  }
 }
