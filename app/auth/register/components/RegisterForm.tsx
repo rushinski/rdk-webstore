@@ -55,8 +55,9 @@ export function RegisterForm() {
         setError(json.error ?? "Sign up failed");
         return;
       }
-
-      router.push(`/auth/verify-email?flow=signup&email=${encodeURIComponent(email)}`);
+      router.push(
+        `/auth/login?flow=verify-email&verifyFlow=signup&email=${encodeURIComponent(email)}`,
+      );
     } catch (err: any) {
       setError(err?.message ?? "Something went wrong. Please try again.");
     } finally {

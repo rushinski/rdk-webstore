@@ -1,30 +1,105 @@
 // app/auth/login/LoginForm.tsx
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SocialButton } from "../components/SocialButton";
 import { PasswordField } from "../register/components/PasswordField";
 
-type Mode = "password" | "otp";
+type Mode = "password" | "otp" | "verifyEmail";
 type OtpStage = "request" | "verify";
+type VerifyFlow = "signup" | "signin";
 
 export function LoginForm() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [password, setPassword] = useState("");
+  const params = useSearchParams();
 
   const [mode, setMode] = useState<Mode>("password");
+  const [error, setError] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Password mode state
+  const [password, setPassword] = useState("");
+
+  // OTP mode state
   const [otpStage, setOtpStage] = useState<OtpStage>("request");
   const [otpEmail, setOtpEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
 
+  // Verify-email mode state
+  const [verifyEmailAddress, setVerifyEmailAddress] = useState("");
+  const [verifyFlow, setVerifyFlow] = useState<VerifyFlow>("signin");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [verifyResendCooldown, setVerifyResendCooldown] = useState(0);
+  const [verifyResendSent, setVerifyResendSent] = useState(false);
+  const [verifyResendError, setVerifyResendError] = useState<string | null>(
+    null,
+  );
+  const [verifyIsSending, setVerifyIsSending] = useState(false);
+
+  // -------------------------------------------------
+  // Initialize from query params (for signup redirect)
+  // /auth/login?flow=verify-email&email=...&verifyFlow=signup|signin
+  // -------------------------------------------------
+  useEffect(() => {
+    const flowParam = params.get("flow");
+    if (flowParam === "verify-email") {
+      const emailParam = (params.get("email") ?? "").trim();
+      const vfParam = params.get("verifyFlow");
+      const vf: VerifyFlow = vfParam === "signup" ? "signup" : "signin";
+
+      setVerifyEmailAddress(emailParam);
+      setVerifyFlow(vf);
+      setMode("verifyEmail");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cooldown timer for resend in verify-email mode
+  useEffect(() => {
+    if (verifyResendCooldown <= 0) return;
+    const id = setTimeout(
+      () => setVerifyResendCooldown((c) => c - 1),
+      1000,
+    );
+    return () => clearTimeout(id);
+  }, [verifyResendCooldown]);
+
+  // Helper: when backend says "requiresEmailVerification"
+  function switchToVerifyEmail(email: string, flow: VerifyFlow = "signin") {
+    setVerifyEmailAddress(email.trim());
+    setVerifyFlow(flow);
+    setVerifyResendCooldown(0);
+    setVerifyResendSent(false);
+    setVerifyResendError(null);
+    setVerifyCode("");
+    setError(null);
+    setInfoMessage(null);
+    setMode("verifyEmail");
+  }
+
+  // Helper: go back to password sign-in from either OTP or verify modes
+  function switchToPassword() {
+    setMode("password");
+    setError(null);
+    setInfoMessage(null);
+    setIsSubmitting(false);
+  }
+
+  // Helper: switch to OTP mode
+  function switchToOtp() {
+    setMode("otp");
+    setOtpStage("request");
+    setOtpCode("");
+    setError(null);
+    setInfoMessage(null);
+  }
+
   // -------------------------
-  // Password login handler
+  // PASSWORD login handler
   // -------------------------
   async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,18 +115,15 @@ export function LoginForm() {
 
     const res = await fetch("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({
-        email,
-        password,
-      }),
+      body: JSON.stringify({ email, password }),
     });
 
     const json = await res.json();
 
     if (json.requiresEmailVerification) {
-      router.push(
-        `/auth/verify-email?flow=login&email=${encodeURIComponent(email)}&auto=1`,
-      );
+      // NEW: stay on login page, flip into verify-email mode
+      switchToVerifyEmail(email, "signin");
+      setIsSubmitting(false);
       return;
     }
 
@@ -111,11 +183,9 @@ export function LoginForm() {
         const json = await res.json();
 
         if (json.requiresEmailVerification) {
-          router.push(
-            `/auth/verify-email?flow=login&email=${encodeURIComponent(
-              otpEmail,
-            )}&auto=1`,
-          );
+          // OTP login + unverified email -> same verify-email view
+          switchToVerifyEmail(otpEmail, "signin");
+          setIsSubmitting(false);
           return;
         }
 
@@ -142,26 +212,207 @@ export function LoginForm() {
     }
   }
 
-  // Small helpers
-  function switchToOtp() {
-    setMode("otp");
-    setOtpStage("request");
-    setOtpCode("");
-    setError(null);
-    setInfoMessage(null);
-  }
+  // -------------------------
+  // VERIFY-EMAIL: resend
+  // -------------------------
+  async function handleVerifyResend() {
+    if (!verifyEmailAddress || verifyIsSending || verifyResendCooldown > 0) {
+      return;
+    }
 
-  function switchToPassword() {
-    setMode("password");
-    setError(null);
-    setInfoMessage(null);
+    try {
+      setVerifyIsSending(true);
+      setVerifyResendError(null);
+
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: verifyEmailAddress,
+          flow: verifyFlow,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!json.ok) {
+        setVerifyResendError(json.error ?? "Could not resend email.");
+        return;
+      }
+
+      setVerifyResendSent(true);
+      setVerifyResendCooldown(60);
+    } finally {
+      setVerifyIsSending(false);
+    }
   }
 
   // -------------------------
-  // Render
+  // VERIFY-EMAIL: verify numeric code
   // -------------------------
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!verifyEmailAddress || !verifyCode) return;
+
+    // reuse the shared error state
+    setError(null);
+    setIsVerifyingCode(true);
+
+    try {
+      const res = await fetch("/api/auth/verify-email/otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: verifyEmailAddress,
+          code: verifyCode,
+          flow: verifyFlow,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!json.ok) {
+        setError(json.error ?? "Could not verify code.");
+        return;
+      }
+
+      const nextPath = json.nextPath || "/";
+      router.push(nextPath);
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  }
+
+  const verifyHeading =
+    verifyFlow === "signin"
+      ? "Verify your email to continue"
+      : "Welcome! Activate your account";
+
+  const verifyDescription =
+    verifyFlow === "signin"
+      ? "Your email isn’t verified yet. We’ve sent you a verification email. You can click the link or enter the code below."
+      : "We’ve sent a verification email to your address. Click the link or enter the code below to activate your account.";
+
+  const verifyResendLabel = (() => {
+    if (verifyIsSending) return "Sending…";
+    if (verifyResendCooldown > 0) return `Resend in ${verifyResendCooldown}s`;
+    return "Resend verification email";
+  })();
+
+  const verifyResendDisabled =
+    verifyIsSending || verifyResendCooldown > 0 || !verifyEmailAddress;
+
+  // =========================
+  // VERIFY-EMAIL MODE
+  // =========================
+  if (mode === "verifyEmail") {
+    return (
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="space-y-2 text-center">
+          <div className="inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500">
+            Real Deal Kickz
+          </div>
+          <h1 className="text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
+            {verifyHeading}
+          </h1>
+          <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+            {verifyDescription}
+          </p>
+        </div>
+
+        {/* Email display */}
+        <p className="text-center font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100 break-all">
+          {verifyEmailAddress || "Unknown email"}
+        </p>
+
+        {/* Resend button + messages */}
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={handleVerifyResend}
+            disabled={verifyResendDisabled}
+            className={`inline-flex h-10 w-full items-center justify-center rounded-xl text-sm font-semibold transition-all
+              ${
+                verifyResendDisabled
+                  ? "bg-neutral-200 dark:bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                  : "bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30"
+              }`}
+          >
+            {verifyResendLabel}
+          </button>
+
+          <div className="min-h-[16px] text-center">
+            {verifyResendSent && (
+              <p className="text-xs text-emerald-500">
+                Verification email resent.
+              </p>
+            )}
+            {verifyResendError && (
+              <p className="text-xs text-red-500">{verifyResendError}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 text-[11px] text-neutral-400">
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
+          <span>or enter your code</span>
+          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
+        </div>
+
+        {/* Code entry */}
+        <form onSubmit={handleVerifyCode} className="space-y-4">
+          <div className="space-y-1.5">
+            <label
+              htmlFor="verify-code"
+              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+            >
+              Verification code
+            </label>
+            <input
+              id="verify-code"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              placeholder="Enter the code from your email"
+              value={verifyCode}
+              onChange={(e) => setVerifyCode(e.target.value)}
+              className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isVerifyingCode}
+            className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg hover:from-red-500 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+          >
+            {isVerifyingCode ? "Verifying..." : "Verify & continue"}
+          </button>
+
+          {error && (
+            <p className="text-xs text-red-500 text-center">{error}</p>
+          )}
+        </form>
+
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={switchToPassword}
+            className="text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2"
+          >
+            Back to sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // OTP MODE
+  // =========================
   if (mode === "otp") {
-    // OTP MODE
     return (
       <form onSubmit={handleOtpSubmit} className="space-y-6">
         {/* Header */}
@@ -307,7 +558,9 @@ export function LoginForm() {
     );
   }
 
-  // PASSWORD MODE (existing form, only change is the toggle at bottom)
+  // =========================
+  // PASSWORD MODE (default)
+  // =========================
   return (
     <form onSubmit={handlePasswordSubmit} className="space-y-6">
       {/* Header */}
