@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { PasswordLoginForm } from "./PasswordLoginForm";
 import { OtpLoginForm } from "./OtpLoginForm";
 import { VerifyEmailForm } from "./VerifyEmailForm";
@@ -9,47 +8,80 @@ import { VerifyEmailForm } from "./VerifyEmailForm";
 type Mode = "password" | "otp" | "verifyEmail";
 type VerifyFlow = "signup" | "signin";
 
-interface VerifyContext {
-  email: string;
-  flow: VerifyFlow;
-}
-
 export function LoginForm() {
   const params = useSearchParams();
-  const [mode, setMode] = useState<Mode>("password");
-  const [verifyContext, setVerifyContext] = useState<VerifyContext | null>(
-    null
-  );
+  const router = useRouter();
 
-  // Initialize from query params (signup redirect)
-  // /auth/login?flow=verify-email&email=...&verifyFlow=signup|signin
-  useEffect(() => {
-    const flowParam = params.get("flow");
-    if (flowParam === "verify-email") {
-      const emailParam = (params.get("email") ?? "").trim();
-      const vfParam = params.get("verifyFlow");
-      const vf: VerifyFlow = vfParam === "signup" ? "signup" : "signin";
+  // -----------------------------
+  // Derive state from URL
+  // Query scheme:
+  //   /auth/login                       -> password login (default)
+  //   /auth/login?flow=otp             -> OTP login
+  //   /auth/login?flow=verify-email
+  //        &email=...&verifyFlow=...   -> verify email screen
+  // -----------------------------
+  const flowParam = params.get("flow"); // "otp" | "verify-email" | null
+  const emailParam = (params.get("email") ?? "").trim();
+  const verifyFlowParam: VerifyFlow =
+    params.get("verifyFlow") === "signup" ? "signup" : "signin";
 
-      setVerifyContext({ email: emailParam, flow: vf });
-      setMode("verifyEmail");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function handleRequiresEmailVerification(
-    email: string,
-    flow: VerifyFlow = "signin"
-  ) {
-    setVerifyContext({ email: email.trim(), flow });
-    setMode("verifyEmail");
+  let mode: Mode = "password";
+  if (flowParam === "otp") {
+    mode = "otp";
+  } else if (flowParam === "verify-email") {
+    mode = "verifyEmail";
   }
 
-  if (mode === "verifyEmail" && verifyContext) {
+  // -----------------------------
+  // Helpers to update URL
+  // -----------------------------
+
+  function goToPassword() {
+    const search = new URLSearchParams(Array.from(params.entries()));
+
+    // Password mode is the default; we can clear the flow-related params
+    search.delete("flow");
+    search.delete("email");
+    search.delete("verifyFlow");
+
+    const qs = search.toString();
+    router.push(`/auth/login${qs ? `?${qs}` : ""}`);
+  }
+
+  function goToOtp() {
+    const search = new URLSearchParams(Array.from(params.entries()));
+
+    // OTP login is represented by flow=otp
+    search.set("flow", "otp");
+    // OTP view doesn't need verify-email context
+    search.delete("email");
+    search.delete("verifyFlow");
+
+    const qs = search.toString();
+    router.push(`/auth/login?${qs}`);
+  }
+
+  function goToVerifyEmail(email: string, flow: VerifyFlow = "signin") {
+    const search = new URLSearchParams();
+
+    // Reuse your existing pattern:
+    // flow=verify-email&verifyFlow=signup|signin&email=...
+    search.set("flow", "verify-email");
+    search.set("verifyFlow", flow);
+    search.set("email", email.trim());
+
+    router.push(`/auth/login?${search.toString()}`);
+  }
+
+  // -----------------------------
+  // Render based on mode
+  // -----------------------------
+
+  if (mode === "verifyEmail") {
     return (
       <VerifyEmailForm
-        email={verifyContext.email}
-        flow={verifyContext.flow}
-        onBack={() => setMode("password")}
+        email={emailParam}
+        flow={verifyFlowParam}
       />
     );
   }
@@ -57,9 +89,8 @@ export function LoginForm() {
   if (mode === "otp") {
     return (
       <OtpLoginForm
-        onBackToPassword={() => setMode("password")}
         onRequiresEmailVerification={(email) =>
-          handleRequiresEmailVerification(email, "signin")
+          goToVerifyEmail(email, "signin")
         }
       />
     );
@@ -69,9 +100,9 @@ export function LoginForm() {
   return (
     <PasswordLoginForm
       onRequiresEmailVerification={(email) =>
-        handleRequiresEmailVerification(email, "signin")
+        goToVerifyEmail(email, "signin")
       }
-      onSwitchToOtp={() => setMode("otp")}
+      onSwitchToOtp={goToOtp}
     />
   );
 }

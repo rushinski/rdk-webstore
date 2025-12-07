@@ -9,14 +9,12 @@ type VerifyFlow = "signup" | "signin";
 export interface VerifyEmailFormProps {
   email: string;
   flow?: VerifyFlow;              // default: "signin"
-  onBack?: () => void;            // e.g. back to login or register
   onVerified?: (nextPath?: string) => void; // optional override
 }
 
 export function VerifyEmailForm({
   email,
   flow = "signin",
-  onBack,
   onVerified,
 }: VerifyEmailFormProps) {
   const router = useRouter();
@@ -25,7 +23,7 @@ export function VerifyEmailForm({
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendCooldown, setResendCooldown] = useState(60);
   const [resendSent, setResendSent] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
   const [isSendingResend, setIsSendingResend] = useState(false);
@@ -165,17 +163,7 @@ export function VerifyEmailForm({
         )}
       </form>
 
-      {onBack && (
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onBack}
-            className="text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2"
-          >
-            Back
-          </button>
-        </div>
-      )}
+      
     </div>
   );
 }

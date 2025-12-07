@@ -6,14 +6,12 @@ import Link from "next/link";
 import { CodeInputWithResend } from "./CodeInputWithResend";
 
 interface OtpLoginFormProps {
-  onBackToPassword: () => void;
   onRequiresEmailVerification: (email: string) => void;
 }
 
 type OtpStage = "request" | "verify";
 
 export function OtpLoginForm({
-  onBackToPassword,
   onRequiresEmailVerification,
 }: OtpLoginFormProps) {
   const router = useRouter();
@@ -219,16 +217,6 @@ export function OtpLoginForm({
             ? "Send code"
             : "Verify code & sign in"}
         </button>
-
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onBackToPassword}
-            className="text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2"
-          >
-            Back to password sign in
-          </button>
-        </div>
       </div>
 
       <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
