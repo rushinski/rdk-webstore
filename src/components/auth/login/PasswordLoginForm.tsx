@@ -88,23 +88,14 @@ export function PasswordLoginForm({
         </div>
       )}
 
-      {/* Social buttons */}
+      {/* Social */}
       <div className="space-y-3">
-        <SocialButton
-          provider="google"
-          label="Sign in with Google"
-          onClick={() => console.warn("Google sign-in not implemented yet")}
-        />
-        <SocialButton
-          provider="facebook"
-          label="Sign in with Facebook"
-          onClick={() => console.warn("Facebook sign-in not implemented yet")}
-        />
-        <SocialButton
-          provider="apple"
-          label="Sign in with Apple"
-          onClick={() => console.warn("Apple sign-in not implemented yet")}
-        />
+        <SocialButton provider="google" label="Sign in with Google" />
+        <SocialButton provider="facebook" label="Sign in with Facebook" />
+        <SocialButton provider="apple" label="Sign in with Apple" />
+        {/* if you want onboarding later:
+          <SocialButton provider="google" label="Sign up with Google" nextOverride="/onboarding" />
+        */}
       </div>
 
       {/* Divider */}

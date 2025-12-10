@@ -1,13 +1,21 @@
-// app/components/ui/SocialButton.tsx
+// src/components/auth/ui/SocialButton.tsx
 "use client";
 
-import type { ButtonHTMLAttributes } from "react";
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Provider = "google" | "facebook" | "apple";
 
-interface SocialButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface SocialButtonProps {
   provider: Provider;
   label: string;
+  className?: string;
+  /**
+   * Optional override for the "next" path after OAuth finishes.
+   * If omitted, we use ?next from URL or "/".
+   */
+  nextOverride?: string;
 }
 
 function GoogleIcon() {
@@ -67,7 +75,15 @@ function AppleIcon() {
   );
 }
 
-export function SocialButton({ provider, label, className = "", ...props }: SocialButtonProps) {
+export function SocialButton({
+  provider,
+  label,
+  className = "",
+  nextOverride,
+}: SocialButtonProps) {
+  const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+
   const base =
     "flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-white/80 dark:focus-visible:ring-red-500/80";
 
@@ -87,16 +103,48 @@ export function SocialButton({ provider, label, className = "", ...props }: Soci
       <AppleIcon />
     );
 
+  const next = nextOverride ?? searchParams.get("next") ?? "/";
+
+  const handleClick = async () => {
+    try {
+      setLoading(true);
+      const supabase = createSupabaseBrowserClient();
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(
+            next,
+          )}`,
+        },
+      });
+
+      if (error) {
+        console.error("OAuth error:", error);
+        setLoading(false);
+      }
+      // Browser will now redirect -> provider -> Supabase -> /auth/callback
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
   return (
     <button
       type="button"
-      className={`${base} ${providerClasses} ${className}`}
-      {...props}
+      onClick={handleClick}
+      disabled={loading}
+      className={`${base} ${providerClasses} ${className} ${
+        loading ? "opacity-70 cursor-not-allowed" : ""
+      }`}
     >
       <span className="flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 p-1.5">
         {icon}
       </span>
-      <span className="truncate">{label}</span>
+      <span className="truncate">
+        {loading ? "Connecting..." : label}
+      </span>
     </button>
   );
 }

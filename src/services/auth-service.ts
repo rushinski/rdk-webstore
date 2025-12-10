@@ -128,4 +128,25 @@ export class AuthService {
 
     return { user, profile };
   }
+
+  /**
+   * Ensures that the currently authenticated user has a profile row.
+   * Used by OAuth callback & any future login flows.
+   */
+  async ensureProfileForCurrentUser(defaultUpdatesOptIn: boolean) {
+    const {
+      data: { user },
+    } = await this.supabase.auth.getUser();
+
+    if (!user || !user.email) {
+      return { user: null, profile: null };
+    }
+
+    const repo = new ProfileRepository(this.supabase);
+    await repo.ensureProfile(user.id, user.email, defaultUpdatesOptIn);
+
+    const profile = await repo.getByUserId(user.id);
+
+    return { user, profile };
+  }
 }

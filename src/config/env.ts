@@ -17,6 +17,10 @@ const schema = z.object({
 
   SENTRY_DSN: z.string(), // secret is allowed to be undefined
   POSTHOG_API_KEY: z.string(),
+
+  ADMIN_SESSION_SECRET: z.string(),
+  
+  SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET: z.string(),
 });
 
 // process.env is loaded dependant on how it is being ran. Local vs Vercel vs GitHub Actions
