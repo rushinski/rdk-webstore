@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { SplitCodeInput } from "./SplitCodeInput";
 import { PasswordField } from "../register/components/PasswordField";
 import {
   PasswordRequirements,
   evaluateRequirements,
 } from "../components/PasswordRequirements";
+import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 interface ForgotPasswordFormProps {
   onBackToLogin: () => void;
@@ -27,6 +27,19 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // resend state for reset code
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendSent, setResendSent] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [isSendingResend, setIsSendingResend] = useState(false);
+
+  // cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendCooldown]);
 
   async function handleRequestSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,10 +65,50 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         "If an account exists for that email, we’ve sent a reset code."
       );
       setStep("reset");
+
+      // prime resend state for reset step
+      setResendSent(false);
+      setResendError(null);
+      setResendCooldown(60);
+      setStep("reset");
     } catch (err: any) {
       setError(err?.message ?? "Could not send reset code.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleResendResetCode() {
+    if (!email || step !== "reset" || isSendingResend || resendCooldown > 0) {
+      return;
+    }
+
+    setError(null);
+    setInfoMessage(null);
+    setIsSendingResend(true);
+    setResendError(null);
+
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error ?? "Could not resend reset code.");
+      }
+
+      setInfoMessage("We’ve sent you a new reset code.");
+      setResendSent(true);
+      setResendCooldown(60);
+    } catch (err: any) {
+      const message = err?.message ?? "Could not resend reset code.";
+      setError(message);
+      setResendError(message);
+    } finally {
+      setIsSendingResend(false);
     }
   }
 
@@ -64,8 +117,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     setError(null);
     setInfoMessage(null);
 
-    if (!code || code.length < 4) {
-      setError("Please enter the reset code from your email.");
+    if (!code || code.length !== 6) {
+      setError("Please enter the 6-digit reset code from your email.");
       return;
     }
 
@@ -198,21 +251,20 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             <span className="font-medium">{email}</span>
           </p>
 
-          {/* Code input */}
-          <div className="space-y-1.5">
-            <label
-              htmlFor="reset-code"
-              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200 text-center"
-            >
-              Reset code
-            </label>
-            <SplitCodeInput
-              length={6}
-              value={code}
-              onChange={setCode}
-              disabled={isSubmitting}
-            />
-          </div>
+          {/* Code input with resend */}
+          <SplitCodeInputWithResend
+            id="reset-code"
+            label="Reset code"
+            length={6}
+            value={code}
+            onChange={setCode}
+            onResend={handleResendResetCode}
+            isSending={isSendingResend}
+            cooldown={resendCooldown}
+            disabled={isSubmitting}
+            resendSent={resendSent}
+            resendError={resendError}
+          />
 
           {/* New password + confirm */}
           <PasswordField

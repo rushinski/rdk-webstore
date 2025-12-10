@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
+import { SplitCodeInput } from "./SplitCodeInput";
 
 export interface CodeInputWithResendProps
   extends Omit<ComponentPropsWithoutRef<"input">, "onChange" | "value"> {
@@ -18,6 +19,9 @@ export interface CodeInputWithResendProps
   // optional status messages
   resendSent?: boolean;
   resendError?: string | null;
+
+  // NEW: how many code digits
+  length?: number;    // default: 6
 }
 
 export function CodeInputWithResend({
@@ -32,6 +36,7 @@ export function CodeInputWithResend({
   resendSent,
   resendError,
   placeholder = "Enter the code",
+  length = 6,
   ...rest
 }: CodeInputWithResendProps) {
   const resendDisabled = disabled || isSending || cooldown > 0;
@@ -40,6 +45,7 @@ export function CodeInputWithResend({
     <div className="space-y-1.5">
       {label && (
         <label
+          // label targets the first box
           htmlFor={id}
           className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
         >
@@ -47,27 +53,23 @@ export function CodeInputWithResend({
         </label>
       )}
 
-      <div className="relative">
-        <input
-          id={id}
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
+      <div className="relative flex justify-center" {...rest}>
+        <SplitCodeInput
+          length={length}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
+          onChange={onChange}
           disabled={disabled}
-          className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 pr-10 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm disabled:opacity-60"
-          {...rest}
+          idPrefix={id}
+          autoFocus
         />
 
-        {/* Refresh icon button */}
+        {/* Refresh icon button, anchored to the right of the boxes */}
         <button
           type="button"
           onClick={onResend}
           disabled={resendDisabled}
-          className="absolute inset-y-0 right-2 flex items-center justify-center disabled:opacity-40"
-          aria-label="Resend code"
+          className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center pr-1 pl-2 disabled:opacity-40"
+          aria-label={cooldown > 0 ? `Resend code in ${cooldown} seconds` : "Resend code"}
         >
           <svg
             viewBox="0 0 24 24"
@@ -129,6 +131,13 @@ export function CodeInputWithResend({
           <p className="text-[11px] text-red-500">{resendError}</p>
         )}
       </div>
+
+      {/* Simple helper text for screen readers */}
+      {placeholder && (
+        <p className="sr-only">
+          {placeholder}
+        </p>
+      )}
     </div>
   );
 }

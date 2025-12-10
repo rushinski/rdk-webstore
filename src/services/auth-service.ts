@@ -99,4 +99,33 @@ export class AuthService {
 
     return { user: data.user, profile };
   }
+
+  async verifyEmailOtpForSignup(email: string, code: string) {
+    const { data, error } = await this.supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "signup",
+    });
+
+    if (error) throw error;
+    if (!data.user) return { user: null, profile: null };
+
+    const user = data.user;
+
+    const rawUpdatesOptIn =
+      // metadata may be string or boolean depending on how Supabase stored it
+      (user.user_metadata as any)?.updatesOptIn;
+
+    const updatesOptIn =
+      rawUpdatesOptIn === true || rawUpdatesOptIn === "true";
+
+    const repo = new ProfileRepository(this.supabase);
+    const profile = await repo.ensureProfile(
+      user.id,
+      user.email!,
+      updatesOptIn,
+    );
+
+    return { user, profile };
+  }
 }

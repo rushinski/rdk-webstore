@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CodeInputWithResend } from "./CodeInputWithResend";
+import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 interface OtpLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
@@ -20,7 +20,6 @@ export function OtpLoginForm({
   const [otpEmail, setOtpEmail] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // resend state for OTP
@@ -36,10 +35,16 @@ export function OtpLoginForm({
     return () => clearTimeout(id);
   }, [resendCooldown]);
 
+  const descriptionText =
+    otpStage === "request"
+      ? error
+        ? "Error sending verification email. Please try again."
+        : "We’ll email you a short code. No password needed."
+      : "We’ve emailed you a one-time code. Enter it below to sign in.";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setInfoMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -53,13 +58,10 @@ export function OtpLoginForm({
         const json = await res.json();
 
         if (!res.ok || !json.ok) {
-          throw new Error(json.error ?? "Could not send code");
+          throw new Error(json.error ?? "Error sending verification email.");
         }
 
         setOtpStage("verify");
-        setInfoMessage(
-          "We’ve emailed you a one-time code. Enter it below to sign in."
-        );
         // start cooldown after first send
         setResendSent(false);
         setResendError(null);
@@ -96,19 +98,28 @@ export function OtpLoginForm({
         router.push(json.isAdmin ? "/admin" : "/");
       }
     } catch (err: any) {
-      setError(err.message ?? "Something went wrong");
+      setError(
+        err?.message ??
+          (otpStage === "request"
+            ? "Error sending verification email."
+            : "Something went wrong"),
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleResend() {
-    if (!otpEmail || otpStage !== "verify" || isSendingResend || resendCooldown > 0) {
+    if (
+      !otpEmail ||
+      otpStage !== "verify" ||
+      isSendingResend ||
+      resendCooldown > 0
+    ) {
       return;
     }
 
     setError(null);
-    setInfoMessage(null);
     setIsSendingResend(true);
     setResendError(null);
 
@@ -124,12 +135,12 @@ export function OtpLoginForm({
         throw new Error(json.error ?? "Could not resend code");
       }
 
-      setInfoMessage("We’ve sent you a new code.");
       setResendSent(true);
       setResendCooldown(60);
     } catch (err: any) {
-      setError(err.message ?? "Could not resend code.");
-      setResendError(err.message ?? "Could not resend code.");
+      const message = err?.message ?? "Could not resend code.";
+      setError(message);
+      setResendError(message);
     } finally {
       setIsSendingResend(false);
     }
@@ -146,19 +157,13 @@ export function OtpLoginForm({
           Sign in with a one-time code
         </h1>
         <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
-          We’ll email you a short code. No password needed.
+          {descriptionText}
         </p>
       </div>
 
       {error && (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
           {error}
-        </div>
-      )}
-
-      {infoMessage && (
-        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-xs sm:text-sm text-emerald-700 dark:text-emerald-300">
-          {infoMessage}
         </div>
       )}
 
@@ -187,9 +192,10 @@ export function OtpLoginForm({
 
         {/* Code input */}
         {otpStage === "verify" && (
-          <CodeInputWithResend
+          <SplitCodeInputWithResend
             id="otp-code"
             label="One-time code"
+            length={6}
             value={otpCode}
             onChange={setOtpCode}
             onResend={handleResend}
@@ -198,7 +204,6 @@ export function OtpLoginForm({
             disabled={isSubmitting}
             resendSent={resendSent}
             resendError={resendError}
-            placeholder="123456"
           />
         )}
       </div>

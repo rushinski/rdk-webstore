@@ -7,6 +7,10 @@ interface SplitCodeInputProps {
   value: string;             // full code string (e.g. "123456")
   onChange: (value: string) => void;
   disabled?: boolean;
+
+  // NEW
+  idPrefix?: string;         // base id used for label association
+  autoFocus?: boolean;       // focus first box on mount
 }
 
 export function SplitCodeInput({
@@ -14,6 +18,8 @@ export function SplitCodeInput({
   value,
   onChange,
   disabled,
+  idPrefix,
+  autoFocus,
 }: SplitCodeInputProps) {
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -59,7 +65,10 @@ export function SplitCodeInput({
     focusInput(nextIndex);
   }
 
-  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+  function handleKeyDown(
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) {
     if (disabled) return;
 
     if (e.key === "Backspace") {
@@ -86,22 +95,31 @@ export function SplitCodeInput({
 
   return (
     <div className="flex items-center justify-center gap-2">
-      {digits.map((digit, index) => (
-        <input
-          key={index}
-          ref={(el) => {
-            inputsRef.current[index] = el;
-          }}
-          type="text"
-          inputMode="numeric"
-          maxLength={1}
-          value={digit}
-          onChange={(e) => handleChange(index, e.target.value)}
-          onKeyDown={(e) => handleKeyDown(index, e)}
-          disabled={disabled}
-          className="h-11 w-10 sm:w-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-center text-lg font-semibold text-neutral-900 dark:text-neutral-50 shadow-sm disabled:opacity-60"
-        />
-      ))}
+      {digits.map((digit, index) => {
+        const isFirst = index === 0;
+        const inputId =
+          idPrefix && (isFirst ? idPrefix : `${idPrefix}-${index}`);
+
+        return (
+          <input
+            key={index}
+            id={inputId}
+            ref={(el) => {
+              inputsRef.current[index] = el;
+            }}
+            type="text"
+            inputMode="numeric"
+            maxLength={1}
+            value={digit}
+            onChange={(e) => handleChange(index, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(index, e)}
+            disabled={disabled}
+            autoFocus={autoFocus && isFirst}
+            autoComplete={isFirst ? "one-time-code" : "off"}
+            className="h-11 w-10 sm:w-11 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-center text-lg font-semibold text-neutral-900 dark:text-neutral-50 shadow-sm disabled:opacity-60"
+          />
+        );
+      })}
     </div>
   );
 }

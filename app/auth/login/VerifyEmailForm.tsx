@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CodeInputWithResend } from "./CodeInputWithResend";
+import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 type VerifyFlow = "signup" | "signin";
 
@@ -136,32 +136,32 @@ export function VerifyEmailForm({
 
       {/* Code entry + inline resend */}
       <form onSubmit={handleVerifyCode} className="space-y-4">
-        <CodeInputWithResend
-          id="verify-code"
-          label="Verification code"
-          value={code}
-          onChange={setCode}
-          onResend={handleResend}
-          isSending={isSendingResend}
-          cooldown={resendCooldown}
-          disabled={isVerifying}
-          resendSent={resendSent}
-          resendError={resendError}
-          placeholder="Enter the code from your email"
-        />
+      <SplitCodeInputWithResend
+        id="verify-code"
+        label="Verification code"
+        length={6}
+        value={code}
+        onChange={setCode}
+        onResend={handleResend}
+        isSending={isSendingResend}
+        cooldown={resendCooldown}
+        disabled={isVerifying}
+        resendSent={resendSent}
+        resendError={resendError}
+      />
 
-        <button
-          type="submit"
-          disabled={isVerifying}
-          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg hover:from-red-500 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-        >
-          {isVerifying ? "Verifying..." : "Verify & continue"}
-        </button>
+      <button
+        type="submit"
+        disabled={isVerifying}
+        className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg hover:from-red-500 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+      >
+        {isVerifying ? "Verifying..." : "Verify & continue"}
+      </button>
 
-        {error && (
-          <p className="text-xs text-red-500 text-center">{error}</p>
-        )}
-      </form>
+      {error && (
+        <p className="text-xs text-red-500 text-center">{error}</p>
+      )}
+    </form>
 
       
     </div>
