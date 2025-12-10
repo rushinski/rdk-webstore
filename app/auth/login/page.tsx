@@ -1,7 +1,22 @@
+// app/auth/login/page.tsx
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
 import AuthCard from "@/components/auth/ui/AuthCard";
 import { LoginForm } from "@/components/auth/login/LoginFormRouter";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // Server-side auth check
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // If already authenticated, send them through the logout flow
+  if (user) {
+    redirect("/auth/logout");
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       <div className="flex min-h-screen flex-col md:flex-row">

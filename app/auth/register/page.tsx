@@ -1,8 +1,22 @@
 // app/auth/register/page.tsx
+import { redirect } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
 import AuthCard from "@/components/auth/ui/AuthCard";
 import { RegisterForm } from "@/components/auth/register/RegisterForm";
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  // Server-side auth check
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // If already authenticated, send them through the logout flow
+  if (user) {
+    redirect("/auth/logout");
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950 text-white">
       <div className="flex min-h-screen flex-col md:flex-row">

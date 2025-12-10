@@ -6,7 +6,6 @@ import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 type Stage = "request" | "verify";
 
 export interface EmailCodeFlowProps {
-  // For debugging / test IDs only (optional)
   flowId?: string;
 
   // UI copy
@@ -14,17 +13,14 @@ export interface EmailCodeFlowProps {
   codeLabel: string;
   emailLabel?: string;
 
-  /**
-   * Returns the small subtitle text under the title.
-   * You get the current stage and whether there's an error.
-   */
+  // subtitle under title
   getDescription: (stage: Stage, hasError: boolean) => string;
 
   // Stage / email behaviour
-  initialStage?: Stage; // default: "request" if onRequestCode provided, otherwise "verify"
-  initialEmail?: string; // prefilled email (e.g. verify-email flow)
-  emailReadOnly?: boolean; // if true, show email as text instead of editable input
-  showEmailInput?: boolean; // default: true (ignored if emailReadOnly is true)
+  initialStage?: Stage;          // default: "request" if onRequestCode provided, else "verify"
+  initialEmail?: string;
+  emailReadOnly?: boolean;
+  showEmailInput?: boolean;      // default: true (ignored if emailReadOnly is true)
 
   // Button labels
   sendButtonLabel?: string;
@@ -33,13 +29,13 @@ export interface EmailCodeFlowProps {
   verifyButtonSubmittingLabel?: string;
 
   // Behaviour hooks
-  onRequestCode?: (email: string) => Promise<void>; // used in "request" stage
+  onRequestCode?: (email: string) => Promise<void>;
   onVerifyCode: (email: string, code: string) => Promise<void>;
-  onResendCode?: (email: string) => Promise<void>; // defaults to onRequestCode if not provided
+  onResendCode?: (email: string) => Promise<void>; // defaults to onRequestCode
 
   // Cooldown behaviour
-  initialCooldown?: number; // e.g. 60 for verify-email (already sent)
-  codeLength?: number; // default: 6
+  initialCooldown?: number;
+  codeLength?: number;
 }
 
 export function EmailCodeFlow({
@@ -88,7 +84,6 @@ export function EmailCodeFlow({
   const descriptionText = getDescription(stage, hasError);
 
   const canEditEmail = !emailReadOnly && showEmailInput;
-
   const effectiveResendHandler = onResendCode ?? onRequestCode ?? null;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,14 +104,15 @@ export function EmailCodeFlow({
 
         await onRequestCode(trimmedEmail);
 
-        // Move to verify stage on success
         setStage("verify");
         setResendSent(false);
         setResendError(null);
         setResendCooldown(60);
       } else {
         if (!code || code.length !== codeLength) {
-          throw new Error(`Please enter the ${codeLength}-digit code from your email.`);
+          throw new Error(
+            `Please enter the ${codeLength}-digit code from your email.`,
+          );
         }
 
         await onVerifyCode(trimmedEmail, code.trim());
@@ -182,32 +178,60 @@ export function EmailCodeFlow({
       <div className="space-y-4">
         {/* Email input or read-only email */}
         {canEditEmail && (
-          <div className="space-y-1.5">
-            <label
-              htmlFor="email"
-              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
-            >
-              {emailLabel}
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={stage === "verify"}
-              className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm disabled:opacity-60"
-            />
-          </div>
+          stage === "request" ? (
+            // Full-width email field in request stage
+            <div className="space-y-1.5">
+              <label
+                htmlFor="email"
+                className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+              >
+                {emailLabel}
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isSubmitting}
+                className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm disabled:opacity-60"
+              />
+            </div>
+          ) : (
+            // Compact, centered email field in verify stage (aligns with code boxes)
+            <div className="flex justify-center">
+              <div className="space-y-1.5 w-[19rem] max-w-full">
+                <label
+                  htmlFor="email"
+                  className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+                >
+                  {emailLabel}
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled
+                  className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-900/80 text-sm text-neutral-100 px-3 shadow-sm disabled:opacity-80"
+                />
+              </div>
+            </div>
+          )
         )}
 
-        {emailReadOnly && (
-          <p className="text-center font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100 break-all">
-            {email || "Unknown email"}
-          </p>
+        {emailReadOnly && !canEditEmail && (
+          <div className="flex justify-center">
+            <p className="w-[19rem] max-w-full text-center font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100 break-all">
+              {email || "Unknown email"}
+            </p>
+          </div>
         )}
 
         {/* Code input only in verify stage */}
