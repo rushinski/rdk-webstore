@@ -1,5 +1,5 @@
 // app/auth/2fa/setup/page.tsx
-import { EnrollmentForm } from "../../../../src/components/auth/2fa/EnrollmentForm";
+import { EnrollmentForm } from "@/components/auth/2fa/EnrollmentForm";
 
 export default function Page() {
   return (

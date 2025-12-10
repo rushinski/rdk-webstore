@@ -1,5 +1,5 @@
-import AuthCard from "../../../src/components/auth/ui/AuthCard";
-import { LoginForm } from "../../../src/components/auth/login/LoginFormRouter";
+import AuthCard from "@/components/auth/ui/AuthCard";
+import { LoginForm } from "@/components/auth/login/LoginFormRouter";
 
 export default function LoginPage() {
   return (
