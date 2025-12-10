@@ -1,3 +1,4 @@
+// src/components/auth/login/SplitCodeInputWithResend.tsx
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
@@ -24,6 +25,8 @@ export interface SplitCodeInputWithResendProps
  * Internal 6-box input (previously SplitCodeInput).
  * Not exported – only used by SplitCodeInputWithResend.
  */
+// inside SplitCodeInputWithResend.tsx
+
 function CodeBoxes({
   length = 6,
   value,
@@ -41,13 +44,11 @@ function CodeBoxes({
 }) {
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
-  // Ensure we never keep more characters than length
   useEffect(() => {
     if (value.length > length) {
       onChange(value.slice(0, length));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, length]);
+  }, [value, length, onChange]);
 
   const digits = Array.from({ length }, (_, i) => value[i] ?? "");
 
@@ -56,19 +57,10 @@ function CodeBoxes({
     if (el) el.focus();
   }
 
-  function handleChange(index: number, raw: string) {
-    if (disabled) return;
+  function applyDigitsFrom(index: number, raw: string) {
+    const cleaned = raw.replace(/\D/g, "");
+    if (!cleaned) return;
 
-    const cleaned = raw.replace(/\D/g, ""); // digits only
-    if (!cleaned) {
-      // Clear this position
-      const chars = digits.slice();
-      chars[index] = "";
-      onChange(chars.join(""));
-      return;
-    }
-
-    // Support pasting multiple digits
     const chars = digits.slice();
     let i = index;
     for (const ch of cleaned) {
@@ -76,11 +68,31 @@ function CodeBoxes({
       chars[i] = ch;
       i += 1;
     }
-    const next = chars.join("");
-    onChange(next);
+    onChange(chars.join(""));
 
     const nextIndex = Math.min(index + cleaned.length, length - 1);
     focusInput(nextIndex);
+  }
+
+  function handleChange(index: number, raw: string) {
+    if (disabled) return;
+
+    if (!raw) {
+      const chars = digits.slice();
+      chars[index] = "";
+      onChange(chars.join(""));
+      return;
+    }
+
+    // Single char typed OR paste of multiple chars
+    applyDigitsFrom(index, raw);
+  }
+
+  function handlePaste(index: number, e: React.ClipboardEvent<HTMLInputElement>) {
+    if (disabled) return;
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text") ?? "";
+    applyDigitsFrom(index, pasted);
   }
 
   function handleKeyDown(
@@ -91,8 +103,7 @@ function CodeBoxes({
 
     if (e.key === "Backspace") {
       if (digits[index]) {
-        // Just clear current digit; change handler will handle state
-        return;
+        return; // let onChange clear this box
       }
       if (index > 0) {
         e.preventDefault();
@@ -130,6 +141,7 @@ function CodeBoxes({
             maxLength={1}
             value={digit}
             onChange={(e) => handleChange(index, e.target.value)}
+            onPaste={(e) => handlePaste(index, e)}
             onKeyDown={(e) => handleKeyDown(index, e)}
             disabled={disabled}
             autoFocus={autoFocus && isFirst}

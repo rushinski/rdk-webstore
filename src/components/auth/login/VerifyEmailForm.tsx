@@ -25,7 +25,8 @@ export function VerifyEmailForm({
 
   const baseDescriptionSignin =
     "Your email isn’t verified yet. Enter the code we sent to continue.";
-  const baseDescriptionSignup = "Enter the code we emailed to activate your account.";
+  const baseDescriptionSignup =
+    "Enter the code we emailed to activate your account.";
 
   async function resendVerification(targetEmail: string) {
     const res = await fetch("/api/auth/resend-verification", {
@@ -70,18 +71,25 @@ export function VerifyEmailForm({
       flowId="verify-email"
       title={heading}
       codeLabel="Verification code"
+      emailLabel="Email"
+      // verify-email always starts at verify stage; email is already known
       initialStage="verify"
       initialEmail={email}
-      emailReadOnly
-      showEmailInput={false}
-      getDescription={() =>
-        flow === "signin" ? baseDescriptionSignin : baseDescriptionSignup
+      showEmailInput={true}       // render the email input
+      // the EmailCodeFlow input is disabled when stage === "verify"
+      getDescription={(_stage, hasError) =>
+        hasError
+          ? "That code didn’t work. Double-check the digits or request a new one."
+          : flow === "signin"
+            ? baseDescriptionSignin
+            : baseDescriptionSignup
       }
       verifyButtonLabel="Verify & continue"
       verifyButtonSubmittingLabel="Verifying..."
       onVerifyCode={verifyCode}
       onResendCode={resendVerification}
       initialCooldown={60}
+      codeLength={6}
     />
   );
 }
