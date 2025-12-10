@@ -41,7 +41,7 @@ export function VerifyEmailForm({
   }
 
   async function verifyCode(targetEmail: string, code: string) {
-    const res = await fetch("/api/auth/verify-email/otp", {
+    const res = await fetch("/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -1,4 +1,4 @@
-// app/api/auth/verify-email/otp/route.ts
+// app/api/auth/verify-email/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";

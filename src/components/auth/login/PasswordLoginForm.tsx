@@ -129,7 +129,6 @@ export function PasswordLoginForm({
             type="email"
             required
             autoComplete="email"
-            placeholder="you@example.com"
             className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm"
           />
         </div>

@@ -115,7 +115,6 @@ export function RegisterForm() {
             required
             autoComplete="email"
             className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm"
-            placeholder="you@example.com"
           />
         </div>
 
