@@ -1,6 +1,6 @@
 // app/auth/register/page.tsx
-import AuthCard from "../components/AuthCard";
-import { RegisterForm } from "./components/RegisterForm";
+import AuthCard from "../../../src/components/auth/ui/AuthCard";
+import { RegisterForm } from "../../../src/components/auth/register/RegisterForm";
 
 export default function RegisterPage() {
   return (

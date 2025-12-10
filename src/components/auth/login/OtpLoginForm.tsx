@@ -8,9 +8,7 @@ interface OtpLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
 }
 
-export function OtpLoginForm({
-  onRequiresEmailVerification,
-}: OtpLoginFormProps) {
+export function OtpLoginForm({ onRequiresEmailVerification }: OtpLoginFormProps) {
   const router = useRouter();
 
   async function requestOtp(email: string) {

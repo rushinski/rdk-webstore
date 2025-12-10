@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PasswordField } from "../register/components/PasswordField";
+import { PasswordField } from "./PasswordField";
 import {
   PasswordRequirements,
   evaluateRequirements,
-} from "../components/PasswordRequirements";
+} from "../register/PasswordRequirements";
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 interface ForgotPasswordFormProps {
@@ -61,9 +61,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         throw new Error(json.error ?? "Could not send reset code.");
       }
 
-      setInfoMessage(
-        "If an account exists for that email, we’ve sent a reset code."
-      );
+      setInfoMessage("If an account exists for that email, we’ve sent a reset code.");
       setStep("reset");
 
       // prime resend state for reset step
@@ -124,7 +122,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
 
     // Use the same rules as PasswordRequirements
     const req = evaluateRequirements(password);
-    if (!req.minLength || !req.hasLetter || !req.hasNumberOrSymbol || !req.notRepeatedChar) {
+    if (
+      !req.minLength ||
+      !req.hasLetter ||
+      !req.hasNumberOrSymbol ||
+      !req.notRepeatedChar
+    ) {
       setError("Password does not meet the required criteria.");
       return;
     }
@@ -247,8 +250,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         <form onSubmit={handleResetSubmit} className="space-y-4">
           {/* Email display (read-only) */}
           <p className="text-center text-xs sm:text-sm text-neutral-500 dark:text-neutral-400 break-all">
-            Resetting password for{" "}
-            <span className="font-medium">{email}</span>
+            Resetting password for <span className="font-medium">{email}</span>
           </p>
 
           {/* Code input with resend */}

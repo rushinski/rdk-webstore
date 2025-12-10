@@ -90,20 +90,13 @@ export function LoginForm() {
   // -----------------------------
 
   if (mode === "verifyEmail") {
-    return (
-      <VerifyEmailForm
-        email={emailParam}
-        flow={verifyFlowParam}
-      />
-    );
+    return <VerifyEmailForm email={emailParam} flow={verifyFlowParam} />;
   }
 
   if (mode === "otp") {
     return (
       <OtpLoginForm
-        onRequiresEmailVerification={(email) =>
-          goToVerifyEmail(email, "signin")
-        }
+        onRequiresEmailVerification={(email) => goToVerifyEmail(email, "signin")}
       />
     );
   }
@@ -115,9 +108,7 @@ export function LoginForm() {
   // default: password mode
   return (
     <PasswordLoginForm
-      onRequiresEmailVerification={(email) =>
-        goToVerifyEmail(email, "signin")
-      }
+      onRequiresEmailVerification={(email) => goToVerifyEmail(email, "signin")}
       onSwitchToOtp={goToOtp}
       onForgotPassword={goToForgotPassword}
     />

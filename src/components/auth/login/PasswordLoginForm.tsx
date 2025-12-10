@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { SocialButton } from "../components/SocialButton";
-import { PasswordField } from "../register/components/PasswordField";
+import { SocialButton } from "../ui/SocialButton";
+import { PasswordField } from "./PasswordField";
 
 interface PasswordLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;

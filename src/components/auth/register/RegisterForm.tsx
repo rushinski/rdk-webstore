@@ -5,13 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { SocialButton } from "../../components/SocialButton";
-import { PasswordField } from "../components/PasswordField";
-import {
-  PasswordRequirements,
-  evaluateRequirements,
-} from "../../components/PasswordRequirements";
-import { Checkbox } from "../../../components/Checkbox";
+import { SocialButton } from "../ui/SocialButton";
+import { PasswordField } from "../login/PasswordField";
+import { PasswordRequirements, evaluateRequirements } from "./PasswordRequirements";
+import { Checkbox } from "../ui/Checkbox";
 
 export function RegisterForm() {
   const router = useRouter();

@@ -21,10 +21,10 @@ export interface EmailCodeFlowProps {
   getDescription: (stage: Stage, hasError: boolean) => string;
 
   // Stage / email behaviour
-  initialStage?: Stage;          // default: "request" if onRequestCode provided, otherwise "verify"
-  initialEmail?: string;         // prefilled email (e.g. verify-email flow)
-  emailReadOnly?: boolean;       // if true, show email as text instead of editable input
-  showEmailInput?: boolean;      // default: true (ignored if emailReadOnly is true)
+  initialStage?: Stage; // default: "request" if onRequestCode provided, otherwise "verify"
+  initialEmail?: string; // prefilled email (e.g. verify-email flow)
+  emailReadOnly?: boolean; // if true, show email as text instead of editable input
+  showEmailInput?: boolean; // default: true (ignored if emailReadOnly is true)
 
   // Button labels
   sendButtonLabel?: string;
@@ -33,13 +33,13 @@ export interface EmailCodeFlowProps {
   verifyButtonSubmittingLabel?: string;
 
   // Behaviour hooks
-  onRequestCode?: (email: string) => Promise<void>;          // used in "request" stage
+  onRequestCode?: (email: string) => Promise<void>; // used in "request" stage
   onVerifyCode: (email: string, code: string) => Promise<void>;
-  onResendCode?: (email: string) => Promise<void>;           // defaults to onRequestCode if not provided
+  onResendCode?: (email: string) => Promise<void>; // defaults to onRequestCode if not provided
 
   // Cooldown behaviour
-  initialCooldown?: number;         // e.g. 60 for verify-email (already sent)
-  codeLength?: number;              // default: 6
+  initialCooldown?: number; // e.g. 60 for verify-email (already sent)
+  codeLength?: number; // default: 6
 }
 
 export function EmailCodeFlow({
@@ -89,8 +89,7 @@ export function EmailCodeFlow({
 
   const canEditEmail = !emailReadOnly && showEmailInput;
 
-  const effectiveResendHandler =
-    onResendCode ?? onRequestCode ?? null;
+  const effectiveResendHandler = onResendCode ?? onRequestCode ?? null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -156,15 +155,11 @@ export function EmailCodeFlow({
         ? sendButtonSendingLabel
         : sendButtonLabel
       : isSubmitting
-      ? verifyButtonSubmittingLabel
-      : verifyButtonLabel;
+        ? verifyButtonSubmittingLabel
+        : verifyButtonLabel;
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-6"
-      data-flow-id={flowId}
-    >
+    <form onSubmit={handleSubmit} className="space-y-6" data-flow-id={flowId}>
       {/* Header */}
       <div className="space-y-2 text-center">
         <div className="inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500">

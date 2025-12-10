@@ -7,7 +7,7 @@ type VerifyFlow = "signup" | "signin";
 
 export interface VerifyEmailFormProps {
   email: string;
-  flow?: VerifyFlow;              // default: "signin"
+  flow?: VerifyFlow; // default: "signin"
   onVerified?: (nextPath?: string) => void; // optional override
 }
 
@@ -25,8 +25,7 @@ export function VerifyEmailForm({
 
   const baseDescriptionSignin =
     "Your email isn’t verified yet. Enter the code we sent to continue.";
-  const baseDescriptionSignup =
-    "Enter the code we emailed to activate your account.";
+  const baseDescriptionSignup = "Enter the code we emailed to activate your account.";
 
   async function resendVerification(targetEmail: string) {
     const res = await fetch("/api/auth/resend-verification", {
