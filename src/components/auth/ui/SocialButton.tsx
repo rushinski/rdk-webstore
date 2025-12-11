@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type Provider = "google" | "facebook" | "apple";
+type Provider = "google" | "facebook";
 
 interface SocialButtonProps {
   provider: Provider;
@@ -60,21 +60,6 @@ function FacebookIcon() {
   );
 }
 
-function AppleIcon() {
-  return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M16.365 2c-.983.067-2.165.692-2.862 1.505-.626.73-1.146 1.9-.943 3.01 1.073.033 2.19-.6 2.852-1.41.652-.8 1.123-1.96.953-3.105zM19.54 8.263c-1.071-1.344-2.58-2.128-4.077-2.128-1.914 0-2.72.915-4.053.915-1.363 0-2.399-.913-4.06-.913-1.637 0-3.37.996-4.447 2.696C1.94 10.63 2.27 13.94 4 16.47c.84 1.243 1.962 2.64 3.395 2.652 1.29.012 1.654-.852 3.422-.86 1.767-.01 2.097.87 3.387.857 1.435-.012 2.587-1.54 3.427-2.783.595-.886.817-1.332 1.281-2.338-3.36-1.278-3.887-6.007-1.372-8.036z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
 export function SocialButton({
   provider,
   label,
@@ -99,9 +84,7 @@ export function SocialButton({
       <GoogleIcon />
     ) : provider === "facebook" ? (
       <FacebookIcon />
-    ) : (
-      <AppleIcon />
-    );
+    ) : null;
 
   const next = nextOverride ?? searchParams.get("next") ?? "/";
 

@@ -88,7 +88,6 @@ export function RegisterForm() {
       <div className="space-y-3">
         <SocialButton provider="google" label="Sign up with Google" />
         <SocialButton provider="facebook" label="Sign up with Facebook" />
-        <SocialButton provider="apple" label="Sign up with Apple" />
       </div>
 
       {/* Divider */}

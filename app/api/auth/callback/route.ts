@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
+import { clientEnv } from "@/config/client-env";
 
 // Make sure this route is NOT running on edge
 export const runtime = "nodejs";
@@ -9,8 +10,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+  const siteUrl = clientEnv.NEXT_PUBLIC_SITE_URL;
 
   // Allow ?next=/some/path, but never external URLs
   let next = searchParams.get("next") ?? "/";
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     console.error("[auth/callback] Missing ?code param");
-    return NextResponse.redirect(`${origin}/auth/login?error=missing_oauth_code`);
+    return NextResponse.redirect(`${siteUrl}/auth/login?error=missing_oauth_code`);
   }
 
   const supabase = await createSupabaseServerClient();
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error("[auth/callback] exchangeCodeForSession error:", error);
     return NextResponse.redirect(
-      `${origin}/auth/login?error=oauth_exchange_failed`,
+      `${siteUrl}/auth/login?error=oauth_exchange_failed`,
     );
   }
 
@@ -41,6 +43,6 @@ export async function GET(request: NextRequest) {
   await authService.ensureProfileForCurrentUser(false);
 
   // 3) Redirect to final destination
-  const redirectUrl = `${origin}${next}`;
+  const redirectUrl = `${siteUrl}${next}`;
   return NextResponse.redirect(redirectUrl);
 }

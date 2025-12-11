@@ -2,8 +2,8 @@
   "scripts": {
     "env:check": "tsx ./src/config/env.ts",
     "ci-env:check": "tsx ./src/config/ci-env.ts",
-    "check:env-case": "tsx scripts/check-env-case.mts",
-    "check:file-case": "tsx scripts/check-file-case.mts",
+    "check:env-case": "tsx scripts/check-env-case.ts",
+    "check:file-case": "tsx scripts/check-file-case.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
@@ -14,7 +14,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "gen:types": "npx supabase gen types typescript --project-id yuqtcuzatxfhqamhyohb --schema public > src/types/database.types.ts"
+    "gen:types": "npx supabase gen types typescript --project-id yuqtcuzatxfhqamhyohb --schema public > src/types/database.types.ts",
+    "supabase:start": "npx supabase start",
+    "supabase:stop": "npx supabase stop",
+    "caddy:start": "caddy run --config ./infra/Caddyfile --adapter caddyfile --watch",
+    "caddy:stop": "caddy stop",
+    "local": "tsx scripts/start-dev.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
@@ -26,6 +31,7 @@
     "jose": "^6.1.2",
     "nanoid": "^5.1.6",
     "next": "^16.0.3",
+    "picocolors": "^1.1.1",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
     "posthog-js": "^1.292.0",
@@ -49,6 +55,7 @@
     "@typescript-eslint/parser": "^8.46.4",
     "autoprefixer": "^10.4.22",
     "babel-jest": "^30.2.0",
+    "concurrently": "^9.2.1",
     "eslint-import-resolver-typescript": "^4.4.4",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-prettier": "^5.5.4",

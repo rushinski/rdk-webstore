@@ -1,3 +1,29 @@
-:3001 {
-reverse_proxy localhost:3000
+{
+  local_certs
+}
+
+# Supabase API
+localhost:8443 {
+  tls internal
+
+  log {
+    output stdout
+    format console
+    level INFO
+  }
+
+  reverse_proxy http://127.0.0.1:54321
+}
+
+# Next.js Frontend
+localhost:8444 {
+  tls internal
+
+  log {
+    output stdout
+    format console
+    level INFO
+  }
+
+  reverse_proxy http://127.0.0.1:3000
 }

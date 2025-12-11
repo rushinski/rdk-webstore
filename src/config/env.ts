@@ -3,6 +3,7 @@ import { z } from "zod";
 // describes the shape of what the real secrets should look like. Does not actually contain the secrets
 const schema = z.object({
   // .url() being deprecated just means the developers plan to remove it in the future
+  NEXT_PUBLIC_SITE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(), // must be a string + valid URL. NEXT_PUBLIC_ = publicly exposed to client-side code
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string(), // must be a string. NEXT_PUBLIC_ = publicly exposed to client-side code
 
@@ -20,7 +21,11 @@ const schema = z.object({
 
   ADMIN_SESSION_SECRET: z.string(),
   
-  SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET: z.string(),
+  GOOGLE_CLIENT_ID: z.string(),
+  GOOGLE_CLIENT_SECRET: z.string(),
+
+  FACEBOOK_CLIENT_ID: z.string(),
+  FACEBOOK_CLIENT_SECRET: z.string(),
 });
 
 // process.env is loaded dependant on how it is being ran. Local vs Vercel vs GitHub Actions
