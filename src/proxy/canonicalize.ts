@@ -3,16 +3,16 @@
 // NextResponse lets you rewrite requests, redirect requests, and add headers
 import { NextResponse, type NextRequest } from "next/server";
 
-import { log } from "@/lib/log"; // Import log function incase we need to log anything
+import { log } from "@/lib/log"; // Import log function in case we need to log anything
 
 export function canonicalizePath(request: NextRequest, requestId: string) {
   const url = request.nextUrl; // Full URL object representing the request
-  // URL pathname users try to visit - e.g. /api/audit . We only want the pathname so we dont try and change the origins format
+  // URL pathname users try to visit - e.g. /api/audit . We only want the pathname so we don't try and change the origins format
   let originalPath = url.pathname;
   const initial = originalPath; // We save the raw path to compare if it changed later on
 
   // Regex : /\/+$/ <- means 1 or more slashes at the end. Remove trailing slashes - e.g. /products/ -> /products
-  // Regex : /\/{2,}/g <- 2 or more slashes = replace with 1 slash. Collapse mutlti slashes - e.g. /products//nike -> /products/nike
+  // Regex : /\/{2,}/g <- 2 or more slashes = replace with 1 slash. Collapse multi slashes - e.g. /products//nike -> /products/nike
   originalPath = originalPath.replace(/\/+$/, "").replace(/\/{2,}/g, "/"); // apply changes to the path
 
   // Sets everything to lowercase. This means our intended URL format must always be lowercase
@@ -35,7 +35,7 @@ export function canonicalizePath(request: NextRequest, requestId: string) {
       event: "path_normalization",
     });
 
-    const redirectUrl = new URL(url.toString()); // Creating a modifiable clone of the full orginal URL
+    const redirectUrl = new URL(url.toString()); // Creating a modifiable clone of the full original URL
     redirectUrl.pathname = normalizedUrl.pathname; // Overwriting the pathname to our canonicalized pathname
 
     // NextResponse.redirect creates a brand new response object. Sets Location header as our correct URL as a string (expected)

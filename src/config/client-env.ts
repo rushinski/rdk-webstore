@@ -1,4 +1,4 @@
-// src/config/env.client.ts
+// src/config/client-env.ts
 "use client";
 
 import { z } from "zod";

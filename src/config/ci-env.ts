@@ -1,3 +1,4 @@
+// src/config/ci-env.ts
 import { z } from "zod";
 
 const ciSchema = z.object({

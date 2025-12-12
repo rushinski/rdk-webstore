@@ -1,3 +1,4 @@
+// src/config/env.ts
 import { z } from "zod";
 
 // describes the shape of what the real secrets should look like. Does not actually contain the secrets
