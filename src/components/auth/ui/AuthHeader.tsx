@@ -12,7 +12,7 @@ export function AuthHeader({
 }) {
   return (
     <div className="space-y-2 text-center">
-      <div className={AuthStyles.badge}>Real Deal Kickz</div>
+      <div className={AuthStyles.badge}>RealDealKickz</div>
       <h1 className={AuthStyles.heading}>{title}</h1>
       {description ? <p className={AuthStyles.subheading}>{description}</p> : null}
     </div>
