@@ -125,8 +125,13 @@ export function PasswordLoginForm({
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
 
+        {/* Keep centered, but revert to small link sizing */}
         <div className="text-center">
-          <button type="button" onClick={onSwitchToOtp} className={authStyles.accentLink}>
+          <button
+            type="button"
+            onClick={onSwitchToOtp}
+            className={`${authStyles.accentLink} text-xs sm:text-sm`}
+          >
             Sign in with a one-time code
           </button>
         </div>
@@ -134,13 +139,11 @@ export function PasswordLoginForm({
 
       <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
         Don’t have an account?{" "}
-        <Link
-          href="/auth/register"
-          className="font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
-        >
+        <Link href="/auth/register" className={authStyles.inlineAccentLink}>
           Create one
         </Link>
       </p>
     </form>
   );
 }
+

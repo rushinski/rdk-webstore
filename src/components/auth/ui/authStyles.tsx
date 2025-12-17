@@ -19,8 +19,14 @@ export const authStyles = {
   neutralLink:
     "text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2",
 
+  // Underlined “accent” link (good for standalone actions)
   accentLink:
     "font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2",
+
+  // Inline accent link (no underline) — used inside sentences like:
+  // “Don’t have an account? Create one”
+  inlineAccentLink:
+    "font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300",
 
   errorBox:
     "rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400",

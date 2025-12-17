@@ -101,7 +101,7 @@ export function EnrollmentForm() {
 
             <Link
               href="/auth/login"
-              className="block text-center text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 underline underline-offset-2"
+              className="block text-left text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 underline underline-offset-2"
             >
               Back to sign in
             </Link>

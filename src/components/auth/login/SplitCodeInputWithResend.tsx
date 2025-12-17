@@ -37,9 +37,10 @@ export function SplitCodeInputWithResend({
   ...rest
 }: SplitCodeInputWithResendProps & { autoFocus?: boolean }) {
   const resendDisabled = disabled || isSending || cooldown > 0;
+  const showMessage = Boolean(resendSent || resendError);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <SixDigitCodeField
         id={id}
         label={label}
@@ -53,19 +54,17 @@ export function SplitCodeInputWithResend({
       />
 
       {/* Cooldown / resend under input, right-aligned */}
-      <div className="flex justify-end text-[11px]">
+      <div className="flex items-center justify-end text-[11px] leading-none">
         {isSending ? (
           <span className="text-neutral-500 dark:text-neutral-400">Sending…</span>
         ) : cooldown > 0 ? (
-          <span className="text-neutral-500 dark:text-neutral-400">
-            Resend code in {cooldown}s
-          </span>
+          <span className="text-neutral-500 dark:text-neutral-400">Resend code in {cooldown}s</span>
         ) : (
           <button
             type="button"
             onClick={onResend}
             disabled={resendDisabled}
-            className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 disabled:text-neutral-400"
+            className="inline-flex items-center gap-1 text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 disabled:text-neutral-400"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5">
               <path
@@ -90,11 +89,13 @@ export function SplitCodeInputWithResend({
         )}
       </div>
 
-      {/* Success / error under resend */}
-      <div className="min-h-[16px] text-right text-[11px]">
-        {resendSent && <p className="text-emerald-500">Code resent.</p>}
-        {resendError && <p className="text-red-500">{resendError}</p>}
-      </div>
+      {/* Success / error under resend (render only when present — fixes extra gap everywhere) */}
+      {showMessage && (
+        <div className="text-right text-[11px]">
+          {resendSent && <p className="text-emerald-500">Code resent.</p>}
+          {resendError && <p className="text-red-500">{resendError}</p>}
+        </div>
+      )}
     </div>
   );
 }

@@ -209,7 +209,7 @@ export function EmailCodeFlow({
         </button>
 
         {(backHref || onBack) && (
-          <div className="text-center">
+          <div className="flex justify-start">
             {backHref ? (
               <Link href={backHref} className={authStyles.neutralLink}>
                 {backLabel ?? "Back"}

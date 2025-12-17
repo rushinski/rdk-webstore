@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EmailCodeFlow } from "./EmailCodeFlow";
+import { authStyles } from "@/components/auth/ui/authStyles";
 
 interface OtpLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
@@ -67,20 +68,17 @@ export function OtpLoginForm({ onRequiresEmailVerification, onBackToLogin }: Otp
         onVerifyCode={verifyOtp}
       />
 
-      <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center sm:justify-between">
+      {/* Left-aligned back link, and remove the non-link “Don’t have an account?” text */}
+      <div className="flex justify-start pt-1">
         {onBackToLogin ? (
-          <button type="button" onClick={onBackToLogin} className="text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2">
+          <button type="button" onClick={onBackToLogin} className={authStyles.neutralLink}>
             Back to sign in
           </button>
         ) : (
-          <Link href="/auth/login" className="text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2">
+          <Link href="/auth/login" className={authStyles.neutralLink}>
             Back to sign in
           </Link>
         )}
-
-        <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 sm:text-right">
-          Don’t have an account?
-        </p>
       </div>
     </div>
   );

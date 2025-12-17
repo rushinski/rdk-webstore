@@ -87,7 +87,14 @@ export function RegisterForm() {
           >
             Email
           </label>
-          <input id="email" name="email" type="email" required autoComplete="email" className={authStyles.input} />
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            className={authStyles.input}
+          />
         </div>
 
         <PasswordField
@@ -126,7 +133,7 @@ export function RegisterForm() {
 
       <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
         Already have an account?{" "}
-        <Link href="/auth/login" className="font-medium text-red-600 hover:text-red-500">
+        <Link href="/auth/login" className={authStyles.inlineAccentLink}>
           Sign in
         </Link>
       </p>

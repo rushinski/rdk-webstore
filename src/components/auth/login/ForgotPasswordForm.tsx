@@ -182,7 +182,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             {isSubmitting ? "Sending code..." : "Send reset code"}
           </button>
 
-          <div className="text-center">
+          <div className="flex justify-start">
             <button type="button" onClick={onBackToLogin} className={authStyles.neutralLink}>
               Back to sign in
             </button>
@@ -230,7 +230,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             {isSubmitting ? "Updating password..." : "Update password"}
           </button>
 
-          <div className="text-center">
+          <div className="flex justify-start">
             <button type="button" onClick={onBackToLogin} className={authStyles.neutralLink}>
               Back to sign in
             </button>
