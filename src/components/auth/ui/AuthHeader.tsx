@@ -1,7 +1,7 @@
 // src/components/auth/ui/AuthHeader.tsx
 "use client";
 
-import { authStyles } from "./authStyles";
+import { AuthStyles } from "./AuthStyles";
 
 export function AuthHeader({
   title,
@@ -12,9 +12,9 @@ export function AuthHeader({
 }) {
   return (
     <div className="space-y-2 text-center">
-      <div className={authStyles.badge}>Real Deal Kickz</div>
-      <h1 className={authStyles.heading}>{title}</h1>
-      {description ? <p className={authStyles.subheading}>{description}</p> : null}
+      <div className={AuthStyles.badge}>Real Deal Kickz</div>
+      <h1 className={AuthStyles.heading}>{title}</h1>
+      {description ? <p className={AuthStyles.subheading}>{description}</p> : null}
     </div>
   );
 }

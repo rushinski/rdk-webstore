@@ -2,7 +2,7 @@
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
-import { authStyles } from "./authStyles";
+import { AuthStyles } from "./AuthStyles";
 
 export interface SixDigitCodeFieldProps
   extends Omit<ComponentPropsWithoutRef<"input">, "onChange" | "value"> {
@@ -50,7 +50,7 @@ export function SixDigitCodeField({
         onChange={(e) => handleChange(e.currentTarget.value)}
         disabled={disabled}
         autoFocus={autoFocus}
-        className={authStyles.input}
+        className={AuthStyles.input}
         {...rest}
       />
     </div>

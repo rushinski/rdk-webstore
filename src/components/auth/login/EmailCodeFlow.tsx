@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
-import { authStyles } from "@/components/auth/ui/authStyles";
+import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 type Stage = "request" | "verify";
@@ -99,7 +99,8 @@ export function EmailCodeFlow({
       if (!trimmedEmail) throw new Error("Email is required.");
 
       if (stage === "request") {
-        if (!onRequestCode) throw new Error("Requesting a code is not supported for this flow.");
+        if (!onRequestCode)
+          throw new Error("Requesting a code is not supported for this flow.");
 
         await onRequestCode(trimmedEmail);
 
@@ -155,7 +156,7 @@ export function EmailCodeFlow({
     <form onSubmit={handleSubmit} className="space-y-5" data-flow-id={flowId}>
       <AuthHeader title={title} description={descriptionText} />
 
-      {error && <div className={authStyles.errorBox}>{error}</div>}
+      {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
       <div className="space-y-4">
         {canShowEmailInput && (
@@ -175,7 +176,7 @@ export function EmailCodeFlow({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isSubmitting || stage === "verify"}
-              className={stage === "verify" ? authStyles.inputDisabled : authStyles.input}
+              className={stage === "verify" ? AuthStyles.inputDisabled : AuthStyles.input}
             />
           </div>
         )}
@@ -204,18 +205,22 @@ export function EmailCodeFlow({
       </div>
 
       <div className="space-y-2">
-        <button type="submit" disabled={isSubmitting} className={authStyles.primaryButton}>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={AuthStyles.primaryButton}
+        >
           {submitLabel}
         </button>
 
         {(backHref || onBack) && (
           <div className="flex justify-start">
             {backHref ? (
-              <Link href={backHref} className={authStyles.neutralLink}>
+              <Link href={backHref} className={AuthStyles.neutralLink}>
                 {backLabel ?? "Back"}
               </Link>
             ) : (
-              <button type="button" onClick={onBack} className={authStyles.neutralLink}>
+              <button type="button" onClick={onBack} className={AuthStyles.neutralLink}>
                 {backLabel ?? "Back"}
               </button>
             )}

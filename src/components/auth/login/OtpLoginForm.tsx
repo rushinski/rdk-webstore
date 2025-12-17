@@ -4,14 +4,17 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { EmailCodeFlow } from "./EmailCodeFlow";
-import { authStyles } from "@/components/auth/ui/authStyles";
+import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 
 interface OtpLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
   onBackToLogin?: () => void;
 }
 
-export function OtpLoginForm({ onRequiresEmailVerification, onBackToLogin }: OtpLoginFormProps) {
+export function OtpLoginForm({
+  onRequiresEmailVerification,
+  onBackToLogin,
+}: OtpLoginFormProps) {
   const router = useRouter();
 
   async function requestOtp(email: string) {
@@ -22,7 +25,8 @@ export function OtpLoginForm({ onRequiresEmailVerification, onBackToLogin }: Otp
     });
 
     const json = await res.json();
-    if (!res.ok || !json.ok) throw new Error(json.error ?? "Error sending verification email.");
+    if (!res.ok || !json.ok)
+      throw new Error(json.error ?? "Error sending verification email.");
   }
 
   async function verifyOtp(email: string, code: string) {
@@ -42,7 +46,8 @@ export function OtpLoginForm({ onRequiresEmailVerification, onBackToLogin }: Otp
     if (!json.ok) throw new Error(json.error ?? "Invalid or expired code");
 
     if (json.isAdmin && json.requiresTwoFASetup) return router.push("/auth/2fa/setup");
-    if (json.isAdmin && json.requiresTwoFAChallenge) return router.push("/auth/2fa/challenge");
+    if (json.isAdmin && json.requiresTwoFAChallenge)
+      return router.push("/auth/2fa/challenge");
 
     router.push(json.isAdmin ? "/admin" : "/");
   }
@@ -71,11 +76,15 @@ export function OtpLoginForm({ onRequiresEmailVerification, onBackToLogin }: Otp
       {/* Left-aligned back link, and remove the non-link “Don’t have an account?” text */}
       <div className="flex justify-start pt-1">
         {onBackToLogin ? (
-          <button type="button" onClick={onBackToLogin} className={authStyles.neutralLink}>
+          <button
+            type="button"
+            onClick={onBackToLogin}
+            className={AuthStyles.neutralLink}
+          >
             Back to sign in
           </button>
         ) : (
-          <Link href="/auth/login" className={authStyles.neutralLink}>
+          <Link href="/auth/login" className={AuthStyles.neutralLink}>
             Back to sign in
           </Link>
         )}

@@ -1,6 +1,5 @@
-// src/components/auth/ui/authStyles.ts
-
-export const authStyles = {
+// src/components/auth/ui/AuthStyles.ts
+export const AuthStyles = {
   badge:
     "inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500",
 
@@ -24,7 +23,6 @@ export const authStyles = {
     "font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2",
 
   // Inline accent link (no underline) — used inside sentences like:
-  // “Don’t have an account? Create one”
   inlineAccentLink:
     "font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300",
 

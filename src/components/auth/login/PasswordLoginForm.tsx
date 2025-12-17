@@ -7,7 +7,7 @@ import Link from "next/link";
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "./PasswordField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { authStyles } from "@/components/auth/ui/authStyles";
+import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 
 interface PasswordLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
@@ -57,7 +57,8 @@ export function PasswordLoginForm({
       }
 
       if (json.isAdmin && json.requiresTwoFASetup) return router.push("/auth/2fa/setup");
-      if (json.isAdmin && json.requiresTwoFAChallenge) return router.push("/auth/2fa/challenge");
+      if (json.isAdmin && json.requiresTwoFAChallenge)
+        return router.push("/auth/2fa/challenge");
 
       router.push(json.isAdmin ? "/admin" : "/");
     } catch (err: any) {
@@ -70,7 +71,7 @@ export function PasswordLoginForm({
     <form onSubmit={handleSubmit} className="space-y-5">
       <AuthHeader title="Sign in to your account" />
 
-      {error && <div className={authStyles.errorBox}>{error}</div>}
+      {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
       <div className="space-y-3">
         <SocialButton provider="google" label="Sign in with Google" />
@@ -97,7 +98,7 @@ export function PasswordLoginForm({
             type="email"
             required
             autoComplete="email"
-            className={authStyles.input}
+            className={AuthStyles.input}
           />
         </div>
 
@@ -121,7 +122,11 @@ export function PasswordLoginForm({
       </div>
 
       <div className="space-y-2">
-        <button type="submit" disabled={isSubmitting} className={authStyles.primaryButton}>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={AuthStyles.primaryButton}
+        >
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
 
@@ -130,7 +135,7 @@ export function PasswordLoginForm({
           <button
             type="button"
             onClick={onSwitchToOtp}
-            className={`${authStyles.accentLink} text-xs sm:text-sm`}
+            className={`${AuthStyles.accentLink} text-xs sm:text-sm`}
           >
             Sign in with a one-time code
           </button>
@@ -139,11 +144,10 @@ export function PasswordLoginForm({
 
       <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
         Don’t have an account?{" "}
-        <Link href="/auth/register" className={authStyles.inlineAccentLink}>
+        <Link href="/auth/register" className={AuthStyles.inlineAccentLink}>
           Create one
         </Link>
       </p>
     </form>
   );
 }
-

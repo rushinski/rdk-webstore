@@ -10,7 +10,7 @@ import { PasswordField } from "../login/PasswordField";
 import { PasswordRequirements, evaluateRequirements } from "./PasswordRequirements";
 import { Checkbox } from "../ui/Checkbox";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { authStyles } from "@/components/auth/ui/authStyles";
+import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -64,9 +64,12 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <AuthHeader title="Create your account" description="Mobile-first. Built for resellers who move fast." />
+      <AuthHeader
+        title="Create your account"
+        description="Mobile-first. Built for resellers who move fast."
+      />
 
-      {error && <div className={authStyles.errorBox}>{error}</div>}
+      {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
       <div className="space-y-3">
         <SocialButton provider="google" label="Sign up with Google" />
@@ -93,7 +96,7 @@ export function RegisterForm() {
             type="email"
             required
             autoComplete="email"
-            className={authStyles.input}
+            className={AuthStyles.input}
           />
         </div>
 
@@ -115,7 +118,7 @@ export function RegisterForm() {
         label="Send me product updates, drop alerts, and store news."
       />
 
-      <button type="submit" disabled={isSubmitting} className={authStyles.primaryButton}>
+      <button type="submit" disabled={isSubmitting} className={AuthStyles.primaryButton}>
         {isSubmitting ? "Creating account..." : "Create account"}
       </button>
 
@@ -133,7 +136,7 @@ export function RegisterForm() {
 
       <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
         Already have an account?{" "}
-        <Link href="/auth/login" className={authStyles.inlineAccentLink}>
+        <Link href="/auth/login" className={AuthStyles.inlineAccentLink}>
           Sign in
         </Link>
       </p>
