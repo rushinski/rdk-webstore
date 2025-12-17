@@ -27,6 +27,13 @@ const schema = z.object({
 
   FACEBOOK_CLIENT_ID: z.string(),
   FACEBOOK_CLIENT_SECRET: z.string(),
+
+  SES_SMTP_HOST: z.string(),
+  SES_SMTP_PORT: z.string(),
+  SES_SMTP_USER: z.string(),
+  SES_SMTP_PASS: z.string(),
+  SES_FROM_EMAIL: z.string(),
+  SES_FROM_NAME: z.string(),
 });
 
 // process.env is loaded dependant on how it is being ran. Local vs Vercel vs GitHub Actions

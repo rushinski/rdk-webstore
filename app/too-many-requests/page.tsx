@@ -34,7 +34,7 @@ export default function TooManyRequestsPage({
           and protect your account, we&apos;ve paused things for a moment.
         </p>
         <p className="text-xs sm:text-sm text-neutral-500 max-w-xl mb-10">
-          Wait a bit, then try that page again or head back home. If this wasn&apos;t
+          Wait a bit, then try that page again or head back home. If this wasn't
           you, consider resetting your password.
         </p>
 

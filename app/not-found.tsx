@@ -16,8 +16,8 @@ export default function NotFound() {
           This pair isn&apos;t on the shelf.
         </h1>
         <p className="text-sm sm:text-base text-neutral-600 max-w-xl mb-10">
-          We looked everywhere for this page and couldn&apos;t find it. The link might
-          be broken or the drop has moved. Let&apos;s get you back to shopping real heat.
+          We looked everywhere for this page and couldn't find it. The link might
+          be broken or the drop has moved. Let's get you back to shopping real heat.
         </p>
 
         {/* Illustration */}
