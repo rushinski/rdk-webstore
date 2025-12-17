@@ -46,6 +46,21 @@ export class AuthService {
     if (error) throw error;
   }
 
+  /**
+   * Verify the reset code sent by resetPasswordForEmail.
+   * This uses the token ({{ .Token }}) from your reset-password email.
+   */
+  async verifyPasswordResetCode(email: string, code: string) {
+    const { data, error } = await this.supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "recovery", // <- important: password-recovery flow
+    });
+
+    if (error) throw error;
+    return data; // contains session; used implicitly by Supabase client cookies
+  }
+
   async updatePassword(newPassword: string) {
     const { error } = await this.supabase.auth.updateUser({
       password: newPassword,
