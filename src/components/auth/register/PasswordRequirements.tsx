@@ -23,13 +23,10 @@ export function PasswordRequirements({ password }: { password: string }) {
   const req = evaluateRequirements(password);
 
   return (
-    <div className="mt-3 rounded-xl border border-transparent
-">
-      <p className="text-[11px] font-semibold mb-2 text-neutral-700 dark:text-neutral-200">
-        Password Requirements
-      </p>
+    <div className="rounded-xl border border-neutral-200/70 bg-neutral-50/60 p-3 text-[11px] text-neutral-700 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-200">
+      <p className="font-semibold mb-2">Password Requirements</p>
 
-      <div className="grid grid-cols-2 gap-2 text-[11px] text-neutral-700 dark:text-neutral-300">
+      <div className="grid grid-cols-2 gap-2 text-neutral-700 dark:text-neutral-300">
         <RequirementItem ok={req.minLength} text="8+ characters" />
         <RequirementItem ok={req.hasLetter} text="Contains letters" />
         <RequirementItem ok={req.hasNumberOrSymbol} text="Number or symbol" />
@@ -43,11 +40,12 @@ function RequirementItem({ ok, text }: { ok: boolean; text: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <span
-        className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[10px] ${
+        className={[
+          "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[10px]",
           ok
-            ? "bg-green-500 text-white"
-            : "bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200"
-        }`}
+            ? "bg-emerald-500 text-white"
+            : "bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200",
+        ].join(" ")}
       >
         {ok ? "✓" : "•"}
       </span>

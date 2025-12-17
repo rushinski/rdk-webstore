@@ -3,7 +3,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SplitCodeInput } from "@/components/auth/2fa/SplitCodeInput";
+import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
+import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { mfaStartChallenge, mfaVerifyChallenge } from "@/services/mfa-service";
 
 export function ChallengeForm() {
@@ -18,9 +19,11 @@ export function ChallengeForm() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = useMemo(() => {
-    return Boolean(factorId && challengeId && code.length === 6);
-  }, [code, factorId, challengeId]);
+  const canSubmit = useMemo(() => Boolean(factorId && challengeId && code.length === 6), [
+    code,
+    factorId,
+    challengeId,
+  ]);
 
   useEffect(() => {
     (async () => {
@@ -69,28 +72,18 @@ export function ChallengeForm() {
   }
 
   return (
-    <div className="space-y-7">
-      {/* Header */}
-      <div className="space-y-2.5 text-center">
-        <div className="inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500">
-          Real Deal Kickz
-        </div>
-
-        <h1 className="text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-          Confirm your sign-in
-        </h1>
-
-        <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
-          Enter the 6-digit code from your authenticator app.
-        </p>
-      </div>
+    <div className="space-y-6">
+      <AuthHeader
+        title="Confirm your sign-in"
+        description="Enter the 6-digit code from your authenticator app."
+      />
 
       <form
         onSubmit={(e) => {
           e.preventDefault();
           void verify();
         }}
-        className="space-y-5"
+        className="space-y-4"
       >
         {isInitializing && (
           <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-600 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-300">
@@ -98,15 +91,13 @@ export function ChallengeForm() {
           </div>
         )}
 
-        {/* 6-box input (no label) */}
-        <div className="pt-1">
-          <SplitCodeInput
-            id="mfa-code"
-            value={code}
-            onChange={(v) => setCode(v.replace(/\D/g, "").slice(0, 6))}
-            disabled={isSubmitting || isInitializing}
-          />
-        </div>
+        <SixDigitCodeField
+          id="mfa-code"
+          label="6-digit code"
+          value={code}
+          onChange={setCode}
+          disabled={isSubmitting || isInitializing}
+        />
 
         {msg && (
           <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
@@ -117,7 +108,7 @@ export function ChallengeForm() {
         <button
           type="submit"
           disabled={!canSubmit || isSubmitting || isInitializing}
-          className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:from-red-500 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:from-red-500 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting ? "Verifying…" : "Verify"}
         </button>

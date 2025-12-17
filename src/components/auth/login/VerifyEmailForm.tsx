@@ -8,26 +8,25 @@ type VerifyFlow = "signup" | "signin";
 
 export interface VerifyEmailFormProps {
   email: string;
-  flow?: VerifyFlow; // default: "signin"
-  onVerified?: (nextPath?: string) => void; // optional override
+  flow?: VerifyFlow;
+  onVerified?: (nextPath?: string) => void;
+  onBackToLogin?: () => void; // styling/navigation only
 }
 
 export function VerifyEmailForm({
   email,
   flow = "signin",
   onVerified,
+  onBackToLogin,
 }: VerifyEmailFormProps) {
   const router = useRouter();
 
   const heading =
-    flow === "signin"
-      ? "Verify your email to continue"
-      : "Welcome! Activate your account";
+    flow === "signin" ? "Verify your email to continue" : "Welcome! Activate your account";
 
   const baseDescriptionSignin =
     "Your email isn’t verified yet. Enter the code we sent to continue.";
-  const baseDescriptionSignup =
-    "Enter the code we emailed to activate your account.";
+  const baseDescriptionSignup = "Enter the code we emailed to activate your account.";
 
   async function resendVerification(targetEmail: string) {
     const res = await fetch("/api/auth/resend-verification", {
@@ -60,11 +59,8 @@ export function VerifyEmailForm({
     }
 
     const nextPath = json.nextPath || "/";
-    if (onVerified) {
-      onVerified(nextPath);
-    } else {
-      router.push(nextPath);
-    }
+    if (onVerified) onVerified(nextPath);
+    else router.push(nextPath);
   }
 
   return (
@@ -73,11 +69,9 @@ export function VerifyEmailForm({
       title={heading}
       codeLabel="Verification code"
       emailLabel="Email"
-      // verify-email always starts at verify stage; email is already known
       initialStage="verify"
       initialEmail={email}
-      showEmailInput={true}       // render the email input
-      // the EmailCodeFlow input is disabled when stage === "verify"
+      showEmailInput={true}
       getDescription={(_stage, hasError) =>
         hasError
           ? "That code didn’t work. Double-check the digits or request a new one."
@@ -91,6 +85,9 @@ export function VerifyEmailForm({
       onResendCode={resendVerification}
       initialCooldown={60}
       codeLength={6}
+      backLabel="Back to sign in"
+      onBack={onBackToLogin}
+      backHref={onBackToLogin ? undefined : "/auth/login"}
     />
   );
 }

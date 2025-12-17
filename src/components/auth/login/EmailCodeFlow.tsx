@@ -1,42 +1,42 @@
 // src/components/auth/login/EmailCodeFlow.tsx
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
+import { authStyles } from "@/components/auth/ui/authStyles";
+import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 type Stage = "request" | "verify";
 
 export interface EmailCodeFlowProps {
   flowId?: string;
 
-  // UI copy
   title: string;
   codeLabel: string;
   emailLabel?: string;
-
-  // subtitle under title
   getDescription: (stage: Stage, hasError: boolean) => string;
 
-  // Stage / email behaviour
-  initialStage?: Stage;          // default: "request" if onRequestCode provided, else "verify"
+  initialStage?: Stage;
   initialEmail?: string;
   emailReadOnly?: boolean;
-  showEmailInput?: boolean;      // default: true (ignored if emailReadOnly is true)
+  showEmailInput?: boolean;
 
-  // Button labels
   sendButtonLabel?: string;
   sendButtonSendingLabel?: string;
   verifyButtonLabel?: string;
   verifyButtonSubmittingLabel?: string;
 
-  // Behaviour hooks
   onRequestCode?: (email: string) => Promise<void>;
   onVerifyCode: (email: string, code: string) => Promise<void>;
-  onResendCode?: (email: string) => Promise<void>; // defaults to onRequestCode
+  onResendCode?: (email: string) => Promise<void>;
 
-  // Cooldown behaviour
   initialCooldown?: number;
   codeLength?: number;
+
+  backLabel?: string;
+  backHref?: string;
+  onBack?: () => void;
 }
 
 export function EmailCodeFlow({
@@ -58,6 +58,9 @@ export function EmailCodeFlow({
   onResendCode,
   initialCooldown = 0,
   codeLength = 6,
+  backLabel,
+  backHref,
+  onBack,
 }: EmailCodeFlowProps) {
   const [stage, setStage] = useState<Stage>(
     initialStage ?? (onRequestCode ? "request" : "verify"),
@@ -73,7 +76,6 @@ export function EmailCodeFlow({
   const [resendError, setResendError] = useState<string | null>(null);
   const [isSendingResend, setIsSendingResend] = useState(false);
 
-  // Cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const id = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
@@ -84,7 +86,7 @@ export function EmailCodeFlow({
   const hasError = Boolean(error);
   const descriptionText = getDescription(stage, hasError);
 
-  const canEditEmail = !emailReadOnly && showEmailInput;
+  const canShowEmailInput = !emailReadOnly && showEmailInput;
   const effectiveResendHandler = onResendCode ?? onRequestCode ?? null;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -94,14 +96,10 @@ export function EmailCodeFlow({
     setIsSubmitting(true);
 
     try {
-      if (!trimmedEmail) {
-        throw new Error("Email is required.");
-      }
+      if (!trimmedEmail) throw new Error("Email is required.");
 
       if (stage === "request") {
-        if (!onRequestCode) {
-          throw new Error("Requesting a code is not supported for this flow.");
-        }
+        if (!onRequestCode) throw new Error("Requesting a code is not supported for this flow.");
 
         await onRequestCode(trimmedEmail);
 
@@ -111,9 +109,7 @@ export function EmailCodeFlow({
         setResendCooldown(60);
       } else {
         if (!code || code.length !== codeLength) {
-          throw new Error(
-            `Please enter the ${codeLength}-digit code from your email.`,
-          );
+          throw new Error(`Please enter the ${codeLength}-digit code from your email.`);
         }
 
         await onVerifyCode(trimmedEmail, code.trim());
@@ -156,86 +152,40 @@ export function EmailCodeFlow({
         : verifyButtonLabel;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" data-flow-id={flowId}>
-      {/* Header */}
-      <div className="space-y-2 text-center">
-        <div className="inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500">
-          Real Deal Kickz
-        </div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-          {title}
-        </h1>
-        <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
-          {descriptionText}
-        </p>
-      </div>
+    <form onSubmit={handleSubmit} className="space-y-5" data-flow-id={flowId}>
+      <AuthHeader title={title} description={descriptionText} />
 
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
-          {error}
-        </div>
-      )}
+      {error && <div className={authStyles.errorBox}>{error}</div>}
 
       <div className="space-y-4">
-        {/* Email input or read-only email */}
-        {canEditEmail && (
-          stage === "request" ? (
-            // Full-width email field in request stage
-            <div className="space-y-1.5">
-              <label
-                htmlFor="email"
-                className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
-              >
-                {emailLabel}
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
-                className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm disabled:opacity-60"
-              />
-            </div>
-          ) : (
-            // Compact, centered email field in verify stage (aligns with code boxes)
-            <div className="flex justify-center">
-              <div className="space-y-1.5 w-[19rem] max-w-full">
-                <label
-                  htmlFor="email"
-                  className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
-                >
-                  {emailLabel}
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled
-                  className="h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-900/80 text-sm text-neutral-100 px-3 shadow-sm disabled:opacity-80"
-                />
-              </div>
-            </div>
-          )
-        )}
-
-        {emailReadOnly && !canEditEmail && (
-          <div className="flex justify-center">
-            <p className="w-[19rem] max-w-full text-center font-medium text-sm sm:text-base text-neutral-800 dark:text-neutral-100 break-all">
-              {email || "Unknown email"}
-            </p>
+        {canShowEmailInput && (
+          <div className="space-y-1.5">
+            <label
+              htmlFor="email"
+              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+            >
+              {emailLabel}
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isSubmitting || stage === "verify"}
+              className={stage === "verify" ? authStyles.inputDisabled : authStyles.input}
+            />
           </div>
         )}
 
-        {/* Code input only in verify stage */}
+        {emailReadOnly && !canShowEmailInput && (
+          <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-700 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-200 break-all">
+            {email || "Unknown email"}
+          </div>
+        )}
+
         {stage === "verify" && (
           <SplitCodeInputWithResend
             id="email-code"
@@ -253,15 +203,24 @@ export function EmailCodeFlow({
         )}
       </div>
 
-      {/* Submit */}
-      <div className="space-y-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg hover:from-red-500 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-        >
+      <div className="space-y-2">
+        <button type="submit" disabled={isSubmitting} className={authStyles.primaryButton}>
           {submitLabel}
         </button>
+
+        {(backHref || onBack) && (
+          <div className="text-center">
+            {backHref ? (
+              <Link href={backHref} className={authStyles.neutralLink}>
+                {backLabel ?? "Back"}
+              </Link>
+            ) : (
+              <button type="button" onClick={onBack} className={authStyles.neutralLink}>
+                {backLabel ?? "Back"}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </form>
   );

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QRDisplay } from "./QRDisplay";
+import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
+import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
 
 export function EnrollmentForm() {
@@ -55,7 +57,6 @@ export function EnrollmentForm() {
 
     try {
       setIsSubmitting(true);
-
       const res = await mfaVerifyEnrollment(factorId, cleaned);
       if (res.error) {
         setMsg(res.error);
@@ -70,21 +71,9 @@ export function EnrollmentForm() {
 
   return (
     <div className="space-y-6">
-      {/* Header (owned by the form, consistent with Login/Register) */}
-      <div className="space-y-2 text-center">
-        <div className="inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500">
-          Real Deal Kickz
-        </div>
-        <h1 className="text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-50">
-          Set up 2FA
-        </h1>
-        <p className="text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
-          Scan the QR code, then confirm with a 6-digit code.
-        </p>
-      </div>
+      <AuthHeader title="Set up 2FA" description="Scan the QR code, then confirm with a 6-digit code." />
 
       <div className="space-y-5">
-        {/* Step 1 */}
         {!factorId && (
           <div className="space-y-4">
             <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-600 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-300">
@@ -110,18 +99,15 @@ export function EnrollmentForm() {
               You can do this once per authenticator device.
             </p>
 
-            <div className="flex items-center justify-between text-xs sm:text-sm">
-              <Link
-                href="/auth/login"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100"
-              >
-                Back to sign in
-              </Link>
-            </div>
+            <Link
+              href="/auth/login"
+              className="block text-center text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 underline underline-offset-2"
+            >
+              Back to sign in
+            </Link>
           </div>
         )}
 
-        {/* Step 2 */}
         {factorId && qrCode && (
           <form
             onSubmit={(e) => {
@@ -136,28 +122,7 @@ export function EnrollmentForm() {
 
             <QRDisplay qrCode={qrCode} />
 
-            <div className="space-y-1.5">
-              <label
-                htmlFor="enroll-code"
-                className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
-              >
-                6-digit code
-              </label>
-
-              <input
-                id="enroll-code"
-                name="code"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                autoComplete="one-time-code"
-                placeholder="••••••"
-                value={code}
-                onChange={(e) => setCode(e.currentTarget.value)}
-                maxLength={6}
-                aria-invalid={Boolean(msg) || undefined}
-                className="h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-center font-mono text-sm tracking-[0.35em] text-neutral-900 shadow-sm outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-50"
-              />
-            </div>
+            <SixDigitCodeField id="enroll-code" label="6-digit code" value={code} onChange={setCode} disabled={isSubmitting} />
 
             {msg && (
               <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
@@ -173,10 +138,10 @@ export function EnrollmentForm() {
               {isSubmitting ? "Confirming…" : "Verify code"}
             </button>
 
-            <div className="flex items-center justify-between text-xs sm:text-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm">
               <Link
                 href="/auth/login"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100"
+                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 underline underline-offset-2"
               >
                 Back to sign in
               </Link>
@@ -189,7 +154,7 @@ export function EnrollmentForm() {
                   setCode("");
                   setMsg(null);
                 }}
-                className="text-red-600 hover:text-red-500"
+                className="text-red-600 hover:text-red-500 underline underline-offset-2"
               >
                 Regenerate
               </button>
