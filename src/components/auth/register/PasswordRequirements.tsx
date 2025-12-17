@@ -1,4 +1,4 @@
-// app/components/ui/PasswordRequirements.tsx
+// src/components/auth/register/PasswordRequirements.tsx
 "use client";
 
 export interface PasswordRequirementState {

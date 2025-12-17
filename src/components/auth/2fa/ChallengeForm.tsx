@@ -1,4 +1,4 @@
-// app/auth/components/mfa/ChallengeForm.tsx
+// src/components/auth/2fa/ChallengeForm.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";

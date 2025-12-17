@@ -1,4 +1,4 @@
-// app/auth/register/components/PasswordField.tsx
+// src/components/auth/login/PasswordField.tsx
 "use client";
 
 import { useState } from "react";

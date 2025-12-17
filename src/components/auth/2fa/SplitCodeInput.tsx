@@ -1,4 +1,4 @@
-// src/components/auth/login/SplitCodeInput.tsx
+// src/components/auth/2fa/SplitCodeInput.tsx
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
