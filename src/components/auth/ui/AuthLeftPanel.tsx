@@ -9,8 +9,6 @@ const COPY: Record<
     headlineTop: string;
     headlineBottom: string;
     blurb: string;
-    footerTitle: string;
-    bullets: string[];
   }
 > = {
   login: {
@@ -18,24 +16,12 @@ const COPY: Record<
     headlineBottom: "pick up where you left off.",
     blurb:
       "Check your orders, track new drops, and secure pairs before they’re gone. Thousands of sneakerheads already trust Real Deal Kickz.",
-    footerTitle: "Why customers log back in",
-    bullets: [
-      "Faster checkout with your saved address and payment details",
-      "Your cart and favorites are exactly where you left them",
-      "Stay in the loop on new drops and restocks",
-    ],
   },
   register: {
     headlineTop: "Join thousands of buyers",
     headlineBottom: "who shop with confidence.",
     blurb:
       "Verified kicks, fast communication, and a reseller trusted by thousands of customers with hundreds of positive reviews. Create an account to never miss the next drop.",
-    footerTitle: "Why people sign up",
-    bullets: [
-      "Save your address and card once for quick, hassle-free checkout",
-      "Keep your cart and wishlist synced every time you come back",
-      "Be first to hear about new drops, restocks, and exclusive offers",
-    ],
   },
 };
 
@@ -87,23 +73,6 @@ export default function AuthLeftPanel({
         <p className="mt-4 max-w-md text-sm text-neutral-200/80">
           {v.blurb}
         </p>
-      </div>
-
-      {/* Footer bullets */}
-      <div className="relative mt-10 max-w-sm">
-        <div className="border-t border-white/10 pt-4 backdrop-blur-sm bg-black/10 rounded-xl px-4 py-3">
-          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-neutral-200/80">
-            {v.footerTitle}
-          </p>
-          <ul className="mt-2 space-y-1.5 text-[11px] text-neutral-300/85">
-            {v.bullets.map((b) => (
-              <li key={b} className="flex items-start gap-2">
-                <span className="mt-[5px] inline-block h-1.5 w-1.5 rounded-full bg-red-400/90 shadow-sm shadow-red-900/60" />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
     </div>
   );
