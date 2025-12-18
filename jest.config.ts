@@ -1,17 +1,16 @@
-import type { Config } from "jest";
+import nextJest from "next/jest.js";
 
-const config: Config = {
-  preset: "ts-jest",
+const createJestConfig = nextJest({ dir: "./" });
+
+const customJestConfig = {
   testEnvironment: "node",
-  testMatch: ["**/tests/**/*.test.ts"],
-  moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"], // Looks at our jest setup config to check any rules
-
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
-    "^@/lib/(.*)$": "<rootDir>/src/lib/$1",
-    "^@/proxy/(.*)$": "<rootDir>/src/proxy/$1",
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  testMatch: ["<rootDir>/tests/unit/**/*.test.ts", "<rootDir>/tests/unit/**/*.spec.ts"],
+  clearMocks: true,
+  restoreMocks: true,
 };
 
-export default config;
+export default createJestConfig(customJestConfig);
