@@ -4,14 +4,14 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { verifyAdminSessionToken } from "@/lib/crypto/admin-session";
+import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 import { security } from "@/config/security";
 import { log } from "@/lib/log";
 
 export async function protectAdminRoute(
   request: NextRequest,
   requestId: string,
-  supabase: SupabaseClient
+  supabase: SupabaseClient,
 ): Promise<NextResponse | null> {
   const { pathname } = request.nextUrl;
 
@@ -20,7 +20,7 @@ export async function protectAdminRoute(
   const respond = (
     status: number,
     apiError: string,
-    pageRedirectPath: string
+    pageRedirectPath: string,
   ): NextResponse => {
     if (isAdminApi) {
       return NextResponse.json({ error: apiError, requestId }, { status });
@@ -30,7 +30,7 @@ export async function protectAdminRoute(
   };
 
   const signOutAndClearAdminCookie = async (
-    response: NextResponse
+    response: NextResponse,
   ): Promise<NextResponse> => {
     try {
       await supabase.auth.signOut();
@@ -42,7 +42,8 @@ export async function protectAdminRoute(
         requestId,
         route: pathname,
         event: "admin_guard",
-        error: signOutError instanceof Error ? signOutError.message : String(signOutError),
+        error:
+          signOutError instanceof Error ? signOutError.message : String(signOutError),
       });
     }
 
@@ -67,7 +68,7 @@ export async function protectAdminRoute(
     return respond(
       security.proxy.admin.unauthorizedStatus,
       "Unauthorized",
-      security.proxy.admin.loginPath
+      security.proxy.admin.loginPath,
     );
   }
 
@@ -94,7 +95,7 @@ export async function protectAdminRoute(
     return respond(
       security.proxy.admin.errorStatus,
       "Profile lookup failed",
-      security.proxy.admin.loginPath
+      security.proxy.admin.loginPath,
     );
   }
 
@@ -112,7 +113,7 @@ export async function protectAdminRoute(
     return respond(
       security.proxy.admin.forbiddenStatus,
       "Profile missing",
-      security.proxy.admin.homePath
+      security.proxy.admin.homePath,
     );
   }
 
@@ -131,12 +132,12 @@ export async function protectAdminRoute(
     return respond(
       security.proxy.admin.forbiddenStatus,
       "Forbidden",
-      security.proxy.admin.homePath
+      security.proxy.admin.homePath,
     );
   }
 
   const adminCookieValue = request.cookies.get(
-    security.proxy.adminSession.cookieName
+    security.proxy.adminSession.cookieName,
   )?.value;
 
   if (!adminCookieValue) {
@@ -153,7 +154,7 @@ export async function protectAdminRoute(
     const response = respond(
       security.proxy.admin.unauthorizedStatus,
       "Unauthorized",
-      security.proxy.admin.loginPath
+      security.proxy.admin.loginPath,
     );
 
     return signOutAndClearAdminCookie(response);
@@ -192,7 +193,7 @@ export async function protectAdminRoute(
     const response = respond(
       security.proxy.admin.unauthorizedStatus,
       "Unauthorized",
-      security.proxy.admin.loginPath
+      security.proxy.admin.loginPath,
     );
 
     return signOutAndClearAdminCookie(response);
@@ -214,7 +215,7 @@ export async function protectAdminRoute(
     const response = respond(
       security.proxy.admin.unauthorizedStatus,
       "Unauthorized",
-      security.proxy.admin.loginPath
+      security.proxy.admin.loginPath,
     );
 
     return signOutAndClearAdminCookie(response);
@@ -238,7 +239,7 @@ export async function protectAdminRoute(
     return respond(
       security.proxy.admin.errorStatus,
       "MFA state error",
-      security.proxy.admin.loginPath
+      security.proxy.admin.loginPath,
     );
   }
 
@@ -261,7 +262,7 @@ export async function protectAdminRoute(
     return respond(
       security.proxy.admin.forbiddenStatus,
       "MFA required",
-      security.proxy.admin.mfaChallengePath
+      security.proxy.admin.mfaChallengePath,
     );
   }
 

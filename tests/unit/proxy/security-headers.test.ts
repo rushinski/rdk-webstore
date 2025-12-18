@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { applySecurityHeaders } from "@/proxy/security-headers";
 import { security } from "@/config/security";
+import { env } from "@/config/env";
 
 function setNodeEnv(value: "production" | "test" | "development") {
   Object.defineProperty(process.env, "NODE_ENV", {
@@ -12,7 +13,7 @@ function setNodeEnv(value: "production" | "test" | "development") {
 }
 
 describe("applySecurityHeaders", () => {
-  const prev = process.env.NODE_ENV;
+  const prev = env.NODE_ENV;
 
   afterEach(() => {
     // restore after every test to avoid cross-test leakage

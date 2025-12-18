@@ -34,6 +34,8 @@ const schema = z.object({
   SES_SMTP_PASS: z.string(),
   SES_FROM_EMAIL: z.string(),
   SES_FROM_NAME: z.string(),
+
+  NODE_ENV: z.enum(["development", "test", "production"]),
 });
 
 // process.env is loaded dependant on how it is being ran. Local vs Vercel vs GitHub Actions

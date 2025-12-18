@@ -1,6 +1,6 @@
 import { defineConfig } from "@playwright/test";
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+const baseURL = "http://127.0.0.1:3000";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -9,7 +9,6 @@ export default defineConfig({
     ? {
         command: "npm run dev:test",
         url: baseURL,
-        reuseExistingServer: !process.env.CI,
         env: { NODE_ENV: "test" },
       }
     : undefined,

@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { AdminSessionService } from "@/services/admin-session-service";
+import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 
 export async function POST(req: NextRequest) {
   const { factorId, challengeId, code } = await req.json();
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     isAdmin: true,
   });
 
-  res = await AdminSessionService.attachAdminSessionCookie(res, user.id);
+  res = await setAdminSessionCookie(res, user.id);
 
   return res;
 }

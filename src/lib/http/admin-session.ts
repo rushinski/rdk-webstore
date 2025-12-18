@@ -1,4 +1,4 @@
-// src/lib/crypto/admin-session.ts
+// src/lib/http/admin-session.ts
 import { EncryptJWT, jwtDecrypt, type JWTPayload } from "jose";
 
 import { env } from "@/config/env";

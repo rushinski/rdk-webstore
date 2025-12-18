@@ -2,7 +2,7 @@
 import { protectAdminRoute } from "@/proxy/auth";
 import { makeRequest } from "./helpers";
 import { security } from "@/config/security";
-import { verifyAdminSessionToken } from "@/lib/crypto/admin-session";
+import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 
 jest.mock("@/lib/log", () => ({ log: jest.fn() }));
 
@@ -16,7 +16,7 @@ jest.mock("@/repositories/profile-repo", () => ({
   })),
 }));
 
-jest.mock("@/lib/crypto/admin-session", () => ({
+jest.mock("@/lib/http/admin-session", () => ({
   verifyAdminSessionToken: jest.fn(),
 }));
 
@@ -35,7 +35,9 @@ function makeSupabase(opts: {
 
   return {
     auth: {
-      getUser: jest.fn().mockResolvedValue({ data: { user: opts.user }, error: opts.userError }),
+      getUser: jest
+        .fn()
+        .mockResolvedValue({ data: { user: opts.user }, error: opts.userError }),
       signOut: jest.fn().mockResolvedValue({}),
       mfa: {
         getAuthenticatorAssuranceLevel: jest.fn().mockResolvedValue({

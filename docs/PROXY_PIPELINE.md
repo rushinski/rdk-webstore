@@ -22,7 +22,7 @@ It replaces long inline JSDoc blocks inside proxy-related files with short `@see
   - [`src/proxy/finalize.ts`](#proxy-finalize)
   - [`src/proxy/security-headers.ts`](#proxy-security-headers)
 - [Related components](#related-components)
-  - [`src/lib/crypto/admin-session.ts`](#crypto-admin-session)
+  - [`src/lib/http/admin-session.ts`](#crypto-admin-session)
   - [`src/config/security.ts`](#config-security)
 - [Operational notes](#operational-notes)
   - [Logging + request ID](#logging--request-id)
@@ -386,7 +386,7 @@ function applySecurityHeaders(response, nodeEnv): void
 # Related components
 
 <a id="crypto-admin-session"></a>
-## `src/lib/crypto/admin-session.ts` — Admin elevation token
+## `src/lib/http/admin-session.ts` — Admin elevation token
 
 ### Responsibility
 Create + verify a **short-lived encrypted token** (JWE) for admin privilege elevation.
