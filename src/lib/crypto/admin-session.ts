@@ -1,90 +1,111 @@
 // src/lib/crypto/admin-session.ts
-import { EncryptJWT, jwtDecrypt, JWTPayload } from "jose";
+import { EncryptJWT, jwtDecrypt, type JWTPayload } from "jose";
 
-const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 24; // 24 hours
+import { env } from "@/config/env";
+import { security } from "@/config/security";
 
 export interface AdminSessionPayload extends JWTPayload {
+  /**
+   * Token version for forwards-compatible rotations.
+   * Increment if payload structure or validation rules change.
+   */
   v: 1;
-  sub?: string;
-  iat: number;
-  exp: number;
+
+  /**
+   * Bound admin user id (required). This prevents “floating” admin tokens.
+   */
+  sub: string;
+}
+
+let cachedKey: Uint8Array | null = null;
+
+/**
+ * Base64 → bytes in a way that works in both Edge (Web APIs) and Node.
+ * Edge runtime does not reliably support Node's `Buffer`.
+ */
+function base64ToBytes(value: string): Uint8Array {
+  // Web/Edge path
+  if (typeof globalThis.atob === "function") {
+    const raw = globalThis.atob(value);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    return bytes;
+  }
+
+  // Node fallback (local scripts/tests)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nodeBuffer = (globalThis as any).Buffer;
+  if (nodeBuffer) return new Uint8Array(nodeBuffer.from(value, "base64"));
+
+  throw new Error("No base64 decoder available in this runtime");
 }
 
 /**
- * Reads and prepares the symmetric key for JWE (dir + A256GCM).
- * Must be validated in src/config/env.ts (ADMIN_SESSION_SECRET required).
+ * Reads and prepares the symmetric key for JWE (alg=dir, enc=A256GCM).
+ * Must be enforced by `src/config/env.ts` (ADMIN_SESSION_SECRET required).
  */
 function getAdminSessionKey(): Uint8Array {
-  const secret = process.env.ADMIN_SESSION_SECRET;
-  if (!secret) {
-    throw new Error("ADMIN_SESSION_SECRET is not set");
-  }
+  if (cachedKey) return cachedKey;
 
-  // Interpret ADMIN_SESSION_SECRET as a base64-encoded 32-byte key
-  // (your current value `Q3ZmS2pQ0Jjrx0t9SHPu0y3x2pZofYl1ez7ISxjlv3Y=` fits this pattern)
-  const raw = Buffer.from(secret, "base64"); // Node runtime
+  const secret = env.ADMIN_SESSION_SECRET;
+  const raw = base64ToBytes(secret);
 
+  // A256GCM expects 32-byte key when using "dir"
   if (raw.length !== 32) {
-    // Fail fast if misconfigured
     throw new Error(
       `ADMIN_SESSION_SECRET must be a base64-encoded 32-byte key (got ${raw.length} bytes)`
     );
   }
 
+  cachedKey = raw;
   return raw;
 }
 
 /**
- * Create a signed & encrypted admin session token (JWE) with 24h expiry.
+ * Create an encrypted admin session token (JWE) with short TTL.
+ *
+ * This token is *separate* from the Supabase session and is used to gate admin access
+ * behind an additional, short-lived proof.
  */
-export async function createAdminSessionToken(userId?: string): Promise<string> {
+export async function createAdminSessionToken(userId: string): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const exp = now + ADMIN_SESSION_TTL_SECONDS;
-
-  const payload: AdminSessionPayload = {
-    v: 1,
-    sub: userId,
-    iat: now,
-    exp,
-  };
+  const exp = now + security.proxy.adminSession.ttlSeconds;
 
   const key = getAdminSessionKey();
 
-  const jwt = await new EncryptJWT(payload)
+  return new EncryptJWT({ v: 1, sub: userId })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setIssuedAt(now)
     .setExpirationTime(exp)
     .encrypt(key);
-
-  return jwt;
 }
 
 /**
  * Verify and decrypt an admin session token.
- * Returns payload if valid, or null if tampered / expired / invalid.
+ * Returns payload if valid, otherwise null (tampered / expired / invalid).
  */
 export async function verifyAdminSessionToken(
   token: string
 ): Promise<AdminSessionPayload | null> {
   try {
     const key = getAdminSessionKey();
-    const { payload } = await jwtDecrypt(token, key);
 
-    // Basic sanity checks
-    if (payload.v !== 1) return null;
-    if (typeof payload.exp !== "number" || typeof payload.iat !== "number") {
-      return null;
-    }
+    const { payload, protectedHeader } = await jwtDecrypt(token, key, {
+      // Small tolerance for clock skew across edge regions
+      clockTolerance: 5,
+    });
 
-    // NOTE: jwtDecrypt already validates exp, but we keep a defensive check:
-    const now = Math.floor(Date.now() / 1000);
-    if (payload.exp < now) {
-      return null;
-    }
+    // Defensive: ensure expected algorithms.
+    if (protectedHeader.alg !== "dir" || protectedHeader.enc !== "A256GCM") return null;
+
+    const v = (payload as { v?: unknown }).v;
+    const sub = payload.sub;
+
+    if (v !== 1) return null;
+    if (typeof sub !== "string" || sub.length === 0) return null;
 
     return payload as AdminSessionPayload;
   } catch {
-    // Any error: malformed, tampered, wrong key, expired
     return null;
   }
 }

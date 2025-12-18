@@ -1,109 +1,162 @@
 // src/proxy/auth.ts
-import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { verifyAdminSessionToken } from "@/lib/crypto/admin-session";
+import { security } from "@/config/security";
+import { log } from "@/lib/log";
 
+/**
+ * Admin guard:
+ * - Requires Supabase session user
+ * - Requires profile role = "admin"
+ * - Requires additional short-lived admin session cookie
+ * - Requires MFA (AAL2) when prompted by Supabase
+ *
+ * Returns:
+ * - NextResponse when blocked (redirect for pages / JSON for APIs)
+ * - null when allowed to continue
+ */
 export async function protectAdminRoute(
-  req: NextRequest,
+  request: NextRequest,
   requestId: string,
   supabase: SupabaseClient
-) {
-  const { pathname } = req.nextUrl;
+): Promise<NextResponse | null> {
+  const { pathname } = request.nextUrl;
 
-  const isAdminPage = pathname.startsWith("/admin") && !pathname.startsWith("/api/");
-  const isAdminApi  = pathname.startsWith("/api/admin");
+  // Only used to choose response type (JSON for admin APIs, redirect for pages).
+  const isAdminApi = pathname.startsWith("/api/admin");
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // 1. No session
-  if (!user) {
+  const respond = (status: number, apiError: string, pageRedirectPath: string) => {
     if (isAdminApi) {
-      return NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 });
+      return NextResponse.json({ error: apiError, requestId }, { status });
     }
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+    return NextResponse.redirect(new URL(pageRedirectPath, request.url));
+  };
+
+  const signOutAndClearAdminCookie = async (res: NextResponse) => {
+    // Fail-closed: if signOut fails, still clear cookie + block.
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      log({
+        level: "warn",
+        layer: "proxy",
+        message: "admin_guard_signout_failed",
+        requestId,
+        route: pathname,
+        event: "admin_guard",
+      });
+    }
+
+    res.cookies.delete(security.proxy.adminSession.cookieName);
+    return res;
+  };
+
+  // 1) Require a Supabase user session
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !userData?.user) {
+    return respond(
+      security.proxy.admin.unauthorizedStatus,
+      "Unauthorized",
+      security.proxy.admin.loginPath
+    );
   }
 
-  // 2. Profile lookup
+  const user = userData.user;
+
+  // 2) Require profile with admin role
   const repo = new ProfileRepository(supabase);
-  const profile = await repo.getByUserId(user.id);
+
+  let profile: Awaited<ReturnType<typeof repo.getByUserId>> | null;
+  try {
+    profile = await repo.getByUserId(user.id);
+  } catch {
+    return respond(
+      security.proxy.admin.errorStatus,
+      "Profile lookup failed",
+      security.proxy.admin.loginPath
+    );
+  }
 
   if (!profile) {
-    if (isAdminApi)
-      return NextResponse.json({ error: "Profile missing", requestId }, { status: 403 });
-
-    return NextResponse.redirect(new URL("/", req.url));
+    return respond(
+      security.proxy.admin.forbiddenStatus,
+      "Profile missing",
+      security.proxy.admin.homePath
+    );
   }
 
-  // 3. Role check
   if (profile.role !== "admin") {
-    if (isAdminApi)
-      return NextResponse.json({ error: "Forbidden", requestId }, { status: 403 });
-
-    return NextResponse.redirect(new URL("/", req.url));
+    return respond(
+      security.proxy.admin.forbiddenStatus,
+      "Forbidden",
+      security.proxy.admin.homePath
+    );
   }
 
-  // 4. Admin session cookie (bind admin access to extra token)
-  const adminCookie = req.cookies.get("admin_session")?.value;
+  // 3) Require admin session cookie (additional short-lived token)
+  const adminCookieValue = request.cookies.get(security.proxy.adminSession.cookieName)?.value;
 
-  if (!adminCookie) {
-    await supabase.auth.signOut();
-
-    const res = isAdminApi
-      ? NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 })
-      : NextResponse.redirect(new URL("/auth/login", req.url));
-
-    res.cookies.delete("admin_session");
-    res.headers.set("x-request-id", requestId);
-    return res;
+  if (!adminCookieValue) {
+    const res = respond(
+      security.proxy.admin.unauthorizedStatus,
+      "Unauthorized",
+      security.proxy.admin.loginPath
+    );
+    return signOutAndClearAdminCookie(res);
   }
 
-  const adminSession = await verifyAdminSessionToken(adminCookie);
+  // 4) Validate admin session token (and bind to Supabase user id)
+  let adminSession: Awaited<ReturnType<typeof verifyAdminSessionToken>> | null;
+  try {
+    adminSession = await verifyAdminSessionToken(adminCookieValue);
+  } catch {
+    adminSession = null;
+  }
 
   if (!adminSession) {
-    await supabase.auth.signOut();
-
-    const res = isAdminApi
-      ? NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 })
-      : NextResponse.redirect(new URL("/auth/login", req.url));
-
-    res.cookies.delete("admin_session");
-    res.headers.set("x-request-id", requestId);
-    return res;
+    const res = respond(
+      security.proxy.admin.unauthorizedStatus,
+      "Unauthorized",
+      security.proxy.admin.loginPath
+    );
+    return signOutAndClearAdminCookie(res);
   }
 
-  if (adminSession.sub && adminSession.sub !== user.id) {
-    await supabase.auth.signOut();
-
-    const res = isAdminApi
-      ? NextResponse.json({ error: "Unauthorized", requestId }, { status: 401 })
-      : NextResponse.redirect(new URL("/auth/login", req.url));
-
-    res.cookies.delete("admin_session");
-    return res;
+  if (adminSession.sub !== user.id) {
+    const res = respond(
+      security.proxy.admin.unauthorizedStatus,
+      "Unauthorized",
+      security.proxy.admin.loginPath
+    );
+    return signOutAndClearAdminCookie(res);
   }
 
-  // 5. MFA check
+  // 5) Require MFA (AAL2) if Supabase indicates it is required
   const { data: aalData, error: aalError } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
-  if (aalError) {
-    if (isAdminApi)
-      return NextResponse.json({ error: "MFA state error", requestId }, { status: 500 });
-
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+  if (aalError || !aalData) {
+    return respond(
+      security.proxy.admin.errorStatus,
+      "MFA state error",
+      security.proxy.admin.loginPath
+    );
   }
 
   const mfaRequired = aalData.nextLevel === "aal2";
   const mfaNotCompleted = aalData.currentLevel !== "aal2";
 
   if (mfaRequired && mfaNotCompleted) {
-    if (isAdminApi)
-      return NextResponse.json({ error: "MFA required", requestId }, { status: 403 });
-
-    return NextResponse.redirect(new URL("/auth/2fa/challenge", req.url));
+    return respond(
+      security.proxy.admin.forbiddenStatus,
+      "MFA required",
+      security.proxy.admin.mfaChallengePath
+    );
   }
 
   return null;

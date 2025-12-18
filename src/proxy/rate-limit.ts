@@ -5,77 +5,113 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
+import { security } from "@/config/security";
 
-// Upstash Rate Limiter
+// Upstash Redis client (Edge-safe). Assumes env validation is handled in "@/config/env".
 const redis = new Redis({
   url: env.UPSTASH_REDIS_REST_URL!,
   token: env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-const limiter = new Ratelimit({
+const rateLimiter = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(30, "1 m"),
+  limiter: Ratelimit.slidingWindow(
+    security.proxy.rateLimit.maxRequests,
+    security.proxy.rateLimit.window
+  ),
 });
 
-// Robust IP extraction for Vercel -> Proxy -> Browser
-function getClientIp(req: NextRequest) {
+function getClientIp(request: NextRequest): string {
   return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
     "unknown"
   );
 }
 
-export async function applyRateLimit(request: NextRequest, requestId: string) {
-  const ip = getClientIp(request);
-  const { pathname } = request.nextUrl;
+function maskIpForLog(ip: string): string {
+  if (ip === "unknown") return ip;
 
-  // Don't rate-limit the rate-limit page itself
-  if (pathname === "/too-many-requests") {
-    return null;
+  if (ip.includes(".")) {
+    const parts = ip.split(".");
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+    return ip;
   }
 
-  const { success } = await limiter.limit(ip);
+  if (ip.includes(":")) {
+    const parts = ip.split(":").filter(Boolean);
+    if (parts.length >= 2) return `${parts[0]}:${parts[1]}::/??`;
+    return ip;
+  }
 
-  if (!success) {
-    // Log the hit
+  return ip;
+}
+
+export async function applyRateLimit(
+  request: NextRequest,
+  requestId: string
+): Promise<NextResponse | null> {
+  const { pathname } = request.nextUrl;
+  const ip = getClientIp(request);
+
+  const { rateLimit } = security.proxy;
+
+  // Avoid redirect loops: never rate-limit the friendly "too many requests" page.
+  if (pathname === rateLimit.tooManyRequestsPath) return null;
+
+  // Use IP as the primary key. (If you later want per-route buckets, we can add it here.)
+  const result = await rateLimiter.limit(ip);
+
+  if (result.success) return null;
+
+  // Centralized blocker to keep response + logging consistent.
+  const block = () => {
     log({
       level: "warn",
       layer: "proxy",
       message: "rate_limit_block",
-      requestId: requestId,
-      userId: null,
+      requestId,
       route: pathname,
-      method: null,
-      status: 429,
-      latency_ms: null,
-      stripeSessionId: null,
+      method: request.method,
+      status: rateLimit.blockStatus,
       event: "rate_limit_exceeded",
-      ip: ip,
+      ip: maskIpForLog(ip),
+
+      // Helpful Upstash metadata for debugging (non-sensitive)
+      limit: result.limit,
+      remaining: result.remaining,
+      reset: result.reset,
     });
 
-    const acceptHeader = request.headers.get("accept") || "";
-    const isPageRequest =
-      acceptHeader.includes("text/html") && !pathname.startsWith("/api");
+    const accept = request.headers.get("accept") ?? "";
+    const isHtmlNavigation = accept.includes("text/html") && !pathname.startsWith("/api");
 
-    if (isPageRequest) {
-      // Redirect browser page requests to friendly rate-limit page
+    if (isHtmlNavigation) {
+      // Redirect browser page requests to a friendly page.
       const url = request.nextUrl.clone();
-      url.pathname = "/too-many-requests";
-      url.searchParams.set("from", pathname); // remember where they came from
-      return NextResponse.redirect(url);
+      url.pathname = rateLimit.tooManyRequestsPath;
+      url.searchParams.set("from", pathname);
+
+      return NextResponse.redirect(url, rateLimit.redirectStatus);
     }
 
-    // For APIs / non-HTML clients, keep JSON 429
-    return NextResponse.json(
-      {
-        error: "Rate limit exceeded",
-        requestId,
-      },
-      { status: 429 },
+    // For APIs / non-HTML clients, keep JSON 429.
+    const res = NextResponse.json(
+      { error: "Rate limit exceeded", requestId },
+      { status: rateLimit.blockStatus }
     );
-  }
 
-  // Not rate-limited, carry on
-  return null;
+    // Optional: expose standard-ish rate limit metadata for clients.
+    // (Safe because it’s not secret, but still useful.)
+    res.headers.set("X-RateLimit-Limit", String(result.limit));
+    res.headers.set("X-RateLimit-Remaining", String(result.remaining));
+    res.headers.set("X-RateLimit-Reset", String(result.reset));
+
+    // Avoid caching rate-limit responses.
+    res.headers.set("Cache-Control", "no-store");
+
+    return res;
+  };
+
+  return block();
 }

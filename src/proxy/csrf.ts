@@ -2,44 +2,47 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { log } from "@/lib/log";
+import { security, isCsrfUnsafeMethod, startsWithAny } from "@/config/security";
 
-export function checkCsrf(request: NextRequest, requestId: string) {
-  const method = request.method.toUpperCase();
-  const unsafe = ["POST", "PUT", "PATCH", "DELETE"];
-
-  if (!unsafe.includes(method)) {
-    return null;
-  }
-
+export function checkCsrf(
+  request: NextRequest,
+  requestId: string
+): NextResponse | null {
   const { pathname } = request.nextUrl;
+  const { csrf } = security.proxy;
+
+  // Safety guard: proxy.ts should already gate this, but keep it here
+  // so the subsystem is correct if reused elsewhere.
+  if (!isCsrfUnsafeMethod(request.method)) return null;
 
   // Bypass CSRF checks for known non-browser endpoints (e.g. Stripe webhooks)
-  const csrfBypassPaths = ["/api/stripe/webhook", "/api/auth/2fa/challenge/verify"];
-  if (csrfBypassPaths.some((p) => pathname.startsWith(p))) {
-    return null;
-  }
+  if (startsWithAny(pathname, csrf.bypassPrefixes)) return null;
 
   const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
+  const host = request.headers.get("host") ?? request.nextUrl.host;
 
-  // Rule 1 — Missing Origin header
-  if (!origin || origin === "null") {
+  const block = (message: string, error: string, extra?: Record<string, unknown>) => {
     log({
       level: "warn",
       layer: "proxy",
-      message: "csrf_block_missing_origin",
-      requestId: requestId,
+      message,
+      requestId,
       route: pathname,
-      status: 403, // Forbidden
+      status: csrf.blockStatus,
       event: "csrf_block",
-      origin: origin,
+      ...(extra ?? {}),
     });
 
-    const res = NextResponse.json(
-      { error: "Missing or null origin header (possible CSRF)", requestId },
-      { status: 403 },
+    return NextResponse.json({ error, requestId }, { status: csrf.blockStatus });
+  };
+
+  // Rule 1 — Missing Origin header (or explicitly "null")
+  if (!origin || origin === "null") {
+    return block(
+      "csrf_block_missing_origin",
+      "Missing or null origin header (possible CSRF)",
+      { origin }
     );
-    return res;
   }
 
   // Rule 2 — Malformed Origin
@@ -47,45 +50,21 @@ export function checkCsrf(request: NextRequest, requestId: string) {
   try {
     originHost = new URL(origin).host;
   } catch {
-    log({
-      level: "warn",
-      layer: "proxy",
-      message: "csrf_block_bad_origin",
-      requestId: requestId,
-      route: pathname,
-      status: 403, // Forbidden
-      event: "csrf_block",
-      origin: origin,
-    });
-
-    const res = NextResponse.json(
-      { error: "Invalid origin header (possible CSRF)", requestId },
-      { status: 403 },
+    return block(
+      "csrf_block_bad_origin",
+      "Invalid origin header (possible CSRF)",
+      { origin }
     );
-    return res;
   }
 
   // Rule 3 — Origin mismatch
   if (originHost !== host) {
-    log({
-      level: "warn",
-      layer: "proxy",
-      message: "csrf_block_origin_mismatch",
-      requestId: requestId,
-      route: pathname,
-      status: 403, // Forbidden
-      event: "csrf_block",
-      originHost: originHost,
-      host: host,
-    });
-
-    const res = NextResponse.json(
-      { error: "Origin mismatch (CSRF blocked)", requestId },
-      { status: 403 },
+    return block(
+      "csrf_block_origin_mismatch",
+      "Origin mismatch (CSRF blocked)",
+      { originHost, host }
     );
-    return res;
   }
 
-  // Everything valid
   return null;
 }

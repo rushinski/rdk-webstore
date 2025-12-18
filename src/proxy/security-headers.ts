@@ -1,66 +1,42 @@
 // src/proxy/security-headers.ts
 import type { NextResponse } from "next/server";
 
-export function applySecurityHeaders(response: NextResponse) {
-  const isDev = process.env.NODE_ENV !== "production";
+import { security } from "@/config/security";
 
-  //
+/**
+ * Applies baseline security headers to every proxied response.
+ *
+ * Style rule: this function only mutates `response` (no returns).
+ * `finalizeProxyResponse()` remains the single place that returns the response.
+ *
+ * CSP note:
+ * - Dev is relaxed for local workflows.
+ * - Prod is strict-ish but still compatible with Next.js + Stripe for MVP.
+ *   If you later implement CSP nonces, we can remove 'unsafe-inline'.
+ */
+export function applySecurityHeaders(response: NextResponse): void {
+  const isDev = process.env.NODE_ENV !== "production";
+  const cspDirectives = isDev
+    ? security.proxy.securityHeaders.csp.dev
+    : security.proxy.securityHeaders.csp.prod;
+
   // Shared headers (dev + prod)
-  //
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()"
+  );
 
-  //
-  // Development CSP (relaxed for local testing)
-  //
-  if (isDev) {
+  // Content Security Policy
+  response.headers.set("Content-Security-Policy", cspDirectives.join("; "));
+
+  // HSTS (production only)
+  if (!isDev) {
     response.headers.set(
-      "Content-Security-Policy",
-      [
-        "default-src 'self'",
-        "img-src 'self' data: https:",
-        "style-src 'self' 'unsafe-inline'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js dev mode
-        [
-          "connect-src",
-          "'self'",
-          "ws://localhost:*",
-          "http://localhost:*",
-          "http://127.0.0.1:*",        // <-- Added for local Supabase CLI
-          "https:"
-        ].join(" "),
-        "object-src 'none'",
-        "base-uri 'self'",
-        "frame-ancestors 'none'",
-      ].join("; ")
+      "Strict-Transport-Security",
+      security.proxy.securityHeaders.hsts.value
     );
-
-    return response;
   }
-
-  //
-  // Production CSP (strict — do not relax)
-  //
-  response.headers.set(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "img-src 'self' https: data:",
-      "script-src 'self'",
-      "style-src 'self'",
-      "object-src 'none'",
-      "base-uri 'self'",
-      "connect-src 'self' https:",
-      "frame-ancestors 'none'",
-    ].join("; ")
-  );
-
-  response.headers.set(
-    "Strict-Transport-Security",
-    "max-age=63072000; includeSubDomains; preload"
-  );
-
-  return response;
 }

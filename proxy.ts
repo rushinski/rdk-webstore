@@ -1,6 +1,9 @@
-// proxy.ts
+// src/proxy/proxy.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
+import { security, startsWithAny, isCsrfUnsafeMethod } from "@/config/security";
+
 import { applyRateLimit } from "@/proxy/rate-limit";
 import { protectAdminRoute } from "@/proxy/auth";
 import { checkCsrf } from "@/proxy/csrf";
@@ -11,76 +14,56 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const { crypto } = globalThis;
 
-// Proxy will only return a url if we are redirecting, otherwise we attach headers to the response and decide if the request is allowed
 export async function proxy(request: NextRequest) {
-  // Generates a ID to recognize requests across layers within logs 
-  const requestId = `$req-${crypto.randomUUID()}`;
+  const requestId = `req_${crypto.randomUUID()}`;
+  const { pathname } = request.nextUrl;
 
-  // Stores what canonicalizePath will return. Either null or a object (NextResponse)
-  const canon = canonicalizePath(request, requestId);
-  // If we returned a object this if statement runs. We return finalizeProxyResponse which sets req-id and security headers
-  // Once returned : redirect occurs -> program ends -> redirect = new request - meaning proxy activates again
-  if (canon) {
-    return finalizeProxyResponse(canon, requestId);
+  // 1) Canonical redirects happen before any other checks.
+  const canonRes = canonicalizePath(request, requestId);
+  if (canonRes) {
+    return finalizeProxyResponse(canonRes, requestId);
   }
 
-  // nextUrl is a Next.js-generated URL object built from the incoming HTTP request
-  const { pathname } = request.nextUrl; // Gets the pathname. Raw = request.nextUrl.pathname
+  // 2) Forward x-request-id into the downstream request so route handlers/services
+  // can reuse it for structured logs and correlation.
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set(security.proxy.requestIdHeader, requestId);
 
-   // Create base response & apply security + request-id
-  let response = NextResponse.next();
-  response = finalizeProxyResponse(response, requestId);
+  // Base pass-through response
+  let res = NextResponse.next({ request: { headers: forwardedHeaders } });
+  res = finalizeProxyResponse(res, requestId);
 
-  // If our pathname starts with one of these we will hit the if statement below. Otherwise it will be null and skipped
-  const shouldBotCheck =
-    pathname.startsWith("/admin") ||
-    pathname === "/api" ||
-    pathname.startsWith("/auth") ||
-    pathname === "/products";
-
-  if (shouldBotCheck) {
-    const botResult = checkBot(request, requestId);
-    if (botResult) {
-      return finalizeProxyResponse(botResult, requestId);
-    }
+  // 3) Bot check (subset of routes)
+  if (startsWithAny(pathname, security.proxy.botCheckPrefixes)) {
+    const botRes = checkBot(request, requestId);
+    if (botRes) return finalizeProxyResponse(botRes, requestId);
   }
 
-  // CSRF (unsafe HTTP methods)
-  const csrfResult = checkCsrf(request, requestId);
-  if (csrfResult) {
-    return finalizeProxyResponse(csrfResult, requestId);
+  // 4) CSRF check (unsafe methods only)
+  if (isCsrfUnsafeMethod(request.method)) {
+    const csrfRes = checkCsrf(request, requestId);
+    if (csrfRes) return finalizeProxyResponse(csrfRes, requestId);
   }
 
-  // Rate limit (api, admin, auth, checkout)
-  const shouldRateLimit =
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/checkout");
-
-  if (shouldRateLimit) {
-    const rateLimitResult = await applyRateLimit(request, requestId);
-    if (rateLimitResult) {
-      return finalizeProxyResponse(rateLimitResult, requestId);
-    }
+  // 5) Rate limit (subset of routes; aligns with MVP requirements)
+  if (startsWithAny(pathname, security.proxy.rateLimitPrefixes)) {
+    const rateLimitRes = await applyRateLimit(request, requestId);
+    if (rateLimitRes) return finalizeProxyResponse(rateLimitRes, requestId);
   }
 
-  // Admin guard
-  if (
-  (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) &&
-  !pathname.startsWith("/api/auth/2fa")   
-  ) {
+  // 6) Admin guard (admin pages + admin APIs, with explicit exemption)
+  const isAdminArea = startsWithAny(pathname, security.proxy.adminGuard.protectedPrefixes);
+  const isExempt = startsWithAny(pathname, security.proxy.adminGuard.exemptPrefixes);
+
+  if (isAdminArea && !isExempt) {
     const supabase = await createSupabaseServerClient();
     const adminRes = await protectAdminRoute(request, requestId, supabase);
     if (adminRes) return finalizeProxyResponse(adminRes, requestId);
   }
 
-  return response;
+  return res;
 }
 
-// This is what our proxy ignores
-export const config = { 
-  matcher: [
-    "/((?!_next|static|favicon.ico|robots.txt|sitemap.xml).*)"
-  ],
+export const config = {
+  matcher: ["/((?!_next|static|favicon.ico|robots.txt|sitemap.xml).*)"],
 };
