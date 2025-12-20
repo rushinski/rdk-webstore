@@ -1,4 +1,5 @@
 // src/components/admin/charts/TrafficChart.tsx
+"use client";
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
