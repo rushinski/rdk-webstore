@@ -1,8 +1,7 @@
 // src/services/session-service.ts
-
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProfileRepository, type ProfileRole } from "@/repositories/profile-repo";
+import { ProfileRepository, type ProfileRole, isProfileRole } from "@/repositories/profile-repo";
 
 export interface ServerSession {
   user: {
@@ -20,40 +19,40 @@ export interface ServerSession {
 
 export async function getServerSession(): Promise<ServerSession | null> {
   const supabase = await createSupabaseServerClient();
-  
+
   const { data: { user }, error } = await supabase.auth.getUser();
-  
   if (error || !user) return null;
 
   const profileRepo = new ProfileRepository(supabase);
-  const profile = await profileRepo.getByUserId(user.id);
+  const row = await profileRepo.getByUserId(user.id);
+
+  const profile = row
+    ? {
+        id: row.id,
+        email: row.email ?? user.email ?? "",
+        role: isProfileRole(row.role) ? row.role : "customer",
+        full_name: row.full_name ?? null,
+      }
+    : null;
 
   return {
     user: {
       id: user.id,
-      email: user.email || '',
+      email: user.email ?? "",
     },
     profile,
-    role: profile?.role || 'customer',
+    role: profile?.role ?? "customer",
   };
 }
 
 export async function requireUser(): Promise<ServerSession> {
   const session = await getServerSession();
-  
-  if (!session) {
-    redirect('/auth/login');
-  }
-  
+  if (!session) redirect("/auth/login");
   return session;
 }
 
 export async function requireAdmin(): Promise<ServerSession> {
   const session = await requireUser();
-  
-  if (session.role !== 'admin') {
-    redirect('/');
-  }
-  
+  if (session.role !== "admin") redirect("/");
   return session;
 }

@@ -31,5 +31,6 @@ export const CLOTHING_SIZES = [
   "MEDIUM",
   "LARGE",
   "XL",
-  "2XL / 3XL",
+  "2XL",
+  "3XL",
 ] as const;
