@@ -37,7 +37,7 @@ export default function Error({ error, reset }: ErrorProps) {
         <div className="w-full max-w-2xl mb-12">
           <div className="relative w-full overflow-hidden rounded-2xl shadow-sm">
             <Image
-              src="/images/error-500-broken-lace.png"
+              src="/images/error-500.png"
               alt="Broken sneaker lace with a large 500 in the background"
               width={1600}
               height={1000}

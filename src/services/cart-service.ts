@@ -1,0 +1,77 @@
+// src/services/cart-service.ts
+'use client';
+
+import type { CartItem } from "@/types/views/cart";
+
+const CART_KEY = 'rdk_cart';
+
+export class CartService {
+  getCart(): CartItem[] {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(CART_KEY);
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  addItem(item: Omit<CartItem, 'quantity'>) {
+    const cart = this.getCart();
+    const existing = cart.find(
+      i => i.productId === item.productId && i.variantId === item.variantId
+    );
+
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      cart.push({ ...item, quantity: 1 });
+    }
+
+    this.saveCart(cart);
+    return cart;
+  }
+
+  removeItem(productId: string, variantId: string) {
+    const cart = this.getCart().filter(
+      i => !(i.productId === productId && i.variantId === variantId)
+    );
+    this.saveCart(cart);
+    return cart;
+  }
+
+  updateQuantity(productId: string, variantId: string, quantity: number) {
+    const cart = this.getCart();
+    const item = cart.find(
+      i => i.productId === productId && i.variantId === variantId
+    );
+
+    if (item) {
+      if (quantity <= 0) {
+        return this.removeItem(productId, variantId);
+      }
+      item.quantity = quantity;
+      this.saveCart(cart);
+    }
+
+    return cart;
+  }
+
+  clearCart() {
+    this.saveCart([]);
+    return [];
+  }
+
+  getItemCount(): number {
+    return this.getCart().reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  getTotal(): number {
+    return this.getCart().reduce(
+      (sum, item) => sum + (item.priceCents * item.quantity),
+      0
+    );
+  }
+
+  private saveCart(cart: CartItem[]) {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    // Dispatch custom event for cart updates
+    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cart }));
+  }
+}

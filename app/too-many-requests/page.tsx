@@ -42,7 +42,7 @@ export default function TooManyRequestsPage({
         <div className="w-full max-w-2xl mb-12">
           <div className="relative w-full overflow-hidden rounded-2xl shadow-sm">
             <Image
-              src="/images/error-429-conveyor.png"
+              src="/images/error-429.png"
               alt="Conveyor belt with sneaker boxes and a highlighted box, with a large 429 in the background"
               width={1600}
               height={1000}

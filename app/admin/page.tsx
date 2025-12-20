@@ -1,3 +1,7 @@
-export default function Page() {
-  return <div>stub</div>;
+// app/admin/page.tsx
+
+import { redirect } from 'next/navigation';
+
+export default function AdminIndexPage() {
+  redirect('/admin/dashboard');
 }
