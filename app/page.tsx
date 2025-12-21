@@ -1,6 +1,7 @@
-// app/page.tsx
+// app/(main)/page.tsx
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import Image from 'next/image';
 
 const categories = [
   {
@@ -25,15 +26,32 @@ const categories = [
   },
 ];
 
-export default function HomePage() {
+async function getTrendingProducts() {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/store/products?limit=4&sortBy=views`, {
+      cache: 'no-store'
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.products || [];
+  } catch {
+    return [];
+  }
+}
+
+export default async function HomePage() {
+  const trendingProducts = await getTrendingProducts();
+
   return (
     <div className="relative">
       {/* Hero Section */}
-      <div className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black">
+      <div className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black overflow-hidden">
+        {/* Subtle noise texture */}
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-[url('/noise.png')] opacity-50" />
+          <div className="absolute inset-0 noise-overlay" />
         </div>
-        <div className="relative text-center px-4">
+        
+        <div className="relative text-center px-4 z-10">
           <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight">
             REAL DEAL KICKZ
           </h1>
@@ -42,13 +60,54 @@ export default function HomePage() {
           </p>
           <Link
             href="/store"
-            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 rounded transition"
+            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 transition-colors cursor-pointer"
           >
             Shop Now
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
       </div>
+
+      {/* Trending Now Section */}
+      {trendingProducts.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 py-20">
+          <div className="flex items-center justify-between mb-12">
+            <h2 className="text-4xl font-bold text-white">Trending Now</h2>
+            <Link 
+              href="/store" 
+              className="text-red-500 hover:text-red-400 font-semibold flex items-center gap-2 cursor-pointer"
+            >
+              View All <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {trendingProducts.map((product: any) => (
+              <Link
+                key={product.id}
+                href={`/store/${product.id}`}
+                className="group bg-zinc-900 border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
+              >
+                <div className="aspect-square relative overflow-hidden">
+                  <Image
+                    src={product.images[0]?.url || '/placeholder.png'}
+                    alt={product.name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="font-bold text-white mb-1">{product.brand}</h3>
+                  <p className="text-sm text-gray-400 mb-2 truncate">{product.name}</p>
+                  <p className="text-white font-bold">
+                    ${(product.variants[0]?.price_cents / 100).toFixed(2)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Category Preview */}
       <div className="max-w-7xl mx-auto px-4 py-20">
@@ -60,7 +119,7 @@ export default function HomePage() {
               key={c.slug}
               href={`/store?category=${c.slug}`}
               aria-label={`Shop ${c.label}`}
-              className="group relative overflow-hidden rounded bg-zinc-900 h-44 sm:h-56 lg:h-64 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+              className="group relative overflow-hidden bg-zinc-900 h-44 sm:h-56 lg:h-64 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
             >
               {/* Background image */}
               <div
@@ -84,19 +143,30 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* CTA Section */}
-      <div className="bg-gradient-to-r from-red-900/20 to-red-600/20 py-20">
-        <div className="max-w-4xl mx-auto text-center px-4">
-          <h2 className="text-4xl font-bold text-white mb-6">New drops every week</h2>
-          <p className="text-xl text-gray-400 mb-8">
-            Stay ahead of the game. Sign up for exclusive access to limited releases.
-          </p>
-          <Link
-            href="/auth/register"
-            className="inline-block bg-white text-black font-bold px-8 py-4 rounded hover:bg-gray-200 transition"
-          >
-            Create Account
-          </Link>
+      {/* Info Links */}
+      <div className="bg-zinc-900 border-t border-zinc-800">
+        <div className="max-w-7xl mx-auto px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <Link 
+              href="/about"
+              className="group p-8 bg-black border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
+            >
+              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">About Us</h3>
+              <p className="text-gray-400">
+                Learn about Real Deal Kickz and our commitment to authenticity and quality.
+              </p>
+            </Link>
+
+            <Link 
+              href="/contact"
+              className="group p-8 bg-black border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
+            >
+              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">Contact Us</h3>
+              <p className="text-gray-400">
+                Have questions? Get in touch with our team for support and inquiries.
+              </p>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
