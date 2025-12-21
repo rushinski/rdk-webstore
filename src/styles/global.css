@@ -31,12 +31,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #dc2626;
+  background: #52525b;
   border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #b91c1c;
+  background: #71717a;
 }
 
 /* Custom scrollbar for dropdown menus */
@@ -49,12 +49,19 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #dc2626;
+  background: #52525b;
   border-radius: 0;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #b91c1c;
+  background: #71717a;
+}
+
+/* Add cursor pointer utility */
+@layer utilities {
+  .cursor-pointer {
+    cursor: pointer;
+  }
 }
 
 /* Subtle noise texture overlay */

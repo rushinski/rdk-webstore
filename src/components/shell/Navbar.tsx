@@ -21,7 +21,6 @@ import {
   Watch,
   Laptop,
 } from 'lucide-react';
-import { CartService } from '@/services/cart-service';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
 import { BRANDS } from '@/config/constants/brands';
 
@@ -31,6 +30,7 @@ interface NavbarProps {
   isAuthenticated?: boolean;
   isAdmin?: boolean;
   userEmail?: string;
+  cartCount?: number;
 }
 
 function buildStoreHref(params: Record<string, string>) {
@@ -78,7 +78,7 @@ function MegaLink({
     <Link
       href={href}
       onClick={onClick}
-      className="group flex gap-3 p-4 hover:bg-zinc-900 transition-colors border-b border-zinc-900 last:border-b-0"
+      className="group flex gap-3 p-4 hover:bg-zinc-900 transition-colors border-b border-zinc-900 last:border-b-0 cursor-pointer"
     >
       <div className="flex h-10 w-10 items-center justify-center bg-zinc-900 group-hover:bg-red-600 transition-colors">
         {icon}
@@ -91,25 +91,26 @@ function MegaLink({
   );
 }
 
-// Organized shoe sizes by type
 const SHOE_SIZE_GROUPS = {
   youth: SHOE_SIZES.filter(s => s.includes('Y')).slice(0, 7),
-  adult: SHOE_SIZES.filter(s => s.includes('M') && !s.includes('Y')),
+  mens: SHOE_SIZES.filter(s => s.includes('M') && !s.includes('Y')),
+  extended: SHOE_SIZES.slice(-1)
 };
 
-export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: NavbarProps) {
+export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, cartCount = 0 }: NavbarProps) {
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-  const [cartCount, setCartCount] = useState(0);
+  const [localCartCount, setLocalCartCount] = useState(cartCount);
 
   useEffect(() => {
-    const cart = new CartService();
-    setCartCount(cart.getItemCount());
+    const handleCartUpdate = (e: Event) => {
+      const event = e as CustomEvent;
+      setLocalCartCount(event.detail?.count ?? 0);
+    };
 
-    const handleCartUpdate = () => setCartCount(cart.getItemCount());
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
@@ -171,7 +172,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
   return (
     <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between h-16">
-        {/* Logo */}
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 relative flex-shrink-0">
@@ -182,9 +182,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
             </span>
           </Link>
 
-          {/* Desktop nav */}
           <div className="hidden lg:flex items-center gap-1">
-            {/* Shop */}
             <div
               className="relative"
               onMouseEnter={() => setActiveMenu('shop')}
@@ -192,9 +190,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
             >
               <button
                 type="button"
-                aria-haspopup="menu"
-                aria-expanded={activeMenu === 'shop'}
-                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setActiveMenu(activeMenu === 'shop' ? null : 'shop')}
               >
                 <span className="text-sm">Shop</span>
@@ -220,7 +216,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               </MenuShell>
             </div>
 
-            {/* Brands */}
             <div
               className="relative"
               onMouseEnter={() => setActiveMenu('brands')}
@@ -228,9 +223,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
             >
               <button
                 type="button"
-                aria-haspopup="menu"
-                aria-expanded={activeMenu === 'brands'}
-                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setActiveMenu(activeMenu === 'brands' ? null : 'brands')}
               >
                 <span className="text-sm">Brands</span>
@@ -250,7 +243,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                         key={brand}
                         href={buildStoreHref({ brand })}
                         onClick={() => setActiveMenu(null)}
-                        className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600"
+                        className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                       >
                         {brand}
                       </Link>
@@ -260,7 +253,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               </MenuShell>
             </div>
 
-            {/* Sneaker Sizes */}
             <div
               className="relative"
               onMouseEnter={() => setActiveMenu('shoeSizes')}
@@ -268,9 +260,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
             >
               <button
                 type="button"
-                aria-haspopup="menu"
-                aria-expanded={activeMenu === 'shoeSizes'}
-                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setActiveMenu(activeMenu === 'shoeSizes' ? null : 'shoeSizes')}
               >
                 <span className="text-sm">Sneaker Sizes</span>
@@ -284,7 +274,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                 </div>
 
                 <div className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar">
-                  {/* Youth Sizes */}
                   <div>
                     <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Youth</div>
                     <div className="grid grid-cols-4 gap-2">
@@ -293,7 +282,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                           key={size}
                           href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
                           onClick={() => setActiveMenu(null)}
-                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600"
+                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {size}
                         </Link>
@@ -301,16 +290,31 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                     </div>
                   </div>
 
-                  {/* Adult Sizes */}
                   <div>
-                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Adult</div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Men's</div>
                     <div className="grid grid-cols-4 gap-2">
-                      {SHOE_SIZE_GROUPS.adult.map((size) => (
+                      {SHOE_SIZE_GROUPS.mens.map((size) => (
                         <Link
                           key={size}
                           href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
                           onClick={() => setActiveMenu(null)}
-                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600"
+                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
+                        >
+                          {size}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Extended</div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {SHOE_SIZE_GROUPS.extended.map((size) => (
+                        <Link
+                          key={size}
+                          href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
+                          onClick={() => setActiveMenu(null)}
+                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {size}
                         </Link>
@@ -321,7 +325,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               </MenuShell>
             </div>
 
-            {/* Clothing Sizes */}
             <div
               className="relative"
               onMouseEnter={() => setActiveMenu('clothingSizes')}
@@ -329,9 +332,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
             >
               <button
                 type="button"
-                aria-haspopup="menu"
-                aria-expanded={activeMenu === 'clothingSizes'}
-                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors"
+                className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setActiveMenu(activeMenu === 'clothingSizes' ? null : 'clothingSizes')}
               >
                 <span className="text-sm">Clothing Sizes</span>
@@ -351,7 +352,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                         key={size}
                         href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
                         onClick={() => setActiveMenu(null)}
-                        className="px-4 py-3 text-center text-sm font-bold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600"
+                        className="px-4 py-3 text-center text-sm font-bold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                       >
                         {size}
                       </Link>
@@ -363,35 +364,34 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
           </div>
         </div>
 
-        {/* Right Side Icons */}
         <div className="hidden md:flex items-center gap-4">
-          <Link href="/" className="text-gray-300 hover:text-white transition-colors" aria-label="Home">
+          <Link href="/" className="text-gray-300 hover:text-white transition-colors cursor-pointer" aria-label="Home">
             <Home className="w-5 h-5" />
           </Link>
 
-          <button onClick={handleSearchClick} className="text-gray-300 hover:text-white transition-colors" aria-label="Search">
+          <button onClick={handleSearchClick} className="text-gray-300 hover:text-white transition-colors cursor-pointer" aria-label="Search">
             <Search className="w-5 h-5" />
           </button>
 
           <button
             onClick={handleCartClick}
-            className="relative text-gray-300 hover:text-white transition-colors"
+            className="relative text-gray-300 hover:text-white transition-colors cursor-pointer"
             aria-label="Cart"
           >
             <ShoppingCart className="w-5 h-5" />
-            {cartCount > 0 && (
+            {localCartCount > 0 && (
               <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center">
-                {cartCount}
+                {localCartCount}
               </span>
             )}
           </button>
 
           {!isAuthenticated ? (
             <div className="flex items-center gap-2">
-              <Link href="/auth/login" className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors">
+              <Link href="/auth/login" className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
                 Login
               </Link>
-              <Link href="/auth/register" className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors">
+              <Link href="/auth/register" className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer">
                 Sign Up
               </Link>
             </div>
@@ -399,9 +399,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
             <div ref={profileRef} className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors"
-                aria-haspopup="menu"
-                aria-expanded={isProfileOpen}
+                className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
               >
                 <User className="w-5 h-5" />
                 <ChevronDown className="w-3 h-3" />
@@ -418,7 +416,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                   <Link
                     href="/account"
                     onClick={() => setIsProfileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors"
+                    className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
                   >
                     <Settings className="w-4 h-4" />
                     Account Settings
@@ -428,7 +426,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                     <Link
                       href="/admin"
                       onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors"
+                      className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
                     >
                       <Settings className="w-4 h-4" />
                       Admin Dashboard
@@ -437,7 +435,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
 
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors"
+                    className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     Logout
@@ -448,19 +446,17 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
           )}
         </div>
 
-        {/* Mobile Menu Button */}
-        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-gray-300" aria-label="Open menu">
+        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-gray-300 cursor-pointer" aria-label="Open menu">
           <Menu className="w-6 h-6" />
         </button>
       </div>
 
-      {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50 bg-black">
           <div className="p-6">
             <div className="flex items-center justify-between mb-8">
               <span className="text-white font-bold text-lg">Menu</span>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white" aria-label="Close menu">
+              <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white cursor-pointer" aria-label="Close menu">
                 <X className="w-6 h-6" />
               </button>
             </div>
@@ -469,14 +465,13 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               <Link
                 href="/store"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="block px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800"
+                className="block px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
               >
                 Shop All
               </Link>
 
-              {/* Mobile accordions */}
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'shop' ? null : 'shop')}
               >
                 <span className="flex items-center gap-2">
@@ -492,7 +487,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                       key={it.label}
                       href={it.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-l-2 border-zinc-800 hover:border-red-600"
+                      className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-l-2 border-zinc-800 hover:border-red-600 cursor-pointer"
                     >
                       {it.label}
                     </Link>
@@ -501,7 +496,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               )}
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'brands' ? null : 'brands')}
               >
                 <span className="flex items-center gap-2">
@@ -517,7 +512,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                       key={brand}
                       href={buildStoreHref({ brand })}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-4 py-3 text-sm text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800"
+                      className="px-4 py-3 text-sm text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
                     >
                       {brand}
                     </Link>
@@ -526,7 +521,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               )}
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'shoeSizes' ? null : 'shoeSizes')}
               >
                 <span className="flex items-center gap-2">
@@ -542,7 +537,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                       key={size}
                       href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-3 py-2 text-center text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800"
+                      className="px-3 py-2 text-center text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
                     >
                       {size}
                     </Link>
@@ -551,7 +546,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
               )}
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'clothingSizes' ? null : 'clothingSizes')}
               >
                 <span className="flex items-center gap-2">
@@ -567,7 +562,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail }: 
                       key={size}
                       href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-3 py-3 text-center text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800"
+                      className="px-3 py-3 text-center text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
                     >
                       {size}
                     </Link>

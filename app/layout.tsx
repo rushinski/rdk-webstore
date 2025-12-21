@@ -6,6 +6,7 @@ import { CartProvider } from '@/components/cart/CartProvider';
 import { ScrollHeader } from '@/components/shell/ScrollHeader';
 import { MobileBottomNav } from '@/components/shell/MobileBottomNav';
 import { Footer } from '@/components/shell/Footer';
+import { ClientShell } from '@/components/shell/ClientShell';
 import '@/styles/global.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -15,19 +16,17 @@ export const metadata: Metadata = {
   description: 'Authentic sneakers and streetwear. Quality guaranteed.',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} bg-black text-white antialiased`}>
+      <body className="bg-black text-white">
         <CartProvider>
-          <ScrollHeader />
-          <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
-          <Footer />
-          <MobileBottomNav />
+          <ClientShell>
+            <ScrollHeader />
+            <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
+            <Footer />
+            <MobileBottomNav />
+          </ClientShell>
         </CartProvider>
       </body>
     </html>
