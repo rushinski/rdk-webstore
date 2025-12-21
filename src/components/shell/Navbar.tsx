@@ -94,7 +94,6 @@ function MegaLink({
 const SHOE_SIZE_GROUPS = {
   youth: SHOE_SIZES.filter(s => s.includes('Y')).slice(0, 7),
   mens: SHOE_SIZES.filter(s => s.includes('M') && !s.includes('Y')),
-  extended: SHOE_SIZES.slice(-1)
 };
 
 export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, cartCount = 0 }: NavbarProps) {
@@ -294,22 +293,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                     <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Men's</div>
                     <div className="grid grid-cols-4 gap-2">
                       {SHOE_SIZE_GROUPS.mens.map((size) => (
-                        <Link
-                          key={size}
-                          href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
-                          onClick={() => setActiveMenu(null)}
-                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
-                        >
-                          {size}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Extended</div>
-                    <div className="grid grid-cols-4 gap-2">
-                      {SHOE_SIZE_GROUPS.extended.map((size) => (
                         <Link
                           key={size}
                           href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
