@@ -1,6 +1,7 @@
 // src/services/auth-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { EmailSubscriberRepository } from "@/repositories/email-subscriber-repo";
 
 export type VerificationFlow = "signup" | "signin";
 
@@ -19,6 +20,14 @@ export class AuthService {
     });
 
     if (error) throw error;
+
+    // If user wants updates, subscribe them
+    if (updatesOptIn) {
+      const emailRepo = new EmailSubscriberRepository(this.supabase);
+      await emailRepo.subscribe(email, 'signup').catch(() => {
+        // Don't fail signup if email subscription fails
+      });
+    }
   }
 
   async signIn(email: string, password: string) {
@@ -46,19 +55,15 @@ export class AuthService {
     if (error) throw error;
   }
 
-  /**
-   * Verify the reset code sent by resetPasswordForEmail.
-   * This uses the token ({{ .Token }}) from your reset-password email.
-   */
   async verifyPasswordResetCode(email: string, code: string) {
     const { data, error } = await this.supabase.auth.verifyOtp({
       email,
       token: code,
-      type: "recovery", // <- important: password-recovery flow
+      type: "recovery",
     });
 
     if (error) throw error;
-    return data; // contains session; used implicitly by Supabase client cookies
+    return data;
   }
 
   async updatePassword(newPassword: string) {
@@ -70,15 +75,12 @@ export class AuthService {
   }
 
   async resendVerification(email: string, flow: VerificationFlow = "signup") {
-    // Currently both flows use Supabase's "signup" OTP type for email confirmation.
     const { error } = await this.supabase.auth.resend({
       type: "signup",
       email,
     });
 
     if (error) throw error;
-
-    // Flow param is here for future branching / logging if needed.
   }
 
   async requestEmailOtpForSignIn(email: string) {
@@ -89,21 +91,16 @@ export class AuthService {
       },
     });
 
-    // We intentionally DO NOT throw on "User not found" to avoid email enumeration.
     if (error && !error.message.toLowerCase().includes("user not found")) {
       throw error;
     }
   }
 
-  /**
-   * Verify a one-time code and create a session.
-   * Mirrors signIn() return shape.
-   */
   async verifyEmailOtpForSignIn(email: string, code: string) {
     const { data, error } = await this.supabase.auth.verifyOtp({
       email,
       token: code,
-      type: "email", // email OTP flow
+      type: "email",
     });
 
     if (error) throw error;
@@ -127,27 +124,21 @@ export class AuthService {
 
     const user = data.user;
 
-    const rawUpdatesOptIn =
-      // metadata may be string or boolean depending on how Supabase stored it
-      (user.user_metadata as any)?.updatesOptIn;
-
-    const updatesOptIn =
-      rawUpdatesOptIn === true || rawUpdatesOptIn === "true";
+    const rawUpdatesOptIn = (user.user_metadata as any)?.updatesOptIn;
+    const updatesOptIn = rawUpdatesOptIn === true || rawUpdatesOptIn === "true";
 
     const repo = new ProfileRepository(this.supabase);
-    const profile = await repo.ensureProfile(
-      user.id,
-      user.email!,
-      updatesOptIn,
-    );
+    const profile = await repo.ensureProfile(user.id, user.email!, updatesOptIn);
+
+    // Subscribe to emails if opted in
+    if (updatesOptIn) {
+      const emailRepo = new EmailSubscriberRepository(this.supabase);
+      await emailRepo.subscribe(user.email!, 'signup').catch(() => {});
+    }
 
     return { user, profile };
   }
 
-  /**
-   * Ensures that the currently authenticated user has a profile row.
-   * Used by OAuth callback & any future login flows.
-   */
   async ensureProfileForCurrentUser(defaultUpdatesOptIn: boolean) {
     const {
       data: { user },
@@ -159,6 +150,14 @@ export class AuthService {
 
     const repo = new ProfileRepository(this.supabase);
     await repo.ensureProfile(user.id, user.email, defaultUpdatesOptIn);
+
+    // Check if they were already subscribed to emails before OAuth
+    const emailRepo = new EmailSubscriberRepository(this.supabase);
+    const wasSubscribed = await emailRepo.isSubscribed(user.email);
+
+    if (wasSubscribed || defaultUpdatesOptIn) {
+      await emailRepo.subscribe(user.email, 'oauth').catch(() => {});
+    }
 
     const profile = await repo.getByUserId(user.id);
 

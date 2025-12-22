@@ -3,6 +3,7 @@
 
 import type { ComponentPropsWithoutRef } from "react";
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
+import { RotateCw } from "lucide-react";
 
 export interface SplitCodeInputWithResendProps
   extends Omit<ComponentPropsWithoutRef<"input">, "onChange" | "value"> {
@@ -37,10 +38,9 @@ export function SplitCodeInputWithResend({
   ...rest
 }: SplitCodeInputWithResendProps & { autoFocus?: boolean }) {
   const resendDisabled = disabled || isSending || cooldown > 0;
-  const showMessage = Boolean(resendSent || resendError);
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-3">
       <SixDigitCodeField
         id={id}
         label={label}
@@ -49,53 +49,31 @@ export function SplitCodeInputWithResend({
         onChange={onChange}
         disabled={disabled}
         autoFocus={autoFocus}
-        aria-invalid={Boolean(resendError) || undefined}
         {...rest}
       />
 
-      {/* Cooldown / resend under input, right-aligned */}
-      <div className="flex items-center justify-end text-[11px] leading-none">
-        {isSending ? (
-          <span className="text-neutral-500 dark:text-neutral-400">Sending…</span>
-        ) : cooldown > 0 ? (
-          <span className="text-neutral-500 dark:text-neutral-400">Resend code in {cooldown}s</span>
-        ) : (
-          <button
-            type="button"
-            onClick={onResend}
-            disabled={resendDisabled}
-            className="inline-flex items-center gap-1 text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 disabled:text-neutral-400"
-          >
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5">
-              <path
-                d="M4 4v6h6M20 20v-6h-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M5 13a7 7 0 0 0 12 3M19 11A7 7 0 0 0 7 8"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            <span>Resend code</span>
-          </button>
-        )}
-      </div>
-
-      {/* Success / error under resend (render only when present — fixes extra gap everywhere) */}
-      {showMessage && (
-        <div className="text-right text-[11px]">
-          {resendSent && <p className="text-emerald-500">Code resent.</p>}
-          {resendError && <p className="text-red-500">{resendError}</p>}
+      <div className="flex items-center justify-between text-xs">
+        <div className="text-zinc-500">
+          {resendSent && <span className="text-emerald-400">Code sent</span>}
+          {resendError && <span className="text-red-400">{resendError}</span>}
         </div>
-      )}
+
+        <button
+          type="button"
+          onClick={onResend}
+          disabled={resendDisabled}
+          className="flex items-center gap-1.5 text-red-500 hover:text-red-400 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
+        >
+          <RotateCw className={`w-3 h-3 ${isSending ? 'animate-spin' : ''}`} />
+          <span>
+            {isSending
+              ? "Sending..."
+              : cooldown > 0
+                ? `Resend (${cooldown}s)`
+                : "Resend code"}
+          </span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,34 +1,32 @@
 // src/components/auth/ui/AuthStyles.ts
 export const AuthStyles = {
-  badge:
-    "inline-flex items-center justify-center rounded-full border border-red-500/30 bg-red-500/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-red-500",
-
-  heading: "text-xl sm:text-2xl font-semibold text-neutral-900 dark:text-neutral-50",
-  subheading: "text-xs sm:text-sm text-neutral-500 dark:text-neutral-400",
-
   input:
-    "h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 text-sm text-neutral-900 dark:text-neutral-50 shadow-sm placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none transition focus:border-red-500/60 focus:ring-2 focus:ring-red-500/20 disabled:cursor-not-allowed disabled:opacity-60",
+    "h-11 w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed",
 
   inputDisabled:
-    "h-11 w-full rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-900/60 px-3 text-sm text-neutral-800 dark:text-neutral-100 shadow-sm outline-none disabled:cursor-not-allowed disabled:opacity-80",
+    "h-11 w-full rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 text-sm text-zinc-500 cursor-not-allowed",
 
   primaryButton:
-    "inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/20 transition-all hover:from-red-500 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-60",
+    "h-11 w-full rounded-lg bg-red-600 text-sm font-semibold text-white transition-all hover:bg-red-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600",
 
   neutralLink:
-    "text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-50 underline underline-offset-2",
+    "text-sm text-zinc-400 hover:text-white transition-colors",
 
-  // Underlined “accent” link (good for standalone actions)
   accentLink:
-    "font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2",
+    "text-sm font-medium text-red-500 hover:text-red-400 transition-colors",
 
-  // Inline accent link (no underline) — used inside sentences like:
   inlineAccentLink:
-    "font-medium text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300",
+    "font-medium text-red-500 hover:text-red-400 transition-colors",
 
   errorBox:
-    "rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400",
+    "rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400",
 
   infoBox:
-    "rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5 text-xs sm:text-sm text-emerald-700 dark:text-emerald-300",
+    "rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400",
+
+  divider:
+    "flex items-center gap-3 text-xs text-zinc-600",
+
+  dividerLine:
+    "h-px flex-1 bg-zinc-800",
 };

@@ -10,21 +10,12 @@ type Provider = "google" | "facebook";
 interface SocialButtonProps {
   provider: Provider;
   label: string;
-  className?: string;
-  /**
-   * Optional override for the "next" path after OAuth finishes.
-   * If omitted, we use ?next from URL or "/".
-   */
   nextOverride?: string;
 }
 
 function GoogleIcon() {
   return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
+    <svg className="h-5 w-5" viewBox="0 0 24 24">
       <path
         d="M21.6 12.2273C21.6 11.5182 21.5364 10.8364 21.4182 10.1818H12V14.05H17.3818C17.15 15.3 16.4545 16.3455 15.4091 17.0455V19.5546H18.6C20.4727 17.8364 21.6 15.2727 21.6 12.2273Z"
         fill="#4285F4"
@@ -47,15 +38,8 @@ function GoogleIcon() {
 
 function FacebookIcon() {
   return (
-    <svg
-      className="h-5 w-5"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        d="M22 12.06C22 6.505 17.523 2 12 2S2 6.505 2 12.06C2 17.083 5.657 21.245 10.438 22v-6.999H7.898v-2.94h2.54V9.845c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.196 2.238.196v2.47h-1.26c-1.243 0-1.63.775-1.63 1.567v1.882h2.773l-.443 2.94h-2.33V22C18.343 21.245 22 17.083 22 12.06Z"
-        fill="currentColor"
-      />
+    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M22 12.06C22 6.505 17.523 2 12 2S2 6.505 2 12.06C2 17.083 5.657 21.245 10.438 22v-6.999H7.898v-2.94h2.54V9.845c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.196 2.238.196v2.47h-1.26c-1.243 0-1.63.775-1.63 1.567v1.882h2.773l-.443 2.94h-2.33V22C18.343 21.245 22 17.083 22 12.06Z" />
     </svg>
   );
 }
@@ -63,28 +47,10 @@ function FacebookIcon() {
 export function SocialButton({
   provider,
   label,
-  className = "",
   nextOverride,
 }: SocialButtonProps) {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
-
-  const base =
-    "flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-medium shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent focus-visible:ring-white/80 dark:focus-visible:ring-red-500/80";
-
-  const providerClasses =
-    provider === "google"
-      ? "bg-white text-neutral-900 border border-neutral-200 hover:bg-neutral-50"
-      : provider === "facebook"
-      ? "bg-[#1877F2] text-white hover:bg-[#1664CC]"
-      : "bg-black text-white hover:bg-neutral-900";
-
-  const icon =
-    provider === "google" ? (
-      <GoogleIcon />
-    ) : provider === "facebook" ? (
-      <FacebookIcon />
-    ) : null;
 
   const next = nextOverride ?? searchParams.get("next") ?? "/";
 
@@ -96,9 +62,7 @@ export function SocialButton({
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(
-            next,
-          )}`,
+          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(next)}`,
         },
       });
 
@@ -106,7 +70,6 @@ export function SocialButton({
         console.error("OAuth error:", error);
         setLoading(false);
       }
-      // Browser will now redirect -> provider -> Supabase -> /auth/callback
     } catch (err) {
       console.error(err);
       setLoading(false);
@@ -118,16 +81,10 @@ export function SocialButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className={`${base} ${providerClasses} ${className} ${
-        loading ? "opacity-70 cursor-not-allowed" : ""
-      }`}
+      className="h-11 w-full flex items-center justify-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 text-sm font-medium text-white transition-all hover:bg-zinc-800/50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <span className="flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 p-1.5">
-        {icon}
-      </span>
-      <span className="truncate">
-        {loading ? "Connecting..." : label}
-      </span>
+      {provider === "google" ? <GoogleIcon /> : <FacebookIcon />}
+      <span>{loading ? "Connecting..." : label}</span>
     </button>
   );
 }

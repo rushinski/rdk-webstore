@@ -1,6 +1,8 @@
 // src/components/auth/register/PasswordRequirements.tsx
 "use client";
 
+import { Check, X } from "lucide-react";
+
 export interface PasswordRequirementState {
   minLength: boolean;
   hasLetter: boolean;
@@ -23,14 +25,13 @@ export function PasswordRequirements({ password }: { password: string }) {
   const req = evaluateRequirements(password);
 
   return (
-    <div className="rounded-xl border border-neutral-200/70 bg-neutral-50/60 p-3 text-[11px] text-neutral-700 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-200">
-      <p className="font-semibold mb-2">Password Requirements</p>
-
-      <div className="grid grid-cols-2 gap-2 text-neutral-700 dark:text-neutral-300">
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4 space-y-2">
+      <p className="text-xs font-medium text-zinc-400 mb-3">Password must have:</p>
+      <div className="grid grid-cols-2 gap-2">
         <RequirementItem ok={req.minLength} text="8+ characters" />
-        <RequirementItem ok={req.hasLetter} text="Contains letters" />
+        <RequirementItem ok={req.hasLetter} text="Letters" />
         <RequirementItem ok={req.hasNumberOrSymbol} text="Number or symbol" />
-        <RequirementItem ok={req.notRepeatedChar} text="Not repeating chars" />
+        <RequirementItem ok={req.notRepeatedChar} text="Varied characters" />
       </div>
     </div>
   );
@@ -38,18 +39,15 @@ export function PasswordRequirements({ password }: { password: string }) {
 
 function RequirementItem({ ok, text }: { ok: boolean; text: string }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span
-        className={[
-          "inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[10px]",
-          ok
-            ? "bg-emerald-500 text-white"
-            : "bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-200",
-        ].join(" ")}
+    <div className="flex items-center gap-2">
+      <div
+        className={`flex h-4 w-4 items-center justify-center rounded-full ${
+          ok ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-600"
+        }`}
       >
-        {ok ? "✓" : "•"}
-      </span>
-      <span>{text}</span>
+        {ok ? <Check className="w-2.5 h-2.5" /> : <X className="w-2.5 h-2.5" />}
+      </div>
+      <span className={`text-xs ${ok ? "text-zinc-300" : "text-zinc-500"}`}>{text}</span>
     </div>
   );
 }

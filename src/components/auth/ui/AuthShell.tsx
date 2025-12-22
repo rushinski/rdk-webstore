@@ -1,34 +1,55 @@
 // components/auth/ui/AuthShell.tsx
 import type { ReactNode } from "react";
-import AuthCard from "@/components/auth/ui/AuthCard";
-import AuthLeftPanel, { type AuthLeftPanelVariant } from "@/components/auth/ui/AuthLeftPanel";
+import Image from "next/image";
 
 type AuthShellProps = {
   children: ReactNode;
-  cardClassName?: string;
-  leftVariant?: AuthLeftPanelVariant; // "login" | "register"
 };
 
-export default function AuthShell({
-  children,
-  cardClassName = "",
-  leftVariant = "login",
-}: AuthShellProps) {
+export default function AuthShell({ children }: AuthShellProps) {
   return (
-    <div className="min-h-screen bg-neutral-950 text-white">
-      <div className="flex min-h-screen flex-col md:flex-row">
-        <aside className="relative hidden md:flex md:w-5/12 lg:w-1/2 overflow-hidden bg-gradient-to-br from-red-700 via-black to-neutral-900">
-          <div className="pointer-events-none absolute -top-40 -left-40 h-80 w-80 rounded-full bg-red-500/30 blur-3xl" />
-          <div className="pointer-events-none absolute bottom-0 right-0 h-72 w-72 rounded-full bg-red-900/50 blur-3xl" />
+    <div className="relative min-h-screen bg-black overflow-hidden">
+      {/* Subtle noise texture */}
+      <div className="absolute inset-0 opacity-[0.015] pointer-events-none noise-overlay" />
 
-          <AuthLeftPanel variant={leftVariant} />
-        </aside>
+      {/* Gradient beams */}
+      <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-red-600/20 via-transparent to-transparent" />
+      <div className="absolute top-0 right-1/3 w-px h-full bg-gradient-to-b from-red-600/10 via-transparent to-transparent" />
+      
+      {/* Subtle glow top-right */}
+      <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-600/5 rounded-full blur-3xl" />
 
-        <main className="flex w-full md:w-7/12 lg:w-1/2 items-center justify-center px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
-          <AuthCard className={"bg-white dark:bg-neutral-950 " + cardClassName}>
+      {/* Logo in top-left corner */}
+      <div className="absolute top-6 left-6 sm:top-8 sm:left-8 z-10">
+        <div className="flex items-center gap-3">
+          <div className="relative h-8 w-8 sm:h-10 sm:w-10">
+            <Image
+              src="/images/rdk-logo.png"
+              alt="RDK"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <span className="hidden sm:block text-white text-sm font-semibold tracking-wider uppercase">
+            RealDealKickz
+          </span>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-16 sm:px-6">
+        <div className="w-full max-w-md">
+          {/* Glass card */}
+          <div className="rounded-2xl bg-zinc-950/60 backdrop-blur-xl border border-zinc-800/50 shadow-2xl p-6 sm:p-8">
             {children}
-          </AuthCard>
-        </main>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom branding */}
+      <div className="absolute bottom-6 left-0 right-0 text-center text-xs text-zinc-600">
+        Authentic sneakers. Verified sellers. Every pair checked.
       </div>
     </div>
   );

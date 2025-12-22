@@ -10,7 +10,7 @@ export interface VerifyEmailFormProps {
   email: string;
   flow?: VerifyFlow;
   onVerified?: (nextPath?: string) => void;
-  onBackToLogin?: () => void; // styling/navigation only
+  onBackToLogin?: () => void;
 }
 
 export function VerifyEmailForm({
@@ -22,11 +22,12 @@ export function VerifyEmailForm({
   const router = useRouter();
 
   const heading =
-    flow === "signin" ? "Verify your email to continue" : "Welcome! Activate your account";
+    flow === "signin" ? "Verify your email" : "Activate your account";
 
-  const baseDescriptionSignin =
-    "Your email isn’t verified yet. Enter the code we sent to continue.";
-  const baseDescriptionSignup = "Enter the code we emailed to activate your account.";
+  const baseDescription =
+    flow === "signin"
+      ? "Enter the code we sent to continue."
+      : "Enter the code we emailed to activate your account.";
 
   async function resendVerification(targetEmail: string) {
     const res = await fetch("/api/auth/resend-verification", {
@@ -72,13 +73,8 @@ export function VerifyEmailForm({
       initialStage="verify"
       initialEmail={email}
       showEmailInput={true}
-      getDescription={(_stage, hasError) =>
-        hasError
-          ? "That code didn’t work. Double-check the digits or request a new one."
-          : flow === "signin"
-            ? baseDescriptionSignin
-            : baseDescriptionSignup
-      }
+      emailReadOnly={true}
+      getDescription={() => baseDescription}
       verifyButtonLabel="Verify & continue"
       verifyButtonSubmittingLabel="Verifying..."
       onVerifyCode={verifyCode}

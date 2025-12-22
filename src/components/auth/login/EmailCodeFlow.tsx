@@ -153,17 +153,17 @@ export function EmailCodeFlow({
         : verifyButtonLabel;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5" data-flow-id={flowId}>
+    <form onSubmit={handleSubmit} className="space-y-6" data-flow-id={flowId}>
       <AuthHeader title={title} description={descriptionText} />
 
       {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
       <div className="space-y-4">
         {canShowEmailInput && (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <label
               htmlFor="email"
-              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+              className="block text-sm font-medium text-zinc-300"
             >
               {emailLabel}
             </label>
@@ -182,7 +182,7 @@ export function EmailCodeFlow({
         )}
 
         {emailReadOnly && !canShowEmailInput && (
-          <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-700 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-200 break-all">
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
             {email || "Unknown email"}
           </div>
         )}
@@ -204,7 +204,7 @@ export function EmailCodeFlow({
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <button
           type="submit"
           disabled={isSubmitting}

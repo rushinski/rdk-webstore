@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { QRDisplay } from "./QRDisplay";
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
+import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
 
 export function EnrollmentForm() {
@@ -63,6 +64,7 @@ export function EnrollmentForm() {
         return;
       }
 
+      // Success - user is now fully authenticated with admin cookie set
       router.push("/admin");
     } finally {
       setIsSubmitting(false);
@@ -71,38 +73,30 @@ export function EnrollmentForm() {
 
   return (
     <div className="space-y-6">
-      <AuthHeader title="Set up 2FA" description="Scan the QR code, then confirm with a 6-digit code." />
+      <AuthHeader
+        title="Set up 2FA"
+        description="Scan the QR code with your authenticator app, then verify."
+      />
 
       <div className="space-y-5">
         {!factorId && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-600 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-300">
-              Step 1: Generate a QR code and scan it with your authenticator app.
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
+              Generate a QR code and scan it with your authenticator app.
             </div>
 
-            {msg && (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
-                {msg}
-              </div>
-            )}
+            {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
 
             <button
               type="button"
               onClick={() => void startEnroll()}
               disabled={isGenerating}
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:from-red-500 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className={AuthStyles.primaryButton}
             >
-              {isGenerating ? "Generating…" : "Generate QR code"}
+              {isGenerating ? "Generating..." : "Generate QR code"}
             </button>
 
-            <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 text-center">
-              You can do this once per authenticator device.
-            </p>
-
-            <Link
-              href="/auth/login"
-              className="block text-left text-xs sm:text-sm text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 underline underline-offset-2"
-            >
+            <Link href="/auth/login" className={AuthStyles.neutralLink}>
               Back to sign in
             </Link>
           </div>
@@ -116,33 +110,32 @@ export function EnrollmentForm() {
             }}
             className="space-y-4"
           >
-            <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-600 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-300">
-              Step 2: Scan the QR code, then enter the 6-digit code to confirm.
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
+              Scan the QR code, then enter the 6-digit code to confirm.
             </div>
 
             <QRDisplay qrCode={qrCode} />
 
-            <SixDigitCodeField id="enroll-code" label="6-digit code" value={code} onChange={setCode} disabled={isSubmitting} />
+            <SixDigitCodeField
+              id="enroll-code"
+              label="Verification code"
+              value={code}
+              onChange={setCode}
+              disabled={isSubmitting}
+            />
 
-            {msg && (
-              <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
-                {msg}
-              </div>
-            )}
+            {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
 
             <button
               type="submit"
               disabled={!canVerify || isSubmitting}
-              className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:from-red-500 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className={AuthStyles.primaryButton}
             >
-              {isSubmitting ? "Confirming…" : "Verify code"}
+              {isSubmitting ? "Verifying..." : "Verify & continue"}
             </button>
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs sm:text-sm">
-              <Link
-                href="/auth/login"
-                className="text-neutral-600 hover:text-neutral-900 dark:text-neutral-300 dark:hover:text-neutral-100 underline underline-offset-2"
-              >
+            <div className="flex items-center justify-between text-sm">
+              <Link href="/auth/login" className={AuthStyles.neutralLink}>
                 Back to sign in
               </Link>
 
@@ -154,7 +147,7 @@ export function EnrollmentForm() {
                   setCode("");
                   setMsg(null);
                 }}
-                className="text-red-600 hover:text-red-500 underline underline-offset-2"
+                className={AuthStyles.accentLink}
               >
                 Regenerate
               </button>

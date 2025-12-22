@@ -8,7 +8,6 @@ import Link from "next/link";
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "../login/PasswordField";
 import { PasswordRequirements, evaluateRequirements } from "./PasswordRequirements";
-import { Checkbox } from "../ui/Checkbox";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 
@@ -63,31 +62,28 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <AuthHeader
-        title="Create your account"
-        description="Mobile-first. Built for resellers who move fast."
+        title="Create account"
+        description="Join thousands of verified buyers."
       />
 
       {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
       <div className="space-y-3">
-        <SocialButton provider="google" label="Sign up with Google" />
-        <SocialButton provider="facebook" label="Sign up with Facebook" />
+        <SocialButton provider="google" label="Continue with Google" />
+        <SocialButton provider="facebook" label="Continue with Facebook" />
       </div>
 
-      <div className="flex items-center gap-3 text-[11px] text-neutral-400">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
-        <span>or sign up with email</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
+      <div className={AuthStyles.divider}>
+        <div className={AuthStyles.dividerLine} />
+        <span>or</span>
+        <div className={AuthStyles.dividerLine} />
       </div>
 
       <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label
-            htmlFor="email"
-            className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
-          >
+        <div className="space-y-2">
+          <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
             Email
           </label>
           <input
@@ -111,30 +107,34 @@ export function RegisterForm() {
         <PasswordRequirements password={password} />
       </div>
 
-      <Checkbox
-        name="updatesOptIn"
-        checked={updatesOptIn}
-        onChange={(e) => setUpdatesOptIn(e.currentTarget.checked)}
-        label="Send me product updates, drop alerts, and store news."
-      />
+      <label className="flex items-start gap-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={updatesOptIn}
+          onChange={(e) => setUpdatesOptIn(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-red-600 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-0"
+        />
+        <span className="text-sm text-zinc-400">
+          Send me drop alerts and exclusive offers
+        </span>
+      </label>
 
       <button type="submit" disabled={isSubmitting} className={AuthStyles.primaryButton}>
         {isSubmitting ? "Creating account..." : "Create account"}
       </button>
 
-      <p className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 text-center leading-snug">
+      <p className="text-xs text-center text-zinc-500">
         By signing up, you agree to our{" "}
-        <Link href="/legal/terms" className="font-medium underline underline-offset-2">
-          Terms of Service
+        <Link href="/legal/terms" className="underline hover:text-zinc-400">
+          Terms
         </Link>{" "}
         and{" "}
-        <Link href="/legal/privacy" className="font-medium underline underline-offset-2">
+        <Link href="/legal/privacy" className="underline hover:text-zinc-400">
           Privacy Policy
         </Link>
-        .
       </p>
 
-      <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
+      <p className="text-sm text-center text-zinc-400">
         Already have an account?{" "}
         <Link href="/auth/login" className={AuthStyles.inlineAccentLink}>
           Sign in

@@ -53,28 +53,25 @@ export function OtpLoginForm({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <EmailCodeFlow
         flowId="otp-login"
-        title="Sign in with a one-time code"
-        codeLabel="One-time code"
-        getDescription={(stage, hasError) =>
+        title="Sign in with code"
+        codeLabel="Verification code"
+        getDescription={(stage) =>
           stage === "request"
-            ? hasError
-              ? "Error sending verification email. Please try again."
-              : "We’ll email you a short code. No password needed."
-            : "We’ve emailed you a one-time code. Enter it below to sign in."
+            ? "We'll email you a code. No password needed."
+            : "Enter the code we sent to your email."
         }
         sendButtonLabel="Send code"
-        sendButtonSendingLabel="Sending code..."
-        verifyButtonLabel="Verify code & sign in"
-        verifyButtonSubmittingLabel="Signing you in..."
+        sendButtonSendingLabel="Sending..."
+        verifyButtonLabel="Sign in"
+        verifyButtonSubmittingLabel="Signing in..."
         onRequestCode={requestOtp}
         onVerifyCode={verifyOtp}
       />
 
-      {/* Left-aligned back link, and remove the non-link “Don’t have an account?” text */}
-      <div className="flex justify-start pt-1">
+      <div className="flex justify-start">
         {onBackToLogin ? (
           <button
             type="button"

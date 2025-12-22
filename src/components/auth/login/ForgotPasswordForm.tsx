@@ -59,7 +59,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       if (!res.ok || !json.ok)
         throw new Error(json.error ?? "Could not send reset code.");
 
-      setInfoMessage("If an account exists for that email, we’ve sent a reset code.");
+      setInfoMessage("If an account exists for that email, we've sent a reset code.");
       setStep("reset");
 
       setResendSent(false);
@@ -91,7 +91,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       if (!res.ok || !json.ok)
         throw new Error(json.error ?? "Could not resend reset code.");
 
-      setInfoMessage("We’ve sent you a new reset code.");
+      setInfoMessage("We've sent you a new reset code.");
       setResendSent(true);
       setResendCooldown(60);
     } catch (err: any) {
@@ -127,6 +127,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     setIsSubmitting(true);
 
     try {
+      // Verify code (creates recovery session)
       const verifyRes = await fetch("/api/auth/forgot-password/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,6 +138,18 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       if (!verifyRes.ok || !verifyJson.ok)
         throw new Error(verifyJson.error ?? "Invalid or expired code.");
 
+      // Check if admin needs 2FA
+      if (verifyJson.requiresTwoFASetup) {
+        router.push("/auth/2fa/setup");
+        return;
+      }
+
+      if (verifyJson.requiresTwoFAChallenge) {
+        router.push("/auth/2fa/challenge");
+        return;
+      }
+
+      // Update password
       const updateRes = await fetch("/api/auth/update-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,8 +160,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       if (!updateRes.ok || !updateJson.ok)
         throw new Error(updateJson.error ?? "Password update failed.");
 
-      setInfoMessage("Your password has been updated. You can now sign in.");
-      router.push("/auth/login");
+      setInfoMessage("Your password has been updated.");
+      
+      // Redirect to admin if they completed 2FA, otherwise to login
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1000);
     } catch (err: any) {
       setError(err?.message ?? "Reset failed. Please try again.");
     } finally {
@@ -159,10 +176,10 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   return (
     <div className="space-y-5">
       <AuthHeader
-        title={step === "request" ? "Forgot your password?" : "Reset your password"}
+        title={step === "request" ? "Reset password" : "Create new password"}
         description={
           step === "request"
-            ? "Enter your email and we’ll send you a reset code."
+            ? "Enter your email to receive a reset code."
             : "Enter the code from your email and choose a new password."
         }
       />

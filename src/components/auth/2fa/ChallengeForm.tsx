@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
+import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { mfaStartChallenge, mfaVerifyChallenge } from "@/services/mfa-service";
 
 export function ChallengeForm() {
@@ -19,11 +20,10 @@ export function ChallengeForm() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = useMemo(() => Boolean(factorId && challengeId && code.length === 6), [
-    code,
-    factorId,
-    challengeId,
-  ]);
+  const canSubmit = useMemo(
+    () => Boolean(factorId && challengeId && code.length === 6),
+    [code, factorId, challengeId]
+  );
 
   useEffect(() => {
     (async () => {
@@ -47,7 +47,7 @@ export function ChallengeForm() {
     setMsg(null);
 
     if (!factorId || !challengeId) {
-      setMsg("Challenge not initialized. Please refresh the page and try again.");
+      setMsg("Challenge not initialized. Please refresh and try again.");
       return;
     }
 
@@ -74,8 +74,8 @@ export function ChallengeForm() {
   return (
     <div className="space-y-6">
       <AuthHeader
-        title="Confirm your sign-in"
-        description="Enter the 6-digit code from your authenticator app."
+        title="Verify your identity"
+        description="Enter the code from your authenticator app."
       />
 
       <form
@@ -86,31 +86,27 @@ export function ChallengeForm() {
         className="space-y-4"
       >
         {isInitializing && (
-          <div className="rounded-xl border border-neutral-200/70 bg-neutral-50 px-3 py-2.5 text-xs sm:text-sm text-neutral-600 dark:border-neutral-800/80 dark:bg-neutral-900/40 dark:text-neutral-300">
-            Preparing your verification challenge…
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
+            Preparing verification...
           </div>
         )}
 
         <SixDigitCodeField
           id="mfa-code"
-          label="6-digit code"
+          label="Authentication code"
           value={code}
           onChange={setCode}
           disabled={isSubmitting || isInitializing}
         />
 
-        {msg && (
-          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2.5 text-xs sm:text-sm text-red-600 dark:text-red-400">
-            {msg}
-          </div>
-        )}
+        {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
 
         <button
           type="submit"
           disabled={!canSubmit || isSubmitting || isInitializing}
-          className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-red-600 via-red-500 to-red-600 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:from-red-500 hover:to-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className={AuthStyles.primaryButton}
         >
-          {isSubmitting ? "Verifying…" : "Verify"}
+          {isSubmitting ? "Verifying..." : "Verify"}
         </button>
       </form>
     </div>

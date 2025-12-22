@@ -363,22 +363,13 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
           >
             <ShoppingCart className="w-5 h-5" />
             {localCartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center">
+              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
                 {localCartCount}
               </span>
             )}
           </button>
 
-          {!isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <Link href="/auth/login" className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
-                Login
-              </Link>
-              <Link href="/auth/register" className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer">
-                Sign Up
-              </Link>
-            </div>
-          ) : (
+          {isAuthenticated ? (
             <div ref={profileRef} className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -425,6 +416,15 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                   </button>
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link href="/auth/login" className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
+                Login
+              </Link>
+              <Link href="/auth/register" className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer rounded">
+                Sign Up
+              </Link>
             </div>
           )}
         </div>

@@ -68,28 +68,25 @@ export function PasswordLoginForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <AuthHeader title="Sign in to your account" />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <AuthHeader title="Sign in" />
 
       {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
       <div className="space-y-3">
-        <SocialButton provider="google" label="Sign in with Google" />
-        <SocialButton provider="facebook" label="Sign in with Facebook" />
+        <SocialButton provider="google" label="Continue with Google" />
+        <SocialButton provider="facebook" label="Continue with Facebook" />
       </div>
 
-      <div className="flex items-center gap-3 text-[11px] text-neutral-400">
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
-        <span>or sign in with email</span>
-        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-neutral-300/70 dark:via-neutral-700/70 to-transparent" />
+      <div className={AuthStyles.divider}>
+        <div className={AuthStyles.dividerLine} />
+        <span>or</span>
+        <div className={AuthStyles.dividerLine} />
       </div>
 
       <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label
-            htmlFor="email"
-            className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
-          >
+        <div className="space-y-2">
+          <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
             Email
           </label>
           <input
@@ -102,26 +99,30 @@ export function PasswordLoginForm({
           />
         </div>
 
-        <PasswordField
-          name="password"
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="current-password"
-        />
-
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={onForgotPassword}
-            className="text-xs text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300 underline underline-offset-2"
-          >
-            Forgot password?
-          </button>
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-xs text-red-500 hover:text-red-400 transition-colors"
+            >
+              Forgot?
+            </button>
+          </div>
+          <PasswordField
+            name="password"
+            label=""
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+          />
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <button
           type="submit"
           disabled={isSubmitting}
@@ -130,20 +131,17 @@ export function PasswordLoginForm({
           {isSubmitting ? "Signing in..." : "Sign in"}
         </button>
 
-        {/* Keep centered, but revert to small link sizing */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={onSwitchToOtp}
-            className={`${AuthStyles.accentLink} text-xs sm:text-sm`}
-          >
-            Sign in with a one-time code
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onSwitchToOtp}
+          className="w-full text-center text-sm text-zinc-400 hover:text-white transition-colors"
+        >
+          Sign in with email code instead
+        </button>
       </div>
 
-      <p className="text-xs sm:text-sm text-center text-neutral-600 dark:text-neutral-300">
-        Don’t have an account?{" "}
+      <p className="text-sm text-center text-zinc-400">
+        Don't have an account?{" "}
         <Link href="/auth/register" className={AuthStyles.inlineAccentLink}>
           Create one
         </Link>

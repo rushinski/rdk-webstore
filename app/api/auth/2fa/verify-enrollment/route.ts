@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 
 export async function POST(req: NextRequest) {
   const { code, factorId } = await req.json();
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Optional: enforce admin-only like before
   const repo = new ProfileRepository(supabase);
   const profile = await repo.getByUserId(user.id);
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Step 1: create a challenge for this factor
+  // Create challenge
   const { data: challengeData, error: challengeError } =
     await supabase.auth.mfa.challenge({
       factorId,
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   const challengeId = challengeData.id;
 
-  // Step 2: verify the TOTP code for this challenge
+  // Verify the TOTP code
   const { error: verifyError } = await supabase.auth.mfa.verify({
     factorId,
     challengeId,
@@ -68,6 +68,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // At this point factor is verified and session is upgraded to aal2
-  return NextResponse.json({ ok: true });
+  // Success! Set admin session cookie and return
+  let res = NextResponse.json<{ ok: true }>({ ok: true });
+  res = await setAdminSessionCookie(res, user.id);
+
+  return res;
 }
