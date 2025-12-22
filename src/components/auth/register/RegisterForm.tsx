@@ -65,7 +65,7 @@ export function RegisterForm() {
     <form onSubmit={handleSubmit} className="space-y-6">
       <AuthHeader
         title="Create account"
-        description="Join thousands of verified buyers."
+        description="Join thousands of verified buyers"
       />
 
       {error && <div className={AuthStyles.errorBox}>{error}</div>}
@@ -83,7 +83,7 @@ export function RegisterForm() {
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
+          <label htmlFor="email" className="block text-sm font-medium text-white">
             Email
           </label>
           <input
@@ -112,7 +112,7 @@ export function RegisterForm() {
           type="checkbox"
           checked={updatesOptIn}
           onChange={(e) => setUpdatesOptIn(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-red-600 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-0"
+          className="mt-0.5 h-4 w-4 border-zinc-800 bg-zinc-900 text-red-600 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-0"
         />
         <span className="text-sm text-zinc-400">
           Send me drop alerts and exclusive offers
@@ -123,7 +123,7 @@ export function RegisterForm() {
         {isSubmitting ? "Creating account..." : "Create account"}
       </button>
 
-      <p className="text-xs text-center text-zinc-500">
+      <p className="text-xs text-center text-zinc-600">
         By signing up, you agree to our{" "}
         <Link href="/legal/terms" className="underline hover:text-zinc-400">
           Terms
@@ -134,7 +134,7 @@ export function RegisterForm() {
         </Link>
       </p>
 
-      <p className="text-sm text-center text-zinc-400">
+      <p className="text-sm text-center text-zinc-500">
         Already have an account?{" "}
         <Link href="/auth/login" className={AuthStyles.inlineAccentLink}>
           Sign in

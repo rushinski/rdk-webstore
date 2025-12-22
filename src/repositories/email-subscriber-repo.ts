@@ -12,13 +12,27 @@ export class EmailSubscriberRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   async subscribe(email: string, source: string = 'website'): Promise<void> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if already exists
+    const { data: existing } = await this.supabase
+      .from("email_subscribers")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .maybeSingle();
+
+    // If already exists, silently succeed
+    if (existing) return;
+
+    // Insert new subscriber
     const { error } = await this.supabase
       .from("email_subscribers")
-      .insert({ email: email.trim().toLowerCase(), source })
-      .onConflict('email')
-      .ignore();
+      .insert({ email: normalizedEmail, source });
 
-    if (error) throw error;
+    // Ignore unique constraint violations (race condition)
+    if (error && !error.message.includes('duplicate') && !error.code?.includes('23505')) {
+      throw error;
+    }
   }
 
   async isSubscribed(email: string): Promise<boolean> {

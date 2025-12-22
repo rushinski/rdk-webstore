@@ -30,7 +30,7 @@ export function SixDigitCodeField({
   return (
     <div className="space-y-2">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-zinc-300">
+        <label htmlFor={id} className="block text-sm font-medium text-white">
           {label}
         </label>
       )}
@@ -47,7 +47,7 @@ export function SixDigitCodeField({
         disabled={disabled}
         autoFocus={autoFocus}
         placeholder="000000"
-        className="h-11 w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 text-center text-lg font-mono tracking-[0.5em] text-white placeholder:text-zinc-700 placeholder:tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600 transition-all disabled:opacity-50"
+        className="h-11 w-full bg-zinc-900 border border-zinc-800 px-4 text-center text-lg font-mono tracking-[0.5em] text-white placeholder:text-zinc-700 placeholder:tracking-[0.5em] focus:outline-none focus:border-zinc-700 transition-colors disabled:opacity-50"
         {...rest}
       />
     </div>

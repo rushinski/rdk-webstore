@@ -81,7 +81,7 @@ export function SocialButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      className="h-11 w-full flex items-center justify-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 text-sm font-medium text-white transition-all hover:bg-zinc-800/50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+      className="h-11 w-full flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {provider === "google" ? <GoogleIcon /> : <FacebookIcon />}
       <span>{loading ? "Connecting..." : label}</span>

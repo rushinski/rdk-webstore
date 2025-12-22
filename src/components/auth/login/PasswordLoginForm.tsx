@@ -86,7 +86,7 @@ export function PasswordLoginForm({
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
+          <label htmlFor="email" className="block text-sm font-medium text-white">
             Email
           </label>
           <input
@@ -101,13 +101,13 @@ export function PasswordLoginForm({
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
+            <label htmlFor="password" className="block text-sm font-medium text-white">
               Password
             </label>
             <button
               type="button"
               onClick={onForgotPassword}
-              className="text-xs text-red-500 hover:text-red-400 transition-colors"
+              className="text-xs text-red-600 hover:text-red-500 transition-colors"
             >
               Forgot?
             </button>
@@ -134,13 +134,13 @@ export function PasswordLoginForm({
         <button
           type="button"
           onClick={onSwitchToOtp}
-          className="w-full text-center text-sm text-zinc-400 hover:text-white transition-colors"
+          className="w-full text-center text-sm text-zinc-500 hover:text-white transition-colors"
         >
           Sign in with email code instead
         </button>
       </div>
 
-      <p className="text-sm text-center text-zinc-400">
+      <p className="text-sm text-center text-zinc-500">
         Don't have an account?{" "}
         <Link href="/auth/register" className={AuthStyles.inlineAccentLink}>
           Create one

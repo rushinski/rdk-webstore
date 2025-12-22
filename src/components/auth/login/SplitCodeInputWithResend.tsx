@@ -54,15 +54,15 @@ export function SplitCodeInputWithResend({
 
       <div className="flex items-center justify-between text-xs">
         <div className="text-zinc-500">
-          {resendSent && <span className="text-emerald-400">Code sent</span>}
-          {resendError && <span className="text-red-400">{resendError}</span>}
+          {resendSent && <span className="text-emerald-500">Code sent</span>}
+          {resendError && <span className="text-red-500">{resendError}</span>}
         </div>
 
         <button
           type="button"
           onClick={onResend}
           disabled={resendDisabled}
-          className="flex items-center gap-1.5 text-red-500 hover:text-red-400 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 text-red-600 hover:text-red-500 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
         >
           <RotateCw className={`w-3 h-3 ${isSending ? 'animate-spin' : ''}`} />
           <span>

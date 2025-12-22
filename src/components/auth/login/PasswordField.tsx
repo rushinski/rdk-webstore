@@ -26,7 +26,7 @@ export function PasswordField({
   return (
     <div className="space-y-2">
       {label && (
-        <label htmlFor={name} className="block text-sm font-medium text-zinc-300">
+        <label htmlFor={name} className="block text-sm font-medium text-white">
           {label}
         </label>
       )}
@@ -39,7 +39,7 @@ export function PasswordField({
           autoComplete={autoComplete}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-11 w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 pr-11 text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:border-red-600 transition-all"
+          className="h-11 w-full bg-zinc-900 border border-zinc-800 px-4 pr-11 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
         />
         <button
           type="button"

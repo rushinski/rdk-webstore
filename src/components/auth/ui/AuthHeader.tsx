@@ -9,12 +9,12 @@ export function AuthHeader({
   description?: string;
 }) {
   return (
-    <div className="space-y-2 mb-8">
-      <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+    <div className="mb-8">
+      <h1 className="text-2xl font-bold text-white mb-2">
         {title}
       </h1>
       {description && (
-        <p className="text-sm text-zinc-400 leading-relaxed">
+        <p className="text-sm text-zinc-500">
           {description}
         </p>
       )}
