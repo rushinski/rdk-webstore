@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Instagram, Youtube } from "lucide-react";
+import { Instagram, Youtube, MapPin, Phone, Mail } from "lucide-react";
 
 export function Footer() {
   const [email, setEmail] = useState("");
@@ -85,6 +85,31 @@ export function Footer() {
             </div>
           </div>
 
+          {/* Contact Information */}
+          <div>
+            <h4 className="text-white font-semibold mb-4 text-sm">Contact</h4>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-2 text-zinc-500 text-sm">
+                <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <a href="mailto:info@realdealkickzsc.com" className="hover:text-white transition-colors">
+                  info@realdealkickzsc.com
+                </a>
+              </li>
+              <li className="flex items-start gap-2 text-zinc-500 text-sm">
+                <Phone className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <a href="tel:+18035551234" className="hover:text-white transition-colors">
+                  (803) 555-1234
+                </a>
+              </li>
+              <li className="flex items-start gap-2 text-zinc-500 text-sm">
+                <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span className="hover:text-white transition-colors">
+                  Columbia, SC 29201
+                </span>
+              </li>
+            </ul>
+          </div>
+
           {/* Shop */}
           <div>
             <h4 className="text-white font-semibold mb-4 text-sm">Shop</h4>
@@ -112,10 +137,10 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Support */}
+          {/* Support & Social */}
           <div>
             <h4 className="text-white font-semibold mb-4 text-sm">Support</h4>
-            <ul className="space-y-2">
+            <ul className="space-y-2 mb-6">
               <li>
                 <Link href="/about" className="text-zinc-500 hover:text-white text-sm transition-colors">
                   About
@@ -133,59 +158,51 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/shipping" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Shipping & Returns
+                  Shipping
                 </Link>
               </li>
             </ul>
-          </div>
 
-          {/* Legal & Social */}
-          <div>
-            <h4 className="text-white font-semibold mb-4 text-sm">Connect</h4>
-            <div className="flex gap-4 mb-6">
-              <a
-                href="mailto:info@realdealkickzsc.com"
-                className="text-zinc-500 hover:text-white transition-colors"
-                aria-label="Email"
-              >
-                <Mail className="w-5 h-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zinc-500 hover:text-white transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-zinc-500 hover:text-white transition-colors"
-                aria-label="YouTube"
-              >
-                <Youtube className="w-5 h-5" />
-              </a>
+            {/* Social Links */}
+            <div>
+              <p className="text-white text-sm font-medium mb-3">Follow Us</p>
+              <div className="flex gap-4">
+                <a
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zinc-500 hover:text-white transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-5 h-5" />
+                </a>
+                <a
+                  href="https://youtube.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-zinc-500 hover:text-white transition-colors"
+                  aria-label="YouTube"
+                >
+                  <Youtube className="w-5 h-5" />
+                </a>
+              </div>
             </div>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/terms" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Privacy
-                </Link>
-              </li>
-            </ul>
           </div>
         </div>
 
-        <div className="border-t border-zinc-800 pt-8 text-center text-zinc-600 text-xs">
-          © 2025 Real Deal Kickz. All rights reserved.
+        {/* Bottom Bar */}
+        <div className="border-t border-zinc-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-zinc-600 text-xs">
+            © 2025 Real Deal Kickz. All rights reserved.
+          </p>
+          <div className="flex gap-6">
+            <Link href="/terms" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+              Terms
+            </Link>
+            <Link href="/privacy" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+              Privacy
+            </Link>
+          </div>
         </div>
       </div>
     </footer>
