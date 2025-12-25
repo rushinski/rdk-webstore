@@ -1,17 +1,23 @@
-// src/components/shell/ScrollHeader.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 
 export function ScrollHeader() {
+  const pathname = usePathname();
+  const isAuthRoute = pathname.startsWith('/auth');
+
+  // Hide header entirely on auth routes
+  if (isAuthRoute) return null;
+
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (currentScrollY < 10) {
         setIsVisible(true);
       } else if (currentScrollY > lastScrollY) {
@@ -19,7 +25,7 @@ export function ScrollHeader() {
       } else {
         setIsVisible(true);
       }
-      
+
       setLastScrollY(currentScrollY);
     };
 
