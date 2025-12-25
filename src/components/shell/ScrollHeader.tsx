@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 
@@ -8,30 +8,34 @@ export function ScrollHeader() {
   const pathname = usePathname();
   const isAuthRoute = pathname.startsWith('/auth');
 
-  // Hide header entirely on auth routes
-  if (isAuthRoute) return null;
-
+  // ✅ Hooks must be unconditional
   const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
+  const lastScrollYRef = useRef(0);
 
   useEffect(() => {
+    // If auth route, don't attach listeners and keep it visible state reset
+    if (isAuthRoute) {
+      setIsVisible(true);
+      lastScrollYRef.current = 0;
+      return;
+    }
+
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+      const last = lastScrollYRef.current;
 
-      if (currentScrollY < 10) {
-        setIsVisible(true);
-      } else if (currentScrollY > lastScrollY) {
-        setIsVisible(false);
-      } else {
-        setIsVisible(true);
-      }
+      if (currentScrollY < 10) setIsVisible(true);
+      else if (currentScrollY > last) setIsVisible(false);
+      else setIsVisible(true);
 
-      setLastScrollY(currentScrollY);
+      lastScrollYRef.current = currentScrollY;
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  }, [isAuthRoute]);
+
+  if (isAuthRoute) return null;
 
   return (
     <header

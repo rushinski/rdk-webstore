@@ -3,11 +3,71 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+type LeftVariant = "login" | "register" | "2fa" | "forgot";
+
 type AuthShellProps = {
   children: ReactNode;
+  leftVariant?: LeftVariant;
 };
 
-export default function AuthShell({ children }: AuthShellProps) {
+const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
+  login: {
+    title: (
+      <>
+        Authentic sneakers.
+        <br />
+        Verified sellers.
+        <br />
+        <span className="text-red-600">Every pair checked.</span>
+      </>
+    ),
+    blurb:
+      "Sign in to track orders, manage offers, and access buyer protection.",
+  },
+  register: {
+    title: (
+      <>
+        Join Real Deal Kickz.
+        <br />
+        Buy with confidence.
+        <br />
+        <span className="text-red-600">Verified every time.</span>
+      </>
+    ),
+    blurb:
+      "Create an account to unlock faster checkout, order tracking, and drop alerts.",
+  },
+  "2fa": {
+    title: (
+      <>
+        Extra security.
+        <br />
+        Admin access.
+        <br />
+        <span className="text-red-600">Protected by 2FA.</span>
+      </>
+    ),
+    blurb:
+      "Complete two-factor authentication to access admin tools securely.",
+  },
+  forgot: {
+    title: (
+      <>
+        Get back in.
+        <br />
+        Reset securely.
+        <br />
+        <span className="text-red-600">In minutes.</span>
+      </>
+    ),
+    blurb:
+      "We’ll help you reset your password and regain access safely.",
+  },
+};
+
+export default function AuthShell({ children, leftVariant = "login" }: AuthShellProps) {
+  const copy = LEFT_COPY[leftVariant];
+
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
@@ -31,17 +91,10 @@ export default function AuthShell({ children }: AuthShellProps) {
           </Link>
 
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
-            Authentic sneakers.
-            <br />
-            Verified sellers.
-            <br />
-            <span className="text-red-600">Every pair checked.</span>
+            {copy.title}
           </h1>
 
-          <p className="text-lg text-zinc-400 leading-relaxed">
-            Join thousands of sneakerheads who trust Real Deal Kickz for authentic kicks, 
-            fast shipping, and unbeatable customer service.
-          </p>
+          <p className="text-lg text-zinc-400 leading-relaxed">{copy.blurb}</p>
         </div>
       </div>
 
