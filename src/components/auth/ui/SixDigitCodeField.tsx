@@ -38,6 +38,7 @@ export function SixDigitCodeField({
       <input
         id={id}
         name={id}
+        type="text"
         inputMode="numeric"
         pattern="[0-9]*"
         autoComplete="one-time-code"
@@ -46,8 +47,7 @@ export function SixDigitCodeField({
         onChange={(e) => handleChange(e.currentTarget.value)}
         disabled={disabled}
         autoFocus={autoFocus}
-        placeholder="000000"
-        className="h-11 w-full bg-zinc-900 border border-zinc-800 px-4 text-center text-lg font-mono tracking-[0.5em] text-white placeholder:text-zinc-700 placeholder:tracking-[0.5em] focus:outline-none focus:border-zinc-700 transition-colors disabled:opacity-50"
+        className="h-11 w-full bg-zinc-900 border border-zinc-800 px-4 text-left text-lg font-mono tracking-[0.5em] text-white focus:outline-none focus:border-zinc-700 transition-colors disabled:opacity-50"
         {...rest}
       />
     </div>

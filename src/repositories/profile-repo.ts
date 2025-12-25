@@ -9,7 +9,6 @@ export function isProfileRole(value: unknown): value is ProfileRole {
   return value === "customer" || value === "admin";
 }
 
-// Row type straight from Supabase schema
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 export class ProfileRepository {
@@ -26,15 +25,14 @@ export class ProfileRepository {
     return data;
   }
 
-  async ensureProfile(userId: string, email: string, updatesOptIn: boolean) {
+  async ensureProfile(userId: string, email: string) {
     const existing = await this.getByUserId(userId);
     if (existing) return;
 
     const { error } = await this.supabase.from("profiles").insert({
       id: userId,
       email,
-      updates_opt_in: updatesOptIn,
-      role: "customer", // prevents null role for newly created profiles
+      role: "customer",
     });
 
     if (error) throw error;
