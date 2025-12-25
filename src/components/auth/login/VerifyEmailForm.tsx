@@ -1,7 +1,7 @@
 // src/components/auth/login/VerifyEmailForm.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { EmailCodeFlow } from "./EmailCodeFlow";
 
 type VerifyFlow = "signup" | "signin";
@@ -20,6 +20,8 @@ export function VerifyEmailForm({
   onBackToLogin,
 }: VerifyEmailFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get("next") || "/";
 
   const heading =
     flow === "signin" ? "Verify your email" : "Activate your account";
@@ -59,9 +61,10 @@ export function VerifyEmailForm({
       throw new Error(json.error ?? "Could not verify code.");
     }
 
-    const nextPath = json.nextPath || "/";
-    if (onVerified) onVerified(nextPath);
-    else router.push(nextPath);
+    // After successful verification, redirect to where they came from
+    const destination = json.nextPath || nextUrl;
+    if (onVerified) onVerified(destination);
+    else router.push(destination);
   }
 
   return (
@@ -83,7 +86,7 @@ export function VerifyEmailForm({
       codeLength={6}
       backLabel="Back to sign in"
       onBack={onBackToLogin}
-      backHref={onBackToLogin ? undefined : "/auth/login"}
+      backHref={onBackToLogin ? undefined : `/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
     />
   );
 }

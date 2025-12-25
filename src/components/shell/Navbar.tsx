@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -97,12 +98,24 @@ const SHOE_SIZE_GROUPS = {
 };
 
 export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, cartCount = 0 }: NavbarProps) {
+  const pathname = usePathname();
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
+
+  // Build auth URLs with current page as "next" parameter
+  const loginUrl = useMemo(() => {
+    if (pathname === '/') return '/auth/login';
+    return `/auth/login?next=${encodeURIComponent(pathname)}`;
+  }, [pathname]);
+
+  const registerUrl = useMemo(() => {
+    if (pathname === '/') return '/auth/register';
+    return `/auth/register?next=${encodeURIComponent(pathname)}`;
+  }, [pathname]);
 
   useEffect(() => {
     const handleCartUpdate = (e: Event) => {
@@ -419,10 +432,10 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Link href="/auth/login" className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
+              <Link href={loginUrl} className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
                 Login
               </Link>
-              <Link href="/auth/register" className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer rounded">
+              <Link href={registerUrl} className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer">
                 Sign Up
               </Link>
             </div>

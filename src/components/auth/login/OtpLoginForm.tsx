@@ -1,7 +1,7 @@
 // src/components/auth/login/OtpLoginForm.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { EmailCodeFlow } from "./EmailCodeFlow";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
@@ -16,6 +16,8 @@ export function OtpLoginForm({
   onBackToLogin,
 }: OtpLoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextUrl = searchParams.get("next") || "/";
 
   async function requestOtp(email: string) {
     const res = await fetch("/api/auth/otp/request", {
@@ -49,7 +51,9 @@ export function OtpLoginForm({
     if (json.isAdmin && json.requiresTwoFAChallenge)
       return router.push("/auth/2fa/challenge");
 
-    router.push(json.isAdmin ? "/admin" : "/");
+    // Redirect to where they came from or admin/home
+    const destination = json.isAdmin ? "/admin" : nextUrl;
+    router.push(destination);
   }
 
   return (
@@ -81,7 +85,10 @@ export function OtpLoginForm({
             Back to sign in
           </button>
         ) : (
-          <Link href="/auth/login" className={AuthStyles.neutralLink}>
+          <Link
+            href={`/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
+            className={AuthStyles.neutralLink}
+          >
             Back to sign in
           </Link>
         )}

@@ -11,7 +11,7 @@ export default function AuthShell({ children }: AuthShellProps) {
   return (
     <div className="min-h-screen flex">
       {/* Left side - Branding */}
-      <div className="hidden lg:flex lg:flex-1 bg-black items-center justify-center p-12">
+      <div className="hidden lg:flex lg:flex-1 bg-black items-start justify-center pt-20 p-12">
         <div className="max-w-xl">
           <Link href="/" className="inline-block mb-12">
             <div className="flex items-center gap-3">
@@ -46,7 +46,7 @@ export default function AuthShell({ children }: AuthShellProps) {
       </div>
 
       {/* Right side - Auth form */}
-      <div className="flex-1 lg:max-w-xl bg-zinc-950 flex items-center justify-center p-6 sm:p-12">
+      <div className="flex-1 lg:max-w-xl bg-zinc-950 flex items-start justify-center pt-12 sm:pt-20 p-6 sm:p-12">
         <div className="w-full max-w-md">
           {/* Mobile logo */}
           <Link href="/" className="lg:hidden inline-block mb-8">

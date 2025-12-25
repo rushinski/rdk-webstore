@@ -2,8 +2,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "./PasswordField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
@@ -21,9 +22,12 @@ export function PasswordLoginForm({
   onForgotPassword,
 }: PasswordLoginFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const nextUrl = searchParams.get("next") || "/";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,7 +64,9 @@ export function PasswordLoginForm({
       if (json.isAdmin && json.requiresTwoFAChallenge)
         return router.push("/auth/2fa/challenge");
 
-      router.push(json.isAdmin ? "/admin" : "/");
+      // Redirect to where they came from or admin/home
+      const destination = json.isAdmin ? "/admin" : nextUrl;
+      router.push(destination);
     } catch (err: any) {
       setError(err?.message ?? "Login failed");
       setIsSubmitting(false);
@@ -68,84 +74,98 @@ export function PasswordLoginForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <AuthHeader title="Sign in" />
+    <div className="space-y-6">
+      {/* Back to shopping link */}
+      <Link
+        href={nextUrl}
+        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to shopping
+      </Link>
 
-      {error && <div className={AuthStyles.errorBox}>{error}</div>}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <AuthHeader title="Sign in" />
 
-      <div className="space-y-3">
-        <SocialButton provider="google" label="Continue with Google" />
-        <SocialButton provider="facebook" label="Continue with Facebook" />
-      </div>
+        {error && <div className={AuthStyles.errorBox}>{error}</div>}
 
-      <div className={AuthStyles.divider}>
-        <div className={AuthStyles.dividerLine} />
-        <span>or</span>
-        <div className={AuthStyles.dividerLine} />
-      </div>
-
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label htmlFor="email" className="block text-sm font-medium text-white">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className={AuthStyles.input}
-          />
+        <div className="space-y-3">
+          <SocialButton provider="google" label="Continue with Google" />
+          <SocialButton provider="facebook" label="Continue with Facebook" />
         </div>
 
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label htmlFor="password" className="block text-sm font-medium text-white">
-              Password
+        <div className={AuthStyles.divider}>
+          <div className={AuthStyles.dividerLine} />
+          <span>or</span>
+          <div className={AuthStyles.dividerLine} />
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="block text-sm font-medium text-white">
+              Email
             </label>
-            <button
-              type="button"
-              onClick={onForgotPassword}
-              className="text-xs text-red-600 hover:text-red-500 transition-colors"
-            >
-              Forgot?
-            </button>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              className={AuthStyles.input}
+            />
           </div>
-          <PasswordField
-            name="password"
-            label=""
-            value={password}
-            onChange={setPassword}
-            autoComplete="current-password"
-          />
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-white">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={onForgotPassword}
+                className="text-xs text-red-600 hover:text-red-500 transition-colors"
+              >
+                Forgot?
+              </button>
+            </div>
+            <PasswordField
+              name="password"
+              label=""
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+            />
+          </div>
         </div>
-      </div>
 
-      <div className="space-y-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={AuthStyles.primaryButton}
-        >
-          {isSubmitting ? "Signing in..." : "Sign in"}
-        </button>
+        <div className="space-y-3">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={AuthStyles.primaryButton}
+          >
+            {isSubmitting ? "Signing in..." : "Sign in"}
+          </button>
 
-        <button
-          type="button"
-          onClick={onSwitchToOtp}
-          className="w-full text-center text-sm text-zinc-500 hover:text-white transition-colors"
-        >
-          Sign in with email code instead
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={onSwitchToOtp}
+            className="w-full text-center text-sm text-zinc-500 hover:text-white transition-colors"
+          >
+            Sign in with email code instead
+          </button>
+        </div>
 
-      <p className="text-sm text-center text-zinc-500">
-        Don't have an account?{" "}
-        <Link href="/auth/register" className={AuthStyles.inlineAccentLink}>
-          Create one
-        </Link>
-      </p>
-    </form>
+        <p className="text-sm text-center text-zinc-500">
+          Don't have an account?{" "}
+          <Link
+            href={`/auth/register${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
+            className={AuthStyles.inlineAccentLink}
+          >
+            Create one
+          </Link>
+        </p>
+      </form>
+    </div>
   );
 }
