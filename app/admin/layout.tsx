@@ -1,5 +1,5 @@
 // app/admin/layout.tsx
-import { requireAdmin } from '@/services/session-service';
+import { requireAdmin } from '@/lib/auth/session';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AdminTopbar } from '@/components/admin/AdminTopbar';
 

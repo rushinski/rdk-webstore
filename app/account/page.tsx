@@ -1,6 +1,6 @@
 // app/account/page.tsx
 
-import { requireUser } from '@/services/session-service';
+import { requireUser } from '@/lib/auth/session';
 import { AccountProfile } from '@/components/account/AccountProfile';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';

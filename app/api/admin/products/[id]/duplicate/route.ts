@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { requireAdmin } from '@/services/session-service';
+import { requireAdmin } from '@/lib/auth/session';
 import { ProductService } from '@/services/product-service';
 
 export async function POST(

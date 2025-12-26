@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { requireAdmin } from '@/services/session-service';
+import { requireAdmin } from '@/lib/auth/session';
 import { ProductService, type ProductCreateInput } from '@/services/product-service';
 import { ProductRepository } from '@/repositories/product-repo';
 

@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { requireUser } from '@/services/session-service';
+import { requireUser } from '@/lib/auth/session';
 import { ShippingRepository } from '@/repositories/shipping-repo';
 import type { ShippingProfile } from '@/types/views/shipping'; 
 
