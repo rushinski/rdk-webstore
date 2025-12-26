@@ -227,4 +227,42 @@ export class ProductRepository {
       tags: (raw.tags ?? []).map((pt: any) => pt.tag).filter(Boolean),
     };
   }
+
+    async getProductsForCheckout(
+    productIds: string[]
+  ): Promise<Array<{
+    id: string;
+    name: string;
+    brand: string;
+    defaultShippingPrice: number;
+    variants: Array<{
+      id: string;
+      sizeLabel: string;
+      priceCents: number;
+      stock: number;
+    }>;
+  }>> {
+    const { data, error } = await this.supabase
+      .from("products")
+      .select("id, name, brand, default_shipping_price, variants:product_variants(id, size_label, price_cents, stock)")
+      .in("id", productIds)
+      .eq("is_active", true);
+
+    if (error) throw error;
+
+    return (data ?? []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      brand: p.brand,
+      defaultShippingPrice: p.default_shipping_price ?? 0,
+      variants: (p.variants ?? []).map((v: any) => ({
+        id: v.id,
+        sizeLabel: v.size_label,
+        priceCents: v.price_cents,
+        stock: v.stock,
+      })),
+    }));
+  }
 }
+
+

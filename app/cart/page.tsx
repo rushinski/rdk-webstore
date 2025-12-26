@@ -1,14 +1,20 @@
-// app/cart/page.tsx
+// app/cart/page.tsx (UPDATE - add checkout navigation)
 
 'use client';
 
 import { useCart } from '@/components/cart/CartProvider';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
 
 export default function CartPage() {
+  const router = useRouter();
   const { items, removeItem, updateQuantity, total } = useCart();
+
+  const handleCheckout = () => {
+    router.push('/checkout');
+  };
 
   if (items.length === 0) {
     return (
@@ -107,12 +113,15 @@ export default function CartPage() {
               <div className="border-t border-red-900/20 pt-3">
                 <div className="flex justify-between text-xl font-bold text-white">
                   <span>Total</span>
-                  <span>${(total / 100).toFixed(2)}</span>
+                  <span>${(total / 100).toFixed(2)}+</span>
                 </div>
               </div>
             </div>
 
-            <button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition mb-3">
+            <button 
+              onClick={handleCheckout}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition mb-3"
+            >
               Proceed to Checkout
             </button>
 

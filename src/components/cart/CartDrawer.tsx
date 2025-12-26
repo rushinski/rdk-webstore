@@ -1,9 +1,11 @@
-// src/components/cart/CartDrawer.tsx
+// src/components/cart/CartDrawer.tsx (UPDATE - add checkout navigation)
+
 'use client';
 
 import { X, Minus, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCart } from './CartProvider';
 
 interface CartDrawerProps {
@@ -12,7 +14,13 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+  const router = useRouter();
   const { items, removeItem, updateQuantity, total } = useCart();
+
+  const handleCheckout = () => {
+    onClose();
+    router.push('/checkout');
+  };
 
   if (!isOpen) return null;
 
@@ -86,7 +94,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 </div>
               </div>
 
-              <button className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition">
+              <button 
+                onClick={handleCheckout}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+              >
                 Checkout
               </button>
             </>
