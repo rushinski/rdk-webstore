@@ -29,7 +29,7 @@ export function ProductCard({ product }: ProductCardProps) {
           {primaryImage && (
             <Image
               src={primaryImage.url}
-              alt={product.name}
+              alt={product.title_display ?? product.name}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -41,8 +41,9 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
         <div className="p-3">
-          <h3 className="text-white font-bold text-sm truncate">{product.brand}</h3>
-          <p className="text-gray-400 text-xs truncate">{product.name}</p>
+          <h3 className="text-white font-bold text-sm truncate">
+            {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+          </h3>
           <div className="flex items-center justify-between mt-2">
             <span className="text-gray-400 text-xs">Size: {sizeDisplay}</span>
             <span className="text-white font-bold text-sm">{priceDisplay}</span>

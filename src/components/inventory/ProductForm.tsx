@@ -23,6 +23,33 @@ type VariantDraft = {
 
 type ImageDraft = ProductCreateInput["images"][number];
 
+type CatalogOption = {
+  id: string;
+  label: string;
+  groupKey?: string | null;
+};
+
+type TitleParseResult = {
+  titleRaw: string;
+  titleDisplay: string;
+  brand: {
+    id: string | null;
+    label: string;
+    groupKey?: string | null;
+    isVerified: boolean;
+  };
+  model: {
+    id: string | null;
+    label: string | null;
+    isVerified: boolean;
+  };
+  name: string;
+  suggestions?: {
+    brand?: { id: string; label: string; confidence: number };
+    model?: { id: string; label: string; confidence: number };
+  };
+};
+
 const normalizeImages = (items: ImageDraft[]) => {
   const hasPrimary = items.some((item) => item.is_primary);
   return items.map((item, index) => ({
@@ -36,8 +63,10 @@ const formatMoney = (value: number) => value.toFixed(2);
 
 const AUTO_TAG_GROUP_KEYS = new Set([
   'brand',
+  'model',
   'category',
   'condition',
+  'designer_brand',
   'size_shoe',
   'size_clothing',
   'size_custom',
@@ -55,8 +84,16 @@ const getTagKey = (tag: { label: string; group_key: string }) =>
 
 export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [brand, setBrand] = useState(initialData?.brand || '');
-  const [name, setName] = useState(initialData?.name || '');
+  const initialTitle = initialData?.title_raw ?? '';
+  const [titleRaw, setTitleRaw] = useState(initialTitle);
+  const [parseResult, setParseResult] = useState<TitleParseResult | null>(null);
+  const [parseStatus, setParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [brandOverrideId, setBrandOverrideId] = useState<string | null>(null);
+  const [brandOverrideInput, setBrandOverrideInput] = useState('');
+  const [modelOverrideId, setModelOverrideId] = useState<string | null>(null);
+  const [modelOverrideInput, setModelOverrideInput] = useState('');
+  const [brandOptions, setBrandOptions] = useState<CatalogOption[]>([]);
+  const [modelOptions, setModelOptions] = useState<CatalogOption[]>([]);
   const [category, setCategory] = useState<Category>(initialData?.category || 'sneakers');
   const [condition, setCondition] = useState<Condition>(initialData?.condition || 'new');
   const [conditionNote, setConditionNote] = useState(initialData?.condition_note || '');
@@ -112,6 +149,10 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
 
+  const parsedBrandLabel = parseResult?.brand?.label?.trim() ?? '';
+  const parsedBrandGroup = parseResult?.brand?.groupKey ?? null;
+  const parsedModelLabel = parseResult?.model?.label?.trim() ?? '';
+
   const autoTags = useMemo<TagChip[]>(() => {
     const tags: TagChip[] = [];
     const seen = new Set<string>();
@@ -125,8 +166,15 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       tags.push({ label: trimmed, group_key, source: 'auto' });
     };
 
-    if (brand.trim()) {
-      addTag(brand, 'brand');
+    if (parsedBrandLabel) {
+      addTag(parsedBrandLabel, 'brand');
+      if (parsedBrandGroup === 'designer') {
+        addTag(parsedBrandLabel, 'designer_brand');
+      }
+    }
+
+    if (parsedModelLabel && category === 'sneakers') {
+      addTag(parsedModelLabel, 'model');
     }
 
     if (category) {
@@ -153,7 +201,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
 
     return tags;
-  }, [brand, category, condition, sizeType, variants]);
+  }, [parsedBrandLabel, parsedBrandGroup, parsedModelLabel, category, condition, sizeType, variants]);
 
   const visibleAutoTags = useMemo(
     () => autoTags.filter((tag) => !excludedAutoTagKeys.includes(getTagKey(tag))),
@@ -190,6 +238,104 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     loadDefaults();
   }, []);
+
+  useEffect(() => {
+    const loadBrands = async () => {
+      try {
+        const response = await fetch('/api/admin/catalog/brands');
+        const data = await response.json();
+        if (response.ok) {
+          const options = (data.brands || []).map((brand: any) => ({
+            id: brand.id,
+            label: brand.canonical_label,
+            groupKey: brand.group?.key ?? null,
+          }));
+          setBrandOptions(options);
+        }
+      } catch (error) {
+        console.error('Load brand catalog error:', error);
+      }
+    };
+
+    loadBrands();
+  }, []);
+
+  const effectiveBrandId = brandOverrideId ?? parseResult?.brand?.id ?? null;
+
+  useEffect(() => {
+    if (!effectiveBrandId) {
+      setModelOptions([]);
+      return;
+    }
+
+    const loadModels = async () => {
+      try {
+        const response = await fetch(`/api/admin/catalog/models?brandId=${effectiveBrandId}`);
+        const data = await response.json();
+        if (response.ok) {
+          const options = (data.models || []).map((model: any) => ({
+            id: model.id,
+            label: model.canonical_label,
+          }));
+          setModelOptions(options);
+        }
+      } catch (error) {
+        console.error('Load model catalog error:', error);
+      }
+    };
+
+    loadModels();
+  }, [effectiveBrandId]);
+
+  useEffect(() => {
+    if (!modelOverrideId) return;
+    const stillValid = modelOptions.some((option) => option.id === modelOverrideId);
+    if (!stillValid) {
+      setModelOverrideId(null);
+      setModelOverrideInput('');
+    }
+  }, [modelOptions, modelOverrideId]);
+
+  useEffect(() => {
+    if (!titleRaw.trim()) {
+      setParseResult(null);
+      setParseStatus('idle');
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(async () => {
+      setParseStatus('loading');
+      try {
+        const response = await fetch('/api/admin/catalog/parse-title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            titleRaw,
+            category,
+            brandOverrideId,
+            modelOverrideId,
+          }),
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || 'Failed to parse title.');
+        }
+        setParseResult(data);
+        setParseStatus('idle');
+      } catch (error) {
+        if ((error as any)?.name === 'AbortError') return;
+        console.error('Parse title error:', error);
+        setParseStatus('error');
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timeout);
+    };
+  }, [titleRaw, category, brandOverrideId, modelOverrideId]);
 
   useEffect(() => {
     if (!hasInitializedVariants.current) {
@@ -332,6 +478,63 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     setCustomTags([...customTags, newTag]);
   };
 
+  const applyBrandOverride = (option: CatalogOption | null) => {
+    setBrandOverrideId(option?.id ?? null);
+    setBrandOverrideInput(option?.label ?? '');
+    setModelOverrideId(null);
+    setModelOverrideInput('');
+  };
+
+  const applyModelOverride = (option: CatalogOption | null) => {
+    setModelOverrideId(option?.id ?? null);
+    setModelOverrideInput(option?.label ?? '');
+  };
+
+  const handleBrandOverrideChange = (value: string) => {
+    setBrandOverrideInput(value);
+    const match = brandOptions.find(
+      (option) => option.label.toLowerCase() === value.trim().toLowerCase()
+    );
+    if (match) {
+      applyBrandOverride(match);
+    } else {
+      setBrandOverrideId(null);
+      setModelOverrideId(null);
+      setModelOverrideInput('');
+    }
+  };
+
+  const handleModelOverrideChange = (value: string) => {
+    setModelOverrideInput(value);
+    const match = modelOptions.find(
+      (option) => option.label.toLowerCase() === value.trim().toLowerCase()
+    );
+    if (match) {
+      applyModelOverride(match);
+    } else {
+      setModelOverrideId(null);
+    }
+  };
+
+  const brandSuggestion = parseResult?.suggestions?.brand;
+  const modelSuggestion = parseResult?.suggestions?.model;
+
+  const applyBrandSuggestion = () => {
+    if (!brandSuggestion) return;
+    const match = brandOptions.find((option) => option.id === brandSuggestion.id);
+    if (match) {
+      applyBrandOverride(match);
+    }
+  };
+
+  const applyModelSuggestion = () => {
+    if (!modelSuggestion) return;
+    const match = modelOptions.find((option) => option.id === modelSuggestion.id);
+    if (match) {
+      applyModelOverride(match);
+    }
+  };
+
   const handleRemoveTag = (tag: TagChip) => {
     if (tag.source === 'auto') {
       const key = getTagKey(tag);
@@ -361,6 +564,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     setIsLoading(true);
 
     try {
+      const trimmedTitle = titleRaw.trim();
+      if (!trimmedTitle) {
+        throw new Error('Full title is required.');
+      }
+
       const trimmedShipping = shippingPrice.trim();
       const shippingCents = trimmedShipping ? parseMoneyToCents(trimmedShipping) : null;
       if (trimmedShipping && shippingCents === null) {
@@ -401,8 +609,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }
 
       const data: ProductCreateInput = {
-        brand,
-        name,
+        title_raw: trimmedTitle,
+        brand_override_id: brandOverrideId ?? undefined,
+        model_override_id: modelOverrideId ?? undefined,
         category,
         condition,
         condition_note: conditionNote || undefined,
@@ -433,26 +642,19 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         <h2 className="text-xl font-semibold text-white mb-4">Basic Information</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Brand *</label>
+          <div className="md:col-span-2">
+            <label className="block text-gray-400 text-sm mb-1">Full Title *</label>
             <input
               type="text"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
+              value={titleRaw}
+              onChange={(e) => setTitleRaw(e.target.value)}
               required
+              placeholder="e.g., New Balance 2002R Protection Pack Stone Grey"
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
-          </div>
-
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
+            <p className="text-xs text-gray-500 mt-2">
+              One input only. We parse brand, model (sneakers), and name automatically.
+            </p>
           </div>
 
           <div>
@@ -482,6 +684,118 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <option value="used">Used</option>
             </select>
           </div>
+        </div>
+
+        <div className="mt-4 bg-zinc-950/40 border border-red-900/20 rounded p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm text-gray-300 font-semibold">Parsed Preview</h3>
+            {parseStatus === 'loading' && (
+              <span className="text-xs text-gray-500">Parsing...</span>
+            )}
+            {parseStatus === 'error' && (
+              <span className="text-xs text-red-400">Unable to parse title</span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="text-gray-400">
+              <span className="block text-xs uppercase text-gray-500">Brand</span>
+              <span className="text-white">{parseResult?.brand?.label || '-'}</span>
+            </div>
+            {category === 'sneakers' && (
+              <div className="text-gray-400">
+                <span className="block text-xs uppercase text-gray-500">Model</span>
+                <span className="text-white">{parseResult?.model?.label || '-'}</span>
+              </div>
+            )}
+            <div className="text-gray-400">
+              <span className="block text-xs uppercase text-gray-500">Name</span>
+              <span className="text-white">{parseResult?.name || '-'}</span>
+            </div>
+          </div>
+          {parseResult?.titleDisplay && (
+            <div className="text-xs text-gray-500">
+              Display: <span className="text-gray-200">{parseResult.titleDisplay}</span>
+            </div>
+          )}
+          {(brandSuggestion || modelSuggestion) && (
+            <div className="flex flex-wrap gap-2">
+              {brandSuggestion && (
+                <button
+                  type="button"
+                  onClick={applyBrandSuggestion}
+                  className="text-xs px-3 py-1 rounded-full border border-red-900/40 text-red-200 hover:bg-red-900/30"
+                >
+                  Did you mean {brandSuggestion.label}?
+                </button>
+              )}
+              {category === 'sneakers' && modelSuggestion && (
+                <button
+                  type="button"
+                  onClick={applyModelSuggestion}
+                  className="text-xs px-3 py-1 rounded-full border border-red-900/40 text-red-200 hover:bg-red-900/30"
+                >
+                  Did you mean {modelSuggestion.label}?
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Override Brand</label>
+            <input
+              type="text"
+              list="brand-options"
+              value={brandOverrideInput}
+              onChange={(e) => handleBrandOverrideChange(e.target.value)}
+              placeholder="Search brands..."
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20"
+            />
+            <datalist id="brand-options">
+              {brandOptions.map((brand) => (
+                <option key={brand.id} value={brand.label} />
+              ))}
+            </datalist>
+            {brandOverrideId && (
+              <button
+                type="button"
+                onClick={() => applyBrandOverride(null)}
+                className="text-xs text-gray-500 mt-2 hover:text-white"
+              >
+                Clear override
+              </button>
+            )}
+          </div>
+
+          {category === 'sneakers' && (
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">Override Model</label>
+              <input
+                type="text"
+                list="model-options"
+                value={modelOverrideInput}
+                onChange={(e) => handleModelOverrideChange(e.target.value)}
+                placeholder={effectiveBrandId ? 'Search models...' : 'Select a brand first'}
+                disabled={!effectiveBrandId}
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 disabled:text-gray-500"
+              />
+              <datalist id="model-options">
+                {modelOptions.map((model) => (
+                  <option key={model.id} value={model.label} />
+                ))}
+              </datalist>
+              {modelOverrideId && (
+                <button
+                  type="button"
+                  onClick={() => applyModelOverride(null)}
+                  className="text-xs text-gray-500 mt-2 hover:text-white"
+                >
+                  Clear override
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {condition === 'used' && (

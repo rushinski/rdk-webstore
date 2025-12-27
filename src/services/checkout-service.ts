@@ -83,6 +83,7 @@ export class CheckoutService {
       lineTotal: number;
       name: string;
       brand: string;
+      titleDisplay: string;
     }> = [];
 
     for (const item of items) {
@@ -113,6 +114,7 @@ export class CheckoutService {
         lineTotal,
         name: product.name,
         brand: product.brand,
+        titleDisplay: product.titleDisplay,
       });
 
       subtotal += lineTotal;
@@ -218,7 +220,7 @@ export class CheckoutService {
         price_data: {
           currency: "usd",
           product_data: {
-            name: `${li.brand} - ${li.name}`,
+            name: li.titleDisplay || `${li.brand} ${li.name}`,
           },
           unit_amount: Math.round(li.unitPrice * 100),
         },

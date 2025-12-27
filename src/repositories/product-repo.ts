@@ -6,6 +6,7 @@ export interface ProductFilters {
   q?: string;
   category?: string[];
   brand?: string[];
+  model?: string[];
   sizeShoe?: string[];
   sizeClothing?: string[];
   condition?: string[];
@@ -62,12 +63,21 @@ export class ProductRepository {
 
     // Text search
     if (filters.q) {
-      query = query.or(`brand.ilike.%${filters.q}%,name.ilike.%${filters.q}%`);
+      query = query.or(
+        [
+          `brand.ilike.%${filters.q}%`,
+          `name.ilike.%${filters.q}%`,
+          `model.ilike.%${filters.q}%`,
+          `title_raw.ilike.%${filters.q}%`,
+          `title_display.ilike.%${filters.q}%`,
+        ].join(",")
+      );
     }
 
     // Category / brand / condition filters
     if (filters.category?.length) query = query.in("category", filters.category);
     if (filters.brand?.length) query = query.in("brand", filters.brand);
+    if (filters.model?.length) query = query.in("model", filters.model);
     if (filters.condition?.length) query = query.in("condition", filters.condition);
 
     // Size filters (limit to in-stock variants)
@@ -252,6 +262,8 @@ export class ProductRepository {
     id: string;
     name: string;
     brand: string;
+    model: string | null;
+    titleDisplay: string;
     category: string;
     tenantId: string | null;
     defaultShippingPrice: number;
@@ -266,7 +278,7 @@ export class ProductRepository {
   }>> {
     const { data, error } = await this.supabase
       .from("products")
-      .select("id, name, brand, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)")
+      .select("id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)")
       .in("id", productIds)
       .eq("is_active", true);
 
@@ -276,6 +288,8 @@ export class ProductRepository {
       id: p.id,
       name: p.name,
       brand: p.brand,
+      model: p.model ?? null,
+      titleDisplay: p.title_display,
       category: p.category,
       tenantId: p.tenant_id ?? null,
       defaultShippingPrice: p.default_shipping_price ?? 0,
@@ -288,6 +302,23 @@ export class ProductRepository {
         stock: v.stock,
       })),
     }));
+  }
+
+  async getModels(category?: string): Promise<string[]> {
+    let query = this.supabase
+      .from("products")
+      .select("model")
+      .eq("is_active", true)
+      .not("model", "is", null);
+
+    if (category) {
+      query = query.eq("category", category);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    const models = [...new Set((data ?? []).map((p) => p.model).filter(Boolean))];
+    return models.sort();
   }
 }
 

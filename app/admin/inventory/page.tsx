@@ -148,8 +148,9 @@ export default function InventoryPage() {
                       </td>
                       <td className="p-4">
                         <div>
-                          <div className="text-white font-semibold">{product.brand}</div>
-                          <div className="text-gray-400 text-sm">{product.name}</div>
+                          <div className="text-white font-semibold">
+                            {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                          </div>
                         </div>
                       </td>
                       <td className="p-4 text-gray-400 capitalize">{product.category}</td>
@@ -194,8 +195,9 @@ export default function InventoryPage() {
               <div key={product.id} className="bg-zinc-900 border border-red-900/20 rounded p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <h3 className="text-white font-semibold">{product.brand}</h3>
-                    <p className="text-gray-400 text-sm">{product.name}</p>
+                    <h3 className="text-white font-semibold">
+                      {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                    </h3>
                   </div>
                   <input
                     type="checkbox"

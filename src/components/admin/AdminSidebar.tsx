@@ -23,6 +23,7 @@ const navItems = [
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/sales', label: 'Sales', icon: DollarSign },
   { href: '/admin/shipping', label: 'Shipping', icon: Truck },
+  { href: '/admin/catalog', label: 'Catalog', icon: Package },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

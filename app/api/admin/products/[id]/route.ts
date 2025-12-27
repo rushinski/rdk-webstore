@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdmin } from '@/lib/auth/session';
+import { ensureTenantId } from '@/lib/auth/tenant';
 import { ProductService, type ProductCreateInput } from '@/services/product-service';
 import { ProductRepository } from '@/repositories/product-repo';
 
@@ -11,20 +12,23 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    await requireAdmin();
+    const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
     const service = new ProductService(supabase);
 
     const input: ProductCreateInput = await request.json();
-    const product = await service.updateProduct(params.id, input);
+    const tenantId = await ensureTenantId(session, supabase);
+    const product = await service.updateProduct(params.id, input, {
+      userId: session.user.id,
+      tenantId,
+    });
 
     return NextResponse.json(product);
   } catch (error) {
     console.error('Admin update product error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update product' },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : 'Failed to update product';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

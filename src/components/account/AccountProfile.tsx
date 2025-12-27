@@ -239,7 +239,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                   {(order.items || []).map((item: any) => (
                     <div key={item.id} className="flex items-center justify-between text-sm">
                       <span className="text-gray-300">
-                        {item.product?.brand} {item.product?.name}
+                        {item.product?.title_display ??
+                          `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
                         {item.variant?.size_label ? ` (${item.variant.size_label})` : ''}
                       </span>
                       <span className="text-gray-400">x{item.quantity}</span>

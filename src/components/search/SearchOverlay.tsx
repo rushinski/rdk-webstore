@@ -97,14 +97,15 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 <div className="w-16 h-16 relative flex-shrink-0">
                   <Image
                     src={product.images[0]?.url || '/placeholder.png'}
-                    alt={product.name}
+                    alt={product.title_display ?? product.name}
                     fill
                     className="object-cover rounded"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-semibold truncate">{product.brand}</h3>
-                  <p className="text-gray-400 text-sm truncate">{product.name}</p>
+                  <h3 className="text-white font-semibold truncate">
+                    {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                  </h3>
                 </div>
                 <div className="text-white font-bold">
                   ${(product.variants[0]?.price_cents / 100).toFixed(2)}

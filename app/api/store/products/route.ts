@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
       q: searchParams.get('q') || undefined,
       category: searchParams.getAll('category').filter(Boolean),
       brand: searchParams.getAll('brand').filter(Boolean),
+      model: searchParams.getAll('model').filter(Boolean),
       sizeShoe: searchParams.getAll('sizeShoe').filter(Boolean),
       sizeClothing: searchParams.getAll('sizeClothing').filter(Boolean),
       condition: searchParams.getAll('condition').filter(Boolean),

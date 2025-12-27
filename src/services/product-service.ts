@@ -5,6 +5,8 @@ import { ProductRepository } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/database.types";
 import type { Category, Condition } from "@/types/views/product";
 import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
+import { CatalogRepository } from "@/repositories/catalog-repo";
+import { ProductTitleParserService } from "@/services/product-title-parser-service";
 
 type VariantInput = Pick<
   TablesInsert<"product_variants">,
@@ -17,8 +19,9 @@ type ImageInput = Pick<
 >;
 
 export interface ProductCreateInput {
-  brand: string;
-  name: string;
+  title_raw: string;
+  brand_override_id?: string | null;
+  model_override_id?: string | null;
   category: Category;
   condition: Condition;
   condition_note?: string;
@@ -40,8 +43,20 @@ export class ProductService {
     input: ProductCreateInput,
     ctx: { userId: string; tenantId: string; marketplaceId?: string | null; sellerId?: string | null }
   ) {
+    if (!input.title_raw?.trim()) {
+      throw new Error("Product title is required.");
+    }
+    const parser = new ProductTitleParserService(this.supabase);
+    const parsed = await parser.parseTitle({
+      titleRaw: input.title_raw,
+      category: input.category,
+      brandOverrideId: input.brand_override_id ?? null,
+      modelOverrideId: input.model_override_id ?? null,
+      tenantId: ctx.tenantId,
+    });
+
     // Generate SKU
-    const sku = this.generateSKU(input.brand, input.name);
+    const sku = this.generateSKU(parsed.brand.label, parsed.name);
     const productCost = this.getProductCost(input.variants);
 
     // Create product
@@ -50,8 +65,15 @@ export class ProductService {
       marketplace_id: ctx.marketplaceId ?? null,
       seller_id: ctx.sellerId ?? null,
 
-      brand: input.brand,
-      name: input.name,
+      brand: parsed.brand.label,
+      model: parsed.model.label ?? null,
+      name: parsed.name,
+      title_raw: parsed.titleRaw,
+      title_display: parsed.titleDisplay,
+      brand_is_verified: parsed.brand.isVerified,
+      model_is_verified: parsed.model.isVerified,
+      parse_confidence: parsed.parseConfidence,
+      parse_version: parsed.parseVersion,
       category: input.category,
       condition: input.condition,
       condition_note: input.condition_note || null,
@@ -90,21 +112,47 @@ export class ProductService {
       await this.repo.linkProductTag(product.id, tag.id);
     }
 
+    await this.createCatalogCandidates(parsed, ctx);
+
     return product;
   }
 
-  async updateProduct(productId: string, input: ProductCreateInput) {
+  async updateProduct(
+    productId: string,
+    input: ProductCreateInput,
+    ctx: { userId: string; tenantId: string }
+  ) {
     const existing = await this.repo.getById(productId);
     if (!existing) {
       throw new Error("Product not found");
     }
+    if (!input.title_raw?.trim()) {
+      throw new Error("Product title is required.");
+    }
+
+    const tenantId = existing.tenant_id ?? ctx.tenantId;
+    const parser = new ProductTitleParserService(this.supabase);
+    const parsed = await parser.parseTitle({
+      titleRaw: input.title_raw,
+      category: input.category,
+      brandOverrideId: input.brand_override_id ?? null,
+      modelOverrideId: input.model_override_id ?? null,
+      tenantId,
+    });
 
     const productCost = this.getProductCost(input.variants);
 
     // Update product
     const product = await this.repo.update(productId, {
-      brand: input.brand,
-      name: input.name,
+      brand: parsed.brand.label,
+      model: parsed.model.label ?? null,
+      name: parsed.name,
+      title_raw: parsed.titleRaw,
+      title_display: parsed.titleDisplay,
+      brand_is_verified: parsed.brand.isVerified,
+      model_is_verified: parsed.model.isVerified,
+      parse_confidence: parsed.parseConfidence,
+      parse_version: parsed.parseVersion,
       category: input.category,
       condition: input.condition,
       condition_note: input.condition_note || null,
@@ -135,13 +183,15 @@ export class ProductService {
     // Replace tags
     await this.repo.unlinkProductTags(productId);
     const tags = await upsertTags(this.supabase, {
-      tenantId: existing.tenant_id ?? null,
+      tenantId: tenantId,
       tags: input.tags ?? [],
     });
 
     for (const tag of tags) {
       await this.repo.linkProductTag(productId, tag.id);
     }
+
+    await this.createCatalogCandidates(parsed, { ...ctx, tenantId });
 
     return product;
   }
@@ -154,13 +204,14 @@ export class ProductService {
     if (!original) throw new Error('Product not found');
 
     const input: ProductCreateInput = {
-      brand: original.brand,
-      name: `${original.name} (Copy)`,
+      title_raw: `${original.title_raw || `${original.brand} ${original.model ?? ""} ${original.name}`.trim()} (Copy)`,
       category: original.category,
       condition: original.condition,
       condition_note: original.condition_note || undefined,
       description: original.description || undefined,
       shipping_override_cents: original.shipping_override_cents ?? undefined,
+      brand_override_id: undefined,
+      model_override_id: undefined,
       variants: original.variants.map(v => ({
         size_type: v.size_type,
         size_label: v.size_label,
@@ -220,5 +271,48 @@ export class ProductService {
 
     if (costs.length === 0) return 0;
     return Math.min(...costs);
+  }
+
+  private async createCatalogCandidates(
+    parsed: {
+      candidates: {
+        brand?: { rawText: string; normalizedText: string };
+        model?: { rawText: string; normalizedText: string; parentBrandId?: string | null };
+      };
+    },
+    ctx: { userId: string; tenantId: string }
+  ) {
+    const catalogRepo = new CatalogRepository(this.supabase);
+
+    if (parsed.candidates.brand?.rawText) {
+      try {
+        await catalogRepo.createCandidate({
+          tenant_id: ctx.tenantId,
+          entity_type: "brand",
+          raw_text: parsed.candidates.brand.rawText,
+          normalized_text: parsed.candidates.brand.normalizedText,
+          status: "new",
+          created_by: ctx.userId,
+        });
+      } catch (error) {
+        console.warn("Catalog candidate create (brand) failed:", error);
+      }
+    }
+
+    if (parsed.candidates.model?.rawText && parsed.candidates.model.parentBrandId) {
+      try {
+        await catalogRepo.createCandidate({
+          tenant_id: ctx.tenantId,
+          entity_type: "model",
+          raw_text: parsed.candidates.model.rawText,
+          normalized_text: parsed.candidates.model.normalizedText,
+          parent_brand_id: parsed.candidates.model.parentBrandId,
+          status: "new",
+          created_by: ctx.userId,
+        });
+      } catch (error) {
+        console.warn("Catalog candidate create (model) failed:", error);
+      }
+    }
   }
 }

@@ -59,8 +59,9 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
   const initialData = {
     id: product.id,
-    brand: product.brand,
-    name: product.name,
+    title_raw:
+      product.title_raw ||
+      `${product.brand} ${product.model ?? ""} ${product.name}`.trim(),
     category: product.category,
     condition: product.condition,
     condition_note: product.condition_note || undefined,

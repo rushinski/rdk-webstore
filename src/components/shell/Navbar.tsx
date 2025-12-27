@@ -23,7 +23,6 @@ import {
   Laptop,
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
-import { BRANDS } from '@/config/constants/brands';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
 
@@ -105,6 +104,8 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
+  const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
+  const [designerBrands, setDesignerBrands] = useState<string[]>([]);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -128,6 +129,35 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
   }, []);
 
   useEffect(() => {
+    const loadBrandGroups = async () => {
+      try {
+        const response = await fetch('/api/store/catalog/brand-groups');
+        const data = await response.json();
+        if (response.ok && Array.isArray(data.groups)) {
+          setBrandGroups(data.groups);
+        }
+      } catch (error) {
+        console.error('Load brand groups error:', error);
+      }
+    };
+
+    const loadDesignerBrands = async () => {
+      try {
+        const response = await fetch('/api/store/catalog/brands?groupKey=designer');
+        const data = await response.json();
+        if (response.ok && Array.isArray(data.brands)) {
+          setDesignerBrands(data.brands);
+        }
+      } catch (error) {
+        console.error('Load designer brands error:', error);
+      }
+    };
+
+    loadBrandGroups();
+    loadDesignerBrands();
+  }, []);
+
+  useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
@@ -144,6 +174,20 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
 
   const handleSearchClick = () => window.dispatchEvent(new CustomEvent('openSearch'));
   const handleCartClick = () => window.dispatchEvent(new CustomEvent('openCart'));
+
+  const fallbackGroups = useMemo(
+    () => [
+      { key: 'nike', label: 'Nike' },
+      { key: 'jordan', label: 'Jordan' },
+      { key: 'new_balance', label: 'New Balance' },
+      { key: 'asics', label: 'ASICS' },
+      { key: 'yeezy', label: 'Yeezy' },
+      { key: 'designer', label: 'Designer' },
+    ],
+    []
+  );
+
+  const resolvedBrandGroups = brandGroups.length > 0 ? brandGroups : fallbackGroups;
 
   const shopItems = useMemo(
     () => [
@@ -249,17 +293,39 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 </div>
 
                 <div className="p-6">
-                  <div className="grid grid-cols-2 gap-3">
-                    {BRANDS.map((brand) => (
-                      <Link
-                        key={brand}
-                        href={buildStoreHref({ brand })}
-                        onClick={() => setActiveMenu(null)}
-                        className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
-                      >
-                        {brand}
-                      </Link>
-                    ))}
+                  <div className="grid grid-cols-2 gap-4">
+                    {resolvedBrandGroups.map((group) => {
+                      if (group.key === 'designer') {
+                        return (
+                          <div key={group.key} className="col-span-2">
+                            <div className="text-xs uppercase text-zinc-500 mb-2">{group.label}</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              {designerBrands.map((brand) => (
+                                <Link
+                                  key={brand}
+                                  href={buildStoreHref({ category: 'sneakers', brand })}
+                                  onClick={() => setActiveMenu(null)}
+                                  className="px-3 py-2 text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
+                                >
+                                  {brand}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <Link
+                          key={group.key}
+                          href={buildStoreHref({ category: 'sneakers', brand: group.label })}
+                          onClick={() => setActiveMenu(null)}
+                          className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
+                        >
+                          {group.label}
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
               </MenuShell>
@@ -502,17 +568,39 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'brands' ? 'rotate-180' : ''}`} />
               </button>
               {mobileSection === 'brands' && (
-                <div className="grid grid-cols-2 gap-2 pl-2">
-                  {BRANDS.map((brand) => (
-                    <Link
-                      key={brand}
-                      href={buildStoreHref({ brand })}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-4 py-3 text-sm text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
-                    >
-                      {brand}
-                    </Link>
-                  ))}
+                <div className="space-y-4 pl-2">
+                  {resolvedBrandGroups.map((group) => {
+                    if (group.key === 'designer') {
+                      return (
+                        <div key={group.key}>
+                          <div className="text-xs uppercase text-zinc-500 mb-2">{group.label}</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {designerBrands.map((brand) => (
+                              <Link
+                                key={brand}
+                                href={buildStoreHref({ category: 'sneakers', brand })}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className="px-3 py-2 text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                              >
+                                {brand}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <Link
+                        key={group.key}
+                        href={buildStoreHref({ category: 'sneakers', brand: group.label })}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="px-4 py-3 text-sm text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                      >
+                        {group.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
 

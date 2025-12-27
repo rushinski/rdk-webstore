@@ -58,7 +58,7 @@ export function TagInput({ tags, onAddTag, onRemoveTag, placeholder = 'Add tag..
         />
       </div>
       <p className="text-gray-400 text-xs mt-1">
-        Brand, category, condition, and size tags are auto-generated. You can remove them or add custom tags.
+        Brand, model, category, condition, and size tags are auto-generated. You can remove them or add custom tags.
       </p>
     </div>
   );

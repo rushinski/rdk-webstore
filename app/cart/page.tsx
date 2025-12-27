@@ -47,15 +47,14 @@ export default function CartPage() {
               <div className="w-24 h-24 relative flex-shrink-0">
                 <Image
                   src={item.imageUrl}
-                  alt={item.name}
+                  alt={item.titleDisplay}
                   fill
                   className="object-cover rounded"
                 />
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-white font-bold truncate">{item.brand}</h3>
-                <p className="text-gray-400 text-sm truncate">{item.name}</p>
+                <h3 className="text-white font-bold truncate">{item.titleDisplay}</h3>
                 <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
                 <p className="text-white font-bold mt-2">
                   ${(item.priceCents / 100).toFixed(2)}

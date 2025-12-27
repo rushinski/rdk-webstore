@@ -91,14 +91,15 @@ export default async function HomePage() {
                 <div className="aspect-square relative overflow-hidden">
                   <Image
                     src={product.images[0]?.url || '/placeholder.png'}
-                    alt={product.name}
+                    alt={product.title_display ?? product.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
                 <div className="p-4">
-                  <h3 className="font-bold text-white mb-1">{product.brand}</h3>
-                  <p className="text-sm text-gray-400 mb-2 truncate">{product.name}</p>
+                  <h3 className="font-bold text-white mb-1">
+                    {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                  </h3>
                   <p className="text-white font-bold">
                     ${(product.variants[0]?.price_cents / 100).toFixed(2)}
                   </p>

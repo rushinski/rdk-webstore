@@ -119,7 +119,8 @@ export default function ShippingPage() {
                     <div className="space-y-2 text-sm">
                       {(order.items || []).map((item: any) => (
                         <div key={item.id} className="text-gray-300">
-                          {item.product?.brand} {item.product?.name}
+                          {item.product?.title_display ??
+                            `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
                           {item.variant?.size_label ? ` (${item.variant.size_label})` : ''} x
                           {item.quantity}
                         </div>

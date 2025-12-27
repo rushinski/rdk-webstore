@@ -187,7 +187,7 @@ export class OrdersRepository {
   }) {
     let query = this.supabase
       .from("orders")
-      .select("*, items:order_items(*, product:products(id, name, brand, category), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)")
+      .select("*, items:order_items(*, product:products(id, name, brand, model, title_display, category), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)")
       .order("created_at", { ascending: false });
 
     if (params?.status?.length) {
@@ -211,7 +211,7 @@ export class OrdersRepository {
   async listOrdersForUser(userId: string) {
     const { data, error } = await this.supabase
       .from("orders")
-      .select("*, items:order_items(*, product:products(id, name, brand), variant:product_variants(id, size_label, price_cents))")
+      .select("*, items:order_items(*, product:products(id, name, brand, model, title_display), variant:product_variants(id, size_label, price_cents))")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 

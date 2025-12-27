@@ -47,14 +47,13 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     <div className="w-20 h-20 relative flex-shrink-0">
                       <Image
                         src={item.imageUrl}
-                        alt={item.name}
+                        alt={item.titleDisplay}
                         fill
                         className="object-cover rounded"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold truncate">{item.brand}</h3>
-                      <p className="text-gray-400 text-sm truncate">{item.name}</p>
+                      <h3 className="text-white font-semibold truncate">{item.titleDisplay}</h3>
                       <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
                       <p className="text-white font-bold mt-1">
                         ${(item.priceCents / 100).toFixed(2)}

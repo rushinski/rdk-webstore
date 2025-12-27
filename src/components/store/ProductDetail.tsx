@@ -29,6 +29,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       sizeLabel: selectedVariant.size_label,
       brand: product.brand,
       name: product.name,
+      titleDisplay: product.title_display ?? `${product.brand} ${product.name}`.trim(),
       priceCents: selectedVariant.price_cents,
       imageUrl: primaryImage?.url || '/placeholder.png',
     });
@@ -71,8 +72,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
         {/* Product Info */}
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">{product.brand}</h1>
-          <h2 className="text-xl text-gray-400 mb-4">{product.name}</h2>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+          </h1>
+          {product.model && (
+            <p className="text-sm text-gray-500 mb-2">Model: {product.model}</p>
+          )}
 
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-bold text-white">

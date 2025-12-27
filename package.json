@@ -14,12 +14,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "gen:types": "npx supabase gen types typescript --project-id yuqtcuzatxfhqamhyohb --schema public > src/types/database.types.ts",
+    "gen:types:hosted": "npx supabase gen types typescript --project-id yuqtcuzatxfhqamhyohb --schema public > src/types/database.types.ts",
+    "gen:types:local": "npx supabase gen types typescript --schema public > src/types/database.types.ts",
     "supabase:start": "npx supabase start",
     "supabase:stop": "npx supabase stop",
     "caddy:start": "caddy run --config ./infra/Caddyfile --adapter caddyfile --watch",
-    "caddy:stop": "caddy stop",
-    "local": "tsx scripts/start-dev.ts"
+    "caddy:stop": "caddy stop"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

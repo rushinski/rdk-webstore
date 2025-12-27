@@ -1,42 +1,61 @@
 // src/components/store/FilterPanel.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { X, ChevronDown, Filter } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
+
+type BrandOption = { label: string; value: string };
 
 interface FilterPanelProps {
   selectedCategories: string[];
   selectedBrands: string[];
+  selectedModels: string[];
   selectedShoeSizes: string[];
   selectedClothingSizes: string[];
   selectedConditions: string[];
-  brands: string[];
+  categories: string[];
+  brands: BrandOption[];
+  models: string[];
   onFilterChange: (filters: any) => void;
 }
 
 export function FilterPanel({
   selectedCategories,
   selectedBrands,
+  selectedModels,
   selectedShoeSizes,
   selectedClothingSizes,
   selectedConditions,
   brands,
+  models,
+  categories,
   onFilterChange,
 }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     category: true,
     brand: true,
+    model: true,
     size: true,
     condition: true,
   });
 
-  const categories = ['sneakers', 'clothing', 'accessories', 'electronics'];
   const conditions = ['new', 'used'];
 
-  const showShoeFilter = selectedCategories.length === 0 || selectedCategories.includes('sneakers');
-  const showClothingFilter = selectedCategories.length === 0 || selectedCategories.includes('clothing');
+  const hasSneakers = categories.includes('sneakers');
+  const hasClothing = categories.includes('clothing');
+  const showShoeFilter =
+    (selectedCategories.length === 0 && hasSneakers) ||
+    selectedCategories.includes('sneakers');
+  const showClothingFilter =
+    (selectedCategories.length === 0 && hasClothing) ||
+    selectedCategories.includes('clothing');
+  const showModelFilter = showShoeFilter;
+  const brandLabelMap = useMemo(
+    () => new Map(brands.map((brand) => [brand.value, brand.label])),
+    [brands]
+  );
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -54,6 +73,13 @@ export function FilterPanel({
       ? selectedBrands.filter(b => b !== brand)
       : [...selectedBrands, brand];
     onFilterChange({ ...getFilters(), brand: newBrands });
+  };
+
+  const handleModelChange = (model: string) => {
+    const newModels = selectedModels.includes(model)
+      ? selectedModels.filter((m) => m !== model)
+      : [...selectedModels, model];
+    onFilterChange({ ...getFilters(), model: newModels });
   };
 
   const handleShoeSizeChange = (size: string) => {
@@ -81,6 +107,7 @@ export function FilterPanel({
     onFilterChange({
       category: [],
       brand: [],
+      model: [],
       sizeShoe: [],
       sizeClothing: [],
       condition: [],
@@ -90,6 +117,7 @@ export function FilterPanel({
   const getFilters = () => ({
     category: selectedCategories,
     brand: selectedBrands,
+    model: selectedModels,
     sizeShoe: selectedShoeSizes,
     sizeClothing: selectedClothingSizes,
     condition: selectedConditions,
@@ -98,7 +126,7 @@ export function FilterPanel({
   const FilterContent = () => (
     <div className="space-y-6">
       {/* Active Filters Pills */}
-      {(selectedCategories.length > 0 || selectedBrands.length > 0 || selectedShoeSizes.length > 0 || selectedClothingSizes.length > 0 || selectedConditions.length > 0) && (
+      {(selectedCategories.length > 0 || selectedBrands.length > 0 || selectedModels.length > 0 || selectedShoeSizes.length > 0 || selectedClothingSizes.length > 0 || selectedConditions.length > 0) && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-white font-semibold text-sm">Active Filters</h3>
@@ -115,8 +143,14 @@ export function FilterPanel({
             ))}
             {selectedBrands.map(brand => (
               <span key={brand} className="inline-flex items-center gap-1 bg-red-900/30 text-white text-xs px-2 py-1 rounded">
-                {brand}
+                {brandLabelMap.get(brand) ?? brand}
                 <X className="w-3 h-3 cursor-pointer" onClick={() => handleBrandChange(brand)} />
+              </span>
+            ))}
+            {selectedModels.map((model) => (
+              <span key={model} className="inline-flex items-center gap-1 bg-red-900/30 text-white text-xs px-2 py-1 rounded">
+                {model}
+                <X className="w-3 h-3 cursor-pointer" onClick={() => handleModelChange(model)} />
               </span>
             ))}
             {selectedShoeSizes.map(size => (
@@ -179,15 +213,43 @@ export function FilterPanel({
           </button>
           {expandedSections.brand && (
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {brands.map(brand => (
-                <label key={brand} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
+              {brands.map((brand) => (
+                <label key={brand.value} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={selectedBrands.includes(brand)}
-                    onChange={() => handleBrandChange(brand)}
+                    checked={selectedBrands.includes(brand.value)}
+                    onChange={() => handleBrandChange(brand.value)}
                     className="mr-2"
                   />
-                  <span>{brand}</span>
+                  <span>{brand.label}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Model Filter */}
+      {showModelFilter && models.length > 0 && (
+        <div>
+          <button
+            onClick={() => toggleSection('model')}
+            className="flex items-center justify-between w-full text-white font-semibold mb-2"
+          >
+            Model
+            <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.model ? 'rotate-180' : ''}`} />
+          </button>
+          {expandedSections.model && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {models.map((model) => (
+                <label key={model} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedModels.includes(model)}
+                    onChange={() => handleModelChange(model)}
+                    className="mr-2"
+                  />
+                  <span>{model}</span>
                 </label>
               ))}
             </div>

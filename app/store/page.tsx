@@ -13,21 +13,33 @@ export default function StorePage() {
   const searchParams = useSearchParams();
   
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
-  const [brands, setBrands] = useState<string[]>([]);
+  const [brands, setBrands] = useState<Array<{ label: string; value: string }>>([]);
+  const [models, setModels] = useState<string[]>([]);
+  const [modelsByBrand, setModelsByBrand] = useState<Record<string, string[]>>({});
+  const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [sort, setSort] = useState('newest');
 
   const selectedCategories = searchParams.getAll('category');
   const selectedBrands = searchParams.getAll('brand');
+  const selectedModels = searchParams.getAll('model');
   const selectedShoeSizes = searchParams.getAll('sizeShoe');
   const selectedClothingSizes = searchParams.getAll('sizeClothing');
   const selectedConditions = searchParams.getAll('condition');
   const query = searchParams.get('q') || '';
 
+  const scopedModels = selectedBrands.length > 0
+    ? Array.from(
+        new Set(
+          selectedBrands.flatMap((brand) => modelsByBrand[brand] ?? [])
+        )
+      ).sort((a, b) => a.localeCompare(b))
+    : models;
+
   useEffect(() => {
     loadProducts();
-    loadBrands();
+    loadFilters();
   }, [searchParams]);
 
   const loadProducts = async () => {
@@ -48,34 +60,23 @@ export default function StorePage() {
     }
   };
 
-  // Put this helper near the top of the file (outside the component is fine)
-  function isNonEmptyString(v: unknown): v is string {
-    return typeof v === "string" && v.trim().length > 0;
-  }
-
-  const loadBrands = async () => {
+  const loadFilters = async () => {
     try {
-      const response = await fetch("/api/store/products?limit=1000");
-      const data = (await response.json()) as unknown;
-
-      // Safely extract products as unknown[]
-      const products: unknown[] = Array.isArray((data as any)?.products)
-        ? ((data as any).products as unknown[])
+      const response = await fetch("/api/store/filters");
+      const data = await response.json();
+      const brandOptions = Array.isArray(data.brands)
+        ? data.brands.map((b: any) => ({
+            value: b.label,
+            label: b?.isVerified ? b.label : `${b.label} (Unverified)`,
+          }))
         : [];
 
-      // Convert to string[] FIRST (before Set / sort)
-      const brands: string[] = products
-        .map((p) => (p as any)?.brand)
-        .filter(isNonEmptyString)
-        .map((b) => b.trim());
-
-      const uniqueBrands: string[] = Array.from(new Set<string>(brands)).sort(
-        (a, b) => a.localeCompare(b)
-      );
-
-      setBrands(uniqueBrands);
+      setBrands(brandOptions);
+      setModels(Array.isArray(data.models) ? data.models : []);
+      setModelsByBrand(data.modelsByBrand ?? {});
+      setCategories(Array.isArray(data.categories) ? data.categories : []);
     } catch (error) {
-      console.error("Load brands error:", error);
+      console.error("Load filters error:", error);
     }
   };
 
@@ -88,6 +89,9 @@ export default function StorePage() {
     }
     if (filters.brand.length > 0) {
       filters.brand.forEach((b: string) => params.append('brand', b));
+    }
+    if (filters.model.length > 0) {
+      filters.model.forEach((m: string) => params.append('model', m));
     }
     if (filters.sizeShoe.length > 0) {
       filters.sizeShoe.forEach((s: string) => params.append('sizeShoe', s));
@@ -141,10 +145,13 @@ export default function StorePage() {
           <FilterPanel
             selectedCategories={selectedCategories}
             selectedBrands={selectedBrands}
+            selectedModels={selectedModels}
             selectedShoeSizes={selectedShoeSizes}
             selectedClothingSizes={selectedClothingSizes}
             selectedConditions={selectedConditions}
+            categories={categories}
             brands={brands}
+            models={scopedModels}
             onFilterChange={handleFilterChange}
           />
         </div>
@@ -164,10 +171,13 @@ export default function StorePage() {
         <FilterPanel
           selectedCategories={selectedCategories}
           selectedBrands={selectedBrands}
+          selectedModels={selectedModels}
           selectedShoeSizes={selectedShoeSizes}
           selectedClothingSizes={selectedClothingSizes}
           selectedConditions={selectedConditions}
+          categories={categories}
           brands={brands}
+          models={scopedModels}
           onFilterChange={handleFilterChange}
         />
       </div>
