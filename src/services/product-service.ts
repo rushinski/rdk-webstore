@@ -94,6 +94,11 @@ export class ProductService {
   }
 
   async updateProduct(productId: string, input: ProductCreateInput) {
+    const existing = await this.repo.getById(productId);
+    if (!existing) {
+      throw new Error("Product not found");
+    }
+
     const productCost = this.getProductCost(input.variants);
 
     // Update product
@@ -130,6 +135,7 @@ export class ProductService {
     // Replace tags
     await this.repo.unlinkProductTags(productId);
     const tags = await upsertTags(this.supabase, {
+      tenantId: existing.tenant_id ?? null,
       tags: input.tags ?? [],
     });
 

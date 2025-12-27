@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdmin } from '@/lib/auth/session';
+import { ensureTenantId } from '@/lib/auth/tenant';
 import { ProductService } from '@/services/product-service';
 
 export async function POST(
@@ -14,16 +15,10 @@ export async function POST(
     const supabase = await createSupabaseServerClient();
     const service = new ProductService(supabase);
 
-    if (!session.profile?.tenant_id) {
-      return NextResponse.json(
-        { error: "Missing tenant for admin user." },
-        { status: 400 }
-      );
-    }
-
+    const tenantId = await ensureTenantId(session, supabase);
     const product = await service.duplicateProduct(params.id, {
       userId: session.user.id,
-      tenantId: session.profile.tenant_id,
+      tenantId,
       marketplaceId: null,
       sellerId: null,
     });
@@ -31,9 +26,8 @@ export async function POST(
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error('Admin duplicate product error:', error);
-    return NextResponse.json(
-      { error: 'Failed to duplicate product' },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : 'Failed to duplicate product';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

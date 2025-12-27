@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { ImagePlus, Link as LinkIcon, Plus, Trash2, X } from 'lucide-react';
+import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
 import { TagInput, type TagChip } from './TagInput';
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/views/product";
@@ -67,7 +67,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
     return '';
   });
-  const shippingPriceTouched = useRef(initialData?.shipping_override_cents != null);
   const [shippingDefaults, setShippingDefaults] = useState<Record<string, number>>({});
   const [customTags, setCustomTags] = useState<TagChip[]>(() => {
     const tags = initialData?.tags ?? [];
@@ -107,7 +106,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const [images, setImages] = useState<ImageDraft[]>(() =>
     normalizeImages(initialData?.images ?? [])
   );
-  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
@@ -193,14 +192,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   }, []);
 
   useEffect(() => {
-    if (shippingPriceTouched.current) return;
-    const defaultPrice = shippingDefaults[category];
-    if (typeof defaultPrice === 'number') {
-      setShippingPrice(formatMoney(defaultPrice));
-    }
-  }, [category, shippingDefaults]);
-
-  useEffect(() => {
     if (!hasInitializedVariants.current) {
       hasInitializedVariants.current = true;
       return;
@@ -282,14 +273,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     );
   };
 
-  const handleAddImageUrl = () => {
-    addImageEntry(imageUrlInput);
-    setImageUrlInput('');
-  };
-
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const uploads = Array.from(files);
+    const uploads = Array.from(files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+    if (uploads.length === 0) return;
     const reads = uploads.map(
       (file) =>
         new Promise<string>((resolve, reject) => {
@@ -310,6 +299,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    handleUploadFiles(event.dataTransfer.files);
   };
 
   const handleAddTag = (label: string) => {
@@ -357,8 +361,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     setIsLoading(true);
 
     try {
-      const shippingCents = parseMoneyToCents(shippingPrice);
-      if (shippingCents === null) {
+      const trimmedShipping = shippingPrice.trim();
+      const shippingCents = trimmedShipping ? parseMoneyToCents(trimmedShipping) : null;
+      if (trimmedShipping && shippingCents === null) {
         throw new Error("Please enter a valid shipping price.");
       }
 
@@ -402,7 +407,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         condition,
         condition_note: conditionNote || undefined,
         description: description || undefined,
-        shipping_override_cents: shippingCents,
+        shipping_override_cents: shippingCents ?? undefined,
         variants: preparedVariants,
         images: preparedImages,
         tags: allTags.map((tag) => ({
@@ -620,18 +625,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
       {/* Images */}
       <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Images</h2>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition"
-            >
-              <ImagePlus className="w-4 h-4" />
-              Upload Image
-            </button>
-          </div>
         </div>
 
         <input
@@ -643,32 +638,23 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           className="hidden"
         />
 
-        <div className="flex flex-col md:flex-row gap-3 mb-4">
-          <div className="flex-1">
-            <label className="block text-gray-400 text-xs mb-1">Add Image URL</label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={imageUrlInput}
-                onChange={(e) => setImageUrlInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleAddImageUrl();
-                  }
-                }}
-                placeholder="https://..."
-                className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
-              />
-              <button
-                type="button"
-                onClick={handleAddImageUrl}
-                className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white px-3 py-2 rounded text-sm transition"
-              >
-                <LinkIcon className="w-4 h-4" />
-                Add URL
-              </button>
-            </div>
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
+            isDragging
+              ? 'border-red-500 bg-red-900/10'
+              : 'border-red-900/30 bg-zinc-900/60'
+          }`}
+        >
+          <div className="flex flex-col items-center gap-2 text-gray-300">
+            <ImagePlus className="w-8 h-8 text-gray-400" />
+            <p className="text-sm">
+              Drop images here or <span className="text-white underline">browse files</span>
+            </p>
+            <p className="text-xs text-gray-500">PNG, JPG, WEBP</p>
           </div>
         </div>
 
@@ -723,16 +709,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               type="text"
               inputMode="decimal"
               value={shippingPrice}
-              onChange={(e) => {
-                shippingPriceTouched.current = true;
-                setShippingPrice(e.target.value);
-              }}
+              onChange={(e) => setShippingPrice(e.target.value)}
               placeholder={`Default $${formatMoney(defaultShippingPrice)}`}
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
-              required
             />
             <p className="text-gray-500 text-xs mt-1">
-              Default for {category} is ${formatMoney(defaultShippingPrice)}.
+              Leave blank to use the {category} default: ${formatMoney(defaultShippingPrice)}.
             </p>
           </div>
         </div>

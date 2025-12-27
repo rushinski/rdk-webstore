@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { requireAdmin } from '@/lib/auth/session';
+import { ensureTenantId } from '@/lib/auth/tenant';
 import { ProductService, type ProductCreateInput } from '@/services/product-service';
 
 export async function POST(request: NextRequest) {
@@ -12,16 +13,10 @@ export async function POST(request: NextRequest) {
     const service = new ProductService(supabase);
 
     const input: ProductCreateInput = await request.json();
-    if (!session.profile?.tenant_id) {
-      return NextResponse.json(
-        { error: "Missing tenant for admin user." },
-        { status: 400 }
-      );
-    }
-
+    const tenantId = await ensureTenantId(session, supabase);
     const product = await service.createProduct(input, {
       userId: session.user.id,
-      tenantId: session.profile.tenant_id,
+      tenantId,
       marketplaceId: null,
       sellerId: null,
     });
@@ -29,9 +24,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(product, { status: 201 });
   } catch (error) {
     console.error('Admin create product error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create product' },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : 'Failed to create product';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

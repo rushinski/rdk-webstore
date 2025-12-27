@@ -200,7 +200,7 @@ export class ProductRepository {
   async upsertTag(tag: TagInsert) {
     const { data, error } = await this.supabase
       .from("tags")
-      .upsert(tag, { onConflict: "label,group_key" })
+      .upsert(tag, { onConflict: "tenant_id,label,group_key" })
       .select()
       .single();
 

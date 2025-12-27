@@ -21,7 +21,14 @@ export default function CreateProductPage() {
     if (response.ok) {
       router.push('/admin/inventory');
     } else {
-      throw new Error('Failed to create product');
+      let message = 'Failed to create product';
+      try {
+        const payload = await response.json();
+        if (payload?.error) message = payload.error;
+      } catch (error) {
+        // ignore parse errors
+      }
+      throw new Error(message);
     }
   };
 
