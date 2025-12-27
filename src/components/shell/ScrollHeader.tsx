@@ -7,6 +7,8 @@ import { Navbar } from './Navbar';
 export function ScrollHeader() {
   const pathname = usePathname();
   const isAuthRoute = pathname.startsWith('/auth');
+  const isAdminRoute = pathname.startsWith('/admin');
+  const hideHeader = isAuthRoute || isAdminRoute;
 
   // ✅ Hooks must be unconditional
   const [isVisible, setIsVisible] = useState(true);
@@ -14,7 +16,7 @@ export function ScrollHeader() {
 
   useEffect(() => {
     // If auth route, don't attach listeners and keep it visible state reset
-    if (isAuthRoute) {
+    if (hideHeader) {
       setIsVisible(true);
       lastScrollYRef.current = 0;
       return;
@@ -33,13 +35,13 @@ export function ScrollHeader() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isAuthRoute]);
+  }, [hideHeader]);
 
-  if (isAuthRoute) return null;
+  if (hideHeader) return null;
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 bg-black border-b border-red-900/20 transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 bg-black border-b border-zinc-800/70 transition-transform duration-300 ${
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >

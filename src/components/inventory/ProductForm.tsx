@@ -638,7 +638,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Basic Info */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Basic Information</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -650,7 +650,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               onChange={(e) => setTitleRaw(e.target.value)}
               required
               placeholder="e.g., New Balance 2002R Protection Pack Stone Grey"
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
             <p className="text-xs text-gray-500 mt-2">
               One input only. We parse brand, model (sneakers), and name automatically.
@@ -663,7 +663,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={category}
               onChange={(e) => setCategory(e.target.value as Category)}
               required
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             >
               <option value="sneakers">Sneakers</option>
               <option value="clothing">Clothing</option>
@@ -678,7 +678,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={condition}
               onChange={(e) => setCondition(e.target.value as Condition)}
               required
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             >
               <option value="new">New</option>
               <option value="used">Used</option>
@@ -686,7 +686,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           </div>
         </div>
 
-        <div className="mt-4 bg-zinc-950/40 border border-red-900/20 rounded p-4 space-y-3">
+        <div className="mt-4 bg-zinc-950/40 border border-zinc-800/70 rounded p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm text-gray-300 font-semibold">Parsed Preview</h3>
             {parseStatus === 'loading' && (
@@ -723,7 +723,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 <button
                   type="button"
                   onClick={applyBrandSuggestion}
-                  className="text-xs px-3 py-1 rounded-full border border-red-900/40 text-red-200 hover:bg-red-900/30"
+                  className="text-xs px-3 py-1 rounded-full border border-zinc-700/70 text-red-200 hover:bg-red-900/30"
                 >
                   Did you mean {brandSuggestion.label}?
                 </button>
@@ -732,7 +732,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 <button
                   type="button"
                   onClick={applyModelSuggestion}
-                  className="text-xs px-3 py-1 rounded-full border border-red-900/40 text-red-200 hover:bg-red-900/30"
+                  className="text-xs px-3 py-1 rounded-full border border-zinc-700/70 text-red-200 hover:bg-red-900/30"
                 >
                   Did you mean {modelSuggestion.label}?
                 </button>
@@ -750,7 +750,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={brandOverrideInput}
               onChange={(e) => handleBrandOverrideChange(e.target.value)}
               placeholder="Search brands..."
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70"
             />
             <datalist id="brand-options">
               {brandOptions.map((brand) => (
@@ -778,7 +778,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 onChange={(e) => handleModelOverrideChange(e.target.value)}
                 placeholder={effectiveBrandId ? 'Search models...' : 'Select a brand first'}
                 disabled={!effectiveBrandId}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 disabled:text-gray-500"
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500"
               />
               <datalist id="model-options">
                 {modelOptions.map((model) => (
@@ -805,7 +805,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={conditionNote}
               onChange={(e) => setConditionNote(e.target.value)}
               rows={2}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
         )}
@@ -816,13 +816,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+            className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
           />
         </div>
       </div>
 
       {/* Variants */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Variants</h2>
           <button
@@ -938,7 +938,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       </div>
 
       {/* Images */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Images</h2>
         </div>
@@ -960,7 +960,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
             isDragging
               ? 'border-red-500 bg-red-900/10'
-              : 'border-red-900/30 bg-zinc-900/60'
+              : 'border-zinc-800/70 bg-zinc-900/60'
           }`}
         >
           <div className="flex flex-col items-center gap-2 text-gray-300">
@@ -1013,7 +1013,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       </div>
 
       {/* Pricing & Shipping */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Pricing & Shipping</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1025,7 +1025,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={shippingPrice}
               onChange={(e) => setShippingPrice(e.target.value)}
               placeholder={`Default $${formatMoney(defaultShippingPrice)}`}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
             <p className="text-gray-500 text-xs mt-1">
               Leave blank to use the {category} default: ${formatMoney(defaultShippingPrice)}.
@@ -1035,7 +1035,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       </div>
 
       {/* Tags */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Tags</h2>
         <TagInput tags={allTags} onAddTag={handleAddTag} onRemoveTag={handleRemoveTag} />
       </div>

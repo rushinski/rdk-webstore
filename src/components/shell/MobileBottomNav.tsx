@@ -22,7 +22,7 @@ export function MobileBottomNav() {
   }, []);
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-t border-red-900/20 z-40 safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-t border-zinc-800/70 z-40 safe-area-bottom">
       <div className="flex items-center justify-around h-16 px-4">
         <Link href="/" className="flex flex-col items-center text-gray-300 hover:text-white">
           <Home className="w-5 h-5" />

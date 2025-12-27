@@ -86,7 +86,7 @@ export default function SalesPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-zinc-900 text-white px-4 py-2 rounded border border-red-900/20 text-sm"
+            className="bg-zinc-900 text-white px-4 py-2 rounded border border-zinc-800/70 text-sm"
           >
             <option value="all">All Status</option>
             <option value="paid">Paid</option>
@@ -101,28 +101,28 @@ export default function SalesPage() {
 
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <span className="text-gray-400 text-sm">Total Sales</span>
           <div className="text-3xl font-bold text-white mt-2">{summary.totalSales}</div>
         </div>
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <span className="text-gray-400 text-sm">Revenue</span>
           <div className="text-3xl font-bold text-white mt-2">${summary.revenue.toFixed(2)}</div>
         </div>
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <span className="text-gray-400 text-sm">Profit</span>
           <div className="text-3xl font-bold text-green-400 mt-2">${summary.profit.toFixed(2)}</div>
         </div>
       </div>
 
       {/* Sales List */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded overflow-hidden">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden">
         {isLoading ? (
           <div className="text-center py-12 text-gray-400">Loading...</div>
         ) : (
           <table className="w-full">
             <thead>
-              <tr className="border-b border-red-900/20 bg-zinc-800">
+              <tr className="border-b border-zinc-800/70 bg-zinc-800">
                 <th className="text-left text-gray-400 font-semibold p-4">Date</th>
                 <th className="text-left text-gray-400 font-semibold p-4">Order</th>
                 <th className="text-left text-gray-400 font-semibold p-4">Customer</th>
@@ -143,7 +143,7 @@ export default function SalesPage() {
                 const status = order.status ?? 'pending';
 
                 return (
-                  <tr key={order.id} className="border-b border-red-900/20 hover:bg-zinc-800">
+                  <tr key={order.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
                     <td className="p-4 text-gray-400">
                       {order.created_at ? new Date(order.created_at).toLocaleDateString() : '-'}
                     </td>

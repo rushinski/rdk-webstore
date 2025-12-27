@@ -126,7 +126,7 @@ export function RegisterForm() {
             type="checkbox"
             checked={updatesOptIn}
             onChange={(e) => setUpdatesOptIn(e.target.checked)}
-            className="mt-0.5 h-4 w-4 border-zinc-800 bg-zinc-900 text-red-600 focus:ring-2 focus:ring-red-600/50 focus:ring-offset-0"
+            className="rdk-checkbox mt-0.5"
           />
           <span className="text-sm text-zinc-400">
             Send me drop alerts and exclusive offers

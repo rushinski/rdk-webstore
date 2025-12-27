@@ -90,7 +90,7 @@ export default function InventoryPage() {
       </div>
 
       {selectedIds.length > 0 && (
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-4 flex items-center justify-between">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex items-center justify-between">
           <span className="text-white">{selectedIds.length} selected</span>
           <button
             onClick={handleMassDelete}
@@ -107,13 +107,14 @@ export default function InventoryPage() {
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="hidden md:block bg-zinc-900 border border-red-900/20 rounded overflow-hidden">
+          <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-red-900/20 bg-zinc-800">
+                <tr className="border-b border-zinc-800/70 bg-zinc-800">
                   <th className="text-left p-4">
                     <input
                       type="checkbox"
+                      className="rdk-checkbox"
                       onChange={(e) => {
                         if (e.target.checked) {
                           setSelectedIds(products.map((p) => p.id));
@@ -138,10 +139,11 @@ export default function InventoryPage() {
                   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
 
                   return (
-                    <tr key={product.id} className="border-b border-red-900/20 hover:bg-zinc-800">
+                    <tr key={product.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
                       <td className="p-4">
                         <input
                           type="checkbox"
+                          className="rdk-checkbox"
                           checked={selectedIds.includes(product.id)}
                           onChange={() => toggleSelection(product.id)}
                         />
@@ -192,7 +194,7 @@ export default function InventoryPage() {
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
             {products.map((product) => (
-              <div key={product.id} className="bg-zinc-900 border border-red-900/20 rounded p-4">
+              <div key={product.id} className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <h3 className="text-white font-semibold">
@@ -201,6 +203,7 @@ export default function InventoryPage() {
                   </div>
                   <input
                     type="checkbox"
+                    className="rdk-checkbox"
                     checked={selectedIds.includes(product.id)}
                     onChange={() => toggleSelection(product.id)}
                   />

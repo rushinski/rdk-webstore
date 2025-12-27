@@ -99,7 +99,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <select
                 value={selectedVariantId}
                 onChange={(e) => setSelectedVariantId(e.target.value)}
-                className="w-full bg-zinc-900 text-white px-4 py-3 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-900 text-white px-4 py-3 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               >
                 {product.variants.map(variant => (
                   <option key={variant.id} value={variant.id}>
@@ -147,7 +147,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
           )}
 
           {/* Shipping & Returns Accordion */}
-          <div className="border-t border-red-900/20 pt-4">
+          <div className="border-t border-zinc-800/70 pt-4">
             <button
               onClick={() => setShowShipping(!showShipping)}
               className="flex items-center justify-between w-full text-white font-semibold mb-2"

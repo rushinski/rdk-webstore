@@ -83,7 +83,7 @@ function SuccessContent() {
           Please wait while we confirm your order. This should only take a moment.
         </p>
         {status && (
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6 text-left">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 text-left">
             <div className="flex justify-between text-gray-400 mb-2">
               <span>Order ID:</span>
               <span className="text-white font-mono text-sm">{status.id}</span>
@@ -106,7 +106,7 @@ function SuccessContent() {
         Thank you for your purchase. Your order has been successfully processed.
       </p>
 
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6 text-left">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
         <h2 className="text-xl font-semibold text-white mb-4">Order Details</h2>
         <div className="space-y-2 text-gray-400">
           <div className="flex justify-between">
@@ -123,7 +123,7 @@ function SuccessContent() {
               {status.fulfillment === 'pickup' ? 'Free (Pickup)' : `$${status.shipping.toFixed(2)}`}
             </span>
           </div>
-          <div className="border-t border-red-900/20 pt-2 mt-2">
+          <div className="border-t border-zinc-800/70 pt-2 mt-2">
             <div className="flex justify-between text-xl font-bold">
               <span className="text-white">Total:</span>
               <span className="text-white">${status.total.toFixed(2)}</span>

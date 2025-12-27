@@ -129,7 +129,7 @@ export default function StorePage() {
               setSort(e.target.value);
               loadProducts();
             }}
-            className="bg-zinc-900 text-white px-3 py-2 rounded border border-red-900/20 text-sm"
+            className="bg-zinc-900 text-white px-3 py-2 rounded border border-zinc-800/70 text-sm"
           >
             <option value="newest">Newest</option>
             <option value="price_asc">Price: Low to High</option>

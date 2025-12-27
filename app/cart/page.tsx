@@ -42,7 +42,7 @@ export default function CartPage() {
           {items.map((item) => (
             <div
               key={`${item.productId}-${item.variantId}`}
-              className="bg-zinc-900 border border-red-900/20 rounded p-4 flex gap-4"
+              className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex gap-4"
             >
               <div className="w-24 h-24 relative flex-shrink-0">
                 <Image
@@ -97,7 +97,7 @@ export default function CartPage() {
 
         {/* Order Summary */}
         <div className="lg:col-span-1">
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6 sticky top-20">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 sticky top-20">
             <h2 className="text-xl font-bold text-white mb-6">Order Summary</h2>
 
             <div className="space-y-3 mb-6">
@@ -109,7 +109,7 @@ export default function CartPage() {
                 <span>Shipping</span>
                 <span>Calculated at checkout</span>
               </div>
-              <div className="border-t border-red-900/20 pt-3">
+              <div className="border-t border-zinc-800/70 pt-3">
                 <div className="flex justify-between text-xl font-bold text-white">
                   <span>Total</span>
                   <span>${(total / 100).toFixed(2)}+</span>

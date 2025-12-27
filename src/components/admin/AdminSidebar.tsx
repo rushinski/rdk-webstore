@@ -82,7 +82,7 @@ export function AdminSidebar() {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:block w-64 bg-zinc-900 border-r border-red-900/20 min-h-screen p-6">
+      <aside className="hidden md:block w-64 bg-zinc-900 border-r border-zinc-800/70 min-h-screen p-6">
         <h2 className="text-2xl font-bold text-white mb-8">Admin</h2>
         <SidebarContent />
       </aside>

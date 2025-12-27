@@ -25,7 +25,7 @@ export function CartPeekDrawer({ isOpen, onClose }: CartPeekDrawerProps) {
     <div className="md:hidden fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       
-      <div className="absolute bottom-0 left-0 right-0 bg-black border-t border-red-900/20 rounded-t-2xl max-h-[70vh] overflow-y-auto">
+      <div className="absolute bottom-0 left-0 right-0 bg-black border-t border-zinc-800/70 rounded-t-2xl max-h-[70vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-white">Cart ({items.length})</h2>

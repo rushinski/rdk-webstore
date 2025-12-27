@@ -28,7 +28,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
       
-      <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-red-900/20 overflow-y-auto">
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-zinc-800/70 overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Cart</h2>
@@ -86,7 +86,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 ))}
               </div>
 
-              <div className="border-t border-red-900/20 pt-4 mb-4">
+              <div className="border-t border-zinc-800/70 pt-4 mb-4">
                 <div className="flex justify-between text-lg font-bold text-white">
                   <span>Total</span>
                   <span>${(total / 100).toFixed(2)}</span>

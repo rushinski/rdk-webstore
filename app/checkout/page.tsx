@@ -73,7 +73,7 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <h2 className="text-xl font-semibold text-white mb-4">Fulfillment Method</h2>
         <div className="space-y-3">
           <label className="flex items-center gap-3 cursor-pointer">
@@ -101,7 +101,7 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <h2 className="text-xl font-semibold text-white mb-4">Order Summary</h2>
         <div className="space-y-2 text-gray-400">
           <div className="flex justify-between">
@@ -112,7 +112,7 @@ export default function CheckoutPage() {
             <span>Shipping</span>
             <span>{fulfillment === 'pickup' ? 'Free' : 'Calculated at checkout'}</span>
           </div>
-          <div className="border-t border-red-900/20 pt-2 mt-2">
+          <div className="border-t border-zinc-800/70 pt-2 mt-2">
             <div className="flex justify-between text-xl font-bold text-white">
               <span>Total</span>
               <span>${(total / 100).toFixed(2)}+</span>

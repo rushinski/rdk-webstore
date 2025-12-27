@@ -83,7 +83,7 @@ export default function DashboardPage() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.title} className="bg-zinc-900 border border-red-900/20 rounded p-6">
+            <div key={stat.title} className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-400 text-sm">{stat.title}</span>
                 <Icon className="w-5 h-5 text-gray-400" />
@@ -110,19 +110,19 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Sales Trend</h2>
           <SalesChart data={salesTrend} />
         </div>
 
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Traffic</h2>
           <TrafficChart />
         </div>
       </div>
 
       {/* Recent Sales */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Recent Sales</h2>
           <Link href="/admin/sales" className="text-red-500 hover:underline text-sm">
@@ -132,7 +132,7 @@ export default function DashboardPage() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-red-900/20">
+              <tr className="border-b border-zinc-800/70">
                 <th className="text-left text-gray-400 font-semibold py-3">Order</th>
                 <th className="text-left text-gray-400 font-semibold py-3">Customer</th>
                 <th className="text-right text-gray-400 font-semibold py-3">Amount</th>
@@ -141,7 +141,7 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {recentOrders.map((order) => (
-                <tr key={order.id} className="border-b border-red-900/20">
+                <tr key={order.id} className="border-b border-zinc-800/70">
                   <td className="py-3 text-white">#{order.id.slice(0, 8)}</td>
                   <td className="py-3 text-gray-400">{order.user_id ? order.user_id.slice(0, 6) : 'Guest'}</td>
                   <td className="py-3 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>

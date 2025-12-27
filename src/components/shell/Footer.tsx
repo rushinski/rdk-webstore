@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Instagram, Youtube, MapPin, Phone, Mail } from "lucide-react";
+import { Instagram, MapPin, Phone, Mail } from "lucide-react";
 
 export function Footer() {
   const [email, setEmail] = useState("");
@@ -96,6 +96,17 @@ export function Footer() {
                 </a>
               </li>
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
+                <Instagram className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <a
+                  href="https://instagram.com/realdealkickzsc"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors"
+                >
+                  @realdealkickzsc
+                </a>
+              </li>
+              <li className="flex items-start gap-2 text-zinc-500 text-sm">
                 <Phone className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <a href="tel:+18035551234" className="hover:text-white transition-colors">
                   (803) 555-1234
@@ -162,31 +173,6 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-
-            {/* Social Links */}
-            <div>
-              <p className="text-white text-sm font-medium mb-3">Follow Us</p>
-              <div className="flex gap-4">
-                <a
-                  href="https://instagram.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-500 hover:text-white transition-colors"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="w-5 h-5" />
-                </a>
-                <a
-                  href="https://youtube.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-zinc-500 hover:text-white transition-colors"
-                  aria-label="YouTube"
-                >
-                  <Youtube className="w-5 h-5" />
-                </a>
-              </div>
-            </div>
           </div>
         </div>
 

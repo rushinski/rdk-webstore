@@ -24,7 +24,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/store/${product.id}`} className="group block">
-      <div className="bg-zinc-900 border border-red-900/20 rounded overflow-hidden hover:border-red-600/40 transition">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-red-600/40 transition">
         <div className="aspect-square relative bg-zinc-800">
           {primaryImage && (
             <Image

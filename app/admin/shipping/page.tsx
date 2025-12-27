@@ -88,7 +88,7 @@ export default function ShippingPage() {
             const shipping = Array.isArray(order.shipping) ? order.shipping[0] : order.shipping;
             const tracking = trackingInputs[order.id] ?? { carrier: '', trackingNumber: '' };
             return (
-              <div key={order.id} className="bg-zinc-900 border border-red-900/20 rounded p-6">
+              <div key={order.id} className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div className="text-white font-semibold">Order #{order.id.slice(0, 8)}</div>
                   <div className="text-gray-400 text-sm">

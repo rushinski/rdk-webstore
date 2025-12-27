@@ -110,14 +110,14 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       )}
 
       {/* Email (Read-only) */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <h2 className="text-xl font-semibold text-white mb-4">Email</h2>
         <p className="text-gray-400">{userEmail}</p>
         <p className="text-gray-500 text-sm mt-2">Email changes are not currently supported</p>
       </div>
 
       {/* Shipping Info */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <h2 className="text-xl font-semibold text-white mb-4">Shipping Information</h2>
         <form onSubmit={handleSaveShipping} className="space-y-4">
           <div>
@@ -126,7 +126,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="text"
               value={profile.full_name || ''}
               onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -136,7 +136,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="tel"
               value={profile.phone || ''}
               onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -146,7 +146,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="text"
               value={profile.address_line1 || ''}
               onChange={(e) => setProfile({ ...profile, address_line1: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -156,7 +156,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="text"
               value={profile.address_line2 || ''}
               onChange={(e) => setProfile({ ...profile, address_line2: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -167,7 +167,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 value={profile.city || ''}
                 onChange={(e) => setProfile({ ...profile, city: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
 
@@ -177,7 +177,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 value={profile.state || ''}
                 onChange={(e) => setProfile({ ...profile, state: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
           </div>
@@ -189,7 +189,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 value={profile.postal_code || ''}
                 onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
 
@@ -199,7 +199,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 value={profile.country || ''}
                 onChange={(e) => setProfile({ ...profile, country: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
           </div>
@@ -215,7 +215,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       </div>
 
       {/* Order History */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <h2 className="text-xl font-semibold text-white mb-4">Order History</h2>
         {isOrdersLoading ? (
           <div className="text-gray-400">Loading orders...</div>
@@ -224,7 +224,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         ) : (
           <div className="space-y-4">
             {orders.map((order) => (
-              <div key={order.id} className="border border-red-900/20 rounded p-4">
+              <div key={order.id} className="border border-zinc-800/70 rounded p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="text-white font-semibold">Order #{order.id.slice(0, 8)}</div>
                   <div className="text-gray-400 text-sm">{new Date(order.created_at).toLocaleDateString()}</div>
@@ -254,7 +254,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       </div>
 
       {/* Change Password */}
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Change Password</h2>
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
@@ -263,7 +263,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
@@ -273,7 +273,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 

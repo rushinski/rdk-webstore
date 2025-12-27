@@ -67,7 +67,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-4">
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Payout Setup</h2>
           <p className="text-gray-400 mb-4">
             Connect your bank account to receive payouts
@@ -77,7 +77,7 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Shipping Defaults</h2>
           <p className="text-gray-400 mb-4">
             Set default shipping costs for different product types
@@ -95,7 +95,7 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setShippingDefaults((prev) => ({ ...prev, [category.key]: e.target.value }))
                   }
-                  className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-red-900/20"
+                  className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70"
                 />
               </div>
             ))}
@@ -112,7 +112,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Store Information</h2>
           <p className="text-gray-400 mb-4">
             Update your store name, description, and contact info

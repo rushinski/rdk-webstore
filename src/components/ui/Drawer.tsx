@@ -23,9 +23,9 @@ export function Drawer({ isOpen, onClose, title, children, side = 'right' }: Dra
           side === 'right' ? 'right-0' : 'left-0'
         } w-full max-w-md bg-zinc-900 border-${
           side === 'right' ? 'l' : 'r'
-        } border-red-900/20 overflow-y-auto`}
+        } border-zinc-800/70 overflow-y-auto`}
       >
-        <div className="flex items-center justify-between p-6 border-b border-red-900/20">
+        <div className="flex items-center justify-between p-6 border-b border-zinc-800/70">
           <h2 className="text-xl font-semibold text-white">{title}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />

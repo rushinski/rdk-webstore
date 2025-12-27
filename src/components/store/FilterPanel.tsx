@@ -192,7 +192,7 @@ export function FilterPanel({
                   type="checkbox"
                   checked={selectedCategories.includes(cat)}
                   onChange={() => handleCategoryChange(cat)}
-                  className="mr-2"
+                  className="rdk-checkbox mr-2"
                 />
                 <span className="capitalize">{cat}</span>
               </label>
@@ -215,12 +215,12 @@ export function FilterPanel({
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {brands.map((brand) => (
                 <label key={brand.value} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedBrands.includes(brand.value)}
-                    onChange={() => handleBrandChange(brand.value)}
-                    className="mr-2"
-                  />
+                <input
+                  type="checkbox"
+                  checked={selectedBrands.includes(brand.value)}
+                  onChange={() => handleBrandChange(brand.value)}
+                  className="rdk-checkbox mr-2"
+                />
                   <span>{brand.label}</span>
                 </label>
               ))}
@@ -243,12 +243,12 @@ export function FilterPanel({
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {models.map((model) => (
                 <label key={model} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={selectedModels.includes(model)}
-                    onChange={() => handleModelChange(model)}
-                    className="mr-2"
-                  />
+                <input
+                  type="checkbox"
+                  checked={selectedModels.includes(model)}
+                  onChange={() => handleModelChange(model)}
+                  className="rdk-checkbox mr-2"
+                />
                   <span>{model}</span>
                 </label>
               ))}
@@ -279,7 +279,7 @@ export function FilterPanel({
                           type="checkbox"
                           checked={selectedShoeSizes.includes(size)}
                           onChange={() => handleShoeSizeChange(size)}
-                          className="mr-2"
+                          className="rdk-checkbox mr-2"
                         />
                         <span>{size}</span>
                       </label>
@@ -297,7 +297,7 @@ export function FilterPanel({
                           type="checkbox"
                           checked={selectedClothingSizes.includes(size)}
                           onChange={() => handleClothingSizeChange(size)}
-                          className="mr-2"
+                          className="rdk-checkbox mr-2"
                         />
                         <span>{size}</span>
                       </label>
@@ -327,7 +327,7 @@ export function FilterPanel({
                   type="checkbox"
                   checked={selectedConditions.includes(cond)}
                   onChange={() => handleConditionChange(cond)}
-                  className="mr-2"
+                  className="rdk-checkbox mr-2"
                 />
                 <span className="capitalize">{cond}</span>
               </label>
@@ -364,7 +364,7 @@ export function FilterPanel({
       )}
 
       {/* Desktop Boxed Filter Panel */}
-      <div className="hidden md:block bg-zinc-900 border border-red-900/20 rounded p-6">
+      <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-bold text-white mb-6">Filters</h2>
         <FilterContent />
       </div>

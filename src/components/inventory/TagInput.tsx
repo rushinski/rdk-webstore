@@ -30,7 +30,7 @@ export function TagInput({ tags, onAddTag, onRemoveTag, placeholder = 'Add tag..
 
   return (
     <div>
-      <div className="flex flex-wrap gap-2 p-2 bg-zinc-800 border border-red-900/20 rounded min-h-[42px]">
+      <div className="flex flex-wrap gap-2 p-2 bg-zinc-800 border border-zinc-800/70 rounded min-h-[42px]">
         {tags.map(tag => (
           <span
             key={`${tag.group_key}:${tag.label}`}

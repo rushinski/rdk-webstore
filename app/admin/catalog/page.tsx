@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { MoreHorizontal, RefreshCw, Search } from 'lucide-react';
+import { MoreHorizontal, Search } from 'lucide-react';
 
 type BrandGroup = {
   id: string;
@@ -497,7 +497,7 @@ export default function CatalogPage() {
         <MoreHorizontal className="w-4 h-4" />
       </button>
       {openMenuKey === key && (
-        <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-red-900/30 rounded shadow-lg z-10">
+        <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800/70 rounded shadow-lg z-10">
           <button
             onClick={() => {
               setOpenMenuKey(null);
@@ -536,54 +536,51 @@ export default function CatalogPage() {
             allowed but treated as provisional.
           </p>
         </div>
-        <button
-          onClick={loadAll}
-          className="inline-flex items-center gap-2 bg-zinc-900 border border-red-900/30 text-gray-200 px-3 py-2 rounded hover:bg-zinc-800"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Refresh
-        </button>
       </div>
 
       {message && <div className="text-sm text-gray-400">{message}</div>}
 
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-4">
-        <details className="group">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
+        <details className="group" open>
           <summary className="cursor-pointer list-none text-sm text-gray-200 font-medium flex items-center justify-between">
             <span>Info key: how the catalog system works</span>
             <span className="text-xs text-gray-500 group-open:hidden">Show</span>
             <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
           </summary>
           <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm text-gray-300">
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Brand Groups</div>
               <div>Top-level buckets used for navigation (Nike, Designer). Groups are not brands.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Brands</div>
               <div>Canonical brand labels used for products and filters. Each brand belongs to one group.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Models</div>
               <div>Canonical sneaker model labels tied to a brand. Only used when category is sneakers.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Aliases</div>
               <div>Alternate spellings or shorthand that map to brands/models. Used by the parser.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Alias Priority</div>
+              <div>When multiple aliases match, higher priority wins over shorter or lower-priority matches.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Candidates</div>
               <div>Unknown brands/models created during product entry. Review and accept to add them.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Verified</div>
               <div>Trusted entries that appear cleanly in storefront filters. Unverified is provisional.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Active</div>
               <div>Active entries are used by the parser and UI. Inactive hides them without deleting.</div>
             </div>
-            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+            <div className="bg-zinc-950/40 border border-zinc-800/70 rounded p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Title Parsing</div>
               <div>
                 Full titles are parsed into brand, model, and name. Brand is found first, then model
@@ -594,9 +591,9 @@ export default function CatalogPage() {
         </details>
       </div>
 
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-4 space-y-4">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 bg-zinc-950/40 border border-red-900/20 rounded px-3 py-2 w-full lg:w-80">
+          <div className="flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/70 rounded px-3 py-2 w-full lg:w-80">
             <Search className="w-4 h-4 text-gray-500" />
             <input
               value={query}
@@ -609,6 +606,7 @@ export default function CatalogPage() {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
+                className="rdk-checkbox"
                 checked={showInactive}
                 onChange={(e) => setShowInactive(e.target.checked)}
               />
@@ -617,6 +615,7 @@ export default function CatalogPage() {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
+                className="rdk-checkbox"
                 checked={showUnverified}
                 onChange={(e) => setShowUnverified(e.target.checked)}
               />
@@ -643,7 +642,7 @@ export default function CatalogPage() {
       </div>
 
       {activeTab === 'groups' && (
-        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Brand Groups</h2>
             <span className="text-xs text-gray-500">{filteredGroups.length} groups</span>
@@ -674,7 +673,7 @@ export default function CatalogPage() {
               <div className="text-gray-500 text-sm">No groups found.</div>
             )}
             {filteredGroups.map((group) => (
-              <div key={group.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+              <div key={group.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   <div className="md:col-span-4">
                     <div className="text-white font-medium">{group.label}</div>
@@ -698,7 +697,7 @@ export default function CatalogPage() {
       )}
 
       {activeTab === 'brands' && (
-        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Brands</h2>
             <span className="text-xs text-gray-500">{filteredBrands.length} brands</span>
@@ -735,7 +734,7 @@ export default function CatalogPage() {
               <div className="text-gray-500 text-sm">No brands found.</div>
             )}
             {filteredBrands.map((brand) => (
-              <div key={brand.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+              <div key={brand.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   <div className="md:col-span-4">
                     <div className="text-white font-medium">{brand.canonical_label}</div>
@@ -760,7 +759,7 @@ export default function CatalogPage() {
       )}
 
       {activeTab === 'models' && (
-        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Models</h2>
             <span className="text-xs text-gray-500">{filteredModels.length} models</span>
@@ -797,7 +796,7 @@ export default function CatalogPage() {
               <div className="text-gray-500 text-sm">No models found.</div>
             )}
             {filteredModels.map((model) => (
-              <div key={model.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+              <div key={model.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   <div className="md:col-span-4">
                     <div className="text-white font-medium">{model.canonical_label}</div>
@@ -822,7 +821,7 @@ export default function CatalogPage() {
       )}
 
       {activeTab === 'aliases' && (
-        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Aliases</h2>
             <span className="text-xs text-gray-500">{filteredAliases.length} aliases</span>
@@ -870,7 +869,7 @@ export default function CatalogPage() {
               <input
                 value={newAlias.priority}
                 onChange={(e) => setNewAlias((prev) => ({ ...prev, priority: e.target.value }))}
-                placeholder="Priority"
+                placeholder="Priority (higher wins)"
                 className="bg-zinc-800 text-white px-3 py-2 rounded w-24"
               />
               <button
@@ -887,7 +886,7 @@ export default function CatalogPage() {
               <div className="text-gray-500 text-sm">No aliases found.</div>
             )}
             {filteredAliases.map((alias) => (
-              <div key={alias.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+              <div key={alias.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   <div className="md:col-span-4">
                     <div className="text-white font-medium">{alias.alias_label}</div>
@@ -919,7 +918,7 @@ export default function CatalogPage() {
       )}
 
       {activeTab === 'candidates' && (
-        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Candidates</h2>
             <span className="text-xs text-gray-500">{filteredCandidates.length} pending</span>
@@ -930,7 +929,7 @@ export default function CatalogPage() {
               <div className="text-gray-500 text-sm">No pending candidates.</div>
             )}
             {filteredCandidates.map((candidate) => (
-              <div key={candidate.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+              <div key={candidate.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   <div className="md:col-span-4">
                     <div className="text-white font-medium">{candidate.raw_text}</div>
@@ -984,7 +983,7 @@ export default function CatalogPage() {
       {editTarget && editDraft && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
           <div
-            className="bg-zinc-900 border border-red-900/30 rounded-lg w-full max-w-lg p-6 space-y-4"
+            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -1014,6 +1013,7 @@ export default function CatalogPage() {
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <input
                     type="checkbox"
+                    className="rdk-checkbox"
                     checked={editDraft.is_active}
                     onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
                   />
@@ -1047,6 +1047,7 @@ export default function CatalogPage() {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      className="rdk-checkbox"
                       checked={editDraft.is_active}
                       onChange={(e) =>
                         setEditDraft({ ...editDraft, is_active: e.target.checked })
@@ -1057,6 +1058,7 @@ export default function CatalogPage() {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      className="rdk-checkbox"
                       checked={editDraft.is_verified}
                       onChange={(e) =>
                         setEditDraft({ ...editDraft, is_verified: e.target.checked })
@@ -1093,6 +1095,7 @@ export default function CatalogPage() {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      className="rdk-checkbox"
                       checked={editDraft.is_active}
                       onChange={(e) =>
                         setEditDraft({ ...editDraft, is_active: e.target.checked })
@@ -1103,6 +1106,7 @@ export default function CatalogPage() {
                   <label className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      className="rdk-checkbox"
                       checked={editDraft.is_verified}
                       onChange={(e) =>
                         setEditDraft({ ...editDraft, is_verified: e.target.checked })
@@ -1133,6 +1137,7 @@ export default function CatalogPage() {
                 <label className="flex items-center gap-2 text-sm text-gray-300">
                   <input
                     type="checkbox"
+                    className="rdk-checkbox"
                     checked={editDraft.is_active}
                     onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
                   />
@@ -1163,7 +1168,7 @@ export default function CatalogPage() {
       {confirmTarget && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
           <div
-            className="bg-zinc-900 border border-red-900/30 rounded-lg w-full max-w-md p-6 space-y-4"
+            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-md p-6 space-y-4"
             onClick={(event) => event.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-white">Delete {confirmTarget.type}</h3>

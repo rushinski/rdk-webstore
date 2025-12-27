@@ -104,6 +104,12 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
+  const [authState, setAuthState] = useState({
+    isAuthenticated,
+    isAdmin,
+    userEmail,
+  });
+  const [authLoading, setAuthLoading] = useState(true);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
   const [designerBrands, setDesignerBrands] = useState<string[]>([]);
 
@@ -167,6 +173,39 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    setAuthState({ isAuthenticated, isAdmin, userEmail });
+  }, [isAuthenticated, isAdmin, userEmail]);
+
+  useEffect(() => {
+    let active = true;
+    const loadSession = async () => {
+      try {
+        const response = await fetch('/api/me', { cache: 'no-store' });
+        const data = await response.json();
+        if (!active) return;
+        if (data?.user) {
+          setAuthState({
+            isAuthenticated: true,
+            isAdmin: data.profile?.role === 'admin',
+            userEmail: data.user.email ?? data.profile?.email ?? '',
+          });
+        } else {
+          setAuthState({ isAuthenticated: false, isAdmin: false, userEmail: undefined });
+        }
+      } catch (error) {
+        console.error('Load session error:', error);
+      } finally {
+        if (active) setAuthLoading(false);
+      }
+    };
+
+    loadSession();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
@@ -224,6 +263,11 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
     ],
     []
   );
+
+  const resolvedIsAuthenticated = authState.isAuthenticated;
+  const resolvedIsAdmin = authState.isAdmin;
+  const resolvedUserEmail = authState.userEmail;
+  const showAuthButtons = !resolvedIsAuthenticated && !authLoading;
 
   return (
     <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -448,7 +492,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             )}
           </button>
 
-          {isAuthenticated ? (
+          {resolvedIsAuthenticated ? (
             <div ref={profileRef} className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -460,9 +504,9 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
 
               {isProfileOpen && (
                 <div className="absolute top-full right-0 mt-3 w-56 border border-zinc-800 bg-black shadow-2xl z-50">
-                  {userEmail && (
+                  {resolvedUserEmail && (
                     <div className="px-4 py-3 border-b border-zinc-900">
-                      <p className="text-xs text-zinc-500 truncate">{userEmail}</p>
+                      <p className="text-xs text-zinc-500 truncate">{resolvedUserEmail}</p>
                     </div>
                   )}
 
@@ -475,7 +519,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                     Account Settings
                   </Link>
 
-                  {isAdmin && (
+                  {resolvedIsAdmin && (
                     <Link
                       href="/admin"
                       onClick={() => setIsProfileOpen(false)}
@@ -496,7 +540,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 </div>
               )}
             </div>
-          ) : (
+          ) : showAuthButtons ? (
             <div className="flex items-center gap-2">
               <Link href={loginUrl} className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
                 Login
@@ -505,7 +549,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 Sign Up
               </Link>
             </div>
-          )}
+          ) : null}
         </div>
 
         <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-gray-300 cursor-pointer" aria-label="Open menu">

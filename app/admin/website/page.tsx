@@ -8,7 +8,7 @@ export default function WebsitePage() {
         <p className="text-gray-400">Manage your storefront content and pages</p>
       </div>
 
-      <div className="bg-zinc-900 border border-red-900/20 rounded p-12 text-center">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-12 text-center">
         <h2 className="text-2xl font-semibold text-white mb-4">
           Website Management
         </h2>

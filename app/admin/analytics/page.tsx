@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
         <select
           value={range}
           onChange={(e) => setRange(e.target.value)}
-          className="bg-zinc-900 text-white px-4 py-2 rounded border border-red-900/20"
+          className="bg-zinc-900 text-white px-4 py-2 rounded border border-zinc-800/70"
         >
           <option value="today">Today</option>
           <option value="7d">Last 7 days</option>
@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
       <div>
         <h2 className="text-2xl font-semibold text-white mb-4">Traffic</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">Total Visits</span>
               <Users className="w-5 h-5 text-gray-400" />
@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
             <div className="text-green-400 text-sm mt-2">+8.2% from last week</div>
           </div>
 
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">Unique Visitors</span>
               <Eye className="w-5 h-5 text-gray-400" />
@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
             <div className="text-green-400 text-sm mt-2">+5.1% from last week</div>
           </div>
 
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">Page Views</span>
               <Eye className="w-5 h-5 text-gray-400" />
@@ -80,7 +80,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h3 className="text-xl font-semibold text-white mb-4">Weekly Traffic</h3>
           <TrafficChart />
         </div>
@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
         <h2 className="text-2xl font-semibold text-white mb-4">Financials</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">Revenue</span>
               <DollarSign className="w-5 h-5 text-gray-400" />
@@ -99,7 +99,7 @@ export default function AnalyticsPage() {
             <div className="text-3xl font-bold text-white">${summary.revenue.toFixed(2)}</div>
           </div>
 
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">Profit</span>
               <TrendingUp className="w-5 h-5 text-gray-400" />
@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
             <div className="text-3xl font-bold text-white">${summary.profit.toFixed(2)}</div>
           </div>
 
-          <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-400 text-sm">Orders</span>
               <DollarSign className="w-5 h-5 text-gray-400" />
@@ -116,7 +116,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h3 className="text-xl font-semibold text-white mb-4">Revenue Trend</h3>
           <SalesChart data={salesTrend} />
         </div>
