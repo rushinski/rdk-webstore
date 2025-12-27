@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { MoreHorizontal, RefreshCw, Search } from 'lucide-react';
 
 type BrandGroup = {
   id: string;
@@ -44,6 +45,53 @@ type Candidate = {
   status: string;
 };
 
+type ActiveTab = 'brands' | 'models' | 'aliases' | 'groups' | 'candidates';
+
+type EditTarget =
+  | { type: 'group'; item: BrandGroup }
+  | { type: 'brand'; item: Brand }
+  | { type: 'model'; item: Model }
+  | { type: 'alias'; item: Alias };
+
+const tabs: Array<{ key: ActiveTab; label: string }> = [
+  { key: 'brands', label: 'Brands' },
+  { key: 'models', label: 'Models' },
+  { key: 'aliases', label: 'Aliases' },
+  { key: 'groups', label: 'Groups' },
+  { key: 'candidates', label: 'Candidates' },
+];
+
+const emptyDraft = {
+  group: { key: '', label: '' },
+  brand: { groupId: '', label: '' },
+  model: { brandId: '', label: '' },
+  alias: { entityType: 'brand' as 'brand' | 'model', entityId: '', label: '', priority: '0' },
+};
+
+function StatusPill({ active }: { active: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+        active ? 'bg-emerald-500/10 text-emerald-200' : 'bg-zinc-800 text-gray-400'
+      }`}
+    >
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  );
+}
+
+function VerifiedPill({ verified }: { verified: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+        verified ? 'bg-blue-500/10 text-blue-200' : 'bg-zinc-800 text-gray-400'
+      }`}
+    >
+      {verified ? 'Verified' : 'Unverified'}
+    </span>
+  );
+}
+
 export default function CatalogPage() {
   const [groups, setGroups] = useState<BrandGroup[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -51,19 +99,94 @@ export default function CatalogPage() {
   const [aliases, setAliases] = useState<Alias[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [newGroup, setNewGroup] = useState({ key: '', label: '' });
-  const [newBrand, setNewBrand] = useState({ groupId: '', label: '' });
-  const [newModel, setNewModel] = useState({ brandId: '', label: '' });
-  const [newAlias, setNewAlias] = useState({
-    entityType: 'brand' as 'brand' | 'model',
-    entityId: '',
-    label: '',
-    priority: '0',
-  });
+  const [activeTab, setActiveTab] = useState<ActiveTab>('brands');
+  const [query, setQuery] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
+  const [showUnverified, setShowUnverified] = useState(true);
+  const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
+
+  const [newGroup, setNewGroup] = useState(emptyDraft.group);
+  const [newBrand, setNewBrand] = useState(emptyDraft.brand);
+  const [newModel, setNewModel] = useState(emptyDraft.model);
+  const [newAlias, setNewAlias] = useState(emptyDraft.alias);
   const [candidateGroupSelections, setCandidateGroupSelections] = useState<Record<string, string>>({});
 
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editDraft, setEditDraft] = useState<any>(null);
+  const [confirmTarget, setConfirmTarget] = useState<EditTarget | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const matchesQuery = (value: string) =>
+    normalizedQuery.length === 0 || value.toLowerCase().includes(normalizedQuery);
+
+  const groupMap = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
+  const brandMap = useMemo(() => new Map(brands.map((brand) => [brand.id, brand])), [brands]);
+  const modelMap = useMemo(() => new Map(models.map((model) => [model.id, model])), [models]);
+
+  const filteredGroups = useMemo(
+    () =>
+      groups.filter((group) => {
+        if (!showInactive && !group.is_active) return false;
+        if (!matchesQuery(group.label) && !matchesQuery(group.key)) return false;
+        return true;
+      }),
+    [groups, showInactive, normalizedQuery]
+  );
+
+  const filteredBrands = useMemo(
+    () =>
+      brands.filter((brand) => {
+        if (!showInactive && !brand.is_active) return false;
+        if (!showUnverified && !brand.is_verified) return false;
+        const groupLabel = groupMap.get(brand.group_id)?.label ?? '';
+        if (!matchesQuery(brand.canonical_label) && !matchesQuery(groupLabel)) return false;
+        return true;
+      }),
+    [brands, showInactive, showUnverified, normalizedQuery, groupMap]
+  );
+
+  const filteredModels = useMemo(
+    () =>
+      models.filter((model) => {
+        if (!showInactive && !model.is_active) return false;
+        if (!showUnverified && !model.is_verified) return false;
+        const brandLabel = brandMap.get(model.brand_id)?.canonical_label ?? '';
+        if (!matchesQuery(model.canonical_label) && !matchesQuery(brandLabel)) return false;
+        return true;
+      }),
+    [models, showInactive, showUnverified, normalizedQuery, brandMap]
+  );
+
+  const filteredAliases = useMemo(
+    () =>
+      aliases.filter((alias) => {
+        if (!showInactive && !alias.is_active) return false;
+        const targetLabel =
+          alias.entity_type === 'brand'
+            ? brandMap.get(alias.brand_id ?? '')?.canonical_label ?? ''
+            : modelMap.get(alias.model_id ?? '')?.canonical_label ?? '';
+        if (!matchesQuery(alias.alias_label) && !matchesQuery(targetLabel)) return false;
+        return true;
+      }),
+    [aliases, showInactive, normalizedQuery, brandMap, modelMap]
+  );
+
+  const filteredCandidates = useMemo(
+    () =>
+      candidates.filter((candidate) => {
+        const brandLabel = brandMap.get(candidate.parent_brand_id ?? '')?.canonical_label ?? '';
+        if (!matchesQuery(candidate.raw_text) && !matchesQuery(brandLabel)) return false;
+        return true;
+      }),
+    [candidates, normalizedQuery, brandMap]
+  );
+
   const loadAll = async () => {
+    setIsLoading(true);
+    setMessage('');
     try {
       const [groupsRes, brandsRes, modelsRes, aliasesRes, candidatesRes] = await Promise.all([
         fetch('/api/admin/catalog/brand-groups?includeInactive=1'),
@@ -87,6 +210,8 @@ export default function CatalogPage() {
     } catch (error) {
       console.error('Load catalog error:', error);
       setMessage('Failed to load catalog data.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -94,20 +219,46 @@ export default function CatalogPage() {
     loadAll();
   }, []);
 
-  const updateGroupField = (id: string, field: keyof BrandGroup, value: string | boolean) => {
-    setGroups((prev) => prev.map((group) => (group.id === id ? { ...group, [field]: value } : group)));
-  };
+  useEffect(() => {
+    if (!editTarget) {
+      setEditDraft(null);
+      return;
+    }
 
-  const updateBrandField = (id: string, field: keyof Brand, value: string | boolean) => {
-    setBrands((prev) => prev.map((brand) => (brand.id === id ? { ...brand, [field]: value } : brand)));
-  };
+    if (editTarget.type === 'group') {
+      setEditDraft({
+        key: editTarget.item.key,
+        label: editTarget.item.label,
+        is_active: editTarget.item.is_active,
+      });
+    }
+    if (editTarget.type === 'brand') {
+      setEditDraft({
+        canonical_label: editTarget.item.canonical_label,
+        group_id: editTarget.item.group_id,
+        is_active: editTarget.item.is_active,
+        is_verified: editTarget.item.is_verified,
+      });
+    }
+    if (editTarget.type === 'model') {
+      setEditDraft({
+        canonical_label: editTarget.item.canonical_label,
+        brand_id: editTarget.item.brand_id,
+        is_active: editTarget.item.is_active,
+        is_verified: editTarget.item.is_verified,
+      });
+    }
+    if (editTarget.type === 'alias') {
+      setEditDraft({
+        alias_label: editTarget.item.alias_label,
+        priority: editTarget.item.priority ?? 0,
+        is_active: editTarget.item.is_active,
+      });
+    }
+  }, [editTarget]);
 
-  const updateModelField = (id: string, field: keyof Model, value: string | boolean) => {
-    setModels((prev) => prev.map((model) => (model.id === id ? { ...model, [field]: value } : model)));
-  };
-
-  const updateAliasField = (id: string, field: keyof Alias, value: string | boolean | number) => {
-    setAliases((prev) => prev.map((alias) => (alias.id === id ? { ...alias, [field]: value } : alias)));
+  const toggleMenu = (key: string) => {
+    setOpenMenuKey((prev) => (prev === key ? null : key));
   };
 
   const handleCreateGroup = async () => {
@@ -121,25 +272,10 @@ export default function CatalogPage() {
       body: JSON.stringify({ key: newGroup.key.trim(), label: newGroup.label.trim() }),
     });
     if (response.ok) {
-      setNewGroup({ key: '', label: '' });
+      setNewGroup(emptyDraft.group);
       await loadAll();
     } else {
       setMessage('Failed to create brand group.');
-    }
-  };
-
-  const handleSaveGroup = async (group: BrandGroup) => {
-    const response = await fetch(`/api/admin/catalog/brand-groups/${group.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key: group.key,
-        label: group.label,
-        isActive: group.is_active,
-      }),
-    });
-    if (!response.ok) {
-      setMessage('Failed to update brand group.');
     }
   };
 
@@ -154,26 +290,10 @@ export default function CatalogPage() {
       body: JSON.stringify({ groupId: newBrand.groupId, canonicalLabel: newBrand.label.trim() }),
     });
     if (response.ok) {
-      setNewBrand({ groupId: '', label: '' });
+      setNewBrand(emptyDraft.brand);
       await loadAll();
     } else {
       setMessage('Failed to create brand.');
-    }
-  };
-
-  const handleSaveBrand = async (brand: Brand) => {
-    const response = await fetch(`/api/admin/catalog/brands/${brand.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        groupId: brand.group_id,
-        canonicalLabel: brand.canonical_label,
-        isActive: brand.is_active,
-        isVerified: brand.is_verified,
-      }),
-    });
-    if (!response.ok) {
-      setMessage('Failed to update brand.');
     }
   };
 
@@ -188,26 +308,10 @@ export default function CatalogPage() {
       body: JSON.stringify({ brandId: newModel.brandId, canonicalLabel: newModel.label.trim() }),
     });
     if (response.ok) {
-      setNewModel({ brandId: '', label: '' });
+      setNewModel(emptyDraft.model);
       await loadAll();
     } else {
       setMessage('Failed to create model.');
-    }
-  };
-
-  const handleSaveModel = async (model: Model) => {
-    const response = await fetch(`/api/admin/catalog/models/${model.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        brandId: model.brand_id,
-        canonicalLabel: model.canonical_label,
-        isActive: model.is_active,
-        isVerified: model.is_verified,
-      }),
-    });
-    if (!response.ok) {
-      setMessage('Failed to update model.');
     }
   };
 
@@ -228,25 +332,10 @@ export default function CatalogPage() {
       }),
     });
     if (response.ok) {
-      setNewAlias({ entityType: 'brand', entityId: '', label: '', priority: '0' });
+      setNewAlias(emptyDraft.alias);
       await loadAll();
     } else {
       setMessage('Failed to create alias.');
-    }
-  };
-
-  const handleSaveAlias = async (alias: Alias) => {
-    const response = await fetch(`/api/admin/catalog/aliases/${alias.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        aliasLabel: alias.alias_label,
-        priority: alias.priority,
-        isActive: alias.is_active,
-      }),
-    });
-    if (!response.ok) {
-      setMessage('Failed to update alias.');
     }
   };
 
@@ -277,363 +366,781 @@ export default function CatalogPage() {
     }
   };
 
+  const handleSaveEdit = async () => {
+    if (!editTarget || !editDraft) return;
+    setIsSaving(true);
+    setMessage('');
+    try {
+      if (editTarget.type === 'group') {
+        await fetch(`/api/admin/catalog/brand-groups/${editTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: editDraft.key,
+            label: editDraft.label,
+            isActive: editDraft.is_active,
+          }),
+        });
+      }
+
+      if (editTarget.type === 'brand') {
+        await fetch(`/api/admin/catalog/brands/${editTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupId: editDraft.group_id,
+            canonicalLabel: editDraft.canonical_label,
+            isActive: editDraft.is_active,
+            isVerified: editDraft.is_verified,
+          }),
+        });
+      }
+
+      if (editTarget.type === 'model') {
+        await fetch(`/api/admin/catalog/models/${editTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brandId: editDraft.brand_id,
+            canonicalLabel: editDraft.canonical_label,
+            isActive: editDraft.is_active,
+            isVerified: editDraft.is_verified,
+          }),
+        });
+      }
+
+      if (editTarget.type === 'alias') {
+        await fetch(`/api/admin/catalog/aliases/${editTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            aliasLabel: editDraft.alias_label,
+            priority: editDraft.priority ?? 0,
+            isActive: editDraft.is_active,
+          }),
+        });
+      }
+
+      await loadAll();
+      setEditTarget(null);
+    } catch (error) {
+      console.error('Save edit error:', error);
+      setMessage('Failed to update catalog item.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmTarget) return;
+    setIsSaving(true);
+    setMessage('');
+    try {
+      if (confirmTarget.type === 'group') {
+        await fetch(`/api/admin/catalog/brand-groups/${confirmTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: false }),
+        });
+      }
+      if (confirmTarget.type === 'brand') {
+        await fetch(`/api/admin/catalog/brands/${confirmTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: false }),
+        });
+      }
+      if (confirmTarget.type === 'model') {
+        await fetch(`/api/admin/catalog/models/${confirmTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: false }),
+        });
+      }
+      if (confirmTarget.type === 'alias') {
+        await fetch(`/api/admin/catalog/aliases/${confirmTarget.item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isActive: false }),
+        });
+      }
+      await loadAll();
+      setConfirmTarget(null);
+    } catch (error) {
+      console.error('Delete catalog error:', error);
+      setMessage('Failed to delete catalog item.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const resolveBrandLabel = (brandId?: string | null) =>
-    brands.find((brand) => brand.id === brandId)?.canonical_label || 'Unknown';
+    brandMap.get(brandId ?? '')?.canonical_label || 'Unknown';
 
   const resolveModelLabel = (modelId?: string | null) =>
-    models.find((model) => model.id === modelId)?.canonical_label || 'Unknown';
+    modelMap.get(modelId ?? '')?.canonical_label || 'Unknown';
+
+  const resolveGroupLabel = (groupId?: string | null) =>
+    groupMap.get(groupId ?? '')?.label || 'Unknown';
+
+  const renderMenu = (key: string, onEdit: () => void, onDelete: () => void) => (
+    <div
+      className="relative"
+      onClick={(event) => {
+        event.stopPropagation();
+      }}
+    >
+      <button
+        onClick={() => toggleMenu(key)}
+        className="p-2 rounded hover:bg-zinc-800 text-gray-400 hover:text-white"
+      >
+        <MoreHorizontal className="w-4 h-4" />
+      </button>
+      {openMenuKey === key && (
+        <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-red-900/30 rounded shadow-lg z-10">
+          <button
+            onClick={() => {
+              setOpenMenuKey(null);
+              onEdit();
+            }}
+            className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => {
+              setOpenMenuKey(null);
+              onDelete();
+            }}
+            className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-zinc-800"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Catalog Manager</h1>
-        <p className="text-gray-400">Manage brands, models, aliases, and review candidates.</p>
-        {message && <div className="text-sm text-gray-400 mt-2">{message}</div>}
+    <div
+      className="space-y-6"
+      onClick={() => {
+        setOpenMenuKey(null);
+      }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Catalog Manager</h1>
+          <p className="text-gray-400">
+            Verified means the brand or model is confirmed and trusted for storefront filters. Unverified entries are
+            allowed but treated as provisional.
+          </p>
+        </div>
+        <button
+          onClick={loadAll}
+          className="inline-flex items-center gap-2 bg-zinc-900 border border-red-900/30 text-gray-200 px-3 py-2 rounded hover:bg-zinc-800"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
 
-      <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-white">Brand Groups</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            value={newGroup.key}
-            onChange={(e) => setNewGroup((prev) => ({ ...prev, key: e.target.value }))}
-            placeholder="key (e.g., nike)"
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          />
-          <input
-            value={newGroup.label}
-            onChange={(e) => setNewGroup((prev) => ({ ...prev, label: e.target.value }))}
-            placeholder="Label (e.g., Nike)"
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          />
-          <button
-            onClick={handleCreateGroup}
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4"
-          >
-            Add Group
-          </button>
-        </div>
-        <div className="space-y-2">
-          {groups.map((group) => (
-            <div key={group.id} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center bg-zinc-800/60 p-3 rounded">
-              <input
-                value={group.key}
-                onChange={(e) => updateGroupField(group.id, 'key', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              />
-              <input
-                value={group.label}
-                onChange={(e) => updateGroupField(group.id, 'label', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              />
-              <label className="text-gray-300 text-sm flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={group.is_active}
-                  onChange={(e) => updateGroupField(group.id, 'is_active', e.target.checked)}
-                />
-                Active
-              </label>
-              <button
-                onClick={() => handleSaveGroup(group)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
-              >
-                Save
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
+      {message && <div className="text-sm text-gray-400">{message}</div>}
 
-      <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-white">Brands</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select
-            value={newBrand.groupId}
-            onChange={(e) => setNewBrand((prev) => ({ ...prev, groupId: e.target.value }))}
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          >
-            <option value="">Select group</option>
-            {groups.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.label}
-              </option>
-            ))}
-          </select>
-          <input
-            value={newBrand.label}
-            onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
-            placeholder="Brand label"
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          />
-          <button
-            onClick={handleCreateBrand}
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4"
-          >
-            Add Brand
-          </button>
-        </div>
-        <div className="space-y-2">
-          {brands.map((brand) => (
-            <div key={brand.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center bg-zinc-800/60 p-3 rounded">
-              <select
-                value={brand.group_id}
-                onChange={(e) => updateBrandField(brand.id, 'group_id', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              >
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={brand.canonical_label}
-                onChange={(e) => updateBrandField(brand.id, 'canonical_label', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              />
-              <label className="text-gray-300 text-sm flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={brand.is_active}
-                  onChange={(e) => updateBrandField(brand.id, 'is_active', e.target.checked)}
-                />
-                Active
-              </label>
-              <label className="text-gray-300 text-sm flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={brand.is_verified}
-                  onChange={(e) => updateBrandField(brand.id, 'is_verified', e.target.checked)}
-                />
-                Verified
-              </label>
-              <button
-                onClick={() => handleSaveBrand(brand)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
-              >
-                Save
-              </button>
-              <span className="text-xs text-gray-500">{brand.group?.label}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-white">Models</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <select
-            value={newModel.brandId}
-            onChange={(e) => setNewModel((prev) => ({ ...prev, brandId: e.target.value }))}
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          >
-            <option value="">Select brand</option>
-            {brands.map((brand) => (
-              <option key={brand.id} value={brand.id}>
-                {brand.canonical_label}
-              </option>
-            ))}
-          </select>
-          <input
-            value={newModel.label}
-            onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
-            placeholder="Model label"
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          />
-          <button
-            onClick={handleCreateModel}
-            className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4"
-          >
-            Add Model
-          </button>
-        </div>
-        <div className="space-y-2">
-          {models.map((model) => (
-            <div key={model.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center bg-zinc-800/60 p-3 rounded">
-              <select
-                value={model.brand_id}
-                onChange={(e) => updateModelField(model.id, 'brand_id', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              >
-                {brands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.canonical_label}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={model.canonical_label}
-                onChange={(e) => updateModelField(model.id, 'canonical_label', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              />
-              <label className="text-gray-300 text-sm flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={model.is_active}
-                  onChange={(e) => updateModelField(model.id, 'is_active', e.target.checked)}
-                />
-                Active
-              </label>
-              <label className="text-gray-300 text-sm flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={model.is_verified}
-                  onChange={(e) => updateModelField(model.id, 'is_verified', e.target.checked)}
-                />
-                Verified
-              </label>
-              <button
-                onClick={() => handleSaveModel(model)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
-              >
-                Save
-              </button>
-              <span className="text-xs text-gray-500">{resolveBrandLabel(model.brand_id)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-white">Aliases</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <select
-            value={newAlias.entityType}
-            onChange={(e) => setNewAlias((prev) => ({ ...prev, entityType: e.target.value as 'brand' | 'model', entityId: '' }))}
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          >
-            <option value="brand">Brand</option>
-            <option value="model">Model</option>
-          </select>
-          <select
-            value={newAlias.entityId}
-            onChange={(e) => setNewAlias((prev) => ({ ...prev, entityId: e.target.value }))}
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          >
-            <option value="">Select {newAlias.entityType}</option>
-            {newAlias.entityType === 'brand'
-              ? brands.map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.canonical_label}
-                  </option>
-                ))
-              : models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.canonical_label}
-                  </option>
-                ))}
-          </select>
-          <input
-            value={newAlias.label}
-            onChange={(e) => setNewAlias((prev) => ({ ...prev, label: e.target.value }))}
-            placeholder="Alias"
-            className="bg-zinc-800 text-white px-3 py-2 rounded"
-          />
-          <div className="flex gap-2">
+      <div className="bg-zinc-900 border border-red-900/20 rounded p-4 space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2 bg-zinc-950/40 border border-red-900/20 rounded px-3 py-2 w-full lg:w-80">
+            <Search className="w-4 h-4 text-gray-500" />
             <input
-              value={newAlias.priority}
-              onChange={(e) => setNewAlias((prev) => ({ ...prev, priority: e.target.value }))}
-              placeholder="Priority"
-              className="bg-zinc-800 text-white px-3 py-2 rounded w-24"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search catalog..."
+              className="bg-transparent text-sm text-white outline-none flex-1"
+            />
+          </div>
+          <div className="flex flex-wrap gap-3 text-sm text-gray-300">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+              />
+              Show inactive
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showUnverified}
+                onChange={(e) => setShowUnverified(e.target.checked)}
+              />
+              Show unverified
+            </label>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-3 py-1 rounded-full text-sm ${
+                activeTab === tab.key
+                  ? 'bg-red-600 text-white'
+                  : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'groups' && (
+        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Brand Groups</h2>
+            <span className="text-xs text-gray-500">{filteredGroups.length} groups</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <input
+              value={newGroup.key}
+              onChange={(e) => setNewGroup((prev) => ({ ...prev, key: e.target.value }))}
+              placeholder="Key"
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            />
+            <input
+              value={newGroup.label}
+              onChange={(e) => setNewGroup((prev) => ({ ...prev, label: e.target.value }))}
+              placeholder="Label"
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
             />
             <button
-              onClick={handleCreateAlias}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4"
+              onClick={handleCreateGroup}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
             >
-              Add
+              Add Group
             </button>
           </div>
-        </div>
-        <div className="space-y-2">
-          {aliases.map((alias) => (
-            <div key={alias.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center bg-zinc-800/60 p-3 rounded">
-              <div className="text-xs text-gray-400">{alias.entity_type}</div>
-              <div className="text-xs text-gray-500">
-                {alias.entity_type === 'brand'
-                  ? resolveBrandLabel(alias.brand_id)
-                  : resolveModelLabel(alias.model_id)}
-              </div>
-              <input
-                value={alias.alias_label}
-                onChange={(e) => updateAliasField(alias.id, 'alias_label', e.target.value)}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              />
-              <input
-                value={alias.priority ?? 0}
-                onChange={(e) => updateAliasField(alias.id, 'priority', Number(e.target.value))}
-                className="bg-zinc-900 text-white px-3 py-2 rounded"
-              />
-              <label className="text-gray-300 text-sm flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={alias.is_active}
-                  onChange={(e) => updateAliasField(alias.id, 'is_active', e.target.checked)}
-                />
-                Active
-              </label>
-              <button
-                onClick={() => handleSaveAlias(alias)}
-                className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
-              >
-                Save
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-white">Candidates</h2>
-        {candidates.length === 0 ? (
-          <div className="text-gray-400 text-sm">No pending candidates.</div>
-        ) : (
-          <div className="space-y-2">
-            {candidates.map((candidate) => (
-              <div key={candidate.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-center bg-zinc-800/60 p-3 rounded">
-                <div className="text-xs text-gray-400">{candidate.entity_type}</div>
-                <div className="text-gray-200">{candidate.raw_text}</div>
-                <div className="text-xs text-gray-500">
-                  {candidate.entity_type === 'model'
-                    ? resolveBrandLabel(candidate.parent_brand_id)
-                    : '-'}
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
+            {!isLoading && filteredGroups.length === 0 && (
+              <div className="text-gray-500 text-sm">No groups found.</div>
+            )}
+            {filteredGroups.map((group) => (
+              <div key={group.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                  <div className="md:col-span-4">
+                    <div className="text-white font-medium">{group.label}</div>
+                    <div className="text-xs text-gray-500">{group.key}</div>
+                  </div>
+                  <div className="md:col-span-3">
+                    <StatusPill active={group.is_active} />
+                  </div>
+                  <div className="md:col-span-5 flex justify-end">
+                    {renderMenu(
+                      `group-${group.id}`,
+                      () => setEditTarget({ type: 'group', item: group }),
+                      () => setConfirmTarget({ type: 'group', item: group })
+                    )}
+                  </div>
                 </div>
-                {candidate.entity_type === 'brand' && (
-                  <select
-                    value={candidateGroupSelections[candidate.id] || ''}
-                    onChange={(e) =>
-                      setCandidateGroupSelections((prev) => ({
-                        ...prev,
-                        [candidate.id]: e.target.value,
-                      }))
-                    }
-                    className="bg-zinc-900 text-white px-3 py-2 rounded"
-                  >
-                    <option value="">Select group</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <button
-                  onClick={() => handleAcceptCandidate(candidate)}
-                  className="bg-green-600 hover:bg-green-700 text-white rounded px-3 py-2"
-                >
-                  Accept
-                </button>
-                <button
-                  onClick={() => handleRejectCandidate(candidate)}
-                  className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
-                >
-                  Reject
-                </button>
               </div>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {activeTab === 'brands' && (
+        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Brands</h2>
+            <span className="text-xs text-gray-500">{filteredBrands.length} brands</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={newBrand.groupId}
+              onChange={(e) => setNewBrand((prev) => ({ ...prev, groupId: e.target.value }))}
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            >
+              <option value="">Select group</option>
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={newBrand.label}
+              onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
+              placeholder="Brand label"
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            />
+            <button
+              onClick={handleCreateBrand}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+            >
+              Add Brand
+            </button>
+          </div>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
+            {!isLoading && filteredBrands.length === 0 && (
+              <div className="text-gray-500 text-sm">No brands found.</div>
+            )}
+            {filteredBrands.map((brand) => (
+              <div key={brand.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                  <div className="md:col-span-4">
+                    <div className="text-white font-medium">{brand.canonical_label}</div>
+                    <div className="text-xs text-gray-500">{resolveGroupLabel(brand.group_id)}</div>
+                  </div>
+                  <div className="md:col-span-4 flex flex-wrap gap-2">
+                    <StatusPill active={brand.is_active} />
+                    <VerifiedPill verified={brand.is_verified} />
+                  </div>
+                  <div className="md:col-span-4 flex justify-end">
+                    {renderMenu(
+                      `brand-${brand.id}`,
+                      () => setEditTarget({ type: 'brand', item: brand }),
+                      () => setConfirmTarget({ type: 'brand', item: brand })
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'models' && (
+        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Models</h2>
+            <span className="text-xs text-gray-500">{filteredModels.length} models</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <select
+              value={newModel.brandId}
+              onChange={(e) => setNewModel((prev) => ({ ...prev, brandId: e.target.value }))}
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            >
+              <option value="">Select brand</option>
+              {brands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.canonical_label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={newModel.label}
+              onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
+              placeholder="Model label"
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            />
+            <button
+              onClick={handleCreateModel}
+              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+            >
+              Add Model
+            </button>
+          </div>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
+            {!isLoading && filteredModels.length === 0 && (
+              <div className="text-gray-500 text-sm">No models found.</div>
+            )}
+            {filteredModels.map((model) => (
+              <div key={model.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                  <div className="md:col-span-4">
+                    <div className="text-white font-medium">{model.canonical_label}</div>
+                    <div className="text-xs text-gray-500">{resolveBrandLabel(model.brand_id)}</div>
+                  </div>
+                  <div className="md:col-span-4 flex flex-wrap gap-2">
+                    <StatusPill active={model.is_active} />
+                    <VerifiedPill verified={model.is_verified} />
+                  </div>
+                  <div className="md:col-span-4 flex justify-end">
+                    {renderMenu(
+                      `model-${model.id}`,
+                      () => setEditTarget({ type: 'model', item: model }),
+                      () => setConfirmTarget({ type: 'model', item: model })
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'aliases' && (
+        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Aliases</h2>
+            <span className="text-xs text-gray-500">{filteredAliases.length} aliases</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <select
+              value={newAlias.entityType}
+              onChange={(e) =>
+                setNewAlias((prev) => ({
+                  ...prev,
+                  entityType: e.target.value as 'brand' | 'model',
+                  entityId: '',
+                }))
+              }
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            >
+              <option value="brand">Brand</option>
+              <option value="model">Model</option>
+            </select>
+            <select
+              value={newAlias.entityId}
+              onChange={(e) => setNewAlias((prev) => ({ ...prev, entityId: e.target.value }))}
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            >
+              <option value="">Select {newAlias.entityType}</option>
+              {newAlias.entityType === 'brand'
+                ? brands.map((brand) => (
+                    <option key={brand.id} value={brand.id}>
+                      {brand.canonical_label}
+                    </option>
+                  ))
+                : models.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.canonical_label}
+                    </option>
+                  ))}
+            </select>
+            <input
+              value={newAlias.label}
+              onChange={(e) => setNewAlias((prev) => ({ ...prev, label: e.target.value }))}
+              placeholder="Alias"
+              className="bg-zinc-800 text-white px-3 py-2 rounded"
+            />
+            <div className="flex gap-2">
+              <input
+                value={newAlias.priority}
+                onChange={(e) => setNewAlias((prev) => ({ ...prev, priority: e.target.value }))}
+                placeholder="Priority"
+                className="bg-zinc-800 text-white px-3 py-2 rounded w-24"
+              />
+              <button
+                onClick={handleCreateAlias}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+              >
+                Add Alias
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
+            {!isLoading && filteredAliases.length === 0 && (
+              <div className="text-gray-500 text-sm">No aliases found.</div>
+            )}
+            {filteredAliases.map((alias) => (
+              <div key={alias.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                  <div className="md:col-span-4">
+                    <div className="text-white font-medium">{alias.alias_label}</div>
+                    <div className="text-xs text-gray-500">
+                      {alias.entity_type === 'brand'
+                        ? resolveBrandLabel(alias.brand_id)
+                        : resolveModelLabel(alias.model_id)}
+                    </div>
+                  </div>
+                  <div className="md:col-span-3">
+                    <div className="text-xs text-gray-400 uppercase">{alias.entity_type}</div>
+                    <div className="text-xs text-gray-500">Priority {alias.priority ?? 0}</div>
+                  </div>
+                  <div className="md:col-span-3">
+                    <StatusPill active={alias.is_active} />
+                  </div>
+                  <div className="md:col-span-2 flex justify-end">
+                    {renderMenu(
+                      `alias-${alias.id}`,
+                      () => setEditTarget({ type: 'alias', item: alias }),
+                      () => setConfirmTarget({ type: 'alias', item: alias })
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {activeTab === 'candidates' && (
+        <section className="bg-zinc-900 border border-red-900/20 rounded p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-white">Candidates</h2>
+            <span className="text-xs text-gray-500">{filteredCandidates.length} pending</span>
+          </div>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
+            {!isLoading && filteredCandidates.length === 0 && (
+              <div className="text-gray-500 text-sm">No pending candidates.</div>
+            )}
+            {filteredCandidates.map((candidate) => (
+              <div key={candidate.id} className="bg-zinc-800/60 border border-red-900/20 rounded p-4">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                  <div className="md:col-span-4">
+                    <div className="text-white font-medium">{candidate.raw_text}</div>
+                    <div className="text-xs text-gray-500 uppercase">{candidate.entity_type}</div>
+                  </div>
+                  <div className="md:col-span-4 text-xs text-gray-400">
+                    {candidate.entity_type === 'model'
+                      ? `Brand: ${resolveBrandLabel(candidate.parent_brand_id)}`
+                      : 'Brand group required for accept'}
+                  </div>
+                  <div className="md:col-span-4 flex flex-wrap gap-2 md:justify-end">
+                    {candidate.entity_type === 'brand' && (
+                      <select
+                        value={candidateGroupSelections[candidate.id] || ''}
+                        onChange={(e) =>
+                          setCandidateGroupSelections((prev) => ({
+                            ...prev,
+                            [candidate.id]: e.target.value,
+                          }))
+                        }
+                        className="bg-zinc-900 text-white px-3 py-2 rounded"
+                      >
+                        <option value="">Select group</option>
+                        {groups.map((group) => (
+                          <option key={group.id} value={group.id}>
+                            {group.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <button
+                      onClick={() => handleAcceptCandidate(candidate)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-2"
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={() => handleRejectCandidate(candidate)}
+                      className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {editTarget && editDraft && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div
+            className="bg-zinc-900 border border-red-900/30 rounded-lg w-full max-w-lg p-6 space-y-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Edit {editTarget.type}</h3>
+              <button
+                onClick={() => setEditTarget(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            {editTarget.type === 'group' && (
+              <div className="space-y-3">
+                <input
+                  value={editDraft.key}
+                  onChange={(e) => setEditDraft({ ...editDraft, key: e.target.value })}
+                  placeholder="Key"
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                />
+                <input
+                  value={editDraft.label}
+                  onChange={(e) => setEditDraft({ ...editDraft, label: e.target.value })}
+                  placeholder="Label"
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={editDraft.is_active}
+                    onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
+                  />
+                  Active
+                </label>
+              </div>
+            )}
+
+            {editTarget.type === 'brand' && (
+              <div className="space-y-3">
+                <select
+                  value={editDraft.group_id}
+                  onChange={(e) => setEditDraft({ ...editDraft, group_id: e.target.value })}
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                >
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={editDraft.canonical_label}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, canonical_label: e.target.value })
+                  }
+                  placeholder="Brand label"
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                />
+                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editDraft.is_active}
+                      onChange={(e) =>
+                        setEditDraft({ ...editDraft, is_active: e.target.checked })
+                      }
+                    />
+                    Active
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editDraft.is_verified}
+                      onChange={(e) =>
+                        setEditDraft({ ...editDraft, is_verified: e.target.checked })
+                      }
+                    />
+                    Verified
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {editTarget.type === 'model' && (
+              <div className="space-y-3">
+                <select
+                  value={editDraft.brand_id}
+                  onChange={(e) => setEditDraft({ ...editDraft, brand_id: e.target.value })}
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                >
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={brand.id}>
+                      {brand.canonical_label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={editDraft.canonical_label}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, canonical_label: e.target.value })
+                  }
+                  placeholder="Model label"
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                />
+                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editDraft.is_active}
+                      onChange={(e) =>
+                        setEditDraft({ ...editDraft, is_active: e.target.checked })
+                      }
+                    />
+                    Active
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={editDraft.is_verified}
+                      onChange={(e) =>
+                        setEditDraft({ ...editDraft, is_verified: e.target.checked })
+                      }
+                    />
+                    Verified
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {editTarget.type === 'alias' && (
+              <div className="space-y-3">
+                <input
+                  value={editDraft.alias_label}
+                  onChange={(e) => setEditDraft({ ...editDraft, alias_label: e.target.value })}
+                  placeholder="Alias"
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                />
+                <input
+                  value={editDraft.priority ?? 0}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, priority: Number(e.target.value) })
+                  }
+                  placeholder="Priority"
+                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                />
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={editDraft.is_active}
+                    onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
+                  />
+                  Active
+                </label>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setEditTarget(null)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmTarget && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div
+            className="bg-zinc-900 border border-red-900/30 rounded-lg w-full max-w-md p-6 space-y-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-white">Delete {confirmTarget.type}</h3>
+            <p className="text-sm text-gray-400">
+              This will disable the item (soft delete). You can re-enable it later by editing the record.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setConfirmTarget(null)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isSaving}
+                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
+              >
+                {isSaving ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
