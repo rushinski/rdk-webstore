@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Menu,
   Home,
+  LayoutDashboard,
   Settings,
   LogOut,
   Shirt,
@@ -268,6 +269,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
   const resolvedIsAdmin = authState.isAdmin;
   const resolvedUserEmail = authState.userEmail;
   const showAuthButtons = !resolvedIsAuthenticated && !authLoading;
+  const showAdminLink = resolvedIsAdmin;
 
   return (
     <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -281,6 +283,14 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               REALDEALKICKZSC
             </span>
           </Link>
+          {showAdminLink && (
+            <Link
+              href="/admin"
+              className="inline-flex md:hidden items-center px-2 py-1 rounded border border-zinc-800 text-[10px] font-semibold text-zinc-200 uppercase tracking-wider"
+            >
+              Admin
+            </Link>
+          )}
 
           <div className="hidden lg:flex items-center gap-1">
             <div
@@ -492,6 +502,16 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             )}
           </button>
 
+          {showAdminLink && (
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 px-3 py-2 rounded border border-zinc-800 text-xs font-semibold text-zinc-200 hover:bg-zinc-900 transition-colors"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Admin Dashboard
+            </Link>
+          )}
+
           {resolvedIsAuthenticated ? (
             <div ref={profileRef} className="relative">
               <button
@@ -568,6 +588,18 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             </div>
 
             <div className="space-y-2">
+              {showAdminLink && (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="block px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Admin Dashboard
+                  </div>
+                </Link>
+              )}
               <Link
                 href="/store"
                 onClick={() => setIsMobileMenuOpen(false)}

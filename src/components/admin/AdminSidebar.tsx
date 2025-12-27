@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  Globe,
   Package,
   Truck,
   BarChart3,
@@ -18,7 +17,6 @@ import {
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/', label: 'Website', icon: Globe },
   { href: '/admin/inventory', label: 'Inventory', icon: Package },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/sales', label: 'Sales', icon: DollarSign },

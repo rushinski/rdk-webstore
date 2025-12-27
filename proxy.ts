@@ -93,7 +93,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // - Included in all logs
   // - Used for error tracking correlation
   const requestId = `req_${globalThis.crypto.randomUUID()}`;
-  const { pathname } = request.nextUrl;
+  const { pathname, hostname } = request.nextUrl;
+  const isLocalhost =
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  const isLocalDev = process.env.NODE_ENV !== "production" && isLocalhost;
 
   // ==========================================================================
   // STEP 1: Canonicalization (happens BEFORE everything else)
@@ -136,7 +139,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   
   // Only check bot patterns on high-value routes
   // Configured in security.proxy.botCheckPrefixes
-  if (startsWithAny(pathname, security.proxy.botCheckPrefixes)) {
+  if (!isLocalDev && startsWithAny(pathname, security.proxy.botCheckPrefixes)) {
     const botResponse = checkBot(request, requestId);
 
     if (botResponse) {
@@ -174,7 +177,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // - API abuse and scraping
   // - Checkout spam
   // - Admin dashboard attacks
-  if (startsWithAny(pathname, security.proxy.rateLimitPrefixes)) {
+  if (!isLocalDev && startsWithAny(pathname, security.proxy.rateLimitPrefixes)) {
     const rateLimitResponse = await applyRateLimit(request, requestId);
 
     if (rateLimitResponse) {
