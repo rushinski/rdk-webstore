@@ -547,6 +547,53 @@ export default function CatalogPage() {
 
       {message && <div className="text-sm text-gray-400">{message}</div>}
 
+      <div className="bg-zinc-900 border border-red-900/20 rounded p-4">
+        <details className="group">
+          <summary className="cursor-pointer list-none text-sm text-gray-200 font-medium flex items-center justify-between">
+            <span>Info key: how the catalog system works</span>
+            <span className="text-xs text-gray-500 group-open:hidden">Show</span>
+            <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
+          </summary>
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm text-gray-300">
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Brand Groups</div>
+              <div>Top-level buckets used for navigation (Nike, Designer). Groups are not brands.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Brands</div>
+              <div>Canonical brand labels used for products and filters. Each brand belongs to one group.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Models</div>
+              <div>Canonical sneaker model labels tied to a brand. Only used when category is sneakers.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Aliases</div>
+              <div>Alternate spellings or shorthand that map to brands/models. Used by the parser.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Candidates</div>
+              <div>Unknown brands/models created during product entry. Review and accept to add them.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Verified</div>
+              <div>Trusted entries that appear cleanly in storefront filters. Unverified is provisional.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Active</div>
+              <div>Active entries are used by the parser and UI. Inactive hides them without deleting.</div>
+            </div>
+            <div className="bg-zinc-950/40 border border-red-900/20 rounded p-3">
+              <div className="text-xs uppercase tracking-wide text-gray-500">Title Parsing</div>
+              <div>
+                Full titles are parsed into brand, model, and name. Brand is found first, then model
+                (sneakers only), and the remainder becomes the name.
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
       <div className="bg-zinc-900 border border-red-900/20 rounded p-4 space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-2 bg-zinc-950/40 border border-red-900/20 rounded px-3 py-2 w-full lg:w-80">
