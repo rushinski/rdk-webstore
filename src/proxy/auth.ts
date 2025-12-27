@@ -16,6 +16,9 @@ export async function protectAdminRoute(
   const { pathname } = request.nextUrl;
 
   const isAdminApi = pathname.startsWith("/api/admin");
+  const adminCookieValue = request.cookies.get(
+    security.proxy.adminSession.cookieName,
+  )?.value;
 
   const respond = (
     status: number,
@@ -65,11 +68,13 @@ export async function protectAdminRoute(
       error: userError?.message,
     });
 
-    return respond(
+    const response = respond(
       security.proxy.admin.unauthorizedStatus,
       "Unauthorized",
       security.proxy.admin.loginPath,
     );
+
+    return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
   }
 
   const user = userData.user;
@@ -110,11 +115,13 @@ export async function protectAdminRoute(
       event: "admin_guard",
     });
 
-    return respond(
+    const response = respond(
       security.proxy.admin.forbiddenStatus,
       "Profile missing",
       security.proxy.admin.homePath,
     );
+
+    return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
   }
 
   if (profile.role !== "admin") {
@@ -129,16 +136,14 @@ export async function protectAdminRoute(
       event: "admin_guard",
     });
 
-    return respond(
+    const response = respond(
       security.proxy.admin.forbiddenStatus,
       "Forbidden",
       security.proxy.admin.homePath,
     );
-  }
 
-  const adminCookieValue = request.cookies.get(
-    security.proxy.adminSession.cookieName,
-  )?.value;
+    return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
+  }
 
   if (!adminCookieValue) {
     log({

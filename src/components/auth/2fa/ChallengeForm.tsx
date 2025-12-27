@@ -47,7 +47,7 @@ export function ChallengeForm() {
     setMsg(null);
 
     if (!factorId || !challengeId) {
-      setMsg("Challenge not initialized. Please refresh and try again.");
+      setMsg("Challenge not initialized. Please try again.");
       return;
     }
 

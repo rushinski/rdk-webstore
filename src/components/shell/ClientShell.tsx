@@ -2,10 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { SearchOverlay } from '@/components/search/SearchOverlay';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 
 export function ClientShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -21,6 +23,13 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
       window.removeEventListener('openCart', handleOpenCart);
     };
   }, []);
+
+  useEffect(() => {
+    const isAdminRoute = pathname.startsWith('/admin');
+    const isAuthRoute = pathname.startsWith('/auth');
+    const routeValue = isAdminRoute ? 'admin' : isAuthRoute ? 'auth' : 'store';
+    document.body.dataset.route = routeValue;
+  }, [pathname]);
 
   return (
     <>

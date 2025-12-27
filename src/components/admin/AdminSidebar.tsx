@@ -18,7 +18,7 @@ import {
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/website', label: 'Website', icon: Globe },
+  { href: '/', label: 'Website', icon: Globe },
   { href: '/admin/inventory', label: 'Inventory', icon: Package },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/sales', label: 'Sales', icon: DollarSign },
@@ -35,7 +35,7 @@ export function AdminSidebar() {
     <nav className="space-y-1">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const isActive = pathname.startsWith(item.href);
+        const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
 
         return (
           <Link
