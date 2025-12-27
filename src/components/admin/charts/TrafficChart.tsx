@@ -3,7 +3,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const mockData = [
+const fallbackData = [
   { day: 'Mon', visits: 340 },
   { day: 'Tue', visits: 420 },
   { day: 'Wed', visits: 380 },
@@ -13,10 +13,10 @@ const mockData = [
   { day: 'Sun', visits: 690 },
 ];
 
-export function TrafficChart() {
+export function TrafficChart({ data = fallbackData }: { data?: Array<{ day: string; visits: number }> }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={mockData}>
+      <BarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
         <XAxis dataKey="day" stroke="#999" />
         <YAxis stroke="#999" />

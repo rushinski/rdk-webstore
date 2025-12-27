@@ -14,7 +14,19 @@ export async function POST(
     const supabase = await createSupabaseServerClient();
     const service = new ProductService(supabase);
 
-    const product = await service.duplicateProduct(params.id, session.user.id);
+    if (!session.profile?.tenant_id) {
+      return NextResponse.json(
+        { error: "Missing tenant for admin user." },
+        { status: 400 }
+      );
+    }
+
+    const product = await service.duplicateProduct(params.id, {
+      userId: session.user.id,
+      tenantId: session.profile.tenant_id,
+      marketplaceId: null,
+      sellerId: null,
+    });
 
     return NextResponse.json(product, { status: 201 });
   } catch (error) {

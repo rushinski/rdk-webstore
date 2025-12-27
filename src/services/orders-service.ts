@@ -40,4 +40,8 @@ export class OrdersService {
       updatedAt: order.updated_at?.toString() ?? order.created_at?.toString() ?? "",
     };
   }
+
+  async listOrdersForUser(userId: string) {
+    return this.ordersRepo.listOrdersForUser(userId);
+  }
 }

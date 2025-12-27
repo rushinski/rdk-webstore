@@ -4,6 +4,7 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
+import { ProductService } from "@/services/product-service";
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -21,11 +22,13 @@ export class StripeOrderJob {
   private ordersRepo: OrdersRepository;
   private eventsRepo: StripeEventsRepository;
   private addressesRepo: AddressesRepository;
+  private productService: ProductService;
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.eventsRepo = new StripeEventsRepository(supabase);
     this.addressesRepo = new AddressesRepository(supabase);
+    this.productService = new ProductService(supabase);
   }
 
   async processCheckoutSessionCompleted(event: Stripe.Event, requestId: string): Promise<void> {
@@ -68,6 +71,11 @@ export class StripeOrderJob {
 
     const paymentIntentId = session.payment_intent as string;
     await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+
+    const productIds = [...new Set(orderItems.map((item) => item.product_id))];
+    for (const productId of productIds) {
+      await this.productService.syncSizeTags(productId);
+    }
 
     // Save shipping snapshot (ship orders only)
     if (order.fulfillment === "ship") {

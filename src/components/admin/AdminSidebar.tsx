@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Globe,
   Package,
+  Truck,
   BarChart3,
   DollarSign,
   Settings,
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/admin/inventory', label: 'Inventory', icon: Package },
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/sales', label: 'Sales', icon: DollarSign },
+  { href: '/admin/shipping', label: 'Shipping', icon: Truck },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

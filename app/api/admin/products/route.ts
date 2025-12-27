@@ -12,7 +12,19 @@ export async function POST(request: NextRequest) {
     const service = new ProductService(supabase);
 
     const input: ProductCreateInput = await request.json();
-    const product = await service.createProduct(input, session.user.id);
+    if (!session.profile?.tenant_id) {
+      return NextResponse.json(
+        { error: "Missing tenant for admin user." },
+        { status: 400 }
+      );
+    }
+
+    const product = await service.createProduct(input, {
+      userId: session.user.id,
+      tenantId: session.profile.tenant_id,
+      marketplaceId: null,
+      sellerId: null,
+    });
 
     return NextResponse.json(product, { status: 201 });
   } catch (error) {

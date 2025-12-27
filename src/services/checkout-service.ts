@@ -6,6 +6,7 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { env } from "@/config/env";
 import { createCartHash } from "@/lib/crypto";
 import type { CheckoutSessionRequest, CheckoutSessionResponse } from "@/types/views/checkout";
@@ -30,11 +31,13 @@ export class CheckoutService {
   private ordersRepo: OrdersRepository;
   private productsRepo: ProductRepository;
   private profilesRepo: ProfileRepository;
+  private shippingDefaultsRepo: ShippingDefaultsRepository;
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.productsRepo = new ProductRepository(supabase);
     this.profilesRepo = new ProfileRepository(supabase);
+    this.shippingDefaultsRepo = new ShippingDefaultsRepository(supabase);
   }
 
   async createCheckoutSession(
@@ -56,6 +59,18 @@ export class CheckoutService {
 
     // Build product map
     const productMap = new Map(products.map((p) => [p.id, p]));
+    const categories = [...new Set(products.map((p) => p.category))];
+    const tenantIds = new Set(
+      products.map((product) => product.tenantId).filter((id): id is string => Boolean(id))
+    );
+    if (tenantIds.size !== 1) {
+      throw new Error("Checkout requires a single tenant.");
+    }
+    const [tenantId] = [...tenantIds];
+    const shippingDefaults = await this.shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaultsMap = new Map(
+      shippingDefaults.map((row) => [row.category, Number(row.default_price ?? 0)])
+    );
 
     // Compute subtotal and validate stock
     let subtotal = 0;
@@ -64,6 +79,7 @@ export class CheckoutService {
       variantId: string;
       quantity: number;
       unitPrice: number;
+      unitCost: number;
       lineTotal: number;
       name: string;
       brand: string;
@@ -85,6 +101,7 @@ export class CheckoutService {
       }
 
       const unitPrice = variant.priceCents / 100;
+      const unitCost = (variant.costCents ?? 0) / 100;
       const lineTotal = unitPrice * item.quantity;
 
       lineItems.push({
@@ -92,6 +109,7 @@ export class CheckoutService {
         variantId: item.variantId,
         quantity: item.quantity,
         unitPrice,
+        unitCost,
         lineTotal,
         name: product.name,
         brand: product.brand,
@@ -100,12 +118,16 @@ export class CheckoutService {
       subtotal += lineTotal;
     }
 
-    // Compute shipping (max of default_shipping_price, not multiplied by quantity)
+    // Compute shipping (max per-product default, not multiplied by quantity)
     let shipping = 0;
     if (fulfillment === "ship") {
       const shippingPrices = items.map((item) => {
         const product = productMap.get(item.productId);
-        return product?.defaultShippingPrice ?? 0;
+        if (!product) return 0;
+        if (product.shippingOverrideCents !== null) {
+          return product.shippingOverrideCents / 100;
+        }
+        return shippingDefaultsMap.get(product.category) ?? product.defaultShippingPrice ?? 0;
       });
       shipping = Math.max(...shippingPrices, 0);
     }
@@ -145,7 +167,7 @@ export class CheckoutService {
 
     const order = existingOrder ?? await this.ordersRepo.createPendingOrder({
       userId,
-      tenantId: "test", // TODO: extract from context
+      tenantId,
       currency: "USD",
       subtotal,
       shipping,
@@ -159,6 +181,7 @@ export class CheckoutService {
         variantId: li.variantId,
         quantity: li.quantity,
         unitPrice: li.unitPrice,
+        unitCost: li.unitCost,
         lineTotal: li.lineTotal,
       })),
     });

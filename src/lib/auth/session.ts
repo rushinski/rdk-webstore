@@ -13,6 +13,7 @@ export interface ServerSession {
     email: string;
     role: ProfileRole;
     full_name: string | null;
+    tenant_id: string | null;
   } | null;
   role: ProfileRole;
 }
@@ -32,6 +33,7 @@ export async function getServerSession(): Promise<ServerSession | null> {
         email: row.email ?? user.email ?? "",
         role: isProfileRole(row.role) ? row.role : "customer",
         full_name: row.full_name ?? null,
+        tenant_id: row.tenant_id ?? null,
       }
     : null;
 

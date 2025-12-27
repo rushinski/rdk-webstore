@@ -29,6 +29,7 @@ export interface CreatePendingOrderInput {
     variantId: string | null;
     quantity: number;
     unitPrice: number;
+    unitCost: number;
     lineTotal: number;
   }>;
 }
@@ -115,6 +116,7 @@ export class OrdersRepository {
       variant_id: item.variantId,
       quantity: item.quantity,
       unit_price: item.unitPrice,
+      unit_cost: item.unitCost,
       line_total: item.lineTotal,
     }));
 
@@ -175,5 +177,81 @@ export class OrdersRepository {
 
     if (error) throw error;
     return data ?? [];
+  }
+
+  async listOrders(params?: {
+    status?: string[];
+    fulfillment?: string;
+    fulfillmentStatus?: string;
+    limit?: number;
+  }) {
+    let query = this.supabase
+      .from("orders")
+      .select("*, items:order_items(*, product:products(id, name, brand, category), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)")
+      .order("created_at", { ascending: false });
+
+    if (params?.status?.length) {
+      query = query.in("status", params.status);
+    }
+    if (params?.fulfillment) {
+      query = query.eq("fulfillment", params.fulfillment);
+    }
+    if (params?.fulfillmentStatus) {
+      query = query.eq("fulfillment_status", params.fulfillmentStatus);
+    }
+    if (params?.limit) {
+      query = query.limit(params.limit);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  async listOrdersForUser(userId: string) {
+    const { data, error } = await this.supabase
+      .from("orders")
+      .select("*, items:order_items(*, product:products(id, name, brand), variant:product_variants(id, size_label, price_cents))")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  async markRefunded(orderId: string, amount: number): Promise<OrderRow> {
+    const { data, error } = await this.supabase
+      .from("orders")
+      .update({
+        status: "refunded",
+        refund_amount: amount,
+        refunded_at: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as OrderRow;
+  }
+
+  async markFulfilled(
+    orderId: string,
+    input: { carrier?: string | null; trackingNumber?: string | null }
+  ): Promise<OrderRow> {
+    const { data, error } = await this.supabase
+      .from("orders")
+      .update({
+        fulfillment_status: "shipped",
+        shipping_carrier: input.carrier ?? null,
+        tracking_number: input.trackingNumber ?? null,
+        shipped_at: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as OrderRow;
   }
 }

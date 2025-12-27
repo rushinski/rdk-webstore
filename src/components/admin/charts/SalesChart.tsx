@@ -3,7 +3,7 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const mockData = [
+const fallbackData = [
   { date: 'Mon', revenue: 1200 },
   { date: 'Tue', revenue: 1900 },
   { date: 'Wed', revenue: 1600 },
@@ -13,10 +13,10 @@ const mockData = [
   { date: 'Sun', revenue: 2900 },
 ];
 
-export function SalesChart() {
+export function SalesChart({ data = fallbackData }: { data?: Array<{ date: string; revenue: number }> }) {
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={mockData}>
+      <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
         <XAxis dataKey="date" stroke="#999" />
         <YAxis stroke="#999" />

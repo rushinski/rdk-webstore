@@ -65,11 +65,13 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     condition: product.condition,
     condition_note: product.condition_note || undefined,
     description: product.description || undefined,
-    cost_cents: product.cost_cents,
-    shipping_override_cents: product.shipping_override_cents || undefined,
+    shipping_override_cents: product.shipping_override_cents ?? undefined,
     variants: product.variants,
     images: product.images,
-    custom_tags: product.tags.filter(t => !['brand', 'category', 'condition'].includes(t.group_key)).map(t => t.label),
+    tags: product.tags.map((tag) => ({
+      label: tag.label,
+      group_key: tag.group_key,
+    })),
   };
 
   return (

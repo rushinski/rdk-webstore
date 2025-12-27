@@ -3,12 +3,12 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProductRepository } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/database.types";
-import type { Category, Condition, SizeType } from "@/types/views/product";
-import { generateTags } from "./tag-service";
+import type { Category, Condition } from "@/types/views/product";
+import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
 
 type VariantInput = Pick<
   TablesInsert<"product_variants">,
-  "size_type" | "size_label" | "price_cents" | "stock"
+  "size_type" | "size_label" | "price_cents" | "stock" | "cost_cents"
 >;
 
 type ImageInput = Pick<
@@ -23,11 +23,10 @@ export interface ProductCreateInput {
   condition: Condition;
   condition_note?: string;
   description?: string;
-  cost_cents: number;
   shipping_override_cents?: number;
   variants: VariantInput[];
   images: ImageInput[];
-  custom_tags?: string[];
+  tags?: TagInputItem[];
 }
 
 export class ProductService {
@@ -43,6 +42,7 @@ export class ProductService {
   ) {
     // Generate SKU
     const sku = this.generateSKU(input.brand, input.name);
+    const productCost = this.getProductCost(input.variants);
 
     // Create product
     const product = await this.repo.create({
@@ -57,8 +57,8 @@ export class ProductService {
       condition_note: input.condition_note || null,
       description: input.description || null,
       sku,
-      cost_cents: input.cost_cents,
-      shipping_override_cents: input.shipping_override_cents || null,
+      cost_cents: productCost,
+      shipping_override_cents: input.shipping_override_cents ?? null,
       is_active: true,
       created_by: ctx.userId,
     });
@@ -67,6 +67,7 @@ export class ProductService {
     for (const variant of input.variants) {
       await this.repo.createVariant({
         product_id: product.id,
+        cost_cents: variant.cost_cents ?? 0,
         ...variant,
       });
     }
@@ -80,13 +81,9 @@ export class ProductService {
     }
 
     // Generate and link tags
-    const tags = await generateTags(this.supabase, {
+    const tags = await upsertTags(this.supabase, {
       tenantId: ctx.tenantId,
-      brand: input.brand,
-      category: input.category,
-      condition: input.condition,
-      variants: input.variants,
-      custom_tags: input.custom_tags,
+      tags: input.tags ?? [],
     });
 
     for (const tag of tags) {
@@ -97,6 +94,8 @@ export class ProductService {
   }
 
   async updateProduct(productId: string, input: ProductCreateInput) {
+    const productCost = this.getProductCost(input.variants);
+
     // Update product
     const product = await this.repo.update(productId, {
       brand: input.brand,
@@ -105,8 +104,8 @@ export class ProductService {
       condition: input.condition,
       condition_note: input.condition_note || null,
       description: input.description || null,
-      cost_cents: input.cost_cents,
-      shipping_override_cents: input.shipping_override_cents || null,
+      cost_cents: productCost,
+      shipping_override_cents: input.shipping_override_cents ?? null,
     });
 
     // Replace variants
@@ -114,6 +113,7 @@ export class ProductService {
     for (const variant of input.variants) {
       await this.repo.createVariant({
         product_id: productId,
+        cost_cents: variant.cost_cents ?? 0,
         ...variant,
       });
     }
@@ -129,12 +129,8 @@ export class ProductService {
 
     // Replace tags
     await this.repo.unlinkProductTags(productId);
-    const tags = await generateTags(this.supabase, {
-      brand: input.brand,
-      category: input.category,
-      condition: input.condition,
-      variants: input.variants,
-      custom_tags: input.custom_tags,
+    const tags = await upsertTags(this.supabase, {
+      tags: input.tags ?? [],
     });
 
     for (const tag of tags) {
@@ -144,7 +140,10 @@ export class ProductService {
     return product;
   }
 
-  async duplicateProduct(productId: string, userId: string) {
+  async duplicateProduct(
+    productId: string,
+    ctx: { userId: string; tenantId: string; marketplaceId?: string | null; sellerId?: string | null }
+  ) {
     const original = await this.repo.getById(productId);
     if (!original) throw new Error('Product not found');
 
@@ -155,12 +154,12 @@ export class ProductService {
       condition: original.condition,
       condition_note: original.condition_note || undefined,
       description: original.description || undefined,
-      cost_cents: original.cost_cents,
-      shipping_override_cents: original.shipping_override_cents || undefined,
+      shipping_override_cents: original.shipping_override_cents ?? undefined,
       variants: original.variants.map(v => ({
         size_type: v.size_type,
         size_label: v.size_label,
         price_cents: v.price_cents,
+        cost_cents: v.cost_cents ?? 0,
         stock: v.stock,
       })),
       images: original.images.map(img => ({
@@ -168,10 +167,37 @@ export class ProductService {
         sort_order: img.sort_order,
         is_primary: img.is_primary,
       })),
-      custom_tags: original.tags.filter(t => !['brand', 'category', 'condition'].includes(t.group_key)).map(t => t.label),
+      tags: original.tags.map(tag => ({
+        label: tag.label,
+        group_key: tag.group_key,
+      })),
     };
 
-    return this.createProduct(input, { userId, tenantId: "test" });
+    return this.createProduct(input, ctx);
+  }
+
+  async syncSizeTags(productId: string) {
+    const product = await this.repo.getById(productId);
+    if (!product) return;
+
+    const sizeTags = buildSizeTags(product.variants);
+    const preservedTags = product.tags.filter((tag) => !tag.group_key.startsWith("size_"));
+
+    await this.repo.unlinkProductTags(productId);
+    const tags = await upsertTags(this.supabase, {
+      tenantId: product.tenant_id ?? null,
+      tags: [
+        ...preservedTags.map((tag) => ({
+          label: tag.label,
+          group_key: tag.group_key,
+        })),
+        ...sizeTags,
+      ],
+    });
+
+    for (const tag of tags) {
+      await this.repo.linkProductTag(productId, tag.id);
+    }
   }
 
   private generateSKU(brand: string, name: string): string {
@@ -179,5 +205,14 @@ export class ProductService {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.random().toString(36).substring(2, 5).toUpperCase();
     return `${prefix}-${timestamp}-${random}`;
+  }
+
+  private getProductCost(variants: VariantInput[]): number {
+    const costs = variants
+      .map((variant) => variant.cost_cents)
+      .filter((cost): cost is number => typeof cost === "number" && !Number.isNaN(cost));
+
+    if (costs.length === 0) return 0;
+    return Math.min(...costs);
   }
 }

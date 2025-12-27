@@ -3,104 +3,75 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProductRepository } from "@/repositories/product-repo";
 import type { Tables } from "@/types/database.types";
-import type { Category, Condition, SizeType } from "@/types/views/product";
+import type { SizeType } from "@/types/views/product";
 
 type TagRow = Tables<"tags">;
 
-interface TagGenerationInput {
-  brand: string;
-  category: Category;
-  condition: Condition;
-  variants: Array<{ size_type: SizeType; size_label: string }>;
-  custom_tags?: string[];
+export interface TagInputItem {
+  label: string;
+  group_key: string;
 }
 
-export async function generateTags(
+interface UpsertTagsInput {
+  tags: TagInputItem[];
+  tenantId?: string | null;
+}
+
+export async function upsertTags(
   supabase: TypedSupabaseClient,
-  input: TagGenerationInput & { tenantId?: string | null }
+  input: UpsertTagsInput
 ): Promise<TagRow[]> {
   const repo = new ProductRepository(supabase);
   const tags: TagRow[] = [];
 
-  // Brand tag
-  const brandTag = await repo.upsertTag({
-    label: input.brand,
-    group_key: 'brand',
-    tenant_id: input.tenantId ?? null,
-  });
-  tags.push(brandTag);
+  const normalized = input.tags
+    .map((tag) => ({
+      label: tag.label.trim(),
+      group_key: tag.group_key,
+    }))
+    .filter((tag) => tag.label.length > 0);
 
-  // Category tag
-  const categoryTag = await repo.upsertTag({
-    label: input.category,
-    group_key: 'category',
-    tenant_id: input.tenantId ?? null,
-  });
-  tags.push(categoryTag);
-
-  // Condition tag
-  const conditionTag = await repo.upsertTag({
-    label: input.condition,
-    group_key: 'condition',
-    tenant_id: input.tenantId ?? null,
-  });
-  tags.push(conditionTag);
-
-  // Size tags
-  const sizeTypes = new Set(input.variants.map(v => v.size_type));
-  
-  for (const sizeType of sizeTypes) {
-    if (sizeType === 'shoe') {
-      const shoeSizes = input.variants.filter(v => v.size_type === 'shoe').map(v => v.size_label);
-      for (const size of shoeSizes) {
-        const tag = await repo.upsertTag({
-          label: size,
-          group_key: 'size_shoe',
-          tenant_id: input.tenantId ?? null,
-        });
-        tags.push(tag);
-      }
-    } else if (sizeType === 'clothing') {
-      const clothingSizes = input.variants.filter(v => v.size_type === 'clothing').map(v => v.size_label);
-      for (const size of clothingSizes) {
-        const tag = await repo.upsertTag({
-          label: size,
-          group_key: 'size_clothing',
-          tenant_id: input.tenantId ?? null,
-        });
-        tags.push(tag);
-      }
-    } else if (sizeType === 'custom') {
-      const customSizes = input.variants.filter(v => v.size_type === 'custom').map(v => v.size_label);
-      for (const size of customSizes) {
-        const tag = await repo.upsertTag({
-          label: size,
-          group_key: 'size_custom',
-          tenant_id: input.tenantId ?? null,
-        });
-        tags.push(tag);
-      }
-    } else if (sizeType === 'none') {
-      const tag = await repo.upsertTag({
-        label: 'None',
-        group_key: 'size_none',
-        tenant_id: input.tenantId ?? null,
-      });
-      tags.push(tag);
-    }
+  const unique = new Map<string, TagInputItem>();
+  for (const tag of normalized) {
+    unique.set(`${tag.group_key}:${tag.label}`, tag);
   }
 
-  // Custom tags
-  if (input.custom_tags) {
-    for (const customTag of input.custom_tags) {
-      // Determine appropriate group_key or default to category
-      const tag = await repo.upsertTag({
-        label: customTag,
-        group_key: 'category', // Default group
-        tenant_id: input.tenantId ?? null,
-      });
-      tags.push(tag);
+  for (const tag of unique.values()) {
+    const row = await repo.upsertTag({
+      label: tag.label,
+      group_key: tag.group_key,
+      tenant_id: input.tenantId ?? null,
+    });
+    tags.push(row);
+  }
+
+  return tags;
+}
+
+export function buildSizeTags(
+  variants: Array<{ size_type: SizeType; size_label: string; stock?: number | null }>
+): TagInputItem[] {
+  const tags: TagInputItem[] = [];
+  const seen = new Set<string>();
+
+  for (const variant of variants) {
+    if (variant.stock !== undefined && variant.stock !== null && variant.stock <= 0) {
+      continue;
     }
+
+    const label = variant.size_label?.trim();
+    if (!label) continue;
+
+    let groupKey: string | null = null;
+    if (variant.size_type === "shoe") groupKey = "size_shoe";
+    if (variant.size_type === "clothing") groupKey = "size_clothing";
+    if (variant.size_type === "custom") groupKey = "size_custom";
+    if (!groupKey) continue;
+
+    const key = `${groupKey}:${label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push({ label, group_key: groupKey });
   }
 
   return tags;

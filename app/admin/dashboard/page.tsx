@@ -1,47 +1,74 @@
-// app/admin/dashboard/page.tsx
+'use client';
 
+import { useEffect, useState } from 'react';
 import { SalesChart } from '@/components/admin/charts/SalesChart';
 import { TrafficChart } from '@/components/admin/charts/TrafficChart';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Users } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardPage() {
-  // Mock data
+  const [summary, setSummary] = useState({ revenue: 0, orders: 0 });
+  const [salesTrend, setSalesTrend] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [productsCount, setProductsCount] = useState(0);
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const analyticsResponse = await fetch('/api/admin/analytics?range=7d');
+        const analyticsData = await analyticsResponse.json();
+        if (analyticsResponse.ok) {
+          setSummary({
+            revenue: analyticsData.summary?.revenue ?? 0,
+            orders: analyticsData.summary?.orders ?? 0,
+          });
+          setSalesTrend(analyticsData.salesTrend || []);
+        }
+
+        const productsResponse = await fetch('/api/store/products?limit=1');
+        const productsData = await productsResponse.json();
+        setProductsCount(productsData.total ?? 0);
+
+        const ordersResponse = await fetch('/api/admin/orders?status=paid&status=shipped');
+        const ordersData = await ordersResponse.json();
+        setRecentOrders((ordersData.orders || []).slice(0, 3));
+      } catch (error) {
+        console.error('Load dashboard error:', error);
+      }
+    };
+
+    loadDashboard();
+  }, []);
+
   const stats = [
     {
       title: 'Revenue',
-      value: '$12,450',
-      change: '+12.5%',
-      trend: 'up',
+      value: `$${summary.revenue.toFixed(2)}`,
+      change: '-',
+      trend: summary.revenue > 0 ? 'up' : 'down',
       icon: DollarSign,
     },
     {
       title: 'Orders',
-      value: '87',
-      change: '+8.2%',
-      trend: 'up',
+      value: `${summary.orders}`,
+      change: '-',
+      trend: summary.orders > 0 ? 'up' : 'down',
       icon: ShoppingCart,
     },
     {
       title: 'Products',
-      value: '234',
-      change: '+5',
-      trend: 'up',
+      value: `${productsCount}`,
+      change: '-',
+      trend: productsCount > 0 ? 'up' : 'down',
       icon: Package,
     },
     {
       title: 'Visitors',
-      value: '3,456',
-      change: '-2.1%',
+      value: '-',
+      change: '-',
       trend: 'down',
       icon: Users,
     },
-  ];
-
-  const recentSales = [
-    { id: '1', product: 'Air Jordan 1 High', customer: 'John D.', amount: 220, profit: 45 },
-    { id: '2', product: 'Nike Dunk Low', customer: 'Sarah M.', amount: 180, profit: 35 },
-    { id: '3', product: 'Yeezy Boost 350', customer: 'Mike R.', amount: 350, profit: 80 },
   ];
 
   return (
@@ -85,7 +112,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Sales Trend</h2>
-          <SalesChart />
+          <SalesChart data={salesTrend} />
         </div>
 
         <div className="bg-zinc-900 border border-red-900/20 rounded p-6">
@@ -106,19 +133,21 @@ export default function DashboardPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-red-900/20">
-                <th className="text-left text-gray-400 font-semibold py-3">Product</th>
+                <th className="text-left text-gray-400 font-semibold py-3">Order</th>
                 <th className="text-left text-gray-400 font-semibold py-3">Customer</th>
                 <th className="text-right text-gray-400 font-semibold py-3">Amount</th>
-                <th className="text-right text-gray-400 font-semibold py-3">Profit</th>
+                <th className="text-right text-gray-400 font-semibold py-3">Subtotal</th>
               </tr>
             </thead>
             <tbody>
-              {recentSales.map((sale) => (
-                <tr key={sale.id} className="border-b border-red-900/20">
-                  <td className="py-3 text-white">{sale.product}</td>
-                  <td className="py-3 text-gray-400">{sale.customer}</td>
-                  <td className="py-3 text-right text-white">${sale.amount}</td>
-                  <td className="py-3 text-right text-green-400">+${sale.profit}</td>
+              {recentOrders.map((order) => (
+                <tr key={order.id} className="border-b border-red-900/20">
+                  <td className="py-3 text-white">#{order.id.slice(0, 8)}</td>
+                  <td className="py-3 text-gray-400">{order.user_id ? order.user_id.slice(0, 6) : 'Guest'}</td>
+                  <td className="py-3 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
+                  <td className="py-3 text-right text-green-400">
+                    +${Number(order.subtotal ?? 0).toFixed(2)}
+                  </td>
                 </tr>
               ))}
             </tbody>

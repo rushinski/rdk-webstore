@@ -4,27 +4,28 @@
 import { useState, KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
 
+export interface TagChip {
+  label: string;
+  group_key: string;
+  source: 'auto' | 'custom';
+}
+
 interface TagInputProps {
-  tags: string[];
-  onTagsChange: (tags: string[]) => void;
+  tags: TagChip[];
+  onAddTag: (label: string) => void;
+  onRemoveTag: (tag: TagChip) => void;
   placeholder?: string;
 }
 
-export function TagInput({ tags, onTagsChange, placeholder = 'Add tag...' }: TagInputProps) {
+export function TagInput({ tags, onAddTag, onRemoveTag, placeholder = 'Add tag...' }: TagInputProps) {
   const [input, setInput] = useState('');
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && input.trim()) {
       e.preventDefault();
-      if (!tags.includes(input.trim())) {
-        onTagsChange([...tags, input.trim()]);
-      }
+      onAddTag(input.trim());
       setInput('');
     }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    onTagsChange(tags.filter(tag => tag !== tagToRemove));
   };
 
   return (
@@ -32,13 +33,15 @@ export function TagInput({ tags, onTagsChange, placeholder = 'Add tag...' }: Tag
       <div className="flex flex-wrap gap-2 p-2 bg-zinc-800 border border-red-900/20 rounded min-h-[42px]">
         {tags.map(tag => (
           <span
-            key={tag}
-            className="inline-flex items-center gap-1 bg-red-900/30 text-white text-sm px-2 py-1 rounded"
+            key={`${tag.group_key}:${tag.label}`}
+            className={`inline-flex items-center gap-1 text-sm px-2 py-1 rounded ${
+              tag.source === 'auto' ? 'bg-red-900/30 text-white' : 'bg-zinc-700 text-white'
+            }`}
           >
-            {tag}
+            {tag.label}
             <button
               type="button"
-              onClick={() => removeTag(tag)}
+              onClick={() => onRemoveTag(tag)}
               className="hover:text-red-400"
             >
               <X className="w-3 h-3" />
@@ -55,7 +58,7 @@ export function TagInput({ tags, onTagsChange, placeholder = 'Add tag...' }: Tag
         />
       </div>
       <p className="text-gray-400 text-xs mt-1">
-        Tags power your storefront filters. Brand/size/condition/category tags are auto-generated and can be adjusted.
+        Brand, category, condition, and size tags are auto-generated. You can remove them or add custom tags.
       </p>
     </div>
   );

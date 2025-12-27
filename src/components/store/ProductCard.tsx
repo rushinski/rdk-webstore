@@ -19,7 +19,7 @@ export function ProductCard({ product }: ProductCardProps) {
     : `$${(priceMin / 100).toFixed(2)} - $${(priceMax / 100).toFixed(2)}`;
 
   const sizeDisplay = variants.length === 1
-    ? variants[0].size_label
+    ? (variants[0].size_label === 'N/A' ? 'No size' : variants[0].size_label)
     : 'Multiple sizes';
 
   return (

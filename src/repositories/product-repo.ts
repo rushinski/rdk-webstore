@@ -44,6 +44,8 @@ export class ProductRepository {
   async list(filters: ProductFilters = {}) {
     const { page = 1, limit = 20, sort = "newest" } = filters;
     const offset = (page - 1) * limit;
+    const buildInClause = (values: string[]) =>
+      values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
 
     let query = this.supabase
       .from("products")
@@ -67,6 +69,22 @@ export class ProductRepository {
     if (filters.category?.length) query = query.in("category", filters.category);
     if (filters.brand?.length) query = query.in("brand", filters.brand);
     if (filters.condition?.length) query = query.in("condition", filters.condition);
+
+    // Size filters (limit to in-stock variants)
+    const sizeFilters: string[] = [];
+    if (filters.sizeShoe?.length) {
+      sizeFilters.push(
+        `and(size_type.eq.shoe,size_label.in.(${buildInClause(filters.sizeShoe)}),stock.gt.0)`
+      );
+    }
+    if (filters.sizeClothing?.length) {
+      sizeFilters.push(
+        `and(size_type.eq.clothing,size_label.in.(${buildInClause(filters.sizeClothing)}),stock.gt.0)`
+      );
+    }
+    if (sizeFilters.length > 0) {
+      query = query.or(sizeFilters.join(","), { foreignTable: "product_variants" });
+    }
 
     // Sorting
     switch (sort) {
@@ -228,23 +246,27 @@ export class ProductRepository {
     };
   }
 
-    async getProductsForCheckout(
+  async getProductsForCheckout(
     productIds: string[]
   ): Promise<Array<{
     id: string;
     name: string;
     brand: string;
+    category: string;
+    tenantId: string | null;
     defaultShippingPrice: number;
+    shippingOverrideCents: number | null;
     variants: Array<{
       id: string;
       sizeLabel: string;
       priceCents: number;
+      costCents: number | null;
       stock: number;
     }>;
   }>> {
     const { data, error } = await this.supabase
       .from("products")
-      .select("id, name, brand, default_shipping_price, variants:product_variants(id, size_label, price_cents, stock)")
+      .select("id, name, brand, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)")
       .in("id", productIds)
       .eq("is_active", true);
 
@@ -254,11 +276,15 @@ export class ProductRepository {
       id: p.id,
       name: p.name,
       brand: p.brand,
+      category: p.category,
+      tenantId: p.tenant_id ?? null,
       defaultShippingPrice: p.default_shipping_price ?? 0,
+      shippingOverrideCents: p.shipping_override_cents ?? null,
       variants: (p.variants ?? []).map((v: any) => ({
         id: v.id,
         sizeLabel: v.size_label,
         priceCents: v.price_cents,
+        costCents: v.cost_cents ?? null,
         stock: v.stock,
       })),
     }));

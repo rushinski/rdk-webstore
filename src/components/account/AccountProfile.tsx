@@ -11,9 +11,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [message, setMessage] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isOrdersLoading, setIsOrdersLoading] = useState(false);
 
   useEffect(() => {
     loadProfile();
+    loadOrders();
   }, []);
 
   const loadProfile = async () => {
@@ -23,6 +26,19 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       setProfile(data);
     } catch (error) {
       console.error('Load profile error:', error);
+    }
+  };
+
+  const loadOrders = async () => {
+    setIsOrdersLoading(true);
+    try {
+      const response = await fetch('/api/account/orders');
+      const data = await response.json();
+      setOrders(data.orders || []);
+    } catch (error) {
+      console.error('Load orders error:', error);
+    } finally {
+      setIsOrdersLoading(false);
     }
   };
 
@@ -196,6 +212,44 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             {isLoading ? 'Saving...' : 'Save Shipping Info'}
           </button>
         </form>
+      </div>
+
+      {/* Order History */}
+      <div className="bg-zinc-900 border border-red-900/20 rounded p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">Order History</h2>
+        {isOrdersLoading ? (
+          <div className="text-gray-400">Loading orders...</div>
+        ) : orders.length === 0 ? (
+          <div className="text-gray-400">No orders yet.</div>
+        ) : (
+          <div className="space-y-4">
+            {orders.map((order) => (
+              <div key={order.id} className="border border-red-900/20 rounded p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div className="text-white font-semibold">Order #{order.id.slice(0, 8)}</div>
+                  <div className="text-gray-400 text-sm">{new Date(order.created_at).toLocaleDateString()}</div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <span className="text-gray-400 text-sm">Status: {order.status}</span>
+                  <span className="text-white font-semibold">
+                    ${Number(order.total ?? 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {(order.items || []).map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-300">
+                        {item.product?.brand} {item.product?.name}
+                        {item.variant?.size_label ? ` (${item.variant.size_label})` : ''}
+                      </span>
+                      <span className="text-gray-400">x{item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Change Password */}
