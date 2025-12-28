@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -48,7 +49,9 @@ function MenuShell({
 }) {
   return (
     <div
-      className={`absolute top-full ${align === 'left' ? 'left-0' : 'right-0'} pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0`}
+      className={`absolute top-full ${
+        align === 'left' ? 'left-0' : 'right-0'
+      } pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0`}
       role="menu"
     >
       <div className="min-w-[500px] max-w-[calc(100vw-2rem)] border border-zinc-800 bg-black shadow-2xl">
@@ -89,11 +92,16 @@ function MegaLink({
 }
 
 const SHOE_SIZE_GROUPS = {
-  youth: SHOE_SIZES.filter(s => s.includes('Y')).slice(0, 7),
-  mens: SHOE_SIZES.filter(s => s.includes('M') && !s.includes('Y')),
+  youth: SHOE_SIZES.filter((s) => s.includes('Y')).slice(0, 7),
+  mens: SHOE_SIZES.filter((s) => s.includes('M') && !s.includes('Y')),
 };
 
-export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, cartCount = 0 }: NavbarProps) {
+export function Navbar({
+  isAuthenticated = false,
+  isAdmin = false,
+  userEmail,
+  cartCount = 0,
+}: NavbarProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
@@ -102,6 +110,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
   const [localCartCount, setLocalCartCount] = useState(cartCount);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
   const [designerBrands, setDesignerBrands] = useState<string[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -113,6 +122,10 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
     if (pathname === '/') return '/auth/register';
     return `/auth/register?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleCartUpdate = (e: Event) => {
@@ -162,6 +175,18 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Scroll lock when mobile menu is open
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMobileMenuOpen]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -224,13 +249,203 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
   const showAuthButtons = !isAuthenticated;
   const showAdminLink = isAdmin;
 
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+    setMobileSection(null);
+  };
+
+  const mobileOverlay = (
+    <div className="md:hidden fixed inset-0 z-[9999] bg-black">
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-zinc-900 flex items-center justify-between">
+          <span className="text-white font-bold text-2xl">Menu</span>
+          <button
+            onClick={closeMobileMenu}
+            className="text-gray-400 hover:text-white cursor-pointer"
+            aria-label="Close menu"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto py-3">
+          <div className="px-3">
+            {/* Shop All */}
+            <Link
+              href="/store"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between px-4 py-3 text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900"
+            >
+              <span className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4" />
+                Shop All
+              </span>
+            </Link>
+
+            {/* Categories */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
+              onClick={() => setMobileSection(mobileSection === 'shop' ? null : 'shop')}
+              aria-expanded={mobileSection === 'shop'}
+            >
+              <span className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4" />
+                Categories
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileSection === 'shop' ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {mobileSection === 'shop' && (
+              <div className="border-b border-zinc-900">
+                {shopItems.map((it) => (
+                  <Link
+                    key={it.label}
+                    href={it.href}
+                    onClick={closeMobileMenu}
+                    className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                  >
+                    {it.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            {/* Brands */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
+              onClick={() => setMobileSection(mobileSection === 'brands' ? null : 'brands')}
+              aria-expanded={mobileSection === 'brands'}
+            >
+              <span className="flex items-center gap-3">
+                <Tag className="w-4 h-4" />
+                Brands
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileSection === 'brands' ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {mobileSection === 'brands' && (
+              <div className="border-b border-zinc-900 py-2">
+                {resolvedBrandGroups.map((group) => {
+                  if (group.key === 'designer') {
+                    return (
+                      <div key={group.key} className="py-2">
+                        <div className="px-4 pl-11 text-xs uppercase text-zinc-500 mb-2">{group.label}</div>
+                        {designerBrands.map((brand) => (
+                          <Link
+                            key={brand}
+                            href={buildStoreHref({ category: 'sneakers', brand })}
+                            onClick={closeMobileMenu}
+                            className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                          >
+                            {brand}
+                          </Link>
+                        ))}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={group.key}
+                      href={buildStoreHref({ category: 'sneakers', brand: group.label })}
+                      onClick={closeMobileMenu}
+                      className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                    >
+                      {group.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Sneaker Sizes */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
+              onClick={() => setMobileSection(mobileSection === 'shoeSizes' ? null : 'shoeSizes')}
+              aria-expanded={mobileSection === 'shoeSizes'}
+            >
+              <span className="flex items-center gap-3">
+                <Ruler className="w-4 h-4" />
+                Sneaker Sizes
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileSection === 'shoeSizes' ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {mobileSection === 'shoeSizes' && (
+              <div className="border-b border-zinc-900 px-4 py-4">
+                <div className="pl-7 grid grid-cols-4 gap-2 max-h-72 overflow-auto">
+                  {SHOE_SIZES.map((size) => (
+                    <Link
+                      key={size}
+                      href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
+                      onClick={closeMobileMenu}
+                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
+                    >
+                      {size}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Clothing Sizes */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
+              onClick={() => setMobileSection(mobileSection === 'clothingSizes' ? null : 'clothingSizes')}
+              aria-expanded={mobileSection === 'clothingSizes'}
+            >
+              <span className="flex items-center gap-3">
+                <Shirt className="w-4 h-4" />
+                Clothing Sizes
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileSection === 'clothingSizes' ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {mobileSection === 'clothingSizes' && (
+              <div className="border-b border-zinc-900 px-4 py-4">
+                <div className="pl-7 grid grid-cols-4 gap-2">
+                  {CLOTHING_SIZES.map((size) => (
+                    <Link
+                      key={size}
+                      href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
+                      onClick={closeMobileMenu}
+                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
+                    >
+                      {size}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between h-16">
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 relative flex-shrink-0">
-              <Image src="/images/rdk-logo.png" alt="Real Deal Kickz" fill sizes="40px" className="object-contain" />
+              <Image
+                src="/images/rdk-logo.png"
+                alt="Real Deal Kickz"
+                fill
+                sizes="40px"
+                className="object-contain"
+              />
             </div>
             <span className="text-white font-bold text-lg tracking-tight hidden sm:block">
               REALDEALKICKZSC
@@ -249,7 +464,9 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
 
               <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Shop Categories</h3>
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                    Shop Categories
+                  </h3>
                 </div>
                 <div>
                   {shopItems.map((it) => (
@@ -276,7 +493,9 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
 
               <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Shop by Brand</h3>
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                    Shop by Brand
+                  </h3>
                   <p className="text-xs text-zinc-600">Premium sneaker & streetwear brands</p>
                 </div>
 
@@ -328,8 +547,10 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
 
               <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Find Your Size</h3>
-                  <p className="text-xs text-zinc-600">Men's, Women's & Youth sizes available</p>
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                    Find Your Size
+                  </h3>
+                  <p className="text-xs text-zinc-600">Men&apos;s, Women&apos;s & Youth sizes available</p>
                 </div>
 
                 <div className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -349,7 +570,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                   </div>
 
                   <div>
-                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Men's</div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Men&apos;s</div>
                     <div className="grid grid-cols-4 gap-2">
                       {SHOE_SIZE_GROUPS.mens.map((size) => (
                         <Link
@@ -377,7 +598,9 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
 
               <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
-                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Clothing Sizes</h3>
+                  <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                    Clothing Sizes
+                  </h3>
                   <p className="text-xs text-zinc-600">Filter streetwear by your perfect fit</p>
                 </div>
 
@@ -404,7 +627,11 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             <Home className="w-5 h-5" />
           </Link>
 
-          <button onClick={handleSearchClick} className="text-gray-300 hover:text-white transition-colors cursor-pointer" aria-label="Search">
+          <button
+            onClick={handleSearchClick}
+            className="text-gray-300 hover:text-white transition-colors cursor-pointer"
+            aria-label="Search"
+          >
             <Search className="w-5 h-5" />
           </button>
 
@@ -471,10 +698,16 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             </div>
           ) : showAuthButtons ? (
             <div className="flex items-center gap-2">
-              <Link href={loginUrl} className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer">
+              <Link
+                href={loginUrl}
+                className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer"
+              >
                 Login
               </Link>
-              <Link href={registerUrl} className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer">
+              <Link
+                href={registerUrl}
+                className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer"
+              >
                 Sign Up
               </Link>
             </div>
@@ -502,156 +735,18 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               <span className="hidden sm:inline">Back to Admin Dashboard</span>
             </Link>
           )}
-          <button onClick={() => setIsMobileMenuOpen(true)} className="text-gray-300 cursor-pointer" aria-label="Open menu">
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="text-gray-300 cursor-pointer"
+            aria-label="Open menu"
+          >
             <Menu className="w-6 h-6" />
           </button>
         </div>
       </div>
 
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 bg-black">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-8">
-              <span className="text-white font-bold text-2xl">Menu</span>
-              <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white cursor-pointer" aria-label="Close menu">
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="space-y-1">
-              <Link
-                href="/store"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block px-4 py-3 rounded text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-              >
-                Shop All
-              </Link>
-
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                onClick={() => setMobileSection(mobileSection === 'shop' ? null : 'shop')}
-              >
-                <span className="flex items-center gap-2">
-                  <ShoppingBag className="w-4 h-4" />
-                  Categories
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'shop' ? 'rotate-180' : ''}`} />
-              </button>
-              {mobileSection === 'shop' && (
-                <div className="space-y-1 pl-4">
-                  {shopItems.map((it) => (
-                    <Link
-                      key={it.label}
-                      href={it.href}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-4 py-2 rounded text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                    >
-                      {it.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                onClick={() => setMobileSection(mobileSection === 'brands' ? null : 'brands')}
-              >
-                <span className="flex items-center gap-2">
-                  <Tag className="w-4 h-4" />
-                  Brands
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'brands' ? 'rotate-180' : ''}`} />
-              </button>
-              {mobileSection === 'brands' && (
-                <div className="space-y-3 pl-4">
-                  {resolvedBrandGroups.map((group) => {
-                    if (group.key === 'designer') {
-                      return (
-                        <div key={group.key}>
-                          <div className="text-xs uppercase text-zinc-500 mb-2">{group.label}</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            {designerBrands.map((brand) => (
-                              <Link
-                                key={brand}
-                                href={buildStoreHref({ category: 'sneakers', brand })}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                className="px-3 py-2 text-xs rounded text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                              >
-                                {brand}
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <Link
-                        key={group.key}
-                        href={buildStoreHref({ category: 'sneakers', brand: group.label })}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="px-4 py-2 rounded text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                      >
-                        {group.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              )}
-
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                onClick={() => setMobileSection(mobileSection === 'shoeSizes' ? null : 'shoeSizes')}
-              >
-                <span className="flex items-center gap-2">
-                  <Ruler className="w-4 h-4" />
-                  Sneaker Sizes
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'shoeSizes' ? 'rotate-180' : ''}`} />
-              </button>
-              {mobileSection === 'shoeSizes' && (
-                <div className="grid grid-cols-3 gap-2 pl-4 max-h-64 overflow-auto">
-                  {SHOE_SIZES.map((size) => (
-                    <Link
-                      key={size}
-                      href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-3 py-2 rounded text-center text-xs text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                    >
-                      {size}
-                    </Link>
-                  ))}
-                </div>
-              )}
-
-              <button
-                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                onClick={() => setMobileSection(mobileSection === 'clothingSizes' ? null : 'clothingSizes')}
-              >
-                <span className="flex items-center gap-2">
-                  <Shirt className="w-4 h-4" />
-                  Clothing Sizes
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'clothingSizes' ? 'rotate-180' : ''}`} />
-              </button>
-              {mobileSection === 'clothingSizes' && (
-                <div className="grid grid-cols-3 gap-2 pl-4">
-                  {CLOTHING_SIZES.map((size) => (
-                    <Link
-                      key={size}
-                      href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-3 py-3 rounded text-center text-xs text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
-                    >
-                      {size}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Mobile Menu (Portal to avoid ScrollHeader transform issues) */}
+      {isMounted && isMobileMenuOpen ? createPortal(mobileOverlay, document.body) : null}
     </nav>
   );
 }
