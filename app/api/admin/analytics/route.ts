@@ -17,6 +17,60 @@ const toDateKey = (value: string | null) => {
   return date.toISOString().slice(0, 10);
 };
 
+const buildDateRange = (startDate: Date, days: number) => {
+  const dates: string[] = [];
+  const cursor = new Date(startDate);
+  for (let i = 0; i < days; i += 1) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+};
+
+const computeTraffic = (
+  rows: Array<{ created_at: string | null; visitor_id: string | null; session_id: string | null }>,
+  startDate: Date,
+  days: number
+) => {
+  const visitors = new Set<string>();
+  const sessions = new Set<string>();
+  const dailySessions = new Map<string, Set<string>>();
+  let pageViews = 0;
+  let anonymousCounter = 0;
+
+  for (const row of rows) {
+    const dateKey = toDateKey(row.created_at);
+    if (dateKey === "Unknown") continue;
+    pageViews += 1;
+
+    if (row.visitor_id) {
+      visitors.add(row.visitor_id);
+    }
+
+    const sessionId =
+      row.session_id || row.visitor_id || `anon-${anonymousCounter++}`;
+    sessions.add(sessionId);
+
+    const bucket = dailySessions.get(dateKey) ?? new Set<string>();
+    bucket.add(sessionId);
+    dailySessions.set(dateKey, bucket);
+  }
+
+  const trafficTrend = buildDateRange(startDate, days).map((date) => ({
+    date,
+    visits: dailySessions.get(date)?.size ?? 0,
+  }));
+
+  return {
+    summary: {
+      visits: sessions.size,
+      uniqueVisitors: visitors.size,
+      pageViews,
+    },
+    trafficTrend,
+  };
+};
+
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
@@ -32,6 +86,15 @@ export async function GET(request: NextRequest) {
     const orders = await repo.listOrders({
       status: ["paid", "shipped", "refunded"],
     });
+
+    const { data: pageviewRows, error: pageviewError } = await supabase
+      .from("site_pageviews")
+      .select("created_at, visitor_id, session_id")
+      .gte("created_at", startDate.toISOString());
+
+    if (pageviewError) {
+      throw pageviewError;
+    }
 
     const filtered = orders.filter((order: any) => {
       if (!order.created_at) return false;
@@ -64,6 +127,16 @@ export async function GET(request: NextRequest) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, value]) => ({ date, revenue: Math.round(value * 100) / 100 }));
 
+    const traffic = computeTraffic(
+      (pageviewRows ?? []) as Array<{
+        created_at: string | null;
+        visitor_id: string | null;
+        session_id: string | null;
+      }>,
+      startDate,
+      days
+    );
+
     return NextResponse.json({
       summary: {
         revenue,
@@ -71,6 +144,8 @@ export async function GET(request: NextRequest) {
         orders: orderCount,
       },
       salesTrend,
+      trafficSummary: traffic.summary,
+      trafficTrend: traffic.trafficTrend,
     });
   } catch (error) {
     console.error("Admin analytics error:", error);

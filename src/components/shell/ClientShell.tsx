@@ -2,12 +2,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { SearchOverlay } from '@/components/search/SearchOverlay';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 
 export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -30,6 +31,48 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
     const routeValue = isAdminRoute ? 'admin' : isAuthRoute ? 'auth' : 'store';
     document.body.dataset.route = routeValue;
   }, [pathname]);
+
+  useEffect(() => {
+    if (!pathname) return;
+    if (pathname.startsWith('/admin') || pathname.startsWith('/auth')) return;
+
+    const visitorKey = 'rdk_visitor_id';
+    const sessionKey = 'rdk_session_id';
+
+    const getOrCreateId = (storage: Storage, key: string) => {
+      const existing = storage.getItem(key);
+      if (existing) return existing;
+      const nextId =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      storage.setItem(key, nextId);
+      return nextId;
+    };
+
+    const visitorId = getOrCreateId(localStorage, visitorKey);
+    const sessionId = getOrCreateId(sessionStorage, sessionKey);
+    const path = `${window.location.pathname}${window.location.search}`;
+
+    const payload = JSON.stringify({
+      path,
+      referrer: document.referrer || null,
+      visitorId,
+      sessionId,
+    });
+
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon('/api/analytics/track', blob);
+    } else {
+      fetch('/api/analytics/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true,
+      }).catch(() => undefined);
+    }
+  }, [pathname, searchParams]);
 
   return (
     <>

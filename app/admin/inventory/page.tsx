@@ -2,15 +2,30 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, MoreVertical, Edit, Trash2, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy } from 'lucide-react';
 import type { ProductWithDetails } from "@/types/views/product";
+import type { Category, Condition } from "@/types/views/product";
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importCategory, setImportCategory] = useState<Category>('sneakers');
+  const [importCondition, setImportCondition] = useState<Condition>('new');
+  const [useSquareCategory, setUseSquareCategory] = useState(true);
+  const [importStatus, setImportStatus] = useState<{
+    created: number;
+    skipped: number;
+    totalRows: number;
+    totalProducts: number;
+    errors: string[];
+  } | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     loadProducts();
@@ -73,6 +88,48 @@ export default function InventoryPage() {
     alert('Mass delete functionality - coming soon');
   };
 
+  const handleSquareImport = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!importFile) {
+      setImportError('Please select a Square export file.');
+      return;
+    }
+
+    setIsImporting(true);
+    setImportError(null);
+    setImportStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      formData.append('defaultCategory', importCategory);
+      formData.append('condition', importCondition);
+      formData.append('useSquareCategory', String(useSquareCategory));
+
+      const response = await fetch('/api/admin/inventory/import/square', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to import Square inventory.');
+      }
+
+      setImportStatus(data);
+      setImportFile(null);
+      if (importFileRef.current) {
+        importFileRef.current.value = '';
+      }
+      await loadProducts();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import Square inventory.';
+      setImportError(message);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -87,6 +144,91 @@ export default function InventoryPage() {
           <Plus className="w-5 h-5" />
           Create Product
         </Link>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold text-white">Import from Square</h2>
+          <p className="text-gray-500 text-sm">
+            Upload a Square Item Library export (XLSX or CSV).
+          </p>
+        </div>
+
+        <form onSubmit={handleSquareImport} className="grid grid-cols-1 md:grid-cols-6 gap-4">
+          <div className="md:col-span-3">
+            <label className="block text-gray-400 text-sm mb-1">Square export file</label>
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+              className="w-full bg-zinc-800 text-white px-3 py-2 rounded border border-zinc-800/70"
+            />
+          </div>
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Default Category</label>
+            <select
+              value={importCategory}
+              onChange={(event) => setImportCategory(event.target.value as Category)}
+              className="w-full bg-zinc-800 text-white px-3 py-2 rounded border border-zinc-800/70"
+            >
+              <option value="sneakers">Sneakers</option>
+              <option value="clothing">Clothing</option>
+              <option value="accessories">Accessories</option>
+              <option value="electronics">Electronics</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Condition</label>
+            <select
+              value={importCondition}
+              onChange={(event) => setImportCondition(event.target.value as Condition)}
+              className="w-full bg-zinc-800 text-white px-3 py-2 rounded border border-zinc-800/70"
+            >
+              <option value="new">New</option>
+              <option value="used">Used</option>
+            </select>
+          </div>
+          <label className="md:col-span-4 flex items-center gap-2 text-sm text-gray-400">
+            <input
+              type="checkbox"
+              checked={useSquareCategory}
+              onChange={(event) => setUseSquareCategory(event.target.checked)}
+              className="rdk-checkbox"
+            />
+            Use Square categories when available
+          </label>
+          <div className="md:col-span-2 flex items-center justify-end">
+            <button
+              type="submit"
+              disabled={isImporting}
+              className="w-full md:w-auto bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 text-white font-semibold px-4 py-2 rounded transition"
+            >
+              {isImporting ? 'Importing...' : 'Import Inventory'}
+            </button>
+          </div>
+        </form>
+
+        {importError && (
+          <div className="text-sm text-red-400">{importError}</div>
+        )}
+
+        {importStatus && (
+          <div className="text-sm text-gray-300 space-y-1">
+            <div>
+              Imported {importStatus.created} products from {importStatus.totalRows} rows.
+            </div>
+            {importStatus.skipped > 0 && (
+              <div>{importStatus.skipped} rows skipped.</div>
+            )}
+            {importStatus.errors?.length > 0 && (
+              <div className="text-xs text-gray-500">
+                {importStatus.errors.slice(0, 3).join(' ')}
+                {importStatus.errors.length > 3 ? ' ...' : ''}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {selectedIds.length > 0 && (

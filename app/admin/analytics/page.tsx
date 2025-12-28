@@ -9,6 +9,12 @@ export default function AnalyticsPage() {
   const [range, setRange] = useState('30d');
   const [summary, setSummary] = useState({ revenue: 0, profit: 0, orders: 0 });
   const [salesTrend, setSalesTrend] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [trafficSummary, setTrafficSummary] = useState({
+    visits: 0,
+    uniqueVisitors: 0,
+    pageViews: 0,
+  });
+  const [trafficTrend, setTrafficTrend] = useState<Array<{ date: string; visits: number }>>([]);
 
   useEffect(() => {
     const loadAnalytics = async () => {
@@ -18,6 +24,10 @@ export default function AnalyticsPage() {
         if (response.ok) {
           setSummary(data.summary || { revenue: 0, profit: 0, orders: 0 });
           setSalesTrend(data.salesTrend || []);
+          setTrafficSummary(
+            data.trafficSummary || { visits: 0, uniqueVisitors: 0, pageViews: 0 }
+          );
+          setTrafficTrend(data.trafficTrend || []);
         }
       } catch (error) {
         console.error('Load analytics error:', error);
@@ -57,8 +67,10 @@ export default function AnalyticsPage() {
               <span className="text-gray-400 text-sm">Total Visits</span>
               <Users className="w-5 h-5 text-gray-400" />
             </div>
-            <div className="text-3xl font-bold text-white">3,456</div>
-            <div className="text-green-400 text-sm mt-2">+8.2% from last week</div>
+            <div className="text-3xl font-bold text-white">{trafficSummary.visits}</div>
+            <div className="text-gray-500 text-sm mt-2">
+              {range === 'today' ? 'Today' : `Last ${range.replace('d', '')} days`}
+            </div>
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
@@ -66,8 +78,10 @@ export default function AnalyticsPage() {
               <span className="text-gray-400 text-sm">Unique Visitors</span>
               <Eye className="w-5 h-5 text-gray-400" />
             </div>
-            <div className="text-3xl font-bold text-white">2,134</div>
-            <div className="text-green-400 text-sm mt-2">+5.1% from last week</div>
+            <div className="text-3xl font-bold text-white">{trafficSummary.uniqueVisitors}</div>
+            <div className="text-gray-500 text-sm mt-2">
+              {range === 'today' ? 'Today' : `Last ${range.replace('d', '')} days`}
+            </div>
           </div>
 
           <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
@@ -75,14 +89,16 @@ export default function AnalyticsPage() {
               <span className="text-gray-400 text-sm">Page Views</span>
               <Eye className="w-5 h-5 text-gray-400" />
             </div>
-            <div className="text-3xl font-bold text-white">12,890</div>
-            <div className="text-green-400 text-sm mt-2">+12.3% from last week</div>
+            <div className="text-3xl font-bold text-white">{trafficSummary.pageViews}</div>
+            <div className="text-gray-500 text-sm mt-2">
+              {range === 'today' ? 'Today' : `Last ${range.replace('d', '')} days`}
+            </div>
           </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Weekly Traffic</h3>
-          <TrafficChart />
+          <h3 className="text-xl font-semibold text-white mb-4">Daily Traffic</h3>
+          <TrafficChart data={trafficTrend} />
         </div>
       </div>
 

@@ -9,6 +9,12 @@ import Link from 'next/link';
 export default function DashboardPage() {
   const [summary, setSummary] = useState({ revenue: 0, orders: 0 });
   const [salesTrend, setSalesTrend] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [trafficSummary, setTrafficSummary] = useState({
+    visits: 0,
+    uniqueVisitors: 0,
+    pageViews: 0,
+  });
+  const [trafficTrend, setTrafficTrend] = useState<Array<{ date: string; visits: number }>>([]);
   const [productsCount, setProductsCount] = useState(0);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
 
@@ -23,6 +29,10 @@ export default function DashboardPage() {
             orders: analyticsData.summary?.orders ?? 0,
           });
           setSalesTrend(analyticsData.salesTrend || []);
+          setTrafficSummary(
+            analyticsData.trafficSummary || { visits: 0, uniqueVisitors: 0, pageViews: 0 }
+          );
+          setTrafficTrend(analyticsData.trafficTrend || []);
         }
 
         const productsResponse = await fetch('/api/store/products?limit=1');
@@ -64,9 +74,9 @@ export default function DashboardPage() {
     },
     {
       title: 'Visitors',
-      value: '-',
+      value: `${trafficSummary.uniqueVisitors}`,
       change: '-',
-      trend: 'down',
+      trend: trafficSummary.uniqueVisitors > 0 ? 'up' : 'down',
       icon: Users,
     },
   ];
@@ -117,7 +127,7 @@ export default function DashboardPage() {
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Traffic</h2>
-          <TrafficChart />
+          <TrafficChart data={trafficTrend} />
         </div>
       </div>
 
