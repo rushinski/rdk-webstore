@@ -2,11 +2,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Home, Search, ShoppingCart, User } from 'lucide-react';
 import { CartService } from '@/services/cart-service';
 
 export function MobileBottomNav() {
+  const pathname = usePathname();
   const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
@@ -20,6 +22,10 @@ export function MobileBottomNav() {
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);
+
+  if (pathname.startsWith('/admin')) {
+    return null;
+  }
 
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-black border-t border-zinc-800/70 z-40 safe-area-bottom">

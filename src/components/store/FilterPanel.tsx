@@ -16,7 +16,7 @@ interface FilterPanelProps {
   selectedConditions: string[];
   categories: string[];
   brands: BrandOption[];
-  models: string[];
+  modelsByBrand: Record<string, string[]>;
   onFilterChange: (filters: any) => void;
 }
 
@@ -28,7 +28,7 @@ export function FilterPanel({
   selectedClothingSizes,
   selectedConditions,
   brands,
-  models,
+  modelsByBrand,
   categories,
   onFilterChange,
 }: FilterPanelProps) {
@@ -36,10 +36,10 @@ export function FilterPanel({
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     category: true,
     brand: true,
-    model: true,
     size: true,
     condition: true,
   });
+  const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
 
   const conditions = ['new', 'used'];
 
@@ -61,6 +61,10 @@ export function FilterPanel({
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
+  const toggleBrand = (brand: string) => {
+    setExpandedBrands(prev => ({ ...prev, [brand]: !prev[brand] }));
+  };
+
   const handleCategoryChange = (category: string) => {
     const newCategories = selectedCategories.includes(category)
       ? selectedCategories.filter(c => c !== category)
@@ -69,17 +73,30 @@ export function FilterPanel({
   };
 
   const handleBrandChange = (brand: string) => {
-    const newBrands = selectedBrands.includes(brand)
+    const isSelected = selectedBrands.includes(brand);
+    const newBrands = isSelected
       ? selectedBrands.filter(b => b !== brand)
       : [...selectedBrands, brand];
-    onFilterChange({ ...getFilters(), brand: newBrands });
+    const brandModels = modelsByBrand[brand] ?? [];
+    const nextModels = isSelected
+      ? selectedModels.filter(model => !brandModels.includes(model))
+      : selectedModels;
+    onFilterChange({ ...getFilters(), brand: newBrands, model: nextModels });
+    setExpandedBrands(prev => ({ ...prev, [brand]: !isSelected }));
   };
 
-  const handleModelChange = (model: string) => {
-    const newModels = selectedModels.includes(model)
+  const handleModelChange = (model: string, brand?: string) => {
+    const isSelected = selectedModels.includes(model);
+    const newModels = isSelected
       ? selectedModels.filter((m) => m !== model)
       : [...selectedModels, model];
-    onFilterChange({ ...getFilters(), model: newModels });
+    const newBrands = brand && !selectedBrands.includes(brand)
+      ? [...selectedBrands, brand]
+      : selectedBrands;
+    onFilterChange({ ...getFilters(), brand: newBrands, model: newModels });
+    if (brand && !isSelected) {
+      setExpandedBrands(prev => ({ ...prev, [brand]: true }));
+    }
   };
 
   const handleShoeSizeChange = (size: string) => {
@@ -212,46 +229,54 @@ export function FilterPanel({
             <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.brand ? 'rotate-180' : ''}`} />
           </button>
           {expandedSections.brand && (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {brands.map((brand) => (
-                <label key={brand.value} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedBrands.includes(brand.value)}
-                  onChange={() => handleBrandChange(brand.value)}
-                  className="rdk-checkbox mr-2"
-                />
-                  <span>{brand.label}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {brands.map((brand) => {
+                const brandKey = brand.value;
+                const brandModels = showModelFilter ? (modelsByBrand[brandKey] ?? []) : [];
+                const hasModels = brandModels.length > 0;
+                const isExpanded = Boolean(expandedBrands[brandKey]) || selectedBrands.includes(brandKey);
 
-      {/* Model Filter */}
-      {showModelFilter && models.length > 0 && (
-        <div>
-          <button
-            onClick={() => toggleSection('model')}
-            className="flex items-center justify-between w-full text-white font-semibold mb-2"
-          >
-            Model
-            <ChevronDown className={`w-4 h-4 transition-transform ${expandedSections.model ? 'rotate-180' : ''}`} />
-          </button>
-          {expandedSections.model && (
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {models.map((model) => (
-                <label key={model} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedModels.includes(model)}
-                  onChange={() => handleModelChange(model)}
-                  className="rdk-checkbox mr-2"
-                />
-                  <span>{model}</span>
-                </label>
-              ))}
+                return (
+                  <div key={brandKey} className="rounded border border-zinc-800/70 bg-zinc-950/30 px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="flex items-center text-gray-300 hover:text-white cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedBrands.includes(brandKey)}
+                          onChange={() => handleBrandChange(brandKey)}
+                          className="rdk-checkbox mr-2"
+                        />
+                        <span>{brand.label}</span>
+                      </label>
+                      {hasModels && (
+                        <button
+                          type="button"
+                          onClick={() => toggleBrand(brandKey)}
+                          className="text-zinc-500 hover:text-white transition-colors"
+                          aria-label={`Toggle ${brand.label} models`}
+                        >
+                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      )}
+                    </div>
+                    {hasModels && isExpanded && (
+                      <div className="mt-2 space-y-2 border-l border-zinc-800/70 pl-4">
+                        {brandModels.map((model) => (
+                          <label key={model} className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm">
+                            <input
+                              type="checkbox"
+                              checked={selectedModels.includes(model)}
+                              onChange={() => handleModelChange(model, brandKey)}
+                              className="rdk-checkbox mr-2"
+                            />
+                            <span>{model}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

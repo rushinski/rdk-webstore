@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 
-export function ScrollHeader() {
+interface ScrollHeaderProps {
+  isAuthenticated?: boolean;
+  isAdmin?: boolean;
+  userEmail?: string;
+}
+
+export function ScrollHeader({ isAuthenticated = false, isAdmin = false, userEmail }: ScrollHeaderProps) {
   const pathname = usePathname();
   const isAuthRoute = pathname.startsWith('/auth');
   const isAdminRoute = pathname.startsWith('/admin');
@@ -45,7 +51,7 @@ export function ScrollHeader() {
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
-      <Navbar />
+      <Navbar isAuthenticated={isAuthenticated} isAdmin={isAdmin} userEmail={userEmail} />
     </header>
   );
 }

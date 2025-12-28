@@ -14,7 +14,6 @@ export default function StorePage() {
   
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [brands, setBrands] = useState<Array<{ label: string; value: string }>>([]);
-  const [models, setModels] = useState<string[]>([]);
   const [modelsByBrand, setModelsByBrand] = useState<Record<string, string[]>>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -28,14 +27,6 @@ export default function StorePage() {
   const selectedClothingSizes = searchParams.getAll('sizeClothing');
   const selectedConditions = searchParams.getAll('condition');
   const query = searchParams.get('q') || '';
-
-  const scopedModels = selectedBrands.length > 0
-    ? Array.from(
-        new Set(
-          selectedBrands.flatMap((brand) => modelsByBrand[brand] ?? [])
-        )
-      ).sort((a, b) => a.localeCompare(b))
-    : models;
 
   useEffect(() => {
     loadProducts();
@@ -72,7 +63,6 @@ export default function StorePage() {
         : [];
 
       setBrands(brandOptions);
-      setModels(Array.isArray(data.models) ? data.models : []);
       setModelsByBrand(data.modelsByBrand ?? {});
       setCategories(Array.isArray(data.categories) ? data.categories : []);
     } catch (error) {
@@ -151,7 +141,7 @@ export default function StorePage() {
             selectedConditions={selectedConditions}
             categories={categories}
             brands={brands}
-            models={scopedModels}
+            modelsByBrand={modelsByBrand}
             onFilterChange={handleFilterChange}
           />
         </div>
@@ -177,7 +167,7 @@ export default function StorePage() {
           selectedConditions={selectedConditions}
           categories={categories}
           brands={brands}
-          models={scopedModels}
+          modelsByBrand={modelsByBrand}
           onFilterChange={handleFilterChange}
         />
       </div>

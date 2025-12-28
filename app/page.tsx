@@ -50,7 +50,7 @@ export default async function HomePage() {
         <div className="absolute inset-0 opacity-20">
           <div className="absolute inset-0 noise-overlay" />
         </div>
-        
+
         <div className="relative text-center px-4 z-10">
           <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight">
             REAL DEAL KICKZ
@@ -93,6 +93,7 @@ export default async function HomePage() {
                     src={product.images[0]?.url || '/placeholder.png'}
                     alt={product.title_display ?? product.name}
                     fill
+                    sizes="(max-width: 1024px) 50vw, 25vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>

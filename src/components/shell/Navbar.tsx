@@ -13,7 +13,7 @@ import {
   ChevronDown,
   Menu,
   Home,
-  LayoutDashboard,
+  ArrowLeft,
   Settings,
   LogOut,
   Shirt,
@@ -40,19 +40,15 @@ function buildStoreHref(params: Record<string, string>) {
 }
 
 function MenuShell({
-  open,
   align = 'left',
   children,
 }: {
-  open: boolean;
   align?: 'left' | 'right';
   children: React.ReactNode;
 }) {
-  if (!open) return null;
-
   return (
     <div
-      className={`absolute top-full ${align === 'left' ? 'left-0' : 'right-0'} pt-3 z-50`}
+      className={`absolute top-full ${align === 'left' ? 'left-0' : 'right-0'} pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0`}
       role="menu"
     >
       <div className="min-w-[500px] max-w-[calc(100vw-2rem)] border border-zinc-800 bg-black shadow-2xl">
@@ -99,18 +95,11 @@ const SHOE_SIZE_GROUPS = {
 
 export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, cartCount = 0 }: NavbarProps) {
   const pathname = usePathname();
-  const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
-  const [authState, setAuthState] = useState({
-    isAuthenticated,
-    isAdmin,
-    userEmail,
-  });
-  const [authLoading, setAuthLoading] = useState(true);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
   const [designerBrands, setDesignerBrands] = useState<string[]>([]);
 
@@ -174,39 +163,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    setAuthState({ isAuthenticated, isAdmin, userEmail });
-  }, [isAuthenticated, isAdmin, userEmail]);
-
-  useEffect(() => {
-    let active = true;
-    const loadSession = async () => {
-      try {
-        const response = await fetch('/api/me', { cache: 'no-store' });
-        const data = await response.json();
-        if (!active) return;
-        if (data?.user) {
-          setAuthState({
-            isAuthenticated: true,
-            isAdmin: data.profile?.role === 'admin',
-            userEmail: data.user.email ?? data.profile?.email ?? '',
-          });
-        } else {
-          setAuthState({ isAuthenticated: false, isAdmin: false, userEmail: undefined });
-        }
-      } catch (error) {
-        console.error('Load session error:', error);
-      } finally {
-        if (active) setAuthLoading(false);
-      }
-    };
-
-    loadSession();
-    return () => {
-      active = false;
-    };
-  }, []);
-
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     window.location.href = '/';
@@ -265,11 +221,8 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
     []
   );
 
-  const resolvedIsAuthenticated = authState.isAuthenticated;
-  const resolvedIsAdmin = authState.isAdmin;
-  const resolvedUserEmail = authState.userEmail;
-  const showAuthButtons = !resolvedIsAuthenticated && !authLoading;
-  const showAdminLink = resolvedIsAdmin;
+  const showAuthButtons = !isAuthenticated;
+  const showAdminLink = isAdmin;
 
   return (
     <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -277,37 +230,24 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
         <div className="flex items-center gap-6">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-10 h-10 relative flex-shrink-0">
-              <Image src="/images/rdk-logo.png" alt="Real Deal Kickz" fill className="object-contain" />
+              <Image src="/images/rdk-logo.png" alt="Real Deal Kickz" fill sizes="40px" className="object-contain" />
             </div>
             <span className="text-white font-bold text-lg tracking-tight hidden sm:block">
               REALDEALKICKZSC
             </span>
           </Link>
-          {showAdminLink && (
-            <Link
-              href="/admin"
-              className="inline-flex md:hidden items-center px-2 py-1 rounded border border-zinc-800 text-[10px] font-semibold text-zinc-200 uppercase tracking-wider"
-            >
-              Admin
-            </Link>
-          )}
 
           <div className="hidden lg:flex items-center gap-1">
-            <div
-              className="relative"
-              onMouseEnter={() => setActiveMenu('shop')}
-              onMouseLeave={() => setActiveMenu(null)}
-            >
+            <div className="relative group">
               <button
                 type="button"
                 className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                onClick={() => setActiveMenu(activeMenu === 'shop' ? null : 'shop')}
               >
                 <span className="text-sm">Shop</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
 
-              <MenuShell open={activeMenu === 'shop'} align="left">
+              <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Shop Categories</h3>
                 </div>
@@ -319,28 +259,22 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                       icon={it.icon}
                       label={it.label}
                       description={it.description}
-                      onClick={() => setActiveMenu(null)}
                     />
                   ))}
                 </div>
               </MenuShell>
             </div>
 
-            <div
-              className="relative"
-              onMouseEnter={() => setActiveMenu('brands')}
-              onMouseLeave={() => setActiveMenu(null)}
-            >
+            <div className="relative group">
               <button
                 type="button"
                 className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                onClick={() => setActiveMenu(activeMenu === 'brands' ? null : 'brands')}
               >
                 <span className="text-sm">Brands</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
 
-              <MenuShell open={activeMenu === 'brands'} align="left">
+              <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Shop by Brand</h3>
                   <p className="text-xs text-zinc-600">Premium sneaker & streetwear brands</p>
@@ -358,7 +292,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                                 <Link
                                   key={brand}
                                   href={buildStoreHref({ category: 'sneakers', brand })}
-                                  onClick={() => setActiveMenu(null)}
                                   className="px-3 py-2 text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                                 >
                                   {brand}
@@ -373,7 +306,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                         <Link
                           key={group.key}
                           href={buildStoreHref({ category: 'sneakers', brand: group.label })}
-                          onClick={() => setActiveMenu(null)}
                           className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {group.label}
@@ -385,21 +317,16 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               </MenuShell>
             </div>
 
-            <div
-              className="relative"
-              onMouseEnter={() => setActiveMenu('shoeSizes')}
-              onMouseLeave={() => setActiveMenu(null)}
-            >
+            <div className="relative group">
               <button
                 type="button"
                 className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                onClick={() => setActiveMenu(activeMenu === 'shoeSizes' ? null : 'shoeSizes')}
               >
                 <span className="text-sm">Sneaker Sizes</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
 
-              <MenuShell open={activeMenu === 'shoeSizes'} align="left">
+              <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Find Your Size</h3>
                   <p className="text-xs text-zinc-600">Men's, Women's & Youth sizes available</p>
@@ -413,7 +340,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                         <Link
                           key={size}
                           href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
-                          onClick={() => setActiveMenu(null)}
                           className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {size}
@@ -429,7 +355,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                         <Link
                           key={size}
                           href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
-                          onClick={() => setActiveMenu(null)}
                           className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {size}
@@ -441,21 +366,16 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               </MenuShell>
             </div>
 
-            <div
-              className="relative"
-              onMouseEnter={() => setActiveMenu('clothingSizes')}
-              onMouseLeave={() => setActiveMenu(null)}
-            >
+            <div className="relative group">
               <button
                 type="button"
                 className="flex items-center gap-1 px-3 py-2 text-gray-300 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
-                onClick={() => setActiveMenu(activeMenu === 'clothingSizes' ? null : 'clothingSizes')}
               >
                 <span className="text-sm">Clothing Sizes</span>
                 <ChevronDown className="w-3 h-3" />
               </button>
 
-              <MenuShell open={activeMenu === 'clothingSizes'} align="left">
+              <MenuShell align="left">
                 <div className="p-6 border-b border-zinc-900">
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Clothing Sizes</h3>
                   <p className="text-xs text-zinc-600">Filter streetwear by your perfect fit</p>
@@ -467,7 +387,6 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                       <Link
                         key={size}
                         href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
-                        onClick={() => setActiveMenu(null)}
                         className="px-4 py-3 text-center text-sm font-bold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                       >
                         {size}
@@ -502,17 +421,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
             )}
           </button>
 
-          {showAdminLink && (
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded border border-zinc-800 text-xs font-semibold text-zinc-200 hover:bg-zinc-900 transition-colors"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Admin Dashboard
-            </Link>
-          )}
-
-          {resolvedIsAuthenticated ? (
+          {isAuthenticated ? (
             <div ref={profileRef} className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -523,40 +432,40 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               </button>
 
               {isProfileOpen && (
-                <div className="absolute top-full right-0 mt-3 w-56 border border-zinc-800 bg-black shadow-2xl z-50">
-                  {resolvedUserEmail && (
-                    <div className="px-4 py-3 border-b border-zinc-900">
-                      <p className="text-xs text-zinc-500 truncate">{resolvedUserEmail}</p>
-                    </div>
-                  )}
-
-                  <Link
-                    href="/account"
+                <div className="fixed inset-0 z-50">
+                  <button
+                    type="button"
+                    aria-label="Close menu"
+                    className="absolute inset-0 bg-black"
                     onClick={() => setIsProfileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
+                  />
+                  <div
+                    className="absolute top-20 right-6 w-64 border border-zinc-800 bg-black shadow-2xl"
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    <Settings className="w-4 h-4" />
-                    Account Settings
-                  </Link>
+                    {userEmail && (
+                      <div className="px-4 py-3 border-b border-zinc-900">
+                        <p className="text-xs text-zinc-500 truncate">{userEmail}</p>
+                      </div>
+                    )}
 
-                  {resolvedIsAdmin && (
                     <Link
-                      href="/admin"
+                      href="/account"
                       onClick={() => setIsProfileOpen(false)}
                       className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
                     >
                       <Settings className="w-4 h-4" />
-                      Admin Dashboard
+                      Account Settings
                     </Link>
-                  )}
 
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors cursor-pointer"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -570,46 +479,56 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               </Link>
             </div>
           ) : null}
+
+          {isAuthenticated && showAdminLink && (
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Admin Dashboard
+            </Link>
+          )}
         </div>
 
-        <button onClick={() => setIsMobileMenuOpen(true)} className="md:hidden text-gray-300 cursor-pointer" aria-label="Open menu">
-          <Menu className="w-6 h-6" />
-        </button>
+        <div className="flex items-center gap-3 md:hidden">
+          {showAdminLink && (
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="sm:hidden">Admin</span>
+              <span className="hidden sm:inline">Back to Admin Dashboard</span>
+            </Link>
+          )}
+          <button onClick={() => setIsMobileMenuOpen(true)} className="text-gray-300 cursor-pointer" aria-label="Open menu">
+            <Menu className="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-50 bg-black">
           <div className="p-6">
             <div className="flex items-center justify-between mb-8">
-              <span className="text-white font-bold text-lg">Menu</span>
+              <span className="text-white font-bold text-2xl">Menu</span>
               <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-white cursor-pointer" aria-label="Close menu">
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <div className="space-y-2">
-              {showAdminLink && (
-                <Link
-                  href="/admin"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <LayoutDashboard className="w-4 h-4" />
-                    Admin Dashboard
-                  </div>
-                </Link>
-              )}
+            <div className="space-y-1">
               <Link
                 href="/store"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="block px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                className="block px-4 py-3 rounded text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
               >
                 Shop All
               </Link>
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'shop' ? null : 'shop')}
               >
                 <span className="flex items-center gap-2">
@@ -619,13 +538,13 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'shop' ? 'rotate-180' : ''}`} />
               </button>
               {mobileSection === 'shop' && (
-                <div className="space-y-2 pl-2">
+                <div className="space-y-1 pl-4">
                   {shopItems.map((it) => (
                     <Link
                       key={it.label}
                       href={it.href}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-l-2 border-zinc-800 hover:border-red-600 cursor-pointer"
+                      className="block px-4 py-2 rounded text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                     >
                       {it.label}
                     </Link>
@@ -634,7 +553,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               )}
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'brands' ? null : 'brands')}
               >
                 <span className="flex items-center gap-2">
@@ -644,7 +563,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'brands' ? 'rotate-180' : ''}`} />
               </button>
               {mobileSection === 'brands' && (
-                <div className="space-y-4 pl-2">
+                <div className="space-y-3 pl-4">
                   {resolvedBrandGroups.map((group) => {
                     if (group.key === 'designer') {
                       return (
@@ -656,7 +575,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                                 key={brand}
                                 href={buildStoreHref({ category: 'sneakers', brand })}
                                 onClick={() => setIsMobileMenuOpen(false)}
-                                className="px-3 py-2 text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                                className="px-3 py-2 text-xs rounded text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                               >
                                 {brand}
                               </Link>
@@ -671,7 +590,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                         key={group.key}
                         href={buildStoreHref({ category: 'sneakers', brand: group.label })}
                         onClick={() => setIsMobileMenuOpen(false)}
-                        className="px-4 py-3 text-sm text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                        className="px-4 py-2 rounded text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                       >
                         {group.label}
                       </Link>
@@ -681,7 +600,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               )}
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'shoeSizes' ? null : 'shoeSizes')}
               >
                 <span className="flex items-center gap-2">
@@ -691,13 +610,13 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'shoeSizes' ? 'rotate-180' : ''}`} />
               </button>
               {mobileSection === 'shoeSizes' && (
-                <div className="grid grid-cols-3 gap-2 pl-2 max-h-64 overflow-auto">
+                <div className="grid grid-cols-3 gap-2 pl-4 max-h-64 overflow-auto">
                   {SHOE_SIZES.map((size) => (
                     <Link
                       key={size}
                       href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-3 py-2 text-center text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                      className="px-3 py-2 rounded text-center text-xs text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                     >
                       {size}
                     </Link>
@@ -706,7 +625,7 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
               )}
 
               <button
-                className="w-full flex items-center justify-between px-4 py-3 text-gray-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-4 py-3 rounded text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                 onClick={() => setMobileSection(mobileSection === 'clothingSizes' ? null : 'clothingSizes')}
               >
                 <span className="flex items-center gap-2">
@@ -716,13 +635,13 @@ export function Navbar({ isAuthenticated = false, isAdmin = false, userEmail, ca
                 <ChevronDown className={`w-4 h-4 transition-transform ${mobileSection === 'clothingSizes' ? 'rotate-180' : ''}`} />
               </button>
               {mobileSection === 'clothingSizes' && (
-                <div className="grid grid-cols-3 gap-2 pl-2">
+                <div className="grid grid-cols-3 gap-2 pl-4">
                   {CLOTHING_SIZES.map((size) => (
                     <Link
                       key={size}
                       href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
                       onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-3 py-3 text-center text-xs text-gray-300 hover:text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 cursor-pointer"
+                      className="px-3 py-3 rounded text-center text-xs text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors cursor-pointer"
                     >
                       {size}
                     </Link>
