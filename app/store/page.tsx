@@ -15,6 +15,7 @@ export default function StorePage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [brands, setBrands] = useState<Array<{ label: string; value: string }>>([]);
   const [modelsByBrand, setModelsByBrand] = useState<Record<string, string[]>>({});
+  const [brandsByCategory, setBrandsByCategory] = useState<Record<string, string[]>>({});
   const [categories, setCategories] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -64,6 +65,7 @@ export default function StorePage() {
 
       setBrands(brandOptions);
       setModelsByBrand(data.modelsByBrand ?? {});
+      setBrandsByCategory(data.brandsByCategory ?? {});
       setCategories(Array.isArray(data.categories) ? data.categories : []);
     } catch (error) {
       console.error("Load filters error:", error);
@@ -142,6 +144,7 @@ export default function StorePage() {
             categories={categories}
             brands={brands}
             modelsByBrand={modelsByBrand}
+            brandsByCategory={brandsByCategory}
             onFilterChange={handleFilterChange}
           />
         </div>
@@ -168,6 +171,7 @@ export default function StorePage() {
           categories={categories}
           brands={brands}
           modelsByBrand={modelsByBrand}
+          brandsByCategory={brandsByCategory}
           onFilterChange={handleFilterChange}
         />
       </div>

@@ -17,6 +17,7 @@ interface FilterPanelProps {
   categories: string[];
   brands: BrandOption[];
   modelsByBrand: Record<string, string[]>;
+  brandsByCategory: Record<string, string[]>;
   onFilterChange: (filters: any) => void;
 }
 
@@ -29,6 +30,7 @@ export function FilterPanel({
   selectedConditions,
   brands,
   modelsByBrand,
+  brandsByCategory,
   categories,
   onFilterChange,
 }: FilterPanelProps) {
@@ -55,6 +57,22 @@ export function FilterPanel({
   const brandLabelMap = useMemo(
     () => new Map(brands.map((brand) => [brand.value, brand.label])),
     [brands]
+  );
+  const availableBrandValues = useMemo(() => {
+    if (selectedCategories.length === 0) {
+      return new Set(brands.map((brand) => brand.value));
+    }
+
+    const values = new Set<string>();
+    selectedCategories.forEach((category) => {
+      (brandsByCategory[category] ?? []).forEach((brand) => values.add(brand));
+    });
+    return values;
+  }, [brands, brandsByCategory, selectedCategories]);
+
+  const filteredBrands = useMemo(
+    () => brands.filter((brand) => availableBrandValues.has(brand.value)),
+    [availableBrandValues, brands]
   );
 
   const toggleSection = (section: string) => {
@@ -219,7 +237,7 @@ export function FilterPanel({
       </div>
 
       {/* Brand Filter */}
-      {brands.length > 0 && (
+      {filteredBrands.length > 0 && (
         <div>
           <button
             onClick={() => toggleSection('brand')}
@@ -230,7 +248,7 @@ export function FilterPanel({
           </button>
           {expandedSections.brand && (
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-              {brands.map((brand) => {
+              {filteredBrands.map((brand) => {
                 const brandKey = brand.value;
                 const brandModels = showModelFilter ? (modelsByBrand[brandKey] ?? []) : [];
                 const hasModels = brandModels.length > 0;

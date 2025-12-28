@@ -59,7 +59,7 @@ export function AdminSidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="md:hidden fixed bottom-5 right-5 z-40 bg-red-600 text-white p-3 rounded-full shadow-lg"
+        className="md:hidden fixed top-5 right-5 z-40 bg-red-600 text-white p-3 rounded-full shadow-lg"
       >
         <Menu className="w-5 h-5" />
       </button>

@@ -16,6 +16,7 @@ export async function GET() {
 
     const brandMap = new Map<string, { label: string; isVerified: boolean }>();
     const modelsByBrand: Record<string, string[]> = {};
+    const brandsByCategory: Record<string, string[]> = {};
     const modelSet = new Set<string>();
     const categorySet = new Set<string>();
 
@@ -44,6 +45,14 @@ export async function GET() {
 
       if (product.category) {
         categorySet.add(product.category);
+        if (product.brand) {
+          if (!brandsByCategory[product.category]) {
+            brandsByCategory[product.category] = [];
+          }
+          if (!brandsByCategory[product.category].includes(product.brand)) {
+            brandsByCategory[product.category].push(product.brand);
+          }
+        }
       }
     }
 
@@ -60,11 +69,17 @@ export async function GET() {
       );
     }
 
+    for (const category of Object.keys(brandsByCategory)) {
+      brandsByCategory[category] = brandsByCategory[category].sort((a, b) =>
+        a.localeCompare(b)
+      );
+    }
+
     const models = Array.from(modelSet).sort((a, b) => a.localeCompare(b));
 
     const categories = Array.from(categorySet).sort((a, b) => a.localeCompare(b));
 
-    return NextResponse.json({ brands, models, modelsByBrand, categories });
+    return NextResponse.json({ brands, models, modelsByBrand, brandsByCategory, categories });
   } catch (error) {
     console.error("Store filters API error:", error);
     return NextResponse.json({ error: "Failed to fetch filters" }, { status: 500 });
