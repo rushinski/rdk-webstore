@@ -178,4 +178,19 @@ export class AuthService {
     const profile = await repo.getByUserId(user.id);
     return { user, profile };
   }
+
+  async getCurrentUserProfile() {
+    const {
+      data: { user },
+    } = await this.supabase.auth.getUser();
+
+    if (!user) {
+      return { user: null, profile: null };
+    }
+
+    const repo = new ProfileRepository(this.supabase);
+    const profile = await repo.getByUserId(user.id);
+
+    return { user, profile };
+  }
 }

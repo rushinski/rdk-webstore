@@ -1,9 +1,11 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 
 export class AdminService {
-  static async promoteUser(targetUserId: string) {
-    const supabase = await createSupabaseServerClient();
+  static async promoteUser(
+    supabase: TypedSupabaseClient,
+    targetUserId: string
+  ) {
 
     // 1. Auth
     const {

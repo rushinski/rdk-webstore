@@ -42,4 +42,22 @@ export class ProfileRepository {
     const { error } = await this.supabase.from("profiles").update({ role }).eq("id", userId);
     if (error) throw error;
   }
+
+  async setStripeCustomerId(userId: string, stripeCustomerId: string) {
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ stripe_customer_id: stripeCustomerId })
+      .eq("id", userId);
+
+    if (error) throw error;
+  }
+
+  async setTenantId(userId: string, tenantId: string) {
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ tenant_id: tenantId })
+      .eq("id", userId);
+
+    if (error) throw error;
+  }
 }

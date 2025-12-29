@@ -1,76 +1,83 @@
 // app/api/auth/2fa/verify-enrollment/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProfileRepository } from "@/repositories/profile-repo";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+import { twoFactorVerifyEnrollmentSchema } from "@/lib/validation/auth";
 
 export async function POST(req: NextRequest) {
-  const { code, factorId } = await req.json();
+  const requestId = getRequestIdFromHeaders(req.headers);
+  const body = await req.json().catch(() => null);
+  const parsed = twoFactorVerifyEnrollmentSchema.safeParse(body);
 
-  if (!code || !factorId) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "Missing code or factorId" },
-      { status: 400 }
+      { error: "Invalid payload", issues: parsed.error.format(), requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 
-  const supabase = await createSupabaseServerClient();
+  try {
+    const { code, factorId } = parsed.data;
+    const supabase = await createSupabaseServerClient();
+    const adminAuthService = new AdminAuthService(supabase);
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+    const { userId } = await adminAuthService.requireAdminUser();
 
-  if (userError) {
-    console.error("supabase.auth.getUser error", userError);
-    return NextResponse.json({ error: "Auth error" }, { status: 500 });
-  }
+    // Create challenge
+    const { data: challengeData, error: challengeError } =
+      await adminAuthService.startChallenge(factorId);
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (challengeError || !challengeData) {
+      return NextResponse.json(
+        { error: challengeError?.message ?? "Failed to create challenge", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-  const repo = new ProfileRepository(supabase);
-  const profile = await repo.getByUserId(user.id);
+    const challengeId = challengeData.id;
 
-  if (!profile || profile.role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  // Create challenge
-  const { data: challengeData, error: challengeError } =
-    await supabase.auth.mfa.challenge({
+    // Verify the TOTP code
+    const { error: verifyError } = await adminAuthService.verifyChallenge(
       factorId,
+      challengeId,
+      code
+    );
+
+    if (verifyError) {
+      return NextResponse.json(
+        { error: verifyError.message ?? "Invalid code", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Success! Set admin session cookie and return
+    let res = NextResponse.json<{ ok: true }>({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    res = await setAdminSessionCookie(res, userId);
+
+    return res;
+  } catch (error) {
+    logError(error, {
+      layer: "auth",
+      requestId,
+      route: "/api/auth/2fa/verify-enrollment",
     });
 
-  if (challengeError || !challengeData) {
-    console.error("mfa.challenge error", challengeError);
+    const message = error instanceof Error ? error.message : "Auth error";
+    const status =
+      message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
+    const responseError =
+      message === "UNAUTHORIZED"
+        ? "Unauthorized"
+        : message === "FORBIDDEN"
+          ? "Forbidden"
+          : "Auth error";
+
     return NextResponse.json(
-      { error: challengeError?.message ?? "Failed to create challenge" },
-      { status: 400 }
+      { error: responseError, requestId },
+      { status, headers: { "Cache-Control": "no-store" } }
     );
   }
-
-  const challengeId = challengeData.id;
-
-  // Verify the TOTP code
-  const { error: verifyError } = await supabase.auth.mfa.verify({
-    factorId,
-    challengeId,
-    code,
-  });
-
-  if (verifyError) {
-    console.error("mfa.verify error", verifyError);
-    return NextResponse.json(
-      { error: verifyError.message ?? "Invalid code" },
-      { status: 400 }
-    );
-  }
-
-  // Success! Set admin session cookie and return
-  let res = NextResponse.json<{ ok: true }>({ ok: true });
-  res = await setAdminSessionCookie(res, user.id);
-
-  return res;
 }

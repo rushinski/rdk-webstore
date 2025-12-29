@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { logError } from '@/lib/log';
 
 const SHIPPING_CATEGORIES = [
   { key: 'sneakers', label: 'Sneakers' },
@@ -25,7 +26,7 @@ export default function SettingsPage() {
         }
         setShippingDefaults(map);
       } catch (error) {
-        console.error('Load shipping defaults error:', error);
+        logError(error, { layer: "frontend", event: "admin_load_shipping_defaults" });
       }
     };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { logError } from '@/lib/log';
 
 type TrackingInput = { carrier: string; trackingNumber: string };
 
@@ -18,7 +19,7 @@ export default function ShippingPage() {
         const data = await response.json();
         setOrders(data.orders || []);
       } catch (error) {
-        console.error('Load shipping orders error:', error);
+        logError(error, { layer: "frontend", event: "admin_load_shipping_orders" });
       } finally {
         setIsLoading(false);
       }

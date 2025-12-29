@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AnalyticsService } from "@/services/analytics-service";
+import { analyticsTrackSchema } from "@/lib/validation/analytics";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
 
 const BLOCKED_PREFIXES = ["/admin", "/auth", "/api", "/_next", "/too-many-requests"];
 
@@ -7,40 +11,53 @@ const isBlockedPath = (path: string) =>
   BLOCKED_PREFIXES.some((prefix) => path.startsWith(prefix));
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const path = typeof body?.path === "string" ? body.path.trim() : "";
-    const visitorId = typeof body?.visitorId === "string" ? body.visitorId.trim() : "";
-    const sessionId = typeof body?.sessionId === "string" ? body.sessionId.trim() : "";
-    const referrer = typeof body?.referrer === "string" ? body.referrer.trim() : null;
+  const requestId = getRequestIdFromHeaders(request.headers);
 
-    if (!path || !visitorId || !sessionId) {
-      return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  try {
+    const body = await request.json().catch(() => null);
+    const parsed = analyticsTrackSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
+    const { path, visitorId, sessionId, referrer } = parsed.data;
+
     if (isBlockedPath(path)) {
-      return NextResponse.json({ ok: true });
+      return NextResponse.json(
+        { ok: true },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const supabase = await createSupabaseServerClient();
     const { data: userData } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("site_pageviews").insert({
+    const service = new AnalyticsService(supabase);
+    await service.trackPageview({
       path,
-      referrer,
-      visitor_id: visitorId,
-      session_id: sessionId,
-      user_id: userData?.user?.id ?? null,
+      referrer: referrer ?? null,
+      visitorId,
+      sessionId,
+      userId: userData?.user?.id ?? null,
     });
 
-    if (error) {
-      console.error("Pageview insert error:", error);
-      return NextResponse.json({ error: "Failed to track pageview" }, { status: 500 });
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    console.error("Pageview tracking error:", error);
-    return NextResponse.json({ error: "Failed to track pageview" }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/analytics/track",
+    });
+    return NextResponse.json(
+      { error: "Failed to track pageview", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

@@ -1,30 +1,43 @@
 // app/api/email/subscribe/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { EmailSubscriberRepository } from "@/repositories/email-subscriber-repo";
+import { EmailSubscriptionService } from "@/services/email-subscription-service";
+import { emailSubscribeSchema } from "@/lib/validation/email";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
 
 export async function POST(req: NextRequest) {
-  try {
-    const { email, source = 'website' } = await req.json();
+  const requestId = getRequestIdFromHeaders(req.headers);
 
-    if (!email || typeof email !== 'string') {
+  try {
+    const body = await req.json().catch(() => null);
+    const parsed = emailSubscribeSchema.safeParse(body);
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { ok: false, error: 'Email is required' },
-        { status: 400 }
+        { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     const supabase = await createSupabaseServerClient();
-    const repo = new EmailSubscriberRepository(supabase);
+    const service = new EmailSubscriptionService(supabase);
 
-    await repo.subscribe(email, source);
+    await service.subscribe(parsed.data.email, parsed.data.source ?? "website");
 
-    return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    console.error('Email subscription error:', error);
     return NextResponse.json(
-      { ok: false, error: 'Subscription failed' },
-      { status: 500 }
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error: any) {
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/email/subscribe",
+    });
+    return NextResponse.json(
+      { ok: false, error: "Subscription failed", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

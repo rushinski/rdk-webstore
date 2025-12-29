@@ -25,6 +25,7 @@ import {
   Laptop,
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
+import { logError } from '@/lib/log';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
 
@@ -146,7 +147,7 @@ export function Navbar({
           setBrandGroups(data.groups);
         }
       } catch (error) {
-        console.error('Load brand groups error:', error);
+        logError(error, { layer: "frontend", event: "navbar_load_brand_groups" });
       }
     };
 
@@ -158,7 +159,7 @@ export function Navbar({
           setDesignerBrands(data.brands);
         }
       } catch (error) {
-        console.error('Load designer brands error:', error);
+        logError(error, { layer: "frontend", event: "navbar_load_designer_brands" });
       }
     };
 

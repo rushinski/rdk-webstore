@@ -7,6 +7,7 @@ import { TagInput, type TagChip } from './TagInput';
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/views/product";
 import type { ProductCreateInput } from '@/services/product-service';
+import { logError } from '@/lib/log';
 
 interface ProductFormProps {
   initialData?: Partial<ProductCreateInput> & { id?: string };
@@ -232,7 +233,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           setShippingDefaults(map);
         }
       } catch (error) {
-        console.error('Load shipping defaults error:', error);
+        logError(error, { layer: "frontend", event: "inventory_load_shipping_defaults" });
       }
     };
 
@@ -253,7 +254,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           setBrandOptions(options);
         }
       } catch (error) {
-        console.error('Load brand catalog error:', error);
+        logError(error, { layer: "frontend", event: "inventory_load_brand_catalog" });
       }
     };
 
@@ -280,7 +281,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           setModelOptions(options);
         }
       } catch (error) {
-        console.error('Load model catalog error:', error);
+        logError(error, { layer: "frontend", event: "inventory_load_model_catalog" });
       }
     };
 
@@ -326,7 +327,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         setParseStatus('idle');
       } catch (error) {
         if ((error as any)?.name === 'AbortError') return;
-        console.error('Parse title error:', error);
+        logError(error, { layer: "frontend", event: "inventory_parse_title" });
         setParseStatus('error');
       }
     }, 250);
@@ -439,7 +440,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       const results = await Promise.all(reads);
       results.forEach((url) => addImageEntry(url));
     } catch (error) {
-      console.error("Image upload error:", error);
+      logError(error, { layer: "frontend", event: "inventory_image_upload" });
     } finally {
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -627,7 +628,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
       await onSubmit(data);
     } catch (error) {
-      console.error('Form submit error:', error);
+      logError(error, { layer: "frontend", event: "inventory_form_submit" });
       const message = error instanceof Error ? error.message : 'Failed to save product';
       alert(message);
     } finally {

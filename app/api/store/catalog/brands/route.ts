@@ -2,35 +2,44 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { StorefrontService } from "@/services/storefront-service";
+import { storeBrandQuerySchema } from "@/lib/validation/storefront";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
 
 export async function GET(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+  const searchParams = request.nextUrl.searchParams;
+  const groupKeyParam = searchParams.get("groupKey");
+  const parsed = storeBrandQuerySchema.safeParse({
+    groupKey: groupKeyParam && groupKeyParam.trim().length > 0 ? groupKeyParam : null,
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Invalid query", issues: parsed.error.format(), requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
   try {
     const supabase = await createSupabaseServerClient();
-    const groupKey = request.nextUrl.searchParams.get("groupKey") || null;
+    const service = new StorefrontService(supabase);
+    const brands = await service.listBrandsByGroupKey(parsed.data.groupKey ?? null);
 
-    let query = supabase
-      .from("catalog_brands")
-      .select("id, canonical_label, group:catalog_brand_groups(id, key, label)")
-      .eq("is_active", true);
-
-    if (groupKey) {
-      query = query.eq("catalog_brand_groups.key", groupKey);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-
-    const brands = (data ?? [])
-      .map((brand) => brand.canonical_label)
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b));
-
-    return NextResponse.json({ brands });
-  } catch (error) {
-    console.error("Store brands error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch brands" },
-      { status: 500 }
+      { brands },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/store/catalog/brands",
+    });
+    return NextResponse.json(
+      { error: "Failed to fetch brands", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

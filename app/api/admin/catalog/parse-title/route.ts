@@ -1,37 +1,59 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+
+const parseTitleSchema = z
+  .object({
+    titleRaw: z.string().trim().min(1),
+    category: z.string().trim().min(1),
+    brandOverrideId: z.string().uuid().nullable().optional(),
+    modelOverrideId: z.string().uuid().nullable().optional(),
+  })
+  .strict();
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
     const tenantId = await ensureTenantId(session, supabase);
-    const payload = await request.json();
+    const payload = await request.json().catch(() => null);
+    const parsedPayload = parseTitleSchema.safeParse(payload);
 
-    if (!payload?.titleRaw || !payload?.category) {
+    if (!parsedPayload.success) {
       return NextResponse.json(
-        { error: "Title and category are required." },
-        { status: 400 }
+        { error: "Invalid payload", issues: parsedPayload.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
     const parser = new ProductTitleParserService(supabase);
     const parsed = await parser.parseTitle({
-      titleRaw: payload.titleRaw,
-      category: payload.category,
-      brandOverrideId: payload.brandOverrideId ?? null,
-      modelOverrideId: payload.modelOverrideId ?? null,
+      titleRaw: parsedPayload.data.titleRaw,
+      category: parsedPayload.data.category,
+      brandOverrideId: parsedPayload.data.brandOverrideId ?? null,
+      modelOverrideId: parsedPayload.data.modelOverrideId ?? null,
       tenantId,
     });
 
-    return NextResponse.json(parsed);
+    return NextResponse.json(parsed, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
-    console.error("Admin parse title error:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to parse title";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/catalog/parse-title",
+    });
+    return NextResponse.json(
+      { error: "Failed to parse title", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

@@ -2,23 +2,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
-
-type VerifyFlow = "signup" | "signin";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+import { verifyEmailSchema } from "@/lib/validation/auth";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null as any);
+  const requestId = getRequestIdFromHeaders(req.headers);
+  const body = await req.json().catch(() => null);
+  const parsed = verifyEmailSchema.safeParse(body);
 
-  const email = typeof body?.email === "string" ? body.email.trim() : "";
-  const code = typeof body?.code === "string" ? body.code.trim() : "";
-  const flow: VerifyFlow =
-    body?.flow === "signup" ? "signup" : "signin";
-
-  if (!email || !code) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { ok: false, error: "Email and code are required" },
-      { status: 400 },
+      { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
+
+  const { email, code, flow } = parsed.data;
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: "Invalid or expired code." },
-        { status: 400 },
+        { ok: false, error: "Invalid or expired code.", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -38,11 +38,20 @@ export async function POST(req: NextRequest) {
         ? "/"
         : "/";
 
-    return NextResponse.json({ ok: true, nextPath });
-  } catch (err: any) {
     return NextResponse.json(
-      { ok: false, error: err?.message ?? "Could not verify code." },
-      { status: 400 },
+      { ok: true, nextPath },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err: any) {
+    logError(err, {
+      layer: "auth",
+      requestId,
+      route: "/api/auth/verify-email",
+    });
+
+    return NextResponse.json(
+      { ok: false, error: err?.message ?? "Could not verify code.", requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

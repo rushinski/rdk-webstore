@@ -3,23 +3,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
-import type { Factor } from "@supabase/supabase-js";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+import { otpVerifySchema } from "@/lib/validation/auth";
 
 export async function POST(req: NextRequest) {
-  const body = await req.json().catch(() => null as any);
-  const email = typeof body?.email === "string" ? body.email.trim() : "";
-  const code = typeof body?.code === "string" ? body.code.trim() : "";
+  const requestId = getRequestIdFromHeaders(req.headers);
+  const body = await req.json().catch(() => null);
+  const parsed = otpVerifySchema.safeParse(body);
 
-  if (!email || !code) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { ok: false, error: "Email and code are required" },
-      { status: 400 },
+      { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 
   try {
+    const { email, code } = parsed.data;
     const supabase = await createSupabaseServerClient();
     const authService = new AuthService(supabase);
+    const adminAuthService = new AdminAuthService(supabase);
 
     const { user, profile } = await authService.verifyEmailOtpForSignIn(
       email,
@@ -28,8 +33,8 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: "Invalid or expired code" },
-        { status: 400 },
+        { ok: false, error: "Invalid or expired code", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -37,40 +42,40 @@ export async function POST(req: NextRequest) {
 
     // For non-admin users, we're done
     if (!isAdmin) {
-      return NextResponse.json({ ok: true, isAdmin: false });
+      return NextResponse.json(
+        { ok: true, isAdmin: false },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Admin-specific 2FA checks
-    const { data: factorData } = await supabase.auth.mfa.listFactors();
-    const totpFactors: Factor[] = factorData?.totp ?? [];
+    const { requiresTwoFASetup, requiresTwoFAChallenge } =
+      await adminAuthService.getMfaRequirements();
 
-    if (totpFactors.length === 0) {
+    if (requiresTwoFASetup) {
       return NextResponse.json({
         ok: true,
         isAdmin: true,
         requiresTwoFASetup: true,
-      });
+        requestId,
+      }, { headers: { "Cache-Control": "no-store" } });
     }
-
-    const { data: aalData } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
-    const requiresTwoFAChallenge =
-      aalData?.nextLevel === "aal2" && aalData?.currentLevel !== "aal2";
 
     if (requiresTwoFAChallenge) {
       return NextResponse.json({
         ok: true,
         isAdmin: true,
         requiresTwoFAChallenge: true,
-      });
+        requestId,
+      }, { headers: { "Cache-Control": "no-store" } });
     }
 
     // Already at aal2, set admin cookie
     let res = NextResponse.json<{ ok: true; isAdmin: true }>({
       ok: true,
       isAdmin: true,
-    });
+      requestId,
+    }, { headers: { "Cache-Control": "no-store" } });
 
     res = await setAdminSessionCookie(res, user.id);
 
@@ -78,14 +83,20 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     if (error?.message?.includes("Email not confirmed")) {
       return NextResponse.json(
-        { ok: false, requiresEmailVerification: true },
-        { status: 401 },
+        { ok: false, requiresEmailVerification: true, requestId },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    logError(error, {
+      layer: "auth",
+      requestId,
+      route: "/api/auth/otp/verify",
+    });
+
     return NextResponse.json(
-      { ok: false, error: error.message ?? "Login failed" },
-      { status: 400 },
+      { ok: false, error: error.message ?? "Login failed", requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

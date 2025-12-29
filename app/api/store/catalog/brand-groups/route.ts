@@ -1,7 +1,10 @@
 // app/api/store/catalog/brand-groups/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { StorefrontService } from "@/services/storefront-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
 
 const NAVBAR_GROUP_KEYS = new Set([
   "nike",
@@ -12,26 +15,27 @@ const NAVBAR_GROUP_KEYS = new Set([
   "designer",
 ]);
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const supabase = await createSupabaseServerClient();
-    const { data, error } = await supabase
-      .from("catalog_brand_groups")
-      .select("id, key, label")
-      .eq("is_active", true);
+    const service = new StorefrontService(supabase);
+    const groups = await service.listBrandGroupsByKeys(NAVBAR_GROUP_KEYS);
 
-    if (error) throw error;
-
-    const groups = (data ?? []).filter((group) =>
-      NAVBAR_GROUP_KEYS.has(group.key)
-    );
-
-    return NextResponse.json({ groups });
-  } catch (error) {
-    console.error("Store brand groups error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch brand groups" },
-      { status: 500 }
+      { groups },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/store/catalog/brand-groups",
+    });
+    return NextResponse.json(
+      { error: "Failed to fetch brand groups", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

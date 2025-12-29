@@ -13,7 +13,7 @@ It replaces long inline JSDoc blocks inside proxy-related files with short `@see
 - [Pipeline overview](#pipeline-overview)
 - [Execution order](#execution-order)
 - [Component docs](#component-docs)
-  - [`src/proxy.ts` — Orchestrator](#proxy-orchestrator)
+- [`proxy.ts` - Orchestrator](#proxy-orchestrator)
   - [`src/proxy/canonicalize.ts`](#proxy-canonicalize)
   - [`src/proxy/bot.ts`](#proxy-bot)
   - [`src/proxy/csrf.ts`](#proxy-csrf)
@@ -62,7 +62,7 @@ The proxy is designed to be:
 # Component docs
 
 <a id="proxy-orchestrator"></a>
-## `src/proxy.ts` — Orchestrator
+## `proxy.ts` - Orchestrator
 
 ### Responsibility
 Routes each request through a consistent security pipeline.
@@ -480,4 +480,3 @@ All proxy decisions should include `requestId` in logs and JSON errors. This mak
   - responses include `x-request-id`
   - CSP present
   - HSTS present only in production
-

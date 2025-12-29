@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { logError } from "@/lib/log";
 
 export default function ErrorPage({
   error,
@@ -10,7 +11,7 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("App error boundary:", error);
+    logError(error, { layer: "frontend", event: "error_boundary" });
   }, [error]);
 
   return (

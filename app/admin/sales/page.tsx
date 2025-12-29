@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { logError } from '@/lib/log';
 
 export default function SalesPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -21,7 +22,7 @@ export default function SalesPage() {
         const data = await response.json();
         setOrders(data.orders || []);
       } catch (error) {
-        console.error('Load orders error:', error);
+        logError(error, { layer: "frontend", event: "admin_load_orders" });
       } finally {
         setIsLoading(false);
       }

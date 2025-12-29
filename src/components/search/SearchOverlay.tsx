@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { X, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { logError } from '@/lib/log';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         const data = await response.json();
         setResults(data.products || []);
       } catch (error) {
-        console.error('Search error:', error);
+        logError(error, { layer: "frontend", event: "search_overlay_error" });
       } finally {
         setIsLoading(false);
       }

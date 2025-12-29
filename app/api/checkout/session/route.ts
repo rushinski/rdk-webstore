@@ -3,12 +3,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CheckoutService } from "@/services/checkout-service";
-import { generateRequestId } from "@/lib/http/request-id";
-import { log } from "@/lib/log";
-import type { CheckoutSessionRequest } from "@/types/views/checkout";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { log, logError } from "@/lib/log";
+import { checkoutSessionSchema } from "@/lib/validation/checkout";
 
 export async function POST(request: NextRequest) {
-  const requestId = generateRequestId();
+  const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -18,7 +18,14 @@ export async function POST(request: NextRequest) {
     const userId = user?.id ?? null;
 
     // Parse body
-    const body: CheckoutSessionRequest = await request.json();
+    const body = await request.json().catch(() => null);
+    const parsed = checkoutSessionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     log({
       level: "info",
@@ -26,13 +33,13 @@ export async function POST(request: NextRequest) {
       message: "checkout_session_request",
       requestId,
       userId,
-      itemCount: body.items.length,
-      fulfillment: body.fulfillment,
+      itemCount: parsed.data.items.length,
+      fulfillment: parsed.data.fulfillment,
     });
 
     // Create checkout session
     const checkoutService = new CheckoutService(supabase);
-    const result = await checkoutService.createCheckoutSession(body, userId);
+    const result = await checkoutService.createCheckoutSession(parsed.data, userId);
 
     log({
       level: "info",
@@ -42,14 +49,14 @@ export async function POST(request: NextRequest) {
       orderId: result.orderId,
     });
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error: any) {
-    log({
-      level: "error",
+    logError(error, {
       layer: "api",
-      message: "checkout_session_error",
       requestId,
-      error: error.message,
+      route: "/api/checkout/session",
     });
 
     if (error.message === "IDEMPOTENCY_KEY_EXPIRED" || error.message === "CART_MISMATCH") {
@@ -59,7 +66,7 @@ export async function POST(request: NextRequest) {
           code: error.message,
           requestId,
         },
-        { status: 409 }
+        { status: 409, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
         message: error.message,
         requestId,
       },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

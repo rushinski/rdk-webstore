@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { logError } from '@/lib/log';
 import { SalesChart } from '@/components/admin/charts/SalesChart';
 import { TrafficChart } from '@/components/admin/charts/TrafficChart';
 import { DollarSign, TrendingUp, Users, Eye } from 'lucide-react';
@@ -30,7 +31,7 @@ export default function AnalyticsPage() {
           setTrafficTrend(data.trafficTrend || []);
         }
       } catch (error) {
-        console.error('Load analytics error:', error);
+        logError(error, { layer: "frontend", event: "admin_load_analytics" });
       }
     };
 

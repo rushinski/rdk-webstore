@@ -2,6 +2,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { env } from "@/config/env";
 import { security, startsWithAny, isCsrfUnsafeMethod } from "@/config/security";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -13,73 +14,7 @@ import { canonicalizePath } from "@/proxy/canonicalize";
 import { finalizeProxyResponse } from "@/proxy/finalize";
 
 /**
- * Main proxy middleware orchestrator.
- * 
- * **Architecture:**
- * This middleware runs on EVERY request before they reach route handlers.
- * It implements defense-in-depth security through layered checks.
- * 
- * **Execution order matters:**
- * 1. Canonicalization (SEO/security normalization)
- * 2. Request ID forwarding (for log correlation)
- * 3. Bot detection (lightweight UA check)
- * 4. CSRF protection (origin validation)
- * 5. Rate limiting (abuse prevention)
- * 6. Admin authentication (layered admin guard)
- * 
- * **Why this order?**
- * 
- * **Canonicalization first:**
- * - Redirects happen before ANY other processing
- * - Ensures all downstream code sees normalized paths
- * - Prevents bypass via path variations
- * 
- * **Request ID early:**
- * - Generated once, used everywhere
- * - Forwarded to downstream requests for correlation
- * - Included in all logs and error responses
- * 
- * **Bot check before rate limit:**
- * - Bot check is CPU-only (no external calls)
- * - Filters obvious bots before hitting Redis
- * - Reduces rate limiter load
- * 
- * **CSRF before rate limit:**
- * - CSRF is header-only (no external calls)
- * - Blocks cross-site attacks early
- * - Invalid origin shouldn't count against rate limit
- * 
- * **Rate limit before admin auth:**
- * - Rate limit protects admin login from brute force
- * - Cheaper than Supabase queries
- * - Applies to all protected routes (not just admin)
- * 
- * **Admin auth last:**
- * - Most expensive check (Supabase queries)
- * - Only runs on admin routes
- * - All other checks passed first
- * 
- * **Selective application:**
- * Not all checks run on all routes:
- * - Bot check: Admin, API, auth, products only
- * - CSRF: POST/PUT/PATCH/DELETE only
- * - Rate limit: API, admin, auth, checkout only
- * - Admin guard: Admin routes only (with exemptions)
- * 
- * **Matcher configuration:**
- * The `config.matcher` at the bottom excludes:
- * - Next.js internals (_next)
- * - Static assets (public folder)
- * - Common static files (favicon, robots.txt, sitemap.xml)
- * 
- * **Performance:**
- * - Fast path (static page): <1ms (just headers)
- * - API request: ~10-20ms (includes rate limit)
- * - Admin request: ~50-100ms (includes Supabase)
- * 
- * @param request - The incoming Next.js request
- * 
- * @returns NextResponse (finalized with headers)
+ * @see docs/PROXY_PIPELINE.md
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   // ==========================================================================
@@ -96,7 +31,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, hostname } = request.nextUrl;
   const isLocalhost =
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  const isLocalDev = process.env.NODE_ENV !== "production" && isLocalhost;
+  const isLocalDev = env.NODE_ENV !== "production" && isLocalhost;
 
   // ==========================================================================
   // STEP 1: Canonicalization (happens BEFORE everything else)

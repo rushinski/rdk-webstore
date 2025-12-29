@@ -1,5 +1,4 @@
 // src/lib/auth/session.ts
-import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository, type ProfileRole, isProfileRole } from "@/repositories/profile-repo";
@@ -48,7 +47,7 @@ async function getServerSessionUncached(): Promise<ServerSession | null> {
   };
 }
 
-export const getServerSession = cache(getServerSessionUncached);
+export const getServerSession = getServerSessionUncached;
 
 export async function requireUser(): Promise<ServerSession> {
   const session = await getServerSession();

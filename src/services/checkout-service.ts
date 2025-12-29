@@ -1,7 +1,6 @@
 // src/services/checkout-service.ts (CORRECTED)
 
 import Stripe from "stripe";
-import { z } from "zod";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
@@ -10,21 +9,10 @@ import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-rep
 import { env } from "@/config/env";
 import { createCartHash } from "@/lib/crypto";
 import type { CheckoutSessionRequest, CheckoutSessionResponse } from "@/types/views/checkout";
+import { checkoutSessionSchema } from "@/lib/validation/checkout";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover", // FIXED: Updated API version
-});
-
-const checkoutRequestSchema = z.object({
-  items: z.array(
-    z.object({
-      productId: z.string().uuid(),
-      variantId: z.string().uuid(),
-      quantity: z.number().int().positive(),
-    })
-  ).min(1),
-  fulfillment: z.enum(["ship", "pickup"]),
-  idempotencyKey: z.string().uuid(),
 });
 
 export class CheckoutService {
@@ -45,7 +33,7 @@ export class CheckoutService {
     userId: string | null
   ): Promise<CheckoutSessionResponse> {
     // Validate input
-    const validated = checkoutRequestSchema.parse(request);
+    const validated = checkoutSessionSchema.parse(request);
 
     const { items, fulfillment, idempotencyKey } = validated;
 
@@ -205,10 +193,7 @@ export class CheckoutService {
           stripeCustomerId = customer.id;
 
           // Save customer ID
-          await this.supabase
-            .from("profiles")
-            .update({ stripe_customer_id: stripeCustomerId })
-            .eq("id", userId);
+          await this.profilesRepo.setStripeCustomerId(userId, stripeCustomerId);
         }
       }
     }

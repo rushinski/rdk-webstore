@@ -1,6 +1,7 @@
 // src/lib/http/admin-session-cookie.ts
 import { NextResponse } from "next/server";
 import { createAdminSessionToken } from "@/lib/http/admin-session";
+import { env } from "@/config/env";
 import { security } from "@/config/security";
 
 const COOKIE_NAME = security.proxy.adminSession.cookieName;
@@ -13,7 +14,7 @@ export async function setAdminSessionCookie<T>(
 
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
     maxAge: security.proxy.adminSession.ttlSeconds,
@@ -25,7 +26,7 @@ export async function setAdminSessionCookie<T>(
 export function clearAdminSessionCookie<T>(res: NextResponse<T>): NextResponse<T> {
   res.cookies.set(COOKIE_NAME, "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
     expires: new Date(0),

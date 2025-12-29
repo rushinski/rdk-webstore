@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { logError } from "@/lib/log";
 
 type Provider = "google" | "facebook";
 
@@ -67,11 +68,11 @@ export function SocialButton({
       });
 
       if (error) {
-        console.error("OAuth error:", error);
+        logError(error, { layer: "frontend", event: "oauth_error" });
         setLoading(false);
       }
     } catch (err) {
-      console.error(err);
+      logError(err, { layer: "frontend", event: "oauth_exception" });
       setLoading(false);
     }
   };

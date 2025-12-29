@@ -1,49 +1,102 @@
 // app/api/account/shipping/route.ts
 
-import { NextRequest, NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { requireUser } from '@/lib/auth/session';
-import { ShippingRepository } from '@/repositories/shipping-repo';
-import type { ShippingProfile } from '@/types/views/shipping'; 
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/session";
+import { ShippingService } from "@/services/shipping-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+import type { ShippingProfile } from "@/types/views/shipping";
+
+const optionalText = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") return value;
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? null : trimmed;
+  },
+  z.string().trim().min(1).nullable().optional()
+);
+
+const shippingProfileSchema = z
+  .object({
+    full_name: optionalText,
+    phone: optionalText,
+    address_line1: optionalText,
+    address_line2: optionalText,
+    city: optionalText,
+    state: optionalText,
+    postal_code: optionalText,
+    country: optionalText,
+  })
+  .strict();
 
 export async function GET(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireUser();
     const supabase = await createSupabaseServerClient();
-    const repo = new ShippingRepository(supabase);
+    const service = new ShippingService(supabase);
 
-    const profile = await repo.getByUserId(session.user.id);
+    const profile = await service.getProfile(session.user.id);
 
-    return NextResponse.json(profile || {});
-  } catch (error) {
-    console.error('Get shipping profile error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch shipping profile' },
-      { status: 500 }
+      profile || {},
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/account/shipping",
+    });
+    return NextResponse.json(
+      { error: "Failed to fetch shipping profile", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireUser();
     const supabase = await createSupabaseServerClient();
-    const repo = new ShippingRepository(supabase);
+    const service = new ShippingService(supabase);
 
-    const input: Omit<ShippingProfile, 'user_id' | 'updated_at'> = await request.json();
-    
-    const profile = await repo.upsert({
+    const body = await request.json().catch(() => null);
+    const parsed = shippingProfileSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const input: Omit<ShippingProfile, "user_id" | "updated_at"> = parsed.data;
+
+    const profile = await service.upsertProfile({
       user_id: session.user.id,
       ...input,
       updated_at: new Date().toISOString(),
     });
 
-    return NextResponse.json(profile);
-  } catch (error) {
-    console.error('Save shipping profile error:', error);
     return NextResponse.json(
-      { error: 'Failed to save shipping profile' },
-      { status: 500 }
+      profile,
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/account/shipping",
+    });
+    return NextResponse.json(
+      { error: "Failed to save shipping profile", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

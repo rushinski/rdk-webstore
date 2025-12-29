@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { logError } from '@/lib/log';
 import { SalesChart } from '@/components/admin/charts/SalesChart';
 import { TrafficChart } from '@/components/admin/charts/TrafficChart';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Users } from 'lucide-react';
@@ -43,7 +44,7 @@ export default function DashboardPage() {
         const ordersData = await ordersResponse.json();
         setRecentOrders((ordersData.orders || []).slice(0, 3));
       } catch (error) {
-        console.error('Load dashboard error:', error);
+        logError(error, { layer: "frontend", event: "admin_load_dashboard" });
       }
     };
 

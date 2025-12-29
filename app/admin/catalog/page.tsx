@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, MoreHorizontal, Search } from 'lucide-react';
+import { logError } from '@/lib/log';
 
 type BrandGroup = {
   id: string;
@@ -330,7 +331,7 @@ export default function CatalogPage() {
       setAliases(aliasesData.aliases || []);
       setCandidates(candidatesData.candidates || []);
     } catch (error) {
-      console.error('Load catalog error:', error);
+      logError(error, { layer: "frontend", event: "admin_load_catalog" });
       setMessage('Failed to load catalog data.');
     } finally {
       setIsLoading(false);
@@ -556,7 +557,7 @@ export default function CatalogPage() {
       await loadAll();
       setEditTarget(null);
     } catch (error) {
-      console.error('Save edit error:', error);
+      logError(error, { layer: "frontend", event: "admin_save_catalog_edit" });
       setMessage('Failed to update catalog item.');
     } finally {
       setIsSaving(false);
@@ -599,7 +600,7 @@ export default function CatalogPage() {
       await loadAll();
       setConfirmTarget(null);
     } catch (error) {
-      console.error('Delete catalog error:', error);
+      logError(error, { layer: "frontend", event: "admin_delete_catalog" });
       setMessage('Failed to delete catalog item.');
     } finally {
       setIsSaving(false);

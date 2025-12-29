@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { read, utils } from "xlsx";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
@@ -6,12 +7,22 @@ import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService, type ProductCreateInput } from "@/services/product-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 import { buildSizeTags, type TagInputItem } from "@/services/tag-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { log, logError } from "@/lib/log";
 import type { Category, Condition, SizeType } from "@/types/views/product";
 
 export const runtime = "nodejs";
 
-const CATEGORY_VALUES: Category[] = ["sneakers", "clothing", "accessories", "electronics"];
-const CONDITION_VALUES: Condition[] = ["new", "used"];
+const CATEGORY_VALUES = ["sneakers", "clothing", "accessories", "electronics"] as const;
+const CONDITION_VALUES = ["new", "used"] as const;
+
+const importOptionsSchema = z
+  .object({
+    defaultCategory: z.enum(CATEGORY_VALUES).default("sneakers"),
+    condition: z.enum(CONDITION_VALUES).default("new"),
+    useSquareCategory: z.enum(["true", "false"]).default("true"),
+  })
+  .strict();
 
 const normalizeHeader = (value: string) =>
   value
@@ -188,6 +199,8 @@ const IMAGE_KEYS = [
 const CONDITION_KEYS = ["condition", "itemcondition"];
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
@@ -198,25 +211,37 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get("file");
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Missing Square export file." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing Square export file.", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    const defaultCategoryRaw = String(formData.get("defaultCategory") || "sneakers");
-    const defaultConditionRaw = String(formData.get("condition") || "new");
-    const useSquareCategory = String(formData.get("useSquareCategory") || "true") !== "false";
+    const optionsParsed = importOptionsSchema.safeParse({
+      defaultCategory: formData.get("defaultCategory") ?? "sneakers",
+      condition: formData.get("condition") ?? "new",
+      useSquareCategory: formData.get("useSquareCategory") ?? "true",
+    });
 
-    const defaultCategory = CATEGORY_VALUES.includes(defaultCategoryRaw as Category)
-      ? (defaultCategoryRaw as Category)
-      : "sneakers";
-    const defaultCondition = CONDITION_VALUES.includes(defaultConditionRaw as Condition)
-      ? (defaultConditionRaw as Condition)
-      : "new";
+    if (!optionsParsed.success) {
+      return NextResponse.json(
+        { error: "Invalid form fields", issues: optionsParsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const defaultCategory = optionsParsed.data.defaultCategory as Category;
+    const defaultCondition = optionsParsed.data.condition as Condition;
+    const useSquareCategory = optionsParsed.data.useSquareCategory !== "false";
 
     const buffer = await file.arrayBuffer();
     const workbook = read(buffer, { type: "array" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     if (!sheet) {
-      return NextResponse.json({ error: "No worksheet found in file." }, { status: 400 });
+      return NextResponse.json(
+        { error: "No worksheet found in file.", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const rows = utils.sheet_to_json<Record<string, unknown>>(sheet, {
@@ -367,7 +392,14 @@ export async function POST(request: NextRequest) {
         });
         created += 1;
       } catch (error) {
-        console.error("Square import create error:", error);
+        log({
+          level: "warn",
+          layer: "api",
+          message: "square_import_create_error",
+          requestId,
+          titleRaw: draft.titleRaw,
+          error: error instanceof Error ? error.message : String(error),
+        });
         errors.push(`Failed to import "${draft.titleRaw}".`);
       }
     }
@@ -378,9 +410,17 @@ export async function POST(request: NextRequest) {
       errors,
       totalRows: rows.length,
       totalProducts: drafts.size,
-    });
+      requestId,
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    console.error("Square import error:", error);
-    return NextResponse.json({ error: "Failed to import Square inventory." }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/inventory/import/square",
+    });
+    return NextResponse.json(
+      { error: "Failed to import Square inventory.", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

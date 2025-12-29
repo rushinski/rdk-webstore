@@ -1,19 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { CatalogService } from "@/services/catalog-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+
+const querySchema = z.object({
+  includeInactive: z.enum(["1"]).optional(),
+  entityType: z.enum(["brand", "model"]).optional(),
+});
+
+const aliasSchema = z.discriminatedUnion("entityType", [
+  z
+    .object({
+      entityType: z.literal("brand"),
+      brandId: z.string().uuid(),
+      modelId: z.string().uuid().nullable().optional(),
+      aliasLabel: z.string().trim().min(1),
+      priority: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    })
+    .strict(),
+  z
+    .object({
+      entityType: z.literal("model"),
+      modelId: z.string().uuid(),
+      brandId: z.string().uuid().nullable().optional(),
+      aliasLabel: z.string().trim().min(1),
+      priority: z.number().int().optional(),
+      isActive: z.boolean().optional(),
+    })
+    .strict(),
+]);
 
 export async function GET(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
     const tenantId = await ensureTenantId(session, supabase);
-    const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "1";
-    const entityType = request.nextUrl.searchParams.get("entityType") as
-      | "brand"
-      | "model"
-      | null;
+    const parsed = querySchema.safeParse({
+      includeInactive: request.nextUrl.searchParams.get("includeInactive") ?? undefined,
+      entityType: request.nextUrl.searchParams.get("entityType") ?? undefined,
+    });
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid query", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const includeInactive = parsed.data.includeInactive === "1";
+    const entityType = parsed.data.entityType ?? undefined;
 
     const service = new CatalogService(supabase);
     const aliases = await service.listAliases(
@@ -22,50 +64,64 @@ export async function GET(request: NextRequest) {
       includeInactive
     );
 
-    return NextResponse.json({ aliases });
+    return NextResponse.json(
+      { aliases },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    console.error("Admin aliases GET error:", error);
-    return NextResponse.json({ error: "Failed to load aliases" }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/catalog/aliases",
+    });
+    return NextResponse.json(
+      { error: "Failed to load aliases", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
     const tenantId = await ensureTenantId(session, supabase);
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    const parsed = aliasSchema.safeParse(body);
 
-    if (!body?.aliasLabel || !body?.entityType) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Alias label and entity type are required." },
-        { status: 400 }
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
-    }
-
-    if (body.entityType === "brand" && !body.brandId) {
-      return NextResponse.json({ error: "Brand is required." }, { status: 400 });
-    }
-
-    if (body.entityType === "model" && !body.modelId) {
-      return NextResponse.json({ error: "Model is required." }, { status: 400 });
     }
 
     const service = new CatalogService(supabase);
     const alias = await service.createAlias({
       tenantId,
-      entityType: body.entityType,
-      brandId: body.brandId ?? null,
-      modelId: body.modelId ?? null,
-      aliasLabel: body.aliasLabel,
-      priority: body.priority ?? 0,
-      isActive: body.isActive ?? true,
+      entityType: parsed.data.entityType,
+      brandId: parsed.data.brandId ?? null,
+      modelId: parsed.data.modelId ?? null,
+      aliasLabel: parsed.data.aliasLabel,
+      priority: parsed.data.priority ?? 0,
+      isActive: parsed.data.isActive ?? true,
     });
 
-    return NextResponse.json(alias, { status: 201 });
+    return NextResponse.json(alias, {
+      status: 201,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
-    console.error("Admin aliases POST error:", error);
-    const message = error instanceof Error ? error.message : "Failed to create alias";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/catalog/aliases",
+    });
+    return NextResponse.json(
+      { error: "Failed to create alias", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

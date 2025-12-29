@@ -1,29 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { CatalogService } from "@/services/catalog-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+
+const paramsSchema = z.object({
+  id: z.string().uuid(),
+});
+
+const updateSchema = z
+  .object({
+    brandId: z.string().uuid().optional(),
+    canonicalLabel: z.string().trim().min(1).optional(),
+    isActive: z.boolean().optional(),
+    isVerified: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one field is required.",
+  });
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     await requireAdmin();
     const supabase = await createSupabaseServerClient();
-    const body = await request.json();
+    const paramsParsed = paramsSchema.safeParse(params);
+    if (!paramsParsed.success) {
+      return NextResponse.json(
+        { error: "Invalid params", issues: paramsParsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const body = await request.json().catch(() => null);
+    const parsed = updateSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     const service = new CatalogService(supabase);
-    const model = await service.updateModel(params.id, {
-      brandId: body.brandId,
-      canonicalLabel: body.canonicalLabel,
-      isActive: body.isActive,
-      isVerified: body.isVerified,
+    const model = await service.updateModel(paramsParsed.data.id, {
+      brandId: parsed.data.brandId,
+      canonicalLabel: parsed.data.canonicalLabel,
+      isActive: parsed.data.isActive,
+      isVerified: parsed.data.isVerified,
     });
 
-    return NextResponse.json(model);
+    return NextResponse.json(model, {
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
-    console.error("Admin models PATCH error:", error);
-    const message = error instanceof Error ? error.message : "Failed to update model";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/catalog/models/:id",
+    });
+    return NextResponse.json(
+      { error: "Failed to update model", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

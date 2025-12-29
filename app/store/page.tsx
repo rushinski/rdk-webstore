@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FilterPanel } from '@/components/store/FilterPanel';
 import { ProductGrid } from '@/components/store/ProductGrid';
 import type { ProductWithDetails } from "@/types/views/product";
+import { logError } from '@/lib/log';
 
 export default function StorePage() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function StorePage() {
       setProducts(data.products || []);
       setTotal(data.total || 0);
     } catch (error) {
-      console.error('Load products error:', error);
+      logError(error, { layer: "frontend", event: "store_load_products" });
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +69,7 @@ export default function StorePage() {
       setBrandsByCategory(data.brandsByCategory ?? {});
       setCategories(Array.isArray(data.categories) ? data.categories : []);
     } catch (error) {
-      console.error("Load filters error:", error);
+      logError(error, { layer: "frontend", event: "store_load_filters" });
     }
   };
 

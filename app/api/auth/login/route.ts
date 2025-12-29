@@ -3,21 +3,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
-import type { Factor } from "@supabase/supabase-js";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
+import { loginSchema } from "@/lib/validation/auth";
 
 export async function POST(req: NextRequest) {
-  const { email, password } = await req.json();
+  const requestId = getRequestIdFromHeaders(req.headers);
+  const body = await req.json().catch(() => null);
+  const parsed = loginSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const { email, password } = parsed.data;
 
   try {
     const supabase = await createSupabaseServerClient();
     const authService = new AuthService(supabase);
+    const adminAuthService = new AdminAuthService(supabase);
 
     const { user, profile } = await authService.signIn(email, password);
 
     if (!user) {
       return NextResponse.json(
-        { ok: false, error: "Invalid credentials" },
-        { status: 401 }
+        { ok: false, error: "Invalid credentials", requestId },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -25,42 +40,40 @@ export async function POST(req: NextRequest) {
 
     // For non-admin users, we're done
     if (!isAdmin) {
-      return NextResponse.json({ ok: true, isAdmin: false });
+      return NextResponse.json(
+        { ok: true, isAdmin: false },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Admin-specific 2FA checks
-    const { data: factorData } = await supabase.auth.mfa.listFactors();
-    const totpFactors: Factor[] = factorData?.totp ?? [];
+    const { requiresTwoFASetup, requiresTwoFAChallenge } =
+      await adminAuthService.getMfaRequirements();
 
-    // If no TOTP enrolled, redirect to setup
-    if (totpFactors.length === 0) {
+    if (requiresTwoFASetup) {
       return NextResponse.json({
         ok: true,
         isAdmin: true,
         requiresTwoFASetup: true,
-      });
+        requestId,
+      }, { headers: { "Cache-Control": "no-store" } });
     }
-
-    // Check if they need to do 2FA challenge
-    const { data: aalData } =
-      await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
-    const requiresTwoFAChallenge =
-      aalData?.nextLevel === "aal2" && aalData?.currentLevel !== "aal2";
 
     if (requiresTwoFAChallenge) {
       return NextResponse.json({
         ok: true,
         isAdmin: true,
         requiresTwoFAChallenge: true,
-      });
+        requestId,
+      }, { headers: { "Cache-Control": "no-store" } });
     }
 
     // If they're already at aal2, set admin cookie and let them through
     let res = NextResponse.json<{ ok: true; isAdmin: true }>({
       ok: true,
       isAdmin: true,
-    });
+      requestId,
+    }, { headers: { "Cache-Control": "no-store" } });
 
     res = await setAdminSessionCookie(res, user.id);
 
@@ -76,14 +89,23 @@ export async function POST(req: NextRequest) {
       }
 
       return NextResponse.json(
-        { ok: false, requiresEmailVerification: true },
-        { status: 401 }
+        { ok: false, requiresEmailVerification: true, requestId },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
+    logError(error, {
+      layer: "auth",
+      requestId,
+      route: "/api/auth/login",
+    });
+
+    const message = error?.message ?? "Login failed";
+    const status = message.toLowerCase().includes("invalid login") ? 401 : 400;
+
     return NextResponse.json(
-      { ok: false, error: error.message ?? "Login failed" },
-      { status: 400 }
+      { ok: false, error: message, requestId },
+      { status, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

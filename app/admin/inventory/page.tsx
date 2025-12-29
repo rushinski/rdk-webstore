@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Plus, Edit, Trash2, Copy } from 'lucide-react';
 import type { ProductWithDetails } from "@/types/views/product";
 import type { Category, Condition } from "@/types/views/product";
+import { logError } from '@/lib/log';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
@@ -38,7 +39,7 @@ export default function InventoryPage() {
       const data = await response.json();
       setProducts(data.products || []);
     } catch (error) {
-      console.error('Load products error:', error);
+      logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
     } finally {
       setIsLoading(false);
     }

@@ -1,42 +1,86 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
-import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
+import { ShippingDefaultsService } from "@/services/shipping-defaults-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
 
-export async function GET() {
+const defaultsSchema = z
+  .object({
+    defaults: z
+      .array(
+        z
+          .object({
+            category: z.string().trim().min(1),
+            default_price: z.number().nonnegative(),
+          })
+          .strict()
+      )
+      .default([]),
+  })
+  .strict();
+
+export async function GET(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
-    const repo = new ShippingDefaultsRepository(supabase);
+    const service = new ShippingDefaultsService(supabase);
 
-    const defaults = await repo.list(session.profile?.tenant_id ?? null);
-    return NextResponse.json({ defaults });
+    const defaults = await service.list(session.profile?.tenant_id ?? null);
+    return NextResponse.json(
+      { defaults },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    console.error("Admin shipping defaults error:", error);
-    return NextResponse.json({ error: "Failed to fetch shipping defaults" }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/shipping/defaults",
+    });
+    return NextResponse.json(
+      { error: "Failed to fetch shipping defaults", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
-    const repo = new ShippingDefaultsRepository(supabase);
+    const service = new ShippingDefaultsService(supabase);
 
-    const body = await request.json();
-    const defaults = Array.isArray(body?.defaults) ? body.defaults : [];
+    const body = await request.json().catch(() => null);
+    const parsed = defaultsSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-    const normalized = defaults
-      .filter((entry: any) => typeof entry?.category === "string")
-      .map((entry: any) => ({
-        category: entry.category,
-        default_price: Number(entry.default_price ?? 0),
-      }));
-
-    const saved = await repo.upsertDefaults(session.profile?.tenant_id ?? null, normalized);
-    return NextResponse.json({ defaults: saved });
+    const saved = await service.upsertDefaults(
+      session.profile?.tenant_id ?? null,
+      parsed.data.defaults
+    );
+    return NextResponse.json(
+      { defaults: saved },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
-    console.error("Admin shipping defaults update error:", error);
-    return NextResponse.json({ error: "Failed to save shipping defaults" }, { status: 500 });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/shipping/defaults",
+    });
+    return NextResponse.json(
+      { error: "Failed to save shipping defaults", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
   }
 }

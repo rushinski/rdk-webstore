@@ -1,51 +1,67 @@
 // app/api/auth/2fa/challenge/start/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProfileRepository } from "@/repositories/profile-repo";
-import type { Factor } from "@supabase/supabase-js";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logError } from "@/lib/log";
 
-export async function POST() {
-  const supabase = await createSupabaseServerClient();
+export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createSupabaseServerClient();
+    const adminAuthService = new AdminAuthService(supabase);
 
-  if (!user)
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    await adminAuthService.requireAdminUser();
 
-  const repo = new ProfileRepository(supabase);
-  const profile = await repo.getByUserId(user.id);
+    const totpFactors = await adminAuthService.listTotpFactors();
 
-  if (!profile || profile.role !== "admin")
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (totpFactors.length === 0) {
+      return NextResponse.json(
+        { error: "No enrolled MFA factors", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-  // Correct Supabase v2 shape:
-  // { all: Factor[], totp: Factor[], phone: Factor[], webauthn: Factor[] }
-  const { data: factorsData, error: factorErr } =
-    await supabase.auth.mfa.listFactors();
+    const totp = totpFactors[0];
 
-  if (factorErr)
-    return NextResponse.json({ error: factorErr.message }, { status: 400 });
+    const { data: challengeData, error: challengeErr } =
+      await adminAuthService.startChallenge(totp.id);
 
-  // Correct, typed extraction of TOTP factors
-  const totpFactors: Factor[] = factorsData.totp ?? [];
+    if (challengeErr || !challengeData) {
+      return NextResponse.json(
+        { error: challengeErr?.message ?? "Failed to start challenge", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-  if (totpFactors.length === 0)
-    return NextResponse.json({ error: "No enrolled MFA factors" }, { status: 400 });
-
-  const totp = totpFactors[0];
-
-  const { data: challengeData, error: challengeErr } =
-    await supabase.auth.mfa.challenge({
-      factorId: totp.id,
+    return NextResponse.json(
+      {
+        factorId: totp.id,
+        challengeId: challengeData.id,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (error) {
+    logError(error, {
+      layer: "auth",
+      requestId,
+      route: "/api/auth/2fa/challenge/start",
     });
 
-  if (challengeErr)
-    return NextResponse.json({ error: challengeErr.message }, { status: 400 });
+    const message = error instanceof Error ? error.message : "Auth error";
+    const status =
+      message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
+    const responseError =
+      message === "UNAUTHORIZED"
+        ? "Unauthorized"
+        : message === "FORBIDDEN"
+          ? "Forbidden"
+          : "Auth error";
 
-  return NextResponse.json({
-    factorId: totp.id,
-    challengeId: challengeData.id,
-  });
+    return NextResponse.json(
+      { error: responseError, requestId },
+      { status, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 }

@@ -1,7 +1,8 @@
 // app/(main)/page.tsx
-import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import Image from 'next/image';
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { env } from "@/config/env";
 
 const categories = [
   {
@@ -28,8 +29,8 @@ const categories = [
 
 async function getTrendingProducts() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/store/products?limit=4&sortBy=views`, {
-      cache: 'no-store'
+    const res = await fetch(`${env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/store/products?limit=4&sortBy=views`, {
+      cache: "no-store"
     });
     if (!res.ok) return [];
     const data = await res.json();

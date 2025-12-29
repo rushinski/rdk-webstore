@@ -247,6 +247,25 @@ export class ProductRepository {
     return brands.sort();
   }
 
+  async listFilterData(): Promise<
+    Array<{
+      brand: string | null;
+      model: string | null;
+      brand_is_verified: boolean | null;
+      model_is_verified: boolean | null;
+      category: string | null;
+    }>
+  > {
+    const { data, error } = await this.supabase
+      .from("products")
+      .select("brand, model, brand_is_verified, model_is_verified, category")
+      .eq("is_active", true)
+      .limit(2000);
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
   private transformProduct(raw: any): ProductWithDetails {
     return {
       ...raw,

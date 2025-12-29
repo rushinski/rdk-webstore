@@ -1,6 +1,7 @@
 // src/services/product-service.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import { log } from "@/lib/log";
 import { ProductRepository } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/database.types";
 import type { Category, Condition } from "@/types/views/product";
@@ -257,6 +258,10 @@ export class ProductService {
     }
   }
 
+  async deleteProduct(productId: string) {
+    await this.repo.delete(productId);
+  }
+
   private generateSKU(brand: string, name: string): string {
     const prefix = brand.substring(0, 3).toUpperCase();
     const timestamp = Date.now().toString().slice(-6);
@@ -295,7 +300,13 @@ export class ProductService {
           created_by: ctx.userId,
         });
       } catch (error) {
-        console.warn("Catalog candidate create (brand) failed:", error);
+        log({
+          level: "warn",
+          layer: "service",
+          message: "catalog_candidate_create_failed",
+          entity: "brand",
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -311,7 +322,13 @@ export class ProductService {
           created_by: ctx.userId,
         });
       } catch (error) {
-        console.warn("Catalog candidate create (model) failed:", error);
+        log({
+          level: "warn",
+          layer: "service",
+          message: "catalog_candidate_create_failed",
+          entity: "model",
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
   }

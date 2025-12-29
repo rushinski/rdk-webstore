@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import type { ShippingProfile } from '@/types/views/shipping'; 
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { logError } from '@/lib/log';
 
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
@@ -25,7 +26,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       const data = await response.json();
       setProfile(data);
     } catch (error) {
-      console.error('Load profile error:', error);
+      logError(error, { layer: "frontend", event: "account_load_profile" });
     }
   };
 
@@ -36,7 +37,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       const data = await response.json();
       setOrders(data.orders || []);
     } catch (error) {
-      console.error('Load orders error:', error);
+      logError(error, { layer: "frontend", event: "account_load_orders" });
     } finally {
       setIsOrdersLoading(false);
     }

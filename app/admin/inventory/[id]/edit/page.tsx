@@ -9,6 +9,7 @@ import type { ProductCreateInput } from '@/services/product-service';
 import type { ProductWithDetails } from "@/types/views/product";
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { logError } from '@/lib/log';
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       const data = await response.json();
       setProduct(data);
     } catch (error) {
-      console.error('Load product error:', error);
+      logError(error, { layer: "frontend", event: "admin_load_product" });
     } finally {
       setIsLoading(false);
     }
