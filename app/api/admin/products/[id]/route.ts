@@ -16,7 +16,7 @@ const paramsSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -25,7 +25,8 @@ export async function PATCH(
     const supabase = await createSupabaseServerClient();
     const service = new ProductService(supabase);
 
-    const paramsParsed = paramsSchema.safeParse(params);
+    const { id } = await params;
+    const paramsParsed = paramsSchema.safeParse({ id });
     if (!paramsParsed.success) {
       return NextResponse.json(
         { error: "Invalid params", issues: paramsParsed.error.format(), requestId },
@@ -65,14 +66,15 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
     await requireAdmin();
     const supabase = await createSupabaseServerClient();
-    const paramsParsed = paramsSchema.safeParse(params);
+    const { id } = await params;
+    const paramsParsed = paramsSchema.safeParse({ id });
     if (!paramsParsed.success) {
       return NextResponse.json(
         { error: "Invalid params", issues: paramsParsed.error.format(), requestId },

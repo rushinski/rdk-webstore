@@ -14,6 +14,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [orders, setOrders] = useState<any[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -95,6 +96,18 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       setMessage('Error changing password');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setIsSigningOut(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    } catch (error) {
+      setMessage('Failed to log out. Please try again.');
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -286,6 +299,21 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             {isLoading ? 'Changing...' : 'Change Password'}
           </button>
         </form>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+        <h2 className="text-xl font-semibold text-white mb-4">Sign out</h2>
+        <p className="text-gray-400 text-sm mb-4">
+          You can sign back in anytime to view your orders and account details.
+        </p>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={isSigningOut}
+          className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 text-white font-semibold px-6 py-2 transition cursor-pointer"
+        >
+          {isSigningOut ? 'Signing out...' : 'Logout'}
+        </button>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/views/product";
 import type { ProductCreateInput } from '@/services/product-service';
 import { logError } from '@/lib/log';
+import { Toast } from '@/components/ui/Toast';
 
 interface ProductFormProps {
   initialData?: Partial<ProductCreateInput> & { id?: string };
@@ -146,6 +147,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   );
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
@@ -630,11 +632,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     } catch (error) {
       logError(error, { layer: "frontend", event: "inventory_form_submit" });
       const message = error instanceof Error ? error.message : 'Failed to save product';
-      alert(message);
+      setToast({ message, tone: 'error' });
     } finally {
       setIsLoading(false);
     }
   };
+
+  const primaryImage = images.find((image) => image.is_primary) ?? images[0] ?? null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -942,6 +946,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">Images</h2>
+          <span className="text-xs text-gray-500">{images.length} total</span>
         </div>
 
         <input
@@ -953,33 +958,55 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           className="hidden"
         />
 
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
-            isDragging
-              ? 'border-red-500 bg-red-900/10'
-              : 'border-zinc-800/70 bg-zinc-900/60'
-          }`}
-        >
-          <div className="flex flex-col items-center gap-2 text-gray-300">
-            <ImagePlus className="w-8 h-8 text-gray-400" />
-            <p className="text-sm">
-              Drop images here or <span className="text-white underline">browse files</span>
+        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-4">
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`border border-dashed p-6 cursor-pointer transition ${
+              isDragging
+                ? 'border-red-500 bg-red-900/10'
+                : 'border-zinc-800/70 bg-zinc-950/40'
+            }`}
+          >
+            <div className="flex flex-col items-center justify-center text-center gap-3 text-gray-300 min-h-[180px]">
+              <ImagePlus className="w-10 h-10 text-gray-500" />
+              <div>
+                <p className="text-sm text-gray-200">Drop images here</p>
+                <p className="text-xs text-gray-500">or click to browse files</p>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] text-gray-500 uppercase tracking-[0.2em]">
+                <span>PNG</span>
+                <span>JPG</span>
+                <span>WEBP</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-zinc-950/60 border border-zinc-800/70 p-4">
+            <div className="text-xs uppercase tracking-[0.2em] text-gray-500">Primary preview</div>
+            <div className="mt-3 aspect-[4/3] bg-zinc-900 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
+              {primaryImage?.url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={primaryImage.url} alt="Primary preview" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs text-gray-500">No primary image yet</span>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Set a primary image to anchor your storefront grid.
             </p>
-            <p className="text-xs text-gray-500">PNG, JPG, WEBP</p>
           </div>
         </div>
 
         {images.length === 0 ? (
-          <div className="text-gray-500 text-sm">No images added yet.</div>
+          <div className="text-gray-500 text-sm mt-4">No images added yet.</div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
             {images.map((image, index) => (
-              <div key={index} className="relative group bg-zinc-800 rounded overflow-hidden">
-                <div className="aspect-square bg-zinc-900 overflow-hidden">
+              <div key={index} className="relative group bg-zinc-900 border border-zinc-800/70 overflow-hidden">
+                <div className="aspect-[4/3] bg-zinc-900 overflow-hidden">
                   {image.url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={image.url} alt="Preview" className="w-full h-full object-cover" />
@@ -989,17 +1016,19 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeImage(index)}
-                  className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => removeImage(index)}
+                    className="bg-black/60 hover:bg-black/80 text-white p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
                 <button
                   type="button"
                   onClick={() => setPrimaryImage(index)}
-                  className={`absolute bottom-2 left-2 px-2 py-1 text-xs rounded ${
+                  className={`absolute bottom-2 left-2 px-2 py-1 text-xs ${
                     image.is_primary
                       ? 'bg-green-600 text-white'
                       : 'bg-black/60 text-gray-200 hover:bg-black/80'
@@ -1058,6 +1087,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           Cancel
         </button>
       </div>
+      <Toast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'info'}
+        onClose={() => setToast(null)}
+      />
     </form>
   );
 }

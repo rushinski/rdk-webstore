@@ -3,26 +3,36 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const fallbackData = [
-  { date: 'Mon', revenue: 1200 },
-  { date: 'Tue', revenue: 1900 },
-  { date: 'Wed', revenue: 1600 },
-  { date: 'Thu', revenue: 2200 },
-  { date: 'Fri', revenue: 2800 },
-  { date: 'Sat', revenue: 3400 },
-  { date: 'Sun', revenue: 2900 },
-];
+const formatDay = (value: string) => {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
 
-export function SalesChart({ data = fallbackData }: { data?: Array<{ date: string; revenue: number }> }) {
+const buildZeroData = () => {
+  const today = new Date();
+  const days: Array<{ date: string; revenue: number }> = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    days.push({ date: d.toISOString(), revenue: 0 });
+  }
+  return days;
+};
+
+export function SalesChart({ data }: { data?: Array<{ date: string; revenue: number }> }) {
+  const resolvedData = data && data.length > 0 ? data : buildZeroData();
+
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <LineChart data={data}>
+      <LineChart data={resolvedData}>
         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-        <XAxis dataKey="date" stroke="#999" />
-        <YAxis stroke="#999" />
+        <XAxis dataKey="date" stroke="#999" tickFormatter={formatDay} />
+        <YAxis stroke="#999" allowDecimals={false} />
         <Tooltip
           contentStyle={{ backgroundColor: '#111', border: '1px solid #dc2626' }}
           labelStyle={{ color: '#fff' }}
+          labelFormatter={(value) => formatDay(String(value))}
         />
         <Line type="monotone" dataKey="revenue" stroke="#dc2626" strokeWidth={2} />
       </LineChart>

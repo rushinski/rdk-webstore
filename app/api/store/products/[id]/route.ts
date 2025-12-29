@@ -13,10 +13,11 @@ const paramsSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
-  const parsed = paramsSchema.safeParse(params);
+  const { id } = await params;
+  const parsed = paramsSchema.safeParse({ id });
 
   if (!parsed.success) {
     return NextResponse.json(

@@ -39,6 +39,17 @@ export class InventoryImportRepository {
     return data as ImportRow;
   }
 
+  async getImportById(importId: string): Promise<ImportRow | null> {
+    const { data, error } = await this.supabase
+      .from("inventory_imports")
+      .select("*")
+      .eq("id", importId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ?? null;
+  }
+
   async updateImport(importId: string, payload: ImportUpdate): Promise<ImportRow> {
     const { data, error } = await this.supabase
       .from("inventory_imports")

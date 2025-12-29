@@ -80,6 +80,7 @@ export default function AuthShell({ children, leftVariant = "login" }: AuthShell
                   src="/images/rdk-logo.png"
                   alt="RDK"
                   fill
+                  sizes="48px"
                   className="object-contain"
                   priority
                 />
@@ -109,6 +110,7 @@ export default function AuthShell({ children, leftVariant = "login" }: AuthShell
                   src="/images/rdk-logo.png"
                   alt="RDK"
                   fill
+                  sizes="40px"
                   className="object-contain"
                 />
               </div>

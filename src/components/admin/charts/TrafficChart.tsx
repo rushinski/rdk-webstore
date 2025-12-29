@@ -1,7 +1,7 @@
 // src/components/admin/charts/TrafficChart.tsx
 "use client";
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const formatDay = (value: string) => {
   const parsed = new Date(value);
@@ -20,7 +20,7 @@ export function TrafficChart({ data }: { data: Array<{ date: string; visits: num
 
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data}>
+      <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="#333" />
         <XAxis dataKey="date" stroke="#999" tickFormatter={formatDay} />
         <YAxis stroke="#999" allowDecimals={false} />
@@ -29,8 +29,8 @@ export function TrafficChart({ data }: { data: Array<{ date: string; visits: num
           labelStyle={{ color: '#fff' }}
           labelFormatter={(value) => formatDay(String(value))}
         />
-        <Bar dataKey="visits" fill="#dc2626" />
-      </BarChart>
+        <Line type="monotone" dataKey="visits" stroke="#dc2626" strokeWidth={2} />
+      </LineChart>
     </ResponsiveContainer>
   );
 }

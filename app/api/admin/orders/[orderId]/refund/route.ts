@@ -24,7 +24,7 @@ const refundSchema = z
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -33,7 +33,8 @@ export async function POST(
     const supabase = await createSupabaseServerClient();
     const service = new OrdersService(supabase);
 
-    const paramsParsed = paramsSchema.safeParse(params);
+    const { orderId } = await params;
+    const paramsParsed = paramsSchema.safeParse({ orderId });
     if (!paramsParsed.success) {
       return NextResponse.json(
         { error: "Invalid params", issues: paramsParsed.error.format(), requestId },

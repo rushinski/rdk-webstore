@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ProductForm } from '@/components/inventory/ProductForm';
 import type { ProductCreateInput } from '@/services/product-service';
@@ -11,19 +11,26 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { logError } from '@/lib/log';
 
-export default function EditProductPage({ params }: { params: { id: string } }) {
+export default function EditProductPage() {
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const [product, setProduct] = useState<ProductWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const productId = typeof params?.id === "string" ? params.id : "";
 
   useEffect(() => {
-    loadProduct();
-  }, [params.id]);
+    if (!productId) return;
+    loadProduct(productId);
+  }, [productId]);
 
-  const loadProduct = async () => {
+  const loadProduct = async (id: string) => {
     try {
-      const response = await fetch(`/api/store/products/${params.id}`);
+      const response = await fetch(`/api/store/products/${id}`);
       const data = await response.json();
+      if (!response.ok) {
+        setProduct(null);
+        return;
+      }
       setProduct(data);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_product" });
@@ -33,7 +40,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   };
 
   const handleSubmit = async (data: ProductCreateInput) => {
-    const response = await fetch(`/api/admin/products/${params.id}`, {
+    const response = await fetch(`/api/admin/products/${productId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -70,7 +77,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     shipping_override_cents: product.shipping_override_cents ?? undefined,
     variants: product.variants,
     images: product.images,
-    tags: product.tags.map((tag) => ({
+    tags: (product.tags ?? []).map((tag) => ({
       label: tag.label,
       group_key: tag.group_key,
     })),

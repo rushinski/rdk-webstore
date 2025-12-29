@@ -4,15 +4,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, Edit, Trash2, Copy, Upload, X } from 'lucide-react';
+import { Plus, Trash2, Upload, X, MoreVertical, Search } from 'lucide-react';
 import type { ProductWithDetails } from "@/types/views/product";
 import type { Category, Condition } from "@/types/views/product";
 import { logError } from '@/lib/log';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Toast } from '@/components/ui/Toast';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
+  const [conditionFilter, setConditionFilter] = useState<Condition | 'all'>('all');
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importCategory, setImportCategory] = useState<Category>('sneakers');
   const [importCondition, setImportCondition] = useState<Condition>('new');
@@ -23,21 +28,126 @@ export default function InventoryPage() {
     componentRowsParsed: number;
     errors: string[];
     alreadyImported?: boolean;
+    status?: string;
   } | null>(null);
+  const [importProgress, setImportProgress] = useState<{
+    id: string;
+    status: string | null;
+    rowsParsed: number;
+    rowsUpserted: number;
+    rowsFailed: number;
+  } | null>(null);
+  const [activeImportId, setActiveImportId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importDryRun, setImportDryRun] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    const timeout = setTimeout(() => {
+      loadProducts({
+        q: searchQuery,
+        category: categoryFilter,
+        condition: conditionFilter,
+      });
+    }, 250);
 
-  const loadProducts = async () => {
+    return () => clearTimeout(timeout);
+  }, [searchQuery, categoryFilter, conditionFilter]);
+
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      const activeMenus = Array.from(document.querySelectorAll(`[data-menu-id="${openMenuId}"]`));
+      if (target && activeMenus.some((menu) => menu.contains(target))) return;
+      setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openMenuId]);
+
+  useEffect(() => {
+    if (!activeImportId) return;
+    let isActive = true;
+
+    const pollImport = async () => {
+      try {
+        const response = await fetch(`/api/admin/inventory/imports/${activeImportId}`);
+        const data = await response.json();
+        if (!response.ok || !isActive) return;
+
+        const status = data.status ?? null;
+        const rowsParsed = data.rows_parsed ?? 0;
+        const rowsUpserted = data.rows_upserted ?? 0;
+        const rowsFailed = data.rows_failed ?? 0;
+
+        if (status === 'processing') {
+          setImportProgress({
+            id: data.id,
+            status,
+            rowsParsed,
+            rowsUpserted,
+            rowsFailed,
+          });
+          return;
+        }
+
+        setImportProgress(null);
+        setActiveImportId(null);
+        setImportStatus({
+          rowsParsed,
+          rowsUpserted,
+          rowsFailed,
+          componentRowsParsed: 0,
+          errors: [],
+          status,
+        });
+
+        if (status === 'completed') {
+          await loadProducts({
+            q: searchQuery,
+            category: categoryFilter,
+            condition: conditionFilter,
+          });
+        }
+      } catch (error) {
+        logError(error, { layer: "frontend", event: "admin_import_poll" });
+      }
+    };
+
+    pollImport();
+    const interval = setInterval(pollImport, 2000);
+
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+    };
+  }, [activeImportId, searchQuery, categoryFilter, conditionFilter]);
+
+  const loadProducts = async (filters?: {
+    q?: string;
+    category?: Category | 'all';
+    condition?: Condition | 'all';
+  }) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/store/products?limit=100');
+      const params = new URLSearchParams({ limit: '100' });
+      if (filters?.q) {
+        params.set('q', filters.q.trim());
+      }
+      if (filters?.category && filters.category !== 'all') {
+        params.append('category', filters.category);
+      }
+      if (filters?.condition && filters.condition !== 'all') {
+        params.append('condition', filters.condition);
+      }
+
+      const response = await fetch(`/api/store/products?${params.toString()}`);
       const data = await response.json();
       setProducts(data.products || []);
     } catch (error) {
@@ -47,8 +157,20 @@ export default function InventoryPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  const showToast = (message: string, tone: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, tone });
+  };
+
+  const requestDelete = (product: ProductWithDetails) => {
+    setOpenMenuId(null);
+    const label = product.title_display ?? `${product.brand} ${product.name}`.trim();
+    setPendingDelete({ id: product.id, label: label || 'this product' });
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    const { id, label } = pendingDelete;
+    setPendingDelete(null);
 
     try {
       const response = await fetch(`/api/admin/products/${id}`, {
@@ -56,28 +178,39 @@ export default function InventoryPage() {
       });
 
       if (response.ok) {
-        loadProducts();
+        showToast(`Deleted ${label}.`, 'success');
+        await loadProducts({
+          q: searchQuery,
+          category: categoryFilter,
+          condition: conditionFilter,
+        });
       } else {
-        alert('Failed to delete product');
+        showToast('Failed to delete product.', 'error');
       }
     } catch (error) {
-      alert('Error deleting product');
+      showToast('Error deleting product.', 'error');
     }
   };
 
   const handleDuplicate = async (id: string) => {
+    setOpenMenuId(null);
     try {
       const response = await fetch(`/api/admin/products/${id}/duplicate`, {
         method: 'POST',
       });
 
       if (response.ok) {
-        loadProducts();
+        showToast('Product duplicated.', 'success');
+        await loadProducts({
+          q: searchQuery,
+          category: categoryFilter,
+          condition: conditionFilter,
+        });
       } else {
-        alert('Failed to duplicate product');
+        showToast('Failed to duplicate product.', 'error');
       }
     } catch (error) {
-      alert('Error duplicating product');
+      showToast('Error duplicating product.', 'error');
     }
   };
 
@@ -88,7 +221,7 @@ export default function InventoryPage() {
   };
 
   const handleMassDelete = () => {
-    alert('Mass delete functionality - coming soon');
+    showToast('Mass delete is coming soon.', 'info');
   };
 
   const openImportModal = () => setIsImportModalOpen(true);
@@ -104,6 +237,8 @@ export default function InventoryPage() {
     setIsImporting(true);
     setImportError(null);
     setImportStatus(null);
+    setImportProgress(null);
+    setActiveImportId(null);
 
     try {
       const formData = new FormData();
@@ -122,24 +257,41 @@ export default function InventoryPage() {
         throw new Error(data?.error || 'Failed to import inventory.');
       }
 
-      const parsedErrors = Array.isArray(data?.errors)
-        ? data.errors.map((error: any) => `${error.sheet} row ${error.rowNumber}: ${error.message}`)
-        : [];
+      if (response.status === 202 && data?.importId) {
+        setActiveImportId(data.importId);
+        setImportProgress({
+          id: data.importId,
+          status: data.status ?? 'processing',
+          rowsParsed: 0,
+          rowsUpserted: 0,
+          rowsFailed: 0,
+        });
+        setImportStatus(null);
+      } else {
+        const parsedErrors = Array.isArray(data?.errors)
+          ? data.errors.map((error: any) => `${error.sheet} row ${error.rowNumber}: ${error.message}`)
+          : [];
 
-      setImportStatus({
-        rowsParsed: data.rowsParsed ?? 0,
-        rowsUpserted: data.rowsUpserted ?? 0,
-        rowsFailed: data.rowsFailed ?? 0,
-        componentRowsParsed: data.componentRowsParsed ?? 0,
-        errors: parsedErrors,
-        alreadyImported: data.alreadyImported ?? false,
-      });
+        setImportStatus({
+          rowsParsed: data.rowsParsed ?? 0,
+          rowsUpserted: data.rowsUpserted ?? 0,
+          rowsFailed: data.rowsFailed ?? 0,
+          componentRowsParsed: data.componentRowsParsed ?? 0,
+          errors: parsedErrors,
+          alreadyImported: data.alreadyImported ?? false,
+          status: data.status ?? 'completed',
+        });
+      }
       setImportFile(null);
       if (importFileRef.current) {
         importFileRef.current.value = '';
       }
-      if (!importDryRun && !data?.alreadyImported) {
-        await loadProducts();
+      if (!importDryRun && !data?.alreadyImported && response.status !== 202) {
+        await loadProducts({
+          q: searchQuery,
+          category: categoryFilter,
+          condition: conditionFilter,
+        });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to import inventory.';
@@ -148,6 +300,11 @@ export default function InventoryPage() {
       setIsImporting(false);
     }
   };
+
+  const progressTotal = importProgress?.rowsParsed ?? 0;
+  const progressDone = (importProgress?.rowsUpserted ?? 0) + (importProgress?.rowsFailed ?? 0);
+  const progressPercent =
+    progressTotal > 0 ? Math.min(100, Math.round((progressDone / progressTotal) * 100)) : 0;
 
   return (
     <div className="space-y-6">
@@ -175,6 +332,76 @@ export default function InventoryPage() {
         </div>
       </div>
 
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md">
+          <Search className="w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search products"
+            className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+          />
+        </div>
+        <div className="flex flex-1 flex-col sm:flex-row gap-3">
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value as Category | 'all')}
+            className="w-full sm:w-48 bg-zinc-900 border border-zinc-800/70 px-3 py-2 text-sm text-white cursor-pointer"
+          >
+            <option value="all">All categories</option>
+            <option value="sneakers">Sneakers</option>
+            <option value="clothing">Clothing</option>
+            <option value="accessories">Accessories</option>
+            <option value="electronics">Electronics</option>
+          </select>
+          <select
+            value={conditionFilter}
+            onChange={(event) => setConditionFilter(event.target.value as Condition | 'all')}
+            className="w-full sm:w-40 bg-zinc-900 border border-zinc-800/70 px-3 py-2 text-sm text-white cursor-pointer"
+          >
+            <option value="all">All conditions</option>
+            <option value="new">New</option>
+            <option value="used">Used</option>
+          </select>
+        </div>
+      </div>
+
+      {importProgress && (
+        <div className="bg-zinc-900 border border-zinc-800/70 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-white font-semibold">Inventory import in progress</div>
+              <div className="text-xs text-gray-500">Import ID: {importProgress.id.slice(0, 8)}</div>
+            </div>
+            <div className="text-xs text-gray-400">
+              {progressTotal > 0 ? `${progressDone} / ${progressTotal} rows` : 'Preparing rows...'}
+            </div>
+          </div>
+          <div className="h-2 bg-zinc-800">
+            <div
+              className="h-full bg-red-600 transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {importStatus && !importProgress && (
+        <div className="bg-zinc-900 border border-zinc-800/70 p-4 text-sm text-gray-300 space-y-1">
+          {importStatus.status === 'failed' ? (
+            <div className="text-red-400">Inventory import failed.</div>
+          ) : (
+            <div>
+              {importStatus.alreadyImported
+                ? 'This file was already imported.'
+                : `Upserted ${importStatus.rowsUpserted} rows from ${importStatus.rowsParsed} Items rows.`}
+            </div>
+          )}
+          {importStatus.rowsFailed > 0 && <div>{importStatus.rowsFailed} rows failed.</div>}
+        </div>
+      )}
+
       {isImportModalOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
@@ -192,6 +419,9 @@ export default function InventoryPage() {
                 <h2 className="text-xl font-semibold text-white">Upload Inventory</h2>
                 <p className="text-gray-500 text-sm">
                   Import the Real Deal Kickz Excel export (.xlsx) with Items and Component Inventory sheets.
+                </p>
+                <p className="text-gray-600 text-xs mt-2">
+                  You can close this window while the import runs. Progress continues in the background.
                 </p>
               </div>
               <button
@@ -216,7 +446,7 @@ export default function InventoryPage() {
                 />
               </div>
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Default Category</label>
+                <label className="block text-gray-400 text-sm mb-1">Fallback Category</label>
                 <select
                   value={importCategory}
                   onChange={(event) => setImportCategory(event.target.value as Category)}
@@ -227,9 +457,10 @@ export default function InventoryPage() {
                   <option value="accessories">Accessories</option>
                   <option value="electronics">Electronics</option>
                 </select>
+                <p className="mt-1 text-xs text-gray-500">Used only when a row has no category data.</p>
               </div>
               <div>
-                <label className="block text-gray-400 text-sm mb-1">Condition</label>
+                <label className="block text-gray-400 text-sm mb-1">Fallback Condition</label>
                 <select
                   value={importCondition}
                   onChange={(event) => setImportCondition(event.target.value as Condition)}
@@ -238,6 +469,7 @@ export default function InventoryPage() {
                   <option value="new">New</option>
                   <option value="used">Used</option>
                 </select>
+                <p className="mt-1 text-xs text-gray-500">Used only when a row has no condition clues.</p>
               </div>
               <label className="md:col-span-4 flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
                 <input
@@ -265,11 +497,15 @@ export default function InventoryPage() {
 
             {importStatus && (
               <div className="text-sm text-gray-300 space-y-1">
-                <div>
-                  {importStatus.alreadyImported
-                    ? 'This file was already imported.'
-                    : `Upserted ${importStatus.rowsUpserted} rows from ${importStatus.rowsParsed} Items rows.`}
-                </div>
+                {importStatus.status === 'failed' ? (
+                  <div className="text-red-400">Import failed. Please review the file and try again.</div>
+                ) : (
+                  <div>
+                    {importStatus.alreadyImported
+                      ? 'This file was already imported.'
+                      : `Upserted ${importStatus.rowsUpserted} rows from ${importStatus.rowsParsed} Items rows.`}
+                  </div>
+                )}
                 {importStatus.rowsFailed > 0 && (
                   <div>{importStatus.rowsFailed} rows failed.</div>
                 )}
@@ -324,6 +560,7 @@ export default function InventoryPage() {
                       checked={selectedIds.length === products.length && products.length > 0}
                     />
                   </th>
+                  <th className="text-left text-gray-400 font-semibold p-4">Image</th>
                   <th className="text-left text-gray-400 font-semibold p-4">Product</th>
                   <th className="text-left text-gray-400 font-semibold p-4">Category</th>
                   <th className="text-left text-gray-400 font-semibold p-4">Price</th>
@@ -336,6 +573,8 @@ export default function InventoryPage() {
                   const minPrice = Math.min(...product.variants.map((v) => v.price_cents));
                   const maxPrice = Math.max(...product.variants.map((v) => v.price_cents));
                   const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+                  const primaryImage =
+                    product.images.find((image) => image.is_primary) ?? product.images[0];
 
                   return (
                     <tr key={product.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
@@ -346,6 +585,20 @@ export default function InventoryPage() {
                           checked={selectedIds.includes(product.id)}
                           onChange={() => toggleSelection(product.id)}
                         />
+                      </td>
+                      <td className="p-4">
+                        <div className="w-12 h-12 bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
+                          {primaryImage?.url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={primaryImage.url}
+                              alt={product.title_display ?? product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-[10px] text-gray-500">No image</span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4">
                         <div>
@@ -362,25 +615,44 @@ export default function InventoryPage() {
                       </td>
                       <td className="p-4 text-gray-400">{totalStock}</td>
                       <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/admin/inventory/${product.id}/edit`}
-                            className="text-gray-400 hover:text-white"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleDuplicate(product.id)}
-                            className="text-gray-400 hover:text-white"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(product.id)}
-                            className="text-gray-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center justify-end">
+                          <div className="relative" data-menu-id={product.id}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setOpenMenuId((prev) => (prev === product.id ? null : product.id))
+                              }
+                              className="text-gray-400 hover:text-white p-1 cursor-pointer"
+                              aria-label="Open actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            {openMenuId === product.id && (
+                              <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800/70 shadow-lg z-10">
+                                <Link
+                                  href={`/admin/inventory/${product.id}/edit`}
+                                  onClick={() => setOpenMenuId(null)}
+                                  className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
+                                >
+                                  Edit
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDuplicate(product.id)}
+                                  className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
+                                >
+                                  Duplicate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => requestDelete(product)}
+                                  className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -392,49 +664,102 @@ export default function InventoryPage() {
 
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
-            {products.map((product) => (
-              <div key={product.id} className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
-                <div className="flex items-start justify-between mb-2">
+            {products.map((product) => {
+              const primaryImage =
+                product.images.find((image) => image.is_primary) ?? product.images[0];
+
+              return (
+                <div key={product.id} className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-14 h-14 bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
+                    {primaryImage?.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={primaryImage.url}
+                        alt={product.title_display ?? product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-[10px] text-gray-500">No image</span>
+                    )}
+                  </div>
                   <div className="flex-1">
                     <h3 className="text-white font-semibold">
                       {product.title_display ?? `${product.brand} ${product.name}`.trim()}
                     </h3>
+                    <span className="text-gray-400 text-xs capitalize">{product.category}</span>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="rdk-checkbox"
-                    checked={selectedIds.includes(product.id)}
-                    onChange={() => toggleSelection(product.id)}
-                  />
-                </div>
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-gray-400 text-sm capitalize">{product.category}</span>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/admin/inventory/${product.id}/edit`}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Link>
-                    <button
-                      onClick={() => handleDuplicate(product.id)}
-                      className="text-gray-400 hover:text-white"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex flex-col items-end gap-2">
+                    <input
+                      type="checkbox"
+                      className="rdk-checkbox"
+                      checked={selectedIds.includes(product.id)}
+                      onChange={() => toggleSelection(product.id)}
+                    />
+                    <div className="relative" data-menu-id={product.id}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenMenuId((prev) => (prev === product.id ? null : product.id))
+                        }
+                        className="text-gray-400 hover:text-white p-1 cursor-pointer"
+                        aria-label="Open actions"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                      {openMenuId === product.id && (
+                        <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800/70 shadow-lg z-10">
+                          <Link
+                            href={`/admin/inventory/${product.id}/edit`}
+                            onClick={() => setOpenMenuId(null)}
+                            className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDuplicate(product.id)}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => requestDelete(product)}
+                            className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingDelete)}
+        title="Delete product?"
+        description={
+          pendingDelete
+            ? `This will permanently remove ${pendingDelete.label} and its variants.`
+            : undefined
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+      <Toast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'info'}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }

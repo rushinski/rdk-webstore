@@ -1,9 +1,10 @@
 // src/repositories/addresses-repo.ts (NEW)
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/database.types";
 
 type OrderShippingInsert = TablesInsert<"order_shipping">;
+type OrderShippingRow = Tables<"order_shipping">;
 type UserAddressInsert = TablesInsert<"user_addresses">;
 
 export interface AddressInput {
@@ -84,5 +85,16 @@ export class AddressesRepository {
 
       if (error) throw error;
     }
+  }
+
+  async getOrderShipping(orderId: string): Promise<OrderShippingRow | null> {
+    const { data, error } = await this.supabase
+      .from("order_shipping")
+      .select("*")
+      .eq("order_id", orderId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data ?? null;
   }
 }

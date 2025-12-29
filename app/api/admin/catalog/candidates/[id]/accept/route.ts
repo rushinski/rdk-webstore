@@ -20,7 +20,7 @@ const acceptSchema = z
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -28,7 +28,8 @@ export async function POST(
     const session = await requireAdmin();
     const supabase = await createSupabaseServerClient();
     const tenantId = await ensureTenantId(session, supabase);
-    const paramsParsed = paramsSchema.safeParse(params);
+    const { id } = await params;
+    const paramsParsed = paramsSchema.safeParse({ id });
     if (!paramsParsed.success) {
       return NextResponse.json(
         { error: "Invalid params", issues: paramsParsed.error.format(), requestId },

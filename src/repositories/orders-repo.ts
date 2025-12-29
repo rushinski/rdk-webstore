@@ -208,6 +208,18 @@ export class OrdersRepository {
     return data ?? [];
   }
 
+  async getOrderItemsDetailed(orderId: string) {
+    const { data, error } = await this.supabase
+      .from("order_items")
+      .select(
+        "*, product:products(id, name, brand, model, title_display, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label)"
+      )
+      .eq("order_id", orderId);
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
   async listOrdersForUser(userId: string) {
     const { data, error } = await this.supabase
       .from("orders")

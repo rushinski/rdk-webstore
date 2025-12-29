@@ -289,7 +289,9 @@ const resolveCategory = (
 
 const resolveCondition = (inputs: Array<string | null | undefined>, fallback: Condition): Condition => {
   const combined = inputs.filter(Boolean).join(" ").toLowerCase();
-  if (combined.includes("used") || combined.includes("pre-owned")) return "used";
+  if (combined.includes("used") || combined.includes("pre-owned") || combined.includes("preowned")) {
+    return "used";
+  }
   if (combined.includes("new")) return "new";
   return fallback;
 };
@@ -467,17 +469,16 @@ const parseComponentSheet = (
   sheet: any
 ): { rows: ParsedComponentRow[]; errors: ImportRowError[]; rowsParsed: number } => {
   const rows = utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: null });
-  const headerIndex = findHeaderRowIndex(rows, ["Token", "Item Name"]);
+  const headerIndex = findHeaderRowIndex(rows, ["Token (locked)", "Item Name (locked)"]);
   if (headerIndex === null) {
     throw new InventoryImportValidationError("Missing header row in Component Inventory sheet.");
   }
 
   const headerRow = stripTrailingEmpty(normalizeHeaderRow(rows[headerIndex] ?? []));
-  const { indexMap, missing, outOfOrder } = buildHeaderIndexMap(headerRow, COMPONENT_HEADERS);
-  if (missing.length > 0 || outOfOrder) {
+  const { indexMap, missing } = buildHeaderIndexMap(headerRow, COMPONENT_HEADERS);
+  if (missing.length > 0) {
     const details: string[] = [];
     if (missing.length > 0) details.push(`Missing headers: ${missing.join(", ")}`);
-    if (outOfOrder) details.push("Header order does not match the expected schema.");
     const message = details.length > 0
       ? `Component Inventory headers do not match the required schema. ${details.join(" ")}`
       : "Component Inventory headers do not match the required schema.";
@@ -561,26 +562,32 @@ export class InventoryImportService {
     }
   }
 
-  async importRdkInventory(input: {
-    file: File;
+  async importRdkInventoryBuffer(input: {
+    buffer: ArrayBuffer;
+    fileName: string;
+    fileSize: number;
     userId: string;
     tenantId: string;
     dryRun: boolean;
     defaultCategory?: Category;
     defaultCondition?: Condition;
+    importId?: string;
+    checksum?: string;
+    skipIdempotency?: boolean;
   }): Promise<InventoryImportResult> {
-    if (!input.file.name.toLowerCase().endsWith(ALLOWED_EXTENSION)) {
+    if (!input.fileName.toLowerCase().endsWith(ALLOWED_EXTENSION)) {
       throw new InventoryImportValidationError("Only .xlsx files are supported.");
     }
 
-    if (input.file.size > MAX_FILE_BYTES) {
+    if (input.fileSize > MAX_FILE_BYTES) {
       throw new InventoryImportValidationError("File exceeds the 10MB limit.");
     }
 
-    const buffer = await input.file.arrayBuffer();
-    const checksum = crypto.createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+    const checksum =
+      input.checksum ??
+      crypto.createHash("sha256").update(Buffer.from(input.buffer)).digest("hex");
 
-    if (!input.dryRun) {
+    if (!input.dryRun && !input.skipIdempotency) {
       const existingImport = await this.importRepo.findImportByChecksum(input.tenantId, checksum);
       if (existingImport) {
         return {
@@ -597,212 +604,318 @@ export class InventoryImportService {
       }
     }
 
-    const workbook = read(buffer, { type: "array" });
-    const itemsSheet = workbook.Sheets[ITEMS_SHEET];
-    const componentSheet = workbook.Sheets[COMPONENT_SHEET];
+    let itemsParsed: ReturnType<typeof parseItemsSheet> | null = null;
+    let componentParsed: ReturnType<typeof parseComponentSheet> | null = null;
+    let errors: ImportRowError[] = [];
+    let importId: string | undefined = input.importId;
 
-    if (!itemsSheet) {
-      throw new InventoryImportValidationError("Missing Items sheet.");
+    try {
+      const workbook = read(input.buffer, { type: "array" });
+      const itemsSheet = workbook.Sheets[ITEMS_SHEET];
+      const componentSheet = workbook.Sheets[COMPONENT_SHEET];
+
+      if (!itemsSheet) {
+        throw new InventoryImportValidationError("Missing Items sheet.");
+      }
+      if (!componentSheet) {
+        throw new InventoryImportValidationError("Missing Component Inventory sheet.");
+      }
+
+      itemsParsed = parseItemsSheet(itemsSheet);
+      componentParsed = parseComponentSheet(componentSheet);
+      errors = [...itemsParsed.errors, ...componentParsed.errors];
+
+      if (!input.dryRun && !importId) {
+        const importRow = await this.importRepo.createImport({
+          tenant_id: input.tenantId,
+          created_by: input.userId,
+          source: "rdk_excel",
+          checksum,
+          file_name: input.fileName,
+          file_size: input.fileSize,
+          dry_run: false,
+          status: "processing",
+          rows_parsed: 0,
+          rows_upserted: 0,
+          rows_failed: 0,
+        });
+        importId = importRow.id;
+      }
+
+      if (!input.dryRun && importId) {
+        await this.importRepo.updateImport(importId, {
+          rows_parsed: itemsParsed.rowsParsed,
+          status: "processing",
+        });
+      }
+    } catch (error) {
+      if (!input.dryRun && importId) {
+        await this.importRepo.updateImport(importId, {
+          status: "failed",
+        });
+      }
+      throw error;
     }
-    if (!componentSheet) {
-      throw new InventoryImportValidationError("Missing Component Inventory sheet.");
+
+    if (!itemsParsed || !componentParsed) {
+      throw new InventoryImportValidationError("Unable to read workbook sheets.");
     }
-
-    const itemsParsed = parseItemsSheet(itemsSheet);
-    const componentParsed = parseComponentSheet(componentSheet);
-
-    const errors: ImportRowError[] = [...itemsParsed.errors, ...componentParsed.errors];
 
     const defaultCategory = (input.defaultCategory ?? "sneakers") as Category;
     const defaultCondition = (input.defaultCondition ?? "new") as Condition;
 
     const importRowsLog: TablesInsert<"inventory_import_rows">[] = [];
-    let importId: string | undefined;
-
-    if (!input.dryRun) {
-      const importRow = await this.importRepo.createImport({
-        tenant_id: input.tenantId,
-        created_by: input.userId,
-        source: "rdk_excel",
-        checksum,
-        file_name: input.file.name,
-        file_size: input.file.size,
-        dry_run: false,
-        status: "processing",
-        rows_parsed: 0,
-        rows_upserted: 0,
-        rows_failed: 0,
-      });
-      importId = importRow.id;
-    }
 
     const productCache = new Map<string, string>();
     let rowsUpserted = 0;
     let rowsFailed = 0;
 
-    for (const row of itemsParsed.rows) {
-      const baseLog = importId
-        ? {
-            importId,
-            sheetName: ITEMS_SHEET as SheetName,
-            rowNumber: row.rowNumber,
-            token: row.token,
-            referenceHandle: row.referenceHandle,
-            rawRow: row.rawRow,
+    const progressBatchSize = 25;
+    let processedCount = 0;
+
+    try {
+      for (const row of itemsParsed.rows) {
+        const baseLog = importId
+          ? {
+              importId,
+              sheetName: ITEMS_SHEET as SheetName,
+              rowNumber: row.rowNumber,
+              token: row.token,
+              referenceHandle: row.referenceHandle,
+              rawRow: row.rawRow,
+            }
+          : null;
+
+        if (row.errors.length > 0) {
+          rowsFailed += 1;
+          if (baseLog) {
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", row.errors.join(", ")));
           }
-        : null;
-
-      if (row.errors.length > 0) {
-        rowsFailed += 1;
-        if (baseLog) {
-          importRowsLog.push(buildImportRowLog(baseLog, "failed", row.errors.join(", ")));
+          processedCount += 1;
+          if (!input.dryRun && importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      const itemName = row.itemName ?? "";
-      const variationName = row.variationName ?? "";
-      const categoryPaths = parseCategoryPaths(row.categories);
-      const category = resolveCategory(
-        categoryPaths,
-        [row.reportingCategory, itemName, row.description],
-        defaultCategory
-      );
-      const condition = resolveCondition([row.description, row.categories], defaultCondition);
-      const sizeType = resolveSizeType(category);
-      const sizeLabel = sizeType === "none" ? "N/A" : variationName.trim();
-      const priceSource = row.onlineSalePrice ?? row.price;
-      const priceCents = parseMoneyToCents(priceSource);
-      const costCents = parseMoneyToCents(row.defaultUnitCost) ?? 0;
-      const stock = parseInteger(row.currentQuantity) ?? 0;
+        const itemName = row.itemName ?? "";
+        const variationName = row.variationName ?? "";
+        const categoryPaths = parseCategoryPaths(row.categories);
+        const category = resolveCategory(
+          categoryPaths,
+          [row.reportingCategory, itemName, row.description],
+          defaultCategory
+        );
+        const condition = resolveCondition(
+          [row.description, row.categories, itemName, variationName],
+          defaultCondition
+        );
+        const sizeType = resolveSizeType(category);
+        const sizeLabel = sizeType === "none" ? "N/A" : variationName.trim();
+        const priceSource = row.onlineSalePrice ?? row.price;
+        const priceCents = parseMoneyToCents(priceSource);
+        const costCents = parseMoneyToCents(row.defaultUnitCost) ?? 0;
+        const stock = parseInteger(row.currentQuantity) ?? 0;
 
-      if (priceCents === null) {
-        rowsFailed += 1;
-        errors.push({
-          sheet: ITEMS_SHEET,
-          rowNumber: row.rowNumber,
-          message: "missing Price",
-        });
-        if (baseLog) {
-          importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Price"));
+        if (priceCents === null) {
+          rowsFailed += 1;
+          errors.push({
+            sheet: ITEMS_SHEET,
+            rowNumber: row.rowNumber,
+            message: "missing Price",
+          });
+          if (baseLog) {
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Price"));
+          }
+          processedCount += 1;
+          if (!input.dryRun && importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      if (sizeType !== "none" && !sizeLabel) {
-        rowsFailed += 1;
-        errors.push({
-          sheet: ITEMS_SHEET,
-          rowNumber: row.rowNumber,
-          message: "missing Variation Name",
-        });
-        if (baseLog) {
-          importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Variation Name"));
+        if (sizeType !== "none" && !sizeLabel) {
+          rowsFailed += 1;
+          errors.push({
+            sheet: ITEMS_SHEET,
+            rowNumber: row.rowNumber,
+            message: "missing Variation Name",
+          });
+          if (baseLog) {
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Variation Name"));
+          }
+          processedCount += 1;
+          if (!input.dryRun && importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
+          continue;
         }
-        continue;
-      }
 
-      const variantInput: ProductCreateInput["variants"][number] = {
-        size_type: sizeType,
-        size_label: sizeLabel,
-        price_cents: priceCents,
-        cost_cents: costCents,
-        stock,
-      };
+        const variantInput: ProductCreateInput["variants"][number] = {
+          size_type: sizeType,
+          size_label: sizeLabel,
+          price_cents: priceCents,
+          cost_cents: costCents,
+          stock,
+        };
 
-      const token = row.token ?? "";
+        const token = row.token ?? "";
 
-      const external = await this.importRepo.getExternalVariantByToken(input.tenantId, token);
+        const external = await this.importRepo.getExternalVariantByToken(input.tenantId, token);
 
-      if (input.dryRun) {
-        rowsUpserted += 1;
-        continue;
-      }
+        if (input.dryRun) {
+          rowsUpserted += 1;
+          processedCount += 1;
+          continue;
+        }
 
-      try {
-        const parsed = await this.parser.parseTitle({
-          titleRaw: itemName,
-          category,
-          tenantId: input.tenantId,
-        });
+        try {
+          const parsed = await this.parser.parseTitle({
+            titleRaw: itemName,
+            category,
+            tenantId: input.tenantId,
+          });
 
-        const tags = buildImportTags(parsed, category, condition, [variantInput], categoryPaths);
+          const tags = buildImportTags(parsed, category, condition, [variantInput], categoryPaths);
 
-        if (external) {
-          await this.productRepo.updateVariant(external.variant_id, {
+          if (external) {
+            await this.productRepo.updateVariant(external.variant_id, {
+              size_label: sizeLabel,
+              price_cents: priceCents,
+              cost_cents: costCents,
+              stock,
+            });
+
+            await this.productService.syncSizeTags(external.product_id);
+            await this.ensureProductTags(external.product_id, tags, input.tenantId);
+
+            await this.importRepo.updateExternalVariant(external.id, {
+              reference_handle: row.referenceHandle,
+              item_name: row.itemName,
+              variation_name: row.variationName,
+              sku: row.sku,
+              last_import_id: importId ?? null,
+              updated_at: new Date().toISOString(),
+            });
+
+            rowsUpserted += 1;
+            if (baseLog) {
+              importRowsLog.push(buildImportRowLog(baseLog, "upserted"));
+            }
+            processedCount += 1;
+            if (importId && processedCount % progressBatchSize === 0) {
+              await this.importRepo.updateImport(importId, {
+                rows_upserted: rowsUpserted,
+                rows_failed: rowsFailed,
+                status: "processing",
+              });
+            }
+            continue;
+          }
+
+          const cacheKey = `${normalizeTitleKey(itemName)}|${category}`;
+          let productId = productCache.get(cacheKey);
+
+          if (!productId) {
+            const existing = await this.productRepo.findByTitleAndCategory(
+              itemName,
+              category,
+              input.tenantId
+            );
+            if (existing) {
+              productId = existing.id;
+            }
+          }
+
+          if (!productId) {
+            const inputData: ProductCreateInput = {
+              title_raw: itemName,
+              category,
+              condition,
+              description: row.description || undefined,
+              variants: [variantInput],
+              images: [
+                {
+                  url: "/placeholder.png",
+                  sort_order: 0,
+                  is_primary: true,
+                },
+              ],
+              tags,
+            };
+
+            const created = await this.productService.createProduct(inputData, {
+              userId: input.userId,
+              tenantId: input.tenantId,
+              marketplaceId: null,
+              sellerId: null,
+            });
+
+            productId = created.id;
+            const createdProduct = await this.productRepo.getById(productId, {
+              tenantId: input.tenantId,
+            });
+            const createdVariant = createdProduct?.variants.find(
+              (variant) => variant.size_type === sizeType && variant.size_label === sizeLabel
+            );
+            if (!createdVariant) {
+              throw new Error("Unable to locate created variant.");
+            }
+
+            await this.importRepo.createExternalVariant({
+              tenant_id: input.tenantId,
+              token,
+              reference_handle: row.referenceHandle,
+              item_name: row.itemName,
+              variation_name: row.variationName,
+              sku: row.sku,
+              product_id: productId,
+              variant_id: createdVariant.id,
+              last_import_id: importId ?? null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+
+            rowsUpserted += 1;
+            productCache.set(cacheKey, productId);
+
+            if (baseLog) {
+              importRowsLog.push(buildImportRowLog(baseLog, "upserted"));
+            }
+            processedCount += 1;
+            if (importId && processedCount % progressBatchSize === 0) {
+              await this.importRepo.updateImport(importId, {
+                rows_upserted: rowsUpserted,
+                rows_failed: rowsFailed,
+                status: "processing",
+              });
+            }
+            continue;
+          }
+
+          const variant = await this.productRepo.createVariant({
+            product_id: productId,
+            size_type: sizeType,
             size_label: sizeLabel,
             price_cents: priceCents,
             cost_cents: costCents,
             stock,
           });
 
-          await this.productService.syncSizeTags(external.product_id);
-          await this.ensureProductTags(external.product_id, tags, input.tenantId);
-
-          await this.importRepo.updateExternalVariant(external.id, {
-            reference_handle: row.referenceHandle,
-            item_name: row.itemName,
-            variation_name: row.variationName,
-            sku: row.sku,
-            last_import_id: importId ?? null,
-            updated_at: new Date().toISOString(),
-          });
-
-          rowsUpserted += 1;
-          if (baseLog) {
-            importRowsLog.push(buildImportRowLog(baseLog, "upserted"));
-          }
-          continue;
-        }
-
-        const cacheKey = `${normalizeTitleKey(itemName)}|${category}`;
-        let productId = productCache.get(cacheKey);
-
-        if (!productId) {
-          const existing = await this.productRepo.findByTitleAndCategory(
-            itemName,
-            category,
-            input.tenantId
-          );
-          if (existing) {
-            productId = existing.id;
-          }
-        }
-
-        if (!productId) {
-          const inputData: ProductCreateInput = {
-            title_raw: itemName,
-            category,
-            condition,
-            description: row.description || undefined,
-            variants: [variantInput],
-            images: [
-              {
-                url: "/placeholder.png",
-                sort_order: 0,
-                is_primary: true,
-              },
-            ],
-            tags,
-          };
-
-          const created = await this.productService.createProduct(inputData, {
-            userId: input.userId,
-            tenantId: input.tenantId,
-            marketplaceId: null,
-            sellerId: null,
-          });
-
-          productId = created.id;
-          const createdProduct = await this.productRepo.getById(productId, {
-            tenantId: input.tenantId,
-          });
-          const createdVariant = createdProduct?.variants.find(
-            (variant) => variant.size_type === sizeType && variant.size_label === sizeLabel
-          );
-          if (!createdVariant) {
-            throw new Error("Unable to locate created variant.");
-          }
+          await this.productService.syncSizeTags(productId);
+          await this.ensureProductTags(productId, tags, input.tenantId);
 
           await this.importRepo.createExternalVariant({
             tenant_id: input.tenantId,
@@ -812,7 +925,7 @@ export class InventoryImportService {
             variation_name: row.variationName,
             sku: row.sku,
             product_id: productId,
-            variant_id: createdVariant.id,
+            variant_id: variant.id,
             last_import_id: importId ?? null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -824,80 +937,71 @@ export class InventoryImportService {
           if (baseLog) {
             importRowsLog.push(buildImportRowLog(baseLog, "upserted"));
           }
-          continue;
+          processedCount += 1;
+          if (importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
+        } catch (error) {
+          rowsFailed += 1;
+          errors.push({
+            sheet: ITEMS_SHEET,
+            rowNumber: row.rowNumber,
+            message: "failed to upsert row",
+          });
+          if (baseLog) {
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", "failed to upsert row"));
+          }
+          processedCount += 1;
+          if (importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
         }
+      }
 
-        const variant = await this.productRepo.createVariant({
-          product_id: productId,
-          size_type: sizeType,
-          size_label: sizeLabel,
-          price_cents: priceCents,
-          cost_cents: costCents,
-          stock,
-        });
-
-        await this.productService.syncSizeTags(productId);
-        await this.ensureProductTags(productId, tags, input.tenantId);
-
-        await this.importRepo.createExternalVariant({
-          tenant_id: input.tenantId,
-          token,
-          reference_handle: row.referenceHandle,
-          item_name: row.itemName,
-          variation_name: row.variationName,
-          sku: row.sku,
-          product_id: productId,
-          variant_id: variant.id,
-          last_import_id: importId ?? null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-
-        rowsUpserted += 1;
-        productCache.set(cacheKey, productId);
-
-        if (baseLog) {
-          importRowsLog.push(buildImportRowLog(baseLog, "upserted"));
-        }
-      } catch (error) {
-        rowsFailed += 1;
-        errors.push({
-          sheet: ITEMS_SHEET,
+      for (const row of componentParsed.rows) {
+        if (!importId) continue;
+        const baseLog = {
+          importId,
+          sheetName: COMPONENT_SHEET as SheetName,
           rowNumber: row.rowNumber,
-          message: "failed to upsert row",
-        });
-        if (baseLog) {
-          importRowsLog.push(buildImportRowLog(baseLog, "failed", "failed to upsert row"));
+          token: row.token,
+          referenceHandle: row.rawRow["Reference Handle"] as string | null,
+          rawRow: row.rawRow,
+        };
+
+        if (row.errors.length > 0) {
+          importRowsLog.push(buildImportRowLog(baseLog, "failed", row.errors.join(", ")));
+        } else {
+          importRowsLog.push(buildImportRowLog(baseLog, "parsed"));
         }
       }
-    }
 
-    for (const row of componentParsed.rows) {
-      if (!importId) continue;
-      const baseLog = {
-        importId,
-        sheetName: COMPONENT_SHEET as SheetName,
-        rowNumber: row.rowNumber,
-        token: row.token,
-        referenceHandle: row.rawRow["Reference Handle"] as string | null,
-        rawRow: row.rawRow,
-      };
-
-      if (row.errors.length > 0) {
-        importRowsLog.push(buildImportRowLog(baseLog, "failed", row.errors.join(", ")));
-      } else {
-        importRowsLog.push(buildImportRowLog(baseLog, "parsed"));
+      if (!input.dryRun && importId) {
+        await this.importRepo.insertImportRows(importRowsLog);
+        await this.importRepo.updateImport(importId, {
+          rows_parsed: itemsParsed.rowsParsed,
+          rows_upserted: rowsUpserted,
+          rows_failed: rowsFailed,
+          status: "completed",
+        });
       }
-    }
-
-    if (!input.dryRun && importId) {
-      await this.importRepo.insertImportRows(importRowsLog);
-      await this.importRepo.updateImport(importId, {
-        rows_parsed: itemsParsed.rowsParsed,
-        rows_upserted: rowsUpserted,
-        rows_failed: rowsFailed,
-        status: "completed",
-      });
+    } catch (error) {
+      if (!input.dryRun && importId) {
+        await this.importRepo.updateImport(importId, {
+          rows_upserted: rowsUpserted,
+          rows_failed: rowsFailed,
+          status: "failed",
+        });
+      }
+      throw error;
     }
 
     return {
@@ -910,6 +1014,27 @@ export class InventoryImportService {
       componentRowsParsed: componentParsed.rowsParsed,
       errors,
     };
+  }
+
+  async importRdkInventory(input: {
+    file: File;
+    userId: string;
+    tenantId: string;
+    dryRun: boolean;
+    defaultCategory?: Category;
+    defaultCondition?: Condition;
+  }): Promise<InventoryImportResult> {
+    const buffer = await input.file.arrayBuffer();
+    return this.importRdkInventoryBuffer({
+      buffer,
+      fileName: input.file.name,
+      fileSize: input.file.size,
+      userId: input.userId,
+      tenantId: input.tenantId,
+      dryRun: input.dryRun,
+      defaultCategory: input.defaultCategory,
+      defaultCondition: input.defaultCondition,
+    });
   }
 }
 

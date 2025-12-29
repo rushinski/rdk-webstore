@@ -2,13 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { logError } from '@/lib/log';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Toast } from '@/components/ui/Toast';
 
 export default function SalesPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState('');
   const [refreshToken, setRefreshToken] = useState(0);
+  const [pendingRefundId, setPendingRefundId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -54,8 +57,14 @@ export default function SalesPage() {
     return { revenue, profit, totalSales };
   }, [orders]);
 
-  const handleRefund = async (orderId: string) => {
-    if (!confirm('Refund this order in full?')) return;
+  const requestRefund = (orderId: string) => {
+    setPendingRefundId(orderId);
+  };
+
+  const confirmRefund = async () => {
+    if (!pendingRefundId) return;
+    const orderId = pendingRefundId;
+    setPendingRefundId(null);
 
     try {
       const response = await fetch(`/api/admin/orders/${orderId}/refund`, {
@@ -65,13 +74,13 @@ export default function SalesPage() {
       });
 
       if (response.ok) {
-        setMessage('Order refunded.');
+        setToast({ message: 'Order refunded.', tone: 'success' });
         setRefreshToken((prev) => prev + 1);
       } else {
-        setMessage('Refund failed.');
+        setToast({ message: 'Refund failed.', tone: 'error' });
       }
     } catch (error) {
-      setMessage('Refund failed.');
+      setToast({ message: 'Refund failed.', tone: 'error' });
     }
   };
 
@@ -97,8 +106,6 @@ export default function SalesPage() {
           </select>
         </div>
       </div>
-
-      {message && <div className="text-gray-400 text-sm">{message}</div>}
 
       {/* Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -164,7 +171,7 @@ export default function SalesPage() {
                     <td className="p-4 text-right">
                       {(status === 'paid' || status === 'shipped') && (
                         <button
-                          onClick={() => handleRefund(order.id)}
+                          onClick={() => requestRefund(order.id)}
                           className="text-red-400 hover:text-red-300 text-sm"
                         >
                           Refund
@@ -178,6 +185,25 @@ export default function SalesPage() {
           </table>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingRefundId)}
+        title="Refund order?"
+        description={
+          pendingRefundId
+            ? `This will refund order #${pendingRefundId.slice(0, 8)} in full.`
+            : undefined
+        }
+        confirmLabel="Refund"
+        onConfirm={confirmRefund}
+        onCancel={() => setPendingRefundId(null)}
+      />
+      <Toast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'info'}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }

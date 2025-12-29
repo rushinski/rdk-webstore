@@ -25,7 +25,6 @@ import {
   Laptop,
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { logError } from '@/lib/log';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
@@ -115,6 +114,7 @@ export function Navbar({
   const [isMounted, setIsMounted] = useState(false);
   const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(null);
   const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
+  const [clientIsAdmin, setClientIsAdmin] = useState<boolean | null>(null);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -132,25 +132,40 @@ export function Navbar({
   }, []);
 
   useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
     let isActive = true;
 
-    supabase.auth.getUser().then(({ data, error }) => {
-      if (!isActive || error) return;
-      setClientIsAuthenticated(Boolean(data?.user));
-      setClientUserEmail(data?.user?.email ?? null);
-    });
+    const loadSession = async () => {
+      try {
+        const response = await fetch('/api/auth/session', { cache: 'no-store' });
+        if (!response.ok) {
+          if (!isActive) return;
+          setClientIsAuthenticated(false);
+          setClientUserEmail(null);
+          setClientIsAdmin(false);
+          return;
+        }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setClientIsAuthenticated(Boolean(session?.user));
-      setClientUserEmail(session?.user?.email ?? null);
-    });
+        const data = await response.json();
+        if (!isActive) return;
+        const user = data?.user ?? null;
+        setClientIsAuthenticated(Boolean(user));
+        setClientUserEmail(user?.email ?? null);
+        setClientIsAdmin(data?.role === 'admin');
+      } catch (error) {
+        logError(error, { layer: "frontend", event: "navbar_load_session" });
+        if (!isActive) return;
+        setClientIsAuthenticated(false);
+        setClientUserEmail(null);
+        setClientIsAdmin(false);
+      }
+    };
+
+    loadSession();
 
     return () => {
       isActive = false;
-      subscription?.unsubscribe();
     };
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     const handleCartUpdate = (e: Event) => {
@@ -280,7 +295,8 @@ export function Navbar({
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
   const effectiveUserEmail = clientUserEmail ?? userEmail;
   const showAuthButtons = !effectiveIsAuthenticated;
-  const showAdminLink = isAdmin;
+  const effectiveIsAdmin = clientIsAdmin ?? isAdmin;
+  const showAdminLink = effectiveIsAdmin;
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);

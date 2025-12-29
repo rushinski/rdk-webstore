@@ -1,8 +1,6 @@
 // app/(main)/page.tsx
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import Image from "next/image";
-import { env } from "@/config/env";
 
 const categories = [
   {
@@ -27,22 +25,7 @@ const categories = [
   },
 ];
 
-async function getTrendingProducts() {
-  try {
-    const res = await fetch(`${env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/store/products?limit=4&sortBy=views`, {
-      cache: "no-store"
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.products || [];
-  } catch {
-    return [];
-  }
-}
-
 export default async function HomePage() {
-  const trendingProducts = await getTrendingProducts();
-
   return (
     <div className="relative">
       {/* Hero Section */}
@@ -68,49 +51,6 @@ export default async function HomePage() {
           </Link>
         </div>
       </div>
-
-      {/* Trending Now Section */}
-      {trendingProducts.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 py-20">
-          <div className="flex items-center justify-between mb-12">
-            <h2 className="text-4xl font-bold text-white">Trending Now</h2>
-            <Link 
-              href="/store" 
-              className="text-red-500 hover:text-red-400 font-semibold flex items-center gap-2 cursor-pointer"
-            >
-              View All <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {trendingProducts.map((product: any) => (
-              <Link
-                key={product.id}
-                href={`/store/${product.id}`}
-                className="group bg-zinc-900 border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
-              >
-                <div className="aspect-square relative overflow-hidden">
-                  <Image
-                    src={product.images[0]?.url || '/placeholder.png'}
-                    alt={product.title_display ?? product.name}
-                    fill
-                    sizes="(max-width: 1024px) 50vw, 25vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="font-bold text-white mb-1">
-                    {product.title_display ?? `${product.brand} ${product.name}`.trim()}
-                  </h3>
-                  <p className="text-white font-bold">
-                    ${(product.variants[0]?.price_cents / 100).toFixed(2)}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Category Preview */}
       <div className="max-w-7xl mx-auto px-4 py-20">

@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { ChevronDown } from 'lucide-react';
 import type { ProductWithDetails } from "@/types/views/product";
 import { useCart } from '@/components/cart/CartProvider';
+import { Toast } from '@/components/ui/Toast';
 
 interface ProductDetailProps {
   product: ProductWithDetails;
@@ -16,6 +17,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showShipping, setShowShipping] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
   const selectedVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
   const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
@@ -34,7 +36,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       imageUrl: primaryImage?.url || '/placeholder.png',
     });
 
-    alert('Added to cart!');
+    setToast({ message: 'Added to cart.', tone: 'success' });
   };
 
   return (
@@ -167,6 +169,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </div>
         </div>
       </div>
+      <Toast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'info'}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }

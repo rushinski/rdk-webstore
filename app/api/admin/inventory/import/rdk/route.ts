@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -5,6 +6,7 @@ import { requireAdmin } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
+import { InventoryImportRepository } from "@/repositories/inventory-import-repo";
 import {
   InventoryImportService,
   InventoryImportValidationError,
@@ -55,30 +57,120 @@ export async function POST(request: NextRequest) {
     }
 
     const service = new InventoryImportService(supabase);
-    const result = await service.importRdkInventory({
-      file,
-      userId: session.user.id,
-      tenantId,
-      dryRun: optionsParsed.data.dryRun === "true",
-      defaultCategory: optionsParsed.data.defaultCategory as Category,
-      defaultCondition: optionsParsed.data.condition as Condition,
+    const repo = new InventoryImportRepository(supabase);
+    const isDryRun = optionsParsed.data.dryRun === "true";
+
+    if (isDryRun) {
+      const result = await service.importRdkInventory({
+        file,
+        userId: session.user.id,
+        tenantId,
+        dryRun: true,
+        defaultCategory: optionsParsed.data.defaultCategory as Category,
+        defaultCondition: optionsParsed.data.condition as Condition,
+      });
+
+      log({
+        level: "info",
+        layer: "api",
+        message: "rdk_inventory_import_completed",
+        requestId,
+        route: "/api/admin/inventory/import/rdk",
+        rowsParsed: result.rowsParsed,
+        rowsUpserted: result.rowsUpserted,
+        rowsFailed: result.rowsFailed,
+        importId: result.importId ?? null,
+      });
+
+      return NextResponse.json(
+        { ...result, requestId },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const buffer = await file.arrayBuffer();
+    const checksum = crypto.createHash("sha256").update(Buffer.from(buffer)).digest("hex");
+
+    const existingImport = await repo.findImportByChecksum(tenantId, checksum);
+    if (existingImport) {
+      return NextResponse.json(
+        {
+          importId: existingImport.id,
+          checksum,
+          dryRun: false,
+          alreadyImported: true,
+          rowsParsed: existingImport.rows_parsed ?? 0,
+          rowsUpserted: existingImport.rows_upserted ?? 0,
+          rowsFailed: existingImport.rows_failed ?? 0,
+          componentRowsParsed: 0,
+          errors: [],
+          requestId,
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const importRow = await repo.createImport({
+      tenant_id: tenantId,
+      created_by: session.user.id,
+      source: "rdk_excel",
+      checksum,
+      file_name: file.name,
+      file_size: file.size,
+      dry_run: false,
+      status: "processing",
+      rows_parsed: 0,
+      rows_upserted: 0,
+      rows_failed: 0,
     });
 
-    log({
-      level: "info",
-      layer: "api",
-      message: "rdk_inventory_import_completed",
-      requestId,
-      route: "/api/admin/inventory/import/rdk",
-      rowsParsed: result.rowsParsed,
-      rowsUpserted: result.rowsUpserted,
-      rowsFailed: result.rowsFailed,
-      importId: result.importId ?? null,
-    });
+    const importId = importRow.id;
+
+    void service
+      .importRdkInventoryBuffer({
+        buffer,
+        fileName: file.name,
+        fileSize: file.size,
+        userId: session.user.id,
+        tenantId,
+        dryRun: false,
+        defaultCategory: optionsParsed.data.defaultCategory as Category,
+        defaultCondition: optionsParsed.data.condition as Condition,
+        importId,
+        checksum,
+        skipIdempotency: true,
+      })
+      .then((result) => {
+        log({
+          level: "info",
+          layer: "api",
+          message: "rdk_inventory_import_completed",
+          requestId,
+          route: "/api/admin/inventory/import/rdk",
+          rowsParsed: result.rowsParsed,
+          rowsUpserted: result.rowsUpserted,
+          rowsFailed: result.rowsFailed,
+          importId: result.importId ?? null,
+        });
+      })
+      .catch(async (error) => {
+        logError(error, {
+          layer: "api",
+          requestId,
+          route: "/api/admin/inventory/import/rdk",
+        });
+        await repo.updateImport(importId, { status: "failed" });
+      });
 
     return NextResponse.json(
-      { ...result, requestId },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        importId,
+        checksum,
+        dryRun: false,
+        status: "processing",
+        requestId,
+      },
+      { status: 202, headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
     if (error instanceof InventoryImportValidationError) {

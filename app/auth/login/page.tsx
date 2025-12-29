@@ -11,7 +11,7 @@ export default async function LoginPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (user) redirect("/auth/logout");
+  if (user) redirect("/account");
 
   return (
     <AuthShell>

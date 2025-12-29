@@ -4,7 +4,9 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
 import { ProductService } from "@/services/product-service";
+import { OrderEmailService } from "@/services/order-email-service";
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -22,13 +24,17 @@ export class StripeOrderJob {
   private ordersRepo: OrdersRepository;
   private eventsRepo: StripeEventsRepository;
   private addressesRepo: AddressesRepository;
+  private profilesRepo: ProfileRepository;
   private productService: ProductService;
+  private orderEmailService: OrderEmailService;
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.eventsRepo = new StripeEventsRepository(supabase);
     this.addressesRepo = new AddressesRepository(supabase);
+    this.profilesRepo = new ProfileRepository(supabase);
     this.productService = new ProductService(supabase);
+    this.orderEmailService = new OrderEmailService();
   }
 
   async processCheckoutSessionCompleted(event: Stripe.Event, requestId: string): Promise<void> {
@@ -77,16 +83,20 @@ export class StripeOrderJob {
       await this.productService.syncSizeTags(productId);
     }
 
+    let sessionEmail = session.customer_details?.email ?? session.customer_email ?? null;
+    let shippingSnapshot = null as Awaited<ReturnType<AddressesRepository["getOrderShipping"]>> | null;
+    const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
+
+    const retrieved = await stripe.checkout.sessions.retrieve(session.id, {
+      expand: ["customer", "payment_intent"],
+    });
+
+    const fullSession = unwrapStripe<Stripe.Checkout.Session>(retrieved);
+    sessionEmail = fullSession.customer_details?.email ?? sessionEmail;
+
     // Save shipping snapshot (ship orders only)
-    if (order.fulfillment === "ship") {
-      const retrieved = await stripe.checkout.sessions.retrieve(session.id, {
-        // expand only expandable refs if you need them
-        expand: ["customer", "payment_intent"],
-      });
-
-      const fullSession = unwrapStripe<Stripe.Checkout.Session>(retrieved);
-
-      // ✅ Stripe wants you using collected_information.shipping_details (new)
+    if (fulfillment === "ship") {
+      // Stripe wants you using collected_information.shipping_details (new)
       const shippingDetails =
         fullSession.collected_information?.shipping_details ??
         // fallback for older API versions, if present
@@ -115,6 +125,10 @@ export class StripeOrderJob {
       }
     }
 
+    if (fulfillment === "ship") {
+      shippingSnapshot = await this.addressesRepo.getOrderShipping(orderId);
+    }
+
     await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
 
     // ✅ Next.js 16+ requires 2 args: revalidateTag(tag, profile)
@@ -131,6 +145,67 @@ export class StripeOrderJob {
         requestId,
         orderId,
         error: cacheError instanceof Error ? cacheError.message : String(cacheError),
+      });
+    }
+
+    try {
+      let email = sessionEmail;
+      if (!email && order.user_id) {
+        const profile = await this.profilesRepo.getByUserId(order.user_id);
+        email = profile?.email ?? null;
+      }
+
+      const detailedItems = await this.ordersRepo.getOrderItemsDetailed(orderId);
+      const items = detailedItems.map((item: any) => {
+        const product = item.product;
+        const title =
+          product?.title_display ??
+          `${product?.brand ?? ""} ${product?.name ?? ""}`.trim();
+        const unitPrice = Number(item.unit_price ?? 0);
+        const lineTotal =
+          Number(item.line_total ?? 0) || unitPrice * Number(item.quantity ?? 0);
+        return {
+          title: title || "Item",
+          sizeLabel: item.variant?.size_label ?? null,
+          quantity: Number(item.quantity ?? 0),
+          unitPrice,
+          lineTotal,
+        };
+      });
+
+      if (email) {
+        await this.orderEmailService.sendOrderConfirmation({
+          to: email,
+          orderId: order.id,
+          createdAt: order.created_at ?? new Date().toISOString(),
+          fulfillment,
+          currency: order.currency ?? "USD",
+          subtotal: Number(order.subtotal ?? 0),
+          shipping: Number(order.shipping ?? 0),
+          total: Number(order.total ?? 0),
+          items,
+          shippingAddress: shippingSnapshot
+            ? {
+                name: shippingSnapshot.name,
+                line1: shippingSnapshot.line1,
+                line2: shippingSnapshot.line2,
+                city: shippingSnapshot.city,
+                state: shippingSnapshot.state,
+                postalCode: shippingSnapshot.postal_code,
+                country: shippingSnapshot.country,
+              }
+            : null,
+        });
+      }
+    } catch (emailError) {
+      log({
+        level: "warn",
+        layer: "job",
+        message: "stripe_order_email_failed",
+        requestId,
+        stripeEventId: eventId,
+        orderId,
+        error: emailError instanceof Error ? emailError.message : String(emailError),
       });
     }
 
