@@ -25,6 +25,7 @@ import {
   Laptop,
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { logError } from '@/lib/log';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
@@ -112,6 +113,8 @@ export function Navbar({
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
   const [designerBrands, setDesignerBrands] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
+  const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(null);
+  const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -126,6 +129,27 @@ export function Navbar({
 
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    let isActive = true;
+
+    supabase.auth.getUser().then(({ data, error }) => {
+      if (!isActive || error) return;
+      setClientIsAuthenticated(Boolean(data?.user));
+      setClientUserEmail(data?.user?.email ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setClientIsAuthenticated(Boolean(session?.user));
+      setClientUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      isActive = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -176,6 +200,12 @@ export function Navbar({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!(clientIsAuthenticated ?? isAuthenticated)) {
+      setIsProfileOpen(false);
+    }
+  }, [clientIsAuthenticated, isAuthenticated]);
 
   // Scroll lock when mobile menu is open
   useEffect(() => {
@@ -247,7 +277,9 @@ export function Navbar({
     []
   );
 
-  const showAuthButtons = !isAuthenticated;
+  const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
+  const effectiveUserEmail = clientUserEmail ?? userEmail;
+  const showAuthButtons = !effectiveIsAuthenticated;
   const showAdminLink = isAdmin;
 
   const closeMobileMenu = () => {
@@ -649,7 +681,7 @@ export function Navbar({
             )}
           </button>
 
-          {isAuthenticated ? (
+          {effectiveIsAuthenticated ? (
             <div ref={profileRef} className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -660,40 +692,32 @@ export function Navbar({
               </button>
 
               {isProfileOpen && (
-                <div className="fixed inset-0 z-50">
-                  <button
-                    type="button"
-                    aria-label="Close menu"
-                    className="absolute inset-0 bg-black"
+                <div
+                  className="absolute right-0 mt-3 w-64 border border-zinc-800 bg-black shadow-2xl z-50"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {effectiveUserEmail && (
+                    <div className="px-4 py-3 border-b border-zinc-900">
+                      <p className="text-xs text-zinc-500 truncate">{effectiveUserEmail}</p>
+                    </div>
+                  )}
+
+                  <Link
+                    href="/account"
                     onClick={() => setIsProfileOpen(false)}
-                  />
-                  <div
-                    className="absolute top-20 right-6 w-64 border border-zinc-800 bg-black shadow-2xl"
-                    onClick={(event) => event.stopPropagation()}
+                    className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
                   >
-                    {userEmail && (
-                      <div className="px-4 py-3 border-b border-zinc-900">
-                        <p className="text-xs text-zinc-500 truncate">{userEmail}</p>
-                      </div>
-                    )}
+                    <Settings className="w-4 h-4" />
+                    Account Settings
+                  </Link>
 
-                    <Link
-                      href="/account"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Account Settings
-                    </Link>
-
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
                 </div>
               )}
             </div>
@@ -714,7 +738,7 @@ export function Navbar({
             </div>
           ) : null}
 
-          {isAuthenticated && showAdminLink && (
+          {effectiveIsAuthenticated && showAdminLink && (
             <Link
               href="/admin"
               className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"

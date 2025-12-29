@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Plus, Edit, Trash2, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Copy, Upload, X } from 'lucide-react';
 import type { ProductWithDetails } from "@/types/views/product";
 import type { Category, Condition } from "@/types/views/product";
 import { logError } from '@/lib/log';
@@ -16,16 +16,18 @@ export default function InventoryPage() {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importCategory, setImportCategory] = useState<Category>('sneakers');
   const [importCondition, setImportCondition] = useState<Condition>('new');
-  const [useSquareCategory, setUseSquareCategory] = useState(true);
   const [importStatus, setImportStatus] = useState<{
-    created: number;
-    skipped: number;
-    totalRows: number;
-    totalProducts: number;
+    rowsParsed: number;
+    rowsUpserted: number;
+    rowsFailed: number;
+    componentRowsParsed: number;
     errors: string[];
+    alreadyImported?: boolean;
   } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [importDryRun, setImportDryRun] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const importFileRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -89,10 +91,13 @@ export default function InventoryPage() {
     alert('Mass delete functionality - coming soon');
   };
 
+  const openImportModal = () => setIsImportModalOpen(true);
+  const closeImportModal = () => setIsImportModalOpen(false);
+
   const handleSquareImport = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!importFile) {
-      setImportError('Please select a Square export file.');
+      setImportError('Please select an Excel .xlsx file.');
       return;
     }
 
@@ -105,26 +110,39 @@ export default function InventoryPage() {
       formData.append('file', importFile);
       formData.append('defaultCategory', importCategory);
       formData.append('condition', importCondition);
-      formData.append('useSquareCategory', String(useSquareCategory));
+      formData.append('dryRun', String(importDryRun));
 
-      const response = await fetch('/api/admin/inventory/import/square', {
+      const response = await fetch('/api/admin/inventory/import/rdk', {
         method: 'POST',
         body: formData,
       });
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to import Square inventory.');
+        throw new Error(data?.error || 'Failed to import inventory.');
       }
 
-      setImportStatus(data);
+      const parsedErrors = Array.isArray(data?.errors)
+        ? data.errors.map((error: any) => `${error.sheet} row ${error.rowNumber}: ${error.message}`)
+        : [];
+
+      setImportStatus({
+        rowsParsed: data.rowsParsed ?? 0,
+        rowsUpserted: data.rowsUpserted ?? 0,
+        rowsFailed: data.rowsFailed ?? 0,
+        componentRowsParsed: data.componentRowsParsed ?? 0,
+        errors: parsedErrors,
+        alreadyImported: data.alreadyImported ?? false,
+      });
       setImportFile(null);
       if (importFileRef.current) {
         importFileRef.current.value = '';
       }
-      await loadProducts();
+      if (!importDryRun && !data?.alreadyImported) {
+        await loadProducts();
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to import Square inventory.';
+      const message = error instanceof Error ? error.message : 'Failed to import inventory.';
       setImportError(message);
     } finally {
       setIsImporting(false);
@@ -138,99 +156,137 @@ export default function InventoryPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Inventory</h1>
           <p className="text-gray-400">{products.length} products</p>
         </div>
-        <Link
-          href="/admin/inventory/create"
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded transition"
-        >
-          <Plus className="w-5 h-5" />
-          Create Product
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={openImportModal}
+            className="flex items-center gap-2 border border-zinc-800/70 text-gray-200 hover:text-white hover:border-zinc-600 px-4 py-2 text-sm font-semibold transition cursor-pointer"
+          >
+            <Upload className="w-4 h-4" />
+            Upload Inventory
+          </button>
+          <Link
+            href="/admin/inventory/create"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 transition cursor-pointer"
+          >
+            <Plus className="w-5 h-5" />
+            Create Product
+          </Link>
+        </div>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold text-white">Import from Square</h2>
-          <p className="text-gray-500 text-sm">
-            Upload a Square Item Library export (XLSX or CSV).
-          </p>
-        </div>
-
-        <form onSubmit={handleSquareImport} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-3">
-            <label className="block text-gray-400 text-sm mb-1">Square export file</label>
-            <input
-              ref={importFileRef}
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
-              className="w-full bg-zinc-800 text-white px-3 py-2 rounded border border-zinc-800/70"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Default Category</label>
-            <select
-              value={importCategory}
-              onChange={(event) => setImportCategory(event.target.value as Category)}
-              className="w-full bg-zinc-800 text-white px-3 py-2 rounded border border-zinc-800/70"
-            >
-              <option value="sneakers">Sneakers</option>
-              <option value="clothing">Clothing</option>
-              <option value="accessories">Accessories</option>
-              <option value="electronics">Electronics</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Condition</label>
-            <select
-              value={importCondition}
-              onChange={(event) => setImportCondition(event.target.value as Condition)}
-              className="w-full bg-zinc-800 text-white px-3 py-2 rounded border border-zinc-800/70"
-            >
-              <option value="new">New</option>
-              <option value="used">Used</option>
-            </select>
-          </div>
-          <label className="md:col-span-4 flex items-center gap-2 text-sm text-gray-400">
-            <input
-              type="checkbox"
-              checked={useSquareCategory}
-              onChange={(event) => setUseSquareCategory(event.target.checked)}
-              className="rdk-checkbox"
-            />
-            Use Square categories when available
-          </label>
-          <div className="md:col-span-2 flex items-center justify-end">
-            <button
-              type="submit"
-              disabled={isImporting}
-              className="w-full md:w-auto bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 text-white font-semibold px-4 py-2 rounded transition"
-            >
-              {isImporting ? 'Importing...' : 'Import Inventory'}
-            </button>
-          </div>
-        </form>
-
-        {importError && (
-          <div className="text-sm text-red-400">{importError}</div>
-        )}
-
-        {importStatus && (
-          <div className="text-sm text-gray-300 space-y-1">
-            <div>
-              Imported {importStatus.created} products from {importStatus.totalRows} rows.
+      {isImportModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={closeImportModal}
+        >
+          <div
+            className="w-full max-w-3xl bg-zinc-900 border border-zinc-800/70 p-6 space-y-4"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Upload inventory"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Upload Inventory</h2>
+                <p className="text-gray-500 text-sm">
+                  Import the Real Deal Kickz Excel export (.xlsx) with Items and Component Inventory sheets.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeImportModal}
+                className="text-gray-400 hover:text-white transition cursor-pointer"
+                aria-label="Close upload modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            {importStatus.skipped > 0 && (
-              <div>{importStatus.skipped} rows skipped.</div>
+
+            <form onSubmit={handleSquareImport} className="grid grid-cols-1 md:grid-cols-6 gap-4">
+              <div className="md:col-span-3">
+                <label className="block text-gray-400 text-sm mb-1">Excel file</label>
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".xlsx"
+                  onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                  className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70 cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Default Category</label>
+                <select
+                  value={importCategory}
+                  onChange={(event) => setImportCategory(event.target.value as Category)}
+                  className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70"
+                >
+                  <option value="sneakers">Sneakers</option>
+                  <option value="clothing">Clothing</option>
+                  <option value="accessories">Accessories</option>
+                  <option value="electronics">Electronics</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-gray-400 text-sm mb-1">Condition</label>
+                <select
+                  value={importCondition}
+                  onChange={(event) => setImportCondition(event.target.value as Condition)}
+                  className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70"
+                >
+                  <option value="new">New</option>
+                  <option value="used">Used</option>
+                </select>
+              </div>
+              <label className="md:col-span-4 flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={importDryRun}
+                  onChange={(event) => setImportDryRun(event.target.checked)}
+                  className="rdk-checkbox"
+                />
+                Dry run (no changes will be saved)
+              </label>
+              <div className="md:col-span-2 flex items-center justify-end">
+                <button
+                  type="submit"
+                  disabled={isImporting}
+                  className="w-full md:w-auto bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 text-white font-semibold px-4 py-2 transition cursor-pointer"
+                >
+                  {isImporting ? 'Importing...' : 'Import Inventory'}
+                </button>
+              </div>
+            </form>
+
+            {importError && (
+              <div className="text-sm text-red-400">{importError}</div>
             )}
-            {importStatus.errors?.length > 0 && (
-              <div className="text-xs text-gray-500">
-                {importStatus.errors.slice(0, 3).join(' ')}
-                {importStatus.errors.length > 3 ? ' ...' : ''}
+
+            {importStatus && (
+              <div className="text-sm text-gray-300 space-y-1">
+                <div>
+                  {importStatus.alreadyImported
+                    ? 'This file was already imported.'
+                    : `Upserted ${importStatus.rowsUpserted} rows from ${importStatus.rowsParsed} Items rows.`}
+                </div>
+                {importStatus.rowsFailed > 0 && (
+                  <div>{importStatus.rowsFailed} rows failed.</div>
+                )}
+                {importStatus.componentRowsParsed > 0 && (
+                  <div>{importStatus.componentRowsParsed} Component Inventory rows parsed.</div>
+                )}
+                {importStatus.errors?.length > 0 && (
+                  <div className="text-xs text-gray-500">
+                    {importStatus.errors.slice(0, 3).join(' ')}
+                    {importStatus.errors.length > 3 ? ' ...' : ''}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {selectedIds.length > 0 && (
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex items-center justify-between">

@@ -35,6 +35,7 @@ type ProductInsert = TablesInsert<"products">;
 type ProductUpdate = TablesUpdate<"products">;
 
 type VariantInsert = TablesInsert<"product_variants">;
+type VariantUpdate = TablesUpdate<"product_variants">;
 type ImageInsert = TablesInsert<"product_images">;
 
 type TagInsert = TablesInsert<"tags">;
@@ -139,6 +140,25 @@ export class ProductRepository {
     return this.transformProduct(data);
   }
 
+  async findByTitleAndCategory(
+    titleRaw: string,
+    category: string,
+    tenantId?: string
+  ): Promise<ProductRow | null> {
+    let query = this.supabase
+      .from("products")
+      .select("*")
+      .eq("title_raw", titleRaw)
+      .eq("category", category)
+      .eq("is_active", true);
+
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+
+    const { data, error } = await query.limit(1).maybeSingle();
+    if (error) throw error;
+    return data ?? null;
+  }
+
   async create(product: ProductInsert) {
     const { data, error } = await this.supabase
       .from("products")
@@ -171,6 +191,18 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("product_variants")
       .insert(variant)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as VariantRow;
+  }
+
+  async updateVariant(id: string, variant: VariantUpdate) {
+    const { data, error } = await this.supabase
+      .from("product_variants")
+      .update(variant)
+      .eq("id", id)
       .select()
       .single();
 
