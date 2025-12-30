@@ -199,8 +199,8 @@ export default function StorePage() {
             <option value="newest">Newest</option>
             <option value="price_asc">Price: Low to High</option>
             <option value="price_desc">Price: High to Low</option>
-            <option value="name_asc">A-Z</option>
-            <option value="name_desc">Z-A</option>
+            <option value="name_asc">Title: A-Z</option>
+            <option value="name_desc">Title: Z-A</option>
           </select>
         </div>
       </div>
