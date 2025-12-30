@@ -9,9 +9,7 @@ import { logError } from "@/lib/log";
 const NAVBAR_GROUP_KEYS = new Set([
   "nike",
   "jordan",
-  "new_balance",
   "asics",
-  "yeezy",
   "designer",
 ]);
 

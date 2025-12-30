@@ -112,6 +112,7 @@ export default function AuthShell({ children, leftVariant = "login" }: AuthShell
                   fill
                   sizes="40px"
                   className="object-contain"
+                  priority
                 />
               </div>
               <span className="text-white text-lg font-bold tracking-wider uppercase">

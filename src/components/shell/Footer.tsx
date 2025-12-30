@@ -45,7 +45,7 @@ export function Footer() {
   }
 
   return (
-    <footer className="bg-black border-t border-zinc-800 mt-20">
+    <footer className="bg-black border-t border-zinc-800 mt-20 pb-32 md:pb-0">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 mb-8">
           {/* Brand + Email Signup */}
@@ -177,15 +177,15 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-zinc-800 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-zinc-600 text-xs">
+        <div className="border-t border-zinc-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
+          <p className="text-zinc-400 text-xs sm:text-[11px] text-center sm:text-left">
             © 2025 Real Deal Kickz. All rights reserved.
           </p>
-          <div className="flex gap-6">
-            <Link href="/terms" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link href="/terms" className="text-zinc-400 hover:text-white text-xs transition-colors">
               Terms
             </Link>
-            <Link href="/privacy" className="text-zinc-600 hover:text-zinc-400 text-xs transition-colors">
+            <Link href="/privacy" className="text-zinc-400 hover:text-white text-xs transition-colors">
               Privacy
             </Link>
           </div>

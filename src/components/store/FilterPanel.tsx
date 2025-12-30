@@ -42,6 +42,14 @@ export function FilterPanel({
     condition: true,
   });
   const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
+  const orderedCategories = useMemo(() => {
+    const priority = ['sneakers', 'clothing', 'accessories', 'electronics'];
+    const ordered = priority.filter((cat) => categories.includes(cat));
+    const remaining = categories
+      .filter((cat) => !priority.includes(cat))
+      .sort((a, b) => a.localeCompare(b));
+    return [...ordered, ...remaining];
+  }, [categories]);
 
   const conditions = ['new', 'used'];
 
@@ -221,7 +229,7 @@ export function FilterPanel({
         </button>
         {expandedSections.category && (
           <div className="space-y-2">
-            {categories.map(cat => (
+            {orderedCategories.map(cat => (
               <label key={cat} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
                 <input
                   type="checkbox"
@@ -386,7 +394,7 @@ export function FilterPanel({
       {/* Mobile Filter Button */}
       <button
         onClick={() => setIsOpen(true)}
-        className="md:hidden fixed bottom-20 right-4 bg-red-600 text-white p-4 rounded-full shadow-lg z-30"
+        className="md:hidden fixed bottom-20 right-4 h-12 w-12 bg-red-600 text-white rounded-full shadow-lg z-30 flex items-center justify-center"
       >
         <Filter className="w-5 h-5" />
       </button>

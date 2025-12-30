@@ -27,8 +27,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      
-      <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-black border-l border-zinc-800/70 overflow-y-auto">
+
+      <div className="absolute inset-x-0 bottom-0 h-[80vh] max-h-[80vh] w-full bg-black border-t border-zinc-800/70 overflow-y-auto rounded-t-2xl md:rounded-none md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:max-w-md md:border-t-0 md:border-l">
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Cart</h2>

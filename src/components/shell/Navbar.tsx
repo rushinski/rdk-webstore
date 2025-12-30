@@ -23,6 +23,8 @@ import {
   ShoppingBag,
   Watch,
   Laptop,
+  Crown,
+  LayoutGrid,
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
 import { logError } from '@/lib/log';
@@ -102,8 +104,31 @@ function MegaLink({
 }
 
 const SHOE_SIZE_GROUPS = {
-  youth: SHOE_SIZES.filter((s) => s.includes('Y')).slice(0, 7),
+  youth: SHOE_SIZES.filter((s) => s.includes('Y')),
   mens: SHOE_SIZES.filter((s) => s.includes('M') && !s.includes('Y')),
+};
+
+const BRAND_LOGOS: Record<string, { default: string; hover: string }> = {
+  Nike: {
+    default: "/images/brands/nike-gray.png",
+    hover: "/images/brands/nike-white.png",
+  },
+  "Air Jordan": {
+    default: "/images/brands/air-jordan-gray.png",
+    hover: "/images/brands/air-jordan-white.png",
+  },
+  ASICS: {
+    default: "/images/brands/asics-gray.png",
+    hover: "/images/brands/asics-white.png",
+  },
+  Vale: {
+    default: "/images/brands/vale-gray.png",
+    hover: "/images/brands/vale-white.png",
+  },
+  Godspeed: {
+    default: "/images/brands/godspeed-gray.png",
+    hover: "/images/brands/godspeed-white.png",
+  },
 };
 
 export function Navbar({
@@ -240,16 +265,36 @@ export function Navbar({
   const fallbackGroups = useMemo(
     () => [
       { key: 'nike', label: 'Nike' },
-      { key: 'jordan', label: 'Jordan' },
-      { key: 'new_balance', label: 'New Balance' },
+      { key: 'jordan', label: 'Air Jordan' },
       { key: 'asics', label: 'ASICS' },
-      { key: 'yeezy', label: 'Yeezy' },
+      { key: 'vale', label: 'Vale' },
+      { key: 'godspeed', label: 'Godspeed' },
     ],
     []
   );
 
   const resolvedBrandGroups = brandGroups.length > 0 ? brandGroups : fallbackGroups;
-  const visibleBrandGroups = resolvedBrandGroups.filter((group) => group.key !== 'designer');
+  const orderedBrandGroups = useMemo(() => {
+    const filtered = resolvedBrandGroups.filter(
+      (group) =>
+        group.key !== "designer" &&
+        group.key !== "new_balance" &&
+        group.key !== "yeezy" &&
+        group.key !== "other"
+    );
+    const withCustom = [
+      ...filtered,
+      { key: "vale", label: "Vale" },
+      { key: "godspeed", label: "Godspeed" },
+    ];
+    const unique = new Map<string, { key: string; label: string }>();
+    for (const group of withCustom) {
+      if (!unique.has(group.label)) unique.set(group.label, group);
+    }
+    const base = Array.from(unique.values());
+    return base.slice().sort((a, b) => a.label.localeCompare(b.label));
+  }, [resolvedBrandGroups]);
+  const visibleBrandGroups = orderedBrandGroups;
   const designerHref = useMemo(
     () => buildStoreHref({ brand: designerBrands }),
     [designerBrands]
@@ -265,12 +310,6 @@ export function Navbar({
         description: 'Browse everything in stock',
       },
       {
-        href: designerHref,
-        icon: <Tag className={shopIconClass} />,
-        label: 'Designer',
-        description: 'Luxury pairs from every designer brand',
-      },
-      {
         href: buildStoreHref({ category: 'sneakers' }),
         icon: <Tag className={shopIconClass} />,
         label: 'Sneakers',
@@ -281,6 +320,12 @@ export function Navbar({
         icon: <Shirt className={shopIconClass} />,
         label: 'Clothing',
         description: 'Streetwear essentials & heat',
+      },
+      {
+        href: designerHref,
+        icon: <Crown className={shopIconClass} />,
+        label: 'Designer',
+        description: 'Luxury pairs from every designer brand',
       },
       {
         href: buildStoreHref({ category: 'accessories' }),
@@ -296,6 +341,54 @@ export function Navbar({
       },
     ],
     [designerHref, shopIconClass]
+  );
+
+  const brandIconClass = "object-contain transition-opacity duration-150";
+  const BrandIcon = ({ label }: { label: string }) => {
+    const logo = BRAND_LOGOS[label];
+    if (logo) {
+      return (
+        <div className="relative h-6 w-6">
+          <Image
+            src={logo.default}
+            alt={`${label} logo`}
+            fill
+            sizes="24px"
+            className={`${brandIconClass} opacity-100 group-hover/item:opacity-0`}
+          />
+          <Image
+            src={logo.hover}
+            alt={`${label} logo`}
+            fill
+            sizes="24px"
+            className={`${brandIconClass} opacity-0 group-hover/item:opacity-100`}
+          />
+        </div>
+      );
+    }
+    return (
+      <span className="text-xs font-bold text-white">
+        {label.slice(0, 2).toUpperCase()}
+      </span>
+    );
+  };
+
+  const brandItems = useMemo(
+    () => [
+      {
+        href: "/brands",
+        icon: <LayoutGrid className={shopIconClass} />,
+        label: "All Brands",
+        description: "Browse every brand we carry",
+      },
+      ...visibleBrandGroups.map((group) => ({
+        href: buildStoreHref({ brand: group.label }),
+        icon: <BrandIcon label={group.label} />,
+        label: group.label,
+        description: `Shop ${group.label} drops`,
+      })),
+    ],
+    [shopIconClass, visibleBrandGroups]
   );
 
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
@@ -386,10 +479,17 @@ export function Navbar({
 
             {mobileSection === 'brands' && (
               <div className="border-b border-zinc-900 py-2">
+                <Link
+                  href="/brands"
+                  onClick={closeMobileMenu}
+                  className="flex items-center px-4 py-3 pl-11 text-sm text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors"
+                >
+                  All Brands
+                </Link>
                 {visibleBrandGroups.map((group) => (
                   <Link
                     key={group.key}
-                    href={buildStoreHref({ category: 'sneakers', brand: group.label })}
+                    href={buildStoreHref({ brand: group.label })}
                     onClick={closeMobileMenu}
                     className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
                   >
@@ -480,6 +580,7 @@ export function Navbar({
                 fill
                 sizes="40px"
                 className="object-contain"
+                priority
               />
             </div>
             <span className="text-white font-bold text-lg tracking-tight hidden sm:block">
@@ -534,18 +635,16 @@ export function Navbar({
                   <p className="text-xs text-zinc-600">Premium sneaker & streetwear brands</p>
                 </div>
 
-                <div className="p-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    {visibleBrandGroups.map((group) => (
-                      <Link
-                        key={group.key}
-                        href={buildStoreHref({ category: 'sneakers', brand: group.label })}
-                        className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
-                      >
-                        {group.label}
-                      </Link>
-                    ))}
-                  </div>
+                <div>
+                  {brandItems.map((item) => (
+                    <MegaLink
+                      key={item.label}
+                      href={item.href}
+                      icon={item.icon}
+                      label={item.label}
+                      description={item.description}
+                    />
+                  ))}
                 </div>
               </MenuShell>
             </div>

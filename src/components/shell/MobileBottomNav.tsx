@@ -35,12 +35,20 @@ export function MobileBottomNav() {
           <span className="text-xs mt-1">Home</span>
         </Link>
         
-        <Link href="/store" className="flex flex-col items-center text-gray-300 hover:text-white">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('openSearch'))}
+          className="flex flex-col items-center text-gray-300 hover:text-white"
+        >
           <Search className="w-5 h-5" />
           <span className="text-xs mt-1">Search</span>
-        </Link>
+        </button>
 
-        <Link href="/cart" className="relative flex flex-col items-center text-gray-300 hover:text-white">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('openCart'))}
+          className="relative flex flex-col items-center text-gray-300 hover:text-white"
+        >
           <ShoppingCart className="w-5 h-5" />
           {cartCount > 0 && (
             <span className="absolute -top-1 right-2 bg-red-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
@@ -48,7 +56,7 @@ export function MobileBottomNav() {
             </span>
           )}
           <span className="text-xs mt-1">Cart</span>
-        </Link>
+        </button>
 
         <Link href="/account" className="flex flex-col items-center text-gray-300 hover:text-white">
           <User className="w-5 h-5" />

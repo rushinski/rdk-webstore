@@ -23,8 +23,8 @@ export function ProductCard({ product }: ProductCardProps) {
     : 'Multiple sizes';
 
   return (
-    <Link href={`/store/${product.id}`} className="group block">
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-red-600/40 transition">
+    <Link href={`/store/${product.id}`} className="group block h-full">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-red-600/40 transition flex h-full flex-col">
         <div className="aspect-square relative bg-zinc-800">
           {primaryImage && (
             <Image
@@ -40,11 +40,11 @@ export function ProductCard({ product }: ProductCardProps) {
             </span>
           )}
         </div>
-        <div className="p-3">
-          <h3 className="text-white font-bold text-sm truncate">
+        <div className="p-3 flex flex-col flex-1">
+          <h3 className="text-white font-bold text-sm truncate min-h-[1.5rem]">
             {product.title_display ?? `${product.brand} ${product.name}`.trim()}
           </h3>
-          <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center justify-between mt-auto pt-2">
             <span className="text-gray-400 text-xs">Size: {sizeDisplay}</span>
             <span className="text-white font-bold text-sm">{priceDisplay}</span>
           </div>

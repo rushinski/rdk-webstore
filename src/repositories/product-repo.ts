@@ -10,7 +10,7 @@ export interface ProductFilters {
   sizeShoe?: string[];
   sizeClothing?: string[];
   condition?: string[];
-  sort?: "newest" | "price_asc" | "price_desc";
+  sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
   page?: number;
   limit?: number;
 
@@ -106,6 +106,16 @@ export class ProductRepository {
       case "price_desc":
         // Keep newest until you implement real price sorting via SQL/RPC.
         query = query.order("created_at", { ascending: false });
+        break;
+      case "name_asc":
+        query = query
+          .order("title_display", { ascending: true })
+          .order("created_at", { ascending: false });
+        break;
+      case "name_desc":
+        query = query
+          .order("title_display", { ascending: false })
+          .order("created_at", { ascending: false });
         break;
     }
 

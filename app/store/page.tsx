@@ -89,11 +89,11 @@ export default function StorePage() {
     loadFilters();
   }, [searchParams]);
 
-  const loadProducts = async () => {
+  const loadProducts = async (overrideSort?: string) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams(searchParams.toString());
-      params.set('sort', sort);
+      params.set('sort', overrideSort ?? sort);
       
       const response = await fetch(`/api/store/products?${params}`);
       const data = await response.json();
@@ -114,7 +114,7 @@ export default function StorePage() {
       const brandOptions = Array.isArray(data.brands)
         ? data.brands.map((b: any) => ({
             value: b.label,
-            label: b?.isVerified ? b.label : `${b.label} (Unverified)`,
+            label: b.label,
           }))
         : [];
 
@@ -190,14 +190,17 @@ export default function StorePage() {
           <select
             value={sort}
             onChange={(e) => {
-              setSort(e.target.value);
-              loadProducts();
+              const nextSort = e.target.value;
+              setSort(nextSort);
+              loadProducts(nextSort);
             }}
             className="bg-zinc-900 text-white px-3 py-2 rounded border border-zinc-800/70 text-sm"
           >
             <option value="newest">Newest</option>
             <option value="price_asc">Price: Low to High</option>
             <option value="price_desc">Price: High to Low</option>
+            <option value="name_asc">A-Z</option>
+            <option value="name_desc">Z-A</option>
           </select>
         </div>
       </div>
