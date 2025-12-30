@@ -22,7 +22,7 @@ const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
       </>
     ),
     blurb:
-      "Sign in to track orders, manage offers, and access buyer protection.",
+      "Sign in to pick up right where you left off and view past orders anytime.",
   },
   register: {
     title: (
@@ -35,7 +35,7 @@ const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
       </>
     ),
     blurb:
-      "Create an account to unlock faster checkout, order tracking, and drop alerts.",
+      "Create an account for faster checkout, easy order tracking, and order history.",
   },
   "2fa": {
     title: (

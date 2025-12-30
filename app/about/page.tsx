@@ -4,7 +4,7 @@ import { Shield, TrendingUp, Users, Award } from 'lucide-react';
 export default function AboutPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold text-white mb-4">About Real Deal Kickz</h1>
+      <h1 className="text-4xl font-bold text-white mb-4">About Realdealkickzsc</h1>
       <p className="text-xl text-zinc-400 mb-12">
         Your trusted source for authentic sneakers and streetwear since day one.
       </p>
