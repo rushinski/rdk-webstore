@@ -100,6 +100,8 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                     src={product.images[0]?.url || '/placeholder.png'}
                     alt={product.title_display ?? product.name}
                     fill
+                    sizes="64px"
+                    loading="lazy"
                     className="object-cover rounded"
                   />
                 </div>

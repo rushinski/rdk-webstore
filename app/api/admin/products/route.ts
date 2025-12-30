@@ -1,6 +1,7 @@
 // app/api/admin/products/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
@@ -32,6 +33,19 @@ export async function POST(request: NextRequest) {
       marketplaceId: null,
       sellerId: null,
     });
+
+    try {
+      revalidateTag(`product:${product.id}`, "max");
+      revalidateTag("products:list", "max");
+    } catch (cacheError) {
+      logError(cacheError, {
+        layer: "cache",
+        requestId,
+        route: "/api/admin/products",
+        event: "cache_revalidate_failed",
+        productId: product.id,
+      });
+    }
 
     return NextResponse.json(product, {
       status: 201,

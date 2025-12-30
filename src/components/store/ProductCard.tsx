@@ -31,12 +31,19 @@ export function ProductCard({ product }: ProductCardProps) {
               src={primaryImage.url}
               alt={product.title_display ?? product.name}
               fill
+              sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
+              loading="lazy"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           )}
           {product.condition === 'new' && (
             <span className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
               NEW
+            </span>
+          )}
+          {product.condition === 'used' && (
+            <span className="absolute top-2 right-2 bg-yellow-600 text-white text-xs px-2 py-1 rounded">
+              USED
             </span>
           )}
         </div>

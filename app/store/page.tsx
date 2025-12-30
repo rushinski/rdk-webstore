@@ -1,44 +1,126 @@
 // app/store/page.tsx
 
-'use client';
+import Link from "next/link";
+import { unstable_cache } from "next/cache";
+import { FilterPanel } from "@/components/store/FilterPanel";
+import { ProductGrid } from "@/components/store/ProductGrid";
+import { StoreControls } from "@/components/store/StoreControls";
+import { createSupabasePublicClient } from "@/lib/supabase/public";
+import { StorefrontService } from "@/services/storefront-service";
+import { storeProductsQuerySchema } from "@/lib/validation/storefront";
+import type { ProductFilters } from "@/repositories/product-repo";
 
-import { useMemo, useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { FilterPanel } from '@/components/store/FilterPanel';
-import { ProductGrid } from '@/components/store/ProductGrid';
-import type { ProductWithDetails } from "@/types/views/product";
-import { logError } from '@/lib/log';
+const PRODUCTS_REVALIDATE_SECONDS = 60;
+export const revalidate = PRODUCTS_REVALIDATE_SECONDS;
 
-export default function StorePage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  const [products, setProducts] = useState<ProductWithDetails[]>([]);
-  const [brands, setBrands] = useState<Array<{ label: string; value: string }>>([]);
-  const [modelsByBrand, setModelsByBrand] = useState<Record<string, string[]>>({});
-  const [brandsByCategory, setBrandsByCategory] = useState<Record<string, string[]>>({});
-  const [categories, setCategories] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [sort, setSort] = useState('newest');
+const listProductsCached = unstable_cache(
+  async (filters: ProductFilters) => {
+    const supabase = createSupabasePublicClient();
+    const service = new StorefrontService(supabase);
+    return service.listProducts(filters);
+  },
+  ["storefront", "products"],
+  { revalidate: PRODUCTS_REVALIDATE_SECONDS, tags: ["products:list"] }
+);
 
-  const selectedCategories = searchParams.getAll('category');
-  const selectedBrands = searchParams.getAll('brand');
-  const selectedModels = searchParams.getAll('model');
-  const selectedShoeSizes = searchParams.getAll('sizeShoe');
-  const selectedClothingSizes = searchParams.getAll('sizeClothing');
-  const selectedConditions = searchParams.getAll('condition');
-  const query = searchParams.get('q') || '';
-  const breadcrumbItems = useMemo(() => {
+const listFiltersCached = unstable_cache(
+  async () => {
+    const supabase = createSupabasePublicClient();
+    const service = new StorefrontService(supabase);
+    return service.listFilters();
+  },
+  ["storefront", "filters"],
+  { revalidate: PRODUCTS_REVALIDATE_SECONDS, tags: ["products:list"] }
+);
+
+const getArrayParam = (
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+  key: string
+) => {
+  const value = searchParams?.[key];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string" && value.trim().length > 0) return [value];
+  return [];
+};
+
+const getStringParam = (
+  searchParams: Record<string, string | string[] | undefined> | undefined,
+  key: string
+) => {
+  const value = searchParams?.[key];
+  if (Array.isArray(value)) return value[0];
+  return typeof value === "string" ? value : undefined;
+};
+
+export default async function StorePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const qParam = getStringParam(resolvedSearchParams, "q");
+  const sortParam = getStringParam(resolvedSearchParams, "sort");
+  const pageParam = getStringParam(resolvedSearchParams, "page");
+  const limitParam = getStringParam(resolvedSearchParams, "limit");
+
+  const pageValue = Number.parseInt(pageParam ?? "", 10);
+  const limitValue = Number.parseInt(limitParam ?? "", 10);
+
+  const rawFilters = {
+    q: qParam && qParam.trim().length > 0 ? qParam : undefined,
+    category: getArrayParam(resolvedSearchParams, "category"),
+    brand: getArrayParam(resolvedSearchParams, "brand"),
+    model: getArrayParam(resolvedSearchParams, "model"),
+    sizeShoe: getArrayParam(resolvedSearchParams, "sizeShoe"),
+    sizeClothing: getArrayParam(resolvedSearchParams, "sizeClothing"),
+    condition: getArrayParam(resolvedSearchParams, "condition"),
+    sort: sortParam && sortParam.trim().length > 0 ? sortParam : "newest",
+    page: Number.isFinite(pageValue) ? pageValue : 1,
+    limit: Number.isFinite(limitValue) ? limitValue : 20,
+  };
+
+  const parsed = storeProductsQuerySchema.safeParse(rawFilters);
+  const filters: ProductFilters = parsed.success
+    ? parsed.data
+    : {
+        ...rawFilters,
+        sort: "newest",
+        page: 1,
+        limit: 20,
+      };
+
+  let productsResult = await listProductsCached(filters);
+  let pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
+
+  if (productsResult.total > 0 && productsResult.page > pageCount) {
+    const adjustedFilters = { ...filters, page: pageCount };
+    productsResult = await listProductsCached(adjustedFilters);
+    pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
+  }
+
+  const filterData = await listFiltersCached();
+  const brandOptions = filterData.brands.map((brand) => ({
+    value: brand.label,
+    label: brand.label,
+  }));
+
+  const selectedCategories = filters.category ?? [];
+  const selectedBrands = filters.brand ?? [];
+  const selectedModels = filters.model ?? [];
+  const selectedShoeSizes = filters.sizeShoe ?? [];
+  const selectedClothingSizes = filters.sizeClothing ?? [];
+  const selectedConditions = filters.condition ?? [];
+  const query = filters.q ?? "";
+
+  const breadcrumbItems = (() => {
     const formatLabel = (value: string) =>
       value
-        .replace(/_/g, ' ')
+        .replace(/_/g, " ")
         .replace(/\b\w/g, (match) => match.toUpperCase());
 
     const items: Array<{ label: string; href?: string }> = [
-      { label: 'Home', href: '/' },
-      { label: 'Shop', href: '/store' },
+      { label: "Home", href: "/" },
+      { label: "Shop", href: "/store" },
     ];
 
     if (query) {
@@ -70,92 +152,14 @@ export default function StorePage() {
       selectedConditions.length > 0;
 
     if (hasFilters) {
-      items.push({ label: 'Filtered' });
+      items.push({ label: "Filtered" });
     }
 
     return items;
-  }, [
-    query,
-    selectedBrands,
-    selectedCategories,
-    selectedClothingSizes,
-    selectedConditions,
-    selectedModels,
-    selectedShoeSizes,
-  ]);
-
-  useEffect(() => {
-    loadProducts();
-    loadFilters();
-  }, [searchParams]);
-
-  const loadProducts = async (overrideSort?: string) => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('sort', overrideSort ?? sort);
-      
-      const response = await fetch(`/api/store/products?${params}`);
-      const data = await response.json();
-      
-      setProducts(data.products || []);
-      setTotal(data.total || 0);
-    } catch (error) {
-      logError(error, { layer: "frontend", event: "store_load_products" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadFilters = async () => {
-    try {
-      const response = await fetch("/api/store/filters");
-      const data = await response.json();
-      const brandOptions = Array.isArray(data.brands)
-        ? data.brands.map((b: any) => ({
-            value: b.label,
-            label: b.label,
-          }))
-        : [];
-
-      setBrands(brandOptions);
-      setModelsByBrand(data.modelsByBrand ?? {});
-      setBrandsByCategory(data.brandsByCategory ?? {});
-      setCategories(Array.isArray(data.categories) ? data.categories : []);
-    } catch (error) {
-      logError(error, { layer: "frontend", event: "store_load_filters" });
-    }
-  };
-
-  const handleFilterChange = (filters: any) => {
-    const params = new URLSearchParams();
-    
-    if (query) params.set('q', query);
-    if (filters.category.length > 0) {
-      filters.category.forEach((c: string) => params.append('category', c));
-    }
-    if (filters.brand.length > 0) {
-      filters.brand.forEach((b: string) => params.append('brand', b));
-    }
-    if (filters.model.length > 0) {
-      filters.model.forEach((m: string) => params.append('model', m));
-    }
-    if (filters.sizeShoe.length > 0) {
-      filters.sizeShoe.forEach((s: string) => params.append('sizeShoe', s));
-    }
-    if (filters.sizeClothing.length > 0) {
-      filters.sizeClothing.forEach((s: string) => params.append('sizeClothing', s));
-    }
-    if (filters.condition.length > 0) {
-      filters.condition.forEach((c: string) => params.append('condition', c));
-    }
-
-    router.push(`/store?${params.toString()}`);
-  };
+  })();
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">
           {breadcrumbItems.map((item, index) => {
@@ -167,7 +171,7 @@ export default function StorePage() {
                     {item.label}
                   </Link>
                 ) : (
-                  <span className={isLast ? 'text-zinc-300' : ''}>{item.label}</span>
+                  <span className={isLast ? "text-zinc-300" : ""}>{item.label}</span>
                 )}
                 {!isLast && <span className="text-zinc-700">/</span>}
               </div>
@@ -175,39 +179,21 @@ export default function StorePage() {
           })}
         </div>
         <h1 className="text-4xl font-bold text-white mb-2">
-          {query ? `Search: "${query}"` : 'Shop All'}
+          {query ? `Search: "${query}"` : "Shop All"}
         </h1>
-        <p className="text-gray-400">{total} products</p>
+        <p className="text-gray-400">{productsResult.total} products</p>
       </div>
 
-      {/* Sort */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="text-gray-400 text-sm">
-          Showing {products.length} of {total}
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-gray-400 text-sm">Sort by:</label>
-          <select
-            value={sort}
-            onChange={(e) => {
-              const nextSort = e.target.value;
-              setSort(nextSort);
-              loadProducts(nextSort);
-            }}
-            className="bg-zinc-900 text-white px-3 py-2 rounded border border-zinc-800/70 text-sm"
-          >
-            <option value="newest">Newest</option>
-            <option value="price_asc">Price: Low to High</option>
-            <option value="price_desc">Price: High to Low</option>
-            <option value="name_asc">Title: A-Z</option>
-            <option value="name_desc">Title: Z-A</option>
-          </select>
-        </div>
-      </div>
+      <StoreControls
+        total={productsResult.total}
+        page={productsResult.page}
+        pageCount={pageCount}
+        limit={productsResult.limit}
+        sort={filters.sort ?? "newest"}
+        showPagination={false}
+      />
 
-      {/* Main Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Filters (Desktop) */}
         <div className="hidden lg:block">
           <FilterPanel
             selectedCategories={selectedCategories}
@@ -216,25 +202,18 @@ export default function StorePage() {
             selectedShoeSizes={selectedShoeSizes}
             selectedClothingSizes={selectedClothingSizes}
             selectedConditions={selectedConditions}
-            categories={categories}
-            brands={brands}
-            modelsByBrand={modelsByBrand}
-            brandsByCategory={brandsByCategory}
-            onFilterChange={handleFilterChange}
+            categories={filterData.categories}
+            brands={brandOptions}
+            modelsByBrand={filterData.modelsByBrand}
+            brandsByCategory={filterData.brandsByCategory}
           />
         </div>
 
-        {/* Product Grid */}
         <div className="lg:col-span-3">
-          {isLoading ? (
-            <div className="text-center py-12 text-gray-400">Loading...</div>
-          ) : (
-            <ProductGrid products={products} />
-          )}
+          <ProductGrid products={productsResult.products} />
         </div>
       </div>
 
-      {/* Mobile Filter Panel */}
       <div className="lg:hidden">
         <FilterPanel
           selectedCategories={selectedCategories}
@@ -243,11 +222,21 @@ export default function StorePage() {
           selectedShoeSizes={selectedShoeSizes}
           selectedClothingSizes={selectedClothingSizes}
           selectedConditions={selectedConditions}
-          categories={categories}
-          brands={brands}
-          modelsByBrand={modelsByBrand}
-          brandsByCategory={brandsByCategory}
-          onFilterChange={handleFilterChange}
+          categories={filterData.categories}
+          brands={brandOptions}
+          modelsByBrand={filterData.modelsByBrand}
+          brandsByCategory={filterData.brandsByCategory}
+        />
+      </div>
+
+      <div className="mt-10">
+        <StoreControls
+          total={productsResult.total}
+          page={productsResult.page}
+          pageCount={pageCount}
+          limit={productsResult.limit}
+          sort={filters.sort ?? "newest"}
+          showSortControls={false}
         />
       </div>
     </div>

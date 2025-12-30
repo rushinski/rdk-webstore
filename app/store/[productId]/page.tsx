@@ -1,11 +1,26 @@
 // app/store/[productId]/page.tsx
 
-import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { ProductRepository } from '@/repositories/product-repo';
-import { ProductDetail } from '@/components/store/ProductDetail';
-import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { unstable_cache } from "next/cache";
+import { createSupabasePublicClient } from "@/lib/supabase/public";
+import { ProductRepository } from "@/repositories/product-repo";
+import { ProductDetail } from "@/components/store/ProductDetail";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+
+const PRODUCT_REVALIDATE_SECONDS = 60;
+export const revalidate = PRODUCT_REVALIDATE_SECONDS;
+
+const getCachedProduct = (productId: string) =>
+  unstable_cache(
+    async () => {
+      const supabase = createSupabasePublicClient();
+      const repo = new ProductRepository(supabase);
+      return repo.getById(productId);
+    },
+    ["storefront", "product", productId],
+    { revalidate: PRODUCT_REVALIDATE_SECONDS, tags: [`product:${productId}`] }
+  )();
 
 export default async function ProductDetailPage({
   params,
@@ -19,10 +34,8 @@ export default async function ProductDetailPage({
   if (!isUuid) {
     notFound();
   }
-  const supabase = await createSupabaseServerClient();
-  const repo = new ProductRepository(supabase);
 
-  const product = await repo.getById(productId);
+  const product = await getCachedProduct(productId);
 
   if (!product) {
     notFound();

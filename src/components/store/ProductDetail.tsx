@@ -49,6 +49,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
               src={product.images[selectedImageIndex]?.url || '/placeholder.png'}
               alt={product.name}
               fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              priority
               className="object-cover"
             />
           </div>
@@ -65,6 +67,8 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   src={image.url}
                   alt={`${product.name} ${index + 1}`}
                   fill
+                  sizes="(min-width: 1024px) 10vw, 20vw"
+                  loading="lazy"
                   className="object-cover"
                 />
               </button>

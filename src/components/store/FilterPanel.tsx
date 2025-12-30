@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { X, ChevronDown, Filter } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 
@@ -18,7 +19,6 @@ interface FilterPanelProps {
   brands: BrandOption[];
   modelsByBrand: Record<string, string[]>;
   brandsByCategory: Record<string, string[]>;
-  onFilterChange: (filters: any) => void;
 }
 
 export function FilterPanel({
@@ -32,8 +32,9 @@ export function FilterPanel({
   modelsByBrand,
   brandsByCategory,
   categories,
-  onFilterChange,
 }: FilterPanelProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     category: true,
@@ -95,7 +96,7 @@ export function FilterPanel({
     const newCategories = selectedCategories.includes(category)
       ? selectedCategories.filter(c => c !== category)
       : [...selectedCategories, category];
-    onFilterChange({ ...getFilters(), category: newCategories });
+    updateFilters({ ...getFilters(), category: newCategories });
   };
 
   const handleBrandChange = (brand: string) => {
@@ -107,7 +108,7 @@ export function FilterPanel({
     const nextModels = isSelected
       ? selectedModels.filter(model => !brandModels.includes(model))
       : selectedModels;
-    onFilterChange({ ...getFilters(), brand: newBrands, model: nextModels });
+    updateFilters({ ...getFilters(), brand: newBrands, model: nextModels });
     setExpandedBrands(prev => ({ ...prev, [brand]: !isSelected }));
   };
 
@@ -119,7 +120,7 @@ export function FilterPanel({
     const newBrands = brand && !selectedBrands.includes(brand)
       ? [...selectedBrands, brand]
       : selectedBrands;
-    onFilterChange({ ...getFilters(), brand: newBrands, model: newModels });
+    updateFilters({ ...getFilters(), brand: newBrands, model: newModels });
     if (brand && !isSelected) {
       setExpandedBrands(prev => ({ ...prev, [brand]: true }));
     }
@@ -129,25 +130,25 @@ export function FilterPanel({
     const newSizes = selectedShoeSizes.includes(size)
       ? selectedShoeSizes.filter(s => s !== size)
       : [...selectedShoeSizes, size];
-    onFilterChange({ ...getFilters(), sizeShoe: newSizes });
+    updateFilters({ ...getFilters(), sizeShoe: newSizes });
   };
 
   const handleClothingSizeChange = (size: string) => {
     const newSizes = selectedClothingSizes.includes(size)
       ? selectedClothingSizes.filter(s => s !== size)
       : [...selectedClothingSizes, size];
-    onFilterChange({ ...getFilters(), sizeClothing: newSizes });
+    updateFilters({ ...getFilters(), sizeClothing: newSizes });
   };
 
   const handleConditionChange = (condition: string) => {
     const newConditions = selectedConditions.includes(condition)
       ? selectedConditions.filter(c => c !== condition)
       : [...selectedConditions, condition];
-    onFilterChange({ ...getFilters(), condition: newConditions });
+    updateFilters({ ...getFilters(), condition: newConditions });
   };
 
   const clearFilters = () => {
-    onFilterChange({
+    updateFilters({
       category: [],
       brand: [],
       model: [],
@@ -166,7 +167,28 @@ export function FilterPanel({
     condition: selectedConditions,
   });
 
-  const FilterContent = () => (
+  const updateFilters = (filters: ReturnType<typeof getFilters>) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.delete("category");
+    params.delete("brand");
+    params.delete("model");
+    params.delete("sizeShoe");
+    params.delete("sizeClothing");
+    params.delete("condition");
+
+    filters.category.forEach((value) => params.append("category", value));
+    filters.brand.forEach((value) => params.append("brand", value));
+    filters.model.forEach((value) => params.append("model", value));
+    filters.sizeShoe.forEach((value) => params.append("sizeShoe", value));
+    filters.sizeClothing.forEach((value) => params.append("sizeClothing", value));
+    filters.condition.forEach((value) => params.append("condition", value));
+
+    params.set("page", "1");
+    router.push(`/store?${params.toString()}`, { scroll: false });
+  };
+
+  const renderFilterContent = () => (
     <div className="space-y-6">
       {/* Active Filters Pills */}
       {(selectedCategories.length > 0 || selectedBrands.length > 0 || selectedModels.length > 0 || selectedShoeSizes.length > 0 || selectedClothingSizes.length > 0 || selectedConditions.length > 0) && (
@@ -341,9 +363,9 @@ export function FilterPanel({
               {showClothingFilter && (
                 <div>
                   <h4 className="text-sm text-gray-400 mb-2">Clothing Sizes</h4>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {CLOTHING_SIZES.map(size => (
-                      <label key={size} className="flex items-center text-gray-300 hover:text-white cursor-pointer">
+                      <label key={size} className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm">
                         <input
                           type="checkbox"
                           checked={selectedClothingSizes.includes(size)}
@@ -409,7 +431,7 @@ export function FilterPanel({
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <FilterContent />
+            {renderFilterContent()}
           </div>
         </div>
       )}
@@ -417,7 +439,7 @@ export function FilterPanel({
       {/* Desktop Boxed Filter Panel */}
       <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-bold text-white mb-6">Filters</h2>
-        <FilterContent />
+        {renderFilterContent()}
       </div>
     </>
   );
