@@ -12,82 +12,160 @@ const categories = [
 export default async function HomePage() {
   return (
     <div className="relative">
-      {/* Hero Section */}
-      <div className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black overflow-hidden">
-        {/* #4 Spotlight (soft radial glow behind headline) */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(60% 45% at 50% 40%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 25%, rgba(0,0,0,0) 60%)",
-            }}
-          />
-          {/* optional subtle edge vignette to keep focus centered */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(90% 70% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.65) 100%)",
-            }}
-          />
-        </div>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-black">
+        <div className="relative min-h-[78vh] flex items-center">
+          {/* Background image + sharp overlays */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Photo */}
+            <div
+              className="absolute inset-0 bg-center bg-cover"
+              style={{
+                backgroundImage: "url(/images/home/hero-inventory.png)",
+                filter: "grayscale(1) contrast(1.1) brightness(0.55)",
+              }}
+            />
 
-        {/* #1 Grain / noise overlay */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.10]">
-          <div className="absolute inset-0 noise-overlay" />
-        </div>
+            {/* Hard readability ramp (left = black, right = image) */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.35) 68%, rgba(0,0,0,0.70) 100%)",
+              }}
+            />
 
-        <div className="relative text-center px-4 z-10">
-          <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight">
-            REALDEALKICKZSC
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-400 mb-8 max-w-2xl mx-auto">
-            Authentic sneakers and streetwear. Every pair verified. Every style bold.
-          </p>
-          <Link
-            href="/store"
-            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 transition-colors cursor-pointer"
-          >
-            Shop Now
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-        </div>
-      </div>
+            {/* Crisp red accent (subtle, controlled) */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(220,38,38,0.20) 0%, rgba(0,0,0,0) 42%)",
+              }}
+            />
 
-      {/* Category Preview */}
-      <div className="max-w-7xl mx-auto px-4 py-20">
-        <h2 className="text-4xl font-bold text-white mb-12 text-center">Shop by Category</h2>
+            {/* Thin red hairline (ties to CTA, sharp visual language) */}
+            <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/80 to-transparent" />
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/store?category=${c.slug}`}
-              aria-label={`Shop ${c.label}`}
-              className="group relative overflow-hidden bg-zinc-900 h-44 sm:h-56 lg:h-64 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
-            >
-              {/* Background image */}
-              <div
-                className="absolute inset-0 bg-center bg-cover transition-all duration-500 ease-out
-                           group-hover:scale-110 group-hover:grayscale group-hover:brightness-75"
-                style={{ backgroundImage: `url(${c.image})` }}
-              />
+            {/* Corner brackets (unique + minimal, not a random strip) */}
+            <div className="absolute left-6 top-6 h-10 w-10 border-l border-t border-zinc-700/80" />
+            <div className="absolute left-6 top-6 h-6 w-6 border-l border-t border-red-600/70" />
+            <div className="absolute right-6 bottom-6 h-10 w-10 border-r border-b border-zinc-700/80" />
+            <div className="absolute right-6 bottom-6 h-6 w-6 border-r border-b border-red-600/70" />
 
-              {/* Overlay for readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/15 transition-opacity duration-500 group-hover:opacity-95" />
+            {/* Subtle vignette (keeps edges tight) */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  "radial-gradient(85% 70% at 50% 45%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 65%, rgba(0,0,0,0.85) 100%)",
+              }}
+            />
+          </div>
 
-              {/* Text */}
-              <div className="absolute bottom-6 left-6 right-6">
-                <h3 className="text-2xl font-bold text-white mb-2">{c.label}</h3>
-                <p className="text-gray-300 text-sm transition group-hover:text-white">
-                  Explore collection ƒ+'
+          {/* Content */}
+          <div className="relative z-10 w-full">
+            <div className="max-w-7xl mx-auto px-4 py-24 md:py-28">
+              <div className="max-w-2xl">
+                <div className="text-xs tracking-[0.35em] text-red-500 font-semibold mb-4">
+                  REALDEALKICKZSC
+                </div>
+
+                {/* Statement headline (not just brand name) */}
+                <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight leading-[0.95]">
+                  AUTHENTIC.
+                  <br />
+                  VERIFIED.
+                  <br />
+                  READY.
+                </h1>
+
+                <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-xl">
+                  Sneakers &amp; streetwear you can trust — curated inventory, clear condition, and a
+                  straight-to-the-point buying experience.
                 </p>
+
+                <div className="mt-10 flex flex-col sm:flex-row gap-3">
+                  <Link
+                    href="/store"
+                    className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 transition-colors cursor-pointer"
+                  >
+                    Shop Now
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+
+                  <Link
+                    href="/contact"
+                    className="inline-flex items-center justify-center gap-2 border border-red-600 text-white hover:bg-red-600 font-bold px-8 py-4 transition-colors cursor-pointer"
+                  >
+                    Looking to Sell?
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </div>
+
+                {/* “Popup” style badges (sharp cards, no blur, matches your site) */}
+                <div className="mt-10 flex flex-wrap gap-3">
+                  <div className="px-3 py-2 bg-black/70 border border-zinc-800 text-gray-200 text-sm">
+                    Verified inventory
+                  </div>
+                  <div className="px-3 py-2 bg-black/70 border border-zinc-800 text-gray-200 text-sm">
+                    Fast responses
+                  </div>
+                  <div className="px-3 py-2 bg-black/70 border border-zinc-800 text-gray-200 text-sm">
+                    Local pickup available
+                  </div>
+                </div>
               </div>
-            </Link>
-          ))}
+            </div>
+          </div>
         </div>
-      </div>
+
+        {/* Overlapping Category “popups” (like your example #3) */}
+        <div className="relative z-20 -mt-14 md:-mt-16 pb-8">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-end justify-between mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-white">Shop by Category</h2>
+              <Link
+                href="/store"
+                className="hidden md:inline-flex items-center gap-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
+              >
+                View all <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {categories.map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/store?category=${c.slug}`}
+                  aria-label={`Shop ${c.label}`}
+                  className="group relative overflow-hidden bg-black border border-zinc-800 h-36 sm:h-44 lg:h-48 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
+                >
+                  {/* Image */}
+                  <div
+                    className="absolute inset-0 bg-center bg-cover transition-all duration-500 ease-out group-hover:scale-110"
+                    style={{
+                      backgroundImage: `url(${c.image})`,
+                      filter: "grayscale(1) contrast(1.05) brightness(0.7)",
+                    }}
+                  />
+
+                  {/* Sharp overlay + red edge accent on hover */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/25" />
+                  <div className="absolute left-0 right-0 bottom-0 h-px bg-red-600/0 group-hover:bg-red-600/70 transition-colors" />
+
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <h3 className="text-xl font-bold text-white">{c.label}</h3>
+                    <p className="text-gray-300 text-sm group-hover:text-white transition-colors">
+                      Explore →
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Info Links */}
       <div className="bg-zinc-900 border-t border-zinc-800">
