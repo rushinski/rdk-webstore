@@ -29,6 +29,9 @@ export default function ErrorPage({
         <p className="text-zinc-400">
           We are fixing it now. Give it another try or head back to the store.
         </p>
+        <div className="text-zinc-500 text-sm">
+          Think this is a bug?
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
@@ -37,6 +40,12 @@ export default function ErrorPage({
           >
             Try again
           </button>
+          <a
+            href="/bug-report"
+            className="px-4 py-2 rounded border border-zinc-700 text-sm text-zinc-200 hover:bg-zinc-900 transition-colors"
+          >
+            Report a bug
+          </a>
           <a
             href="/"
             className="px-4 py-2 rounded border border-zinc-700 text-sm text-zinc-200 hover:bg-zinc-900 transition-colors"

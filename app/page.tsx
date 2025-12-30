@@ -12,48 +12,43 @@ const categories = [
 export default async function HomePage() {
   return (
     <div className="relative">
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-black">
-        <div className="relative min-h-[78vh] flex items-center">
-          {/* Background image + sharp overlays */}
+      {/* HERO */}
+      <section className="relative bg-black overflow-hidden">
+        <div className="relative min-h-[78vh] flex items-center pb-24">
+          {/* Background */}
           <div className="absolute inset-0 pointer-events-none">
-            {/* Photo */}
+            {/* Image: moved UP so you see more above the head */}
             <div
-              className="absolute inset-0 bg-center bg-cover"
+              className="absolute inset-0 bg-cover"
               style={{
                 backgroundImage: "url(/images/home/hero-inventory.png)",
-                filter: "grayscale(1) contrast(1.1) brightness(0.55)",
+                backgroundPosition: "center 30%", // <-- move UP (smaller % = higher)
+                filter: "grayscale(1) contrast(1.12) brightness(0.55)",
               }}
             />
 
-            {/* Hard readability ramp (left = black, right = image) */}
+            {/* Sharp readability ramp */}
             <div
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.84) 38%, rgba(0,0,0,0.35) 68%, rgba(0,0,0,0.70) 100%)",
+                  "linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.84) 40%, rgba(0,0,0,0.35) 72%, rgba(0,0,0,0.78) 100%)",
               }}
             />
 
-            {/* Crisp red accent (subtle, controlled) */}
+            {/* Controlled red accent */}
             <div
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(135deg, rgba(220,38,38,0.20) 0%, rgba(0,0,0,0) 42%)",
+                  "linear-gradient(135deg, rgba(220,38,38,0.18) 0%, rgba(0,0,0,0) 44%)",
               }}
             />
 
-            {/* Thin red hairline (ties to CTA, sharp visual language) */}
+            {/* Hairline accent */}
             <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/80 to-transparent" />
 
-            {/* Corner brackets (unique + minimal, not a random strip) */}
-            <div className="absolute left-6 top-6 h-10 w-10 border-l border-t border-zinc-700/80" />
-            <div className="absolute left-6 top-6 h-6 w-6 border-l border-t border-red-600/70" />
-            <div className="absolute right-6 bottom-6 h-10 w-10 border-r border-b border-zinc-700/80" />
-            <div className="absolute right-6 bottom-6 h-6 w-6 border-r border-b border-red-600/70" />
-
-            {/* Subtle vignette (keeps edges tight) */}
+            {/* Vignette */}
             <div
               className="absolute inset-0"
               style={{
@@ -71,7 +66,6 @@ export default async function HomePage() {
                   REALDEALKICKZSC
                 </div>
 
-                {/* Statement headline (not just brand name) */}
                 <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight leading-[0.95]">
                   AUTHENTIC.
                   <br />
@@ -103,25 +97,22 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                {/* “Popup” style badges (sharp cards, no blur, matches your site) */}
-                <div className="mt-10 flex flex-wrap gap-3">
-                  <div className="px-3 py-2 bg-black/70 border border-zinc-800 text-gray-200 text-sm">
-                    Verified inventory
-                  </div>
-                  <div className="px-3 py-2 bg-black/70 border border-zinc-800 text-gray-200 text-sm">
-                    Fast responses
-                  </div>
-                  <div className="px-3 py-2 bg-black/70 border border-zinc-800 text-gray-200 text-sm">
-                    Local pickup available
-                  </div>
+                {/* Simple hours link */}
+                <div className="mt-6">
+                  <Link
+                    href="/hours"
+                    className="text-sm text-gray-300 hover:text-white underline underline-offset-4 cursor-pointer"
+                  >
+                    See pickup hours &amp; meetup details →
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Overlapping Category “popups” (like your example #3) */}
-        <div className="relative z-20 -mt-14 md:-mt-16 pb-8">
+        {/* OVERLAY CATEGORY CARDS */}
+        <div className="relative z-20 -mt-20 md:-mt-24">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-end justify-between mb-6">
               <h2 className="text-3xl md:text-4xl font-bold text-white">Shop by Category</h2>
@@ -139,24 +130,31 @@ export default async function HomePage() {
                   key={c.slug}
                   href={`/store?category=${c.slug}`}
                   aria-label={`Shop ${c.label}`}
-                  className="group relative overflow-hidden bg-black border border-zinc-800 h-36 sm:h-44 lg:h-48 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer"
+                  className="
+                    group relative overflow-hidden bg-black border border-zinc-800
+                    h-36 sm:h-44 lg:h-52
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer
+                    shadow-[0_18px_40px_rgba(0,0,0,0.55)]
+                    hover:shadow-[0_22px_55px_rgba(0,0,0,0.70)]
+                    transition-shadow
+                  "
                 >
-                  {/* Image */}
+                  {/* Color default, grayscale on hover */}
                   <div
-                    className="absolute inset-0 bg-center bg-cover transition-all duration-500 ease-out group-hover:scale-110"
-                    style={{
-                      backgroundImage: `url(${c.image})`,
-                      filter: "grayscale(1) contrast(1.05) brightness(0.7)",
-                    }}
+                    className="absolute inset-0 bg-center bg-cover transition-all duration-500 ease-out
+                               group-hover:scale-110 filter grayscale-0 group-hover:grayscale group-hover:brightness-75"
+                    style={{ backgroundImage: `url(${c.image})` }}
                   />
 
-                  {/* Sharp overlay + red edge accent on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/25" />
+                  {/* Readability overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/10" />
+
+                  {/* Red baseline accent on hover */}
                   <div className="absolute left-0 right-0 bottom-0 h-px bg-red-600/0 group-hover:bg-red-600/70 transition-colors" />
 
                   <div className="absolute bottom-4 left-4 right-4">
                     <h3 className="text-xl font-bold text-white">{c.label}</h3>
-                    <p className="text-gray-300 text-sm group-hover:text-white transition-colors">
+                    <p className="text-gray-200 text-sm group-hover:text-white transition-colors">
                       Explore →
                     </p>
                   </div>
@@ -167,36 +165,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Info Links */}
-      <div className="bg-zinc-900 border-t border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-16">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Link
-              href="/hours"
-              className="group p-8 bg-black border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
-            >
-              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">
-                Hours &amp; Pickups
-              </h3>
-              <p className="text-gray-400">
-                View our pickup hours, local meetup details, and how to reach us.
-              </p>
-            </Link>
-
-            <Link
-              href="/contact"
-              className="group p-8 bg-black border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
-            >
-              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">
-                Contact Us
-              </h3>
-              <p className="text-gray-400">
-                Have questions? Get in touch with our team for support and inquiries.
-              </p>
-            </Link>
-          </div>
-        </div>
-      </div>
+      {/* Spacer so overlay doesn't collide with whatever comes next */}
+      <div className="h-10 md:h-14" />
     </div>
   );
 }

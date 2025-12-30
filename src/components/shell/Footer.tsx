@@ -152,6 +152,11 @@ export function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/bug-report" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Report a Bug
+                </Link>
+              </li>
+              <li>
                 <Link href="/hours" className="text-zinc-500 hover:text-white text-sm transition-colors">
                   Hours
                 </Link>

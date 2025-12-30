@@ -14,12 +14,21 @@ export default function NotFound() {
         <p className="text-zinc-400">
           The link you followed does not exist anymore. Let us get you back to heat.
         </p>
+        <div className="text-zinc-500 text-sm">
+          Think this is a bug?
+        </div>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <a
             href="/"
             className="px-4 py-2 rounded bg-white text-black text-sm font-semibold hover:bg-zinc-200 transition-colors"
           >
             Back to home
+          </a>
+          <a
+            href="/bug-report"
+            className="px-4 py-2 rounded border border-zinc-700 text-sm text-zinc-200 hover:bg-zinc-900 transition-colors"
+          >
+            Report a bug
           </a>
           <a
             href="/store"
