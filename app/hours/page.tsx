@@ -18,9 +18,9 @@ export default function HoursPage() {
         >
           Instagram
         </a>
-        , email{" "}
+        ,{" "}
         <a href="mailto:realdealholyspill@gmail.com" className="text-red-400 hover:underline">
-          realdealholyspill@gmail.com
+          email us
         </a>
         , or submit through the{" "}
         <a href="/contact" className="text-red-400 hover:underline">

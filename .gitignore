@@ -39,7 +39,7 @@ logs/
 *.log
 *.log.*
 
-# OS JUNK — Windows + cross-platform
+# OS JUNK - Windows + cross-platform
 Thumbs.db
 ehthumbs.db
 Desktop.ini

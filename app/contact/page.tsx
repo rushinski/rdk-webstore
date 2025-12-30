@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, MapPin } from 'lucide-react';
+import Image from 'next/image';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -38,14 +38,47 @@ export default function ContactPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-16">
       <h1 className="text-4xl font-bold text-white mb-4">Contact Us</h1>
-      <p className="text-zinc-400 mb-12">
-        Have questions? We're here to help. Send us a message and we'll respond as soon as possible.
-      </p>
+      <div className="text-zinc-400 mb-12 space-y-4">
+        <p>
+          Trying to sell sneakers, clothing, accessories, or anything you think we might want? Reach out. We&apos;re
+          always buying.
+        </p>
+        <p>
+          You can contact us through{" "}
+          <a href="#contact-form" className="text-red-400 hover:underline">
+            this contact form
+          </a>
+          , the{" "}
+          <a href="/account" className="text-red-400 hover:underline">
+            onsite messaging system
+          </a>
+          , by emailing us at{" "}
+          <a href="mailto:realdealholyspill@gmail.com" className="text-red-400 hover:underline">
+            Realdealholyspill@gmail.com
+          </a>
+          , or by sending us a DM on Instagram at{" "}
+          <a
+            href="https://instagram.com/realdealkickzllc"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-red-400 hover:underline"
+          >
+            @realdealkickzllc
+          </a>
+          .
+        </p>
+        <p>
+          Need help putting together a fit? We offer fit services too. Submit your size, style, and any specific
+          colors, shoes, or clothing you want included, and we will build a full outfit for you. You purchase it,
+          and we will ship everything straight to you.
+        </p>
+        <p>Have questions or need anything else? Feel free to reach out.</p>
+      </div>
 
-      <div className="grid md:grid-cols-2 gap-12">
+      <div className="grid md:grid-cols-2 gap-12 items-stretch">
         {/* Contact Form */}
-        <div>
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="h-full">
+          <form id="contact-form" onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-semibold text-white mb-2">
                 Name <span className="text-red-500">*</span>
@@ -124,68 +157,29 @@ export default function ContactPage() {
           </form>
         </div>
 
-        {/* Contact Info */}
-        <div>
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-8 mb-6">
-            <h2 className="text-2xl font-bold text-white mb-6">Get in Touch</h2>
-            
-            <div className="space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 flex items-center justify-center bg-zinc-900 border border-zinc-800">
-                  <Mail className="w-5 h-5 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white mb-1">Email</h3>
-                  <p className="text-zinc-400">Realdealholyspill@gmail.com</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 flex items-center justify-center bg-zinc-900 border border-zinc-800">
-                  <MapPin className="w-5 h-5 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white mb-1">Location</h3>
-                  <p className="text-zinc-400">
-                    Simpsonville, SC<br />
-                    United States
-                  </p>
-                </div>
-              </div>
+        <div className="h-full">
+          {/* Image stack (matches the reference orientation) */}
+          <div className="relative h-full min-h-[420px] overflow-visible">
+            {/* Front / left card */}
+            <div className="absolute left-[8%] top-[6%] w-[64%] max-w-[340px] aspect-[3/4] border border-zinc-800 bg-black shadow-2xl -rotate-[12deg] overflow-hidden z-20">
+              <Image
+                src="/images/fits/fit-1.png"
+                alt="Outfit styling example 1"
+                fill
+                sizes="(min-width: 768px) 26vw, 70vw"
+                className="object-cover"
+              />
             </div>
-          </div>
 
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-8">
-            <h3 className="font-semibold text-white mb-4">Business Hours</h3>
-            <div className="space-y-2 text-zinc-400">
-              <div className="flex justify-between">
-                <span>Monday</span>
-                <span>11:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tuesday</span>
-                <span>11:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Wednesday</span>
-                <span>11:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Thursday</span>
-                <span>11:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Friday</span>
-                <span>11:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Saturday</span>
-                <span>11:00 AM - 8:00 PM</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Sunday</span>
-                <span>1:00 PM - 6:00 PM</span>
-              </div>
+            {/* Back / right card */}
+            <div className="absolute left-[40%] top-[20%] w-[58%] max-w-[320px] aspect-[3/4] border border-zinc-800 bg-black shadow-2xl rotate-[10deg] overflow-hidden z-10">
+              <Image
+                src="/images/fits/fit-2.png"
+                alt="Outfit styling example 2"
+                fill
+                sizes="(min-width: 768px) 24vw, 70vw"
+                className="object-cover"
+              />
             </div>
           </div>
         </div>
