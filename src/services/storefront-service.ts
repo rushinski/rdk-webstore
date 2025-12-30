@@ -15,12 +15,16 @@ export class StorefrontService {
     return this.productRepo.list(filters);
   }
 
-  async getProductById(id: string) {
-    return this.productRepo.getById(id);
+  async getProductById(id: string, opts?: { includeOutOfStock?: boolean }) {
+    return this.productRepo.getById(id, {
+      includeOutOfStock: opts?.includeOutOfStock,
+    });
   }
 
-  async listFilters() {
-    const data = await this.productRepo.listFilterData();
+  async listFilters(opts?: { includeOutOfStock?: boolean }) {
+    const data = await this.productRepo.listFilterData({
+      includeOutOfStock: opts?.includeOutOfStock,
+    });
 
     const brandMap = new Map<string, { label: string; isVerified: boolean }>();
     const modelsByBrand: Record<string, string[]> = {};

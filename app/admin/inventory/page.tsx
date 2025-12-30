@@ -140,7 +140,7 @@ export default function InventoryPage() {
   }) => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '100', includeOutOfStock: '1' });
       if (filters?.q) {
         params.set('q', filters.q.trim());
       }

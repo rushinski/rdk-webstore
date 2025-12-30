@@ -25,7 +25,7 @@ export default function EditProductPage() {
 
   const loadProduct = async (id: string) => {
     try {
-      const response = await fetch(`/api/store/products/${id}`);
+      const response = await fetch(`/api/store/products/${id}?includeOutOfStock=1`);
       const data = await response.json();
       if (!response.ok) {
         setProduct(null);

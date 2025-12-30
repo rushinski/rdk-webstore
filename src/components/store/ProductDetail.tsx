@@ -163,11 +163,21 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </button>
             {showShipping && (
               <div className="text-gray-400 text-sm space-y-2">
-                <p>Free shipping on orders over $100. Standard shipping takes 5-7 business days.</p>
-                <p>Returns accepted within 30 days with original packaging.</p>
-                <a href="/shipping" className="text-red-500 hover:underline">
-                  View full shipping & returns policy →
-                </a>
+                <p>
+                  We aim to ship within 24 hours (processing time, not delivery time). Shipping options and rates
+                  are shown at checkout.
+                </p>
+                <p>
+                  All sales are final except as outlined in our Refunds &amp; Returns policy.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <a href="/shipping" className="text-red-500 hover:underline">
+                    Shipping Policy →
+                  </a>
+                  <a href="/refunds" className="text-red-500 hover:underline">
+                    Refunds &amp; Returns →
+                  </a>
+                </div>
               </div>
             )}
           </div>

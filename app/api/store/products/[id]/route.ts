@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/auth/session";
 import { StorefrontService } from "@/services/storefront-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -29,7 +30,15 @@ export async function GET(
   try {
     const supabase = await createSupabaseServerClient();
     const service = new StorefrontService(supabase);
-    const product = await service.getProductById(parsed.data.id);
+    const includeOutOfStockParam = request.nextUrl.searchParams.get("includeOutOfStock");
+    const includeOutOfStockRequested =
+      includeOutOfStockParam === "1" || includeOutOfStockParam === "true";
+    let includeOutOfStock = false;
+    if (includeOutOfStockRequested) {
+      const session = await getServerSession();
+      includeOutOfStock = session?.role === "admin";
+    }
+    const product = await service.getProductById(parsed.data.id, { includeOutOfStock });
 
     if (!product) {
       return NextResponse.json(

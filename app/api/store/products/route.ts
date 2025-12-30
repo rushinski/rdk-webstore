@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/auth/session";
 import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -13,6 +14,14 @@ export async function GET(request: NextRequest) {
 
   const qParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
+  const includeOutOfStockParam = searchParams.get("includeOutOfStock");
+  const includeOutOfStockRequested =
+    includeOutOfStockParam === "1" || includeOutOfStockParam === "true";
+  let includeOutOfStock = false;
+  if (includeOutOfStockRequested) {
+    const session = await getServerSession();
+    includeOutOfStock = session?.role === "admin";
+  }
 
   const parsed = storeProductsQuerySchema.safeParse({
     q: qParam && qParam.trim().length > 0 ? qParam : undefined,
@@ -25,6 +34,7 @@ export async function GET(request: NextRequest) {
     sort: sortParam && sortParam.trim().length > 0 ? sortParam : "newest",
     page: Number.parseInt(searchParams.get("page") ?? "1", 10),
     limit: Number.parseInt(searchParams.get("limit") ?? "20", 10),
+    includeOutOfStock,
   });
 
   if (!parsed.success) {

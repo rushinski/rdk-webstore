@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 
@@ -19,6 +19,14 @@ export function ScrollHeader({ isAuthenticated = false, isAdmin = false, userEma
   // ✅ Hooks must be unconditional
   const [isVisible, setIsVisible] = useState(true);
   const lastScrollYRef = useRef(0);
+  const headerRef = useRef<HTMLElement | null>(null);
+
+  const updateHeaderOffset = useCallback(() => {
+    const headerHeight = headerRef.current?.offsetHeight ?? 0;
+    const baseGap = 0;
+    const offset = isVisible ? headerHeight + baseGap : baseGap;
+    document.documentElement.style.setProperty("--rdk-header-offset", `${offset}px`);
+  }, [isVisible]);
 
   useEffect(() => {
     // If auth route, don't attach listeners and keep it visible state reset
@@ -43,10 +51,17 @@ export function ScrollHeader({ isAuthenticated = false, isAdmin = false, userEma
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hideHeader]);
 
+  useEffect(() => {
+    updateHeaderOffset();
+    window.addEventListener("resize", updateHeaderOffset);
+    return () => window.removeEventListener("resize", updateHeaderOffset);
+  }, [updateHeaderOffset]);
+
   if (hideHeader) return null;
 
   return (
     <header
+      ref={headerRef}
       className={`fixed top-0 left-0 right-0 z-50 bg-black border-b border-zinc-800/70 transition-transform duration-300 ${
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}

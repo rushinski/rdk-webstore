@@ -13,6 +13,7 @@ export interface ProductFilters {
   sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
   page?: number;
   limit?: number;
+  includeOutOfStock?: boolean;
 
   // Optional multi-tenant hooks (safe now, useful later)
   tenantId?: string;
@@ -48,6 +49,7 @@ export class ProductRepository {
     const offset = (page - 1) * limit;
     const buildInClause = (values: string[]) =>
       values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
+    const includeOutOfStock = Boolean(filters.includeOutOfStock);
 
     let query = this.supabase
       .from("products")
@@ -83,18 +85,21 @@ export class ProductRepository {
 
     // Size filters (limit to in-stock variants)
     const sizeFilters: string[] = [];
+    const stockClause = includeOutOfStock ? "" : ",stock.gt.0";
     if (filters.sizeShoe?.length) {
       sizeFilters.push(
-        `and(size_type.eq.shoe,size_label.in.(${buildInClause(filters.sizeShoe)}),stock.gt.0)`
+        `and(size_type.eq.shoe,size_label.in.(${buildInClause(filters.sizeShoe)})${stockClause})`
       );
     }
     if (filters.sizeClothing?.length) {
       sizeFilters.push(
-        `and(size_type.eq.clothing,size_label.in.(${buildInClause(filters.sizeClothing)}),stock.gt.0)`
+        `and(size_type.eq.clothing,size_label.in.(${buildInClause(filters.sizeClothing)})${stockClause})`
       );
     }
     if (sizeFilters.length > 0) {
       query = query.or(sizeFilters.join(","), { foreignTable: "product_variants" });
+    } else if (!includeOutOfStock) {
+      query = query.gt("product_variants.stock", 0);
     }
 
     // Sorting
@@ -132,18 +137,24 @@ export class ProductRepository {
     };
   }
 
-  async getById(id: string, opts?: Pick<ProductFilters, "tenantId" | "sellerId" | "marketplaceId">): Promise<ProductWithDetails | null> {
+  async getById(
+    id: string,
+    opts?: Pick<ProductFilters, "tenantId" | "sellerId" | "marketplaceId" | "includeOutOfStock">
+  ): Promise<ProductWithDetails | null> {
     let query = this.supabase
       .from("products")
       .select("*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))")
       .eq("id", id)
       .eq("is_active", true);
 
+    if (!opts?.includeOutOfStock) {
+      query = query.gt("product_variants.stock", 0);
+    }
     if (opts?.tenantId) query = query.eq("tenant_id", opts.tenantId);
     if (opts?.sellerId) query = query.eq("seller_id", opts.sellerId);
     if (opts?.marketplaceId) query = query.eq("marketplace_id", opts.marketplaceId);
 
-    const { data, error } = await query.single();
+    const { data, error } = await query.maybeSingle();
     if (error) throw error;
     if (!data) return null;
 
@@ -289,7 +300,7 @@ export class ProductRepository {
     return brands.sort();
   }
 
-  async listFilterData(): Promise<
+  async listFilterData(opts?: { includeOutOfStock?: boolean }): Promise<
     Array<{
       brand: string | null;
       model: string | null;
@@ -298,14 +309,26 @@ export class ProductRepository {
       category: string | null;
     }>
   > {
-    const { data, error } = await this.supabase
+    const includeOutOfStock = Boolean(opts?.includeOutOfStock);
+    let query = this.supabase
       .from("products")
-      .select("brand, model, brand_is_verified, model_is_verified, category")
-      .eq("is_active", true)
-      .limit(2000);
+      .select("brand, model, brand_is_verified, model_is_verified, category, product_variants!inner(stock)")
+      .eq("is_active", true);
+
+    if (!includeOutOfStock) {
+      query = query.gt("product_variants.stock", 0);
+    }
+
+    const { data, error } = await query.limit(2000);
 
     if (error) throw error;
-    return data ?? [];
+    return (data ?? []).map((row: any) => ({
+      brand: row.brand ?? null,
+      model: row.model ?? null,
+      brand_is_verified: row.brand_is_verified ?? null,
+      model_is_verified: row.model_is_verified ?? null,
+      category: row.category ?? null,
+    }));
   }
 
   private transformProduct(raw: any): ProductWithDetails {

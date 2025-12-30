@@ -87,6 +87,7 @@ export default async function StorePage({
         sort: "newest",
         page: 1,
         limit: 20,
+        includeOutOfStock: false,
       };
 
   let productsResult = await listProductsCached(filters);
@@ -195,7 +196,10 @@ export default async function StorePage({
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="hidden lg:block">
-          <div className="sticky top-4">
+          <div
+            className="sticky transition-[top] duration-300"
+            style={{ top: "var(--rdk-header-offset, 0px)" }}
+          >
             <FilterPanel
               selectedCategories={selectedCategories}
               selectedBrands={selectedBrands}
