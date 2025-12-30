@@ -13,45 +13,86 @@ export default async function HomePage() {
   return (
     <div className="relative">
       {/* Hero Section */}
-      <div className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black overflow-hidden">
-        {/* #4 Spotlight (soft radial glow behind headline) */}
+      <div className="relative min-h-[85vh] flex items-center bg-gradient-to-br from-black via-zinc-900 to-black overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(60% 45% at 50% 40%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 25%, rgba(0,0,0,0) 60%)",
+                "radial-gradient(60% 45% at 30% 30%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 30%, rgba(0,0,0,0) 65%)",
             }}
           />
-          {/* optional subtle edge vignette to keep focus centered */}
           <div
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(90% 70% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.65) 100%)",
+                "radial-gradient(90% 70% at 70% 55%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.7) 100%)",
             }}
           />
         </div>
 
-        {/* #1 Grain / noise overlay */}
         <div className="absolute inset-0 pointer-events-none opacity-[0.10]">
           <div className="absolute inset-0 noise-overlay" />
         </div>
 
-        <div className="relative text-center px-4 z-10">
-          <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight">
-            REALDEALKICKZSC
-          </h1>
-          <p className="text-xl md:text-2xl text-gray-400 mb-8 max-w-2xl mx-auto">
-            Authentic sneakers and streetwear. Every pair verified. Every style bold.
-          </p>
-          <Link
-            href="/store"
-            className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 transition-colors cursor-pointer"
-          >
-            Shop Now
-            <ArrowRight className="w-5 h-5" />
-          </Link>
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-20 grid lg:grid-cols-[1.1fr_0.9fr] gap-12 items-center">
+          <div>
+            <p className="text-xs uppercase tracking-[0.5em] text-zinc-500">Real Deal Kickz SC</p>
+            <h1 className="text-5xl md:text-7xl font-bold text-white mt-6 leading-[1.05]">
+              Verified kicks.
+              <br />
+              Clean fits.
+              <br />
+              Zero fluff.
+            </h1>
+            <p className="text-lg md:text-xl text-zinc-400 mt-6 max-w-xl">
+              Authentic sneakers and streetwear, curated daily. Built for collectors, stylists, and people who move fast.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Link
+                href="/store"
+                className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-4 transition-colors cursor-pointer"
+              >
+                Shop Now
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link
+                href="/hours"
+                className="inline-flex items-center gap-2 border border-zinc-700 text-white px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] hover:border-red-600/60 hover:text-red-100 transition-colors"
+              >
+                Pickups
+              </Link>
+            </div>
+            <div className="mt-10 flex flex-wrap items-center gap-6 text-[11px] uppercase tracking-[0.3em] text-zinc-500">
+              <span className="flex items-center gap-2">
+                <span className="h-px w-6 bg-red-600" />
+                Authenticated
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="h-px w-6 bg-red-600" />
+                Local pickup
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="h-px w-6 bg-red-600" />
+                Fast ship
+              </span>
+            </div>
+          </div>
+
+          <div className="relative hidden lg:block h-[420px]">
+            <div
+              className="absolute right-6 top-6 h-64 w-52 border border-zinc-800/80 bg-zinc-900 shadow-2xl -rotate-6"
+              style={{ backgroundImage: "url(/images/home/sneakers.png)", backgroundSize: "cover", backgroundPosition: "center" }}
+            />
+            <div
+              className="absolute left-8 top-16 h-56 w-44 border border-zinc-800/80 bg-zinc-900 shadow-2xl rotate-4"
+              style={{ backgroundImage: "url(/images/home/clothing.png)", backgroundSize: "cover", backgroundPosition: "center" }}
+            />
+            <div
+              className="absolute right-20 bottom-6 h-52 w-40 border border-zinc-800/80 bg-zinc-900 shadow-2xl -rotate-2"
+              style={{ backgroundImage: "url(/images/home/accessories.png)", backgroundSize: "cover", backgroundPosition: "center" }}
+            />
+          </div>
         </div>
       </div>
 

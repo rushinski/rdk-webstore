@@ -23,6 +23,9 @@ function buildStoreHref(brand: string) {
   return `/store?${params.toString()}`;
 }
 
+const indexLinkClass =
+  "rounded-full border border-zinc-800/70 px-3 py-1 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors";
+
 export default async function BrandsPage() {
   const uniqueLabels = await listBrandLabelsCached();
   uniqueLabels.sort((a, b) => {
@@ -68,7 +71,7 @@ export default async function BrandsPage() {
           <a
             key={letter}
             href={`#brand-${letter}`}
-            className="px-3 py-1 rounded-full border border-zinc-800/70 hover:border-red-600/40 hover:text-white transition-colors"
+            className={indexLinkClass}
           >
             {letter}
           </a>
@@ -80,10 +83,10 @@ export default async function BrandsPage() {
           <section key={letter} id={`brand-${letter}`} className="py-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full border border-zinc-700/70 text-white flex items-center justify-center text-lg font-semibold">
+                <div className="h-10 w-10 rounded-full border border-zinc-700/70 text-zinc-200 flex items-center justify-center text-lg font-semibold">
                   {letter}
                 </div>
-                <h2 className="text-lg font-semibold text-white">{letter} Brands</h2>
+                <h2 className="text-lg font-semibold text-white">Brands</h2>
               </div>
               <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
                 {grouped[letter].length} total
@@ -94,7 +97,7 @@ export default async function BrandsPage() {
                 <Link
                   key={label}
                   href={buildStoreHref(label)}
-                  className="rounded-full border border-zinc-800/70 px-3 py-1 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors"
+                  className={indexLinkClass}
                 >
                   {label}
                 </Link>

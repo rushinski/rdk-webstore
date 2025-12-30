@@ -1,5 +1,6 @@
 import { env } from "@/config/env";
 import { sendEmail } from "@/lib/email/mailer";
+import { emailFooterHtml, emailFooterText } from "@/lib/email/footer";
 
 type OrderItemEmail = {
   title: string;
@@ -105,6 +106,8 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
         </tr>
       `;
 
+  const footerHtml = emailFooterHtml();
+
   return `
   <!DOCTYPE html>
   <html lang="en">
@@ -204,6 +207,7 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
                   If you have any questions, reply to this email and our team will help you out.
                 </td>
               </tr>
+              ${footerHtml}
             </table>
           </td>
         </tr>
@@ -241,6 +245,7 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
   }
 
   lines.push("", `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`);
+  lines.push(emailFooterText());
 
   return lines.join("\n");
 };

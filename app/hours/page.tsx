@@ -22,9 +22,13 @@ export default function HoursPage() {
         <a href="mailto:realdealholyspill@gmail.com" className="text-red-400 hover:underline">
           email us
         </a>
-        , or submit through the{" "}
+        , submit through the{" "}
         <a href="/contact" className="text-red-400 hover:underline">
           contact form
+        </a>
+        , or use the{" "}
+        <a href="/account" className="text-red-400 hover:underline">
+          onsite messaging system
         </a>
         .
       </p>
