@@ -2,104 +2,141 @@
 export default function PrivacyPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold text-white mb-8">Privacy Policy</h1>
-      
+      <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy - Real Deal Kickz SC</h1>
+
       <div className="prose prose-invert max-w-none">
         <div className="text-zinc-400 space-y-6">
-          <p className="text-sm">Last Updated: December 20, 2024</p>
+          <p className="text-sm">Last updated: December 30, 2025</p>
+
+          <p>
+            This Privacy Policy describes how Real Deal Kickz SC (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;)
+            collects, uses, and discloses personal information when you visit, use our services, create an account,
+            or make a purchase through
+            {" "}
+            realdealkickzsc.com
+            {" "}
+            (the &quot;Site&quot;) or otherwise interact with us (collectively, the &quot;Services&quot;).
+          </p>
 
           <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">1. Information We Collect</h2>
-            <p>
-              We collect information you provide directly to us, including:
-            </p>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">1) Information We Collect</h2>
+            <h3 className="text-lg font-semibold text-white mt-4 mb-2">A) Information You Provide</h3>
+            <p>We may collect information you provide directly, including:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Name and contact information (email, phone number, shipping address)</li>
-              <li>Payment information (processed securely through third-party providers)</li>
-              <li>Account credentials</li>
-              <li>Order history and preferences</li>
-              <li>Communications with us</li>
+              <li>Contact information (name, email address, phone number, shipping/billing information)</li>
+              <li>Order information (items purchased, order details, transaction history)</li>
+              <li>Account information (if you create an account)</li>
+              <li>Customer support information (messages and information you share with us)</li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-white mt-4 mb-2">B) Information Collected Automatically (Essential)</h3>
+            <p>When you use the Services, we may automatically collect certain technical information, including:</p>
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>IP address, browser type, device identifiers</li>
+              <li>pages viewed and basic usage activity</li>
+              <li>security and fraud-prevention logs</li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-white mt-4 mb-2">C) Information From Service Providers</h3>
+            <p>
+              We may receive information from service providers that help operate the Services, such as payment
+              processors and shipping providers.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">2) How We Use Information</h2>
+            <p>We use personal information to:</p>
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>process orders and deliver products</li>
+              <li>provide customer support and communicate about purchases</li>
+              <li>maintain accounts and essential session features (such as staying logged in)</li>
+              <li>detect and prevent fraud, abuse, and unauthorized access</li>
+              <li>improve the performance and reliability of the Services</li>
+              <li>comply with legal obligations and enforce our policies</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">2. How We Use Your Information</h2>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">3) Cookies and Similar Technologies</h2>
             <p>
-              We use the information we collect to:
+              We use strictly necessary cookies (and similar technologies) for essential site functions such as:
             </p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Process and fulfill your orders</li>
-              <li>Communicate with you about your orders and our services</li>
-              <li>Send you marketing communications (with your consent)</li>
-              <li>Improve our website and services</li>
-              <li>Prevent fraud and enhance security</li>
+              <li>keeping you logged in</li>
+              <li>maintaining secure sessions</li>
+              <li>preventing abuse and protecting the Services</li>
             </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">3. Information Sharing</h2>
-            <p>
-              We do not sell or rent your personal information to third parties. We may share your information with:
-            </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Service providers who assist with our operations (shipping, payment processing)</li>
-              <li>Law enforcement when required by law</li>
-              <li>Other parties with your explicit consent</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">4. Cookies and Tracking</h2>
-            <p>
-              We use cookies and similar tracking technologies to enhance your browsing experience, analyze site traffic, and understand where our visitors are coming from. You can control cookies through your browser settings.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">5. Data Security</h2>
-            <p>
-              We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet is 100% secure.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">6. Your Rights</h2>
-            <p>
-              You have the right to:
-            </p>
-            <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li>Access the personal information we hold about you</li>
-              <li>Correct inaccurate information</li>
-              <li>Request deletion of your information</li>
-              <li>Opt-out of marketing communications</li>
-              <li>Object to processing of your personal information</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">7. Children's Privacy</h2>
-            <p>
-              Our service is not directed to individuals under the age of 18. We do not knowingly collect personal information from children.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">8. Changes to This Policy</h2>
-            <p>
-              We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-white mt-8 mb-4">9. Contact Us</h2>
-            <p>
-              If you have questions about this Privacy Policy, please contact us at:
-            </p>
             <p className="mt-2">
-              Real Deal Kickz<br />
-              Simpsonville, SC<br />
-              Email: privacy@realdealkickz.com
+              We do not use marketing/advertising cookies if your implementation is limited to essential
+              login/session cookies. If we add analytics, advertising, or other non-essential cookies in the future,
+              we will update this Privacy Policy and provide any required notices or choices.
             </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">4) How We Share Information</h2>
+            <p>We may share personal information with:</p>
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>payment processors to complete transactions</li>
+              <li>shipping and fulfillment providers to deliver orders</li>
+              <li>hosting, security, and IT providers to maintain and protect the Services</li>
+              <li>
+                legal or regulatory authorities if required by law or to protect rights, safety, and the integrity
+                of the Services
+              </li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">5) Data Retention</h2>
+            <p>We retain personal information as long as necessary to:</p>
+            <ul className="list-disc pl-6 mt-2 space-y-1">
+              <li>fulfill orders and provide support</li>
+              <li>maintain business records</li>
+              <li>enforce our policies</li>
+              <li>comply with legal obligations</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">6) Security</h2>
+            <p>
+              We take reasonable measures designed to protect your information. However, no method of transmission
+              or storage is 100% secure, and we cannot guarantee absolute security.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">7) Children's Privacy</h2>
+            <p>
+              The Services are not intended for children under 13, and we do not knowingly collect personal
+              information from children.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">8) Your Rights</h2>
+            <p>
+              Depending on your location, you may have rights to access, correct, delete, or obtain a copy of your
+              personal information. To request action on your information, contact us at
+              {" "}
+              Realdealholyspill@gmail.com. We may verify your identity before responding.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">9) Changes to This Privacy Policy</h2>
+            <p>
+              We may update this Privacy Policy from time to time. We will post the revised policy on the Site and
+              update the &quot;Last updated&quot; date.
+            </p>
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold text-white mt-8 mb-4">10) Contact</h2>
+            <p>Email: Realdealholyspill@gmail.com</p>
+            <p>Location: Simpsonville, South Carolina, USA</p>
           </section>
         </div>
       </div>

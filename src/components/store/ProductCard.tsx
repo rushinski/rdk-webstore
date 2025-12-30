@@ -24,7 +24,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/store/${product.id}`} className="group block h-full">
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-red-600/40 transition flex h-full flex-col">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
         <div className="aspect-square relative bg-zinc-800">
           {primaryImage && (
             <Image
@@ -36,21 +36,23 @@ export function ProductCard({ product }: ProductCardProps) {
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           )}
-          {product.condition === 'new' && (
-            <span className="absolute top-2 right-2 bg-green-600 text-white text-xs px-2 py-1 rounded">
-              NEW
-            </span>
-          )}
-          {product.condition === 'used' && (
-            <span className="absolute top-2 right-2 bg-yellow-600 text-white text-xs px-2 py-1 rounded">
-              USED
-            </span>
-          )}
         </div>
         <div className="p-3 flex flex-col flex-1">
-          <h3 className="text-white font-bold text-sm truncate min-h-[1.5rem]">
-            {product.title_display ?? `${product.brand} ${product.name}`.trim()}
-          </h3>
+          <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
+            <h3 className="text-white font-bold text-sm truncate flex-1">
+              {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+            </h3>
+            {product.condition === "new" && (
+              <span className="shrink-0 bg-green-600/20 text-green-200 text-[10px] px-2 py-0.5 rounded-full">
+                NEW
+              </span>
+            )}
+            {product.condition === "used" && (
+              <span className="shrink-0 bg-amber-500/20 text-amber-200 text-[10px] px-2 py-0.5 rounded-full">
+                USED
+              </span>
+            )}
+          </div>
           <div className="flex items-center justify-between mt-auto pt-2">
             <span className="text-gray-400 text-xs">Size: {sizeDisplay}</span>
             <span className="text-white font-bold text-sm">{priceDisplay}</span>

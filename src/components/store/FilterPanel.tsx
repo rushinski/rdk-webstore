@@ -437,7 +437,7 @@ export function FilterPanel({
       )}
 
       {/* Desktop Boxed Filter Panel */}
-      <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded p-6">
+      <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded p-6 max-h-[calc(100vh-8rem)] overflow-y-auto">
         <h2 className="text-xl font-bold text-white mb-6">Filters</h2>
         {renderFilterContent()}
       </div>

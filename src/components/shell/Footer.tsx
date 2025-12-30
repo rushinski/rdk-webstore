@@ -163,8 +163,8 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/legal/shipping" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Refunds
+                <Link href="/refunds" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Refunds &amp; Returns
                 </Link>
               </li>
               <li>

@@ -195,18 +195,20 @@ export default async function StorePage({
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="hidden lg:block">
-          <FilterPanel
-            selectedCategories={selectedCategories}
-            selectedBrands={selectedBrands}
-            selectedModels={selectedModels}
-            selectedShoeSizes={selectedShoeSizes}
-            selectedClothingSizes={selectedClothingSizes}
-            selectedConditions={selectedConditions}
-            categories={filterData.categories}
-            brands={brandOptions}
-            modelsByBrand={filterData.modelsByBrand}
-            brandsByCategory={filterData.brandsByCategory}
-          />
+          <div className="sticky top-4">
+            <FilterPanel
+              selectedCategories={selectedCategories}
+              selectedBrands={selectedBrands}
+              selectedModels={selectedModels}
+              selectedShoeSizes={selectedShoeSizes}
+              selectedClothingSizes={selectedClothingSizes}
+              selectedConditions={selectedConditions}
+              categories={filterData.categories}
+              brands={brandOptions}
+              modelsByBrand={filterData.modelsByBrand}
+              brandsByCategory={filterData.brandsByCategory}
+            />
+          </div>
         </div>
 
         <div className="lg:col-span-3">
