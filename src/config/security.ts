@@ -1,5 +1,12 @@
 // src/config/security.ts
 export const security = {
+  contact: {
+    rateLimit: {
+      maxRequests: 5,
+      window: "10 m",
+      blockStatus: 429,
+    },
+  },
   proxy: {
     requestIdHeader: "x-request-id",
     botCheckPrefixes: ["/admin", "/api", "/auth", "/products"],

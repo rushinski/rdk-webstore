@@ -1,4 +1,4 @@
-// app/(main)/page.tsx
+// app/page.tsx
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -12,43 +12,35 @@ const categories = [
 export default async function HomePage() {
   return (
     <div className="relative">
-      {/* HERO */}
       <section className="relative bg-black overflow-hidden">
         <div className="relative min-h-[78vh] flex items-center pb-24">
           {/* Background */}
-          <div className="absolute inset-0 pointer-events-none">
-            {/* Image: moved UP so you see more above the head */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {/* Hero image */}
             <div
               className="absolute inset-0 bg-cover"
               style={{
                 backgroundImage: "url(/images/home/hero-inventory.png)",
-                backgroundPosition: "center 30%", // <-- move UP (smaller % = higher)
-                filter: "grayscale(1) contrast(1.12) brightness(0.55)",
+                // X controls LEFT/RIGHT. Smaller X pushes subject RIGHT.
+                // Start here:
+                backgroundPosition: "0% 25%",
+                // keep it natural (no heavy scaling blur)
+                backgroundSize: "115%",
+                backgroundRepeat: "no-repeat",
+                filter: "contrast(1.06) brightness(0.82)",
               }}
             />
 
-            {/* Sharp readability ramp */}
+            {/* Left content column (makes text readable + avoids overlapping the client visually) */}
             <div
               className="absolute inset-0"
               style={{
                 background:
-                  "linear-gradient(90deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.84) 40%, rgba(0,0,0,0.35) 72%, rgba(0,0,0,0.78) 100%)",
+                  "linear-gradient(90deg, rgba(0,0,0,0.90) 0%, rgba(0,0,0,0.80) 34%, rgba(0,0,0,0.48) 52%, rgba(0,0,0,0.00) 70%)",
               }}
             />
 
-            {/* Controlled red accent */}
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(220,38,38,0.18) 0%, rgba(0,0,0,0) 44%)",
-              }}
-            />
-
-            {/* Hairline accent */}
-            <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/80 to-transparent" />
-
-            {/* Vignette */}
+            {/* Global vignette */}
             <div
               className="absolute inset-0"
               style={{
@@ -56,6 +48,9 @@ export default async function HomePage() {
                   "radial-gradient(85% 70% at 50% 45%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.55) 65%, rgba(0,0,0,0.85) 100%)",
               }}
             />
+
+            {/* Hairline accent */}
+            <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/80 to-transparent" />
           </div>
 
           {/* Content */}
@@ -75,7 +70,7 @@ export default async function HomePage() {
                 </h1>
 
                 <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-xl">
-                  Sneakers &amp; streetwear you can trust — curated inventory, clear condition, and a
+                  Sneakers &amp; streetwear you can trust: curated inventory, clear condition, and a
                   straight-to-the-point buying experience.
                 </p>
 
@@ -97,11 +92,11 @@ export default async function HomePage() {
                   </Link>
                 </div>
 
-                {/* Simple hours link */}
-                <div className="mt-6">
+                {/* Hours link: no underline, slightly closer to CTAs */}
+                <div className="mt-4">
                   <Link
                     href="/hours"
-                    className="text-sm text-gray-300 hover:text-white underline underline-offset-4 cursor-pointer"
+                    className="text-sm text-gray-300 hover:text-white transition-colors cursor-pointer"
                   >
                     See pickup hours &amp; meetup details →
                   </Link>
@@ -112,16 +107,10 @@ export default async function HomePage() {
         </div>
 
         {/* OVERLAY CATEGORY CARDS */}
-        <div className="relative z-20 -mt-20 md:-mt-24">
+        <div className="relative z-20 -mt-28 md:-mt-32">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-end justify-between mb-6">
               <h2 className="text-3xl md:text-4xl font-bold text-white">Shop by Category</h2>
-              <Link
-                href="/store"
-                className="hidden md:inline-flex items-center gap-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
-              >
-                View all <ArrowRight className="w-4 h-4" />
-              </Link>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -139,10 +128,10 @@ export default async function HomePage() {
                     transition-shadow
                   "
                 >
-                  {/* Color default, grayscale on hover */}
+                  {/* Full color default, grayscale on hover */}
                   <div
                     className="absolute inset-0 bg-center bg-cover transition-all duration-500 ease-out
-                               group-hover:scale-110 filter grayscale-0 group-hover:grayscale group-hover:brightness-75"
+                               group-hover:scale-110 grayscale-0 group-hover:grayscale group-hover:brightness-75"
                     style={{ backgroundImage: `url(${c.image})` }}
                   />
 
@@ -165,7 +154,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Spacer so overlay doesn't collide with whatever comes next */}
+      {/* Spacer so overlay doesn't collide with next sections */}
       <div className="h-10 md:h-14" />
     </div>
   );

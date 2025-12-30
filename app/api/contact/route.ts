@@ -8,6 +8,8 @@ import { emailFooterHtml, emailFooterText } from "@/lib/email/footer";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { env } from "@/config/env";
+import { security } from "@/config/security";
+import { BUG_REPORT_EMAIL, SUPPORT_EMAIL } from "@/config/constants/contact";
 
 const contactSchema = z
   .object({
@@ -19,8 +21,6 @@ const contactSchema = z
   })
   .strict();
 
-const CONTACT_TO_EMAIL = "realdealholyspill@gmail.com";
-
 const redis = new Redis({
   url: env.UPSTASH_REDIS_REST_URL!,
   token: env.UPSTASH_REDIS_REST_TOKEN!,
@@ -28,7 +28,10 @@ const redis = new Redis({
 
 const contactRateLimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(5, "10 m"),
+  limiter: Ratelimit.slidingWindow(
+    security.contact.rateLimit.maxRequests,
+    security.contact.rateLimit.window
+  ),
 });
 
 const escapeHtml = (value: string) =>
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { ok: false, error: "Rate limit exceeded. Please try again later.", requestId },
         {
-          status: 429,
+          status: security.contact.rateLimit.blockStatus,
           headers: {
             "Cache-Control": "no-store",
             "X-RateLimit-Limit": String(rateResult.limit),
@@ -121,6 +124,10 @@ export async function POST(request: NextRequest) {
     const safeMessage = escapeHtml(parsed.data.message);
     const heading = source === "bug_report" ? "Bug Report" : "Contact Form";
     const headline = source === "bug_report" ? "New bug report received" : "New message received";
+    const recipientEmail = source === "bug_report" ? BUG_REPORT_EMAIL : SUPPORT_EMAIL;
+    const textHeading = source === "bug_report"
+      ? "New Bug Report Submission"
+      : "New Contact Form Submission";
 
     const footerHtml = emailFooterHtml();
 
@@ -202,7 +209,7 @@ export async function POST(request: NextRequest) {
       </html>
     `;
 
-    const text = `New Contact Form Submission
+    const text = `${textHeading}
 Name: ${parsed.data.name}
 Email: ${parsed.data.email}
 Subject: ${parsed.data.subject}
@@ -214,7 +221,7 @@ ${emailFooterText()}
     try {
       const subjectPrefix = source === "bug_report" ? "Bug report" : "Contact";
       await sendEmail({
-        to: CONTACT_TO_EMAIL,
+        to: recipientEmail,
         subject: `${subjectPrefix}: ${parsed.data.subject}`,
         html,
         text,
