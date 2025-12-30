@@ -173,7 +173,7 @@ export function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-zinc-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3">
           <p className="text-zinc-400 text-xs sm:text-[11px] text-center sm:text-left">
-            © 2025 Real Deal Kickz. All rights reserved.
+            © 2025 Realdealkickzsc. All rights reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link href="/terms" className="text-zinc-400 hover:text-white text-xs transition-colors">

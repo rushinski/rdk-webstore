@@ -27,7 +27,7 @@ const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
   register: {
     title: (
       <>
-        Join Real Deal Kickz.
+        Join Realdealkickzsc.
         <br />
         Buy with confidence.
         <br />
@@ -86,7 +86,7 @@ export default function AuthShell({ children, leftVariant = "login" }: AuthShell
                 />
               </div>
               <span className="text-white text-xl font-bold tracking-wider uppercase">
-                RealDealKickz
+                Realdealkickzsc
               </span>
             </div>
           </Link>
@@ -116,7 +116,7 @@ export default function AuthShell({ children, leftVariant = "login" }: AuthShell
                 />
               </div>
               <span className="text-white text-lg font-bold tracking-wider uppercase">
-                RealDealKickz
+                Realdealkickzsc
               </span>
             </div>
           </Link>

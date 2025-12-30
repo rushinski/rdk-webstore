@@ -6,7 +6,7 @@ export function AdminTopbar() {
   return (
     <div className="bg-zinc-900 border-b border-zinc-800 px-6 py-6 mb-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-white">Real Deal Kickz Admin</h1>
+        <h1 className="text-xl font-bold text-white">Realdealkickzsc Admin</h1>
         <Link 
           href="/" 
           className="flex items-center gap-2 text-zinc-400 hover:text-white text-sm transition-colors cursor-pointer"

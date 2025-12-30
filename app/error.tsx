@@ -18,7 +18,7 @@ export default function ErrorPage({
     <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
       <div className="max-w-xl text-center space-y-4">
         <p className="text-xs uppercase tracking-[0.4em] text-zinc-500">
-          Real Deal Kickz
+          Realdealkickzsc
         </p>
         <div className="inline-flex items-center gap-3 justify-center">
           <span className="text-sm uppercase tracking-[0.3em] text-zinc-500">500</span>

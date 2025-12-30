@@ -576,7 +576,7 @@ export function Navbar({
             <div className="w-10 h-10 relative flex-shrink-0">
               <Image
                 src="/images/rdk-logo.png"
-                alt="Real Deal Kickz"
+                alt="Realdealkickzsc"
                 fill
                 sizes="40px"
                 className="object-contain"

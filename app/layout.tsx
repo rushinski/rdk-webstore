@@ -13,7 +13,7 @@ import '@/styles/global.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Real Deal Kickz - Premium Sneakers & Streetwear',
+  title: 'Realdealkickzsc - Premium Sneakers & Streetwear',
   description: 'Authentic sneakers and streetwear. Quality guaranteed.',
 };
 

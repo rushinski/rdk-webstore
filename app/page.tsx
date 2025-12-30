@@ -37,7 +37,7 @@ export default async function HomePage() {
 
         <div className="relative text-center px-4 z-10">
           <h1 className="text-6xl md:text-8xl font-bold text-white mb-6 tracking-tight">
-            REAL DEAL KICKZ
+            REALDEALKICKZSC
           </h1>
           <p className="text-xl md:text-2xl text-gray-400 mb-8 max-w-2xl mx-auto">
             Authentic sneakers and streetwear. Every pair verified. Every style bold.
@@ -96,7 +96,7 @@ export default async function HomePage() {
             >
               <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">About Us</h3>
               <p className="text-gray-400">
-                Learn about Real Deal Kickz and our commitment to authenticity and quality.
+                Learn about Realdealkickzsc and our commitment to authenticity and quality.
               </p>
             </Link>
 

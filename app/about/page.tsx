@@ -15,7 +15,7 @@ export default function AboutPage() {
           <h2 className="text-3xl font-bold text-white mb-6">Our Story</h2>
           <div className="space-y-4 text-zinc-400">
             <p>
-              Real Deal Kickz started with a simple mission: to provide sneaker enthusiasts with authentic, verified products they can trust. Based in Simpsonville, South Carolina, we've built a reputation for quality, authenticity, and exceptional customer service.
+              Realdealkickzsc started with a simple mission: to provide sneaker enthusiasts with authentic, verified products they can trust. Based in Simpsonville, South Carolina, we've built a reputation for quality, authenticity, and exceptional customer service.
             </p>
             <p>
               Every pair that passes through our doors is carefully inspected and authenticated by our team of experts. We understand the passion behind sneaker culture, and we're committed to serving our community with integrity and transparency.
@@ -87,7 +87,7 @@ export default function AboutPage() {
           <div className="bg-zinc-900 border border-zinc-800 p-8">
             <h3 className="font-semibold text-white mb-4">Location</h3>
             <p className="text-zinc-400 mb-6">
-              Real Deal Kickz<br />
+              Realdealkickzsc<br />
               Simpsonville, SC 29680<br />
               United States
             </p>

@@ -15,7 +15,7 @@ const COPY: Record<
     headlineTop: "Welcome back,",
     headlineBottom: "pick up where you left off.",
     blurb:
-      "Check your orders, track new drops, and secure pairs before they’re gone. Thousands of sneakerheads already trust Real Deal Kickz.",
+      "Check your orders, track new drops, and secure pairs before they’re gone. Thousands of sneakerheads already trust Realdealkickzsc.",
   },
   register: {
     headlineTop: "Join thousands of buyers",
@@ -48,7 +48,7 @@ export default function AuthLeftPanel({
           <div className="relative h-9 w-9 rounded-xl bg-black/40 border border-white/10 overflow-hidden shadow-sm shadow-black/40">
             <Image
               src="/images/rdk-logo.png"
-              alt="Real Deal Kickz logo"
+              alt="Realdealkickzsc logo"
               fill
               sizes="36px"
               className="object-contain"
@@ -56,7 +56,7 @@ export default function AuthLeftPanel({
             />
           </div>
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-100/90">
-            Realdealkickz
+            Realdealkickzsc
           </span>
         </div>
 

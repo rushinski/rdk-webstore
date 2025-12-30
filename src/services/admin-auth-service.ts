@@ -67,7 +67,7 @@ export class AdminAuthService {
     return this.supabase.auth.mfa.enroll({
       factorType: "totp",
       friendlyName: "Admin TOTP",
-      issuer: "RealDealKickz",
+      issuer: "Realdealkickzsc",
     });
   }
 

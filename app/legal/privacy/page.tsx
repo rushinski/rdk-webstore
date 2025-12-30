@@ -2,14 +2,14 @@
 export default function PrivacyPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy - Real Deal Kickz SC</h1>
+      <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy - Realdealkickzsc</h1>
 
       <div className="prose prose-invert max-w-none">
         <div className="text-zinc-400 space-y-6">
           <p className="text-sm">Last updated: December 30, 2025</p>
 
           <p>
-            This Privacy Policy describes how Real Deal Kickz SC (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;)
+            This Privacy Policy describes how Realdealkickzsc (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;)
             collects, uses, and discloses personal information when you visit, use our services, create an account,
             or make a purchase through
             {" "}

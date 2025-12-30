@@ -499,7 +499,7 @@ export default function InventoryPage() {
               <div>
                 <h2 className="text-xl font-semibold text-white">Upload Inventory</h2>
                 <p className="text-gray-500 text-sm">
-                  Import the Real Deal Kickz Excel export (.xlsx) with Items and Component Inventory sheets.
+                  Import the Realdealkickzsc Excel export (.xlsx) with Items and Component Inventory sheets.
                 </p>
                 <p className="text-gray-600 text-xs mt-2">
                   You can close this window while the import runs. Progress continues in the background.

@@ -2,7 +2,7 @@
 export default function TermsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold text-white mb-4">Terms of Service - Real Deal Kickz SC</h1>
+      <h1 className="text-4xl font-bold text-white mb-4">Terms of Service - Realdealkickzsc</h1>
 
       <div className="prose prose-invert max-w-none">
         <div className="text-zinc-400 space-y-6">
@@ -13,8 +13,8 @@ export default function TermsPage() {
             {" "}
             realdealkickzsc.com
             {" "}
-            (the &quot;Site&quot;) and any related services provided by Real Deal Kickz SC
-            (&quot;Real Deal Kickz SC,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;)
+            (the &quot;Site&quot;) and any related services provided by Realdealkickzsc
+            (&quot;Realdealkickzsc,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;)
             (collectively, the &quot;Services&quot;).
           </p>
           <p>
@@ -37,7 +37,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">2) Independent Reseller; No Brand Affiliation</h2>
             <p>
-              Real Deal Kickz SC is an independent sneaker and apparel reseller. We are not affiliated with,
+              Realdealkickzsc is an independent sneaker and apparel reseller. We are not affiliated with,
               endorsed by, sponsored by, or supported by Nike, Jordan, Adidas, New Balance, or any other brand.
               All trademarks, logos, and brand names are the property of their respective owners and are used
               only to identify the products we sell.
@@ -141,7 +141,7 @@ export default function TermsPage() {
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">12) Intellectual Property</h2>
             <p>
               All Site content (including text, graphics, layout, and design) is owned by or licensed to
-              Real Deal Kickz SC and is protected by applicable intellectual property laws. You may not use our
+              Realdealkickzsc and is protected by applicable intellectual property laws. You may not use our
               content without prior written permission.
             </p>
           </section>
@@ -157,8 +157,8 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">14) Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, Real Deal Kickz SC will not be liable for any indirect,
-              incidental, special, consequential, or punitive damages. In all cases, Real Deal Kickz SC&apos;s total
+              To the maximum extent permitted by law, Realdealkickzsc will not be liable for any indirect,
+              incidental, special, consequential, or punitive damages. In all cases, Realdealkickzsc&apos;s total
               liability for any claim will not exceed the amount you paid to us for the order giving rise to the claim.
             </p>
           </section>
@@ -166,7 +166,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">15) Indemnification</h2>
             <p>
-              You agree to indemnify and hold harmless Real Deal Kickz SC from and against claims, damages,
+              You agree to indemnify and hold harmless Realdealkickzsc from and against claims, damages,
               liabilities, and expenses arising out of your misuse of the Services or violation of these Terms.
             </p>
           </section>

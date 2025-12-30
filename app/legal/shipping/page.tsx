@@ -2,7 +2,7 @@
 export default function ShippingPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold text-white mb-4">Shipping Policy - Real Deal Kickz SC</h1>
+      <h1 className="text-4xl font-bold text-white mb-4">Shipping Policy - Realdealkickzsc</h1>
 
       <div className="prose prose-invert max-w-none">
         <div className="text-zinc-400 space-y-6">
@@ -12,7 +12,7 @@ export default function ShippingPage() {
             {" "}
             [YOUR DOMAIN]
             {" "}
-            (the &quot;Site&quot;) operated by Real Deal Kickz SC (&quot;we,&quot; &quot;us,&quot; &quot;our&quot;).
+            (the &quot;Site&quot;) operated by Realdealkickzsc (&quot;we,&quot; &quot;us,&quot; &quot;our&quot;).
           </p>
 
           <section>

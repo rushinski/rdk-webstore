@@ -136,17 +136,7 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-white mb-1">Email</h3>
-                  <p className="text-zinc-400">support@realdealkickz.com</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 flex items-center justify-center bg-red-600/10 border border-red-600/40">
-                  <Phone className="w-5 h-5 text-red-500" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white mb-1">Phone</h3>
-                  <p className="text-zinc-400">(864) 555-KICK</p>
+                  <p className="text-zinc-400">Realdealholyspill@gmail.com</p>
                 </div>
               </div>
 

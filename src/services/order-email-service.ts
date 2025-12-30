@@ -122,7 +122,7 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
                 <td style="padding:24px 24px 8px;text-align:center;">
                   <img
                     src="https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/public/assets/rdk-logo.png"
-                    alt="Real Deal Kickz"
+                    alt="Realdealkickzsc"
                     style="max-width:200px;width:100%;height:auto;display:block;margin:0 auto;"
                   />
                 </td>
@@ -219,7 +219,7 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
   const addressLines = buildAddressLines(input.shippingAddress);
 
   const lines = [
-    "Real Deal Kickz",
+    "Realdealkickzsc",
     `Order #${orderShort}`,
     `Placed: ${orderDate}`,
     "",
@@ -250,7 +250,7 @@ export class OrderEmailService {
     if (!input.to) return;
     await sendEmail({
       to: input.to,
-      subject: "Your Real Deal Kickz order is confirmed",
+      subject: "Your Realdealkickzsc order is confirmed",
       html: buildEmailHtml(input),
       text: buildEmailText(input),
     });
