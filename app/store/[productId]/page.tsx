@@ -10,12 +10,19 @@ import { ArrowLeft } from 'lucide-react';
 export default async function ProductDetailPage({
   params,
 }: {
-  params: { productId: string };
+  params: Promise<{ productId: string }>;
 }) {
+  const { productId } = await params;
+  const isUuid =
+    typeof productId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId);
+  if (!isUuid) {
+    notFound();
+  }
   const supabase = await createSupabaseServerClient();
   const repo = new ProductRepository(supabase);
 
-  const product = await repo.getById(params.productId);
+  const product = await repo.getById(productId);
 
   if (!product) {
     notFound();

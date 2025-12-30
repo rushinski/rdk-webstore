@@ -88,9 +88,9 @@ function MegaLink({
     <Link
       href={href}
       onClick={onClick}
-      className="group flex gap-3 p-4 hover:bg-zinc-900 transition-colors border-b border-zinc-900 last:border-b-0 cursor-pointer"
+      className="group/item flex gap-3 p-4 hover:bg-zinc-900 transition-colors border-b border-zinc-900 last:border-b-0 cursor-pointer"
     >
-      <div className="flex h-10 w-10 items-center justify-center bg-zinc-900 group-hover:bg-red-600 transition-colors">
+      <div className="flex h-10 w-10 items-center justify-center bg-zinc-900 group-hover/item:bg-red-600 transition-colors">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
@@ -254,7 +254,7 @@ export function Navbar({
     () => buildStoreHref({ brand: designerBrands }),
     [designerBrands]
   );
-  const shopIconClass = "w-5 h-5 text-zinc-400 transition-colors group-hover:text-white";
+  const shopIconClass = "w-5 h-5 text-zinc-400 transition-colors group-hover/item:text-white";
 
   const shopItems = useMemo(
     () => [
