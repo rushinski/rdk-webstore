@@ -27,12 +27,13 @@
     "@upstash/ratelimit": "^2.0.7",
     "@upstash/redis": "^1.35.6",
     "dayjs": "^1.11.19",
+    "exceljs": "^4.4.0",
     "flags": "^4.0.2",
     "jose": "^6.1.2",
     "lucide-react": "^0.562.0",
     "nanoid": "^5.1.6",
     "next": "^16.0.3",
-    "nodemailer": "^6.10.1",
+    "nodemailer": "^7.0.12",
     "picocolors": "^1.1.1",
     "pino": "^10.1.0",
     "pino-pretty": "^13.1.2",
@@ -42,7 +43,6 @@
     "recharts": "^3.6.0",
     "stripe": "^19.3.1",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5",
     "zod": "^4.1.12"
   },
   "devDependencies": {

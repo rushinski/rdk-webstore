@@ -1,11 +1,12 @@
 import crypto from "crypto";
-import { read, utils } from "xlsx";
+import ExcelJS from "exceljs";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProductRepository } from "@/repositories/product-repo";
 import { InventoryImportRepository } from "@/repositories/inventory-import-repo";
 import { ProductService, type ProductCreateInput } from "@/services/product-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 import { buildSizeTags, upsertTags, type TagInputItem } from "@/services/tag-service";
+import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/views/product";
 import type { TablesInsert } from "@/types/database.types";
 
@@ -67,6 +68,35 @@ const COMPONENT_HEADERS = [
   "Stock-by Equivalent",
 ];
 
+const normalizeSizeToken = (value: string) =>
+  value
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[–—-]+/g, "/");
+
+const SHOE_SIZE_MAP = new Map<string, string>();
+const SHOE_TOKEN_MAP = new Map<string, string>();
+
+for (const size of SHOE_SIZES) {
+  const normalized = normalizeSizeToken(size);
+  SHOE_SIZE_MAP.set(normalized, size);
+  const tokens = size.split("/").map((token) => normalizeSizeToken(token.trim()));
+  tokens.forEach((token) => {
+    if (!SHOE_TOKEN_MAP.has(token)) {
+      SHOE_TOKEN_MAP.set(token, size);
+    }
+  });
+}
+
+const CLOTHING_ALIASES = new Map<string, string>([
+  ["S", "SMALL"],
+  ["M", "MEDIUM"],
+  ["L", "LARGE"],
+  ["XL", "XL"],
+  ["XXL", "2XL"],
+  ["XXXL", "3XL"],
+]);
+
 type SheetName = typeof ITEMS_SHEET | typeof COMPONENT_SHEET;
 
 type ImportRowError = {
@@ -92,6 +122,8 @@ type ParsedItemRow = {
   itemType: string | null;
   visibility: string | null;
   skipDetail: string | null;
+  optionName1: string | null;
+  optionValue1: string | null;
   defaultUnitCost: number | null;
   currentQuantity: number | null;
   errors: string[];
@@ -154,6 +186,11 @@ const parseInteger = (value: unknown): number | null => {
   const parsed = parseNumber(value);
   if (parsed === null) return null;
   return Math.max(0, Math.round(parsed));
+};
+
+const getWorksheetRows = (sheet: ExcelJS.Worksheet): unknown[][] => {
+  const values = sheet.getSheetValues() as unknown[][];
+  return values.slice(1).map((row) => (Array.isArray(row) ? row.slice(1) : []));
 };
 
 const normalizeHeaderRow = (row: unknown[]): string[] =>
@@ -238,7 +275,9 @@ const normalizeCategoryLabel = (value: string) =>
     .replace(/\s+/g, " ")
     .toLowerCase();
 
-const mapCategoryFromText = (value: string, fallback: Category): Category => {
+const CATEGORY_ROOTS = new Set(["sneakers", "clothing", "accessories", "electronics"]);
+
+const mapCategoryFromText = (value: string): Category | null => {
   const combined = value.toLowerCase();
   if (combined.includes("sneaker") || combined.includes("shoe") || combined.includes("kick")) {
     return "sneakers";
@@ -267,39 +306,40 @@ const mapCategoryFromText = (value: string, fallback: Category): Category => {
   if (combined.includes("electronic") || combined.includes("tech") || combined.includes("device")) {
     return "electronics";
   }
-  return fallback;
+  return null;
 };
 
 const resolveCategory = (
   categoryPaths: string[],
-  inputs: Array<string | null | undefined>,
-  fallback: Category
-): Category => {
+  inputs: Array<string | null | undefined>
+): Category | null => {
   if (categoryPaths.length > 0) {
     const rootCandidate = categoryPaths[0].split(/[>/]/)[0]?.trim();
     if (rootCandidate) {
       const normalizedRoot = normalizeCategoryLabel(rootCandidate);
-      return mapCategoryFromText(normalizedRoot, normalizedRoot as Category);
+      if (CATEGORY_ROOTS.has(normalizedRoot)) return normalizedRoot as Category;
+      return mapCategoryFromText(normalizedRoot);
     }
   }
 
   const combined = inputs.filter(Boolean).join(" ");
-  return mapCategoryFromText(combined, fallback);
+  return mapCategoryFromText(combined);
 };
 
-const resolveCondition = (inputs: Array<string | null | undefined>, fallback: Condition): Condition => {
+const resolveCondition = (inputs: Array<string | null | undefined>): Condition | null => {
   const combined = inputs.filter(Boolean).join(" ").toLowerCase();
   if (combined.includes("used") || combined.includes("pre-owned") || combined.includes("preowned")) {
     return "used";
   }
   if (combined.includes("new")) return "new";
-  return fallback;
+  return null;
 };
 
 const resolveSizeType = (category: Category): SizeType => {
   if (category === "sneakers") return "shoe";
   if (category === "clothing") return "clothing";
-  return "custom";
+  if (category === "accessories") return "custom";
+  return "none";
 };
 
 const parseCategoryPaths = (value: string | null) => {
@@ -308,6 +348,50 @@ const parseCategoryPaths = (value: string | null) => {
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean);
+};
+
+const extractShoeSizeLabel = (inputs: Array<string | null | undefined>) => {
+  const combined = inputs.filter(Boolean).join(" ");
+  if (!combined) return null;
+  const normalized = normalizeSizeToken(combined);
+  for (const [key, size] of SHOE_SIZE_MAP) {
+    if (normalized.includes(key)) return size;
+  }
+
+  const tokenMatches = combined.match(/\b\d{1,2}(?:\.\d)?\s*[MYW]\b/gi) ?? [];
+  for (const token of tokenMatches) {
+    const normalizedToken = normalizeSizeToken(token);
+    const mapped = SHOE_TOKEN_MAP.get(normalizedToken);
+    if (mapped) return mapped;
+  }
+  return null;
+};
+
+const extractClothingSizeLabel = (inputs: Array<string | null | undefined>) => {
+  const combined = inputs.filter(Boolean).join(" ").toUpperCase();
+  if (!combined) return null;
+
+  for (const size of CLOTHING_SIZES) {
+    const regex = new RegExp(`\\b${size}\\b`, "i");
+    if (regex.test(combined)) return size;
+  }
+
+  for (const [alias, target] of CLOTHING_ALIASES) {
+    const regex = new RegExp(`\\b${alias}\\b`, "i");
+    if (regex.test(combined)) return target;
+  }
+
+  return null;
+};
+
+const extractSizeLabel = (sizeType: SizeType, inputs: Array<string | null | undefined>) => {
+  if (sizeType === "shoe") return extractShoeSizeLabel(inputs);
+  if (sizeType === "clothing") return extractClothingSizeLabel(inputs);
+  if (sizeType === "custom") {
+    const first = inputs.find((value) => value && value.trim());
+    return first ? first.trim() : "One Size";
+  }
+  return "N/A";
 };
 
 const normalizeTitleKey = (value: string) => value.trim().toLowerCase();
@@ -365,8 +449,10 @@ const buildImportRowLog = (
   raw_row: base.rawRow,
 });
 
-const parseItemsSheet = (sheet: any): { rows: ParsedItemRow[]; errors: ImportRowError[]; rowsParsed: number } => {
-  const rows = utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: null });
+const parseItemsSheet = (
+  sheet: ExcelJS.Worksheet
+): { rows: ParsedItemRow[]; errors: ImportRowError[]; rowsParsed: number } => {
+  const rows = getWorksheetRows(sheet);
   const headerIndex = findHeaderRowIndex(rows, ["Token", "Item Name"]);
   if (headerIndex === null) {
     throw new InventoryImportValidationError("Missing header row in Items sheet.");
@@ -410,6 +496,8 @@ const parseItemsSheet = (sheet: any): { rows: ParsedItemRow[]; errors: ImportRow
     const itemType = parseText(rawRow["Item Type"]);
     const archived = parseText(rawRow["Archived"]);
     const skipDetail = parseText(rawRow["Skip Detail Screen in POS"]);
+    const optionName1 = parseText(rawRow["Option Name 1"]);
+    const optionValue1 = parseText(rawRow["Option Value 1"]);
     const price = parseNumber(rawRow["Price"]);
     const onlineSalePrice = parseNumber(rawRow["Online Sale Price"]);
     const defaultUnitCost = parseNumber(rawRow["Default Unit Cost"]);
@@ -456,6 +544,8 @@ const parseItemsSheet = (sheet: any): { rows: ParsedItemRow[]; errors: ImportRow
       itemType,
       visibility,
       skipDetail,
+      optionName1,
+      optionValue1,
       defaultUnitCost,
       currentQuantity,
       errors: rowErrors,
@@ -466,9 +556,9 @@ const parseItemsSheet = (sheet: any): { rows: ParsedItemRow[]; errors: ImportRow
 };
 
 const parseComponentSheet = (
-  sheet: any
+  sheet: ExcelJS.Worksheet
 ): { rows: ParsedComponentRow[]; errors: ImportRowError[]; rowsParsed: number } => {
-  const rows = utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: false, defval: null });
+  const rows = getWorksheetRows(sheet);
   const headerIndex = findHeaderRowIndex(rows, ["Token (locked)", "Item Name (locked)"]);
   if (headerIndex === null) {
     throw new InventoryImportValidationError("Missing header row in Component Inventory sheet.");
@@ -569,8 +659,8 @@ export class InventoryImportService {
     userId: string;
     tenantId: string;
     dryRun: boolean;
-    defaultCategory?: Category;
-    defaultCondition?: Condition;
+    overrideCategory?: Category;
+    overrideCondition?: Condition;
     importId?: string;
     checksum?: string;
     skipIdempotency?: boolean;
@@ -610,9 +700,10 @@ export class InventoryImportService {
     let importId: string | undefined = input.importId;
 
     try {
-      const workbook = read(input.buffer, { type: "array" });
-      const itemsSheet = workbook.Sheets[ITEMS_SHEET];
-      const componentSheet = workbook.Sheets[COMPONENT_SHEET];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(Buffer.from(input.buffer));
+      const itemsSheet = workbook.getWorksheet(ITEMS_SHEET);
+      const componentSheet = workbook.getWorksheet(COMPONENT_SHEET);
 
       if (!itemsSheet) {
         throw new InventoryImportValidationError("Missing Items sheet.");
@@ -624,6 +715,49 @@ export class InventoryImportService {
       itemsParsed = parseItemsSheet(itemsSheet);
       componentParsed = parseComponentSheet(componentSheet);
       errors = [...itemsParsed.errors, ...componentParsed.errors];
+
+      const missingIssues: ImportRowError[] = [];
+      const needsCategoryOverride = !input.overrideCategory;
+      const needsConditionOverride = !input.overrideCondition;
+
+      if (needsCategoryOverride || needsConditionOverride) {
+        for (const row of itemsParsed.rows) {
+          if (row.errors.length > 0) continue;
+          const categoryPaths = parseCategoryPaths(row.categories);
+          const categoryCandidate = resolveCategory(
+            categoryPaths,
+            [row.reportingCategory, row.itemName, row.description]
+          );
+          const conditionCandidate = resolveCondition([
+            row.description,
+            row.categories,
+            row.itemName,
+            row.variationName,
+          ]);
+
+          if (needsCategoryOverride && !categoryCandidate) {
+            missingIssues.push({
+              sheet: ITEMS_SHEET,
+              rowNumber: row.rowNumber,
+              message: "missing Category",
+            });
+          }
+          if (needsConditionOverride && !conditionCandidate) {
+            missingIssues.push({
+              sheet: ITEMS_SHEET,
+              rowNumber: row.rowNumber,
+              message: "missing Condition",
+            });
+          }
+        }
+      }
+
+      if (missingIssues.length > 0) {
+        throw new InventoryImportValidationError(
+          "Missing category or condition. Select overrides to continue.",
+          missingIssues
+        );
+      }
 
       if (!input.dryRun && !importId) {
         const importRow = await this.importRepo.createImport({
@@ -660,9 +794,6 @@ export class InventoryImportService {
     if (!itemsParsed || !componentParsed) {
       throw new InventoryImportValidationError("Unable to read workbook sheets.");
     }
-
-    const defaultCategory = (input.defaultCategory ?? "sneakers") as Category;
-    const defaultCondition = (input.defaultCondition ?? "new") as Condition;
 
     const importRowsLog: TablesInsert<"inventory_import_rows">[] = [];
 
@@ -705,17 +836,75 @@ export class InventoryImportService {
         const itemName = row.itemName ?? "";
         const variationName = row.variationName ?? "";
         const categoryPaths = parseCategoryPaths(row.categories);
-        const category = resolveCategory(
-          categoryPaths,
-          [row.reportingCategory, itemName, row.description],
-          defaultCategory
-        );
-        const condition = resolveCondition(
-          [row.description, row.categories, itemName, variationName],
-          defaultCondition
-        );
+        const category =
+          resolveCategory(categoryPaths, [row.reportingCategory, itemName, row.description]) ??
+          input.overrideCategory ??
+          null;
+        const condition =
+          resolveCondition([row.description, row.categories, itemName, variationName]) ??
+          input.overrideCondition ??
+          null;
+
+        if (!category) {
+          rowsFailed += 1;
+          errors.push({
+            sheet: ITEMS_SHEET,
+            rowNumber: row.rowNumber,
+            message: "missing Category",
+          });
+          if (baseLog) {
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Category"));
+          }
+          processedCount += 1;
+          if (!input.dryRun && importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
+          continue;
+        }
+
+        if (!condition) {
+          rowsFailed += 1;
+          errors.push({
+            sheet: ITEMS_SHEET,
+            rowNumber: row.rowNumber,
+            message: "missing Condition",
+          });
+          if (baseLog) {
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Condition"));
+          }
+          processedCount += 1;
+          if (!input.dryRun && importId && processedCount % progressBatchSize === 0) {
+            await this.importRepo.updateImport(importId, {
+              rows_upserted: rowsUpserted,
+              rows_failed: rowsFailed,
+              status: "processing",
+            });
+          }
+          continue;
+        }
+
         const sizeType = resolveSizeType(category);
-        const sizeLabel = sizeType === "none" ? "N/A" : variationName.trim();
+        const optionValue =
+          row.optionName1?.toLowerCase().includes("size") ? row.optionValue1 : null;
+        const sizeLabelCandidate =
+          sizeType === "none"
+            ? "N/A"
+            : extractSizeLabel(sizeType, [
+                variationName,
+                optionValue,
+                itemName,
+                row.description,
+              ]);
+        const sizeLabelFallback =
+          variationName.trim() || optionValue?.trim() || "";
+        const sizeLabel =
+          sizeType === "none"
+            ? "N/A"
+            : sizeLabelCandidate ?? sizeLabelFallback;
         const priceSource = row.onlineSalePrice ?? row.price;
         const priceCents = parseMoneyToCents(priceSource);
         const costCents = parseMoneyToCents(row.defaultUnitCost) ?? 0;
@@ -747,10 +936,10 @@ export class InventoryImportService {
           errors.push({
             sheet: ITEMS_SHEET,
             rowNumber: row.rowNumber,
-            message: "missing Variation Name",
+            message: "missing Size",
           });
           if (baseLog) {
-            importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Variation Name"));
+            importRowsLog.push(buildImportRowLog(baseLog, "failed", "missing Size"));
           }
           processedCount += 1;
           if (!input.dryRun && importId && processedCount % progressBatchSize === 0) {
@@ -1021,8 +1210,8 @@ export class InventoryImportService {
     userId: string;
     tenantId: string;
     dryRun: boolean;
-    defaultCategory?: Category;
-    defaultCondition?: Condition;
+    overrideCategory?: Category;
+    overrideCondition?: Condition;
   }): Promise<InventoryImportResult> {
     const buffer = await input.file.arrayBuffer();
     return this.importRdkInventoryBuffer({
@@ -1032,8 +1221,8 @@ export class InventoryImportService {
       userId: input.userId,
       tenantId: input.tenantId,
       dryRun: input.dryRun,
-      defaultCategory: input.defaultCategory,
-      defaultCondition: input.defaultCondition,
+      overrideCategory: input.overrideCategory,
+      overrideCondition: input.overrideCondition,
     });
   }
 }

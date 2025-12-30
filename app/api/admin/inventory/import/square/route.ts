@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { read, utils } from "xlsx";
+import ExcelJS from "exceljs";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService, type ProductCreateInput } from "@/services/product-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 import { buildSizeTags, type TagInputItem } from "@/services/tag-service";
+import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import type { Category, Condition, SizeType } from "@/types/views/product";
@@ -133,6 +134,79 @@ const resolveSizeType = (category: Category): SizeType => {
   return "none";
 };
 
+const normalizeSizeToken = (value: string) =>
+  value
+    .toUpperCase()
+    .replace(/\s+/g, "")
+    .replace(/[–—-]+/g, "/");
+
+const SHOE_SIZE_MAP = new Map<string, string>();
+const SHOE_TOKEN_MAP = new Map<string, string>();
+
+for (const size of SHOE_SIZES) {
+  const normalized = normalizeSizeToken(size);
+  SHOE_SIZE_MAP.set(normalized, size);
+  const tokens = size.split("/").map((token) => normalizeSizeToken(token.trim()));
+  tokens.forEach((token) => {
+    if (!SHOE_TOKEN_MAP.has(token)) {
+      SHOE_TOKEN_MAP.set(token, size);
+    }
+  });
+}
+
+const CLOTHING_ALIASES = new Map<string, string>([
+  ["S", "SMALL"],
+  ["M", "MEDIUM"],
+  ["L", "LARGE"],
+  ["XL", "XL"],
+  ["XXL", "2XL"],
+  ["XXXL", "3XL"],
+]);
+
+const extractShoeSizeLabel = (inputs: Array<string | null | undefined>) => {
+  const combined = inputs.filter(Boolean).join(" ");
+  if (!combined) return null;
+  const normalized = normalizeSizeToken(combined);
+  for (const [key, size] of SHOE_SIZE_MAP) {
+    if (normalized.includes(key)) return size;
+  }
+
+  const tokenMatches = combined.match(/\b\d{1,2}(?:\.\d)?\s*[MYW]\b/gi) ?? [];
+  for (const token of tokenMatches) {
+    const normalizedToken = normalizeSizeToken(token);
+    const mapped = SHOE_TOKEN_MAP.get(normalizedToken);
+    if (mapped) return mapped;
+  }
+  return null;
+};
+
+const extractClothingSizeLabel = (inputs: Array<string | null | undefined>) => {
+  const combined = inputs.filter(Boolean).join(" ").toUpperCase();
+  if (!combined) return null;
+
+  for (const size of CLOTHING_SIZES) {
+    const regex = new RegExp(`\\b${size}\\b`, "i");
+    if (regex.test(combined)) return size;
+  }
+
+  for (const [alias, target] of CLOTHING_ALIASES) {
+    const regex = new RegExp(`\\b${alias}\\b`, "i");
+    if (regex.test(combined)) return target;
+  }
+
+  return null;
+};
+
+const extractSizeLabel = (sizeType: SizeType, inputs: Array<string | null | undefined>) => {
+  if (sizeType === "shoe") return extractShoeSizeLabel(inputs);
+  if (sizeType === "clothing") return extractClothingSizeLabel(inputs);
+  if (sizeType === "custom") {
+    const first = inputs.find((value) => value && value.trim());
+    return first ? first.trim() : "One Size";
+  }
+  return "N/A";
+};
+
 const buildImportTags = (
   parsed: Awaited<ReturnType<ProductTitleParserService["parseTitle"]>>,
   category: Category,
@@ -235,8 +309,9 @@ export async function POST(request: NextRequest) {
     const useSquareCategory = optionsParsed.data.useSquareCategory !== "false";
 
     const buffer = await file.arrayBuffer();
-    const workbook = read(buffer, { type: "array" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(Buffer.from(buffer));
+    const sheet = workbook.worksheets[0];
     if (!sheet) {
       return NextResponse.json(
         { error: "No worksheet found in file.", requestId },
@@ -244,9 +319,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const rows = utils.sheet_to_json<Record<string, unknown>>(sheet, {
-      defval: "",
-      raw: false,
+    const headerRow = sheet.getRow(1);
+    const headerValues = (headerRow.values as unknown[]).slice(1);
+    const headers = headerValues.map((value) =>
+      value === null || value === undefined ? "" : String(value).trim()
+    );
+
+    const rows: Record<string, unknown>[] = [];
+    sheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const values = (row.values as unknown[]).slice(1);
+      const record: Record<string, unknown> = {};
+      headers.forEach((header, index) => {
+        if (!header) return;
+        record[header] = values[index] ?? "";
+      });
+      rows.push(record);
     });
 
     const drafts = new Map<string, ProductDraft>();
@@ -290,16 +378,25 @@ export async function POST(request: NextRequest) {
       const stock = parseStockCount(quantityValue) ?? 0;
 
       const variationValue = findValue(normalizedRow, VARIATION_KEYS);
-      const sizeType = resolveSizeType(category);
-      let sizeLabel = variationValue ? String(variationValue).trim() : "";
-      if (sizeType === "none") {
-        sizeLabel = "N/A";
-      } else if (!sizeLabel) {
-        sizeLabel = "One Size";
-      }
-
       const descriptionValue = findValue(normalizedRow, DESCRIPTION_KEYS);
       const description = descriptionValue ? String(descriptionValue).trim() : undefined;
+
+      const sizeType = resolveSizeType(category);
+      const sizeLabelCandidate =
+        sizeType === "none"
+          ? "N/A"
+          : extractSizeLabel(sizeType, [
+              variationValue ? String(variationValue) : null,
+              titleRaw,
+              description,
+            ]);
+      let sizeLabel = sizeType === "none" ? "N/A" : (sizeLabelCandidate ?? "");
+      if (!sizeLabel && variationValue) {
+        sizeLabel = String(variationValue).trim();
+      }
+      if (!sizeLabel && sizeType !== "none") {
+        sizeLabel = "One Size";
+      }
 
       const imageValue =
         findValue(normalizedRow, IMAGE_KEYS) ?? findValueByFragment(normalizedRow, "imageurl");

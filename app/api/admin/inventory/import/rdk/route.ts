@@ -20,9 +20,8 @@ const CONDITION_VALUES = ["new", "used"] as const;
 
 const importOptionsSchema = z
   .object({
-    dryRun: z.enum(["true", "false"]).default("false"),
-    defaultCategory: z.enum(CATEGORY_VALUES).default("sneakers"),
-    condition: z.enum(CONDITION_VALUES).default("new"),
+    overrideCategory: z.enum(CATEGORY_VALUES).optional(),
+    overrideCondition: z.enum(CONDITION_VALUES).optional(),
   })
   .strict();
 
@@ -44,9 +43,8 @@ export async function POST(request: NextRequest) {
     }
 
     const optionsParsed = importOptionsSchema.safeParse({
-      dryRun: formData.get("dryRun") ?? "false",
-      defaultCategory: formData.get("defaultCategory") ?? "sneakers",
-      condition: formData.get("condition") ?? "new",
+      overrideCategory: formData.get("overrideCategory") ?? undefined,
+      overrideCondition: formData.get("overrideCondition") ?? undefined,
     });
 
     if (!optionsParsed.success) {
@@ -58,35 +56,6 @@ export async function POST(request: NextRequest) {
 
     const service = new InventoryImportService(supabase);
     const repo = new InventoryImportRepository(supabase);
-    const isDryRun = optionsParsed.data.dryRun === "true";
-
-    if (isDryRun) {
-      const result = await service.importRdkInventory({
-        file,
-        userId: session.user.id,
-        tenantId,
-        dryRun: true,
-        defaultCategory: optionsParsed.data.defaultCategory as Category,
-        defaultCondition: optionsParsed.data.condition as Condition,
-      });
-
-      log({
-        level: "info",
-        layer: "api",
-        message: "rdk_inventory_import_completed",
-        requestId,
-        route: "/api/admin/inventory/import/rdk",
-        rowsParsed: result.rowsParsed,
-        rowsUpserted: result.rowsUpserted,
-        rowsFailed: result.rowsFailed,
-        importId: result.importId ?? null,
-      });
-
-      return NextResponse.json(
-        { ...result, requestId },
-        { headers: { "Cache-Control": "no-store" } }
-      );
-    }
 
     const buffer = await file.arrayBuffer();
     const checksum = crypto.createHash("sha256").update(Buffer.from(buffer)).digest("hex");
@@ -108,6 +77,22 @@ export async function POST(request: NextRequest) {
         },
         { headers: { "Cache-Control": "no-store" } }
       );
+    }
+
+    const needsPreflight =
+      !optionsParsed.data.overrideCategory || !optionsParsed.data.overrideCondition;
+    if (needsPreflight) {
+      await service.importRdkInventoryBuffer({
+        buffer,
+        fileName: file.name,
+        fileSize: file.size,
+        userId: session.user.id,
+        tenantId,
+        dryRun: true,
+        overrideCategory: optionsParsed.data.overrideCategory as Category | undefined,
+        overrideCondition: optionsParsed.data.overrideCondition as Condition | undefined,
+        skipIdempotency: true,
+      });
     }
 
     const importRow = await repo.createImport({
@@ -134,8 +119,8 @@ export async function POST(request: NextRequest) {
         userId: session.user.id,
         tenantId,
         dryRun: false,
-        defaultCategory: optionsParsed.data.defaultCategory as Category,
-        defaultCondition: optionsParsed.data.condition as Condition,
+        overrideCategory: optionsParsed.data.overrideCategory as Category | undefined,
+        overrideCondition: optionsParsed.data.overrideCondition as Condition | undefined,
         importId,
         checksum,
         skipIdempotency: true,

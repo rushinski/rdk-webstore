@@ -248,6 +248,9 @@ export function parseTitleWithCatalog(
   const candidates: TitleParseResult["candidates"] = {};
 
   let brandMatch = null as null | { alias: CatalogBrandAlias; start: number; length: number; confidence: number; source: TitleParseResult["brand"]["source"] };
+  const fallbackBrandAlias = catalog.brandAliases.find(
+    (alias) => alias.aliasNormalized === "other"
+  );
 
   const brandOverrides = input.brandOverrideId
     ? catalog.brandAliases.filter((alias) => alias.brandId === input.brandOverrideId)
@@ -305,16 +308,26 @@ export function parseTitleWithCatalog(
   if (!brandMatch) {
     const candidate = extractBrandCandidate(tokensWithRaw);
     if (candidate) {
+      candidates.brand = {
+        rawText: candidate,
+        normalizedText: normalizeLabel(candidate),
+      };
+    }
+
+    if (fallbackBrandAlias) {
+      brandLabel = fallbackBrandAlias.brandLabel;
+      brandId = null;
+      brandGroupKey = fallbackBrandAlias.groupKey ?? null;
+      brandConfidence = 0.2;
+      brandSource = "unknown";
+      brandIsVerified = false;
+    } else if (candidate) {
       brandLabel = candidate.trim();
       brandId = null;
       brandGroupKey = null;
       brandConfidence = 0.2;
       brandSource = "unknown";
       brandIsVerified = false;
-      candidates.brand = {
-        rawText: candidate,
-        normalizedText: normalizeLabel(candidate),
-      };
     }
   }
 
@@ -392,11 +405,25 @@ export function parseTitleWithCatalog(
     modelSource = modelMatch.source;
     modelIsVerified = modelMatch.source !== "unknown";
   } else if (isSneaker && brandId) {
-    modelLabel = null;
-    modelId = null;
-    modelConfidence = 0;
-    modelSource = "unknown";
-    modelIsVerified = false;
+    const modelAliases = catalog.modelAliasesByBrand[brandId] ?? [];
+    const fallbackLabel = normalizeLabel(`other ${brandLabel} models`);
+    const fallbackAlias = modelAliases.find(
+      (alias) => alias.aliasNormalized === fallbackLabel
+    );
+
+    if (fallbackAlias) {
+      modelLabel = fallbackAlias.modelLabel;
+      modelId = fallbackAlias.modelId;
+      modelConfidence = 0.2;
+      modelSource = "unknown";
+      modelIsVerified = false;
+    } else {
+      modelLabel = null;
+      modelId = null;
+      modelConfidence = 0;
+      modelSource = "unknown";
+      modelIsVerified = false;
+    }
 
     const candidate = extractModelCandidate(tokensWithRaw, brandMatch);
     if (candidate) {
@@ -434,7 +461,8 @@ export function parseTitleWithCatalog(
   if (brandSource === "unknown") {
     titleDisplay = titleRaw.trim();
   } else {
-    const parts = [brandLabel, isSneaker ? modelLabel : null, name].filter(Boolean);
+    const includeModel = isSneaker && modelSource !== "unknown";
+    const parts = [brandLabel, includeModel ? modelLabel : null, name].filter(Boolean);
     titleDisplay = parts.join(" ").trim();
   }
   if (!titleDisplay) {

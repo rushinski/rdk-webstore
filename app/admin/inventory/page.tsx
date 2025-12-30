@@ -19,8 +19,6 @@ export default function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
   const [conditionFilter, setConditionFilter] = useState<Condition | 'all'>('all');
   const [importFile, setImportFile] = useState<File | null>(null);
-  const [importCategory, setImportCategory] = useState<Category>('sneakers');
-  const [importCondition, setImportCondition] = useState<Condition>('new');
   const [importStatus, setImportStatus] = useState<{
     rowsParsed: number;
     rowsUpserted: number;
@@ -40,12 +38,18 @@ export default function InventoryPage() {
   const [activeImportId, setActiveImportId] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [importDryRun, setImportDryRun] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null);
+  const [pendingMassDelete, setPendingMassDelete] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [resolution, setResolution] = useState<{
+    missingCategoryRows: number[];
+    missingConditionRows: number[];
+  } | null>(null);
+  const [overrideCategory, setOverrideCategory] = useState<Category | ''>('');
+  const [overrideCondition, setOverrideCondition] = useState<Condition | ''>('');
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -161,6 +165,30 @@ export default function InventoryPage() {
     setToast({ message, tone });
   };
 
+  const extractResolutionIssues = (issues: Array<{ rowNumber?: number; message?: string }>) => {
+    const missingCategoryRows: number[] = [];
+    const missingConditionRows: number[] = [];
+
+    issues.forEach((issue) => {
+      const message = issue.message?.toLowerCase() ?? '';
+      const rowNumber = issue.rowNumber;
+      if (!rowNumber) return;
+      if (message.includes('missing category')) {
+        missingCategoryRows.push(rowNumber);
+      }
+      if (message.includes('missing condition')) {
+        missingConditionRows.push(rowNumber);
+      }
+    });
+
+    if (missingCategoryRows.length === 0 && missingConditionRows.length === 0) return null;
+
+    return {
+      missingCategoryRows,
+      missingConditionRows,
+    };
+  };
+
   const requestDelete = (product: ProductWithDetails) => {
     setOpenMenuId(null);
     const label = product.title_display ?? `${product.brand} ${product.name}`.trim();
@@ -189,6 +217,33 @@ export default function InventoryPage() {
       }
     } catch (error) {
       showToast('Error deleting product.', 'error');
+    }
+  };
+
+  const confirmMassDelete = async () => {
+    setPendingMassDelete(false);
+    if (selectedIds.length === 0) return;
+
+    try {
+      const results = await Promise.all(
+        selectedIds.map((id) =>
+          fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+        )
+      );
+      const failed = results.filter((res) => !res.ok).length;
+      if (failed > 0) {
+        showToast(`Deleted ${selectedIds.length - failed} items, ${failed} failed.`, 'error');
+      } else {
+        showToast(`Deleted ${selectedIds.length} items.`, 'success');
+      }
+      setSelectedIds([]);
+      await loadProducts({
+        q: searchQuery,
+        category: categoryFilter,
+        condition: conditionFilter,
+      });
+    } catch (error) {
+      showToast('Error deleting selected items.', 'error');
     }
   };
 
@@ -221,11 +276,22 @@ export default function InventoryPage() {
   };
 
   const handleMassDelete = () => {
-    showToast('Mass delete is coming soon.', 'info');
+    if (selectedIds.length === 0) return;
+    setPendingMassDelete(true);
   };
 
   const openImportModal = () => setIsImportModalOpen(true);
-  const closeImportModal = () => setIsImportModalOpen(false);
+  const closeImportModal = () => {
+    setIsImportModalOpen(false);
+    setResolution(null);
+    setOverrideCategory('');
+    setOverrideCondition('');
+    setImportError(null);
+    setImportFile(null);
+    if (importFileRef.current) {
+      importFileRef.current.value = '';
+    }
+  };
 
   const handleSquareImport = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -239,13 +305,13 @@ export default function InventoryPage() {
     setImportStatus(null);
     setImportProgress(null);
     setActiveImportId(null);
+    setResolution(null);
 
     try {
       const formData = new FormData();
       formData.append('file', importFile);
-      formData.append('defaultCategory', importCategory);
-      formData.append('condition', importCondition);
-      formData.append('dryRun', String(importDryRun));
+      if (overrideCategory) formData.append('overrideCategory', overrideCategory);
+      if (overrideCondition) formData.append('overrideCondition', overrideCondition);
 
       const response = await fetch('/api/admin/inventory/import/rdk', {
         method: 'POST',
@@ -254,6 +320,13 @@ export default function InventoryPage() {
 
       const data = await response.json();
       if (!response.ok) {
+        const issues = Array.isArray(data?.issues) ? data.issues : [];
+        const resolutionIssues = extractResolutionIssues(issues);
+        if (resolutionIssues) {
+          setResolution(resolutionIssues);
+          setImportError(null);
+          return;
+        }
         throw new Error(data?.error || 'Failed to import inventory.');
       }
 
@@ -283,10 +356,12 @@ export default function InventoryPage() {
         });
       }
       setImportFile(null);
+      setOverrideCategory('');
+      setOverrideCondition('');
       if (importFileRef.current) {
         importFileRef.current.value = '';
       }
-      if (!importDryRun && !data?.alreadyImported && response.status !== 202) {
+      if (!data?.alreadyImported && response.status !== 202) {
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
@@ -305,6 +380,12 @@ export default function InventoryPage() {
   const progressDone = (importProgress?.rowsUpserted ?? 0) + (importProgress?.rowsFailed ?? 0);
   const progressPercent =
     progressTotal > 0 ? Math.min(100, Math.round((progressDone / progressTotal) * 100)) : 0;
+  const requiresCategoryOverride = (resolution?.missingCategoryRows.length ?? 0) > 0;
+  const requiresConditionOverride = (resolution?.missingConditionRows.length ?? 0) > 0;
+  const resolutionReady =
+    (!requiresCategoryOverride || Boolean(overrideCategory)) &&
+    (!requiresConditionOverride || Boolean(overrideCondition));
+  const importButtonLabel = resolution ? 'Continue Import' : 'Import Inventory';
 
   return (
     <div className="space-y-6">
@@ -435,61 +516,96 @@ export default function InventoryPage() {
             </div>
 
             <form onSubmit={handleSquareImport} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-              <div className="md:col-span-3">
-                <label className="block text-gray-400 text-sm mb-1">Excel file</label>
+              <div className="md:col-span-4">
+                <label className="block text-gray-400 text-sm mb-2">Excel file</label>
                 <input
                   ref={importFileRef}
                   type="file"
                   accept=".xlsx"
-                  onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70 cursor-pointer"
+                  onChange={(event) => {
+                    const nextFile = event.target.files?.[0] ?? null;
+                    setImportFile(nextFile);
+                    setResolution(null);
+                    setOverrideCategory('');
+                    setOverrideCondition('');
+                  }}
+                  className="sr-only"
                 />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => importFileRef.current?.click()}
+                    className="inline-flex items-center justify-center bg-zinc-800 text-white px-4 py-2 border border-zinc-700 hover:border-zinc-500 transition cursor-pointer"
+                  >
+                    Choose file
+                  </button>
+                  <div className="text-xs text-gray-500 truncate">
+                    {importFile ? importFile.name : 'No file selected'}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1">Fallback Category</label>
-                <select
-                  value={importCategory}
-                  onChange={(event) => setImportCategory(event.target.value as Category)}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70"
-                >
-                  <option value="sneakers">Sneakers</option>
-                  <option value="clothing">Clothing</option>
-                  <option value="accessories">Accessories</option>
-                  <option value="electronics">Electronics</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500">Used only when a row has no category data.</p>
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-1">Fallback Condition</label>
-                <select
-                  value={importCondition}
-                  onChange={(event) => setImportCondition(event.target.value as Condition)}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70"
-                >
-                  <option value="new">New</option>
-                  <option value="used">Used</option>
-                </select>
-                <p className="mt-1 text-xs text-gray-500">Used only when a row has no condition clues.</p>
-              </div>
-              <label className="md:col-span-4 flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={importDryRun}
-                  onChange={(event) => setImportDryRun(event.target.checked)}
-                  className="rdk-checkbox"
-                />
-                Dry run (no changes will be saved)
-              </label>
               <div className="md:col-span-2 flex items-center justify-end">
                 <button
                   type="submit"
-                  disabled={isImporting}
+                  disabled={isImporting || (resolution && !resolutionReady)}
                   className="w-full md:w-auto bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 text-white font-semibold px-4 py-2 transition cursor-pointer"
                 >
-                  {isImporting ? 'Importing...' : 'Import Inventory'}
+                  {isImporting ? 'Importing...' : importButtonLabel}
                 </button>
               </div>
             </form>
+
+            {resolution && (
+              <div className="bg-zinc-950/60 border border-zinc-800/70 p-4 space-y-3 text-sm text-gray-300">
+                <div className="text-white font-semibold">Manual category/condition required</div>
+                <div className="text-xs text-gray-500">
+                  We could not determine required fields for some rows. Choose values to apply and continue.
+                </div>
+                {requiresCategoryOverride && (
+                  <div>
+                    <label className="block text-gray-400 text-xs mb-1">Category override</label>
+                    <select
+                      value={overrideCategory}
+                      onChange={(event) => setOverrideCategory(event.target.value as Category)}
+                      className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70 cursor-pointer"
+                    >
+                      <option value="">Select category</option>
+                      <option value="sneakers">Sneakers</option>
+                      <option value="clothing">Clothing</option>
+                      <option value="accessories">Accessories</option>
+                      <option value="electronics">Electronics</option>
+                    </select>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Missing on rows: {resolution.missingCategoryRows.slice(0, 6).join(', ')}
+                      {resolution.missingCategoryRows.length > 6 ? ' ...' : ''}
+                    </div>
+                  </div>
+                )}
+                {requiresConditionOverride && (
+                  <div>
+                    <label className="block text-gray-400 text-xs mb-1">Condition override</label>
+                    <select
+                      value={overrideCondition}
+                      onChange={(event) => setOverrideCondition(event.target.value as Condition)}
+                      className="w-full bg-zinc-800 text-white px-3 py-2 border border-zinc-800/70 cursor-pointer"
+                    >
+                      <option value="">Select condition</option>
+                      <option value="new">New</option>
+                      <option value="used">Used</option>
+                    </select>
+                    <div className="mt-1 text-xs text-gray-500">
+                      Missing on rows: {resolution.missingConditionRows.slice(0, 6).join(', ')}
+                      {resolution.missingConditionRows.length > 6 ? ' ...' : ''}
+                    </div>
+                  </div>
+                )}
+                {!resolutionReady && (
+                  <div className="text-xs text-gray-500">
+                    Select the missing values to continue the import.
+                  </div>
+                )}
+              </div>
+            )}
 
             {importError && (
               <div className="text-sm text-red-400">{importError}</div>
@@ -529,7 +645,7 @@ export default function InventoryPage() {
           <span className="text-white">{selectedIds.length} selected</span>
           <button
             onClick={handleMassDelete}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm transition"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm transition cursor-pointer"
           >
             <Trash2 className="w-4 h-4" />
             Delete Selected
@@ -542,7 +658,7 @@ export default function InventoryPage() {
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden">
+          <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded overflow-visible relative">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-zinc-800/70 bg-zinc-800">
@@ -628,7 +744,7 @@ export default function InventoryPage() {
                               <MoreVertical className="w-4 h-4" />
                             </button>
                             {openMenuId === product.id && (
-                              <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800/70 shadow-lg z-10">
+                              <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
                                 <Link
                                   href={`/admin/inventory/${product.id}/edit`}
                                   onClick={() => setOpenMenuId(null)}
@@ -708,7 +824,7 @@ export default function InventoryPage() {
                         <MoreVertical className="w-4 h-4" />
                       </button>
                       {openMenuId === product.id && (
-                        <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800/70 shadow-lg z-10">
+                        <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
                           <Link
                             href={`/admin/inventory/${product.id}/edit`}
                             onClick={() => setOpenMenuId(null)}
@@ -753,6 +869,14 @@ export default function InventoryPage() {
         confirmLabel="Delete"
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
+      />
+      <ConfirmDialog
+        isOpen={pendingMassDelete}
+        title="Delete selected products?"
+        description={`This will permanently remove ${selectedIds.length} products and their variants.`}
+        confirmLabel="Delete all"
+        onConfirm={confirmMassDelete}
+        onCancel={() => setPendingMassDelete(false)}
       />
       <Toast
         open={Boolean(toast)}

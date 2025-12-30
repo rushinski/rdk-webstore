@@ -34,6 +34,7 @@ export class CatalogRepository {
     let query = this.supabase.from("catalog_brand_groups").select("*");
     if (!includeInactive) query = query.eq("is_active", true);
     query = this.withTenantScope(query, tenantId);
+    query = query.order("label", { ascending: true });
     const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
@@ -69,6 +70,7 @@ export class CatalogRepository {
     if (!includeInactive) query = query.eq("is_active", true);
     if (groupId) query = query.eq("group_id", groupId);
     query = this.withTenantScope(query, tenantId);
+    query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
@@ -83,6 +85,7 @@ export class CatalogRepository {
       .select("*, group:catalog_brand_groups(id, key, label)");
     if (!includeInactive) query = query.eq("is_active", true);
     query = this.withTenantScope(query, tenantId);
+    query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
@@ -128,6 +131,7 @@ export class CatalogRepository {
     if (!includeInactive) query = query.eq("is_active", true);
     if (brandId) query = query.eq("brand_id", brandId);
     query = this.withTenantScope(query, tenantId);
+    query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
     if (error) throw error;
     return data ?? [];
@@ -144,6 +148,7 @@ export class CatalogRepository {
     if (!includeInactive) query = query.eq("is_active", true);
     if (brandId) query = query.eq("brand_id", brandId);
     query = this.withTenantScope(query, tenantId);
+    query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
     if (error) throw error;
     return data ?? [];

@@ -2,8 +2,9 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { FilterPanel } from '@/components/store/FilterPanel';
 import { ProductGrid } from '@/components/store/ProductGrid';
 import type { ProductWithDetails } from "@/types/views/product";
@@ -29,6 +30,59 @@ export default function StorePage() {
   const selectedClothingSizes = searchParams.getAll('sizeClothing');
   const selectedConditions = searchParams.getAll('condition');
   const query = searchParams.get('q') || '';
+  const breadcrumbItems = useMemo(() => {
+    const formatLabel = (value: string) =>
+      value
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (match) => match.toUpperCase());
+
+    const items: Array<{ label: string; href?: string }> = [
+      { label: 'Home', href: '/' },
+      { label: 'Shop', href: '/store' },
+    ];
+
+    if (query) {
+      items.push({ label: `Search: ${query}` });
+      return items;
+    }
+
+    if (selectedCategories.length === 1) {
+      items.push({ label: formatLabel(selectedCategories[0]) });
+      return items;
+    }
+
+    if (selectedBrands.length === 1) {
+      items.push({ label: selectedBrands[0] });
+      return items;
+    }
+
+    if (selectedModels.length === 1) {
+      items.push({ label: selectedModels[0] });
+      return items;
+    }
+
+    const hasFilters =
+      selectedCategories.length > 0 ||
+      selectedBrands.length > 0 ||
+      selectedModels.length > 0 ||
+      selectedShoeSizes.length > 0 ||
+      selectedClothingSizes.length > 0 ||
+      selectedConditions.length > 0;
+
+    if (hasFilters) {
+      items.push({ label: 'Filtered' });
+    }
+
+    return items;
+  }, [
+    query,
+    selectedBrands,
+    selectedCategories,
+    selectedClothingSizes,
+    selectedConditions,
+    selectedModels,
+    selectedShoeSizes,
+  ]);
 
   useEffect(() => {
     loadProducts();
@@ -103,6 +157,23 @@ export default function StorePage() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
+        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">
+          {breadcrumbItems.map((item, index) => {
+            const isLast = index === breadcrumbItems.length - 1;
+            return (
+              <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+                {item.href && !isLast ? (
+                  <Link href={item.href} className="hover:text-white transition-colors">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? 'text-zinc-300' : ''}>{item.label}</span>
+                )}
+                {!isLast && <span className="text-zinc-700">/</span>}
+              </div>
+            );
+          })}
+        </div>
         <h1 className="text-4xl font-bold text-white mb-2">
           {query ? `Search: "${query}"` : 'Shop All'}
         </h1>

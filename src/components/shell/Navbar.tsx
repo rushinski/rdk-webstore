@@ -1,7 +1,7 @@
 // src/components/shell/Navbar.tsx
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -36,9 +36,18 @@ interface NavbarProps {
   cartCount?: number;
 }
 
-function buildStoreHref(params: Record<string, string>) {
-  const sp = new URLSearchParams(params);
-  return `/store?${sp.toString()}`;
+function buildStoreHref(params: Record<string, string | string[]>) {
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.filter(Boolean).forEach((entry) => sp.append(key, entry));
+      return;
+    }
+    if (value === undefined || value === null || value === '') return;
+    sp.set(key, value);
+  });
+  const query = sp.toString();
+  return query ? `/store?${query}` : '/store';
 }
 
 function MenuShell({
@@ -52,7 +61,7 @@ function MenuShell({
     <div
       className={`absolute top-full ${
         align === 'left' ? 'left-0' : 'right-0'
-      } pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0`}
+      } pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0`}
       role="menu"
     >
       <div className="min-w-[500px] max-w-[calc(100vw-2rem)] border border-zinc-800 bg-black shadow-2xl">
@@ -106,8 +115,6 @@ export function Navbar({
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
   const [designerBrands, setDesignerBrands] = useState<string[]>([]);
@@ -130,6 +137,10 @@ export function Navbar({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    setLocalCartCount(cartCount);
+  }, [cartCount]);
 
   useEffect(() => {
     let isActive = true;
@@ -206,22 +217,6 @@ export function Navbar({
     loadDesignerBrands();
   }, []);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setIsProfileOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    if (!(clientIsAuthenticated ?? isAuthenticated)) {
-      setIsProfileOpen(false);
-    }
-  }, [clientIsAuthenticated, isAuthenticated]);
-
   // Scroll lock when mobile menu is open
   useEffect(() => {
     if (!isMobileMenuOpen) return;
@@ -249,47 +244,58 @@ export function Navbar({
       { key: 'new_balance', label: 'New Balance' },
       { key: 'asics', label: 'ASICS' },
       { key: 'yeezy', label: 'Yeezy' },
-      { key: 'designer', label: 'Designer' },
     ],
     []
   );
 
   const resolvedBrandGroups = brandGroups.length > 0 ? brandGroups : fallbackGroups;
+  const visibleBrandGroups = resolvedBrandGroups.filter((group) => group.key !== 'designer');
+  const designerHref = useMemo(
+    () => buildStoreHref({ brand: designerBrands }),
+    [designerBrands]
+  );
+  const shopIconClass = "w-5 h-5 text-zinc-400 transition-colors group-hover:text-white";
 
   const shopItems = useMemo(
     () => [
       {
         href: '/store',
-        icon: <ShoppingBag className="w-5 h-5 text-white" />,
+        icon: <ShoppingBag className={shopIconClass} />,
         label: 'Shop All',
         description: 'Browse everything in stock',
       },
       {
+        href: designerHref,
+        icon: <Tag className={shopIconClass} />,
+        label: 'Designer',
+        description: 'Luxury pairs from every designer brand',
+      },
+      {
         href: buildStoreHref({ category: 'sneakers' }),
-        icon: <Tag className="w-5 h-5 text-white" />,
+        icon: <Tag className={shopIconClass} />,
         label: 'Sneakers',
         description: 'Authentic pairs, ready to ship',
       },
       {
         href: buildStoreHref({ category: 'clothing' }),
-        icon: <Shirt className="w-5 h-5 text-white" />,
+        icon: <Shirt className={shopIconClass} />,
         label: 'Clothing',
         description: 'Streetwear essentials & heat',
       },
       {
         href: buildStoreHref({ category: 'accessories' }),
-        icon: <Watch className="w-5 h-5 text-white" />,
+        icon: <Watch className={shopIconClass} />,
         label: 'Accessories',
         description: 'Add-ons, extras, rare finds',
       },
       {
         href: buildStoreHref({ category: 'electronics' }),
-        icon: <Laptop className="w-5 h-5 text-white" />,
+        icon: <Laptop className={shopIconClass} />,
         label: 'Electronics',
         description: 'Tech & collectibles',
       },
     ],
-    []
+    [designerHref, shopIconClass]
   );
 
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
@@ -380,36 +386,16 @@ export function Navbar({
 
             {mobileSection === 'brands' && (
               <div className="border-b border-zinc-900 py-2">
-                {resolvedBrandGroups.map((group) => {
-                  if (group.key === 'designer') {
-                    return (
-                      <div key={group.key} className="py-2">
-                        <div className="px-4 pl-11 text-xs uppercase text-zinc-500 mb-2">{group.label}</div>
-                        {designerBrands.map((brand) => (
-                          <Link
-                            key={brand}
-                            href={buildStoreHref({ category: 'sneakers', brand })}
-                            onClick={closeMobileMenu}
-                            className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
-                          >
-                            {brand}
-                          </Link>
-                        ))}
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={group.key}
-                      href={buildStoreHref({ category: 'sneakers', brand: group.label })}
-                      onClick={closeMobileMenu}
-                      className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
-                    >
-                      {group.label}
-                    </Link>
-                  );
-                })}
+                {visibleBrandGroups.map((group) => (
+                  <Link
+                    key={group.key}
+                    href={buildStoreHref({ category: 'sneakers', brand: group.label })}
+                    onClick={closeMobileMenu}
+                    className="flex items-center px-4 py-3 pl-11 text-sm text-gray-400 hover:text-white hover:bg-zinc-900 transition-colors"
+                  >
+                    {group.label}
+                  </Link>
+                ))}
               </div>
             )}
 
@@ -550,36 +536,15 @@ export function Navbar({
 
                 <div className="p-6">
                   <div className="grid grid-cols-2 gap-4">
-                    {resolvedBrandGroups.map((group) => {
-                      if (group.key === 'designer') {
-                        return (
-                          <div key={group.key} className="col-span-2">
-                            <div className="text-xs uppercase text-zinc-500 mb-2">{group.label}</div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {designerBrands.map((brand) => (
-                                <Link
-                                  key={brand}
-                                  href={buildStoreHref({ category: 'sneakers', brand })}
-                                  className="px-3 py-2 text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
-                                >
-                                  {brand}
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <Link
-                          key={group.key}
-                          href={buildStoreHref({ category: 'sneakers', brand: group.label })}
-                          className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
-                        >
-                          {group.label}
-                        </Link>
-                      );
-                    })}
+                    {visibleBrandGroups.map((group) => (
+                      <Link
+                        key={group.key}
+                        href={buildStoreHref({ category: 'sneakers', brand: group.label })}
+                        className="px-4 py-3 text-sm font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
+                      >
+                        {group.label}
+                      </Link>
+                    ))}
                   </div>
                 </div>
               </MenuShell>
@@ -691,25 +656,25 @@ export function Navbar({
           >
             <ShoppingCart className="w-5 h-5" />
             {localCartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+              <span className="absolute -top-2 -right-1 text-[10px] font-semibold text-red-500">
                 {localCartCount}
               </span>
             )}
           </button>
 
           {effectiveIsAuthenticated ? (
-            <div ref={profileRef} className="relative">
+            <div className="relative group">
               <button
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                type="button"
                 className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
               >
                 <User className="w-5 h-5" />
                 <ChevronDown className="w-3 h-3" />
               </button>
 
-              {isProfileOpen && (
+              <div className="absolute right-0 pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0">
                 <div
-                  className="absolute right-0 mt-3 w-64 border border-zinc-800 bg-black shadow-2xl z-50"
+                  className="w-64 border border-zinc-800 bg-black shadow-2xl"
                   onClick={(event) => event.stopPropagation()}
                 >
                   {effectiveUserEmail && (
@@ -720,7 +685,6 @@ export function Navbar({
 
                   <Link
                     href="/account"
-                    onClick={() => setIsProfileOpen(false)}
                     className="flex items-center gap-2 px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm transition-colors cursor-pointer"
                   >
                     <Settings className="w-4 h-4" />
@@ -735,7 +699,7 @@ export function Navbar({
                     Logout
                   </button>
                 </div>
-              )}
+              </div>
             </div>
           ) : showAuthButtons ? (
             <div className="flex items-center gap-2">

@@ -64,12 +64,9 @@ export class StorefrontService {
       }
     }
 
-    const brands = Array.from(brandMap.values()).sort((a, b) => {
-      if (a.isVerified !== b.isVerified) {
-        return a.isVerified ? -1 : 1;
-      }
-      return a.label.localeCompare(b.label);
-    });
+    const brands = Array.from(brandMap.values()).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
 
     for (const brand of Object.keys(modelsByBrand)) {
       modelsByBrand[brand] = modelsByBrand[brand].sort((a, b) =>

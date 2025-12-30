@@ -6,9 +6,9 @@ import { X } from 'lucide-react';
 type ToastTone = 'success' | 'error' | 'info';
 
 const toneStyles: Record<ToastTone, string> = {
-  success: 'border-green-500 text-green-200',
-  error: 'border-red-500 text-red-200',
-  info: 'border-zinc-700 text-gray-200',
+  success: 'border-l-4 border-l-green-500',
+  error: 'border-l-4 border-l-red-500',
+  info: 'border-l-4 border-l-zinc-600',
 };
 
 interface ToastProps {
@@ -35,10 +35,10 @@ export function Toast({
   if (!open) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 max-w-sm">
-      <div className={`bg-zinc-900 border ${toneStyles[tone]} px-4 py-3 shadow-lg`}>
+    <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 max-w-sm sm:max-w-xs">
+      <div className={`bg-zinc-900 border border-zinc-800 ${toneStyles[tone]} px-4 py-3 shadow-lg`}>
         <div className="flex items-start gap-3">
-          <div className="text-sm leading-snug">{message}</div>
+          <div className="text-sm leading-snug text-gray-100">{message}</div>
           <button
             type="button"
             onClick={onClose}
