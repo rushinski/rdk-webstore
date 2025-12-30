@@ -147,13 +147,13 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-4 text-sm">Support</h4>
             <ul className="space-y-2 mb-6">
               <li>
-                <Link href="/about" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  About
+                <Link href="/contact" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Contact
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Contact
+                <Link href="/hours" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Hours
                 </Link>
               </li>
               <li>

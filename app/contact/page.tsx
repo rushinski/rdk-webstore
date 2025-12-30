@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Mail, MapPin } from 'lucide-react';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -56,7 +56,7 @@ export default function ContactPage() {
                 required
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-red-600"
+                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
               />
             </div>
 
@@ -70,7 +70,7 @@ export default function ContactPage() {
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-red-600"
+                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
               />
             </div>
 
@@ -84,7 +84,7 @@ export default function ContactPage() {
                 required
                 value={formData.subject}
                 onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-red-600"
+                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
               />
             </div>
 
@@ -98,7 +98,7 @@ export default function ContactPage() {
                 rows={6}
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 text-white focus:outline-none focus:border-red-600"
+                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
               />
             </div>
 
@@ -126,12 +126,12 @@ export default function ContactPage() {
 
         {/* Contact Info */}
         <div>
-          <div className="bg-zinc-900 border border-zinc-800 p-8 mb-6">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-8 mb-6">
             <h2 className="text-2xl font-bold text-white mb-6">Get in Touch</h2>
             
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 flex items-center justify-center bg-red-600/10 border border-red-600/40">
+                <div className="w-10 h-10 flex items-center justify-center bg-zinc-900 border border-zinc-800">
                   <Mail className="w-5 h-5 text-red-500" />
                 </div>
                 <div>
@@ -141,7 +141,7 @@ export default function ContactPage() {
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 flex items-center justify-center bg-red-600/10 border border-red-600/40">
+                <div className="w-10 h-10 flex items-center justify-center bg-zinc-900 border border-zinc-800">
                   <MapPin className="w-5 h-5 text-red-500" />
                 </div>
                 <div>
@@ -155,20 +155,36 @@ export default function ContactPage() {
             </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 p-8">
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-8">
             <h3 className="font-semibold text-white mb-4">Business Hours</h3>
             <div className="space-y-2 text-zinc-400">
               <div className="flex justify-between">
-                <span>Monday - Friday</span>
-                <span>9:00 AM - 6:00 PM EST</span>
+                <span>Monday</span>
+                <span>11:00 AM - 8:00 PM</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tuesday</span>
+                <span>11:00 AM - 8:00 PM</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Wednesday</span>
+                <span>11:00 AM - 8:00 PM</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Thursday</span>
+                <span>11:00 AM - 8:00 PM</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Friday</span>
+                <span>11:00 AM - 8:00 PM</span>
               </div>
               <div className="flex justify-between">
                 <span>Saturday</span>
-                <span>10:00 AM - 4:00 PM EST</span>
+                <span>11:00 AM - 8:00 PM</span>
               </div>
               <div className="flex justify-between">
                 <span>Sunday</span>
-                <span>Closed</span>
+                <span>1:00 PM - 6:00 PM</span>
               </div>
             </div>
           </div>

@@ -3,26 +3,10 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 const categories = [
-  {
-    slug: 'sneakers',
-    label: 'Sneakers',
-    image: '/images/home/sneakers.png',
-  },
-  {
-    slug: 'clothing',
-    label: 'Clothing',
-    image: '/images/home/clothing.png',
-  },
-  {
-    slug: 'accessories',
-    label: 'Accessories',
-    image: '/images/home/accessories.png',
-  },
-  {
-    slug: 'electronics',
-    label: 'Electronics',
-    image: '/images/home/electronics.png',
-  },
+  { slug: "sneakers", label: "Sneakers", image: "/images/home/sneakers.png" },
+  { slug: "clothing", label: "Clothing", image: "/images/home/clothing.png" },
+  { slug: "accessories", label: "Accessories", image: "/images/home/accessories.png" },
+  { slug: "electronics", label: "Electronics", image: "/images/home/electronics.png" },
 ];
 
 export default async function HomePage() {
@@ -30,8 +14,27 @@ export default async function HomePage() {
     <div className="relative">
       {/* Hero Section */}
       <div className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-black via-zinc-900 to-black overflow-hidden">
-        {/* Subtle noise texture */}
-        <div className="absolute inset-0 opacity-20">
+        {/* #4 Spotlight (soft radial glow behind headline) */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(60% 45% at 50% 40%, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.05) 25%, rgba(0,0,0,0) 60%)",
+            }}
+          />
+          {/* optional subtle edge vignette to keep focus centered */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(90% 70% at 50% 50%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.35) 70%, rgba(0,0,0,0.65) 100%)",
+            }}
+          />
+        </div>
+
+        {/* #1 Grain / noise overlay */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.10]">
           <div className="absolute inset-0 noise-overlay" />
         </div>
 
@@ -90,21 +93,25 @@ export default async function HomePage() {
       <div className="bg-zinc-900 border-t border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-16">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Link 
-              href="/about"
+            <Link
+              href="/hours"
               className="group p-8 bg-black border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
             >
-              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">About Us</h3>
+              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">
+                Hours &amp; Pickups
+              </h3>
               <p className="text-gray-400">
-                Learn about Realdealkickzsc and our commitment to authenticity and quality.
+                View our pickup hours, local meetup details, and how to reach us.
               </p>
             </Link>
 
-            <Link 
+            <Link
               href="/contact"
               className="group p-8 bg-black border border-zinc-800 hover:border-red-600 transition-colors cursor-pointer"
             >
-              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">Contact Us</h3>
+              <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-red-500 transition-colors">
+                Contact Us
+              </h3>
               <p className="text-gray-400">
                 Have questions? Get in touch with our team for support and inquiries.
               </p>

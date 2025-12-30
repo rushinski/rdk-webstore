@@ -5,6 +5,7 @@ import type { Tables, TablesInsert } from "@/types/database.types";
 
 type OrderShippingInsert = TablesInsert<"order_shipping">;
 type OrderShippingRow = Tables<"order_shipping">;
+type UserAddressRow = Tables<"user_addresses">;
 type UserAddressInsert = TablesInsert<"user_addresses">;
 
 export interface AddressInput {
@@ -85,6 +86,27 @@ export class AddressesRepository {
 
       if (error) throw error;
     }
+  }
+
+  async listUserAddresses(userId: string): Promise<UserAddressRow[]> {
+    const { data, error } = await this.supabase
+      .from("user_addresses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  async deleteUserAddress(userId: string, addressId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("user_addresses")
+      .delete()
+      .eq("user_id", userId)
+      .eq("id", addressId);
+
+    if (error) throw error;
   }
 
   async getOrderShipping(orderId: string): Promise<OrderShippingRow | null> {

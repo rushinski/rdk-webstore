@@ -15,10 +15,24 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [orders, setOrders] = useState<any[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [isAddressesLoading, setIsAddressesLoading] = useState(false);
+  const [isAddressSaving, setIsAddressSaving] = useState(false);
+  const [addressForm, setAddressForm] = useState({
+    name: '',
+    phone: '',
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+  });
 
   useEffect(() => {
     loadProfile();
     loadOrders();
+    loadAddresses();
   }, []);
 
   const loadProfile = async () => {
@@ -97,6 +111,95 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const loadAddresses = async () => {
+    setIsAddressesLoading(true);
+    try {
+      const response = await fetch('/api/account/addresses');
+      const data = await response.json();
+      setAddresses(data.addresses || []);
+    } catch (error) {
+      logError(error, { layer: "frontend", event: "account_load_addresses" });
+    } finally {
+      setIsAddressesLoading(false);
+    }
+  };
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddressSaving(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/account/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addressForm),
+      });
+
+      if (!response.ok) {
+        setMessage('Failed to save address');
+        return;
+      }
+
+      const data = await response.json();
+      setAddresses(data.addresses || []);
+      setAddressForm({
+        name: '',
+        phone: '',
+        line1: '',
+        line2: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: '',
+      });
+      setMessage('Address saved successfully!');
+    } catch (error) {
+      setMessage('Error saving address');
+    } finally {
+      setIsAddressSaving(false);
+    }
+  };
+
+  const handleDeleteAddress = async (addressId: string) => {
+    setMessage('');
+    try {
+      const response = await fetch(`/api/account/addresses/${addressId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        setMessage('Failed to remove address');
+        return;
+      }
+
+      setAddresses((prev) => prev.filter((address) => address.id !== addressId));
+    } catch (error) {
+      setMessage('Error removing address');
+    }
+  };
+
+  const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null) => {
+    if (!trackingNumber) return null;
+    const normalized = (carrier ?? '').toLowerCase();
+    const encodedTracking = encodeURIComponent(trackingNumber);
+
+    if (normalized.includes('ups')) {
+      return `https://www.ups.com/track?loc=en_US&tracknum=${encodedTracking}`;
+    }
+    if (normalized.includes('usps')) {
+      return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodedTracking}`;
+    }
+    if (normalized.includes('fedex') || normalized.includes('fed ex')) {
+      return `https://www.fedex.com/fedextrack/?trknbr=${encodedTracking}`;
+    }
+    if (normalized.includes('dhl')) {
+      return `https://www.dhl.com/us-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encodedTracking}`;
+    }
+
+    return null;
   };
 
   const handleLogout = async () => {
@@ -228,6 +331,145 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         </form>
       </div>
 
+      {/* Saved Addresses */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 className="text-xl font-semibold text-white">Saved Addresses</h2>
+          <span className="text-xs text-zinc-500">Save multiple addresses for faster checkout.</span>
+        </div>
+
+        {isAddressesLoading ? (
+          <div className="text-gray-400 mb-6">Loading addresses...</div>
+        ) : addresses.length === 0 ? (
+          <div className="text-gray-400 mb-6">No saved addresses yet.</div>
+        ) : (
+          <div className="space-y-3 mb-6">
+            {addresses.map((address) => (
+              <div key={address.id} className="border border-zinc-800/70 rounded p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="text-sm text-zinc-300">
+                    <div className="text-white font-semibold">{address.name || 'Saved Address'}</div>
+                    <div>{address.line1}</div>
+                    {address.line2 && <div>{address.line2}</div>}
+                    <div>
+                      {address.city}, {address.state} {address.postal_code}
+                    </div>
+                    <div>{address.country}</div>
+                    {address.phone && <div className="text-zinc-500">{address.phone}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAddress(address.id)}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <form onSubmit={handleSaveAddress} className="space-y-4">
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Full Name</label>
+            <input
+              type="text"
+              value={addressForm.name}
+              onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Phone</label>
+            <input
+              type="tel"
+              value={addressForm.phone}
+              onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Address Line 1</label>
+            <input
+              type="text"
+              required
+              value={addressForm.line1}
+              onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-gray-400 text-sm mb-1">Address Line 2</label>
+            <input
+              type="text"
+              value={addressForm.line2}
+              onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">City</label>
+              <input
+                type="text"
+                required
+                value={addressForm.city}
+                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">State</label>
+              <input
+                type="text"
+                required
+                value={addressForm.state}
+                onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">Postal Code</label>
+              <input
+                type="text"
+                required
+                value={addressForm.postal_code}
+                onChange={(e) => setAddressForm({ ...addressForm, postal_code: e.target.value })}
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">Country</label>
+              <input
+                type="text"
+                required
+                value={addressForm.country}
+                onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isAddressSaving}
+            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
+          >
+            {isAddressSaving ? 'Saving...' : 'Add Address'}
+          </button>
+        </form>
+      </div>
+
       {/* Order History */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <h2 className="text-xl font-semibold text-white mb-4">Order History</h2>
@@ -237,7 +479,11 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           <div className="text-gray-400">No orders yet.</div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
+            {orders.map((order) => {
+              const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number);
+              const showTracking = order.fulfillment === 'ship' && order.tracking_number;
+
+              return (
               <div key={order.id} className="border border-zinc-800/70 rounded p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="text-white font-semibold">Order #{order.id.slice(0, 8)}</div>
@@ -261,8 +507,26 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     </div>
                   ))}
                 </div>
+                {showTracking && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <div className="text-zinc-400">
+                      Tracking: {order.shipping_carrier ? `${order.shipping_carrier} ` : ""}
+                      <span className="text-zinc-200">{order.tracking_number}</span>
+                    </div>
+                    {trackingUrl ? (
+                      <a
+                        href={trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-400 hover:underline"
+                      >
+                        Track shipment
+                      </a>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            ))}
+            )})}
           </div>
         )}
       </div>

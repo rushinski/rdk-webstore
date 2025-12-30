@@ -96,6 +96,7 @@ export const security = {
           "object-src 'none'",       // No Flash/Java applets
           "base-uri 'self'",         // Prevent <base> tag attacks
           "frame-ancestors 'none'",  // Clickjacking protection
+          "frame-src 'self' https://www.openstreetmap.org https://*.openstreetmap.org",
         ],
 
         /**
@@ -110,7 +111,7 @@ export const security = {
           "base-uri 'self'",
           "connect-src 'self' https:",         // API calls to Supabase, Stripe, etc.
           "frame-ancestors 'none'",
-          "frame-src https://js.stripe.com https://*.stripe.com",  // Stripe checkout iframe
+          "frame-src https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",  // Stripe checkout iframe
           "form-action 'self' https://*.stripe.com",               // Allow forms to Stripe
         ],
       },
