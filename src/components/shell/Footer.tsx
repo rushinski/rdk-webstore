@@ -91,25 +91,19 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
                 <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <a href="mailto:info@realdealkickzsc.com" className="hover:text-white transition-colors">
-                  info@realdealkickzsc.com
+                <a href="mailto:realdealholyspill@gmail.com" className="hover:text-white transition-colors">
+                  realdealholyspill@gmail.com
                 </a>
               </li>
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
                 <Instagram className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <a
-                  href="https://instagram.com/realdealkickzsc"
+                  href="https://instagram.com/realdealkickzllc"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
-                  @realdealkickzsc
-                </a>
-              </li>
-              <li className="flex items-start gap-2 text-zinc-500 text-sm">
-                <Phone className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <a href="tel:+18035551234" className="hover:text-white transition-colors">
-                  (803) 555-1234
+                  @realdealkickzllc
                 </a>
               </li>
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
@@ -163,13 +157,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/refunds" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Refunds &amp; Returns
+                <Link href="/shipping" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Shipping
                 </Link>
               </li>
               <li>
-                <Link href="/shipping" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Shipping
+                <Link href="/refunds" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Refunds &amp; Returns
                 </Link>
               </li>
             </ul>

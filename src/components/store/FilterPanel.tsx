@@ -206,8 +206,8 @@ export function FilterPanel({
                 <X className="w-3 h-3 cursor-pointer" onClick={() => handleCategoryChange(cat)} />
               </span>
             ))}
-            {selectedBrands.map(brand => (
-              <span key={brand} className="inline-flex items-center gap-1 bg-red-900/30 text-white text-xs px-2 py-1 rounded">
+            {selectedBrands.map((brand, index) => (
+              <span key={`${brand}-${index}`} className="inline-flex items-center gap-1 bg-red-900/30 text-white text-xs px-2 py-1 rounded">
                 {brandLabelMap.get(brand) ?? brand}
                 <X className="w-3 h-3 cursor-pointer" onClick={() => handleBrandChange(brand)} />
               </span>
