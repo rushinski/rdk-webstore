@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmailSubscriptionService } from "@/services/email-subscription-service";
 import { emailSubscribeSchema } from "@/lib/validation/email";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -29,10 +30,72 @@ export async function POST(req: NextRequest) {
     const supabase = createSupabaseAdminClient();
     const service = new EmailSubscriptionService(supabase);
 
+    const sessionSupabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await sessionSupabase.auth.getUser();
+    const normalizedEmail = parsed.data.email.trim().toLowerCase();
+    const userEmail = user?.email?.trim().toLowerCase();
+    const signedInMatch = Boolean(userEmail && userEmail === normalizedEmail);
+
+    if (signedInMatch) {
+      const status = await service.subscribeDirect(
+        normalizedEmail,
+        parsed.data.source ?? "website"
+      );
+
+      if (status === "subscribed") {
+        const contentHtml = `
+          <tr>
+            <td style="padding:0 24px 10px;text-align:center;">
+              <div style="${emailStyles.eyebrow}">Subscription confirmed</div>
+              <h1 style="${emailStyles.heading}">Thanks for signing up</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px;text-align:center;">
+              <p style="${emailStyles.copy}">You're all set to receive updates from Realdealkickzsc.</p>
+            </td>
+          </tr>
+        `;
+        const html = renderEmailLayout({
+          title: "Subscription confirmed",
+          preheader: "You're subscribed to Realdealkickzsc updates.",
+          contentHtml,
+        });
+
+        const text = `Subscription confirmed
+Thanks for signing up for Realdealkickzsc updates.
+${emailFooterText()}
+`;
+
+        try {
+          await sendEmail({
+            to: normalizedEmail,
+            subject: "Thanks for subscribing to Realdealkickzsc",
+            html,
+            text,
+          });
+        } catch (emailError) {
+          logError(emailError, {
+            layer: "api",
+            requestId,
+            route: "/api/email/subscribe",
+            message: "email_subscription_thankyou_failed",
+          });
+        }
+      }
+
+      return NextResponse.json(
+        { ok: true },
+        { headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     const status = await service.requestConfirmation(
-      parsed.data.email,
+      normalizedEmail,
       parsed.data.source ?? "website",
       token,
       expiresAt
@@ -56,6 +119,7 @@ export async function POST(req: NextRequest) {
           <td style="padding:0 24px 24px;text-align:center;">
             <a href="${confirmUrl}" style="${emailStyles.button}">Confirm subscription</a>
             <p style="margin:14px 0 0;${emailStyles.subcopy}">This link expires in 24 hours.</p>
+            <p style="margin:6px 0 0;${emailStyles.subcopy}">If you didn't request this email, you can safely ignore it.</p>
           </td>
         </tr>
       `;
@@ -68,6 +132,7 @@ export async function POST(req: NextRequest) {
       const text = `Confirm your Realdealkickzsc subscription
 Confirm here: ${confirmUrl}
 This link expires in 24 hours.
+If you didn't request this email, you can safely ignore it.
 ${emailFooterText()}
 `;
 

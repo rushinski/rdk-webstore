@@ -2,10 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import type { ShippingProfile } from '@/types/views/shipping'; 
 import { logError } from '@/lib/log';
 import { PasswordRequirements } from '@/components/auth/register/PasswordRequirements';
 import { isPasswordValid } from '@/lib/validation/password';
+import { Toast } from '@/components/ui/Toast';
 
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
@@ -13,6 +15,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [message, setMessage] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newPasswordVisible, setNewPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -192,9 +197,11 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       if (!response.ok) {
         setMessage(`Failed to change password: ${data?.error ?? 'Unknown error'}`);
       } else {
-        setMessage('Password changed successfully!');
+        setToast({ message: 'Password changed successfully!', tone: 'success' });
         setNewPassword('');
         setConfirmPassword('');
+        setNewPasswordVisible(false);
+        setConfirmPasswordVisible(false);
       }
     } catch (error) {
       setMessage('Error changing password');
@@ -614,24 +621,54 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
             <label className="block text-gray-400 text-sm mb-1">New Password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
+            <div className="relative">
+              <input
+                type={newPasswordVisible ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+              <button
+                type="button"
+                onClick={() => setNewPasswordVisible((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-label={newPasswordVisible ? 'Hide password' : 'Show password'}
+              >
+                {newPasswordVisible ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <PasswordRequirements password={newPassword} />
 
           <div>
             <label className="block text-gray-400 text-sm mb-1">Confirm Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
+            <div className="relative">
+              <input
+                type={confirmPasswordVisible ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+              <button
+                type="button"
+                onClick={() => setConfirmPasswordVisible((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                aria-label={confirmPasswordVisible ? 'Hide password' : 'Show password'}
+              >
+                {confirmPasswordVisible ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <button
@@ -658,6 +695,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           {isSigningOut ? 'Signing out...' : 'Logout'}
         </button>
       </div>
+      <Toast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'info'}
+        onClose={() => setToast(null)}
+      />
     </div>
   );
 }

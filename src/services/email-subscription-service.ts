@@ -32,6 +32,20 @@ export class EmailSubscriptionService {
     return "pending";
   }
 
+  async subscribeDirect(
+    email: string,
+    source: string | undefined
+  ): Promise<"already_subscribed" | "subscribed"> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const alreadySubscribed = await this.repo.isSubscribed(normalizedEmail);
+    if (alreadySubscribed) return "already_subscribed";
+
+    await this.tokenRepo.deleteByEmail(normalizedEmail);
+    await this.repo.subscribe(normalizedEmail, source ?? "website");
+
+    return "subscribed";
+  }
+
   async confirmToken(
     token: string
   ): Promise<
