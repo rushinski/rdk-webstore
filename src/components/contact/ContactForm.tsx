@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { security } from '@/config/security';
 
 type ContactFormSource = 'contact_form' | 'bug_report';
 
@@ -29,9 +30,12 @@ export function ContactForm({
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  const maxAttachments = 5;
-  const maxAttachmentSize = 5 * 1024 * 1024;
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const { attachments: attachmentConfig } = security.contact;
+  const maxAttachments = attachmentConfig.maxFiles;
+  const maxAttachmentSize = attachmentConfig.maxBytes;
+  const allowedTypes = attachmentConfig.allowedTypes;
+  const maxAttachmentSizeMb = Math.max(1, Math.round(maxAttachmentSize / (1024 * 1024)));
+  const allowedTypesSet = useMemo(() => new Set(allowedTypes), [allowedTypes]);
   const storageKey = source === 'bug_report' ? 'rdk_bug_report_draft' : 'rdk_contact_draft';
 
   const previews = useMemo(
@@ -86,6 +90,26 @@ export function ContactForm({
     };
   }, [previews]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const preserveKey = `${storageKey}:preserve`;
+
+    const handleBeforeUnload = () => {
+      sessionStorage.setItem(preserveKey, '1');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      const shouldPreserve = sessionStorage.getItem(preserveKey) === '1';
+      sessionStorage.removeItem(preserveKey);
+      if (!shouldPreserve) {
+        sessionStorage.removeItem(storageKey);
+      }
+    };
+  }, [storageKey]);
+
   const handleAttachments = (files: FileList | null) => {
     if (!files) return;
     const incoming = Array.from(files);
@@ -93,12 +117,12 @@ export function ContactForm({
     const errors: string[] = [];
 
     for (const file of incoming) {
-      if (!allowedTypes.includes(file.type)) {
+      if (!allowedTypesSet.has(file.type)) {
         errors.push(`"${file.name}" is not a supported image type.`);
         continue;
       }
       if (file.size > maxAttachmentSize) {
-        errors.push(`"${file.name}" is larger than 5MB.`);
+        errors.push(`"${file.name}" is larger than ${maxAttachmentSizeMb}MB.`);
         continue;
       }
       next.push(file);
@@ -176,10 +200,10 @@ export function ContactForm({
     }
   };
 
-  const attachmentsLabel = source === 'bug_report' ? 'Screenshots' : 'Photos';
+  const attachmentsLabel = source === 'bug_report' ? 'Screenshots (optional)' : 'Photos (optional)';
   const attachmentsHint = source === 'bug_report'
-    ? `PNG, JPG, or WEBP. Up to ${maxAttachments} screenshots, 5MB each.`
-    : `PNG, JPG, or WEBP. Up to ${maxAttachments} photos, 5MB each.`;
+    ? `PNG, JPG, or WEBP. Up to ${maxAttachments} screenshots, ${maxAttachmentSizeMb}MB each.`
+    : `PNG, JPG, or WEBP. Up to ${maxAttachments} photos, ${maxAttachmentSizeMb}MB each.`;
   const resolvedPlaceholder =
     messagePlaceholder ??
     (source === 'bug_report'
@@ -260,7 +284,7 @@ export function ContactForm({
           <input
             id="attachments"
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={allowedTypes.join(',')}
             multiple
             onChange={(e) => handleAttachments(e.target.files)}
             className="block w-full text-sm text-zinc-300 cursor-pointer file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:cursor-pointer hover:file:bg-red-700"
@@ -274,7 +298,7 @@ export function ContactForm({
                   <img
                     src={preview.url}
                     alt={preview.file.name}
-                    className="h-28 w-full object-cover rounded border border-zinc-800"
+                    className="h-24 w-full object-cover rounded border border-zinc-800"
                   />
                   <button
                     type="button"

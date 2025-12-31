@@ -17,6 +17,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
   const [isAddressSaving, setIsAddressSaving] = useState(false);
+  const [isDefaultSaving, setIsDefaultSaving] = useState(false);
+  const [setAsDefault, setSetAsDefault] = useState(false);
   const [addressForm, setAddressForm] = useState({
     name: '',
     phone: '',
@@ -57,27 +59,105 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     }
   };
 
-  const handleSaveShipping = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setMessage('');
+  const formatField = (value?: string | null) => (value ?? '').trim().toLowerCase();
+
+  const isDefaultAddress = (address: any) => {
+    if (!profile.address_line1) return false;
+    return (
+      formatField(profile.address_line1) === formatField(address.line1) &&
+      formatField(profile.address_line2) === formatField(address.line2) &&
+      formatField(profile.city) === formatField(address.city) &&
+      formatField(profile.state) === formatField(address.state) &&
+      formatField(profile.postal_code) === formatField(address.postal_code) &&
+      formatField(profile.country) === formatField(address.country)
+    );
+  };
+
+  const handleSetDefaultAddress = async (address: any, silent?: boolean) => {
+    setIsDefaultSaving(true);
+    if (!silent) {
+      setMessage('');
+    }
 
     try {
       const response = await fetch('/api/account/shipping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(profile),
+        body: JSON.stringify({
+          full_name: address.name ?? null,
+          phone: address.phone ?? null,
+          address_line1: address.line1 ?? null,
+          address_line2: address.line2 ?? null,
+          city: address.city ?? null,
+          state: address.state ?? null,
+          postal_code: address.postal_code ?? null,
+          country: address.country ?? null,
+        }),
       });
 
-      if (response.ok) {
-        setMessage('Shipping info saved successfully!');
-      } else {
-        setMessage('Failed to save shipping info');
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (!silent) {
+          setMessage(data?.error ?? 'Failed to set default shipping address');
+        }
+        return;
+      }
+
+      setProfile(data || {});
+      if (!silent) {
+        setMessage('Default shipping address updated successfully.');
       }
     } catch (error) {
-      setMessage('Error saving shipping info');
+      if (!silent) {
+        setMessage('Error updating default shipping address');
+      }
     } finally {
-      setIsLoading(false);
+      setIsDefaultSaving(false);
+    }
+  };
+
+  const handleClearDefaultShipping = async (silent?: boolean) => {
+    setIsDefaultSaving(true);
+    if (!silent) {
+      setMessage('');
+    }
+
+    try {
+      const response = await fetch('/api/account/shipping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: null,
+          phone: null,
+          address_line1: null,
+          address_line2: null,
+          city: null,
+          state: null,
+          postal_code: null,
+          country: null,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (!silent) {
+          setMessage(data?.error ?? 'Failed to clear default shipping address');
+        }
+        return;
+      }
+
+      setProfile(data || {});
+      if (!silent) {
+        setMessage('Default shipping address cleared successfully.');
+      }
+    } catch (error) {
+      if (!silent) {
+        setMessage('Error clearing default shipping address');
+      }
+    } finally {
+      setIsDefaultSaving(false);
     }
   };
 
@@ -132,6 +212,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     e.preventDefault();
     setIsAddressSaving(true);
     setMessage('');
+    const addressPayload = { ...addressForm };
 
     try {
       const response = await fetch('/api/account/addresses', {
@@ -157,7 +238,24 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         postal_code: '',
         country: '',
       });
-      setMessage('Address saved successfully!');
+      if (setAsDefault) {
+        await handleSetDefaultAddress({
+          name: addressPayload.name,
+          phone: addressPayload.phone,
+          line1: addressPayload.line1,
+          line2: addressPayload.line2,
+          city: addressPayload.city,
+          state: addressPayload.state,
+          postal_code: addressPayload.postal_code,
+          country: addressPayload.country,
+        }, true);
+      }
+      setSetAsDefault(false);
+      setMessage(
+        setAsDefault
+          ? 'Address saved successfully and set as default shipping.'
+          : 'Address saved successfully!'
+      );
     } catch (error) {
       setMessage('Error saving address');
     } finally {
@@ -167,6 +265,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
   const handleDeleteAddress = async (addressId: string) => {
     setMessage('');
+    const targetAddress = addresses.find((address) => address.id === addressId);
+    const wasDefault = targetAddress ? isDefaultAddress(targetAddress) : false;
     try {
       const response = await fetch(`/api/account/addresses/${addressId}`, {
         method: 'DELETE',
@@ -178,6 +278,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       }
 
       setAddresses((prev) => prev.filter((address) => address.id !== addressId));
+      if (wasDefault) {
+        await handleClearDefaultShipping(true);
+      }
     } catch (error) {
       setMessage('Error removing address');
     }
@@ -235,109 +338,45 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         <p className="text-gray-500 text-sm mt-2">Email changes are not currently supported</p>
       </div>
 
-      {/* Shipping Info */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Shipping Information</h2>
-        <form onSubmit={handleSaveShipping} className="space-y-4">
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Full Name</label>
-            <input
-              type="text"
-              value={profile.full_name || ''}
-              onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Phone</label>
-            <input
-              type="tel"
-              value={profile.phone || ''}
-              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Address Line 1</label>
-            <input
-              type="text"
-              value={profile.address_line1 || ''}
-              onChange={(e) => setProfile({ ...profile, address_line1: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Address Line 2</label>
-            <input
-              type="text"
-              value={profile.address_line2 || ''}
-              onChange={(e) => setProfile({ ...profile, address_line2: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">City</label>
-              <input
-                type="text"
-                value={profile.city || ''}
-                onChange={(e) => setProfile({ ...profile, city: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">State</label>
-              <input
-                type="text"
-                value={profile.state || ''}
-                onChange={(e) => setProfile({ ...profile, state: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">Postal Code</label>
-              <input
-                type="text"
-                value={profile.postal_code || ''}
-                onChange={(e) => setProfile({ ...profile, postal_code: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">Country</label>
-              <input
-                type="text"
-                value={profile.country || ''}
-                onChange={(e) => setProfile({ ...profile, country: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
-          >
-            {isLoading ? 'Saving...' : 'Save Shipping Info'}
-          </button>
-        </form>
-      </div>
-
       {/* Saved Addresses */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 className="text-xl font-semibold text-white">Saved Addresses</h2>
-          <span className="text-xs text-zinc-500">Save multiple addresses for faster checkout.</span>
+          <h2 className="text-xl font-semibold text-white">Shipping Addresses</h2>
+          <span className="text-xs text-zinc-500">Save multiple addresses and pick a default for checkout.</span>
+        </div>
+
+        <div className="border border-zinc-800/70 rounded p-4 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Default shipping address</div>
+              {profile.address_line1 ? (
+                <div className="text-sm text-zinc-300 mt-2 space-y-1">
+                  {profile.full_name && <div className="text-white font-semibold">{profile.full_name}</div>}
+                  <div>{profile.address_line1}</div>
+                  {profile.address_line2 && <div>{profile.address_line2}</div>}
+                  <div>
+                    {profile.city}, {profile.state} {profile.postal_code}
+                  </div>
+                  <div>{profile.country}</div>
+                  {profile.phone && <div className="text-zinc-500">{profile.phone}</div>}
+                </div>
+              ) : (
+                <div className="text-sm text-zinc-500 mt-2">
+                  No default shipping address yet. Choose one below.
+                </div>
+              )}
+            </div>
+            {profile.address_line1 && (
+              <button
+                type="button"
+                onClick={() => handleClearDefaultShipping()}
+                disabled={isDefaultSaving}
+                className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
+              >
+                {isDefaultSaving ? 'Updating...' : 'Clear default'}
+              </button>
+            )}
+          </div>
         </div>
 
         {isAddressesLoading ? (
@@ -350,7 +389,14 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               <div key={address.id} className="border border-zinc-800/70 rounded p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="text-sm text-zinc-300">
-                    <div className="text-white font-semibold">{address.name || 'Saved Address'}</div>
+                    <div className="flex items-center gap-2 text-white font-semibold">
+                      <span>{address.name || 'Saved Address'}</span>
+                      {isDefaultAddress(address) && (
+                        <span className="text-[10px] uppercase tracking-[0.2em] text-red-400">
+                          Default
+                        </span>
+                      )}
+                    </div>
                     <div>{address.line1}</div>
                     {address.line2 && <div>{address.line2}</div>}
                     <div>
@@ -367,6 +413,16 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     Remove
                   </button>
                 </div>
+                {!isDefaultAddress(address) && (
+                  <button
+                    type="button"
+                    onClick={() => handleSetDefaultAddress(address)}
+                    disabled={isDefaultSaving}
+                    className="mt-3 text-xs text-zinc-300 hover:text-white transition-colors disabled:opacity-60"
+                  >
+                    {isDefaultSaving ? 'Updating...' : 'Set as default shipping'}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -461,6 +517,16 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               />
             </div>
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-zinc-400">
+            <input
+              type="checkbox"
+              checked={setAsDefault}
+              onChange={(e) => setSetAsDefault(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
+            />
+            Set as default shipping address
+          </label>
 
           <button
             type="submit"

@@ -8,7 +8,7 @@ export default function BugReportPage() {
         <h1 className="text-4xl font-bold text-white mb-4">Report a bug</h1>
         <p className="text-zinc-400">
           Found something off? Tell us what happened and where it happened. Screenshots are helpful.
-          Thank you for helping us improve the Realdealkickzsc platform!
+          Thank you for helping us improve the Realdealkickzsc platform.
         </p>
       </div>
 

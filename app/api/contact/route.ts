@@ -21,9 +21,12 @@ const contactSchema = z
   })
   .strict();
 
-const MAX_ATTACHMENTS = 5;
-const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
-const ALLOWED_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const attachmentConfig = security.contact.attachments;
+const ALLOWED_ATTACHMENT_TYPES = new Set<string>(attachmentConfig.allowedTypes);
+const MAX_ATTACHMENT_SIZE_MB = Math.max(
+  1,
+  Math.round(attachmentConfig.maxBytes / (1024 * 1024))
+);
 
 const redis = new Redis({
   url: env.UPSTASH_REDIS_REST_URL!,
@@ -155,17 +158,21 @@ export async function POST(request: NextRequest) {
 
       const fileEntries = formData.getAll("attachments").filter(isFileValue);
 
-      if (fileEntries.length > MAX_ATTACHMENTS) {
+      if (fileEntries.length > attachmentConfig.maxFiles) {
         return NextResponse.json(
-          { ok: false, error: `You can upload up to ${MAX_ATTACHMENTS} images.`, requestId },
+          { ok: false, error: `You can upload up to ${attachmentConfig.maxFiles} images.`, requestId },
           { status: 400, headers: { "Cache-Control": "no-store" } }
         );
       }
 
       for (const [index, file] of fileEntries.entries()) {
-        if (file.size > MAX_ATTACHMENT_BYTES) {
+        if (file.size > attachmentConfig.maxBytes) {
           return NextResponse.json(
-            { ok: false, error: `${file.name || "Attachment"} exceeds 5MB.`, requestId },
+            {
+              ok: false,
+              error: `${file.name || "Attachment"} exceeds ${MAX_ATTACHMENT_SIZE_MB}MB.`,
+              requestId,
+            },
             { status: 400, headers: { "Cache-Control": "no-store" } }
           );
         }

@@ -6,6 +6,11 @@ export const security = {
       window: "10 m",
       blockStatus: 429,
     },
+    attachments: {
+      maxFiles: 5,
+      maxBytes: 5 * 1024 * 1024,
+      allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+    },
   },
   proxy: {
     requestIdHeader: "x-request-id",
@@ -89,7 +94,7 @@ export const security = {
          */
         dev: [
           "default-src 'self'",
-          "img-src 'self' data: https:",
+          "img-src 'self' data: https: blob:",
           "style-src 'self' 'unsafe-inline'",
           "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
           [
@@ -111,7 +116,7 @@ export const security = {
          */
         prod: [
           "default-src 'self'",
-          "img-src 'self' https: data:",
+          "img-src 'self' https: data: blob:",
           "style-src 'self' 'unsafe-inline'",  // TODO: Use nonces to remove unsafe-inline
           "script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com",
           "object-src 'none'",
