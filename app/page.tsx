@@ -19,7 +19,7 @@ export default async function HomePage() {
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Hero image */}
             <Image
-              src="/images/home/hero-inventory.webp" // or switch back to .png if that was the “old look”
+              src="/images/home/hero-inventory-q85.webp" // or switch back to .png if that was the “old look”
               alt=""
               fill
               priority
@@ -48,7 +48,7 @@ export default async function HomePage() {
             />
 
             {/* Hairline accent */}
-            <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-red-600/80 to-transparent" />
+            <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-zinc-700/70 to-transparent" />
           </div>
 
           {/* Content */}
