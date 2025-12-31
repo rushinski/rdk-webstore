@@ -5,23 +5,29 @@ import { useState, useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { SearchOverlay } from '@/components/search/SearchOverlay';
 import { CartDrawer } from '@/components/cart/CartDrawer';
+import { ChatDrawer } from '@/components/chat/ChatDrawer';
+import { ChatLauncher } from '@/components/chat/ChatLauncher';
 
 export function ClientShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     const handleOpenSearch = () => setSearchOpen(true);
     const handleOpenCart = () => setCartOpen(true);
+    const handleOpenChat = () => setChatOpen(true);
 
     window.addEventListener('openSearch', handleOpenSearch);
     window.addEventListener('openCart', handleOpenCart);
+    window.addEventListener('openChat', handleOpenChat);
 
     return () => {
       window.removeEventListener('openSearch', handleOpenSearch);
       window.removeEventListener('openCart', handleOpenCart);
+      window.removeEventListener('openChat', handleOpenChat);
     };
   }, []);
 
@@ -31,6 +37,14 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
     const routeValue = isAdminRoute ? 'admin' : isAuthRoute ? 'auth' : 'store';
     document.body.dataset.route = routeValue;
   }, [pathname]);
+
+  useEffect(() => {
+    if (!searchParams) return;
+    const shouldOpenChat = searchParams.get('chat') === '1';
+    if (shouldOpenChat) setChatOpen(true);
+  }, [searchParams]);
+
+  const isStoreRoute = !pathname.startsWith('/admin') && !pathname.startsWith('/auth');
 
   useEffect(() => {
     if (!pathname) return;
@@ -79,6 +93,8 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
       {children}
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      {isStoreRoute && <ChatLauncher />}
+      {isStoreRoute && <ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />}
     </>
   );
 }

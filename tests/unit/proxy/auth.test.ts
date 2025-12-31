@@ -10,11 +10,15 @@ jest.mock("@/lib/log", () => ({ log: jest.fn() }));
 const getByUserIdMock = jest.fn();
 
 // Make every `new ProfileRepository(...)` return an object that uses the shared mock
-jest.mock("@/repositories/profile-repo", () => ({
-  ProfileRepository: jest.fn().mockImplementation(() => ({
-    getByUserId: getByUserIdMock,
-  })),
-}));
+jest.mock("@/repositories/profile-repo", () => {
+  const actual = jest.requireActual("@/repositories/profile-repo");
+  return {
+    ...actual,
+    ProfileRepository: jest.fn().mockImplementation(() => ({
+      getByUserId: getByUserIdMock,
+    })),
+  };
+});
 
 jest.mock("@/lib/http/admin-session", () => ({
   verifyAdminSessionToken: jest.fn(),

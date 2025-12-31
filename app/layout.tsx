@@ -8,6 +8,7 @@ import { MobileBottomNav } from '@/components/shell/MobileBottomNav';
 import { Footer } from '@/components/shell/Footer';
 import { ClientShell } from '@/components/shell/ClientShell';
 import { getServerSession } from '@/lib/auth/session';
+import { isAdminRole } from '@/repositories/profile-repo';
 import '@/styles/global.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
   const isAuthenticated = Boolean(session);
-  const isAdmin = session?.role === 'admin';
+  const isAdmin = session?.role ? isAdminRole(session.role) : false;
   const userEmail = session?.user.email ?? session?.profile?.email;
 
   return (

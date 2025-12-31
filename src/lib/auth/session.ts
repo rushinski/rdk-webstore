@@ -1,7 +1,12 @@
 // src/lib/auth/session.ts
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProfileRepository, type ProfileRole, isProfileRole } from "@/repositories/profile-repo";
+import {
+  ProfileRepository,
+  type ProfileRole,
+  isProfileRole,
+  isAdminRole,
+} from "@/repositories/profile-repo";
 
 export interface ServerSession {
   user: {
@@ -57,6 +62,6 @@ export async function requireUser(): Promise<ServerSession> {
 
 export async function requireAdmin(): Promise<ServerSession> {
   const session = await requireUser();
-  if (session.role !== "admin") redirect("/");
+  if (!isAdminRole(session.role)) redirect("/");
   return session;
 }

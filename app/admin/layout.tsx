@@ -8,11 +8,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdmin();
+  const session = await requireAdmin();
+  const userEmail = session.user.email ?? session.profile?.email ?? null;
 
   return (
     <div className="flex min-h-screen bg-black">
-      <AdminSidebar />
+      <AdminSidebar userEmail={userEmail} />
       <div className="flex-1 flex flex-col">
         <AdminTopbar />
         <main className="flex-1 p-6">{children}</main>

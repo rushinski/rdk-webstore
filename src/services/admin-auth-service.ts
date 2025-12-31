@@ -1,5 +1,5 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import { ProfileRepository } from "@/repositories/profile-repo";
+import { ProfileRepository, isAdminRole, isProfileRole } from "@/repositories/profile-repo";
 import type { Factor } from "@supabase/supabase-js";
 
 export class AdminAuthService {
@@ -28,7 +28,8 @@ export class AdminAuthService {
     }
 
     const profile = await this.profileRepo.getByUserId(user.id);
-    if (!profile || profile.role !== "admin") {
+    const role = isProfileRole(profile?.role) ? profile.role : "customer";
+    if (!profile || !isAdminRole(role)) {
       const err = new Error("FORBIDDEN");
       (err as any).code = "FORBIDDEN";
       throw err;

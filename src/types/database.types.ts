@@ -44,6 +44,109 @@ export type Database = {
           },
         ]
       }
+      admin_invites: {
+        Row: {
+          accepted_by: string | null
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          role: string
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          accepted_by?: string | null
+          created_at?: string
+          created_by: string
+          expires_at: string
+          id?: string
+          role: string
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          role?: string
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_invites_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_invites_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_notifications: {
+        Row: {
+          admin_id: string
+          chat_id: string | null
+          created_at: string
+          id: string
+          message: string
+          order_id: string | null
+          read_at: string | null
+          type: string
+        }
+        Insert: {
+          admin_id: string
+          chat_id?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          order_id?: string | null
+          read_at?: string | null
+          type: string
+        }
+        Update: {
+          admin_id?: string
+          chat_id?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          order_id?: string | null
+          read_at?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_notifications_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       catalog_aliases: {
         Row: {
           alias_label: string
@@ -296,6 +399,106 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          body: string
+          chat_id: string
+          created_at: string
+          id: string
+          sender_id: string
+          sender_role: string
+        }
+        Insert: {
+          body: string
+          chat_id: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          sender_role: string
+        }
+        Update: {
+          body?: string
+          chat_id?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chats: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          created_at: string
+          id: string
+          order_id: string | null
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chats_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chats_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -642,6 +845,44 @@ export type Database = {
           },
         ]
       }
+      payout_settings: {
+        Row: {
+          account_label: string | null
+          account_last4: string | null
+          created_at: string
+          id: string
+          primary_admin_id: string
+          provider: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_label?: string | null
+          account_last4?: string | null
+          created_at?: string
+          id?: string
+          primary_admin_id: string
+          provider?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_label?: string | null
+          account_last4?: string | null
+          created_at?: string
+          id?: string
+          primary_admin_id?: string
+          provider?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payout_settings_primary_admin_id_fkey"
+            columns: ["primary_admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_images: {
         Row: {
           id: string
@@ -850,28 +1091,40 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_chat_created_notifications_enabled: boolean
+          admin_order_notifications_enabled: boolean
+          chat_notifications_enabled: boolean
           created_at: string | null
           email: string | null
           full_name: string | null
           id: string
+          is_primary_admin: boolean
           role: string | null
           stripe_customer_id: string | null
           tenant_id: string | null
         }
         Insert: {
+          admin_chat_created_notifications_enabled?: boolean
+          admin_order_notifications_enabled?: boolean
+          chat_notifications_enabled?: boolean
           created_at?: string | null
           email?: string | null
           full_name?: string | null
           id: string
+          is_primary_admin?: boolean
           role?: string | null
           stripe_customer_id?: string | null
           tenant_id?: string | null
         }
         Update: {
+          admin_chat_created_notifications_enabled?: boolean
+          admin_order_notifications_enabled?: boolean
+          chat_notifications_enabled?: boolean
           created_at?: string | null
           email?: string | null
           full_name?: string | null
           id?: string
+          is_primary_admin?: boolean
           role?: string | null
           stripe_customer_id?: string | null
           tenant_id?: string | null
@@ -1166,6 +1419,8 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_admin_for_tenant: { Args: { target_tenant: string }; Returns: boolean }
+      is_dev: { Args: never; Returns: boolean }
+      is_super_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

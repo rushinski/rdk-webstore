@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { ProfileRepository } from "@/repositories/profile-repo";
+import { ProfileRepository, isAdminRole, isProfileRole } from "@/repositories/profile-repo";
 import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 import { security } from "@/config/security";
 import { log } from "@/lib/log";
@@ -124,7 +124,8 @@ export async function protectAdminRoute(
     return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
   }
 
-  if (profile.role !== "admin") {
+  const role = isProfileRole(profile.role) ? profile.role : "customer";
+  if (!isAdminRole(role)) {
     log({
       level: "warn",
       layer: "proxy",

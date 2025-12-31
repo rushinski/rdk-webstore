@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
 import { logError } from '@/lib/log';
+import { isAdminRole } from '@/repositories/profile-repo';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
 
@@ -184,7 +185,7 @@ export function Navbar({
         const user = data?.user ?? null;
         setClientIsAuthenticated(Boolean(user));
         setClientUserEmail(user?.email ?? null);
-        setClientIsAdmin(data?.role === 'admin');
+        setClientIsAdmin(data?.role ? isAdminRole(data.role) : false);
       } catch (error) {
         logError(error, { layer: "frontend", event: "navbar_load_session" });
         if (!isActive) return;

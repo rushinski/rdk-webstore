@@ -17,6 +17,7 @@ function SuccessContent() {
   const [status, setStatus] = useState<OrderStatusResponse | null>(null);
   const [isPolling, setIsPolling] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chatReady, setChatReady] = useState(false);
 
   useEffect(() => {
     if (!orderId) {
@@ -58,6 +59,29 @@ function SuccessContent() {
 
     return () => clearInterval(pollInterval);
   }, [orderId, router]);
+
+  useEffect(() => {
+    if (!status || status.status !== 'paid' || status.fulfillment !== 'pickup') return;
+    if (chatReady) return;
+
+    const ensureChat = async () => {
+      try {
+        const response = await fetch('/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: status.id }),
+        });
+
+        if (response.ok) {
+          setChatReady(true);
+        }
+      } catch (error) {
+        // Chat creation can be retried when the user opens chat
+      }
+    };
+
+    ensureChat();
+  }, [status, chatReady]);
 
   if (!orderId) {
     return null;
@@ -133,6 +157,14 @@ function SuccessContent() {
       </div>
 
       <div className="space-y-3">
+        {status.fulfillment === 'pickup' && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('openChat'))}
+            className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
+          >
+            Open pickup chat
+          </button>
+        )}
         <button
           onClick={() => router.push('/account/orders')}
           className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"

@@ -284,7 +284,7 @@ Multi-layered admin authentication guard for `/admin/*` and `/api/admin/*`.
 
 ### Layers
 1. **Supabase session**: must have an active authenticated user.
-2. **Profile role**: profile exists and `role === 'admin'`.
+2. **Profile role**: profile exists and role is one of `admin`, `super_admin`, or `dev`.
 3. **Admin session token (JWE)**: short-lived elevation token stored in an HTTP-only cookie.
 4. **MFA (AAL2)**: must have completed MFA when required.
 
@@ -309,7 +309,7 @@ function protectAdminRoute(request, requestId, supabase): Response | null
 
   profile = profileRepo.getByUserId(user.id) or deny 500
   if profile missing: deny 403
-  if profile.role != 'admin': deny 403
+  if profile.role not in admin tiers: deny 403
 
   cookie = request.cookies[admin_session]
   if missing: signOut + clear cookie + deny 401

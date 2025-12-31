@@ -11,6 +11,7 @@ import {
   BarChart3,
   DollarSign,
   Settings,
+  MessageCircle,
   X,
   Menu,
 } from 'lucide-react';
@@ -21,37 +22,52 @@ const navItems = [
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/sales', label: 'Sales', icon: DollarSign },
   { href: '/admin/shipping', label: 'Shipping', icon: Truck },
+  { href: '/admin/chats', label: 'Chats', icon: MessageCircle },
   { href: '/admin/catalog', label: 'Catalog', icon: Package },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
-export function AdminSidebar() {
+export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const userInitial = userEmail?.trim().charAt(0).toUpperCase() || 'A';
 
   const SidebarContent = () => (
-    <nav className="space-y-1">
-      {navItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+    <div className="space-y-6">
+      <Link
+        href="/admin/profile"
+        onClick={() => setIsOpen(false)}
+        className="flex items-center gap-3 px-4 py-3 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition"
+      >
+        <div className="w-9 h-9 rounded-full bg-red-600 text-white flex items-center justify-center font-semibold">
+          {userInitial}
+        </div>
+        <div className="text-sm text-zinc-300">Personal settings</div>
+      </Link>
 
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setIsOpen(false)}
-            className={`flex items-center space-x-3 px-4 py-3 rounded transition ${
-              isActive
-                ? 'bg-red-900/20 text-white'
-                : 'text-gray-400 hover:bg-zinc-800 hover:text-white'
-            }`}
-          >
-            <Icon className="w-5 h-5" />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
+      <nav className="space-y-1">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setIsOpen(false)}
+              className={`flex items-center space-x-3 px-4 py-3 rounded transition ${
+                isActive
+                  ? 'bg-red-900/20 text-white'
+                  : 'text-gray-400 hover:bg-zinc-800 hover:text-white'
+              }`}
+            >
+              <Icon className="w-5 h-5" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
   );
 
   return (

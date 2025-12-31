@@ -23,6 +23,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
+  const [chatNotificationsEnabled, setChatNotificationsEnabled] = useState(true);
+  const [isChatSaving, setIsChatSaving] = useState(false);
   const [isAddressSaving, setIsAddressSaving] = useState(false);
   const [isDefaultSaving, setIsDefaultSaving] = useState(false);
   const [setAsDefault, setSetAsDefault] = useState(false);
@@ -41,6 +43,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     loadProfile();
     loadOrders();
     loadAddresses();
+    loadChatNotifications();
   }, []);
 
   const loadProfile = async () => {
@@ -63,6 +66,40 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       logError(error, { layer: "frontend", event: "account_load_orders" });
     } finally {
       setIsOrdersLoading(false);
+    }
+  };
+
+  const loadChatNotifications = async () => {
+    try {
+      const response = await fetch('/api/account/notifications', { cache: 'no-store' });
+      const data = await response.json();
+      setChatNotificationsEnabled(Boolean(data.chat_notifications_enabled));
+    } catch (error) {
+      logError(error, { layer: "frontend", event: "account_load_chat_notifications" });
+    }
+  };
+
+  const handleSaveChatNotifications = async () => {
+    setIsChatSaving(true);
+    setMessage('');
+    try {
+      const response = await fetch('/api/account/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_notifications_enabled: chatNotificationsEnabled }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setMessage(data?.error ?? 'Failed to update chat notifications');
+        return;
+      }
+
+      setMessage('Chat notification preference updated.');
+    } catch (error) {
+      setMessage('Failed to update chat notifications');
+    } finally {
+      setIsChatSaving(false);
     }
   };
 
@@ -351,6 +388,30 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         <h2 className="text-xl font-semibold text-white mb-4">Email</h2>
         <p className="text-gray-400">{userEmail}</p>
         <p className="text-gray-500 text-sm mt-2">Email changes are not currently supported</p>
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
+        <h2 className="text-xl font-semibold text-white mb-4">Chat Notifications</h2>
+        <p className="text-gray-400 mb-4">
+          Get email updates when admins reply to your chat.
+        </p>
+        <label className="flex items-center justify-between gap-4 text-sm text-zinc-300">
+          <span>Email me about chat replies</span>
+          <input
+            type="checkbox"
+            checked={chatNotificationsEnabled}
+            onChange={(e) => setChatNotificationsEnabled(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={handleSaveChatNotifications}
+          disabled={isChatSaving}
+          className="mt-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
+        >
+          {isChatSaving ? 'Saving...' : 'Save Preference'}
+        </button>
       </div>
 
       {/* Saved Addresses */}

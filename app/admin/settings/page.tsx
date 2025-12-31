@@ -69,16 +69,6 @@ export default function SettingsPage() {
 
       <div className="space-y-4">
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Payout Setup</h2>
-          <p className="text-gray-400 mb-4">
-            Connect your bank account to receive payouts
-          </p>
-          <button className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-2 rounded transition">
-            Connect Bank Account
-          </button>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
           <h2 className="text-xl font-semibold text-white mb-4">Shipping Defaults</h2>
           <p className="text-gray-400 mb-4">
             Set default shipping costs for different product types
@@ -111,16 +101,6 @@ export default function SettingsPage() {
             </button>
             {message && <span className="text-gray-400 text-sm">{message}</span>}
           </div>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Store Information</h2>
-          <p className="text-gray-400 mb-4">
-            Update your store name, description, and contact info
-          </p>
-          <button className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded transition">
-            Edit Store Info
-          </button>
         </div>
       </div>
     </div>

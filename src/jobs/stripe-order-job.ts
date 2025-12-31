@@ -1,12 +1,15 @@
 import Stripe from "stripe";
 import { revalidateTag } from "next/cache";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import type { AdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
+import { ChatService } from "@/services/chat-service";
+import { AdminNotificationService } from "@/services/admin-notification-service";
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -28,7 +31,10 @@ export class StripeOrderJob {
   private productService: ProductService;
   private orderEmailService: OrderEmailService;
 
-  constructor(private readonly supabase: TypedSupabaseClient) {
+  constructor(
+    private readonly supabase: TypedSupabaseClient,
+    private readonly adminSupabase?: AdminSupabaseClient
+  ) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.eventsRepo = new StripeEventsRepository(supabase);
     this.addressesRepo = new AddressesRepository(supabase);
@@ -77,6 +83,22 @@ export class StripeOrderJob {
 
     const paymentIntentId = session.payment_intent as string;
     await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+
+    if (this.adminSupabase && order.fulfillment === "pickup" && order.user_id) {
+      try {
+        const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
+        await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
+      } catch (chatError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "pickup_chat_create_failed",
+          requestId,
+          orderId,
+          error: chatError instanceof Error ? chatError.message : String(chatError),
+        });
+      }
+    }
 
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];
     for (const productId of productIds) {
@@ -130,6 +152,22 @@ export class StripeOrderJob {
     }
 
     await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+
+    if (this.adminSupabase) {
+      try {
+        const notifications = new AdminNotificationService(this.adminSupabase);
+        await notifications.notifyOrderPlaced(orderId);
+      } catch (notifyError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "order_admin_notification_failed",
+          requestId,
+          orderId,
+          error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+        });
+      }
+    }
 
     // ✅ Next.js 16+ requires 2 args: revalidateTag(tag, profile)
     try {

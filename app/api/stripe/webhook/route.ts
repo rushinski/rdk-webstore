@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { StripeOrderJob } from "@/jobs/stripe-order-job";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
@@ -59,7 +60,8 @@ export async function POST(request: NextRequest) {
 
     // Process event
     const supabase = await createSupabaseServerClient();
-    const job = new StripeOrderJob(supabase);
+    const adminSupabase = createSupabaseAdminClient();
+    const job = new StripeOrderJob(supabase, adminSupabase);
 
     if (event.type === "checkout.session.completed") {
       await job.processCheckoutSessionCompleted(event, requestId);

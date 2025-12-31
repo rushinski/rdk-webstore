@@ -6,6 +6,7 @@ import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { otpVerifySchema } from "@/lib/validation/auth";
+import { isAdminRole, isProfileRole } from "@/repositories/profile-repo";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
@@ -40,7 +41,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isAdmin = profile?.role === "admin";
+    const role = isProfileRole(profile?.role) ? profile.role : "customer";
+    const isAdmin = isAdminRole(role);
 
     // If admin, check 2FA status
     if (isAdmin) {
