@@ -1,11 +1,18 @@
 import nodemailer from "nodemailer";
 import { env } from "@/config/env";
 
+type EmailAttachment = {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+};
+
 type SendEmailInput = {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 };
 
 let transporter: nodemailer.Transporter | null = null;
@@ -25,7 +32,7 @@ const getTransporter = () => {
   return transporter;
 };
 
-export async function sendEmail({ to, subject, html, text }: SendEmailInput) {
+export async function sendEmail({ to, subject, html, text, attachments }: SendEmailInput) {
   const mailer = getTransporter();
   await mailer.sendMail({
     from: `"${env.SES_FROM_NAME}" <${env.SES_FROM_EMAIL}>`,
@@ -33,5 +40,6 @@ export async function sendEmail({ to, subject, html, text }: SendEmailInput) {
     subject,
     html,
     text,
+    attachments,
   });
 }

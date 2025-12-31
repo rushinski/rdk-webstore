@@ -1,4 +1,5 @@
 // app/page.tsx
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -17,18 +18,14 @@ export default async function HomePage() {
           {/* Background */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Hero image */}
-            <div
-              className="absolute inset-0 bg-cover"
-              style={{
-                backgroundImage: "url(/images/home/hero-inventory.png)",
-                // X controls LEFT/RIGHT. Smaller X pushes subject RIGHT.
-                // Start here:
-                backgroundPosition: "0% 25%",
-                // keep it natural (no heavy scaling blur)
-                backgroundSize: "115%",
-                backgroundRepeat: "no-repeat",
-                filter: "contrast(1.06) brightness(0.82)",
-              }}
+            <Image
+              src="/images/home/hero-inventory.webp"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-[0%_25%] scale-[1.15]"
+              style={{ filter: "contrast(1.06) brightness(0.82)" }}
             />
 
             {/* Left content column (makes text readable + avoids overlapping the client visually) */}
@@ -57,7 +54,7 @@ export default async function HomePage() {
           <div className="relative z-10 w-full">
             <div className="max-w-7xl mx-auto px-4 py-24 md:py-28">
               <div className="max-w-2xl">
-                <div className="text-xs tracking-[0.35em] text-red-500 font-semibold mb-4">
+                <div className="text-xs uppercase tracking-[0.2em] text-red-400 font-semibold mb-3">
                   REALDEALKICKZSC
                 </div>
 

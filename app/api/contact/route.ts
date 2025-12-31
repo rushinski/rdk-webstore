@@ -21,6 +21,10 @@ const contactSchema = z
   })
   .strict();
 
+const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
 const redis = new Redis({
   url: env.UPSTASH_REDIS_REST_URL!,
   token: env.UPSTASH_REDIS_REST_TOKEN!,
@@ -41,6 +45,51 @@ const escapeHtml = (value: string) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+
+const isFileValue = (value: FormDataEntryValue): value is File =>
+  typeof value === "object" && value !== null && "arrayBuffer" in value;
+
+const detectImageType = (bytes: Uint8Array): { mime: string; ext: string } | null => {
+  if (bytes.length >= 8) {
+    const isPng =
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a;
+    if (isPng) return { mime: "image/png", ext: "png" };
+  }
+
+  if (bytes.length >= 3) {
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    if (isJpeg) return { mime: "image/jpeg", ext: "jpg" };
+  }
+
+  if (bytes.length >= 12) {
+    const isWebp =
+      bytes[0] === 0x52 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x46 &&
+      bytes[3] === 0x46 &&
+      bytes[8] === 0x57 &&
+      bytes[9] === 0x45 &&
+      bytes[10] === 0x42 &&
+      bytes[11] === 0x50;
+    if (isWebp) return { mime: "image/webp", ext: "webp" };
+  }
+
+  return null;
+};
+
+const sanitizeFilename = (name: string, fallback: string) => {
+  const trimmed = name.trim();
+  if (!trimmed) return fallback;
+  const safe = trimmed.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return safe.length > 0 ? safe : fallback;
+};
 
 const getClientIp = (request: NextRequest): string => {
   const forwardedFor = request.headers.get("x-forwarded-for");
@@ -89,7 +138,76 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json().catch(() => null);
+    const contentType = request.headers.get("content-type") ?? "";
+    const isMultipart = contentType.includes("multipart/form-data");
+    let body: Record<string, unknown> | null = null;
+    let attachments: { filename: string; content: Buffer; contentType?: string }[] = [];
+
+    if (isMultipart) {
+      const formData = await request.formData();
+      body = {
+        name: typeof formData.get("name") === "string" ? formData.get("name") : undefined,
+        email: typeof formData.get("email") === "string" ? formData.get("email") : undefined,
+        subject: typeof formData.get("subject") === "string" ? formData.get("subject") : undefined,
+        message: typeof formData.get("message") === "string" ? formData.get("message") : undefined,
+        source: typeof formData.get("source") === "string" ? formData.get("source") : undefined,
+      };
+
+      const fileEntries = formData.getAll("attachments").filter(isFileValue);
+
+      if (fileEntries.length > MAX_ATTACHMENTS) {
+        return NextResponse.json(
+          { ok: false, error: `You can upload up to ${MAX_ATTACHMENTS} images.`, requestId },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+
+      for (const [index, file] of fileEntries.entries()) {
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          return NextResponse.json(
+            { ok: false, error: `${file.name || "Attachment"} exceeds 5MB.`, requestId },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+
+        if (file.type && !ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+          return NextResponse.json(
+            { ok: false, error: `${file.name || "Attachment"} is not a supported image type.`, requestId },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const signature = detectImageType(new Uint8Array(buffer));
+
+        if (!signature) {
+          return NextResponse.json(
+            { ok: false, error: `${file.name || "Attachment"} is not a valid image.`, requestId },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+
+        if (file.type && signature.mime !== file.type) {
+          return NextResponse.json(
+            { ok: false, error: `${file.name || "Attachment"} failed image validation.`, requestId },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+
+        const fallbackName = `attachment-${index + 1}.${signature.ext}`;
+        const filename = sanitizeFilename(file.name, fallbackName);
+        attachments.push({
+          filename: filename.toLowerCase().endsWith(`.${signature.ext}`)
+            ? filename
+            : `${filename}.${signature.ext}`,
+          content: buffer,
+          contentType: signature.mime,
+        });
+      }
+    } else {
+      body = await request.json().catch(() => null);
+    }
+
     const parsed = contactSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -128,6 +246,23 @@ export async function POST(request: NextRequest) {
     const textHeading = source === "bug_report"
       ? "New Bug Report Submission"
       : "New Contact Form Submission";
+    const attachmentsText = attachments.length > 0
+      ? attachments.map((file) => file.filename).join(", ")
+      : "None";
+    const attachmentsHtml = attachments.length > 0
+      ? `
+        <tr>
+          <td style="padding:0 24px 24px;">
+            <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#f87171;font-weight:700;">
+              Attachments
+            </div>
+            <div style="margin-top:10px;background:#111114;border:1px solid #262626;padding:14px;font-size:13px;line-height:1.7;color:#d1d5db;">
+              ${attachments.map((file) => escapeHtml(file.filename)).join("<br />")}
+            </div>
+          </td>
+        </tr>
+      `
+      : "";
 
     const footerHtml = emailFooterHtml();
 
@@ -200,6 +335,7 @@ export async function POST(request: NextRequest) {
                       </div>
                     </td>
                   </tr>
+                  ${attachmentsHtml}
                   ${footerHtml}
                 </table>
               </td>
@@ -213,6 +349,7 @@ export async function POST(request: NextRequest) {
 Name: ${parsed.data.name}
 Email: ${parsed.data.email}
 Subject: ${parsed.data.subject}
+Attachments: ${attachmentsText}
 Message:
 ${parsed.data.message}
 ${emailFooterText()}
@@ -225,6 +362,7 @@ ${emailFooterText()}
         subject: `${subjectPrefix}: ${parsed.data.subject}`,
         html,
         text,
+        attachments,
       });
     } catch (emailError) {
       logError(emailError, {
