@@ -2,27 +2,10 @@
 "use client";
 
 import { Check, X } from "lucide-react";
-
-export interface PasswordRequirementState {
-  minLength: boolean;
-  hasLetter: boolean;
-  hasNumberOrSymbol: boolean;
-  notRepeatedChar: boolean;
-}
-
-export function evaluateRequirements(password: string): PasswordRequirementState {
-  const repeated = password.length > 0 && password.split("").every((c) => c === password[0]);
-
-  return {
-    minLength: password.length >= 8,
-    hasLetter: /[A-Za-z]/.test(password),
-    hasNumberOrSymbol: /[\d\W]/.test(password),
-    notRepeatedChar: !repeated,
-  };
-}
+import { evaluatePasswordRequirements } from "@/lib/validation/password";
 
 export function PasswordRequirements({ password }: { password: string }) {
-  const req = evaluateRequirements(password);
+  const req = evaluatePasswordRequirements(password);
 
   return (
     <div className="border border-zinc-800 bg-zinc-900/50 p-4 space-y-2">

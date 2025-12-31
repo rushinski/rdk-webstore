@@ -4,10 +4,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PasswordField } from "./PasswordField";
-import {
-  PasswordRequirements,
-  evaluateRequirements,
-} from "../register/PasswordRequirements";
+import { PasswordRequirements } from "../register/PasswordRequirements";
+import { evaluatePasswordRequirements } from "@/lib/validation/password";
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
@@ -113,7 +111,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       return;
     }
 
-    const req = evaluateRequirements(password);
+    const req = evaluatePasswordRequirements(password);
     if (
       !req.minLength ||
       !req.hasLetter ||

@@ -109,7 +109,7 @@ export function Footer() {
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
                 <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span className="hover:text-white transition-colors">
-                  Columbia, SC 29201
+                  Simpsonville, SC
                 </span>
               </li>
             </ul>
@@ -158,7 +158,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/bug-report" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Report a Bug
+                  Bug Report
                 </Link>
               </li>
               <li>
@@ -173,7 +173,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/refunds" className="text-zinc-500 hover:text-white text-sm transition-colors">
-                  Refunds &amp; Returns
+                  Returns &amp; Refunds
                 </Link>
               </li>
             </ul>

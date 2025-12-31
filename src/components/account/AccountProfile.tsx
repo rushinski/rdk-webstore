@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import type { ShippingProfile } from '@/types/views/shipping'; 
 import { logError } from '@/lib/log';
+import { PasswordRequirements } from '@/components/auth/register/PasswordRequirements';
+import { isPasswordValid } from '@/lib/validation/password';
 
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
@@ -168,6 +170,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
     if (newPassword !== confirmPassword) {
       setMessage('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isPasswordValid(newPassword)) {
+      setMessage('Password does not meet the required criteria.');
       setIsLoading(false);
       return;
     }
@@ -392,7 +400,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     <div className="flex items-center gap-2 text-white font-semibold">
                       <span>{address.name || 'Saved Address'}</span>
                       {isDefaultAddress(address) && (
-                        <span className="text-[10px] uppercase tracking-[0.2em] text-red-400">
+                        <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-300 bg-zinc-800/70 px-2 py-0.5 rounded">
                           Default
                         </span>
                       )}
@@ -461,11 +469,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Address Line 2</label>
+            <label className="block text-gray-400 text-sm mb-1">Apartment / Unit (optional)</label>
             <input
               type="text"
               value={addressForm.line2}
               onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
+              placeholder="Apt, Suite, Unit"
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
@@ -612,6 +621,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
+
+          <PasswordRequirements password={newPassword} />
 
           <div>
             <label className="block text-gray-400 text-sm mb-1">Confirm Password</label>

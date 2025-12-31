@@ -8,7 +8,8 @@ import { ArrowLeft } from "lucide-react";
 
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "../login/PasswordField";
-import { PasswordRequirements, evaluateRequirements } from "./PasswordRequirements";
+import { PasswordRequirements } from "./PasswordRequirements";
+import { evaluatePasswordRequirements } from "@/lib/validation/password";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 
@@ -34,7 +35,7 @@ export function RegisterForm() {
     const email = String(formData.get("email") ?? "").trim();
     const passwordValue = String(formData.get("password") ?? "");
 
-    const req = evaluateRequirements(passwordValue);
+    const req = evaluatePasswordRequirements(passwordValue);
     const allPass = Object.values(req).every(Boolean);
     if (!allPass) {
       setError("Password does not meet minimum requirements.");

@@ -168,14 +168,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   are shown at checkout.
                 </p>
                 <p>
-                  All sales are final except as outlined in our Refunds &amp; Returns policy.
+                  All sales are final except as outlined in our Returns &amp; Refunds policy.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a href="/shipping" className="text-red-500 hover:underline">
                     Shipping Policy →
                   </a>
                   <a href="/refunds" className="text-red-500 hover:underline">
-                    Refunds &amp; Returns →
+                    Returns &amp; Refunds →
                   </a>
                 </div>
               </div>

@@ -15,7 +15,7 @@ export const emailFooterHtml = () => `
           &nbsp;|&nbsp;
           <a href="${siteUrl}/shipping" style="color:#9ca3af;text-decoration:none;">Shipping</a>
           &nbsp;|&nbsp;
-          <a href="${siteUrl}/refunds" style="color:#9ca3af;text-decoration:none;">Refunds</a>
+          <a href="${siteUrl}/refunds" style="color:#9ca3af;text-decoration:none;">Returns &amp; Refunds</a>
         </div>
         <div style="margin-top:6px;">
           Instagram: <a href="https://instagram.com/realdealkickzllc" style="color:#9ca3af;text-decoration:none;">@realdealkickzllc</a>
@@ -32,6 +32,6 @@ export const emailFooterText = () =>
     "Simpsonville, SC",
     `Contact: ${siteUrl}/contact`,
     `Shipping: ${siteUrl}/shipping`,
-    `Refunds: ${siteUrl}/refunds`,
+    `Returns & Refunds: ${siteUrl}/refunds`,
     "Instagram: @realdealkickzllc",
   ].join("\n");

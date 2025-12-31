@@ -2,7 +2,7 @@
 export default function RefundsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold text-white mb-4">Refunds &amp; Returns</h1>
+      <h1 className="text-4xl font-bold text-white mb-4">Returns &amp; Refunds</h1>
 
       <div className="prose prose-invert max-w-none">
         <div className="text-zinc-400 space-y-6">

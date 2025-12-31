@@ -8,10 +8,11 @@ import { sendEmail } from "@/lib/email/mailer";
 import { emailFooterHtml, emailFooterText } from "@/lib/email/footer";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { isPasswordValid } from "@/lib/validation/password";
 
 const passwordSchema = z
   .object({
-    password: z.string().min(6).max(128),
+    password: z.string().min(1).max(128),
   })
   .strict();
 
@@ -26,6 +27,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (!isPasswordValid(parsed.data.password)) {
+      return NextResponse.json(
+        { error: "Password does not meet the required criteria.", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }

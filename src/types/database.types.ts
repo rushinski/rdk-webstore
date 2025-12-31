@@ -362,6 +362,33 @@ export type Database = {
         }
         Relationships: []
       }
+      email_subscription_tokens: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          source: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          source?: string | null
+          token: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          source?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
       marketplaces: {
         Row: {
           created_at: string | null
