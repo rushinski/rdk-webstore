@@ -21,7 +21,7 @@ const contactSchema = z
   })
   .strict();
 
-const MAX_ATTACHMENTS = 3;
+const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 

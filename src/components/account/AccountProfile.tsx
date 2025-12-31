@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import type { ShippingProfile } from '@/types/views/shipping'; 
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { logError } from '@/lib/log';
 
 export function AccountProfile({ userEmail }: { userEmail: string }) {
@@ -94,13 +93,16 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     }
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
+      const response = await fetch('/api/account/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
       });
 
-      if (error) {
-        setMessage('Failed to change password: ' + error.message);
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setMessage(`Failed to change password: ${data?.error ?? 'Unknown error'}`);
       } else {
         setMessage('Password changed successfully!');
         setNewPassword('');

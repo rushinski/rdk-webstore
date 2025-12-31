@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 type ContactFormSource = 'contact_form' | 'bug_report';
 
@@ -27,10 +27,17 @@ export function ContactForm({
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const maxAttachments = 3;
+  const maxAttachments = 5;
   const maxAttachmentSize = 5 * 1024 * 1024;
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  const storageKey = source === 'bug_report' ? 'rdk_bug_report_draft' : 'rdk_contact_draft';
+
+  const previews = useMemo(
+    () => attachments.map((file) => ({ file, url: URL.createObjectURL(file) })),
+    [attachments]
+  );
 
   useEffect(() => {
     setFormData((prev) => ({
@@ -39,6 +46,45 @@ export function ContactForm({
       message: prev.message || initialMessage,
     }));
   }, [initialSubject, initialMessage]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = sessionStorage.getItem(storageKey);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as Partial<typeof formData>;
+      setFormData((prev) => ({
+        name: parsed.name ?? prev.name,
+        email: parsed.email ?? prev.email,
+        subject: parsed.subject ?? prev.subject,
+        message: parsed.message ?? prev.message,
+      }));
+    } catch {
+      // Ignore malformed drafts.
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hasDraft =
+      formData.name ||
+      formData.email ||
+      formData.subject ||
+      formData.message;
+
+    if (!hasDraft) {
+      sessionStorage.removeItem(storageKey);
+      return;
+    }
+
+    sessionStorage.setItem(storageKey, JSON.stringify(formData));
+  }, [formData, storageKey]);
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+    };
+  }, [previews]);
 
   const handleAttachments = (files: FileList | null) => {
     if (!files) return;
@@ -69,6 +115,21 @@ export function ContactForm({
 
   const removeAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    handleAttachments(event.dataTransfer.files);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,6 +163,9 @@ export function ContactForm({
         });
         setAttachments([]);
         setAttachmentError(null);
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(storageKey);
+        }
       } else {
         setStatus('error');
         setErrorMessage(data?.error ?? 'Something went wrong. Please try again.');
@@ -112,10 +176,10 @@ export function ContactForm({
     }
   };
 
-  const attachmentsLabel = source === 'bug_report' ? 'Screenshots (optional)' : 'Photos (optional)';
+  const attachmentsLabel = source === 'bug_report' ? 'Screenshots' : 'Photos';
   const attachmentsHint = source === 'bug_report'
-    ? 'PNG, JPG, or WEBP. Up to 3 screenshots, 5MB each.'
-    : 'PNG, JPG, or WEBP. Up to 3 photos, 5MB each.';
+    ? `PNG, JPG, or WEBP. Up to ${maxAttachments} screenshots, 5MB each.`
+    : `PNG, JPG, or WEBP. Up to ${maxAttachments} photos, 5MB each.`;
   const resolvedPlaceholder =
     messagePlaceholder ??
     (source === 'bug_report'
@@ -185,26 +249,37 @@ export function ContactForm({
         <label htmlFor="attachments" className="block text-sm font-semibold text-white mb-2">
           {attachmentsLabel}
         </label>
-        <div className="rounded border border-dashed border-zinc-700 bg-zinc-900/40 px-4 py-4">
+        <div
+          className={`rounded border border-dashed px-4 py-4 transition-colors ${
+            isDragging ? 'border-red-500/70 bg-red-500/5' : 'border-zinc-700 bg-zinc-900/40'
+          }`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
           <input
             id="attachments"
             type="file"
             accept="image/png,image/jpeg,image/webp"
             multiple
             onChange={(e) => handleAttachments(e.target.files)}
-            className="block w-full text-sm text-zinc-300 file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-red-700"
+            className="block w-full text-sm text-zinc-300 cursor-pointer file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:cursor-pointer hover:file:bg-red-700"
           />
           <p className="text-xs text-zinc-500 mt-2">{attachmentsHint}</p>
           {attachmentError && <p className="text-xs text-red-400 mt-2">{attachmentError}</p>}
           {attachments.length > 0 && (
-            <div className="mt-3 space-y-2">
-              {attachments.map((file, index) => (
-                <div key={`${file.name}-${index}`} className="flex items-center justify-between text-xs text-zinc-300">
-                  <span className="truncate">{file.name}</span>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {previews.map((preview, index) => (
+                <div key={`${preview.file.name}-${index}`} className="relative">
+                  <img
+                    src={preview.url}
+                    alt={preview.file.name}
+                    className="h-28 w-full object-cover rounded border border-zinc-800"
+                  />
                   <button
                     type="button"
                     onClick={() => removeAttachment(index)}
-                    className="text-red-400 hover:text-red-300"
+                    className="absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-[11px] text-white hover:bg-black"
                   >
                     Remove
                   </button>
