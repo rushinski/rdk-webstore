@@ -19,13 +19,13 @@ export default async function HomePage() {
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Hero image */}
             <Image
-              src="/images/home/hero-inventory-q85.webp" // or switch back to .png if that was the “old look”
+              src="/images/home/hero-inventory-2025-02.webp"
               alt=""
               fill
               priority
               sizes="100vw"
-              quality={92}
-              className="object-cover object-[0%_25%] origin-[0%_25%] scale-[1.15]"
+              quality={90}
+              className="object-cover object-[80%_20%] sm:object-[60%_20%] lg:object-[45%_25%]"
               style={{ filter: "contrast(1.06) brightness(0.82)" }}
             />
 

@@ -5,6 +5,7 @@ const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : null;
 const nextConfig = {
   reactStrictMode: true,
   images: {
+    qualities: [75, 90],
     remotePatterns: [
       ...(supabaseHostname
         ? [
