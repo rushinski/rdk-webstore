@@ -41,7 +41,6 @@ export default function ContactPage() {
           and we will ship everything straight to you.
         </p>
         <p>Have questions or need anything else? Feel free to reach out.</p>
-        <p>We try to get back to everyone as soon as possible.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-12 items-stretch">

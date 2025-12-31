@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { security } from '@/config/security';
+import { Toast } from '@/components/ui/Toast';
 
 type ContactFormSource = 'contact_form' | 'bug_report';
 
@@ -26,7 +27,7 @@ export function ContactForm({
   });
   const [attachments, setAttachments] = useState<File[]>([]);
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -154,7 +155,7 @@ export function ContactForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('sending');
-    setErrorMessage(null);
+    setToast(null);
 
     try {
       const payload = new FormData();
@@ -182,16 +183,26 @@ export function ContactForm({
         });
         setAttachments([]);
         setAttachmentError(null);
+        setToast({
+          message: "Thank you for your message! We'll get back to you soon.",
+          tone: 'success',
+        });
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem(storageKey);
         }
       } else {
         setStatus('error');
-        setErrorMessage(data?.error ?? 'Something went wrong. Please try again.');
+        setToast({
+          message: data?.error ?? 'Something went wrong. Please try again.',
+          tone: 'error',
+        });
       }
     } catch (error) {
       setStatus('error');
-      setErrorMessage('Something went wrong. Please try again or email us directly.');
+      setToast({
+        message: 'Something went wrong. Please try again or email us directly.',
+        tone: 'error',
+      });
     }
   };
 
@@ -309,18 +320,6 @@ export function ContactForm({
         </div>
       </div>
 
-      {status === 'success' && (
-        <div className="p-4 bg-emerald-600/10 border border-emerald-600/40 text-emerald-400">
-          Thank you for your message! We&apos;ll get back to you soon.
-        </div>
-      )}
-
-      {status === 'error' && (
-        <div className="p-4 bg-red-600/10 border border-red-600/40 text-red-400">
-          {errorMessage ?? 'Something went wrong. Please try again or email us directly.'}
-        </div>
-      )}
-
       <button
         type="submit"
         disabled={status === 'sending'}
@@ -328,6 +327,12 @@ export function ContactForm({
       >
         {status === 'sending' ? 'Sending...' : 'Send Message'}
       </button>
+      <Toast
+        open={Boolean(toast)}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'info'}
+        onClose={() => setToast(null)}
+      />
     </form>
   );
 }
