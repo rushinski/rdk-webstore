@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { registerSchema } from "@/lib/validation/auth";
+import { isPasswordValid } from "@/lib/validation/password";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
@@ -20,6 +21,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const { email, password, updatesOptIn } = parsed.data;
+    if (!isPasswordValid(password)) {
+      return NextResponse.json(
+        { ok: false, error: "Password does not meet the required criteria.", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     // 1) Create request-scoped Supabase client (cookie/session-bound)
     const supabase = await createSupabaseServerClient();

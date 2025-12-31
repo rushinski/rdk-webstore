@@ -3,7 +3,7 @@ import Link from "next/link";
 const STATUS_CONTENT: Record<string, { title: string; message: string }> = {
   success: {
     title: "Subscription confirmed",
-    message: "You’re all set to receive updates from Realdealkickzsc.",
+    message: "You’re all set to receive newsletter & product posting alerts from Realdealkickzsc.",
   },
   already: {
     title: "Already subscribed",

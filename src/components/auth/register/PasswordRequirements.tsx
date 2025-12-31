@@ -12,9 +12,7 @@ export function PasswordRequirements({ password }: { password: string }) {
       <p className="text-xs text-zinc-500 mb-3">Password requirements:</p>
       <div className="grid grid-cols-2 gap-2">
         <RequirementItem ok={req.minLength} text="8+ characters" />
-        <RequirementItem ok={req.hasLetter} text="Letters" />
-        <RequirementItem ok={req.hasNumberOrSymbol} text="Number/symbol" />
-        <RequirementItem ok={req.notRepeatedChar} text="Varied chars" />
+        <RequirementItem ok={req.notRepeatedChar} text="Varied characters" />
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "../login/PasswordField";
 import { PasswordRequirements } from "./PasswordRequirements";
-import { evaluatePasswordRequirements } from "@/lib/validation/password";
+import { isPasswordValid } from "@/lib/validation/password";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 
@@ -21,6 +21,7 @@ export function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [updatesOptIn, setUpdatesOptIn] = useState(false);
 
   const nextUrl = searchParams.get("next") || "/";
@@ -34,10 +35,14 @@ export function RegisterForm() {
 
     const email = String(formData.get("email") ?? "").trim();
     const passwordValue = String(formData.get("password") ?? "");
+    const confirmValue = String(formData.get("confirmPassword") ?? "");
 
-    const req = evaluatePasswordRequirements(passwordValue);
-    const allPass = Object.values(req).every(Boolean);
-    if (!allPass) {
+    if (passwordValue !== confirmValue) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (!isPasswordValid(passwordValue)) {
       setError("Password does not meet minimum requirements.");
       return;
     }
@@ -116,6 +121,14 @@ export function RegisterForm() {
             label="Password"
             value={password}
             onChange={setPassword}
+            autoComplete="new-password"
+          />
+
+          <PasswordField
+            name="confirmPassword"
+            label="Confirm password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
             autoComplete="new-password"
           />
 

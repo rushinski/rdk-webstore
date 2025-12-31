@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PasswordField } from "./PasswordField";
 import { PasswordRequirements } from "../register/PasswordRequirements";
-import { evaluatePasswordRequirements } from "@/lib/validation/password";
+import { isPasswordValid } from "@/lib/validation/password";
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
@@ -23,6 +23,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -111,13 +112,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       return;
     }
 
-    const req = evaluatePasswordRequirements(password);
-    if (
-      !req.minLength ||
-      !req.hasLetter ||
-      !req.hasNumberOrSymbol ||
-      !req.notRepeatedChar
-    ) {
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (!isPasswordValid(password)) {
       setError("Password does not meet the required criteria.");
       return;
     }
@@ -261,6 +261,14 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             label="New password"
             value={password}
             onChange={setPassword}
+            autoComplete="new-password"
+          />
+
+          <PasswordField
+            name="confirm-password"
+            label="Confirm password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
             autoComplete="new-password"
           />
 
