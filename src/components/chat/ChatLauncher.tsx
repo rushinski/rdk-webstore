@@ -10,11 +10,11 @@ export function ChatLauncher() {
       <button
         type="button"
         onClick={handleOpen}
-        className="md:hidden fixed right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white px-2 py-4 shadow-lg border border-red-700 z-40"
+        className="md:hidden fixed right-0 top-1/2 -translate-y-1/2 bg-red-600 text-white px-1 py-3 shadow-lg border border-red-700 z-40"
         aria-label="Chat with us"
       >
-        <span className="flex items-center gap-2 -rotate-90 whitespace-nowrap text-xs font-semibold">
-          <MessageCircle className="w-4 h-4" />
+        <span className="flex items-center gap-1.5 -rotate-90 whitespace-nowrap text-[11px] font-semibold">
+          <MessageCircle className="w-3.5 h-3.5" />
           Chat with us
         </span>
       </button>

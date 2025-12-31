@@ -50,4 +50,16 @@ export class AdminNotificationsRepository {
     if (error) throw error;
     return data ?? [];
   }
+
+  async markAllRead(adminId: string) {
+    const { data, error } = await this.supabase
+      .from("admin_notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("admin_id", adminId)
+      .is("read_at", null)
+      .select();
+
+    if (error) throw error;
+    return data ?? [];
+  }
 }

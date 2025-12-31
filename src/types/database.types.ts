@@ -409,7 +409,7 @@ export type Database = {
           chat_id: string
           created_at: string
           id: string
-          sender_id: string
+          sender_id: string | null
           sender_role: string
         }
         Insert: {
@@ -417,7 +417,7 @@ export type Database = {
           chat_id: string
           created_at?: string
           id?: string
-          sender_id: string
+          sender_id?: string | null
           sender_role: string
         }
         Update: {
@@ -425,7 +425,7 @@ export type Database = {
           chat_id?: string
           created_at?: string
           id?: string
-          sender_id?: string
+          sender_id?: string | null
           sender_role?: string
         }
         Relationships: [
@@ -450,34 +450,37 @@ export type Database = {
           closed_at: string | null
           closed_by: string | null
           created_at: string
+          guest_email: string | null
           id: string
           order_id: string | null
           source: string
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           closed_at?: string | null
           closed_by?: string | null
           created_at?: string
+          guest_email?: string | null
           id?: string
           order_id?: string | null
           source?: string
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           closed_at?: string | null
           closed_by?: string | null
           created_at?: string
+          guest_email?: string | null
           id?: string
           order_id?: string | null
           source?: string
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

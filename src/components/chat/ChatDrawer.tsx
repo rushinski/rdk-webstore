@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Send, X } from 'lucide-react';
@@ -34,21 +34,49 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageDraft, setMessageDraft] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [guestAccess, setGuestAccess] = useState<{ orderId: string; token: string } | null>(null);
+  const [isGuestMode, setIsGuestMode] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
+  const hasLoadedMessages = useRef(false);
+  const lastMessageId = useRef<string | null>(null);
 
   const loginUrl = useMemo(() => {
     if (!pathname) return '/auth/login';
     return `/auth/login?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
 
-  const loadMessages = async (chatId: string) => {
+  const loadMessages = async (chatId: string, isInitial = false) => {
+    if (isInitial) setIsMessagesLoading(true);
     try {
-      const response = await fetch(`/api/chats/${chatId}/messages`, { cache: 'no-store' });
+      const guestQuery = guestAccess
+        ? `?orderId=${encodeURIComponent(guestAccess.orderId)}&token=${encodeURIComponent(
+            guestAccess.token
+          )}`
+        : '';
+      const endpoint = guestAccess
+        ? `/api/chats/guest/${chatId}/messages${guestQuery}`
+        : `/api/chats/${chatId}/messages`;
+      const response = await fetch(endpoint, { cache: 'no-store' });
       const data = await response.json();
-      setMessages(data.messages ?? []);
+      const nextMessages = data.messages ?? [];
+      const nextLast = nextMessages.length > 0 ? nextMessages[nextMessages.length - 1].id : null;
+      if (nextLast && nextLast !== lastMessageId.current) {
+        lastMessageId.current = nextLast;
+        setMessages(nextMessages);
+      } else if (!nextLast) {
+        lastMessageId.current = null;
+        setMessages([]);
+      }
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'chat_load_messages' });
+    } finally {
+      if (isInitial) {
+        setIsMessagesLoading(false);
+        hasLoadedMessages.current = true;
+      }
     }
   };
 
@@ -60,9 +88,42 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
       const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
       const sessionData = await sessionResponse.json().catch(() => null);
       if (!sessionData?.user) {
-        setRequiresAuth(true);
-        setChat(null);
-        setMessages([]);
+        let storedAccess: { orderId: string; token: string } | null = null;
+        try {
+          const orderId = sessionStorage.getItem('rdk_guest_order_id');
+          const token = sessionStorage.getItem('rdk_guest_order_token');
+          if (orderId && token) {
+            storedAccess = { orderId, token };
+          }
+        } catch {
+          storedAccess = null;
+        }
+
+        setGuestAccess(storedAccess);
+        if (!storedAccess) {
+          setRequiresAuth(true);
+          setChat(null);
+          setMessages([]);
+          setIsGuestMode(false);
+          return;
+        }
+
+        setRequiresAuth(false);
+        setIsGuestMode(true);
+
+        const response = await fetch(
+          `/api/chats/guest?orderId=${encodeURIComponent(storedAccess.orderId)}&token=${encodeURIComponent(
+            storedAccess.token
+          )}`,
+          { cache: 'no-store' }
+        );
+        const data = await response.json();
+        setChat(data.chat ?? null);
+        if (data.chat?.id) {
+          await loadMessages(data.chat.id, true);
+        } else {
+          setMessages([]);
+        }
         return;
       }
 
@@ -70,14 +131,17 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
       if (!response.ok) {
         setRequiresAuth(true);
         setChat(null);
+        setIsGuestMode(false);
         return;
       }
 
       const data = await response.json();
       setRequiresAuth(false);
+      setIsGuestMode(false);
+      setGuestAccess(null);
       setChat(data.chat ?? null);
       if (data.chat?.id) {
-        await loadMessages(data.chat.id);
+        await loadMessages(data.chat.id, true);
       } else {
         setMessages([]);
       }
@@ -96,18 +160,29 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   useEffect(() => {
     if (!isOpen || !chat?.id) return;
-    const interval = setInterval(() => loadMessages(chat.id), 5000);
+    const interval = setInterval(() => loadMessages(chat.id), 6000);
     return () => clearInterval(interval);
   }, [isOpen, chat?.id]);
+
+  useEffect(() => {
+    hasLoadedMessages.current = false;
+    lastMessageId.current = null;
+  }, [chat?.id]);
 
   const handleStartChat = async () => {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const response = await fetch('/api/chats', {
+      const endpoint = isGuestMode && guestAccess ? '/api/chats/guest' : '/api/chats';
+      const payload =
+        isGuestMode && guestAccess
+          ? { orderId: guestAccess.orderId, token: guestAccess.token }
+          : {};
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -133,10 +208,19 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
     setMessageDraft('');
 
     try {
-      const response = await fetch(`/api/chats/${chat.id}/messages`, {
+      const endpoint =
+        isGuestMode && guestAccess
+          ? `/api/chats/guest/${chat.id}/messages`
+          : `/api/chats/${chat.id}/messages`;
+      const payload =
+        isGuestMode && guestAccess
+          ? { orderId: guestAccess.orderId, token: guestAccess.token, message: body }
+          : { message: body };
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: body }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -150,8 +234,22 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   const handleCloseChat = async () => {
     if (!chat?.id) return;
+    setConfirmClose(false);
     try {
-      await fetch(`/api/chats/${chat.id}/close`, { method: 'POST' });
+      const endpoint =
+        isGuestMode && guestAccess
+          ? `/api/chats/guest/${chat.id}/close`
+          : `/api/chats/${chat.id}/close`;
+      const payload =
+        isGuestMode && guestAccess
+          ? { orderId: guestAccess.orderId, token: guestAccess.token }
+          : null;
+
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
       setChat(null);
       setMessages([]);
     } catch (error) {
@@ -208,7 +306,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           ) : (
             <>
               <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                {messages.length === 0 ? (
+                {isMessagesLoading && !hasLoadedMessages.current ? (
+                  <div className="text-sm text-zinc-500">Loading messages...</div>
+                ) : messages.length === 0 ? (
                   <div className="text-sm text-zinc-500">No messages yet.</div>
                 ) : (
                   messages.map((message) => (
@@ -249,7 +349,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                 </div>
                 <button
                   type="button"
-                  onClick={handleCloseChat}
+                  onClick={() => setConfirmClose(true)}
                   className="text-xs text-zinc-500 hover:text-zinc-300"
                 >
                   Close chat
@@ -259,6 +359,34 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           )}
         </div>
       </div>
+
+      {confirmClose && (
+        <div className="absolute inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
+          <div className="relative bg-zinc-950 border border-zinc-800/70 p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-white mb-2">Close this chat?</h3>
+            <p className="text-sm text-zinc-400 mb-4">
+              Closing will end the conversation. You can’t send new messages unless you sign in again.
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmClose(false)}
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseChat}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 text-sm"
+              >
+                Close chat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

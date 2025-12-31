@@ -20,13 +20,13 @@ export class ChatMessagesRepository {
 
   async insertMessage(input: {
     chatId: string;
-    senderId: string;
+    senderId?: string | null;
     senderRole: "customer" | "admin";
     body: string;
   }): Promise<ChatMessageRow> {
     const insert: ChatMessageInsert = {
       chat_id: input.chatId,
-      sender_id: input.senderId,
+      sender_id: input.senderId ?? null,
       sender_role: input.senderRole,
       body: input.body,
     };

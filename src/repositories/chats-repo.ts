@@ -33,13 +33,15 @@ export class ChatsRepository {
   }
 
   async createChat(input: {
-    userId: string;
+    userId?: string | null;
     orderId?: string | null;
     source: "manual" | "order";
+    guestEmail?: string | null;
   }): Promise<ChatRow> {
     const insert: ChatInsert = {
-      user_id: input.userId,
+      user_id: input.userId ?? null,
       order_id: input.orderId ?? null,
+      guest_email: input.guestEmail ?? null,
       source: input.source,
       status: "open",
     };
@@ -54,13 +56,37 @@ export class ChatsRepository {
     return data as ChatRow;
   }
 
-  async closeChat(chatId: string, closedBy: string): Promise<ChatRow> {
+  async getByOrderId(orderId: string): Promise<ChatRow | null> {
+    const { data, error } = await this.supabase
+      .from("chats")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false })
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async updateGuestEmail(chatId: string, guestEmail: string | null): Promise<ChatRow> {
+    const { data, error } = await this.supabase
+      .from("chats")
+      .update({ guest_email: guestEmail })
+      .eq("id", chatId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as ChatRow;
+  }
+
+  async closeChat(chatId: string, closedBy?: string | null): Promise<ChatRow> {
     const { data, error } = await this.supabase
       .from("chats")
       .update({
         status: "closed",
         closed_at: new Date().toISOString(),
-        closed_by: closedBy,
+        closed_by: closedBy ?? null,
       } as ChatUpdate)
       .eq("id", chatId)
       .select()
@@ -73,7 +99,7 @@ export class ChatsRepository {
   async listAdminChats(params?: { status?: "open" | "closed" }) {
     let query = this.supabase
       .from("chats")
-      .select("*, messages:chat_messages(id, body, sender_role, created_at)")
+      .select("*, messages:chat_messages(id, body, sender_role, created_at), customer:profiles(email)")
       .order("updated_at", { ascending: false })
       .order("created_at", { foreignTable: "chat_messages", ascending: false })
       .limit(1, { foreignTable: "chat_messages" });

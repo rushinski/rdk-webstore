@@ -122,8 +122,9 @@ $function$;
 -- Chats
 create table if not exists public.chats (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
+  user_id uuid null references public.profiles(id) on delete cascade,
   order_id uuid null references public.orders(id) on delete set null,
+  guest_email text null,
   status text not null default 'open',
   source text not null default 'manual',
   created_at timestamptz not null default now(),
@@ -160,7 +161,7 @@ create policy "Users can update own chats"
 create table if not exists public.chat_messages (
   id uuid primary key default gen_random_uuid(),
   chat_id uuid not null references public.chats(id) on delete cascade,
-  sender_id uuid not null references public.profiles(id) on delete cascade,
+  sender_id uuid null references public.profiles(id) on delete cascade,
   sender_role text not null,
   body text not null,
   created_at timestamptz not null default now(),

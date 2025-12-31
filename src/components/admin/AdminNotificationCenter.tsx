@@ -89,7 +89,7 @@ export function AdminNotificationCenter() {
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition"
+        className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800 transition-colors rounded-sm"
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5 text-zinc-200" />
@@ -132,6 +132,36 @@ export function AdminNotificationCenter() {
                 </Link>
               ))
             )}
+          </div>
+
+          <div className="border-t border-zinc-800/70 p-3 flex items-center justify-between">
+            <Link
+              href="/admin/notifications"
+              onClick={() => setIsOpen(false)}
+              className="text-xs text-zinc-400 hover:text-white"
+            >
+              View all
+            </Link>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await fetch('/api/admin/notifications', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mark_all: true }),
+                  });
+                  setNotifications((prev) =>
+                    prev.map((item) => ({ ...item, read_at: item.read_at ?? new Date().toISOString() }))
+                  );
+                } catch (error) {
+                  logError(error, { layer: 'frontend', event: 'admin_mark_all_notifications' });
+                }
+              }}
+              className="text-xs text-zinc-400 hover:text-white"
+            >
+              Mark all as read
+            </button>
           </div>
         </div>
       )}

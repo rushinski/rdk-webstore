@@ -14,9 +14,14 @@ export const adminInviteAcceptSchema = z
 
 export const adminNotificationUpdateSchema = z
   .object({
-    ids: z.array(z.string().uuid()).min(1),
+    ids: z.array(z.string().uuid()).optional(),
+    mark_all: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (value) => Boolean(value.mark_all) || (Array.isArray(value.ids) && value.ids.length > 0),
+    { message: "Provide ids or mark_all" }
+  );
 
 export const adminPreferencesSchema = z
   .object({

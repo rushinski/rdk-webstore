@@ -136,6 +136,8 @@ export default function CatalogPage() {
   const [editDraft, setEditDraft] = useState<any>(null);
   const [confirmTarget, setConfirmTarget] = useState<EditTarget | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addType, setAddType] = useState<'group' | 'brand' | 'model'>('group');
 
   const normalizedQuery = query.trim().toLowerCase();
   const matchesQuery = (value: string) =>
@@ -674,7 +676,7 @@ export default function CatalogPage() {
       {message && <div className="text-sm text-gray-400">{message}</div>}
 
       <div className="bg-zinc-900 border border-zinc-800/70 p-5">
-        <details className="group" open>
+        <details className="group">
           <summary className="cursor-pointer list-none text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-4 py-3">
             <span>Info key: how the catalog system works</span>
             <span className="text-xs text-gray-500 group-open:hidden">Show</span>
@@ -779,128 +781,21 @@ export default function CatalogPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-white">Catalog</h2>
-              <p className="text-xs text-gray-500">Groups → Brands → Models in one place.</p>
+              <p className="text-xs text-gray-500">Groups - Brands - Models in one place.</p>
             </div>
-            <span className="text-xs text-gray-500">
-              {eligibleGroups.length} groups · {eligibleBrands.length} brands · {eligibleModels.length} models
-            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs text-gray-500">
+                {eligibleGroups.length} groups | {eligibleBrands.length} brands | {eligibleModels.length} models
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded text-sm"
+              >
+                Add Catalog Entry
+              </button>
+            </div>
           </div>
-
-          <details className="group bg-zinc-950/40 border border-zinc-800/70 rounded p-4">
-            <summary className="cursor-pointer list-none text-sm text-gray-200 font-medium flex items-center justify-between">
-              <span>Add new catalog entries</span>
-              <span className="text-xs text-gray-500 group-open:hidden">Show</span>
-              <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
-            </summary>
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4 text-sm">
-              <div className="bg-zinc-950/60 border border-zinc-800/70 rounded p-4 space-y-3">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Add Group</div>
-                  <p className="text-xs text-gray-500">Top-level bucket like Nike, Designer. Key auto-fills if blank.</p>
-                </div>
-                <input
-                  value={newGroup.label}
-                  onChange={(e) =>
-                    setNewGroup((prev) => ({
-                      ...prev,
-                      label: e.target.value,
-                      key: prev.key ? prev.key : toGroupKey(e.target.value),
-                    }))
-                  }
-                  onBlur={(e) =>
-                    setNewGroup((prev) => ({
-                      ...prev,
-                      label: toTitleCase(e.target.value),
-                      key: prev.key ? toGroupKey(prev.key) : toGroupKey(e.target.value),
-                    }))
-                  }
-                  placeholder="Group label (e.g., New Balance)"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <input
-                  value={newGroup.key}
-                  onChange={(e) => setNewGroup((prev) => ({ ...prev, key: e.target.value }))}
-                  onBlur={(e) => setNewGroup((prev) => ({ ...prev, key: toGroupKey(e.target.value) }))}
-                  placeholder="Group key (auto if blank)"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <button
-                  onClick={handleCreateGroup}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-                >
-                  Add Group
-                </button>
-              </div>
-
-              <div className="bg-zinc-950/60 border border-zinc-800/70 rounded p-4 space-y-3">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Add Brand</div>
-                  <p className="text-xs text-gray-500">Canonical brand label tied to one group.</p>
-                </div>
-                <select
-                  value={newBrand.groupId}
-                  onChange={(e) => setNewBrand((prev) => ({ ...prev, groupId: e.target.value }))}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                >
-                  <option value="">Select group</option>
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={newBrand.label}
-                  onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
-                  onBlur={(e) =>
-                    setNewBrand((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                  }
-                  placeholder="Brand label (e.g., Off-White)"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <button
-                  onClick={handleCreateBrand}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-                >
-                  Add Brand
-                </button>
-              </div>
-
-              <div className="bg-zinc-950/60 border border-zinc-800/70 rounded p-4 space-y-3">
-                <div>
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Add Model</div>
-                  <p className="text-xs text-gray-500">Model labels are sneaker-only.</p>
-                </div>
-                <select
-                  value={newModel.brandId}
-                  onChange={(e) => setNewModel((prev) => ({ ...prev, brandId: e.target.value }))}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                >
-                  <option value="">Select brand</option>
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.canonical_label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={newModel.label}
-                  onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
-                  onBlur={(e) =>
-                    setNewModel((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                  }
-                  placeholder="Model label (e.g., Air Max 90)"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <button
-                  onClick={handleCreateModel}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-                >
-                  Add Model
-                </button>
-              </div>
-            </div>
-          </details>
 
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
             {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
@@ -925,7 +820,7 @@ export default function CatalogPage() {
                     <div>
                       <div className="text-white font-medium">{group.label}</div>
                       <div className="text-xs text-gray-500">
-                        {group.key} · {visibleBrands.length} brands
+                        {group.key} | {visibleBrands.length} brands
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -1347,6 +1242,171 @@ export default function CatalogPage() {
             ))}
           </div>
         </section>
+      )}
+
+      {showAddModal && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
+          onClick={() => setShowAddModal(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-3xl p-6 space-y-5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Add Catalog Entry</h3>
+                <p className="text-xs text-gray-500">
+                  Choose what you want to add and where it should live.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {(['group', 'brand', 'model'] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setAddType(type)}
+                  className={`px-3 py-2 text-sm border ${
+                    addType === type
+                      ? 'border-red-600 bg-red-600 text-white'
+                      : 'border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+                  }`}
+                >
+                  {type === 'group' ? 'Group' : type === 'brand' ? 'Brand' : 'Model'}
+                </button>
+              ))}
+            </div>
+
+            {addType === 'group' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-gray-500">Group details</div>
+                  <input
+                    value={newGroup.label}
+                    onChange={(e) =>
+                      setNewGroup((prev) => ({
+                        ...prev,
+                        label: e.target.value,
+                        key: prev.key ? prev.key : toGroupKey(e.target.value),
+                      }))
+                    }
+                    onBlur={(e) =>
+                      setNewGroup((prev) => ({
+                        ...prev,
+                        label: toTitleCase(e.target.value),
+                        key: prev.key ? toGroupKey(prev.key) : toGroupKey(e.target.value),
+                      }))
+                    }
+                    placeholder="Group label (e.g., New Balance)"
+                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                  />
+                  <input
+                    value={newGroup.key}
+                    onChange={(e) => setNewGroup((prev) => ({ ...prev, key: e.target.value }))}
+                    onBlur={(e) => setNewGroup((prev) => ({ ...prev, key: toGroupKey(e.target.value) }))}
+                    placeholder="Group key (auto if blank)"
+                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                  />
+                </div>
+                <div className="flex flex-col justify-between gap-3">
+                  <p className="text-xs text-gray-500">
+                    Groups are the top-level navigation buckets (Nike, Designer). Key auto-fills if blank.
+                  </p>
+                  <button
+                    onClick={handleCreateGroup}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+                  >
+                    Add Group
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {addType === 'brand' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-gray-500">Brand details</div>
+                  <select
+                    value={newBrand.groupId}
+                    onChange={(e) => setNewBrand((prev) => ({ ...prev, groupId: e.target.value }))}
+                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                  >
+                    <option value="">Select group</option>
+                    {groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={newBrand.label}
+                    onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
+                    onBlur={(e) =>
+                      setNewBrand((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
+                    }
+                    placeholder="Brand label (e.g., Off-White)"
+                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                  />
+                </div>
+                <div className="flex flex-col justify-between gap-3">
+                  <p className="text-xs text-gray-500">Brands are canonical labels tied to a single group.</p>
+                  <button
+                    onClick={handleCreateBrand}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+                  >
+                    Add Brand
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {addType === 'model' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
+                <div className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-gray-500">Model details</div>
+                  <select
+                    value={newModel.brandId}
+                    onChange={(e) => setNewModel((prev) => ({ ...prev, brandId: e.target.value }))}
+                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                  >
+                    <option value="">Select brand</option>
+                    {brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.canonical_label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={newModel.label}
+                    onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
+                    onBlur={(e) =>
+                      setNewModel((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
+                    }
+                    placeholder="Model label (e.g., Air Max 90)"
+                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                  />
+                </div>
+                <div className="flex flex-col justify-between gap-3">
+                  <p className="text-xs text-gray-500">Models are sneaker-only and live under a brand.</p>
+                  <button
+                    onClick={handleCreateModel}
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+                  >
+                    Add Model
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {editTarget && editDraft && (

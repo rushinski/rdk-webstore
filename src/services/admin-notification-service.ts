@@ -25,15 +25,16 @@ export class AdminNotificationService {
     await this.notificationsRepo.insertMany(rows);
   }
 
-  async notifyChatCreated(chatId: string, orderId?: string | null) {
+  async notifyChatCreated(chatId: string, orderId?: string | null, customerLabel?: string) {
     const staff = await this.profilesRepo.listStaffProfiles();
     const recipients = staff.filter(
       (admin) => admin.admin_chat_created_notifications_enabled !== false
     );
 
+    const label = customerLabel ? `${customerLabel} • ` : "";
     const message = orderId
-      ? `New pickup chat started for order #${orderId.slice(0, 8)}`
-      : "New chat started";
+      ? `${label}New pickup chat started for order #${orderId.slice(0, 8)}`
+      : `${label}New chat started`;
 
     const rows = recipients.map((admin) => ({
       admin_id: admin.id,
@@ -46,7 +47,12 @@ export class AdminNotificationService {
     await this.notificationsRepo.insertMany(rows);
   }
 
-  async notifyChatMessage(chatId: string, messagePreview: string, excludeAdminId?: string) {
+  async notifyChatMessage(
+    chatId: string,
+    messagePreview: string,
+    customerLabel?: string,
+    excludeAdminId?: string
+  ) {
     const staff = await this.profilesRepo.listStaffProfiles();
     const recipients = staff.filter(
       (admin) =>
@@ -54,10 +60,11 @@ export class AdminNotificationService {
         (!excludeAdminId || admin.id !== excludeAdminId)
     );
 
+    const label = customerLabel ? `${customerLabel}: ` : "";
     const rows = recipients.map((admin) => ({
       admin_id: admin.id,
       type: "chat_message",
-      message: messagePreview,
+      message: `${label}${messagePreview}`,
       chat_id: chatId,
     }));
 

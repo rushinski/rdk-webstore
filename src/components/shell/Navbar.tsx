@@ -14,7 +14,6 @@ import {
   ChevronDown,
   Menu,
   Home,
-  ArrowLeft,
   Settings,
   LogOut,
   Shirt,
@@ -27,13 +26,11 @@ import {
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
 import { logError } from '@/lib/log';
-import { isAdminRole } from '@/repositories/profile-repo';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
 
 interface NavbarProps {
   isAuthenticated?: boolean;
-  isAdmin?: boolean;
   userEmail?: string;
   cartCount?: number;
 }
@@ -133,7 +130,6 @@ const BRAND_LOGOS: Record<string, { default: string; hover: string }> = {
 
 export function Navbar({
   isAuthenticated = false,
-  isAdmin = false,
   userEmail,
   cartCount = 0,
 }: NavbarProps) {
@@ -145,7 +141,6 @@ export function Navbar({
   const [isMounted, setIsMounted] = useState(false);
   const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(null);
   const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
-  const [clientIsAdmin, setClientIsAdmin] = useState<boolean | null>(null);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -176,7 +171,6 @@ export function Navbar({
           if (!isActive) return;
           setClientIsAuthenticated(false);
           setClientUserEmail(null);
-          setClientIsAdmin(false);
           return;
         }
 
@@ -185,13 +179,13 @@ export function Navbar({
         const user = data?.user ?? null;
         setClientIsAuthenticated(Boolean(user));
         setClientUserEmail(user?.email ?? null);
-        setClientIsAdmin(data?.role ? isAdminRole(data.role) : false);
+        // no-op: admin routes handled in layout
       } catch (error) {
         logError(error, { layer: "frontend", event: "navbar_load_session" });
         if (!isActive) return;
         setClientIsAuthenticated(false);
         setClientUserEmail(null);
-        setClientIsAdmin(false);
+        // no-op
       }
     };
 
@@ -370,8 +364,6 @@ export function Navbar({
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
   const effectiveUserEmail = clientUserEmail ?? userEmail;
   const showAuthButtons = !effectiveIsAuthenticated;
-  const effectiveIsAdmin = clientIsAdmin ?? isAdmin;
-  const showAdminLink = effectiveIsAdmin;
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -793,28 +785,9 @@ export function Navbar({
             </div>
           ) : null}
 
-          {effectiveIsAuthenticated && showAdminLink && (
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-400 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Admin Dashboard
-            </Link>
-          )}
         </div>
 
         <div className="flex items-center gap-3 md:hidden">
-          {showAdminLink && (
-            <Link
-              href="/admin"
-              className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="sm:hidden">Admin</span>
-              <span className="hidden sm:inline">Back to Admin Dashboard</span>
-            </Link>
-          )}
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             className="text-gray-300 cursor-pointer"

@@ -4,8 +4,9 @@ export type ChatSenderRole = "customer" | "admin";
 
 export interface ChatSummary {
   id: string;
-  userId: string;
+  userId: string | null;
   orderId: string | null;
+  guestEmail?: string | null;
   status: ChatStatus;
   source: ChatSource;
   createdAt: string;
@@ -20,7 +21,7 @@ export interface ChatSummary {
 export interface ChatMessageView {
   id: string;
   chatId: string;
-  senderId: string;
+  senderId: string | null;
   senderRole: ChatSenderRole;
   body: string;
   createdAt: string;

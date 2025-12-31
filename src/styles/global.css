@@ -89,34 +89,35 @@ body[data-route='admin'] main {
 .rdk-checkbox {
   appearance: none;
   -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 0;
-  border: 1px solid #3f3f46;
+  border: 1px solid #52525b;
   background-color: #0b0b0c;
-  display: inline-grid;
-  place-content: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
   cursor: pointer;
 }
 
 .rdk-checkbox::after {
   content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 0;
-  background-color: #e4e4e7;
-  transform: scale(0);
+  width: 6px;
+  height: 10px;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(45deg) scale(0);
   transition: transform 0.12s ease-in-out;
 }
 
 .rdk-checkbox:checked {
-  border-color: #a1a1aa;
-  background-color: #111112;
+  border-color: #dc2626;
+  background-color: #dc2626;
 }
 
 .rdk-checkbox:checked::after {
-  transform: scale(1);
+  transform: rotate(45deg) scale(1);
 }
 
 .rdk-checkbox:focus-visible {
@@ -129,6 +130,34 @@ body[data-route='admin'] main {
   cursor: not-allowed;
 }
 
+.rdk-toggle {
+  width: 46px;
+  height: 24px;
+  border: 1px solid #3f3f46;
+  background-color: #0b0b0c;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.rdk-toggle[data-state='on'] {
+  background-color: #dc2626;
+  border-color: #dc2626;
+}
+
+.rdk-toggle__thumb {
+  width: 18px;
+  height: 18px;
+  background-color: #ffffff;
+  transition: transform 0.15s ease;
+  transform: translateX(0);
+}
+
+.rdk-toggle[data-state='on'] .rdk-toggle__thumb {
+  transform: translateX(20px);
+}
+
 /* Mobile safe area */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom);
@@ -139,4 +168,3 @@ body[data-route='admin'] main {
   outline: 2px solid #dc2626;
   outline-offset: 2px;
 }
-

@@ -8,6 +8,7 @@ import { logError } from '@/lib/log';
 import { PasswordRequirements } from '@/components/auth/register/PasswordRequirements';
 import { isPasswordValid } from '@/lib/validation/password';
 import { Toast } from '@/components/ui/Toast';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
@@ -395,15 +396,14 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         <p className="text-gray-400 mb-4">
           Get email updates when admins reply to your chat.
         </p>
-        <label className="flex items-center justify-between gap-4 text-sm text-zinc-300">
+        <div className="flex items-center justify-between gap-4 text-sm text-zinc-300">
           <span>Email me about chat replies</span>
-          <input
-            type="checkbox"
+          <ToggleSwitch
             checked={chatNotificationsEnabled}
-            onChange={(e) => setChatNotificationsEnabled(e.target.checked)}
-            className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
+            onChange={setChatNotificationsEnabled}
+            ariaLabel="Chat notification preference"
           />
-        </label>
+        </div>
         <button
           type="button"
           onClick={handleSaveChatNotifications}
@@ -526,7 +526,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Address Line 1</label>
+            <label className="block text-gray-400 text-sm mb-1">
+              Address Line 1 <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
               required
@@ -537,19 +539,20 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Apartment / Unit (optional)</label>
+            <label className="block text-gray-400 text-sm mb-1">Apartment / Unit</label>
             <input
               type="text"
               value={addressForm.line2}
               onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
-              placeholder="Apt, Suite, Unit"
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-sm mb-1">City</label>
+              <label className="block text-gray-400 text-sm mb-1">
+                City <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 required
@@ -560,7 +563,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             </div>
 
             <div>
-              <label className="block text-gray-400 text-sm mb-1">State</label>
+              <label className="block text-gray-400 text-sm mb-1">
+                State <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 required
@@ -573,7 +578,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-sm mb-1">Postal Code</label>
+              <label className="block text-gray-400 text-sm mb-1">
+                Postal Code <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 required
@@ -584,7 +591,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             </div>
 
             <div>
-              <label className="block text-gray-400 text-sm mb-1">Country</label>
+              <label className="block text-gray-400 text-sm mb-1">
+                Country <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 required
@@ -600,7 +609,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               type="checkbox"
               checked={setAsDefault}
               onChange={(e) => setSetAsDefault(e.target.checked)}
-              className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
+              className="rdk-checkbox"
             />
             Set as default shipping address
           </label>

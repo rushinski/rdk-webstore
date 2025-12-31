@@ -1,7 +1,7 @@
 // src/components/admin/AdminSidebar.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -12,9 +12,11 @@ import {
   DollarSign,
   Settings,
   MessageCircle,
+  Globe,
   X,
   Menu,
 } from 'lucide-react';
+import { AdminNotificationCenter } from '@/components/admin/AdminNotificationCenter';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -22,18 +24,47 @@ const navItems = [
   { href: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/admin/sales', label: 'Sales', icon: DollarSign },
   { href: '/admin/shipping', label: 'Shipping', icon: Truck },
-  { href: '/admin/chats', label: 'Chats', icon: MessageCircle },
   { href: '/admin/catalog', label: 'Catalog', icon: Package },
-  { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 
 export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [chatBadgeCount, setChatBadgeCount] = useState(0);
   const pathname = usePathname();
   const userInitial = userEmail?.trim().charAt(0).toUpperCase() || 'A';
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadChatBadge = async () => {
+      try {
+        const response = await fetch('/api/chats?status=open', { cache: 'no-store' });
+        const data = await response.json();
+        const chats = data.chats ?? [];
+        const count = chats.filter((chat: any) => {
+          const lastMessage = chat.messages?.[0];
+          if (!lastMessage) return true;
+          return lastMessage.sender_role === 'customer';
+        }).length;
+        if (isActive) {
+          setChatBadgeCount(count);
+        }
+      } catch {
+        if (isActive) setChatBadgeCount(0);
+      }
+    };
+
+    loadChatBadge();
+    const interval = setInterval(loadChatBadge, 12000);
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const SidebarContent = () => (
-    <div className="space-y-6">
+    <div className="flex flex-col h-full">
+      <div className="space-y-6">
       <Link
         href="/admin/profile"
         onClick={() => setIsOpen(false)}
@@ -46,6 +77,14 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       </Link>
 
       <nav className="space-y-1">
+        <Link
+          href="/"
+          onClick={() => setIsOpen(false)}
+          className="flex items-center space-x-3 px-4 py-3 rounded transition text-gray-400 hover:bg-zinc-800 hover:text-white"
+        >
+          <Globe className="w-5 h-5" />
+          <span>Website</span>
+        </Link>
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
@@ -67,6 +106,38 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           );
         })}
       </nav>
+      </div>
+
+      <div className="mt-auto pt-4 border-t border-zinc-800/70">
+        <div className="flex items-center justify-between px-4 py-2">
+          <Link
+            href="/admin/chats"
+            onClick={() => setIsOpen(false)}
+            className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800 transition-colors rounded-sm"
+            aria-label="Chats"
+          >
+            <MessageCircle className="w-5 h-5 text-zinc-200" />
+            {chatBadgeCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                {chatBadgeCount}
+              </span>
+            )}
+          </Link>
+
+          <AdminNotificationCenter />
+
+          <Link
+            href="/admin/settings"
+            onClick={() => setIsOpen(false)}
+            className={`flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800 transition-colors rounded-sm ${
+              pathname.startsWith('/admin/settings') ? 'text-white' : 'text-zinc-200'
+            }`}
+            aria-label="Settings"
+          >
+            <Settings className="w-5 h-5" />
+          </Link>
+        </div>
+      </div>
     </div>
   );
 
@@ -96,7 +167,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       )}
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:block w-64 bg-zinc-900 border-r border-zinc-800/70 min-h-screen p-6">
+      <aside className="hidden md:block fixed left-0 top-0 w-64 h-screen bg-zinc-900 border-r border-zinc-800/70 p-6 z-40">
         <h2 className="text-2xl font-bold text-white mb-8">Admin</h2>
         <SidebarContent />
       </aside>

@@ -60,7 +60,9 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = await createSupabaseServerClient();
     const notificationsRepo = new AdminNotificationsRepository(supabase);
-    const updated = await notificationsRepo.markRead(session.user.id, parsed.data.ids);
+    const updated = parsed.data.mark_all
+      ? await notificationsRepo.markAllRead(session.user.id)
+      : await notificationsRepo.markRead(session.user.id, parsed.data.ids ?? []);
 
     return NextResponse.json(
       { notifications: updated },

@@ -8,6 +8,8 @@ import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 
 type BrandOption = { label: string; value: string };
 
+const NON_BRAND_CATEGORIES = new Set(['accessories', 'electronics']);
+
 interface FilterPanelProps {
   selectedCategories: string[];
   selectedBrands: string[];
@@ -62,12 +64,19 @@ export function FilterPanel({
   const showClothingFilter =
     (selectedCategories.length === 0 && hasClothing) ||
     selectedCategories.includes('clothing');
-  const showModelFilter = showShoeFilter;
+  const hasBrandableCategory =
+    selectedCategories.length === 0
+      ? categories.some((category) => !NON_BRAND_CATEGORIES.has(category))
+      : selectedCategories.some((category) => !NON_BRAND_CATEGORIES.has(category));
+  const showModelFilter = showShoeFilter && hasBrandableCategory;
   const brandLabelMap = useMemo(
     () => new Map(brands.map((brand) => [brand.value, brand.label])),
     [brands]
   );
   const availableBrandValues = useMemo(() => {
+    if (!hasBrandableCategory) {
+      return new Set<string>();
+    }
     if (selectedCategories.length === 0) {
       return new Set(brands.map((brand) => brand.value));
     }
@@ -77,7 +86,7 @@ export function FilterPanel({
       (brandsByCategory[category] ?? []).forEach((brand) => values.add(brand));
     });
     return values;
-  }, [brands, brandsByCategory, selectedCategories]);
+  }, [brands, brandsByCategory, selectedCategories, hasBrandableCategory]);
 
   const filteredBrands = useMemo(
     () => brands.filter((brand) => availableBrandValues.has(brand.value)),
@@ -96,7 +105,19 @@ export function FilterPanel({
     const newCategories = selectedCategories.includes(category)
       ? selectedCategories.filter(c => c !== category)
       : [...selectedCategories, category];
-    updateFilters({ ...getFilters(), category: newCategories });
+    const hasBrandCategory =
+      newCategories.length === 0
+        ? categories.some((cat) => !NON_BRAND_CATEGORIES.has(cat))
+        : newCategories.some((cat) => !NON_BRAND_CATEGORIES.has(cat));
+    updateFilters({
+      ...getFilters(),
+      category: newCategories,
+      brand: hasBrandCategory ? selectedBrands : [],
+      model: hasBrandCategory ? selectedModels : [],
+    });
+    if (!hasBrandCategory) {
+      setExpandedBrands({});
+    }
   };
 
   const handleBrandChange = (brand: string) => {
@@ -267,7 +288,7 @@ export function FilterPanel({
       </div>
 
       {/* Brand Filter */}
-      {filteredBrands.length > 0 && (
+      {hasBrandableCategory && filteredBrands.length > 0 && (
         <div>
           <button
             onClick={() => toggleSection('brand')}

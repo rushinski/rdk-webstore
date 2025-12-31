@@ -199,6 +199,8 @@ export class CheckoutService {
     }
 
     // Create Stripe Checkout Session
+    const guestToken = userId ? null : order.public_token;
+
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       line_items: lineItems.map((li) => ({
@@ -212,7 +214,9 @@ export class CheckoutService {
         quantity: li.quantity,
       })),
       // FIXED: Use NEXT_PUBLIC_SITE_URL from env
-      success_url: `${env.NEXT_PUBLIC_SITE_URL}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${env.NEXT_PUBLIC_SITE_URL}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}${
+        guestToken ? `&token=${guestToken}` : ""
+      }`,
       cancel_url: `${env.NEXT_PUBLIC_SITE_URL}/checkout/cancel`,
       metadata: {
         order_id: order.id,

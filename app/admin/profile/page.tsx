@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { logError } from '@/lib/log';
+import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
 
 type AdminProfile = {
   id: string;
@@ -165,7 +166,7 @@ export default function AdminProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Admin Settings</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">Your Admin Settings</h1>
         <p className="text-gray-400">Personal preferences for this admin account.</p>
       </div>
 
@@ -181,49 +182,42 @@ export default function AdminProfilePage() {
           <p className="text-gray-400 text-sm">Control how you receive admin updates.</p>
         </div>
 
-        <label className="flex items-center justify-between gap-4 text-sm text-zinc-300">
-          <span>Chat message notifications</span>
-          <input
-            type="checkbox"
-            checked={profile?.chat_notifications_enabled ?? true}
-            onChange={(e) =>
-              setProfile((prev) =>
-                prev ? { ...prev, chat_notifications_enabled: e.target.checked } : prev
-              )
-            }
-            className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
-          />
-        </label>
-
-        <label className="flex items-center justify-between gap-4 text-sm text-zinc-300">
-          <span>Order placed notifications</span>
-          <input
-            type="checkbox"
-            checked={profile?.admin_order_notifications_enabled ?? true}
-            onChange={(e) =>
-              setProfile((prev) =>
-                prev ? { ...prev, admin_order_notifications_enabled: e.target.checked } : prev
-              )
-            }
-            className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
-          />
-        </label>
-
-        <label className="flex items-center justify-between gap-4 text-sm text-zinc-300">
-          <span>Chat created notifications</span>
-          <input
-            type="checkbox"
-            checked={profile?.admin_chat_created_notifications_enabled ?? true}
-            onChange={(e) =>
-              setProfile((prev) =>
-                prev
-                  ? { ...prev, admin_chat_created_notifications_enabled: e.target.checked }
-                  : prev
-              )
-            }
-            className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-red-500 focus:ring-red-600"
-          />
-        </label>
+        <div className="divide-y divide-zinc-800/70 border border-zinc-800/70">
+          <div className="flex items-center justify-between gap-4 px-4 py-3 text-base text-zinc-200">
+            <span>Chat message notifications</span>
+            <ToggleSwitch
+              checked={profile?.chat_notifications_enabled ?? true}
+              onChange={(next) =>
+                setProfile((prev) => (prev ? { ...prev, chat_notifications_enabled: next } : prev))
+              }
+              ariaLabel="Chat message notifications"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-3 text-base text-zinc-200">
+            <span>Order placed notifications</span>
+            <ToggleSwitch
+              checked={profile?.admin_order_notifications_enabled ?? true}
+              onChange={(next) =>
+                setProfile((prev) =>
+                  prev ? { ...prev, admin_order_notifications_enabled: next } : prev
+                )
+              }
+              ariaLabel="Order placed notifications"
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4 px-4 py-3 text-base text-zinc-200">
+            <span>Chat created notifications</span>
+            <ToggleSwitch
+              checked={profile?.admin_chat_created_notifications_enabled ?? true}
+              onChange={(next) =>
+                setProfile((prev) =>
+                  prev ? { ...prev, admin_chat_created_notifications_enabled: next } : prev
+                )
+              }
+              ariaLabel="Chat created notifications"
+            />
+          </div>
+        </div>
 
         <button
           type="button"

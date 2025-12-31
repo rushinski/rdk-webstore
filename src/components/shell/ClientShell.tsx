@@ -7,8 +7,19 @@ import { SearchOverlay } from '@/components/search/SearchOverlay';
 import { CartDrawer } from '@/components/cart/CartDrawer';
 import { ChatDrawer } from '@/components/chat/ChatDrawer';
 import { ChatLauncher } from '@/components/chat/ChatLauncher';
+import { Footer } from '@/components/shell/Footer';
+import { MobileBottomNav } from '@/components/shell/MobileBottomNav';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 
-export function ClientShell({ children }: { children: React.ReactNode }) {
+export function ClientShell({
+  children,
+  isAdmin = false,
+  userEmail,
+}: {
+  children: React.ReactNode;
+  isAdmin?: boolean;
+  userEmail?: string | null;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -44,7 +55,9 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
     if (shouldOpenChat) setChatOpen(true);
   }, [searchParams]);
 
-  const isStoreRoute = !pathname.startsWith('/admin') && !pathname.startsWith('/auth');
+  const isAdminRoute = pathname.startsWith('/admin');
+  const isAuthRoute = pathname.startsWith('/auth');
+  const isStoreRoute = !isAdminRoute && !isAuthRoute;
 
   useEffect(() => {
     if (!pathname) return;
@@ -90,11 +103,14 @@ export function ClientShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {children}
+      {isAdmin && isStoreRoute && <AdminSidebar userEmail={userEmail} />}
+      <div className={isAdmin && isStoreRoute ? 'md:pl-64' : undefined}>{children}</div>
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
       {isStoreRoute && <ChatLauncher />}
       {isStoreRoute && <ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />}
+      {isStoreRoute && <Footer />}
+      {isStoreRoute && <MobileBottomNav />}
     </>
   );
 }

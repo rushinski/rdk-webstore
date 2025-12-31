@@ -84,22 +84,6 @@ export class StripeOrderJob {
     const paymentIntentId = session.payment_intent as string;
     await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
 
-    if (this.adminSupabase && order.fulfillment === "pickup" && order.user_id) {
-      try {
-        const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
-        await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
-      } catch (chatError) {
-        log({
-          level: "warn",
-          layer: "job",
-          message: "pickup_chat_create_failed",
-          requestId,
-          orderId,
-          error: chatError instanceof Error ? chatError.message : String(chatError),
-        });
-      }
-    }
-
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];
     for (const productId of productIds) {
       await this.productService.syncSizeTags(productId);
@@ -115,6 +99,33 @@ export class StripeOrderJob {
 
     const fullSession = unwrapStripe<Stripe.Checkout.Session>(retrieved);
     sessionEmail = fullSession.customer_details?.email ?? sessionEmail;
+
+    if (this.adminSupabase && order.fulfillment === "pickup") {
+      try {
+        const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
+        if (order.user_id) {
+          await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
+        } else if (order.public_token) {
+          await chatService.createChatForGuest({
+            orderId: order.id,
+            publicToken: order.public_token,
+            guestEmail: sessionEmail ?? null,
+          });
+          if (sessionEmail) {
+            await chatService.updateGuestEmailForOrder(order.id, sessionEmail);
+          }
+        }
+      } catch (chatError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "pickup_chat_create_failed",
+          requestId,
+          orderId,
+          error: chatError instanceof Error ? chatError.message : String(chatError),
+        });
+      }
+    }
 
     // Save shipping snapshot (ship orders only)
     if (fulfillment === "ship") {

@@ -6,11 +6,10 @@ import { Navbar } from './Navbar';
 
 interface ScrollHeaderProps {
   isAuthenticated?: boolean;
-  isAdmin?: boolean;
   userEmail?: string;
 }
 
-export function ScrollHeader({ isAuthenticated = false, isAdmin = false, userEmail }: ScrollHeaderProps) {
+export function ScrollHeader({ isAuthenticated = false, userEmail }: ScrollHeaderProps) {
   const pathname = usePathname();
   const isAuthRoute = pathname.startsWith('/auth');
   const isAdminRoute = pathname.startsWith('/admin');
@@ -66,7 +65,7 @@ export function ScrollHeader({ isAuthenticated = false, isAdmin = false, userEma
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
-      <Navbar isAuthenticated={isAuthenticated} isAdmin={isAdmin} userEmail={userEmail} />
+      <Navbar isAuthenticated={isAuthenticated} userEmail={userEmail} />
     </header>
   );
 }

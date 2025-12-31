@@ -13,6 +13,7 @@ function SuccessContent() {
   const router = useRouter();
   const orderId = searchParams.get('orderId');
   const sessionId = searchParams.get('session_id');
+  const publicToken = searchParams.get('token');
 
   const [status, setStatus] = useState<OrderStatusResponse | null>(null);
   const [isPolling, setIsPolling] = useState(true);
@@ -31,7 +32,8 @@ function SuccessContent() {
 
     const pollOrderStatus = async () => {
       try {
-        const response = await fetch(`/api/orders/${orderId}`);
+        const tokenQuery = publicToken ? `?token=${encodeURIComponent(publicToken)}` : '';
+        const response = await fetch(`/api/orders/${orderId}${tokenQuery}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch order status');
@@ -58,7 +60,17 @@ function SuccessContent() {
     pollInterval = setInterval(pollOrderStatus, 2000);
 
     return () => clearInterval(pollInterval);
-  }, [orderId, router]);
+  }, [orderId, router, publicToken]);
+
+  useEffect(() => {
+    if (!publicToken || !orderId) return;
+    try {
+      sessionStorage.setItem('rdk_guest_order_id', orderId);
+      sessionStorage.setItem('rdk_guest_order_token', publicToken);
+    } catch {
+      // ignore storage errors
+    }
+  }, [publicToken, orderId]);
 
   useEffect(() => {
     if (!status || status.status !== 'paid' || status.fulfillment !== 'pickup') return;
@@ -66,10 +78,15 @@ function SuccessContent() {
 
     const ensureChat = async () => {
       try {
-        const response = await fetch('/api/chats', {
+        const endpoint = publicToken ? '/api/chats/guest' : '/api/chats';
+        const payload = publicToken
+          ? { orderId: status.id, token: publicToken }
+          : { orderId: status.id };
+
+        const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: status.id }),
+          body: JSON.stringify(payload),
         });
 
         if (response.ok) {

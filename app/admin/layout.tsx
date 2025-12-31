@@ -12,9 +12,9 @@ export default async function AdminLayout({
   const userEmail = session.user.email ?? session.profile?.email ?? null;
 
   return (
-    <div className="flex min-h-screen bg-black">
+    <div className="min-h-screen bg-black">
       <AdminSidebar userEmail={userEmail} />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col md:ml-64">
         <AdminTopbar />
         <main className="flex-1 p-6">{children}</main>
       </div>

@@ -9,6 +9,7 @@ export type ChatEmailInput = {
   chatId: string;
   orderId?: string | null;
   senderRole: "customer" | "admin";
+  senderLabel?: string | null;
   message: string;
   recipientRole: "admin" | "customer";
 };
@@ -30,7 +31,10 @@ const truncate = (value: string, max = 240) => {
 const buildEmailHtml = (input: ChatEmailInput) => {
   const orderShort = input.orderId ? input.orderId.slice(0, 8).toUpperCase() : null;
   const chatUrl = buildChatLink(input);
-  const senderLabel = input.senderRole === "admin" ? "Admin" : "Customer";
+  const baseSender = input.senderRole === "admin" ? "Admin" : "Customer";
+  const senderLabel = input.senderLabel
+    ? `${baseSender} (${input.senderLabel})`
+    : baseSender;
 
   const contentHtml = `
     <tr>
@@ -74,7 +78,10 @@ const buildEmailHtml = (input: ChatEmailInput) => {
 
 const buildEmailText = (input: ChatEmailInput) => {
   const orderShort = input.orderId ? input.orderId.slice(0, 8).toUpperCase() : null;
-  const senderLabel = input.senderRole === "admin" ? "Admin" : "Customer";
+  const baseSender = input.senderRole === "admin" ? "Admin" : "Customer";
+  const senderLabel = input.senderLabel
+    ? `${baseSender} (${input.senderLabel})`
+    : baseSender;
   const chatUrl = buildChatLink(input);
 
   const lines = [
