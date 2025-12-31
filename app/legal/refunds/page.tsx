@@ -26,7 +26,7 @@ export default function RefundsPage() {
             <p>You must contact us within 72 hours of delivery to start an authenticity claim.</p>
 
             <h3 className="text-lg font-semibold text-white mt-4 mb-2">How to Submit a Claim</h3>
-            <p>Email Realdealholyspill@gmail.com and include:</p>
+            <p>Email realdealholyspill@gmail.com and include:</p>
             <ul className="list-disc pl-6 mt-2 space-y-1">
               <li>your order number</li>
               <li>clear photos of the item and packaging (including any size tags, labels, and SKU details, if present)</li>
@@ -82,7 +82,7 @@ export default function RefundsPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">6) Contact</h2>
-            <p>Email: Realdealholyspill@gmail.com</p>
+            <p>Email: realdealholyspill@gmail.com</p>
             <p>Location: Simpsonville, South Carolina, USA</p>
           </section>
         </div>

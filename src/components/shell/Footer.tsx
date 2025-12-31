@@ -139,12 +139,17 @@ export function Footer() {
                   Accessories
                 </Link>
               </li>
+              <li>
+                <Link href="/store?category=electronics" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                  Electronics
+                </Link>
+              </li>
             </ul>
           </div>
 
           {/* Support & Social */}
           <div>
-            <h4 className="text-white font-semibold mb-4 text-sm">Support</h4>
+            <h4 className="text-white font-semibold mb-4 text-sm">Info</h4>
             <ul className="space-y-2 mb-6">
               <li>
                 <Link href="/contact" className="text-zinc-500 hover:text-white text-sm transition-colors">

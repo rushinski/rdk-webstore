@@ -81,7 +81,7 @@ export default function ShippingPage() {
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">7) Questions</h2>
             <p>If you have any shipping questions, contact us at:</p>
             <p className="mt-2">
-              Email: Realdealholyspill@gmail.com
+              Email: realdealholyspill@gmail.com
               <br />
               Location: Simpsonville, South Carolina, USA
             </p>

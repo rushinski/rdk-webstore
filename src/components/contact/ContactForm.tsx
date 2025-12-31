@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { security } from '@/config/security';
 
 type ContactFormSource = 'contact_form' | 'bug_report';
@@ -33,10 +33,11 @@ export function ContactForm({
   const { attachments: attachmentConfig } = security.contact;
   const maxAttachments = attachmentConfig.maxFiles;
   const maxAttachmentSize = attachmentConfig.maxBytes;
-  const allowedTypes = attachmentConfig.allowedTypes;
+  const allowedTypes = attachmentConfig.allowedTypes.map((type) => type);
   const maxAttachmentSizeMb = Math.max(1, Math.round(maxAttachmentSize / (1024 * 1024)));
-  const allowedTypesSet = useMemo(() => new Set(allowedTypes), [allowedTypes]);
+  const allowedTypesSet = useMemo(() => new Set<string>(allowedTypes), [allowedTypes]);
   const storageKey = source === 'bug_report' ? 'rdk_bug_report_draft' : 'rdk_contact_draft';
+  const draftRef = useRef(formData);
 
   const previews = useMemo(
     () => attachments.map((file) => ({ file, url: URL.createObjectURL(file) })),
@@ -55,6 +56,7 @@ export function ContactForm({
     if (typeof window === 'undefined') return;
     const stored = sessionStorage.getItem(storageKey);
     if (!stored) return;
+    sessionStorage.removeItem(storageKey);
     try {
       const parsed = JSON.parse(stored) as Partial<typeof formData>;
       setFormData((prev) => ({
@@ -69,22 +71,6 @@ export function ContactForm({
   }, [storageKey]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hasDraft =
-      formData.name ||
-      formData.email ||
-      formData.subject ||
-      formData.message;
-
-    if (!hasDraft) {
-      sessionStorage.removeItem(storageKey);
-      return;
-    }
-
-    sessionStorage.setItem(storageKey, JSON.stringify(formData));
-  }, [formData, storageKey]);
-
-  useEffect(() => {
     return () => {
       previews.forEach((preview) => URL.revokeObjectURL(preview.url));
     };
@@ -92,23 +78,32 @@ export function ContactForm({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const preserveKey = `${storageKey}:preserve`;
-
     const handleBeforeUnload = () => {
-      sessionStorage.setItem(preserveKey, '1');
+      const draft = draftRef.current;
+      const hasDraft =
+        draft.name ||
+        draft.email ||
+        draft.subject ||
+        draft.message;
+
+      if (!hasDraft) {
+        sessionStorage.removeItem(storageKey);
+        return;
+      }
+
+      sessionStorage.setItem(storageKey, JSON.stringify(draft));
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      const shouldPreserve = sessionStorage.getItem(preserveKey) === '1';
-      sessionStorage.removeItem(preserveKey);
-      if (!shouldPreserve) {
-        sessionStorage.removeItem(storageKey);
-      }
     };
   }, [storageKey]);
+
+  useEffect(() => {
+    draftRef.current = formData;
+  }, [formData]);
 
   const handleAttachments = (files: FileList | null) => {
     if (!files) return;
@@ -200,7 +195,7 @@ export function ContactForm({
     }
   };
 
-  const attachmentsLabel = source === 'bug_report' ? 'Screenshots (optional)' : 'Photos (optional)';
+  const attachmentsLabel = source === 'bug_report' ? 'Screenshots' : 'Photos';
   const attachmentsHint = source === 'bug_report'
     ? `PNG, JPG, or WEBP. Up to ${maxAttachments} screenshots, ${maxAttachmentSizeMb}MB each.`
     : `PNG, JPG, or WEBP. Up to ${maxAttachments} photos, ${maxAttachmentSizeMb}MB each.`;
@@ -298,7 +293,7 @@ export function ContactForm({
                   <img
                     src={preview.url}
                     alt={preview.file.name}
-                    className="h-24 w-full object-cover rounded border border-zinc-800"
+                    className="h-20 w-full object-cover rounded border border-zinc-800"
                   />
                   <button
                     type="button"

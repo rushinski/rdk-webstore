@@ -22,7 +22,7 @@ export default function ContactPage() {
           </a>
           , by emailing us at{" "}
           <a href="mailto:realdealholyspill@gmail.com" className="text-red-400 hover:underline">
-            Realdealholyspill@gmail.com
+            realdealholyspill@gmail.com
           </a>
           , or by sending us a DM on Instagram at{" "}
           <a

@@ -144,7 +144,13 @@ export async function POST(request: NextRequest) {
     const contentType = request.headers.get("content-type") ?? "";
     const isMultipart = contentType.includes("multipart/form-data");
     let body: Record<string, unknown> | null = null;
-    let attachments: { filename: string; content: Buffer; contentType?: string }[] = [];
+    let attachments: {
+      filename: string;
+      content: Buffer;
+      contentType?: string;
+      cid?: string;
+      contentDisposition?: "inline" | "attachment";
+    }[] = [];
 
     if (isMultipart) {
       const formData = await request.formData();
@@ -203,12 +209,15 @@ export async function POST(request: NextRequest) {
 
         const fallbackName = `attachment-${index + 1}.${signature.ext}`;
         const filename = sanitizeFilename(file.name, fallbackName);
+        const contentId = `attachment-${index + 1}@realdealkickzsc`;
         attachments.push({
           filename: filename.toLowerCase().endsWith(`.${signature.ext}`)
             ? filename
             : `${filename}.${signature.ext}`,
           content: buffer,
           contentType: signature.mime,
+          cid: contentId,
+          contentDisposition: "inline",
         });
       }
     } else {
@@ -265,6 +274,21 @@ export async function POST(request: NextRequest) {
             </div>
             <div style="margin-top:10px;background:#111114;border:1px solid #262626;padding:14px;font-size:13px;line-height:1.7;color:#d1d5db;">
               ${attachments.map((file) => escapeHtml(file.filename)).join("<br />")}
+            </div>
+            <div style="margin-top:14px;">
+              ${attachments
+                .map((file) =>
+                  file.cid
+                    ? `<div style="margin-top:12px;">
+                        <img
+                          src="cid:${file.cid}"
+                          alt="${escapeHtml(file.filename)}"
+                          style="display:block;width:100%;max-width:420px;border:1px solid #262626;background:#0b0b0c;"
+                        />
+                      </div>`
+                    : ""
+                )
+                .join("")}
             </div>
           </td>
         </tr>

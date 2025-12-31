@@ -121,7 +121,7 @@ export default function PrivacyPage() {
               Depending on your location, you may have rights to access, correct, delete, or obtain a copy of your
               personal information. To request action on your information, contact us at
               {" "}
-              Realdealholyspill@gmail.com. We may verify your identity before responding.
+              realdealholyspill@gmail.com. We may verify your identity before responding.
             </p>
           </section>
 
@@ -135,7 +135,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">10) Contact</h2>
-            <p>Email: Realdealholyspill@gmail.com</p>
+            <p>Email: realdealholyspill@gmail.com</p>
             <p>Location: Simpsonville, South Carolina, USA</p>
           </section>
         </div>

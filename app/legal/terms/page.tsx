@@ -120,7 +120,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">10) Chargebacks and Payment Disputes</h2>
             <p>
-              If you have an issue with an order, please contact us first at Realdealholyspill@gmail.com.
+              If you have an issue with an order, please contact us first at realdealholyspill@gmail.com.
               Unjustified chargebacks or payment disputes may result in account restrictions and refusal of future
               service, where permitted by law.
             </p>
@@ -190,7 +190,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-2xl font-bold text-white mt-8 mb-4">18) Contact</h2>
-            <p>Email: Realdealholyspill@gmail.com</p>
+            <p>Email: realdealholyspill@gmail.com</p>
             <p>Location: Simpsonville, South Carolina, USA</p>
           </section>
         </div>

@@ -23,7 +23,6 @@ import {
   ShoppingBag,
   Watch,
   Laptop,
-  Crown,
   LayoutGrid,
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
@@ -142,7 +141,6 @@ export function Navbar({
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
-  const [designerBrands, setDesignerBrands] = useState<string[]>([]);
   const [isMounted, setIsMounted] = useState(false);
   const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(null);
   const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
@@ -226,20 +224,7 @@ export function Navbar({
       }
     };
 
-    const loadDesignerBrands = async () => {
-      try {
-        const response = await fetch('/api/store/catalog/brands?groupKey=designer');
-        const data = await response.json();
-        if (response.ok && Array.isArray(data.brands)) {
-          setDesignerBrands(data.brands);
-        }
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "navbar_load_designer_brands" });
-      }
-    };
-
     loadBrandGroups();
-    loadDesignerBrands();
   }, []);
 
   // Scroll lock when mobile menu is open
@@ -295,10 +280,6 @@ export function Navbar({
     return base.slice().sort((a, b) => a.label.localeCompare(b.label));
   }, [resolvedBrandGroups]);
   const visibleBrandGroups = orderedBrandGroups;
-  const designerHref = useMemo(
-    () => buildStoreHref({ brand: designerBrands }),
-    [designerBrands]
-  );
   const shopIconClass = "w-5 h-5 text-zinc-400 transition-colors group-hover/item:text-white";
 
   const shopItems = useMemo(
@@ -322,12 +303,6 @@ export function Navbar({
         description: 'Streetwear essentials & heat',
       },
       {
-        href: designerHref,
-        icon: <Crown className={shopIconClass} />,
-        label: 'Designer',
-        description: 'Luxury pairs from every designer brand',
-      },
-      {
         href: buildStoreHref({ category: 'accessories' }),
         icon: <Watch className={shopIconClass} />,
         label: 'Accessories',
@@ -340,7 +315,7 @@ export function Navbar({
         description: 'Tech & collectibles',
       },
     ],
-    [designerHref, shopIconClass]
+    [shopIconClass]
   );
 
   const brandIconClass = "object-contain transition-opacity duration-150";

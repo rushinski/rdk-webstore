@@ -5,6 +5,8 @@ type EmailAttachment = {
   filename: string;
   content: Buffer;
   contentType?: string;
+  cid?: string;
+  contentDisposition?: "inline" | "attachment";
 };
 
 type SendEmailInput = {
