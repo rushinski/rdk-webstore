@@ -5,10 +5,13 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
 import { sendEmail } from "@/lib/email/mailer";
-import { emailFooterHtml, emailFooterText } from "@/lib/email/footer";
+import { emailFooterText } from "@/lib/email/footer";
+import { renderEmailLayout } from "@/lib/email/template";
+import { emailStyles } from "@/lib/email/theme";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { isPasswordValid } from "@/lib/validation/password";
+import { env } from "@/config/env";
 
 const passwordSchema = z
   .object({
@@ -50,60 +53,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const footerHtml = emailFooterHtml();
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <title>Password Updated</title>
-          <meta name="viewport" content="width=device-width,initial-scale=1" />
-        </head>
-        <body style="margin:0;padding:0;background:#050505;color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050505;padding:32px 12px;">
-            <tr>
-              <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#0b0b0c;border:1px solid #1f1f22;">
-                  <tr>
-                    <td style="padding:24px;text-align:center;">
-                      <img
-                        src="https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/public/assets/rdk-logo.png"
-                        alt="Realdealkickzsc"
-                        style="max-width:180px;width:100%;height:auto;display:block;margin:0 auto;"
-                      />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 24px 16px;text-align:center;">
-                      <div style="font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#f87171;font-weight:700;">
-                        Security Notice
-                      </div>
-                      <h1 style="margin:10px 0 0;font-size:20px;font-weight:700;color:#ffffff;">
-                        Your password was updated
-                      </h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 24px 24px;">
-                      <div style="font-size:13px;line-height:1.7;color:#d1d5db;">
-                        We&apos;re confirming that your Realdealkickzsc account password was changed successfully.
-                        If you did not make this change, please reset your password right away and contact support.
-                      </div>
-                    </td>
-                  </tr>
-                  ${footerHtml}
-                </table>
-              </td>
-            </tr>
-          </table>
-        </body>
-      </html>
+    const accountUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+    const contentHtml = `
+      <tr>
+        <td style="padding:0 24px 10px;text-align:center;">
+          <div style="${emailStyles.eyebrow}">Security notice</div>
+          <h1 style="${emailStyles.heading}">Your password was updated</h1>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 20px;text-align:center;">
+          <p style="${emailStyles.copy}">
+            We're confirming that your Realdealkickzsc account password was changed successfully.
+          </p>
+          <p style="margin:10px 0 0;${emailStyles.subcopy}">
+            If you did not make this change, reset your password right away and contact support.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 24px;text-align:center;">
+          <a href="${accountUrl}" style="${emailStyles.button}">Go to your account</a>
+        </td>
+      </tr>
     `;
+    const html = renderEmailLayout({
+      title: "Password Updated",
+      preheader: "Your Realdealkickzsc password was updated.",
+      contentHtml,
+    });
 
     const text = `Your password was updated
 
-We’re confirming that your Realdealkickzsc account password was changed successfully.
-If you did not make this change, please reset your password right away and contact support.
+We're confirming that your Realdealkickzsc account password was changed successfully.
+If you did not make this change, reset your password right away and contact support.
+Review your account: ${accountUrl}
 ${emailFooterText()}
 `;
 

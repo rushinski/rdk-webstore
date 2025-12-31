@@ -1,6 +1,8 @@
 import { env } from "@/config/env";
 import { sendEmail } from "@/lib/email/mailer";
-import { emailFooterHtml, emailFooterText } from "@/lib/email/footer";
+import { emailFooterText } from "@/lib/email/footer";
+import { renderEmailLayout } from "@/lib/email/template";
+import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 
 type OrderItemEmail = {
   title: string;
@@ -67,11 +69,11 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
       const size = item.sizeLabel ? ` (${item.sizeLabel})` : "";
       return `
         <tr>
-          <td style="padding:12px 0;border-bottom:1px solid #262626;">
-            <div style="font-size:14px;color:#f5f5f5;font-weight:600;">${item.title}${size}</div>
-            <div style="font-size:12px;color:#9ca3af;">Qty ${item.quantity}</div>
+          <td style="padding:12px 0;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};">
+            <div style="font-size:14px;color:${EMAIL_COLORS.text};font-weight:600;">${item.title}${size}</div>
+            <div style="font-size:12px;color:${EMAIL_COLORS.muted};">Qty ${item.quantity}</div>
           </td>
-          <td align="right" style="padding:12px 0;border-bottom:1px solid #262626;font-size:14px;color:#f5f5f5;">
+          <td align="right" style="padding:12px 0;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};font-size:14px;color:${EMAIL_COLORS.text};">
             $${formatMoney(item.lineTotal)}
           </td>
         </tr>
@@ -84,10 +86,8 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
       ? `
         <tr>
           <td style="padding:16px 0 0;">
-            <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#f87171;font-weight:700;">
-              Shipping Address
-            </div>
-            <div style="margin-top:8px;font-size:13px;line-height:1.6;color:#d1d5db;">
+            <div style="${emailStyles.labelAccent}">Shipping Address</div>
+            <div style="margin-top:8px;font-size:13px;line-height:1.6;color:${EMAIL_COLORS.muted};">
               ${addressLines.map((line) => `<div>${line}</div>`).join("")}
             </div>
           </td>
@@ -96,125 +96,89 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
       : `
         <tr>
           <td style="padding:16px 0 0;">
-            <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#f87171;font-weight:700;">
-              Fulfillment
-            </div>
-            <div style="margin-top:8px;font-size:13px;line-height:1.6;color:#d1d5db;">
+            <div style="${emailStyles.labelAccent}">Fulfillment</div>
+            <div style="margin-top:8px;font-size:13px;line-height:1.6;color:${EMAIL_COLORS.muted};">
               ${input.fulfillment === "pickup" ? "Store pickup" : "Shipping details pending"}
             </div>
           </td>
         </tr>
       `;
 
-  const footerHtml = emailFooterHtml();
+  const contentHtml = `
+      <tr>
+        <td style="padding:0 24px 10px;text-align:center;">
+          <div style="${emailStyles.eyebrow}">Order confirmed</div>
+          <h1 style="${emailStyles.heading}">Thanks for shopping with us.</h1>
+          <p style="margin:10px 0 0;${emailStyles.copy}">
+            Your order is locked in and we are preparing it now.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+            <tr>
+              <td style="padding:12px;">
+                <div style="${emailStyles.label}">Order</div>
+                <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
+                  #${orderShort}
+                </div>
+              </td>
+              <td style="padding:12px;text-align:right;">
+                <div style="${emailStyles.label}">Placed</div>
+                <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+                  ${orderDate}
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            ${itemsHtml}
+            <tr>
+              <td style="padding:12px 0 4px;font-size:13px;color:${EMAIL_COLORS.muted};">Subtotal</td>
+              <td align="right" style="padding:12px 0 4px;font-size:13px;color:${EMAIL_COLORS.text};">
+                $${formatMoney(input.subtotal)}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 0 4px;font-size:13px;color:${EMAIL_COLORS.muted};">Shipping</td>
+              <td align="right" style="padding:0 0 4px;font-size:13px;color:${EMAIL_COLORS.text};">
+                $${formatMoney(input.shipping)}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 0 12px;font-size:14px;color:#ffffff;font-weight:700;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};">
+                Total
+              </td>
+              <td align="right" style="padding:0 0 12px;font-size:16px;color:#ffffff;font-weight:700;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};">
+                $${formatMoney(input.total)}
+              </td>
+            </tr>
+            ${shippingBlock}
+          </table>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:20px 24px;text-align:left;">
+          <a href="${orderUrl}" style="${emailStyles.button}">View your order</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+          If you have any questions, reply to this email and our team will help you out.
+        </td>
+      </tr>
+    `;
 
-  return `
-  <!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="utf-8" />
-      <title>Order Confirmation</title>
-      <meta name="viewport" content="width=device-width,initial-scale=1" />
-    </head>
-    <body style="margin:0;padding:0;background:#050505;color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
-      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050505;padding:32px 12px;">
-        <tr>
-          <td align="center">
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#0b0b0c;border:1px solid #1f1f22;">
-              <tr>
-                <td style="padding:24px 24px 8px;text-align:center;">
-                  <img
-                    src="https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/public/assets/rdk-logo.png"
-                    alt="Realdealkickzsc"
-                    style="max-width:200px;width:100%;height:auto;display:block;margin:0 auto;"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:0 24px 16px;text-align:center;">
-                  <div style="font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#f87171;font-weight:700;">
-                    Order Confirmed
-                  </div>
-                  <h1 style="margin:10px 0 0;font-size:22px;font-weight:700;color:#ffffff;">
-                    Thanks for shopping with us.
-                  </h1>
-                  <p style="margin:8px 0 0;font-size:13px;color:#9ca3af;line-height:1.6;">
-                    Your order is locked in and we are preparing it now.
-                  </p>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:0 24px 16px;">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#111114;border:1px solid #262626;">
-                    <tr>
-                      <td style="padding:12px;">
-                        <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.14em;">
-                          Order
-                        </div>
-                        <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
-                          #${orderShort}
-                        </div>
-                      </td>
-                      <td style="padding:12px;text-align:right;">
-                        <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.14em;">
-                          Placed
-                        </div>
-                        <div style="font-size:14px;color:#ffffff;margin-top:4px;">
-                          ${orderDate}
-                        </div>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:0 24px;">
-                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
-                    ${itemsHtml}
-                    <tr>
-                      <td style="padding:12px 0 4px;font-size:13px;color:#9ca3af;">Subtotal</td>
-                      <td align="right" style="padding:12px 0 4px;font-size:13px;color:#d1d5db;">
-                        $${formatMoney(input.subtotal)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:0 0 4px;font-size:13px;color:#9ca3af;">Shipping</td>
-                      <td align="right" style="padding:0 0 4px;font-size:13px;color:#d1d5db;">
-                        $${formatMoney(input.shipping)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="padding:0 0 12px;font-size:14px;color:#ffffff;font-weight:700;border-bottom:1px solid #262626;">
-                        Total
-                      </td>
-                      <td align="right" style="padding:0 0 12px;font-size:16px;color:#ffffff;font-weight:700;border-bottom:1px solid #262626;">
-                        $${formatMoney(input.total)}
-                      </td>
-                    </tr>
-                    ${shippingBlock}
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:20px 24px;">
-                  <a href="${orderUrl}" style="display:inline-block;background:#dc2626;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:12px 18px;">
-                    View your order
-                  </a>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:0 24px 24px;font-size:11px;color:#6b7280;line-height:1.5;">
-                  If you have any questions, reply to this email and our team will help you out.
-                </td>
-              </tr>
-              ${footerHtml}
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-  </html>
-  `;
+  return renderEmailLayout({
+    title: "Order Confirmation",
+    preheader: `Order #${orderShort} confirmed.`,
+    contentHtml,
+  });
 };
 
 const buildEmailText = (input: OrderConfirmationEmailInput) => {

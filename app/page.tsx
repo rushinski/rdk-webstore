@@ -14,7 +14,7 @@ export default async function HomePage() {
   return (
     <div className="relative">
       <section className="relative bg-black overflow-hidden">
-        <div className="relative min-h-[78vh] flex items-center pb-24">
+        <div className="relative min-h-[78vh] flex items-start md:items-center pb-24">
           {/* Background */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
             {/* Hero image */}
@@ -53,7 +53,7 @@ export default async function HomePage() {
 
           {/* Content */}
           <div className="relative z-10 w-full">
-            <div className="max-w-7xl mx-auto px-4 py-24 md:py-28">
+            <div className="max-w-7xl mx-auto px-4 pt-12 pb-24 sm:pt-16 md:py-28">
               <div className="max-w-2xl">
                 <div className="text-xs uppercase tracking-[0.2em] text-red-400 font-semibold mb-3">
                   REALDEALKICKZSC

@@ -1,24 +1,25 @@
 import { env } from "@/config/env";
+import { EMAIL_BRAND, EMAIL_COLORS, EMAIL_FONT_STACK, emailStyles } from "@/lib/email/theme";
 
 const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 
 export const emailFooterHtml = () => `
   <tr>
-    <td style="padding:18px 24px 24px;border-top:1px solid #1f1f22;">
-      <div style="font-size:11px;line-height:1.7;color:#6b7280;">
-        <div style="font-weight:700;color:#d1d5db;letter-spacing:0.12em;text-transform:uppercase;">
-          Realdealkickzsc
+    <td style="padding:18px 24px 24px;border-top:1px solid ${EMAIL_COLORS.border};">
+      <div style="font-size:11px;line-height:1.7;color:${EMAIL_COLORS.subtle};font-family:${EMAIL_FONT_STACK};">
+        <div style="font-weight:700;color:${EMAIL_COLORS.text};letter-spacing:0.22em;text-transform:uppercase;">
+          ${EMAIL_BRAND.name}
         </div>
-        <div>Simpsonville, SC</div>
-        <div style="margin-top:6px;">
-          <a href="${siteUrl}/contact" style="color:#9ca3af;text-decoration:none;">Contact</a>
+        <div style="margin-top:4px;color:${EMAIL_COLORS.muted};">Simpsonville, SC</div>
+        <div style="margin-top:8px;">
+          <a href="${siteUrl}/contact" style="${emailStyles.link}">Contact</a>
           &nbsp;|&nbsp;
-          <a href="${siteUrl}/shipping" style="color:#9ca3af;text-decoration:none;">Shipping</a>
+          <a href="${siteUrl}/shipping" style="${emailStyles.link}">Shipping</a>
           &nbsp;|&nbsp;
-          <a href="${siteUrl}/refunds" style="color:#9ca3af;text-decoration:none;">Returns &amp; Refunds</a>
+          <a href="${siteUrl}/refunds" style="${emailStyles.link}">Returns &amp; Refunds</a>
         </div>
-        <div style="margin-top:6px;">
-          Instagram: <a href="https://instagram.com/realdealkickzllc" style="color:#9ca3af;text-decoration:none;">@realdealkickzllc</a>
+        <div style="margin-top:6px;color:${EMAIL_COLORS.muted};">
+          Instagram: <a href="https://instagram.com/realdealkickzllc" style="${emailStyles.link}">@realdealkickzllc</a>
         </div>
       </div>
     </td>
@@ -28,7 +29,7 @@ export const emailFooterHtml = () => `
 export const emailFooterText = () =>
   [
     "",
-    "Realdealkickzsc",
+    EMAIL_BRAND.name,
     "Simpsonville, SC",
     `Contact: ${siteUrl}/contact`,
     `Shipping: ${siteUrl}/shipping`,

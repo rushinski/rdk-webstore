@@ -4,7 +4,9 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email/mailer";
-import { emailFooterHtml, emailFooterText } from "@/lib/email/footer";
+import { emailFooterText } from "@/lib/email/footer";
+import { renderEmailLayout } from "@/lib/email/template";
+import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { env } from "@/config/env";
@@ -269,10 +271,8 @@ export async function POST(request: NextRequest) {
       ? `
         <tr>
           <td style="padding:0 24px 24px;">
-            <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#f87171;font-weight:700;">
-              Attachments
-            </div>
-            <div style="margin-top:10px;background:#111114;border:1px solid #262626;padding:14px;font-size:13px;line-height:1.7;color:#d1d5db;">
+            <div style="${emailStyles.labelAccent}">Attachments</div>
+            <div style="margin-top:10px;${emailStyles.panel}padding:14px;font-size:13px;line-height:1.7;color:${EMAIL_COLORS.muted};">
               ${attachments.map((file) => escapeHtml(file.filename)).join("<br />")}
             </div>
             <div style="margin-top:14px;">
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
                         <img
                           src="cid:${file.cid}"
                           alt="${escapeHtml(file.filename)}"
-                          style="display:block;width:100%;max-width:420px;border:1px solid #262626;background:#0b0b0c;"
+                          style="display:block;width:100%;max-width:420px;border:1px solid ${EMAIL_COLORS.panelBorder};background:${EMAIL_COLORS.surface};"
                         />
                       </div>`
                     : ""
@@ -295,86 +295,52 @@ export async function POST(request: NextRequest) {
       `
       : "";
 
-    const footerHtml = emailFooterHtml();
-
-    const html = `
-      <!DOCTYPE html>
-      <html lang="en">
-        <head>
-          <meta charset="utf-8" />
-          <title>New Contact Message</title>
-          <meta name="viewport" content="width=device-width,initial-scale=1" />
-        </head>
-        <body style="margin:0;padding:0;background:#050505;color:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#050505;padding:32px 12px;">
+    const contentHtml = `
+      <tr>
+        <td style="padding:0 24px 10px;text-align:center;">
+          <div style="${emailStyles.eyebrow}">${heading}</div>
+          <h1 style="${emailStyles.heading}">${headline}</h1>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 16px;">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
             <tr>
-              <td align="center">
-                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;background:#0b0b0c;border:1px solid #1f1f22;">
-                  <tr>
-                    <td style="padding:24px;text-align:center;">
-                      <img
-                        src="https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/public/assets/rdk-logo.png"
-                        alt="Realdealkickzsc"
-                        style="max-width:180px;width:100%;height:auto;display:block;margin:0 auto;"
-                      />
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 24px 16px;text-align:center;">
-                      <div style="font-size:12px;letter-spacing:0.2em;text-transform:uppercase;color:#f87171;font-weight:700;">
-                        ${heading}
-                      </div>
-                      <h1 style="margin:10px 0 0;font-size:20px;font-weight:700;color:#ffffff;">
-                        ${headline}
-                      </h1>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 24px 16px;">
-                      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#111114;border:1px solid #262626;">
-                        <tr>
-                          <td style="padding:12px;">
-                            <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.14em;">
-                              From
-                            </div>
-                            <div style="font-size:15px;color:#ffffff;font-weight:700;margin-top:4px;">
-                              ${safeName}
-                            </div>
-                            <div style="font-size:13px;color:#d1d5db;margin-top:6px;">
-                              ${safeEmail}
-                            </div>
-                          </td>
-                          <td style="padding:12px;text-align:right;">
-                            <div style="font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.14em;">
-                              Subject
-                            </div>
-                            <div style="font-size:14px;color:#ffffff;margin-top:4px;">
-                              ${safeSubject}
-                            </div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding:0 24px 24px;">
-                      <div style="font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#f87171;font-weight:700;">
-                        Message
-                      </div>
-                      <div style="margin-top:10px;background:#111114;border:1px solid #262626;padding:14px;font-size:13px;line-height:1.7;color:#d1d5db;">
-                        ${safeMessage.replace(/\n/g, "<br />")}
-                      </div>
-                    </td>
-                  </tr>
-                  ${attachmentsHtml}
-                  ${footerHtml}
-                </table>
+              <td style="padding:12px;">
+                <div style="${emailStyles.label}">From</div>
+                <div style="font-size:15px;color:#ffffff;font-weight:700;margin-top:4px;">
+                  ${safeName}
+                </div>
+                <div style="font-size:13px;color:${EMAIL_COLORS.muted};margin-top:6px;">
+                  ${safeEmail}
+                </div>
+              </td>
+              <td style="padding:12px;text-align:right;">
+                <div style="${emailStyles.label}">Subject</div>
+                <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+                  ${safeSubject}
+                </div>
               </td>
             </tr>
           </table>
-        </body>
-      </html>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 24px;">
+          <div style="${emailStyles.labelAccent}">Message</div>
+          <div style="margin-top:10px;${emailStyles.panel}padding:14px;font-size:13px;line-height:1.7;color:${EMAIL_COLORS.muted};">
+            ${safeMessage.replace(/\n/g, "<br />")}
+          </div>
+        </td>
+      </tr>
+      ${attachmentsHtml}
     `;
+
+    const html = renderEmailLayout({
+      title: headline,
+      preheader: textHeading,
+      contentHtml,
+    });
 
     const text = `${textHeading}
 Name: ${parsed.data.name}
