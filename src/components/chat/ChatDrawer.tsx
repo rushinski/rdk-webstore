@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Send, X } from 'lucide-react';
 import { logError } from '@/lib/log';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -160,8 +161,32 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   useEffect(() => {
     if (!isOpen || !chat?.id) return;
-    const interval = setInterval(() => loadMessages(chat.id), 6000);
-    return () => clearInterval(interval);
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`chat-messages-${chat.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `chat_id=eq.${chat.id}`,
+        },
+        (payload) => {
+          const nextMessage = payload.new as ChatMessage;
+          lastMessageId.current = nextMessage.id;
+          setMessages((prev) =>
+            prev.some((message) => message.id === nextMessage.id)
+              ? prev
+              : [...prev, nextMessage]
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isOpen, chat?.id]);
 
   useEffect(() => {

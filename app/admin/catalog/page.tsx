@@ -87,6 +87,25 @@ const toGroupKey = (value: string) =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
 
+const normalizeLabel = (value: string) => normalizeWhitespace(value).toLowerCase();
+
+const collectDuplicates = <T,>(items: T[], keyFn: (item: T) => string) => {
+  const map = new Map<string, T[]>();
+  items.forEach((item) => {
+    const key = keyFn(item);
+    if (!key) return;
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(item);
+    } else {
+      map.set(key, [item]);
+    }
+  });
+  return Array.from(map.entries())
+    .map(([key, values]) => ({ key, items: values }))
+    .filter((entry) => entry.items.length > 1);
+};
+
 function StatusPill({ active }: { active: boolean }) {
   return (
     <span
@@ -146,6 +165,33 @@ export default function CatalogPage() {
   const groupMap = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
   const brandMap = useMemo(() => new Map(brands.map((brand) => [brand.id, brand])), [brands]);
   const modelMap = useMemo(() => new Map(models.map((model) => [model.id, model])), [models]);
+
+  const duplicateGroups = useMemo(
+    () => collectDuplicates(groups, (group) => normalizeLabel(group.label)),
+    [groups]
+  );
+  const duplicateBrands = useMemo(
+    () => collectDuplicates(brands, (brand) => normalizeLabel(brand.canonical_label)),
+    [brands]
+  );
+  const duplicateModels = useMemo(
+    () =>
+      collectDuplicates(
+        models,
+        (model) => `${model.brand_id}:${normalizeLabel(model.canonical_label)}`
+      ),
+    [models]
+  );
+  const duplicateAliases = useMemo(
+    () =>
+      collectDuplicates(aliases, (alias) => {
+        const targetId = alias.entity_type === 'brand' ? alias.brand_id : alias.model_id;
+        return `${alias.entity_type}:${targetId ?? 'unknown'}:${normalizeLabel(alias.alias_label)}`;
+      }),
+    [aliases]
+  );
+  const duplicateTotal =
+    duplicateGroups.length + duplicateBrands.length + duplicateModels.length + duplicateAliases.length;
 
   const filteredGroups = useMemo(
     () =>
@@ -795,6 +841,119 @@ export default function CatalogPage() {
                 Add Catalog Entry
               </button>
             </div>
+          </div>
+
+          <div className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Duplicate check</h3>
+                <p className="text-xs text-gray-500">
+                  Normalized labels grouped by type to spot duplicate entries.
+                </p>
+              </div>
+              <span className="text-xs text-gray-500">
+                {duplicateTotal} duplicate set{duplicateTotal === 1 ? '' : 's'}
+              </span>
+            </div>
+            {duplicateTotal === 0 ? (
+              <div className="mt-3 text-xs text-gray-500">
+                No duplicates detected across groups, brands, models, or aliases.
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-400">
+                {duplicateGroups.length > 0 && (
+                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
+                      Groups
+                    </div>
+                    <div className="space-y-1">
+                      {duplicateGroups.map((entry) => (
+                        <div key={`group-${entry.key}`} className="flex items-center justify-between">
+                          <span className="text-gray-200">{entry.items[0].label}</span>
+                          <span className="text-gray-500">{entry.items.length} matches</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {duplicateBrands.length > 0 && (
+                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
+                      Brands
+                    </div>
+                    <div className="space-y-1">
+                      {duplicateBrands.map((entry) => {
+                        const groupLabels = Array.from(
+                          new Set(
+                            entry.items.map(
+                              (brand) => groupMap.get(brand.group_id)?.label ?? 'Unassigned'
+                            )
+                          )
+                        ).join(', ');
+                        return (
+                          <div key={`brand-${entry.key}`} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-200">{entry.items[0].canonical_label}</span>
+                              <span className="text-gray-500">{entry.items.length} matches</span>
+                            </div>
+                            <div className="text-[11px] text-gray-500">Groups: {groupLabels}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {duplicateModels.length > 0 && (
+                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
+                      Models
+                    </div>
+                    <div className="space-y-1">
+                      {duplicateModels.map((entry) => {
+                        const brandLabel =
+                          brandMap.get(entry.items[0].brand_id)?.canonical_label ?? 'Unknown brand';
+                        return (
+                          <div key={`model-${entry.key}`} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-200">{entry.items[0].canonical_label}</span>
+                              <span className="text-gray-500">{entry.items.length} matches</span>
+                            </div>
+                            <div className="text-[11px] text-gray-500">Brand: {brandLabel}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {duplicateAliases.length > 0 && (
+                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
+                      Aliases
+                    </div>
+                    <div className="space-y-1">
+                      {duplicateAliases.map((entry) => {
+                        const alias = entry.items[0];
+                        const targetLabel =
+                          alias.entity_type === 'brand'
+                            ? brandMap.get(alias.brand_id ?? '')?.canonical_label ?? 'Unknown brand'
+                            : modelMap.get(alias.model_id ?? '')?.canonical_label ?? 'Unknown model';
+                        return (
+                          <div key={`alias-${entry.key}`} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-200">{alias.alias_label}</span>
+                              <span className="text-gray-500">{entry.items.length} matches</span>
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {alias.entity_type === 'brand' ? 'Brand' : 'Model'}: {targetLabel}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">

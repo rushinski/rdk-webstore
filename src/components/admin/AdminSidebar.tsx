@@ -1,7 +1,7 @@
 // src/components/admin/AdminSidebar.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -17,6 +17,7 @@ import {
   Menu,
 } from 'lucide-react';
 import { AdminNotificationCenter } from '@/components/admin/AdminNotificationCenter';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 const navItems = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -30,6 +31,7 @@ const navItems = [
 export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatBadgeCount, setChatBadgeCount] = useState(0);
+  const chatLastSenderRef = useRef(new Map<string, 'customer' | 'admin' | 'none'>());
   const pathname = usePathname();
   const userInitial = userEmail?.trim().charAt(0).toUpperCase() || 'A';
 
@@ -41,11 +43,17 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
         const response = await fetch('/api/chats?status=open', { cache: 'no-store' });
         const data = await response.json();
         const chats = data.chats ?? [];
-        const count = chats.filter((chat: any) => {
+        const nextMap = new Map<string, 'customer' | 'admin' | 'none'>();
+        chats.forEach((chat: any) => {
           const lastMessage = chat.messages?.[0];
-          if (!lastMessage) return true;
-          return lastMessage.sender_role === 'customer';
-        }).length;
+          if (!lastMessage) {
+            nextMap.set(chat.id, 'none');
+            return;
+          }
+          nextMap.set(chat.id, lastMessage.sender_role ?? 'none');
+        });
+        chatLastSenderRef.current = nextMap;
+        const count = Array.from(nextMap.values()).filter((role) => role !== 'admin').length;
         if (isActive) {
           setChatBadgeCount(count);
         }
@@ -55,16 +63,69 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     };
 
     loadChatBadge();
-    const interval = setInterval(loadChatBadge, 12000);
+    const supabase = createSupabaseBrowserClient();
+    const channel = supabase
+      .channel('admin-sidebar-chats')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chats' },
+        (payload) => {
+          const chat = payload.new as { id: string; status?: string | null };
+          if (chat.status && chat.status !== 'open') return;
+          chatLastSenderRef.current.set(chat.id, 'none');
+          if (isActive) {
+            const count = Array.from(chatLastSenderRef.current.values()).filter(
+              (role) => role !== 'admin'
+            ).length;
+            setChatBadgeCount(count);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chats' },
+        (payload) => {
+          const chat = payload.new as { id: string; status?: string | null };
+          if (chat.status && chat.status !== 'open') {
+            chatLastSenderRef.current.delete(chat.id);
+          } else {
+            if (!chatLastSenderRef.current.has(chat.id)) {
+              chatLastSenderRef.current.set(chat.id, 'none');
+            }
+          }
+          if (isActive) {
+            const count = Array.from(chatLastSenderRef.current.values()).filter(
+              (role) => role !== 'admin'
+            ).length;
+            setChatBadgeCount(count);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const message = payload.new as { chat_id: string; sender_role?: 'customer' | 'admin' };
+          if (!chatLastSenderRef.current.has(message.chat_id)) return;
+          chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? 'none');
+          if (isActive) {
+            const count = Array.from(chatLastSenderRef.current.values()).filter(
+              (role) => role !== 'admin'
+            ).length;
+            setChatBadgeCount(count);
+          }
+        }
+      )
+      .subscribe();
     return () => {
       isActive = false;
-      clearInterval(interval);
+      supabase.removeChannel(channel);
     };
   }, []);
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full">
-      <div className="space-y-6">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
       <Link
         href="/admin/profile"
         onClick={() => setIsOpen(false)}
@@ -108,7 +169,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       </nav>
       </div>
 
-      <div className="mt-auto pt-4 border-t border-zinc-800/70">
+      <div className="sticky bottom-0 pt-3 border-t border-zinc-800/70 bg-zinc-900">
         <div className="flex items-center justify-between px-4 py-2">
           <Link
             href="/admin/chats"

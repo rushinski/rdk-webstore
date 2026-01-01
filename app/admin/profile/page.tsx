@@ -59,7 +59,7 @@ export default function AdminProfilePage() {
 
   const isSuperAdmin = profile?.role === 'super_admin' || profile?.role === 'dev';
   const canInviteSuper = profile?.role === 'dev';
-  const canManagePayout = isSuperAdmin || profile?.is_primary_admin;
+  const canManagePayout = isSuperAdmin;
 
   useEffect(() => {
     if (!canInviteSuper) setInviteRole('admin');
@@ -275,7 +275,7 @@ export default function AdminProfilePage() {
       )}
 
       {canManagePayout && (
-        <div className="bg-zinc-900 border border-zinc-800/70 p-6 space-y-4">
+        <div id="payout-settings" className="bg-zinc-900 border border-zinc-800/70 p-6 space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-white">Payout Settings</h2>
             <p className="text-gray-400 text-sm">Only the primary admin and super admins can update payouts.</p>

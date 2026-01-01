@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Send, XCircle } from 'lucide-react';
 import { logError } from '@/lib/log';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 type ChatSummary = {
   id: string;
@@ -44,6 +45,11 @@ export default function AdminChatsPage() {
   const hasLoadedMessages = useRef(false);
   const lastMessageId = useRef<string | null>(null);
   const hasLoadedChats = useRef(false);
+  const activeChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeChatIdRef.current = activeChatId;
+  }, [activeChatId]);
 
   useEffect(() => {
     const loadChats = async (isInitial = false) => {
@@ -53,8 +59,8 @@ export default function AdminChatsPage() {
         const data = await response.json();
         const nextChats = data.chats ?? [];
         setChats(nextChats);
-        if (!activeChatId && nextChats.length > 0) {
-          setActiveChatId(nextChats[0].id);
+        if (nextChats.length > 0) {
+          setActiveChatId((current) => current ?? nextChats[0].id);
         }
       } catch (error) {
         logError(error, { layer: 'frontend', event: 'admin_load_chats' });
@@ -67,8 +73,6 @@ export default function AdminChatsPage() {
     };
 
     loadChats(true);
-    const interval = setInterval(() => loadChats(false), 12000);
-    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -111,10 +115,8 @@ export default function AdminChatsPage() {
 
     loadMessages(true);
 
-    const interval = setInterval(() => loadMessages(false), 6000);
     return () => {
       isActive = false;
-      clearInterval(interval);
     };
   }, [activeChatId]);
 
@@ -122,6 +124,96 @@ export default function AdminChatsPage() {
     hasLoadedMessages.current = false;
     lastMessageId.current = null;
   }, [activeChatId]);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+
+    const chatsChannel = supabase
+      .channel('admin-chats')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chats' },
+        (payload) => {
+          const nextChat = payload.new as ChatSummary;
+          if (nextChat.status !== 'open') return;
+          setChats((prev) =>
+            prev.some((chat) => chat.id === nextChat.id) ? prev : [nextChat, ...prev]
+          );
+          if (!activeChatIdRef.current) {
+            setActiveChatId(nextChat.id);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'chats' },
+        (payload) => {
+          const updatedChat = payload.new as ChatSummary;
+          setChats((prev) => {
+            const index = prev.findIndex((chat) => chat.id === updatedChat.id);
+            if (updatedChat.status !== 'open') {
+              return prev.filter((chat) => chat.id !== updatedChat.id);
+            }
+            if (index === -1) {
+              return [updatedChat, ...prev];
+            }
+            const next = [...prev];
+            next[index] = { ...next[index], ...updatedChat };
+            return next;
+          });
+
+          if (updatedChat.status !== 'open' && activeChatIdRef.current === updatedChat.id) {
+            setActiveChatId(null);
+            setMessages([]);
+          }
+        }
+      )
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel('admin-chat-messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        (payload) => {
+          const nextMessage = payload.new as ChatMessage;
+
+          setChats((prev) => {
+            const index = prev.findIndex((chat) => chat.id === nextMessage.chat_id);
+            if (index === -1) return prev;
+            const next = [...prev];
+            const updatedChat = {
+              ...next[index],
+              messages: [
+                {
+                  id: nextMessage.id,
+                  body: nextMessage.body,
+                  sender_role: nextMessage.sender_role,
+                  created_at: nextMessage.created_at,
+                },
+              ],
+            };
+            next.splice(index, 1);
+            return [updatedChat, ...next];
+          });
+
+          if (nextMessage.chat_id === activeChatIdRef.current) {
+            lastMessageId.current = nextMessage.id;
+            setMessages((prev) =>
+              prev.some((message) => message.id === nextMessage.id)
+                ? prev
+                : [...prev, nextMessage]
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(chatsChannel);
+      supabase.removeChannel(messagesChannel);
+    };
+  }, []);
 
   const customerLabel = (chat: ChatSummary) => {
     const email = chat.customer?.email ?? chat.guest_email ?? null;

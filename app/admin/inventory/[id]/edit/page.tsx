@@ -62,7 +62,7 @@ export default function EditProductPage() {
   }
 
   if (!product) {
-    return <div className="text-center py-12 text-gray-400">Product not found</div>;
+    throw new Error('Product not found');
   }
 
   const initialData = {

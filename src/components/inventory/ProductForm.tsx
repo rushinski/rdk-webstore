@@ -583,13 +583,15 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         if (priceCents === null) {
           throw new Error(`Variant ${index + 1} price is invalid.`);
         }
-        const costCents = parseMoneyToCents(variant.cost) ?? 0;
+        const costCents = parseMoneyToCents(variant.cost);
+        if (costCents === null) {
+          throw new Error(`Variant ${index + 1} cost is invalid.`);
+        }
         const stockCount = parseStockCount(variant.stock);
         if (stockCount === null) {
           throw new Error(`Variant ${index + 1} stock is invalid.`);
         }
-        const sizeLabel =
-          sizeType === 'none' ? 'N/A' : variant.size_label.trim();
+        const sizeLabel = sizeType === 'none' ? 'N/A' : variant.size_label.trim();
         if (sizeType !== 'none' && !sizeLabel) {
           throw new Error(`Variant ${index + 1} size is required.`);
         }
@@ -845,7 +847,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             <div key={index} className="bg-zinc-800 p-4 rounded flex gap-4">
               <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-gray-400 text-xs mb-1">Size</label>
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Size <span className="text-red-500">*</span>
+                  </label>
                   {sizeType === 'shoe' && (
                     <select
                       value={variant.size_label}
@@ -893,7 +897,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-xs mb-1">Price ($)</label>
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Price ($) <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -905,12 +911,15 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-xs mb-1">Cost ($)</label>
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Cost ($) <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="text"
                     inputMode="decimal"
                     value={variant.cost}
                     onChange={(e) => updateVariant(index, 'cost', e.target.value)}
+                    required
                     className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
                   />
                 </div>
@@ -945,7 +954,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       {/* Images */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">Images</h2>
+          <h2 className="text-xl font-semibold text-white">
+            Images <span className="text-red-500">*</span>
+          </h2>
           <span className="text-xs text-gray-500">{images.length} total</span>
         </div>
 
@@ -958,29 +969,41 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           className="hidden"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-4">
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={`border border-dashed p-6 cursor-pointer transition ${
-              isDragging
-                ? 'border-red-500 bg-red-900/10'
-                : 'border-zinc-800/70 bg-zinc-950/40'
-            }`}
-          >
-            <div className="flex flex-col items-center justify-center text-center gap-3 text-gray-300 min-h-[180px]">
-              <ImagePlus className="w-10 h-10 text-gray-500" />
-              <div>
-                <p className="text-sm text-gray-200">Drop images here</p>
-                <p className="text-xs text-gray-500">or click to browse files</p>
+        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4">
+          <div className="space-y-3">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border border-dashed rounded-lg p-4 cursor-pointer transition ${
+                isDragging
+                  ? 'border-red-500 bg-red-900/10'
+                  : 'border-zinc-800/70 bg-zinc-950/40'
+              }`}
+            >
+              <div className="flex items-center gap-3 text-gray-300">
+                <div className="h-11 w-11 rounded-full border border-zinc-800/70 flex items-center justify-center">
+                  <ImagePlus className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-gray-200">Drag & drop or click to upload</p>
+                  <p className="text-xs text-gray-500">PNG, JPG, WEBP. First image becomes primary.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    fileInputRef.current?.click();
+                  }}
+                  className="text-xs uppercase tracking-[0.18em] text-gray-300 border border-zinc-800/70 px-3 py-2 hover:bg-zinc-900"
+                >
+                  Upload
+                </button>
               </div>
-              <div className="flex items-center gap-2 text-[11px] text-gray-500 uppercase tracking-[0.2em]">
-                <span>PNG</span>
-                <span>JPG</span>
-                <span>WEBP</span>
-              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              Add at least one image. You can promote any thumbnail to primary.
             </div>
           </div>
 

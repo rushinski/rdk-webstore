@@ -17,7 +17,7 @@ type AdminNotification = {
 const formatTime = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString();
+  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 export default function AdminNotificationsPage() {
