@@ -1,3 +1,4 @@
+// src/lib/validation/admin.ts
 import { z } from "zod";
 
 export const adminInviteCreateSchema = z

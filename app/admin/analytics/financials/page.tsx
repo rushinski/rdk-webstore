@@ -1,3 +1,4 @@
+// app/admin/analytics/financials/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";

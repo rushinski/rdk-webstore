@@ -1,3 +1,4 @@
+// src/lib/validation/checkout.ts
 import { z } from "zod";
 
 export const checkoutSessionSchema = z

@@ -1,3 +1,4 @@
+// app/api/admin/orders/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

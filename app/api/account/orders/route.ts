@@ -1,3 +1,4 @@
+// app/api/account/orders/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";

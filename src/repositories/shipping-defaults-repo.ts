@@ -1,3 +1,4 @@
+// src/repositories/shipping-defaults-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert } from "@/types/database.types";
 

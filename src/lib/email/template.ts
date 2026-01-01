@@ -1,3 +1,4 @@
+// src/lib/email/template.ts
 import { emailFooterHtml } from "@/lib/email/footer";
 import { EMAIL_BRAND, emailStyles } from "@/lib/email/theme";
 

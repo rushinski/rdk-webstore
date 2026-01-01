@@ -43,7 +43,7 @@ const buildEmailHtml = (input: ChatEmailInput) => {
         <div style="${emailStyles.eyebrow}">New message</div>
         <h1 style="${emailStyles.heading}">You have a new message</h1>
         <p style="margin:10px 0 0;${emailStyles.copy}">
-          ${senderLabel} sent a new chat update${orderShort ? ` for order #${orderShort}` : ""}.
+          ${senderLabel} sent a new chat message${orderShort ? ` for order #${orderShort}` : ""}.
         </p>
       </td>
     </tr>

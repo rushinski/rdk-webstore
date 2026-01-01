@@ -1,3 +1,4 @@
+// app/api/analytics/track/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AnalyticsService } from "@/services/analytics-service";

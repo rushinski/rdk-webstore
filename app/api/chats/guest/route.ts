@@ -1,3 +1,4 @@
+// app/api/chats/guest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ChatService } from "@/services/chat-service";

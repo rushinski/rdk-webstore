@@ -1,3 +1,4 @@
+// src/lib/validation/chat.ts
 import { z } from "zod";
 
 export const chatIdParamsSchema = z.object({

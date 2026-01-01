@@ -1,3 +1,4 @@
+// src/lib/email/theme.ts
 export const EMAIL_BRAND = {
   name: "Realdealkickzsc",
   logoUrl:
