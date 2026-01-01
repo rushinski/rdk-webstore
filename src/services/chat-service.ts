@@ -212,17 +212,21 @@ export class ChatService {
         );
       } else {
         const profilesRepo = new ProfileRepository(this.adminSupabase);
-        const customer = await profilesRepo.getByUserId(chat.user_id);
-        if (chat.user_id && customer?.chat_notifications_enabled && customer.email) {
-          await this.chatEmailService.sendChatNotification({
-            to: customer.email,
-            chatId: chat.id,
-            orderId: chat.order_id ?? null,
-            senderRole: "admin",
-            message: input.body,
-            recipientRole: "customer",
-          });
-        } else if (!chat.user_id && chat.guest_email) {
+
+        if (chat.user_id) {
+          const customer = await profilesRepo.getByUserId(chat.user_id);
+
+          if (customer?.chat_notifications_enabled && customer.email) {
+            await this.chatEmailService.sendChatNotification({
+              to: customer.email,
+              chatId: chat.id,
+              orderId: chat.order_id ?? null,
+              senderRole: "admin",
+              message: input.body,
+              recipientRole: "customer",
+            });
+          }
+        } else if (chat.guest_email) {
           await this.chatEmailService.sendChatNotification({
             to: chat.guest_email,
             chatId: chat.id,

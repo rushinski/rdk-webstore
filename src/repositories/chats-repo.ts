@@ -100,7 +100,11 @@ export class ChatsRepository {
   async listAdminChats(params?: { status?: "open" | "closed" }) {
     let query = this.supabase
       .from("chats")
-      .select("*, messages:chat_messages(id, body, sender_role, created_at), customer:profiles(email)")
+      .select(`
+        *,
+        messages:chat_messages(id, body, sender_role, created_at),
+        customer:profiles!chats_user_id_fkey(email)
+      `)
       .order("updated_at", { ascending: false })
       .order("created_at", { foreignTable: "chat_messages", ascending: false })
       .limit(1, { foreignTable: "chat_messages" });

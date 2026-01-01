@@ -201,10 +201,6 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
               ))}
             </div>
           )}
-
-          <div className="pt-4 text-center text-xs text-zinc-600">
-            Showing latest 20. Use “View all notifications” for history.
-          </div>
         </div>
       </div>
     </div>
