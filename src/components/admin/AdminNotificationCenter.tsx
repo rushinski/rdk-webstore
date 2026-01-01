@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell } from 'lucide-react';
 import { logError } from '@/lib/log';
@@ -22,21 +22,22 @@ const formatTime = (value: string) => {
 };
 
 const getNotificationHref = (notification: AdminNotification) => {
-  if (notification.type === 'order_placed' && notification.order_id) {
-    return '/admin/sales';
-  }
-
-  if (notification.chat_id) {
-    return `/admin/chats?chatId=${notification.chat_id}`;
-  }
-
+  if (notification.type === 'order_placed' && notification.order_id) return '/admin/sales';
+  if (notification.chat_id) return `/admin/chats?chatId=${notification.chat_id}`;
   return '/admin/dashboard';
 };
 
-export function AdminNotificationCenter() {
+type Props = {
+  placement?: 'top' | 'bottom'; // top = dropdown opens upward (for bottom dock)
+};
+
+export function AdminNotificationCenter({ placement = 'top' }: Props) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isHover, setIsHover] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.read_at).length,
@@ -46,13 +47,8 @@ export function AdminNotificationCenter() {
   const loadNotifications = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/notifications?limit=12', {
-        cache: 'no-store',
-      });
-      if (!response.ok) {
-        setIsLoading(false);
-        return;
-      }
+      const response = await fetch('/api/admin/notifications?limit=12', { cache: 'no-store' });
+      if (!response.ok) return;
       const data = await response.json();
       setNotifications(data.notifications ?? []);
     } catch (error) {
@@ -63,9 +59,28 @@ export function AdminNotificationCenter() {
   };
 
   useEffect(() => {
-    if (isOpen) {
-      loadNotifications();
-    }
+    if (isOpen) loadNotifications();
+  }, [isOpen]);
+
+  // Close on outside click + Esc (prevents weird stuck popovers)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (rootRef.current && !rootRef.current.contains(target)) setIsOpen(false);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [isOpen]);
 
   const markRead = async (id: string) => {
@@ -84,24 +99,49 @@ export function AdminNotificationCenter() {
     }
   };
 
+  const panelClass =
+    placement === 'top'
+      ? 'absolute right-0 bottom-full mb-3'
+      : 'absolute right-0 top-full mt-3';
+
+  const tooltipClass =
+    placement === 'top'
+      ? 'absolute left-1/2 -translate-x-1/2 bottom-full mb-2'
+      : 'absolute left-1/2 -translate-x-1/2 top-full mt-2';
+
   return (
-    <div className="relative">
+    <div
+      ref={rootRef}
+      className="relative"
+      onMouseEnter={() => setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800 transition-colors rounded-sm"
+        className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition-colors rounded-sm"
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5 text-zinc-200" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded">
+          <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
             {unreadCount}
           </span>
         )}
       </button>
 
+      {/* Hover tooltip (overlaps, no layout shift) */}
+      {isHover && !isOpen && (
+        <div className={`${tooltipClass} pointer-events-none z-50`}>
+          <div className="bg-zinc-950 border border-zinc-800/70 text-zinc-200 text-xs px-2 py-1 rounded-sm shadow-lg whitespace-nowrap">
+            Notifications
+          </div>
+        </div>
+      )}
+
+      {/* Click popover (overlaps, no layout shift) */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 bg-zinc-950 border border-zinc-800/70 shadow-xl z-50">
+        <div className={`${panelClass} w-80 bg-zinc-950 border border-zinc-800/70 shadow-xl z-50`}>
           <div className="p-4 border-b border-zinc-800/70">
             <div className="text-white font-semibold">Notifications</div>
             <div className="text-xs text-zinc-500">Latest activity for your store.</div>
@@ -119,9 +159,7 @@ export function AdminNotificationCenter() {
                   href={getNotificationHref(notification)}
                   onClick={() => {
                     setIsOpen(false);
-                    if (!notification.read_at) {
-                      markRead(notification.id);
-                    }
+                    if (!notification.read_at) markRead(notification.id);
                   }}
                   className={`block px-4 py-3 border-b border-zinc-900/70 hover:bg-zinc-900 transition ${
                     notification.read_at ? 'text-zinc-400' : 'text-white'

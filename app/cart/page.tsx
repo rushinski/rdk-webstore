@@ -1,4 +1,4 @@
-// app/cart/page.tsx (UPDATE - add checkout navigation)
+// app/cart/page.tsx
 
 'use client';
 

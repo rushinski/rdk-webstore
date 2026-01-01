@@ -1,10 +1,12 @@
 // src/components/admin/AdminSidebar.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  User,
+  Bell,
   LayoutDashboard,
   Package,
   Truck,
@@ -18,8 +20,9 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { AdminNotificationCenter } from "@/components/admin/AdminNotificationCenter";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Tooltip } from "@/components/ui/Tooltip";
+import { AdminNotificationsDrawer } from "@/components/admin/AdminNotificationsDrawer";
 
 type NavLinkItem = {
   type: "link";
@@ -38,8 +41,8 @@ type NavGroupItem = {
 
 const navItems: Array<NavLinkItem | NavGroupItem> = [
   { type: "link", href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { type: "link", href: "/", label: "Website", icon: Globe },
   { type: "link", href: "/admin/inventory", label: "Inventory", icon: Package },
-
   {
     type: "group",
     label: "Analytics",
@@ -50,24 +53,24 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
       { href: "/admin/analytics/financials", label: "Financials" },
     ],
   },
-
   { type: "link", href: "/admin/sales", label: "Sales", icon: DollarSign },
   { type: "link", href: "/admin/shipping", label: "Shipping", icon: Truck },
   { type: "link", href: "/admin/catalog", label: "Catalog", icon: Package },
+  { type: "link", href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatBadgeCount, setChatBadgeCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
 
   const chatLastSenderRef = useRef(new Map<string, "customer" | "admin" | "none">());
   const pathname = usePathname();
-  const userInitial = userEmail?.trim().charAt(0).toUpperCase() || "A";
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
   const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false);
 
-  // Auto-open group when you’re inside it (keeps IA crisp)
+  // Auto-open group when you’re inside it
   useEffect(() => {
     if (analyticsActive) setAnalyticsOpen(true);
   }, [analyticsActive]);
@@ -81,6 +84,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
         const data = await response.json();
         const chats = data.chats ?? [];
         const nextMap = new Map<string, "customer" | "admin" | "none">();
+
         chats.forEach((chat: any) => {
           const lastMessage = chat.messages?.[0];
           if (!lastMessage) {
@@ -89,6 +93,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           }
           nextMap.set(chat.id, lastMessage.sender_role ?? "none");
         });
+
         chatLastSenderRef.current = nextMap;
 
         const count = Array.from(nextMap.values()).filter((role) => role !== "admin").length;
@@ -107,6 +112,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
         const chat = payload.new as { id: string; status?: string | null };
         if (chat.status && chat.status !== "open") return;
         chatLastSenderRef.current.set(chat.id, "none");
+
         if (isActive) {
           const count = Array.from(chatLastSenderRef.current.values()).filter(
             (role) => role !== "admin"
@@ -132,7 +138,9 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
         (payload) => {
           const message = payload.new as { chat_id: string; sender_role?: "customer" | "admin" };
           if (!chatLastSenderRef.current.has(message.chat_id)) return;
+
           chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
+
           if (isActive) {
             const count = Array.from(chatLastSenderRef.current.values()).filter(
               (role) => role !== "admin"
@@ -157,30 +165,19 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     const activeItemClass = "bg-zinc-950 border-zinc-800/70 text-white";
     const inactiveItemClass = "text-gray-400";
 
+    // Bottom dock button (icon-only, clean, boxy)
+    const dockBtn =
+      "relative w-full h-12 flex items-center justify-center " +
+      "border border-zinc-800/70 bg-zinc-950 rounded-sm " +
+      "hover:bg-zinc-900 hover:border-red-900/40 transition-colors " +
+      "focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40";
+
+    const iconClass = "w-5 h-5 text-zinc-200";
+
     return (
-      <div className="flex flex-col h-full min-h-0">
+      <div className="flex flex-col h-full min-h-0 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
-          <Link
-            href="/admin/profile"
-            onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 px-4 py-3 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition rounded-sm"
-          >
-            <div className="w-9 h-9 rounded-sm bg-red-600 text-white flex items-center justify-center font-semibold">
-              {userInitial}
-            </div>
-            <div className="text-sm text-zinc-300">Personal settings</div>
-          </Link>
-
           <nav className="space-y-1">
-            <Link
-              href="/"
-              onClick={() => setIsOpen(false)}
-              className={`${baseItemClass} ${inactiveItemClass}`}
-            >
-              <Globe className="w-5 h-5" />
-              <span>Website</span>
-            </Link>
-
             {navItems.map((item) => {
               if (item.type === "link") {
                 const Icon = item.icon;
@@ -191,9 +188,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsOpen(false)}
-                    className={`${baseItemClass} ${
-                      isActive ? activeItemClass : inactiveItemClass
-                    }`}
+                    className={`${baseItemClass} ${isActive ? activeItemClass : inactiveItemClass}`}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-[15px]">{item.label}</span>
@@ -255,35 +250,66 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           </nav>
         </div>
 
-        <div className="sticky bottom-0 pt-3 border-t border-zinc-800/70 bg-zinc-900">
-          <div className="flex items-center justify-between px-4 py-2">
-            <Link
-              href="/admin/chats"
-              onClick={() => setIsOpen(false)}
-              className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800 transition-colors rounded-sm"
-              aria-label="Chats"
-            >
-              <MessageCircle className="w-5 h-5 text-zinc-200" />
-              {chatBadgeCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
-                  {chatBadgeCount}
-                </span>
-              )}
-            </Link>
+        {/* Bottom dock */}
+        <div className="sticky bottom-0 left-0 w-full flex-none self-stretch">
+          {/* Full-width divider */}
+          <div className="-mx-6 w-[calc(100%+3rem)] border-t border-zinc-800/70" />
 
-            <AdminNotificationCenter />
+          {/* Dock background spans edge-to-edge (cancels parent p-6) */}
+          <div className="-mx-6 w-[calc(100%+3rem)] bg-zinc-950 px-6 py-3">
+            <div className="grid w-full grid-cols-3 items-center">
+              {/* Profile */}
+              <Tooltip label="Profile" side="top">
+                <Link
+                  href="/admin/profile"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Profile"
+                  className="flex h-12 w-full items-center justify-center rounded-sm
+                            hover:bg-zinc-900 transition-colors
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
+                >
+                  <User className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                </Link>
+              </Tooltip>
 
-            <Link
-              href="/admin/settings"
-              onClick={() => setIsOpen(false)}
-              className={`flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-800 transition-colors rounded-sm ${
-                pathname.startsWith("/admin/settings") ? "text-white" : "text-zinc-200"
-              }`}
-              aria-label="Settings"
-            >
-              <Settings className="w-5 h-5" />
-            </Link>
+              {/* Messages */}
+              <Tooltip label="Messages" side="top">
+                <Link
+                  href="/admin/chats"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Messages"
+                  className="flex h-12 w-full items-center justify-center rounded-sm
+                            hover:bg-zinc-900 transition-colors
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
+                >
+                  <span className="relative">
+                    <MessageCircle className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                    {chatBadgeCount > 0 && (
+                      <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
+                        {chatBadgeCount}
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              </Tooltip>
+
+              {/* Notifications */}
+              <Tooltip label="Notifications" side="top">
+                <button
+                  type="button"
+                  onClick={() => setNotifOpen(true)}
+                  aria-label="Notifications"
+                  className="flex h-12 w-full items-center justify-center rounded-sm
+                            hover:bg-zinc-900 transition-colors
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
+                >
+                  <Bell className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                </button>
+              </Tooltip>
+            </div>
           </div>
+
+          <AdminNotificationsDrawer isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
         </div>
       </div>
     );
@@ -294,6 +320,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       <button
         onClick={() => setIsOpen(true)}
         className="md:hidden fixed top-5 right-5 z-40 bg-red-600 text-white p-3 rounded-sm shadow-lg"
+        aria-label="Open admin menu"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -303,7 +330,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           <div className="p-6">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-white">Admin Menu</h2>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white">
+              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white" aria-label="Close">
                 <X className="w-6 h-6" />
               </button>
             </div>
