@@ -1,3 +1,4 @@
+// src/components/chat/ChatLauncher.tsx
 'use client';
 
 import { MessageCircle } from 'lucide-react';

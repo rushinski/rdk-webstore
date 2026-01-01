@@ -1,3 +1,4 @@
+// src/services/chat-email-service.ts
 import { env } from "@/config/env";
 import { sendEmail } from "@/lib/email/mailer";
 import { emailFooterText } from "@/lib/email/footer";
