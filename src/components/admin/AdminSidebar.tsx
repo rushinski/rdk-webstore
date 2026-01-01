@@ -40,8 +40,8 @@ type NavGroupItem = {
 };
 
 const navItems: Array<NavLinkItem | NavGroupItem> = [
-  { type: "link", href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { type: "link", href: "/", label: "Website", icon: Globe },
+  { type: "link", href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { type: "link", href: "/admin/inventory", label: "Inventory", icon: Package },
   {
     type: "group",
@@ -165,18 +165,37 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     const activeItemClass = "bg-zinc-950 border-zinc-800/70 text-white";
     const inactiveItemClass = "text-gray-400";
 
-    // Bottom dock button (icon-only, clean, boxy)
-    const dockBtn =
-      "relative w-full h-12 flex items-center justify-center " +
-      "border border-zinc-800/70 bg-zinc-950 rounded-sm " +
-      "hover:bg-zinc-900 hover:border-red-900/40 transition-colors " +
-      "focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40";
+    const inAdmin = pathname.startsWith("/admin");
 
-    const iconClass = "w-5 h-5 text-zinc-200";
+    const statusBase =
+      "flex w-full items-center gap-2 px-3 py-2 rounded-sm select-none " +
+      "text-[13px] leading-none bg-zinc-950 text-white";
 
     return (
       <div className="flex flex-col h-full min-h-0 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+          {/* Workspace Indicator (visual only) */}
+          <div className="mb-4">
+            <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">
+              Workspace
+            </div>
+
+            <div className={statusBase} aria-current="page">
+              {inAdmin ? (
+                <>
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span className="font-medium">Admin</span>
+                </>
+              ) : (
+                <>
+                  <Globe className="w-4 h-4" />
+                  <span className="font-medium">Website</span>
+                </>
+              )}
+            </div>
+            
+            <div className="mt-4 border-t border-zinc-800/70" />
+          </div>
           <nav className="space-y-1">
             {navItems.map((item) => {
               if (item.type === "link") {
