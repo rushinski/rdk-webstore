@@ -40,7 +40,7 @@ const buildEmailHtml = (input: ChatEmailInput) => {
   const contentHtml = `
     <tr>
       <td style="padding:0 24px 10px;text-align:center;">
-        <div style="${emailStyles.eyebrow}">New chat message</div>
+        <div style="${emailStyles.eyebrow}">New message</div>
         <h1 style="${emailStyles.heading}">You have a new message</h1>
         <p style="margin:10px 0 0;${emailStyles.copy}">
           ${senderLabel} sent a new chat update${orderShort ? ` for order #${orderShort}` : ""}.
@@ -71,7 +71,7 @@ const buildEmailHtml = (input: ChatEmailInput) => {
   `;
 
   return renderEmailLayout({
-    title: "New chat message",
+    title: "New message",
     preheader: truncate(input.message, 70),
     contentHtml,
   });
@@ -87,7 +87,7 @@ const buildEmailText = (input: ChatEmailInput) => {
 
   const lines = [
     "Realdealkickzsc",
-    `New chat message from ${senderLabel}${orderShort ? ` (Order #${orderShort})` : ""}`,
+    `New message from ${senderLabel}${orderShort ? ` (Order #${orderShort})` : ""}`,
     "",
     truncate(input.message),
     "",

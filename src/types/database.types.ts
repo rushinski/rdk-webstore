@@ -1094,7 +1094,6 @@ export type Database = {
       }
       profiles: {
         Row: {
-          admin_chat_created_notifications_enabled: boolean
           admin_order_notifications_enabled: boolean
           chat_notifications_enabled: boolean
           created_at: string | null
@@ -1107,7 +1106,6 @@ export type Database = {
           tenant_id: string | null
         }
         Insert: {
-          admin_chat_created_notifications_enabled?: boolean
           admin_order_notifications_enabled?: boolean
           chat_notifications_enabled?: boolean
           created_at?: string | null
@@ -1120,7 +1118,6 @@ export type Database = {
           tenant_id?: string | null
         }
         Update: {
-          admin_chat_created_notifications_enabled?: boolean
           admin_order_notifications_enabled?: boolean
           chat_notifications_enabled?: boolean
           created_at?: string | null

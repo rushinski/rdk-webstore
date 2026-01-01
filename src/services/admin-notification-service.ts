@@ -25,28 +25,6 @@ export class AdminNotificationService {
     await this.notificationsRepo.insertMany(rows);
   }
 
-  async notifyChatCreated(chatId: string, orderId?: string | null, customerLabel?: string) {
-    const staff = await this.profilesRepo.listStaffProfiles();
-    const recipients = staff.filter(
-      (admin) => admin.admin_chat_created_notifications_enabled !== false
-    );
-
-    const label = customerLabel ? `${customerLabel} • ` : "";
-    const message = orderId
-      ? `${label}New pickup chat started for order #${orderId.slice(0, 8)}`
-      : `${label}New chat started`;
-
-    const rows = recipients.map((admin) => ({
-      admin_id: admin.id,
-      type: "chat_created",
-      message,
-      order_id: orderId ?? null,
-      chat_id: chatId,
-    }));
-
-    await this.notificationsRepo.insertMany(rows);
-  }
-
   async notifyChatMessage(
     chatId: string,
     messagePreview: string,

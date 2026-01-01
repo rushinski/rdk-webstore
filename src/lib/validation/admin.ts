@@ -27,7 +27,6 @@ export const adminPreferencesSchema = z
   .object({
     chat_notifications_enabled: z.boolean().optional(),
     admin_order_notifications_enabled: z.boolean().optional(),
-    admin_chat_created_notifications_enabled: z.boolean().optional(),
   })
   .strict();
 

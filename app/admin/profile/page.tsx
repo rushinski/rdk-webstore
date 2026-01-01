@@ -11,7 +11,6 @@ type AdminProfile = {
   role: string | null;
   chat_notifications_enabled: boolean;
   admin_order_notifications_enabled: boolean;
-  admin_chat_created_notifications_enabled: boolean;
   is_primary_admin: boolean;
 };
 
@@ -78,7 +77,6 @@ export default function AdminProfilePage() {
         body: JSON.stringify({
           chat_notifications_enabled: profile.chat_notifications_enabled,
           admin_order_notifications_enabled: profile.admin_order_notifications_enabled,
-          admin_chat_created_notifications_enabled: profile.admin_chat_created_notifications_enabled,
         }),
       });
 
@@ -204,18 +202,6 @@ export default function AdminProfilePage() {
                 )
               }
               ariaLabel="Order placed notifications"
-            />
-          </div>
-          <div className="flex items-center justify-between gap-4 px-4 py-3 text-base text-zinc-200">
-            <span>Chat created notifications</span>
-            <ToggleSwitch
-              checked={profile?.admin_chat_created_notifications_enabled ?? true}
-              onChange={(next) =>
-                setProfile((prev) =>
-                  prev ? { ...prev, admin_chat_created_notifications_enabled: next } : prev
-                )
-              }
-              ariaLabel="Chat created notifications"
             />
           </div>
         </div>

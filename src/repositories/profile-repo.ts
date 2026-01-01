@@ -65,7 +65,6 @@ export class ProfileRepository {
     input: {
       chat_notifications_enabled?: boolean;
       admin_order_notifications_enabled?: boolean;
-      admin_chat_created_notifications_enabled?: boolean;
     }
   ) {
     const { error } = await this.supabase
@@ -80,7 +79,7 @@ export class ProfileRepository {
     const { data, error } = await this.supabase
       .from("profiles")
       .select(
-        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled, admin_chat_created_notifications_enabled, is_primary_admin"
+        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled"
       )
       .in("role", ["admin", "super_admin", "dev"]);
 

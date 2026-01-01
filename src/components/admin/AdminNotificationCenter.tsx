@@ -7,7 +7,7 @@ import { logError } from '@/lib/log';
 
 type AdminNotification = {
   id: string;
-  type: 'order_placed' | 'chat_created' | 'chat_message';
+  type: 'order_placed' | 'chat_message';
   message: string;
   created_at: string;
   read_at: string | null;
