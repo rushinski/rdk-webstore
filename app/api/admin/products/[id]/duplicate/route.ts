@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService } from "@/services/product-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -21,7 +21,7 @@ export async function POST(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const service = new ProductService(supabase);
 

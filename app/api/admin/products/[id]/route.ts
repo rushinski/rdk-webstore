@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService } from "@/services/product-service";
 import { productCreateSchema } from "@/lib/validation/product";
@@ -22,7 +22,7 @@ export async function PATCH(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const service = new ProductService(supabase);
 
@@ -85,7 +85,7 @@ export async function DELETE(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdmin();
+    await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const { id } = await params;
     const paramsParsed = paramsSchema.safeParse({ id });

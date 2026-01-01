@@ -48,6 +48,16 @@ export default function AdminChatsPage() {
   const hasLoadedChats = useRef(false);
   const activeChatIdRef = useRef<string | null>(null);
 
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const el = draftRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const next = Math.min(el.scrollHeight, 128); // cap growth (~8rem)
+    el.style.height = `${next}px`;
+  }, [messageDraft]);
+
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
   }, [activeChatId]);
@@ -360,13 +370,21 @@ export default function AdminChatsPage() {
 
           <div className="border-t border-zinc-800/70 p-4">
             <div className="flex items-center gap-2">
-              <input
-                type="text"
+              <textarea
+                ref={draftRef}
+                rows={1}
                 value={messageDraft}
                 onChange={(e) => setMessageDraft(e.target.value)}
-                placeholder={activeChat ? 'Type a reply...' : 'Select a chat to reply'}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={activeChat ? "Type a reply..." : "Select a chat to reply"}
                 disabled={!activeChat}
-                className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm disabled:opacity-60"
+                className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm
+                          disabled:opacity-60 resize-none overflow-y-auto max-h-32 whitespace-pre-wrap"
               />
               <button
                 type="button"

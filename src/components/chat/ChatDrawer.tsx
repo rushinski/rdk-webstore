@@ -44,6 +44,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
   const [confirmClose, setConfirmClose] = useState(false);
   const hasLoadedMessages = useRef(false);
   const lastMessageId = useRef<string | null>(null);
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loginUrl = useMemo(() => {
     if (!pathname) return '/auth/login';
@@ -154,6 +155,15 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const el = draftRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const next = Math.min(el.scrollHeight, 128); // cap height
+    el.style.height = `${next}px`;
+  }, [messageDraft]);
+
 
   useEffect(() => {
     if (!isOpen) return;
@@ -357,12 +367,20 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
               <div className="mt-4 border-t border-zinc-800/70 pt-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <input
-                    type="text"
+                  <textarea
+                    ref={draftRef}
+                    rows={1}
                     value={messageDraft}
                     onChange={(e) => setMessageDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
                     placeholder="Type your message..."
-                    className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm"
+                    className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm
+                              resize-none overflow-y-auto max-h-32 whitespace-pre-wrap"
                   />
                   <button
                     type="button"

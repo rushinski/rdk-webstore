@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
 import { env } from "@/config/env";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -29,7 +29,7 @@ export async function POST(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdmin();
+    await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const service = new OrdersService(supabase);
 

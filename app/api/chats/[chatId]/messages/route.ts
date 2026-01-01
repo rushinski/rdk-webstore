@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { requireUser } from "@/lib/auth/session";
+import { requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
 import { chatIdParamsSchema, sendChatMessageSchema } from "@/lib/validation/chat";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -24,7 +24,7 @@ export async function GET(
   }
 
   try {
-    await requireUser();
+    await requireUserApi();
     const supabase = await createSupabaseServerClient();
     const chatService = new ChatService(supabase);
 
@@ -74,7 +74,7 @@ export async function POST(
   }
 
   try {
-    const session = await requireUser();
+    const session = await requireUserApi();
     const supabase = await createSupabaseServerClient();
     const adminSupabase = createSupabaseAdminClient();
     const chatService = new ChatService(supabase, adminSupabase);

@@ -23,10 +23,23 @@ export interface ServerSession {
   role: ProfileRole;
 }
 
+export class AuthError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function getServerSessionUncached(): Promise<ServerSession | null> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  // ✅ Correct: validates user by contacting Supabase Auth server
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
   if (error || !user) return null;
 
   const profileRepo = new ProfileRepository(supabase);
@@ -54,6 +67,10 @@ async function getServerSessionUncached(): Promise<ServerSession | null> {
 
 export const getServerSession = getServerSessionUncached;
 
+/**
+ * PAGE GUARDS (Server Components / Pages)
+ * These keep your current behavior (redirects).
+ */
 export async function requireUser(): Promise<ServerSession> {
   const session = await getServerSession();
   if (!session) redirect("/auth/login");
@@ -63,5 +80,21 @@ export async function requireUser(): Promise<ServerSession> {
 export async function requireAdmin(): Promise<ServerSession> {
   const session = await requireUser();
   if (!isAdminRole(session.role)) redirect("/");
+  return session;
+}
+
+/**
+ * API GUARDS (Route Handlers)
+ * Never redirect inside API routes; throw typed errors with status instead.
+ */
+export async function requireUserApi(): Promise<ServerSession> {
+  const session = await getServerSession();
+  if (!session) throw new AuthError("Unauthorized", 401);
+  return session;
+}
+
+export async function requireAdminApi(): Promise<ServerSession> {
+  const session = await requireUserApi();
+  if (!isAdminRole(session.role)) throw new AuthError("Forbidden", 403);
   return session;
 }

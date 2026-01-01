@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminApi } from "@/lib/auth/session";
 import { CatalogService } from "@/services/catalog-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -29,7 +29,7 @@ export async function PATCH(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdmin();
+    await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const { id } = await params;
     const paramsParsed = paramsSchema.safeParse({ id });

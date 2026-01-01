@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminApi } from "@/lib/auth/session";
 import { PayoutSettingsRepository } from "@/repositories/payout-settings-repo";
 import { ProfileRepository, isSuperAdminRole, isProfileRole } from "@/repositories/profile-repo";
 import { payoutSettingsSchema } from "@/lib/validation/admin";
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminApi();
     const body = await request.json().catch(() => null);
     const parsed = payoutSettingsSchema.safeParse(body ?? {});
 

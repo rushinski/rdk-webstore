@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin, requireUser } from "@/lib/auth/session";
+import { requireAdminApi, requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
 import { createChatSchema, listChatsQuerySchema } from "@/lib/validation/chat";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdmin();
+    await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const chatService = new ChatService(supabase);
 
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const session = await requireUser();
+    const session = await requireUserApi();
     const body = await request.json().catch(() => null);
     const parsed = createChatSchema.safeParse(body ?? {});
 

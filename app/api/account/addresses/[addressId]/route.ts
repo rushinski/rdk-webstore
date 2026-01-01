@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/session";
+import { requireUserApi } from "@/lib/auth/session";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -26,7 +26,7 @@ export async function DELETE(
   }
 
   try {
-    const session = await requireUser();
+    const session = await requireUserApi();
     const supabase = await createSupabaseServerClient();
     const repo = new AddressesRepository(supabase);
 

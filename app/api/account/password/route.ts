@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireUser } from "@/lib/auth/session";
+import { requireUserApi } from "@/lib/auth/session";
 import { sendEmail } from "@/lib/email/mailer";
 import { emailFooterText } from "@/lib/email/footer";
 import { renderEmailLayout } from "@/lib/email/template";
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const session = await requireUser();
+    const session = await requireUserApi();
     const body = await request.json().catch(() => null);
     const parsed = passwordSchema.safeParse(body);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAdminApi } from "@/lib/auth/session";
 import { AdminInviteService } from "@/services/admin-invite-service";
 import { adminInviteCreateSchema } from "@/lib/validation/admin";
 import { env } from "@/config/env";
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminApi();
     const body = await request.json().catch(() => null);
     const parsed = adminInviteCreateSchema.safeParse(body ?? {});
 

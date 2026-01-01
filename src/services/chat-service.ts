@@ -73,11 +73,6 @@ export class ChatService {
       source,
     });
 
-    if (this.adminSupabase) {
-      const notifications = new AdminNotificationService(this.adminSupabase);
-      await notifications.notifyChatCreated(chat.id, orderId, customerLabel ?? undefined);
-    }
-
     return { chat, created: true };
   }
 
@@ -115,9 +110,6 @@ export class ChatService {
       source: "order",
       guestEmail: input.guestEmail ?? null,
     });
-
-    const notifications = new AdminNotificationService(adminSupabase);
-    await notifications.notifyChatCreated(chat.id, order.id, customerLabel ?? undefined);
 
     return { chat, created: true };
   }
