@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { X, Trash2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { logError } from '@/lib/log';
 
 type AdminNotification = {
@@ -34,19 +34,22 @@ type Props = {
 
 type ListResponse = {
   notifications: AdminNotification[];
-  nextCursor: string | null;
-  unreadCount?: number; // optional if you return it
+  unreadCount: number;
+  hasMore: boolean;
+  page: number;
+  limit: number;
 };
+
+function emitUnreadCountUpdated(unreadCount: number) {
+  window.dispatchEvent(new CustomEvent('adminNotificationsUpdated', { detail: { unreadCount } }));
+}
 
 export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  // Fix: don’t show “0” before first load
+  // prevent “0 flash”
   const [unreadCountServer, setUnreadCountServer] = useState<number | null>(null);
-
   const loadedOnceRef = useRef(false);
 
   const unreadCountLocal = useMemo(
@@ -54,59 +57,28 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
     [notifications]
   );
 
-  const loadNotifications = async (mode: 'reset' | 'more' = 'reset') => {
+  const load = async () => {
+    setIsLoading(true);
     try {
-      if (mode === 'reset') setIsLoading(true);
-      else setIsLoadingMore(true);
-
-      const limit = 20;
-      const cursorParam = mode === 'more' && nextCursor ? `&cursor=${encodeURIComponent(nextCursor)}` : '';
-      const res = await fetch(`/api/admin/notifications?limit=${limit}${cursorParam}`, { cache: 'no-store' });
+      const res = await fetch(`/api/admin/notifications?limit=20&page=1`, { cache: 'no-store' });
       if (!res.ok) return;
 
       const data = (await res.json()) as ListResponse;
-      const incoming = data.notifications ?? [];
+      setNotifications(data.notifications ?? []);
+      setUnreadCountServer(typeof data.unreadCount === 'number' ? data.unreadCount : null);
 
-      setNextCursor(data.nextCursor ?? null);
-
-      if (typeof data.unreadCount === 'number') setUnreadCountServer(data.unreadCount);
-
-      if (mode === 'reset') {
-        setNotifications(incoming);
-        loadedOnceRef.current = true;
-      } else {
-        setNotifications((prev) => {
-          const seen = new Set(prev.map((n) => n.id));
-          const merged = [...prev];
-          for (const n of incoming) if (!seen.has(n.id)) merged.push(n);
-          return merged;
-        });
-      }
+      if (typeof data.unreadCount === 'number') emitUnreadCountUpdated(data.unreadCount);
+      loadedOnceRef.current = true;
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'admin_load_notifications_drawer' });
     } finally {
       setIsLoading(false);
-      setIsLoadingMore(false);
-    }
-  };
-
-  const loadUnreadCount = async () => {
-    try {
-      const res = await fetch('/api/admin/notifications/unread-count', { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (typeof data.unreadCount === 'number') setUnreadCountServer(data.unreadCount);
-    } catch (error) {
-      logError(error, { layer: 'frontend', event: 'admin_load_notifications_unread_count' });
     }
   };
 
   useEffect(() => {
-    if (isOpen) {
-      // Fetch unread count immediately, list after (prevents the “0” flash)
-      loadUnreadCount();
-      if (!loadedOnceRef.current) loadNotifications('reset');
-    }
+    if (isOpen) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -129,8 +101,11 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
       );
-      // keep server count consistent (best-effort)
-      setUnreadCountServer((v) => (typeof v === 'number' ? Math.max(0, v - 1) : v));
+      setUnreadCountServer((v) => {
+        const next = typeof v === 'number' ? Math.max(0, v - 1) : v;
+        if (typeof next === 'number') emitUnreadCountUpdated(next);
+        return next;
+      });
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'admin_mark_notification_read_drawer' });
     }
@@ -148,30 +123,15 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
         prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() }))
       );
       setUnreadCountServer(0);
+      emitUnreadCountUpdated(0);
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'admin_mark_all_notifications_drawer' });
     }
   };
 
-  const deleteOne = async (id: string) => {
-    try {
-      await fetch('/api/admin/notifications', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: [id] }),
-      });
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      // unread count best-effort: recompute from local after delete
-      setUnreadCountServer(null);
-      loadUnreadCount();
-    } catch (error) {
-      logError(error, { layer: 'frontend', event: 'admin_delete_notification' });
-    }
-  };
-
   if (!isOpen) return null;
 
-  const showUnread = unreadCountServer !== null && !isLoading;
+  const showUnread = unreadCountServer !== null && loadedOnceRef.current;
 
   return (
     <div className="fixed inset-0 z-50">
@@ -183,10 +143,12 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
           <div className="flex items-start justify-between mb-3">
             <div>
               <h2 className="text-2xl font-bold text-white">Notifications</h2>
-
-              {/* Fix: don’t show “Unread: 0” while loading */}
               <p className="text-xs text-zinc-500 mt-1">
-                {showUnread ? `Unread: ${unreadCountServer}` : isLoading ? 'Loading…' : `Unread: ${unreadCountLocal}`}
+                {isLoading && !loadedOnceRef.current
+                  ? 'Loading…'
+                  : showUnread
+                    ? `Unread: ${unreadCountServer}`
+                    : `Unread: ${unreadCountLocal}`}
               </p>
             </div>
 
@@ -196,81 +158,53 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
           </div>
 
           <div className="flex items-center justify-between border-b border-zinc-800/70 pb-3 mb-4">
-            <button
-              type="button"
-              onClick={() => {
-                setUnreadCountServer(null);
-                setNextCursor(null);
-                loadUnreadCount();
-                loadNotifications('reset');
-              }}
-              className="text-xs text-zinc-400 hover:text-white"
-            >
+            <button type="button" onClick={load} className="text-xs text-zinc-400 hover:text-white">
               Refresh
             </button>
-            <button type="button" onClick={markAll} className="text-xs text-zinc-400 hover:text-white">
-              Mark all as read
-            </button>
+
+            <div className="flex items-center gap-4">
+              <Link
+                href="/admin/notifications"
+                onClick={onClose}
+                className="text-xs text-zinc-400 hover:text-white"
+              >
+                View all notifications
+              </Link>
+
+              <button type="button" onClick={markAll} className="text-xs text-zinc-400 hover:text-white">
+                Mark all as read
+              </button>
+            </div>
           </div>
 
-          {isLoading ? (
+          {isLoading && !loadedOnceRef.current ? (
             <div className="text-sm text-zinc-500 py-8 text-center">Loading notifications…</div>
           ) : notifications.length === 0 ? (
             <div className="text-sm text-zinc-500 py-10 text-center">No notifications yet.</div>
           ) : (
-            <>
-              <div className="space-y-2">
-                {notifications.map((n) => (
-                  <div key={n.id} className="relative">
-                    <Link
-                      href={getNotificationHref(n)}
-                      onClick={() => {
-                        onClose();
-                        if (!n.read_at) markRead(n.id);
-                      }}
-                      className={`block border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition px-4 py-3 rounded-sm pr-12 ${
-                        n.read_at ? 'text-zinc-400' : 'text-white'
-                      }`}
-                    >
-                      <div className="text-sm font-medium">{n.message}</div>
-                      <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>
-                    </Link>
-
-                    {/* Delete button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        deleteOne(n.id);
-                      }}
-                      className="absolute top-1/2 -translate-y-1/2 right-3 text-zinc-500 hover:text-white"
-                      aria-label="Delete notification"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Load more */}
-              <div className="pt-4">
-                {nextCursor ? (
-                  <button
-                    type="button"
-                    onClick={() => loadNotifications('more')}
-                    disabled={isLoadingMore}
-                    className="w-full border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition rounded-sm py-2 text-xs text-zinc-200 disabled:opacity-60"
-                  >
-                    {isLoadingMore ? 'Loading…' : 'Load more'}
-                  </button>
-                ) : (
-                  <div className="text-center text-xs text-zinc-600 py-2">End of list</div>
-                )}
-              </div>
-            </>
+            <div className="space-y-2">
+              {notifications.map((n) => (
+                <Link
+                  key={n.id}
+                  href={getNotificationHref(n)}
+                  onClick={() => {
+                    onClose();
+                    if (!n.read_at) markRead(n.id);
+                  }}
+                  className={`block border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition px-4 py-3 rounded-sm ${
+                    n.read_at ? 'text-zinc-400' : 'text-white'
+                  }`}
+                >
+                  <div className="text-sm font-medium">{n.message}</div>
+                  <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>
+                </Link>
+              ))}
+            </div>
           )}
+
+          <div className="pt-4 text-center text-xs text-zinc-600">
+            Showing latest 20. Use “View all notifications” for history.
+          </div>
         </div>
       </div>
     </div>

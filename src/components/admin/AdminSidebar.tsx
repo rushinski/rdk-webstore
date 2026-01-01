@@ -70,6 +70,32 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const analyticsActive = pathname.startsWith("/admin/analytics");
   const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false);
 
+  const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
+
+  const refreshNotifCount = async () => {
+    try {
+      const res = await fetch('/api/admin/notifications/unread-count', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (typeof data.unreadCount === 'number') setNotifBadgeCount(data.unreadCount);
+    } catch {
+      // keep last value; do not force 0
+    }
+  };
+
+  useEffect(() => {
+    refreshNotifCount();
+
+    const onUpdated = (e: Event) => {
+      const evt = e as CustomEvent;
+      const next = evt.detail?.unreadCount;
+      if (typeof next === 'number') setNotifBadgeCount(next);
+    };
+
+    window.addEventListener('adminNotificationsUpdated', onUpdated);
+    return () => window.removeEventListener('adminNotificationsUpdated', onUpdated);
+  }, []);
+
   // Auto-open group when you’re inside it
   useEffect(() => {
     if (analyticsActive) setAnalyticsOpen(true);
@@ -170,6 +196,10 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     const statusBase =
       "flex w-full items-center gap-2 px-3 py-2 rounded-sm select-none " +
       "text-[13px] leading-none bg-zinc-950 text-white";
+
+    const notifLabel =
+      typeof notifBadgeCount === 'number' && notifBadgeCount > 9 ? '9+' : String(notifBadgeCount ?? 0);
+
 
     return (
       <div className="flex flex-col h-full min-h-0 w-full">
@@ -322,7 +352,14 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                             hover:bg-zinc-900 transition-colors
                             focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
                 >
-                  <Bell className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                  <span className="relative">
+                    <Bell className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                    {typeof notifBadgeCount === 'number' && notifBadgeCount > 0 && (
+                      <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
+                        {notifLabel}
+                      </span>
+                    )}
+                  </span>
                 </button>
               </Tooltip>
             </div>

@@ -44,10 +44,12 @@ export function AdminNotificationCenter({ placement = 'top' }: Props) {
     [notifications]
   );
 
+  const badgeLabel = unreadCount > 9 ? '9+' : String(unreadCount);
+
   const loadNotifications = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/notifications?limit=12', { cache: 'no-store' });
+      const response = await fetch('/api/admin/notifications?limit=20&page=1', { cache: 'no-store' });
       if (!response.ok) return;
       const data = await response.json();
       setNotifications(data.notifications ?? []);

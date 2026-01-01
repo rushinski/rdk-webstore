@@ -70,4 +70,29 @@ export class AdminNotificationService {
 
     await this.notificationsRepo.insertMany(rows);
   }
+
+  async listCenter(adminId: string, params: { limit: number; page: number; unreadOnly?: boolean }) {
+    const [{ notifications, hasMore }, unreadCount] = await Promise.all([
+      this.notificationsRepo.listPageForAdmin(adminId, params),
+      this.notificationsRepo.countUnread(adminId),
+    ]);
+
+    return { notifications, hasMore, unreadCount, page: params.page, limit: params.limit };
+  }
+
+  async unreadCount(adminId: string) {
+    return this.notificationsRepo.countUnread(adminId);
+  }
+
+  async markRead(adminId: string, ids: string[]) {
+    return this.notificationsRepo.markRead(adminId, ids);
+  }
+
+  async markAllRead(adminId: string) {
+    return this.notificationsRepo.markAllRead(adminId);
+  }
+
+  async deleteMany(adminId: string, ids: string[]) {
+    return this.notificationsRepo.deleteMany(adminId, ids);
+  }
 }
