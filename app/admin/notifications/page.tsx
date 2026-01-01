@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { MoreVertical, Trash2, X } from 'lucide-react';
 import { logError } from '@/lib/log';
@@ -55,7 +55,7 @@ export default function AdminNotificationsPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // header delete hover menu
+  // header delete hover menu (now click-to-open)
   const [deleteMenuOpen, setDeleteMenuOpen] = useState(false);
 
   // confirm modal
@@ -65,6 +65,10 @@ export default function AdminNotificationsPage() {
   const notifications = data?.notifications ?? [];
   const unreadCount = data?.unreadCount ?? 0;
   const selectedCount = selectedIds.size;
+
+  // click-outside refs
+  const headerDeleteRef = useRef<HTMLDivElement | null>(null);
+  const rowMenuRef = useRef<HTMLDivElement | null>(null);
 
   const load = async (nextPage = page) => {
     setIsLoading(true);
@@ -90,6 +94,37 @@ export default function AdminNotificationsPage() {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Close popups on outside click + Esc
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+
+      if (deleteMenuOpen && headerDeleteRef.current && !headerDeleteRef.current.contains(target)) {
+        setDeleteMenuOpen(false);
+      }
+
+      if (menuOpenFor && rowMenuRef.current && !rowMenuRef.current.contains(target)) {
+        setMenuOpenFor(null);
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDeleteMenuOpen(false);
+        setMenuOpenFor(null);
+      }
+    };
+
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [deleteMenuOpen, menuOpenFor]);
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
@@ -303,50 +338,43 @@ export default function AdminNotificationsPage() {
               Mark all as read
             </button>
 
-            {/* Header Delete (hover region includes popup) */}
-            <div
-              className="relative"
-              onMouseEnter={() => setDeleteMenuOpen(true)}
-              onMouseLeave={() => setDeleteMenuOpen(false)}
-            >
+            {/* Header Delete (click-to-open + click-outside-to-close) */}
+            <div ref={headerDeleteRef} className="relative">
               <button
                 type="button"
-                className="text-xs text-zinc-400 hover:text-white flex items-center gap-2"
+                className="text-xs text-red-400 hover:text-red-300 flex items-center gap-2"
                 aria-label="Delete menu"
-                onClick={() => setDeleteMenuOpen((v) => !v)} // click fallback
+                onClick={() => {
+                  setMenuOpenFor(null);
+                  setDeleteMenuOpen((v) => !v);
+                }}
               >
                 <Trash2 className="w-4 h-4" />
                 Delete
               </button>
 
               {deleteMenuOpen && (
-                <>
-                  {/* small invisible bridge so you can move into the menu */}
-                  <div className="absolute right-0 top-full h-2 w-56" />
-
-                  <div
-                    className="absolute right-0 top-full mt-2 w-56 bg-zinc-950 border border-zinc-800/70 shadow-xl rounded-sm overflow-hidden z-50"
-                    onMouseEnter={() => setDeleteMenuOpen(true)}
-                    onMouseLeave={() => setDeleteMenuOpen(false)}
+                <div className="absolute right-0 top-full mt-2 w-56 bg-zinc-950 border border-zinc-800/70 shadow-xl rounded-sm overflow-hidden z-50">
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-900 text-white"
+                    onClick={() => {
+                      setDeleteMenuOpen(false);
+                      enterSelectMode([]);
+                    }}
                   >
-                    <button
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-900 text-white"
-                      onClick={() => enterSelectMode([])}
-                    >
-                      Select delete
-                    </button>
+                    Select delete
+                  </button>
 
-                    <button
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-900 text-red-400"
-                      onClick={() => {
-                        setDeleteMenuOpen(false);
-                        setConfirmDeleteAllOpen(true);
-                      }}
-                    >
-                      Delete all
-                    </button>
-                  </div>
-                </>
+                  <button
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-900 text-red-400"
+                    onClick={() => {
+                      setDeleteMenuOpen(false);
+                      setConfirmDeleteAllOpen(true);
+                    }}
+                  >
+                    Delete all
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -383,9 +411,10 @@ export default function AdminNotificationsPage() {
 
             return (
               <div key={n.id} className="relative border border-zinc-800/70 bg-zinc-950 rounded-sm">
-                <div className="flex items-stretch">
+                {/* group hover makes entire row change bg (including 3-dot area) */}
+                <div className="group flex items-stretch">
                   {selectMode && (
-                    <div className="flex items-center px-3">
+                    <div className="flex items-center px-3 transition group-hover:bg-zinc-900">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -410,7 +439,7 @@ export default function AdminNotificationsPage() {
                       }
                       if (!n.read_at) markRead(n.id);
                     }}
-                    className={`block flex-1 px-4 py-3 hover:bg-zinc-900 transition ${
+                    className={`block flex-1 px-4 py-3 transition group-hover:bg-zinc-900 ${
                       n.read_at ? 'text-zinc-400' : 'text-white'
                     }`}
                   >
@@ -418,14 +447,18 @@ export default function AdminNotificationsPage() {
                     <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>
                   </Link>
 
-                  {/* 3-bar menu (auto-select entry point) */}
-                  <div className="relative flex items-center pr-2">
+                  {/* 3-dot menu (click-to-open + click-outside-to-close) */}
+                  <div
+                    ref={menuOpenFor === n.id ? rowMenuRef : null}
+                    className="relative flex items-center pr-2 transition group-hover:bg-zinc-900"
+                  >
                     <button
                       type="button"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         if (selectMode) return;
+                        setDeleteMenuOpen(false);
                         setMenuOpenFor((prev) => (prev === n.id ? null : n.id));
                       }}
                       className="text-zinc-500 hover:text-white px-2"
@@ -441,6 +474,7 @@ export default function AdminNotificationsPage() {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            setMenuOpenFor(null);
                             enterSelectMode([n.id]); // auto-select clicked
                           }}
                         >
