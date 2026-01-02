@@ -105,6 +105,14 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
 
         setIsLoading(false);
       } catch (err: any) {
+        // Ignore expected aborts (React StrictMode dev + route changes/unmount)
+        const isAbort =
+          err?.name === 'AbortError' ||
+          (typeof err?.message === 'string' && err.message.toLowerCase().includes('aborted')) ||
+          abort.signal.aborted;
+
+        if (isAbort) return;
+
         logError(err, {
           layer: 'frontend',
           event: 'embedded_account_init_failed',

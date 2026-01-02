@@ -91,40 +91,48 @@ export const security = {
       csp: {
         /**
          * Development CSP - Relaxed for local development.
+         * (Updated for Stripe Connect embedded components)
          */
         dev: [
           "default-src 'self'",
-          "img-src 'self' data: https: blob:",
+          // Allow Stripe-hosted images that may be used by embedded components
+          "img-src 'self' data: https: blob: https://*.stripe.com",
           "style-src 'self' 'unsafe-inline'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+          // Allow Stripe Connect JS loaders
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
           [
             "connect-src",
             "'self'",
             "ws://localhost:*",      // Next.js HMR WebSocket
             "http://localhost:*",    // Local API calls
             "http://127.0.0.1:*",    // Alternative localhost
-            "https:",                // All HTTPS (Supabase, etc.)
+            "https:",                // All HTTPS (Supabase, Stripe, etc.)
           ].join(" "),
-          "object-src 'none'",       // No Flash/Java applets
-          "base-uri 'self'",         // Prevent <base> tag attacks
-          "frame-ancestors 'none'",  // Clickjacking protection
-          "frame-src 'self' https://www.openstreetmap.org https://*.openstreetmap.org",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "frame-ancestors 'none'",
+          // Allow Stripe Connect embedded iframes + your existing map frames
+          "frame-src 'self' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
         ],
 
         /**
          * Production CSP - Strict with specific allowlists.
+         * (Updated for Stripe Connect embedded components)
          */
         prod: [
           "default-src 'self'",
-          "img-src 'self' https: data: blob:",
-          "style-src 'self' 'unsafe-inline'",  // TODO: Use nonces to remove unsafe-inline
-          "script-src 'self' 'unsafe-inline' https://js.stripe.com https://*.stripe.com",
+          "img-src 'self' https: data: blob: https://*.stripe.com",
+          "style-src 'self' 'unsafe-inline'", // TODO: Use nonces to remove unsafe-inline
+          // Include connect-js.stripe.com explicitly
+          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
           "object-src 'none'",
           "base-uri 'self'",
-          "connect-src 'self' https:",         // API calls to Supabase, Stripe, etc.
+          // Keep HTTPS wildcard, it covers Stripe API calls; fine for MVP, tighten later if desired
+          "connect-src 'self' https:",
           "frame-ancestors 'none'",
-          "frame-src https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",  // Stripe checkout iframe
-          "form-action 'self' https://*.stripe.com",               // Allow forms to Stripe
+          // Allow Connect embedded frames + Checkout frames + your existing map frames
+          "frame-src https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "form-action 'self' https://*.stripe.com",
         ],
       },
     },
