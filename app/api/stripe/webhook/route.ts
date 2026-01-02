@@ -63,8 +63,58 @@ export async function POST(request: NextRequest) {
     const adminSupabase = createSupabaseAdminClient();
     const job = new StripeOrderJob(supabase, adminSupabase);
 
-    if (event.type === "checkout.session.completed") {
-      await job.processCheckoutSessionCompleted(event, requestId);
+    // Handle different event types
+    switch (event.type) {
+      case "checkout.session.completed":
+        await job.processCheckoutSessionCompleted(event, requestId);
+        break;
+
+      // Account events - log for monitoring
+      case "account.updated":
+        log({
+          level: "info",
+          layer: "stripe",
+          message: "stripe_account_updated",
+          requestId,
+          eventId: event.id,
+          accountId: (event.data.object as Stripe.Account).id,
+        });
+        break;
+
+      // Payout events - log for monitoring
+      case "payout.created":
+      case "payout.updated":
+      case "payout.paid":
+      case "payout.failed":
+        log({
+          level: "info",
+          layer: "stripe",
+          message: `stripe_payout_${event.type.split(".")[1]}`,
+          requestId,
+          eventId: event.id,
+          payoutId: (event.data.object as Stripe.Payout).id,
+          payout_status: (event.data.object as Stripe.Payout).status,
+          amount: (event.data.object as Stripe.Payout).amount,
+        });
+        break;
+
+      // Refund events - track refund state
+      case "charge.refunded":
+      case "charge.refund.updated":
+      case "refund.created":
+      case "refund.updated":
+        await handleRefundEvent(event, requestId, adminSupabase);
+        break;
+
+      default:
+        log({
+          level: "info",
+          layer: "stripe",
+          message: "stripe_webhook_unhandled_event",
+          requestId,
+          eventType: event.type,
+          eventId: event.id,
+        });
     }
 
     return NextResponse.json(
@@ -83,5 +133,115 @@ export async function POST(request: NextRequest) {
       { error: "Internal error", requestId },
       { status: 200, headers: { "Cache-Control": "no-store" } }
     );
+  }
+}
+
+/**
+ * Handle refund events and update order status
+ */
+async function handleRefundEvent(
+  event: Stripe.Event,
+  requestId: string,
+  adminSupabase: any
+) {
+  try {
+    const refund = event.data.object as Stripe.Refund;
+    
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "stripe_refund_event",
+      requestId,
+      eventId: event.id,
+      refundId: refund.id,
+      chargeId: refund.charge,
+      amount: refund.amount,
+      refund_status: refund.status,
+      reason: refund.reason,
+    });
+
+    // Find order by charge ID (payment_intent or charge metadata)
+    const chargeId = typeof refund.charge === 'string' ? refund.charge : refund.charge?.id;
+    
+    if (!chargeId) {
+      log({
+        level: "warn",
+        layer: "stripe",
+        message: "refund_missing_charge_id",
+        requestId,
+        refundId: refund.id,
+      });
+      return;
+    }
+
+    // Query orders table for matching charge/payment intent
+    // This assumes you store stripe_charge_id or stripe_payment_intent_id on orders
+    const { data: orders, error: queryError } = await adminSupabase
+      .from("orders")
+      .select("id, status, refund_amount, refund_reason")
+      .or(`stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`)
+      .limit(1);
+
+    if (queryError) {
+      throw queryError;
+    }
+
+    if (!orders || orders.length === 0) {
+      log({
+        level: "warn",
+        layer: "stripe",
+        message: "refund_order_not_found",
+        requestId,
+        chargeId,
+        refundId: refund.id,
+      });
+      return;
+    }
+
+    const order = orders[0];
+
+    // Update order with refund information
+    const updateData: any = {
+      refund_amount: refund.amount,
+      refund_reason: refund.reason || 'requested_by_customer',
+      refunded_at: new Date(refund.created * 1000).toISOString(),
+    };
+
+    // Update status based on refund status
+    if (refund.status === 'succeeded') {
+      updateData.status = 'refunded';
+    } else if (refund.status === 'pending') {
+      updateData.status = 'refund_pending';
+    } else if (refund.status === 'failed') {
+      updateData.status = 'refund_failed';
+    }
+
+    const { error: updateError } = await adminSupabase
+      .from("orders")
+      .update(updateData)
+      .eq("id", order.id);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "refund_order_updated",
+      requestId,
+      orderId: order.id,
+      refundId: refund.id,
+      amount: refund.amount,
+      refund_status: refund.status,
+    });
+
+  } catch (error: any) {
+    logError(error, {
+      layer: "stripe",
+      requestId,
+      event: "handle_refund_event",
+      message: "Failed to process refund event",
+    });
   }
 }

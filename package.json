@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@easypost/api": "^8.4.0",
+    "@stripe/connect-js": "^3.3.31",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.81.1",
     "@upstash/ratelimit": "^2.0.7",
