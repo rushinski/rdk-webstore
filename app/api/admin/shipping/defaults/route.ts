@@ -14,7 +14,11 @@ const defaultsSchema = z
         z
           .object({
             category: z.string().trim().min(1),
-            default_price: z.number().nonnegative(),
+            shipping_rate_threshold_cents: z.number().nonnegative(),
+            default_weight_oz: z.number().positive(),
+            default_length_in: z.number().positive(),
+            default_width_in: z.number().positive(),
+            default_height_in: z.number().positive(),
           })
           .strict()
       )

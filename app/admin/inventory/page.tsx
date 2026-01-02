@@ -11,6 +11,8 @@ import { logError } from '@/lib/log';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Toast } from '@/components/ui/Toast';
 
+type StockStatus = 'in_stock' | 'out_of_stock';
+
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,6 +20,7 @@ export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
   const [conditionFilter, setConditionFilter] = useState<Condition | 'all'>('all');
+  const [stockStatusFilter, setStockStatusFilter] = useState<StockStatus>('in_stock');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null);
   const [pendingMassDelete, setPendingMassDelete] = useState(false);
@@ -29,11 +32,12 @@ export default function InventoryPage() {
         q: searchQuery,
         category: categoryFilter,
         condition: conditionFilter,
+        stockStatus: stockStatusFilter,
       });
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery, categoryFilter, conditionFilter]);
+  }, [searchQuery, categoryFilter, conditionFilter, stockStatusFilter]);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -51,10 +55,11 @@ export default function InventoryPage() {
     q?: string;
     category?: Category | 'all';
     condition?: Condition | 'all';
+    stockStatus?: StockStatus;
   }) => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100', includeOutOfStock: '1' });
+      const params = new URLSearchParams({ limit: '100' });
       if (filters?.q) {
         params.set('q', filters.q.trim());
       }
@@ -63,6 +68,9 @@ export default function InventoryPage() {
       }
       if (filters?.condition && filters.condition !== 'all') {
         params.append('condition', filters.condition);
+      }
+      if (filters?.stockStatus) {
+        params.set('stockStatus', filters.stockStatus);
       }
 
       const response = await fetch(`/api/store/products?${params.toString()}`);
@@ -186,6 +194,15 @@ export default function InventoryPage() {
             Create Product
           </Link>
         </div>
+      </div>
+
+      <div className="border-b border-zinc-800/70 flex space-x-6">
+        <button onClick={() => setStockStatusFilter('in_stock')} className={`py-3 text-sm font-medium transition-colors ${stockStatusFilter === 'in_stock' ? 'text-white border-b-2 border-red-600' : 'text-gray-400 hover:text-white'}`}>
+            In Stock
+        </button>
+        <button onClick={() => setStockStatusFilter('out_of_stock')} className={`py-3 text-sm font-medium transition-colors ${stockStatusFilter === 'out_of_stock' ? 'text-white border-b-2 border-red-600' : 'text-gray-400 hover:text-white'}`}>
+            Out of Stock
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">

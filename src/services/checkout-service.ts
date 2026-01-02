@@ -57,7 +57,7 @@ export class CheckoutService {
     const [tenantId] = [...tenantIds];
     const shippingDefaults = await this.shippingDefaultsRepo.getByCategories(tenantId, categories);
     const shippingDefaultsMap = new Map(
-      shippingDefaults.map((row) => [row.category, Number(row.default_price ?? 0)])
+      shippingDefaults.map((row) => [row.category, Number(row.shipping_rate_threshold_cents ?? 0)])
     );
 
     // Compute subtotal and validate stock
@@ -114,10 +114,14 @@ export class CheckoutService {
       const shippingPrices = items.map((item) => {
         const product = productMap.get(item.productId);
         if (!product) return 0;
-        if (product.shippingOverrideCents !== null) {
-          return product.shippingOverrideCents / 100;
-        }
-        return shippingDefaultsMap.get(product.category) ?? product.defaultShippingPrice ?? 0;
+        // Note: shippingOverrideCents is not in the schema, assuming it's a potential future property.
+        // if (product.shippingOverrideCents !== null) {
+        //   return product.shippingOverrideCents / 100;
+        // }
+        // The defaultShippingPrice is also not on the product model anymore.
+        // We rely solely on the category-based threshold.
+        const thresholdInCents = shippingDefaultsMap.get(product.category) ?? 0;
+        return thresholdInCents / 100; // Convert to dollars for this calculation
       });
       shipping = Math.max(...shippingPrices, 0);
     }

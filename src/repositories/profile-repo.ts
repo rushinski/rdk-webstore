@@ -96,6 +96,15 @@ export class ProfileRepository {
     if (error) throw error;
   }
 
+  async setStripeAccountId(userId: string, stripeAccountId: string) {
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ stripe_account_id: stripeAccountId })
+      .eq("id", userId);
+
+    if (error) throw error;
+  }
+
   async setTenantId(userId: string, tenantId: string) {
     const { error } = await this.supabase
       .from("profiles")

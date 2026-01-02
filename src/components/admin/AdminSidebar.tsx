@@ -19,6 +19,7 @@ import {
   Menu,
   ChevronDown,
   ChevronRight,
+  Landmark,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -54,6 +55,7 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     ],
   },
   { type: "link", href: "/admin/sales", label: "Sales", icon: DollarSign },
+  { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
   { type: "link", href: "/admin/shipping", label: "Shipping", icon: Truck },
   { type: "link", href: "/admin/catalog", label: "Catalog", icon: Package },
   { type: "link", href: "/admin/settings", label: "Settings", icon: Settings },

@@ -247,6 +247,15 @@ export class OrdersRepository {
     return data as OrderRow;
   }
 
+  async setFulfillmentStatus(orderId: string, status: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({ fulfillment_status: status })
+      .eq("id", orderId);
+
+    if (error) throw error;
+  }
+
   async markFulfilled(
     orderId: string,
     input: { carrier?: string | null; trackingNumber?: string | null }

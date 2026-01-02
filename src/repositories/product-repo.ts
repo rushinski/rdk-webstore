@@ -13,7 +13,7 @@ export interface ProductFilters {
   sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
   page?: number;
   limit?: number;
-  includeOutOfStock?: boolean;
+  stockStatus?: 'in_stock' | 'out_of_stock' | 'all';
 
   // Optional multi-tenant hooks (safe now, useful later)
   tenantId?: string;
@@ -49,7 +49,6 @@ export class ProductRepository {
     const offset = (page - 1) * limit;
     const buildInClause = (values: string[]) =>
       values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
-    const includeOutOfStock = Boolean(filters.includeOutOfStock);
 
     let query = this.supabase
       .from("products")
@@ -63,6 +62,13 @@ export class ProductRepository {
     if (filters.tenantId) query = query.eq("tenant_id", filters.tenantId);
     if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
     if (filters.marketplaceId) query = query.eq("marketplace_id", filters.marketplaceId);
+
+    // Stock status filter
+    if (filters.stockStatus === 'in_stock') {
+      query = query.eq("is_out_of_stock", false);
+    } else if (filters.stockStatus === 'out_of_stock') {
+        query = query.eq("is_out_of_stock", true);
+    }
 
     // Text search
     if (filters.q) {
@@ -83,23 +89,20 @@ export class ProductRepository {
     if (filters.model?.length) query = query.in("model", filters.model);
     if (filters.condition?.length) query = query.in("condition", filters.condition);
 
-    // Size filters (limit to in-stock variants)
+    // Size filters
     const sizeFilters: string[] = [];
-    const stockClause = includeOutOfStock ? "" : ",stock.gt.0";
     if (filters.sizeShoe?.length) {
       sizeFilters.push(
-        `and(size_type.eq.shoe,size_label.in.(${buildInClause(filters.sizeShoe)})${stockClause})`
+        `and(size_type.eq.shoe,size_label.in.(${buildInClause(filters.sizeShoe)}))`
       );
     }
     if (filters.sizeClothing?.length) {
       sizeFilters.push(
-        `and(size_type.eq.clothing,size_label.in.(${buildInClause(filters.sizeClothing)})${stockClause})`
+        `and(size_type.eq.clothing,size_label.in.(${buildInClause(filters.sizeClothing)}))`
       );
     }
     if (sizeFilters.length > 0) {
       query = query.or(sizeFilters.join(","), { foreignTable: "product_variants" });
-    } else if (!includeOutOfStock) {
-      query = query.gt("product_variants.stock", 0);
     }
 
     // Sorting
@@ -148,7 +151,7 @@ export class ProductRepository {
       .eq("is_active", true);
 
     if (!opts?.includeOutOfStock) {
-      query = query.gt("product_variants.stock", 0);
+      query = query.eq("is_out_of_stock", false);
     }
     if (opts?.tenantId) query = query.eq("tenant_id", opts.tenantId);
     if (opts?.sellerId) query = query.eq("seller_id", opts.sellerId);
@@ -293,7 +296,8 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("products")
       .select("brand")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .eq("is_out_of_stock", false);
 
     if (error) throw error;
     const brands = [...new Set((data ?? []).map((p) => p.brand).filter(Boolean))];
@@ -312,11 +316,11 @@ export class ProductRepository {
     const includeOutOfStock = Boolean(opts?.includeOutOfStock);
     let query = this.supabase
       .from("products")
-      .select("brand, model, brand_is_verified, model_is_verified, category, product_variants!inner(stock)")
+      .select("brand, model, brand_is_verified, model_is_verified, category")
       .eq("is_active", true);
 
     if (!includeOutOfStock) {
-      query = query.gt("product_variants.stock", 0);
+      query = query.eq("is_out_of_stock", false);
     }
 
     const { data, error } = await query.limit(2000);
@@ -364,7 +368,8 @@ export class ProductRepository {
       .from("products")
       .select("id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)")
       .in("id", productIds)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .eq("is_out_of_stock", false);
 
     if (error) throw error;
 
@@ -393,6 +398,7 @@ export class ProductRepository {
       .from("products")
       .select("model")
       .eq("is_active", true)
+      .eq("is_out_of_stock", false)
       .not("model", "is", null);
 
     if (category) {

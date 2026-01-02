@@ -46,11 +46,25 @@ export class ShippingDefaultsRepository {
 
   async upsertDefaults(
     tenantId: string | null,
-    defaults: Array<Pick<ShippingDefaultInsert, "category" | "default_price">>
+    defaults: Array<
+      Pick<
+        ShippingDefaultInsert,
+        | "category"
+        | "shipping_rate_threshold_cents"
+        | "default_weight_oz"
+        | "default_length_in"
+        | "default_width_in"
+        | "default_height_in"
+      >
+    >
   ): Promise<ShippingDefaultRow[]> {
     const rows: ShippingDefaultInsert[] = defaults.map((entry) => ({
       category: entry.category,
-      default_price: entry.default_price ?? 0,
+      shipping_rate_threshold_cents: entry.shipping_rate_threshold_cents ?? 0,
+      default_weight_oz: entry.default_weight_oz ?? 16,
+      default_length_in: entry.default_length_in ?? 12,
+      default_width_in: entry.default_width_in ?? 12,
+      default_height_in: entry.default_height_in ?? 12,
       tenant_id: tenantId ?? null,
     }));
 

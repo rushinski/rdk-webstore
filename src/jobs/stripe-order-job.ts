@@ -155,6 +155,9 @@ export class StripeOrderJob {
         if (order.user_id) {
           await this.addressesRepo.upsertUserAddress(order.user_id, addressInput);
         }
+
+        // Set initial fulfillment status for the admin shipping queue
+        await this.ordersRepo.setFulfillmentStatus(orderId, 'unfulfilled');
       }
     }
 

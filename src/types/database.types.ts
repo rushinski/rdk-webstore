@@ -1000,6 +1000,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_out_of_stock: boolean
           marketplace_id: string | null
           model: string | null
           model_is_verified: boolean
@@ -1027,6 +1028,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_out_of_stock?: boolean
           marketplace_id?: string | null
           model?: string | null
           model_is_verified?: boolean
@@ -1054,6 +1056,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_out_of_stock?: boolean
           marketplace_id?: string | null
           model?: string | null
           model_is_verified?: boolean
@@ -1102,6 +1105,7 @@ export type Database = {
           id: string
           is_primary_admin: boolean
           role: string | null
+          stripe_account_id: string | null
           stripe_customer_id: string | null
           tenant_id: string | null
         }
@@ -1114,6 +1118,7 @@ export type Database = {
           id: string
           is_primary_admin?: boolean
           role?: string | null
+          stripe_account_id?: string | null
           stripe_customer_id?: string | null
           tenant_id?: string | null
         }
@@ -1126,6 +1131,7 @@ export type Database = {
           id?: string
           is_primary_admin?: boolean
           role?: string | null
+          stripe_account_id?: string | null
           stripe_customer_id?: string | null
           tenant_id?: string | null
         }
@@ -1172,26 +1178,83 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
-          default_price: number
+          default_height_in: number
+          default_length_in: number
+          default_weight_oz: number
+          default_width_in: number
           id: string
+          shipping_rate_threshold_cents: number
           tenant_id: string | null
           updated_at: string | null
         }
         Insert: {
           category: string
           created_at?: string | null
-          default_price?: number
+          default_height_in: number
+          default_length_in: number
+          default_weight_oz: number
+          default_width_in: number
           id?: string
+          shipping_rate_threshold_cents?: number
           tenant_id?: string | null
           updated_at?: string | null
         }
         Update: {
           category?: string
           created_at?: string | null
-          default_price?: number
+          default_height_in?: number
+          default_length_in?: number
+          default_weight_oz?: number
+          default_width_in?: number
           id?: string
+          shipping_rate_threshold_cents?: number
           tenant_id?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      shipping_origins: {
+        Row: {
+          city: string
+          company: string | null
+          country: string
+          created_at: string
+          id: string
+          line1: string
+          line2: string | null
+          name: string
+          phone: string | null
+          postal_code: string
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          company?: string | null
+          country: string
+          created_at?: string
+          id?: string
+          line1: string
+          line2?: string | null
+          name: string
+          phone?: string | null
+          postal_code: string
+          state: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          company?: string | null
+          country?: string
+          created_at?: string
+          id?: string
+          line1?: string
+          line2?: string | null
+          name?: string
+          phone?: string | null
+          postal_code?: string
+          state?: string
+          updated_at?: string
         }
         Relationships: []
       }

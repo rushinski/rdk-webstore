@@ -14,13 +14,15 @@ export async function GET(request: NextRequest) {
 
   const qParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
-  const includeOutOfStockParam = searchParams.get("includeOutOfStock");
-  const includeOutOfStockRequested =
-    includeOutOfStockParam === "1" || includeOutOfStockParam === "true";
-  let includeOutOfStock = false;
-  if (includeOutOfStockRequested) {
+  const stockStatusParam = searchParams.get("stockStatus");
+  
+  let stockStatus: "in_stock" | "out_of_stock" | "all" = "in_stock";
+
+  if (stockStatusParam === 'out_of_stock' || stockStatusParam === 'all') {
     const session = await getServerSession();
-    includeOutOfStock = session?.role === "admin";
+    if (session?.role === "admin") {
+        stockStatus = stockStatusParam;
+    }
   }
 
   const parsed = storeProductsQuerySchema.safeParse({
@@ -34,7 +36,7 @@ export async function GET(request: NextRequest) {
     sort: sortParam && sortParam.trim().length > 0 ? sortParam : "newest",
     page: Number.parseInt(searchParams.get("page") ?? "1", 10),
     limit: Number.parseInt(searchParams.get("limit") ?? "20", 10),
-    includeOutOfStock,
+    stockStatus,
   });
 
   if (!parsed.success) {
