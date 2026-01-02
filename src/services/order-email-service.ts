@@ -36,6 +36,14 @@ type OrderConfirmationEmailInput = {
   shippingAddress?: ShippingAddress | null;
 };
 
+type OrderShippedEmailInput = {
+  to: string;
+  orderId: string;
+  carrier?: string | null;
+  trackingNumber?: string | null;
+  trackingUrl?: string | null;
+};
+
 const formatMoney = (value: number) => value.toFixed(2);
 
 const formatLine = (value?: string | null) => (value ? value.trim() : "");
@@ -215,35 +223,22 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
   return lines.join("\n");
 };
 
-// ... (existing imports and types)
-
-type OrderConfirmationEmailInput = {
-  // ... (existing type)
-};
-
-type OrderShippedEmailInput = {
-  to: string;
-  orderId: string;
-  carrier: string;
-  trackingNumber: string;
-};
-
-// ... (existing formatMoney, formatLine, buildAddressLines)
-
-// ... (existing buildEmailHtml and buildEmailText for confirmation)
-
 const buildShippedEmailHtml = (input: OrderShippedEmailInput) => {
-    const orderShort = input.orderId.slice(0, 8).toUpperCase();
-    // A simple tracking URL for UPS, can be made more robust
-    const trackingUrl = `https://www.ups.com/track?tracknum=${input.trackingNumber}`;
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
+  const buttonUrl = input.trackingUrl ?? orderUrl;
 
-    const contentHtml = `
+  const carrierLabel = input.carrier ?? "Shipping carrier";
+  const trackingLabel = input.trackingNumber ?? "Tracking details will be shared soon.";
+
+  const contentHtml = `
       <tr>
         <td style="padding:0 24px 10px;text-align:center;">
-          <div style="${emailStyles.eyebrow}">On its way</div>
-          <h1 style="${emailStyles.heading}">Your order has shipped!</h1>
+          <div style="${emailStyles.eyebrow}">Order shipped</div>
+          <h1 style="${emailStyles.heading}">Your order is on the way.</h1>
           <p style="margin:10px 0 0;${emailStyles.copy}">
-            Your order #${orderShort} is now on its way to you.
+            Keep an eye on your tracking details below.
           </p>
         </td>
       </tr>
@@ -251,13 +246,26 @@ const buildShippedEmailHtml = (input: OrderShippedEmailInput) => {
         <td style="padding:0 24px 16px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
             <tr>
-              <td style="padding:16px;">
-                <div style="${emailStyles.labelAccent}">Tracking Number</div>
+              <td style="padding:12px;">
+                <div style="${emailStyles.label}">Order</div>
                 <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
-                  ${input.trackingNumber}
+                  #${orderShort}
                 </div>
-                <div style="font-size:12px;color:${EMAIL_COLORS.muted};margin-top:2px;">
-                  Carrier: ${input.carrier}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
+                <div style="${emailStyles.label}">Carrier</div>
+                <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+                  ${carrierLabel}
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
+                <div style="${emailStyles.label}">Tracking</div>
+                <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+                  ${trackingLabel}
                 </div>
               </td>
             </tr>
@@ -266,35 +274,46 @@ const buildShippedEmailHtml = (input: OrderShippedEmailInput) => {
       </tr>
       <tr>
         <td style="padding:20px 24px;text-align:left;">
-          <a href="${trackingUrl}" style="${emailStyles.button}">Track your package</a>
+          <a href="${buttonUrl}" style="${emailStyles.button}">${buttonLabel}</a>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+          If you have any questions, reply to this email and our team will help you out.
         </td>
       </tr>
     `;
 
-    return renderEmailLayout({
-        title: "Your Order Has Shipped",
-        preheader: `Tracking for order #${orderShort} is now available.`,
-        contentHtml,
-    });
+  return renderEmailLayout({
+    title: "Order Shipped",
+    preheader: `Order #${orderShort} is on the way.`,
+    contentHtml,
+  });
 };
 
 const buildShippedEmailText = (input: OrderShippedEmailInput) => {
-    const orderShort = input.orderId.slice(0, 8).toUpperCase();
-    const trackingUrl = `https://www.ups.com/track?tracknum=${input.trackingNumber}`;
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
 
-    const lines = [
-        "Your order has shipped!",
-        `Order #${orderShort}`,
-        "",
-        `Carrier: ${input.carrier}`,
-        `Tracking Number: ${input.trackingNumber}`,
-        "",
-        `Track your package: ${trackingUrl}`,
-    ];
+  const lines = [
+    "Realdealkickzsc",
+    `Order #${orderShort}`,
+    "Your order has shipped.",
+  ];
 
-    lines.push(emailFooterText());
-    return lines.join("\n");
+  if (input.carrier) {
+    lines.push(`Carrier: ${input.carrier}`);
+  }
+  if (input.trackingNumber) {
+    lines.push(`Tracking: ${input.trackingNumber}`);
+  }
+  lines.push(input.trackingUrl ? `Track: ${input.trackingUrl}` : `View your order: ${orderUrl}`);
+  lines.push(emailFooterText());
+
+  return lines.join("\n");
 };
+
+
 
 export class OrderEmailService {
   async sendOrderConfirmation(input: OrderConfirmationEmailInput) {

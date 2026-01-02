@@ -10,7 +10,7 @@ import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-10-29.clover", // FIXED: Updated API version
+  apiVersion: "2025-10-29.clover",
 });
 
 export async function POST(request: NextRequest) {

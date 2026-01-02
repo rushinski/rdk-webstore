@@ -12,7 +12,7 @@ import type { CheckoutSessionRequest, CheckoutSessionResponse } from "@/types/vi
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-10-29.clover", // FIXED: Updated API version
+  apiVersion: "2025-10-29.clover",
 });
 
 export class CheckoutService {
@@ -57,56 +57,42 @@ export class CheckoutService {
     const [tenantId] = [...tenantIds];
     const shippingDefaults = await this.shippingDefaultsRepo.getByCategories(tenantId, categories);
     const shippingDefaultsMap = new Map(
-      shippingDefaults.map((row) => [row.category, Number(row.shipping_rate_threshold_cents ?? 0)])
+      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
     );
 
-    // Compute subtotal and validate stock
-    let subtotal = 0;
-    const lineItems: Array<{
-      productId: string;
-      variantId: string;
-      quantity: number;
-      unitPrice: number;
-      unitCost: number;
-      lineTotal: number;
-      name: string;
-      brand: string;
-      titleDisplay: string;
-    }> = [];
-
-    for (const item of items) {
+    const lineItems = items.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
-        throw new Error(`Product ${item.productId} not found`);
+        throw new Error("Product not found");
       }
 
       const variant = product.variants.find((v) => v.id === item.variantId);
       if (!variant) {
-        throw new Error(`Variant ${item.variantId} not found`);
+        throw new Error("Variant not found");
       }
 
       if (variant.stock < item.quantity) {
-        throw new Error(`Insufficient stock for ${product.name} (${variant.sizeLabel})`);
+        throw new Error("INSUFFICIENT_STOCK");
       }
 
-      const unitPrice = variant.priceCents / 100;
-      const unitCost = (variant.costCents ?? 0) / 100;
+      const unitPrice = Number(variant.priceCents ?? 0) / 100;
+      const unitCost = Number(variant.costCents ?? 0) / 100;
       const lineTotal = unitPrice * item.quantity;
 
-      lineItems.push({
+      return {
         productId: item.productId,
         variantId: item.variantId,
         quantity: item.quantity,
         unitPrice,
         unitCost,
         lineTotal,
-        name: product.name,
-        brand: product.brand,
         titleDisplay: product.titleDisplay,
-      });
+        brand: product.brand,
+        name: product.name,
+      };
+    });
 
-      subtotal += lineTotal;
-    }
+    const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
     // Compute shipping (max per-product default, not multiplied by quantity)
     let shipping = 0;
@@ -114,14 +100,8 @@ export class CheckoutService {
       const shippingPrices = items.map((item) => {
         const product = productMap.get(item.productId);
         if (!product) return 0;
-        // Note: shippingOverrideCents is not in the schema, assuming it's a potential future property.
-        // if (product.shippingOverrideCents !== null) {
-        //   return product.shippingOverrideCents / 100;
-        // }
-        // The defaultShippingPrice is also not on the product model anymore.
-        // We rely solely on the category-based threshold.
-        const thresholdInCents = shippingDefaultsMap.get(product.category) ?? 0;
-        return thresholdInCents / 100; // Convert to dollars for this calculation
+        const costInCents = shippingDefaultsMap.get(product.category) ?? 0;
+        return costInCents / 100; // Convert to dollars for this calculation
       });
       shipping = Math.max(...shippingPrices, 0);
     }

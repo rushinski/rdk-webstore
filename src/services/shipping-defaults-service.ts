@@ -15,7 +15,14 @@ export class ShippingDefaultsService {
 
   async upsertDefaults(
     tenantId: string | null,
-    defaults: Array<{ category: string; default_price: number }>
+    defaults: Array<{
+      category: string;
+      shipping_cost_cents: number;
+      default_weight_oz: number;
+      default_length_in: number;
+      default_width_in: number;
+      default_height_in: number;
+    }>
   ) {
     return this.repo.upsertDefaults(tenantId, defaults);
   }

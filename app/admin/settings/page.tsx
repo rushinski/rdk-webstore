@@ -12,7 +12,7 @@ const SHIPPING_CATEGORIES = [
 ];
 
 type ShippingDefaultValues = {
-  shipping_rate_threshold_cents: number;
+  shipping_cost_cents: number;
   default_weight_oz: number;
   default_length_in: number;
   default_width_in: number;
@@ -54,7 +54,7 @@ export default function SettingsPage() {
         const map: Record<string, ShippingDefaultValues> = {};
         for (const entry of defaultsData.defaults || []) {
           map[entry.category] = {
-            shipping_rate_threshold_cents: entry.shipping_rate_threshold_cents ?? 0,
+            shipping_cost_cents: entry.shipping_cost_cents ?? 0,
             default_weight_oz: entry.default_weight_oz ?? 16,
             default_length_in: entry.default_length_in ?? 12,
             default_width_in: entry.default_width_in ?? 12,
@@ -85,7 +85,7 @@ export default function SettingsPage() {
       ...prev,
       [category]: {
         ...prev[category],
-        [field]: field === 'shipping_rate_threshold_cents' ? numericValue * 100 : numericValue,
+        [field]: field === 'shipping_cost_cents' ? numericValue * 100 : numericValue,
       },
     }));
   };
@@ -96,7 +96,7 @@ export default function SettingsPage() {
     try {
       const defaults = SHIPPING_CATEGORIES.map((category) => ({
         category: category.key,
-        shipping_rate_threshold_cents: Math.round(shippingDefaults[category.key]?.shipping_rate_threshold_cents ?? 0),
+        shipping_cost_cents: Math.round(shippingDefaults[category.key]?.shipping_cost_cents ?? 0),
         default_weight_oz: shippingDefaults[category.key]?.default_weight_oz ?? 16,
         default_length_in: shippingDefaults[category.key]?.default_length_in ?? 12,
         default_width_in: shippingDefaults[category.key]?.default_width_in ?? 12,
@@ -152,7 +152,7 @@ export default function SettingsPage() {
   const getFieldValue = (category: string, field: keyof ShippingDefaultValues) => {
     const value = shippingDefaults[category]?.[field];
     if (value === undefined) return '';
-    if (field === 'shipping_rate_threshold_cents') {
+    if (field === 'shipping_cost_cents') {
       return (value / 100).toFixed(2);
     }
     return value;
@@ -228,11 +228,11 @@ export default function SettingsPage() {
               <h3 className="text-lg font-medium text-white mb-4">{category.label}</h3>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
-                  <label className="block text-gray-400 text-sm mb-1">Threshold ($)</label>
+                  <label className="block text-gray-400 text-sm mb-1">Shipping Cost ($)</label>
                   <input
                     type="number"
-                    value={getFieldValue(category.key, 'shipping_rate_threshold_cents')}
-                    onChange={(e) => handleValueChange(category.key, 'shipping_rate_threshold_cents', e.target.value)}
+                    value={getFieldValue(category.key, 'shipping_cost_cents')}
+                    onChange={(e) => handleValueChange(category.key, 'shipping_cost_cents', e.target.value)}
                     className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70"
                   />
                 </div>

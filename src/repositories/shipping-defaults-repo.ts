@@ -50,7 +50,7 @@ export class ShippingDefaultsRepository {
       Pick<
         ShippingDefaultInsert,
         | "category"
-        | "shipping_rate_threshold_cents"
+        | "shipping_cost_cents"
         | "default_weight_oz"
         | "default_length_in"
         | "default_width_in"
@@ -60,7 +60,7 @@ export class ShippingDefaultsRepository {
   ): Promise<ShippingDefaultRow[]> {
     const rows: ShippingDefaultInsert[] = defaults.map((entry) => ({
       category: entry.category,
-      shipping_rate_threshold_cents: entry.shipping_rate_threshold_cents ?? 0,
+      shipping_cost_cents: entry.shipping_cost_cents ?? 0,
       default_weight_oz: entry.default_weight_oz ?? 16,
       default_length_in: entry.default_length_in ?? 12,
       default_width_in: entry.default_width_in ?? 12,

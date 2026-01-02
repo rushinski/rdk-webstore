@@ -13,7 +13,9 @@ export async function GET() {
     env;
 
     // Stripe readiness
-    const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+    const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-10-29.clover",
+});
     // (Optional) We can ping Stripe to ensure key validity:
     try {
       await stripe.balance.retrieve(); // very lightweight call

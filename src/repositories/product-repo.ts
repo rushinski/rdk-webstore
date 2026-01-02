@@ -14,6 +14,7 @@ export interface ProductFilters {
   page?: number;
   limit?: number;
   stockStatus?: 'in_stock' | 'out_of_stock' | 'all';
+  includeOutOfStock?: boolean;
 
   // Optional multi-tenant hooks (safe now, useful later)
   tenantId?: string;
@@ -300,7 +301,13 @@ export class ProductRepository {
       .eq("is_out_of_stock", false);
 
     if (error) throw error;
-    const brands = [...new Set((data ?? []).map((p) => p.brand).filter(Boolean))];
+    const brands = [
+      ...new Set(
+        (data ?? [])
+          .map((p) => p.brand)
+          .filter((brand): brand is string => Boolean(brand))
+      ),
+    ];
     return brands.sort();
   }
 
@@ -407,7 +414,13 @@ export class ProductRepository {
 
     const { data, error } = await query;
     if (error) throw error;
-    const models = [...new Set((data ?? []).map((p) => p.model).filter(Boolean))];
+    const models = [
+      ...new Set(
+        (data ?? [])
+          .map((p) => p.model)
+          .filter((model): model is string => Boolean(model))
+      ),
+    ];
     return models.sort();
   }
 }

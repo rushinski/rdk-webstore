@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     }
 
     // If they're already at aal2, set admin cookie and let them through
-    let res = NextResponse.json<{ ok: true; isAdmin: true }>({
+    let res = NextResponse.json<{ ok: true; isAdmin: true; requestId: string }>({
       ok: true,
       isAdmin: true,
       requestId,

@@ -1,98 +1,114 @@
-// src/services/shipping-label-service.ts
+import EasyPostClient from '@easypost/api';
 import { env } from "@/config/env";
 import { logError } from "@/lib/log";
 
-// TODO: Cache the access token in Redis to avoid re-fetching on every call.
-let accessToken: {
-    token: string;
-    expires_at: number;
-} | null = null;
+const client = new EasyPostClient(env.EASYPOST_API_KEY);
 
-async function getUpsAccessToken(): Promise<string> {
-    if (accessToken && accessToken.expires_at > Date.now()) {
-        return accessToken.token;
-    }
-
-    const credentials = Buffer.from(
-        `${env.UPS_CLIENT_ID}:${env.UPS_CLIENT_SECRET}`
-    ).toString("base64");
-
-    const response = await fetch(`${env.UPS_API_BASE_URL}/security/v1/oauth/token`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'x-merchant-id': env.UPS_ACCOUNT_NUMBER,
-            'Authorization': `Basic ${credentials}`
-        },
-        body: 'grant_type=client_credentials',
-    });
-
-    if (!response.ok) {
-        const errorBody = await response.text();
-        logError(new Error('Failed to get UPS access token'), {
-            layer: 'service',
-            event: 'ups_authentication_failed',
-            responseStatus: response.status,
-            responseBody: errorBody,
-        });
-        throw new Error('Failed to authenticate with UPS.');
-    }
-
-    const data = await response.json();
-    const expiresIn = parseInt(data.expires_in, 10) * 1000;
-
-    accessToken = {
-        token: data.access_token,
-        expires_at: Date.now() + expiresIn - 60000, // Subtract 1 minute for safety
-    };
-
-    return accessToken.token;
+// A simple interface for the address data we need.
+// This should be kept in sync with the data from shipping_origins and order_shipping.
+interface IAddress {
+    name?: string | null;
+    company?: string | null;
+    street1: string;
+    street2?: string | null;
+    city: string;
+    state: string;
+    zip: string;
+    country: string;
+    phone?: string | null;
 }
 
-export class ShippingLabelService {
-    // NOTE: This is a placeholder. The actual implementation will require detailed
-    // mapping of our address and package format to the UPS API's format.
-    async getRates(
-        shipper: any, // Our internal address format
-        recipient: any, // Our internal address format
-        packages: any[] // Our internal package format
-    ) {
-        const token = await getUpsAccessToken();
-        
-        // TODO: Implement the call to the UPS Rating API
-        // POST to /api/rating/v1/Rate
-        // The request body will be complex and needs to be constructed
-        // based on the UPS API documentation.
-        
-        console.log("Getting rates with token:", token, shipper, recipient, packages);
-        
-        // For now, return mock data
-        return [
-            { service: "UPS® Ground", cost: 12.50 },
-            { service: "UPS 2nd Day Air®", cost: 25.00 },
-        ];
+// A simple interface for the parcel data we need.
+interface IParcel {
+    length: number;
+    width: number;
+    height: number;
+    weight: number; // in ounces
+}
+
+export class EasyPostService {
+    /**
+     * Creates an EasyPost address object.
+     * @param address The address data.
+     * @returns An EasyPost Address object.
+     */
+    private async createAddress(address: IAddress): Promise<any> {
+        return new client.Address({
+            name: address.name,
+            company: address.company,
+            street1: address.street1,
+            street2: address.street2,
+            city: address.city,
+            state: address.state,
+            zip: address.zip,
+            country: address.country,
+            phone: address.phone,
+        });
     }
-    
-    // NOTE: This is a placeholder.
-    async createLabel(
-        shipper: any,
-        recipient: any,
-        packages: any[],
-        serviceCode: string
-    ) {
-        const token = await getUpsAccessToken();
 
-        // TODO: Implement the call to the UPS Shipping API
-        // POST to /api/shipments/v1/ship
-        // The request body will be very complex and requires careful
-        // construction according to the UPS API documentation.
+    /**
+     * Creates an EasyPost parcel object.
+     * @param parcel The parcel data.
+     * @returns An EasyPost Parcel object.
+     */
+    private async createParcel(parcel: IParcel): Promise<any> {
+        return new client.Parcel({
+            length: parcel.length,
+            width: parcel.width,
+            height: parcel.height,
+            weight: parcel.weight,
+        });
+    }
 
-        console.log("Creating label with token:", token, shipper, recipient, packages, serviceCode);
+    /**
+     * Creates an EasyPost shipment. This combines the from/to addresses and the parcel.
+     * The returned Shipment object will contain a list of applicable rates.
+     * @param fromAddress The sender's address.
+     * @param toAddress The recipient's address.
+     * @param parcel The parcel details.
+     * @returns An EasyPost Shipment object.
+     */
+    async createShipment(fromAddress: IAddress, toAddress: IAddress, parcel: IParcel): Promise<any> {
+        try {
+            const fromAddressObj = await this.createAddress(fromAddress);
+            const toAddressObj = await this.createAddress(toAddress);
+            const parcelObj = await this.createParcel(parcel);
 
-        // For now, return mock data
-        return {
-            labelImage: "BASE64_ENCODED_LABEL_IMAGE_STRING",
-            trackingNumber: `1Z${Math.random().toString().slice(2, 18)}`,
-        };
+            const shipment = await client.Shipment.create({
+                from_address: fromAddressObj,
+                to_address: toAddressObj,
+                parcel: parcelObj,
+            });
+
+            return shipment;
+        } catch (error: any) {
+            logError(error, {
+                layer: 'service',
+                event: 'easypost_create_shipment_failed',
+                errorMessage: error.message,
+            });
+            // Re-throw a cleaner error for the API route to handle
+            throw new Error(`EasyPost shipment creation failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Purchases a shipping label using a specific rate from a shipment.
+     * @param shipmentId The ID of the EasyPost Shipment.
+     * @param rateId The ID of the rate to purchase.
+     * @returns The purchased EasyPost Shipment object, which includes the label and tracking info.
+     */
+    async purchaseLabel(shipmentId: string, rateId: string): Promise<any> {
+        try {
+            const shipment = await client.Shipment.buy(shipmentId, rateId);
+            return shipment;
+        } catch (error: any) {
+            logError(error, {
+                layer: 'service',
+                event: 'easypost_purchase_label_failed',
+                errorMessage: error.message,
+            });
+            throw new Error(`EasyPost label purchase failed: ${error.message}`);
+        }
     }
 }

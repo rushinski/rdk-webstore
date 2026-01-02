@@ -26,8 +26,13 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
+    const payload = {
+      ...parsed.data,
+      condition_note: parsed.data.condition_note ?? undefined,
+      description: parsed.data.description ?? undefined,
+    };
     const tenantId = await ensureTenantId(session, supabase);
-    const product = await service.createProduct(parsed.data, {
+    const product = await service.createProduct(payload, {
       userId: session.user.id,
       tenantId,
       marketplaceId: null,

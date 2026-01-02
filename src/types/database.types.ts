@@ -1183,7 +1183,7 @@ export type Database = {
           default_weight_oz: number
           default_width_in: number
           id: string
-          shipping_rate_threshold_cents: number
+          shipping_cost_cents: number
           tenant_id: string | null
           updated_at: string | null
         }
@@ -1195,7 +1195,7 @@ export type Database = {
           default_weight_oz: number
           default_width_in: number
           id?: string
-          shipping_rate_threshold_cents?: number
+          shipping_cost_cents?: number
           tenant_id?: string | null
           updated_at?: string | null
         }
@@ -1207,7 +1207,7 @@ export type Database = {
           default_weight_oz?: number
           default_width_in?: number
           id?: string
-          shipping_rate_threshold_cents?: number
+          shipping_cost_cents?: number
           tenant_id?: string | null
           updated_at?: string | null
         }
@@ -1616,4 +1616,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

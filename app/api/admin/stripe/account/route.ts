@@ -9,7 +9,7 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-10-29.clover",
 });
 
 export async function GET(request: NextRequest) {

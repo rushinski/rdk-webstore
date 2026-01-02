@@ -9,7 +9,7 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16", // Use a recent, stable API version
+  apiVersion: "2025-10-29.clover",
 });
 
 export async function POST(request: NextRequest) {
@@ -61,10 +61,11 @@ export async function POST(request: NextRequest) {
       requestId,
       route: "/api/admin/stripe/connect",
       message: "Failed to create Stripe Connect onboarding link",
+      errorMessage: error.message, // Add specific error message
     });
 
     return NextResponse.json(
-      { error: "Failed to create Stripe Connect onboarding link.", requestId },
+      { error: "Failed to create Stripe Connect onboarding link.", detailedError: error.message, requestId },
       { status: 500 }
     );
   }

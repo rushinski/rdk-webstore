@@ -14,10 +14,7 @@ const schema = z.object({
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
 
-  UPS_CLIENT_ID: z.string(),
-  UPS_CLIENT_SECRET: z.string(),
-  UPS_ACCOUNT_NUMBER: z.string(),
-  UPS_API_BASE_URL: z.string(),
+  EASYPOST_API_KEY: z.string(),
 
   UPSTASH_REDIS_REST_URL: z.string().url(), // secret must be a string + valid URL
   UPSTASH_REDIS_REST_TOKEN: z.string(),

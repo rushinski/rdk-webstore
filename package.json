@@ -22,6 +22,7 @@
     "caddy:stop": "caddy stop"
   },
   "dependencies": {
+    "@easypost/api": "^8.4.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.81.1",
     "@upstash/ratelimit": "^2.0.7",
@@ -53,6 +54,7 @@
     "@tailwindcss/postcss": "^4.1.17",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",
+    "@types/nodemailer": "^7.0.4",
     "@types/react": "^19.2.4",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.46.4",

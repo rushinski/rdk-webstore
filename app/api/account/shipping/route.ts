@@ -7,7 +7,7 @@ import { requireUserApi } from "@/lib/auth/session";
 import { ShippingService } from "@/services/shipping-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
-import type { ShippingProfile } from "@/types/views/shipping";
+import type { ShippingProfileUpsert } from "@/types/views/shipping";
 
 const optionalText = z.preprocess(
   (value) => {
@@ -76,13 +76,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const input: Omit<ShippingProfile, "user_id" | "updated_at"> = parsed.data;
-
-    const profile = await service.upsertProfile({
+    const input: ShippingProfileUpsert = {
       user_id: session.user.id,
-      ...input,
+      tenant_id: session.profile?.tenant_id ?? null,
+      ...parsed.data,
       updated_at: new Date().toISOString(),
-    });
+    };
+
+    const profile = await service.upsertProfile(input);
 
     return NextResponse.json(
       profile,
