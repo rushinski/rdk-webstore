@@ -51,10 +51,10 @@ describe("import-square-inventory helpers", () => {
 
   it("loads rows from CSV (Checkpoint 1/2)", async () => {
     const csv = [
-      "SKU,Name,Brand,Model,Category,Condition,Price,Cost,Quantity,Size,ImageFilename",
-      "SKU1,Item One,Nike,Air,shoe,new,150,90,3,10,sku1.jpg",
-      "SKU1,Item One,Nike,Air,shoe,new,150,90,2,9.5,sku1b.jpg",
-      "SKU2,Hoodie,Xyz,Hoodie Pro,hoodie,new,120,70,5,L,hoodie.jpg",
+      "SKU,Name,Brand,Model,Category,Condition,Price,Cost,Quantity,Size,ImageFilename,SupabaseImagePath",
+      "SKU1,Item One,Nike,Air,shoe,new,150,90,3,10,sku1.jpg,bucket/sku1.jpg",
+      "SKU1,Item One,Nike,Air,shoe,new,150,90,2,9.5,sku1b.jpg,bucket/sku1b.jpg",
+      "SKU2,Hoodie,Xyz,Hoodie Pro,hoodie,new,120,70,5,L,hoodie.jpg,bucket/hoodie.jpg",
     ].join("\n");
 
     mockedReadFile.mockResolvedValue(Buffer.from(csv, "utf-8"));
@@ -76,6 +76,7 @@ describe("import-square-inventory helpers", () => {
         quantity: 3,
         size_label: "10",
         image_filename: "sku1.jpg",
+        supabase_image_path: "bucket/sku1.jpg",
       })
     );
     expect(rows[2]).toEqual(
@@ -86,6 +87,7 @@ describe("import-square-inventory helpers", () => {
         cost_cents: 7000,
         quantity: 5,
         size_label: "L",
+        supabase_image_path: "bucket/hoodie.jpg",
       })
     );
   });

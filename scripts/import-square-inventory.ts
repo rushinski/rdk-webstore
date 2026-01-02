@@ -1,6 +1,6 @@
 // scripts/import-square-inventory.ts
 // How to run (dev first!):
-//   ts-node scripts/import-square-inventory.ts <filePath> <tenantId> <userId> [imagesBasePath]
+//   ts-node scripts/import-square-inventory.ts <filePath> <tenantId> <userId> [imagesBaseUrl]
 // Checkpoints:
 //   1) File exists + extension
 //   2) Rows loaded
@@ -17,12 +17,13 @@ import * as XLSX from "xlsx";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ProductService } from "@/services/product-service";
 import { buildSizeTags } from "@/services/tag-service";
+import { CLOTHING_SIZES, SHOE_SIZES } from "@/config/constants/sizes";
 
 // ---- Types ----
 
 type ImportOptions = {
   filePath: string; // CSV or XLSX from Square
-  imagesBasePath?: string; // Local dir or base URL to resolve image filenames
+  imagesBaseUrl?: string; // Base URL for Supabase bucket paths (pre-uploaded images)
   tenantId: string; // Target tenant
   createdBy: string; // Admin user id for auditing
 };
@@ -44,6 +45,7 @@ export type RawSquareRow = {
   quantity?: number;
   size_label?: string;
   image_filename?: string;
+  supabase_image_path?: string;
 };
 
 // Variant input must align with product_variants columns
@@ -58,18 +60,18 @@ export type VariantInput = {
 // ---- Entry point ----
 
 async function main() {
-  const [filePath, tenantId, createdBy, imagesBasePath] = process.argv.slice(2);
+  const [filePath, tenantId, createdBy, imagesBaseUrl] = process.argv.slice(2);
 
   if (!filePath || !tenantId || !createdBy) {
     console.error(
-      "Usage: ts-node scripts/import-square-inventory.ts <filePath> <tenantId> <userId> [imagesBasePath]"
+      "Usage: ts-node scripts/import-square-inventory.ts <filePath> <tenantId> <userId> [imagesBaseUrl]"
     );
     process.exit(1);
   }
 
   const opts: ImportOptions = {
     filePath,
-    imagesBasePath,
+    imagesBaseUrl,
     tenantId,
     createdBy,
   };
@@ -143,71 +145,78 @@ async function upsertSkuBatch(rowsBySku: Map<string, RawSquareRow[]>, opts: Impo
     }
 
     try {
-      const variants = buildVariants(rows);
-      const imageUrls = resolveImages(rows, opts.imagesBasePath);
+      const isUsed = (rows[0]?.condition || "").toLowerCase() === "used";
+      const materializedGroups = isUsed && rows.length > 1 ? splitUsedRows(rows) : [rows];
 
-      console.log(
-        `[Checkpoint 5] Preparing SKU=${trimmedSku} with ${variants.length} variants and ${imageUrls.length} images`
-      );
+      for (const group of materializedGroups) {
+        const variants = buildVariants(group);
+        const imageUrls = resolveImages(group, opts.imagesBaseUrl);
 
-      const base = rows[0];
-      const category = (base.category as any) ?? "sneakers"; // TODO: map to your Category union if needed.
-      const condition = (base.condition as any) ?? "new"; // TODO: map to your Condition union if needed.
+        console.log(
+          `[Checkpoint 5] Preparing SKU=${trimmedSku} with ${variants.length} variants and ${imageUrls.length} images`
+        );
 
-      const sizeTags = buildSizeTags(variants);
-      const tags = [
-        base.brand && { label: base.brand, group_key: "brand" },
-        base.model && { label: base.model, group_key: "model" },
-        ...sizeTags,
-      ].filter(Boolean) as { label: string; group_key: string }[];
+        const base = group[0];
+        const category = deriveCategory(base);
+        const condition = (base.condition as any) ?? "new"; // TODO: map to your Condition union if needed.
 
-      const productPayload = {
-        title_raw: base.title || `${base.brand ?? ""} ${base.model ?? ""}`.trim(),
-        brand_override_id: null,
-        model_override_id: null,
-        category,
-        condition,
-        condition_note: base.condition_note,
-        description: base.description,
-        shipping_override_cents: base.shipping_cents,
-        variants,
-        images: imageUrls.map((url, idx) => ({
-          url,
-          sort_order: idx,
-          is_primary: idx === 0,
-        })),
-        tags,
-        // TODO: After adding SKU override support to ProductService + ProductRepository,
-        // uncomment to enforce Square SKU:
-        // sku: trimmedSku,
-      };
+        const cleanTitle = cleanTitleForParser(base);
 
-      // Checkpoint 6: check if a product already exists for this SKU in DB.
-      const existing = await supabase
-        .from("products")
-        .select("id")
-        .eq("sku", trimmedSku)
-        .maybeSingle();
+        const sizeTags = buildSizeTags(variants);
+        const tags = [
+          base.brand && { label: base.brand, group_key: "brand" },
+          base.model && { label: base.model, group_key: "model" },
+          ...sizeTags,
+        ].filter(Boolean) as { label: string; group_key: string }[];
 
-      if (existing.error) {
-        throw existing.error;
-      }
+        const productPayload = {
+          title_raw: cleanTitle,
+          brand_override_id: null,
+          model_override_id: null,
+          category,
+          condition,
+          condition_note: base.condition_note,
+          description: base.description,
+          shipping_override_cents: base.shipping_cents,
+          variants,
+          images: imageUrls.map((url, idx) => ({
+            url,
+            sort_order: idx,
+            is_primary: idx === 0,
+          })),
+          tags,
+          // TODO: After adding SKU override support to ProductService + ProductRepository,
+          // uncomment to enforce Square SKU:
+          // sku: trimmedSku,
+        };
 
-      if (existing.data?.id) {
-        console.log(`Updating existing product for SKU=${trimmedSku}, id=${existing.data.id}`);
-        await service.updateProduct(existing.data.id, productPayload as any, {
-          userId: opts.createdBy,
-          tenantId: opts.tenantId,
-        });
-        updatedCount++;
-      } else {
-        console.log(`Creating new product for SKU=${trimmedSku}`);
-        await service.createProduct(productPayload as any, {
-          userId: opts.createdBy,
-          tenantId: opts.tenantId,
-          // TODO: optionally pass marketplaceId/sellerId if needed for this tenant.
-        });
-        createdCount++;
+        // Checkpoint 6: check if a product already exists for this SKU in DB.
+        const existing = await supabase
+          .from("products")
+          .select("id")
+          .eq("sku", trimmedSku)
+          .maybeSingle();
+
+        if (existing.error) {
+          throw existing.error;
+        }
+
+        if (existing.data?.id) {
+          console.log(`Updating existing product for SKU=${trimmedSku}, id=${existing.data.id}`);
+          await service.updateProduct(existing.data.id, productPayload as any, {
+            userId: opts.createdBy,
+            tenantId: opts.tenantId,
+          });
+          updatedCount++;
+        } else {
+          console.log(`Creating new product for SKU=${trimmedSku}`);
+          await service.createProduct(productPayload as any, {
+            userId: opts.createdBy,
+            tenantId: opts.tenantId,
+            // TODO: optionally pass marketplaceId/sellerId if needed for this tenant.
+          });
+          createdCount++;
+        }
       }
     } catch (err: any) {
       errorCount++;
@@ -269,6 +278,9 @@ export function normalizeSquareRow(r: any): RawSquareRow {
     quantity: r["Quantity"] != null ? Number(r["Quantity"]) : undefined,
     size_label: r["Size"] ? String(r["Size"]).trim() : undefined,
     image_filename: r["ImageFilename"] ? String(r["ImageFilename"]).trim() : undefined,
+    supabase_image_path: r["SupabaseImagePath"]
+      ? String(r["SupabaseImagePath"]).trim()
+      : undefined,
   };
 
   return row;
@@ -276,6 +288,105 @@ export function normalizeSquareRow(r: any): RawSquareRow {
 
 // ---- Helpers: grouping, variants, images ----
 
+export function groupRowsBySku(rows: RawSquareRow[]): Map<string, RawSquareRow[]> {
+  const map = new Map<string, RawSquareRow[]>();
+  for (const row of rows) {
+    if (!row.sku) continue;
+    if (!map.has(row.sku)) {
+      map.set(row.sku, []);
+    }
+    map.get(row.sku)!.push(row);
+  }
+  return map;
+}
+
+export function buildVariants(rows: RawSquareRow[]): VariantInput[] {
+  const variants: VariantInput[] = [];
+
+  for (const row of rows) {
+    if (!row.price_cents) {
+      console.warn(`Row with SKU=${row.sku} missing price_cents; skipping variant`);
+      continue;
+    }
+
+    variants.push({
+      size_type: deriveSizeType(row),
+      size_label: row.size_label ?? null,
+      price_cents: row.price_cents,
+      stock: row.quantity ?? 0,
+      cost_cents: row.cost_cents ?? null,
+    });
+  }
+
+  if (variants.length === 0) {
+    console.warn(
+      `No valid variants built for SKU=${rows[0]?.sku}; consider providing a default variant`
+    );
+  }
+
+  return variants;
+}
+
+export function deriveSizeType(row: RawSquareRow): VariantInput["size_type"] {
+  const size = (row.size_label || "").toUpperCase();
+  if (SHOE_SIZES.some((s) => s.toUpperCase() === size)) {
+    return "shoe";
+  }
+  if (CLOTHING_SIZES.some((s) => s.toUpperCase() === size)) {
+    return "clothing";
+  }
+  const category = (row.category || "").toLowerCase();
+  if (category.includes("hoodie") || category.includes("shirt") || category.includes("tee")) {
+    return "clothing";
+  }
+  if (category.includes("custom")) {
+    return "custom";
+  }
+  return "shoe"; // default for sneakers
+}
+
+function resolveImages(rows: RawSquareRow[], imagesBaseUrl?: string): string[] {
+  const filenames = Array.from(
+    new Set(
+      rows
+        .map((r) => r.supabase_image_path || r.image_filename)
+        .filter((name): name is string => !!name)
+    )
+  );
+
+  if (!imagesBaseUrl) {
+    return filenames; // assume filenames are already full URLs
+  }
+
+  return filenames.map((name) =>
+    imagesBaseUrl.endsWith("/") ? `${imagesBaseUrl}${name}` : `${imagesBaseUrl}/${name}`
+  );
+}
+
+function deriveCategory(row: RawSquareRow): string {
+  // Placeholder: Jacob has an auto-tagging parser; keep this deterministic.
+  const explicit = (row.category || "").toLowerCase();
+  if (explicit) return explicit;
+  const title = `${row.title} ${row.model ?? ""}`.toLowerCase();
+  if (title.includes("hoodie") || title.includes("shirt") || title.includes("tee")) return "clothing";
+  if (title.includes("bag") || title.includes("hat")) return "accessories";
+  if (title.includes("iphone") || title.includes("ps5") || title.includes("laptop")) return "electronics";
+  return "sneakers";
+}
+
+function cleanTitleForParser(row: RawSquareRow): string {
+  const size = row.size_label ? row.size_label : "";
+  const title = row.title || "";
+  return title.replace(size, "").replace(/\s{2,}/g, " ").trim();
+}
+
+function splitUsedRows(rows: RawSquareRow[]): RawSquareRow[][] {
+  return rows.map((r, idx) => {
+    const solo = { ...r };
+    solo.sku = `${r.sku}-used-${idx + 1}`;
+    return [solo];
+  });
+}
 export function groupRowsBySku(rows: RawSquareRow[]): Map<string, RawSquareRow[]> {
   const map = new Map<string, RawSquareRow[]>();
   for (const row of rows) {
