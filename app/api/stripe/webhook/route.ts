@@ -69,6 +69,10 @@ export async function POST(request: NextRequest) {
         await job.processCheckoutSessionCompleted(event, requestId);
         break;
 
+      case "payment_intent.succeeded":
+        await job.processPaymentIntentSucceeded(event, requestId);
+        break;
+
       // Account events - log for monitoring
       case "account.updated":
         log({

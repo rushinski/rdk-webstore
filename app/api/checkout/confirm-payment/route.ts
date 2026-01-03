@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import Stripe from "stripe";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { ProductService } from "@/services/product-service";
@@ -11,6 +12,11 @@ import { AdminNotificationService } from "@/services/admin-notification-service"
 import { OrderEmailService } from "@/services/order-email-service";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { log, logError } from "@/lib/log";
+import { env } from "@/config/env";
+
+const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-10-29.clover",
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,9 +47,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, alreadyPaid: true });
     }
 
-    // Update fulfillment if changed
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.metadata?.order_id && paymentIntent.metadata.order_id !== orderId) {
+      return NextResponse.json(
+        { error: "Payment intent does not match order", code: "PAYMENT_INTENT_MISMATCH" },
+        { status: 409 }
+      );
+    }
+
+    if (order.stripe_payment_intent_id && order.stripe_payment_intent_id !== paymentIntentId) {
+      return NextResponse.json(
+        { error: "Payment intent already attached to order", code: "PAYMENT_INTENT_CONFLICT" },
+        { status: 409 }
+      );
+    }
+
+    if (paymentIntent.status === "processing") {
+      return NextResponse.json({ success: true, processing: true }, { status: 202 });
+    }
+
+    if (paymentIntent.status !== "succeeded") {
+      return NextResponse.json(
+        { error: "Payment not completed", code: "PAYMENT_NOT_SUCCEEDED" },
+        { status: 409 }
+      );
+    }
+
+    const expectedAmount = Math.round(Number(order.total ?? 0) * 100);
+    const expectedCurrency = (order.currency ?? "USD").toLowerCase();
+    if (
+      paymentIntent.amount !== expectedAmount ||
+      paymentIntent.currency?.toLowerCase() !== expectedCurrency
+    ) {
+      return NextResponse.json(
+        { error: "Payment amount mismatch", code: "PAYMENT_AMOUNT_MISMATCH" },
+        { status: 409 }
+      );
+    }
+
+    if (!order.stripe_payment_intent_id) {
+      await ordersRepo.updateStripePaymentIntent(orderId, paymentIntentId);
+    }
+
     if (fulfillment && fulfillment !== order.fulfillment) {
-      await ordersRepo.updateFulfillment(orderId, fulfillment);
+      return NextResponse.json(
+        { error: "Fulfillment mismatch. Please refresh checkout.", code: "FULFILLMENT_MISMATCH" },
+        { status: 409 }
+      );
     }
 
     // Get order items and decrement inventory
@@ -54,7 +105,10 @@ export async function POST(request: NextRequest) {
       quantity: item.quantity,
     }));
 
-    await ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+    const didMarkPaid = await ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+    if (!didMarkPaid) {
+      return NextResponse.json({ success: true, alreadyPaid: true });
+    }
 
     // Sync size tags
     const productService = new ProductService(supabase);

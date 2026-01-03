@@ -83,7 +83,11 @@ export class StripeOrderJob {
     }));
 
     const paymentIntentId = session.payment_intent as string;
-    await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+    const didMarkPaid = await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+    if (!didMarkPaid) {
+      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+      return;
+    }
 
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];
     for (const productId of productIds) {
@@ -203,6 +207,207 @@ export class StripeOrderJob {
 
     try {
       let email = sessionEmail;
+      if (!email && order.user_id) {
+        const profile = await this.profilesRepo.getByUserId(order.user_id);
+        email = profile?.email ?? null;
+      }
+
+      const detailedItems = await this.ordersRepo.getOrderItemsDetailed(orderId);
+      const items = detailedItems.map((item: any) => {
+        const product = item.product;
+        const title =
+          product?.title_display ??
+          `${product?.brand ?? ""} ${product?.name ?? ""}`.trim();
+        const unitPrice = Number(item.unit_price ?? 0);
+        const lineTotal =
+          Number(item.line_total ?? 0) || unitPrice * Number(item.quantity ?? 0);
+        return {
+          title: title || "Item",
+          sizeLabel: item.variant?.size_label ?? null,
+          quantity: Number(item.quantity ?? 0),
+          unitPrice,
+          lineTotal,
+        };
+      });
+
+      if (email) {
+        await this.orderEmailService.sendOrderConfirmation({
+          to: email,
+          orderId: order.id,
+          createdAt: order.created_at ?? new Date().toISOString(),
+          fulfillment,
+          currency: order.currency ?? "USD",
+          subtotal: Number(order.subtotal ?? 0),
+          shipping: Number(order.shipping ?? 0),
+          total: Number(order.total ?? 0),
+          items,
+          shippingAddress: shippingSnapshot
+            ? {
+                name: shippingSnapshot.name,
+                line1: shippingSnapshot.line1,
+                line2: shippingSnapshot.line2,
+                city: shippingSnapshot.city,
+                state: shippingSnapshot.state,
+                postalCode: shippingSnapshot.postal_code,
+                country: shippingSnapshot.country,
+              }
+            : null,
+        });
+      }
+    } catch (emailError) {
+      log({
+        level: "warn",
+        layer: "job",
+        message: "stripe_order_email_failed",
+        requestId,
+        stripeEventId: eventId,
+        orderId,
+        error: emailError instanceof Error ? emailError.message : String(emailError),
+      });
+    }
+
+    log({ level: "info", layer: "job", message: "stripe_order_completed", requestId, stripeEventId: eventId, orderId });
+  }
+
+  async processPaymentIntentSucceeded(event: Stripe.Event, requestId: string): Promise<void> {
+    const eventId = event.id;
+
+    const alreadyProcessed = await this.eventsRepo.hasProcessed(eventId);
+    if (alreadyProcessed) {
+      log({ level: "info", layer: "job", message: "stripe_event_already_processed", requestId, stripeEventId: eventId });
+      return;
+    }
+
+    const paymentIntent = event.data.object as Stripe.PaymentIntent;
+    const orderId = paymentIntent.metadata?.order_id;
+
+    if (!orderId) {
+      log({ level: "warn", layer: "job", message: "stripe_event_missing_order_id", requestId, stripeEventId: eventId });
+      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object);
+      return;
+    }
+
+    const order = await this.ordersRepo.getById(orderId);
+    if (!order) {
+      log({ level: "error", layer: "job", message: "stripe_event_order_not_found", requestId, stripeEventId: eventId, orderId });
+      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+      return;
+    }
+
+    if (order.status === "paid") {
+      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
+      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+      return;
+    }
+
+    const orderItems = await this.ordersRepo.getOrderItems(orderId);
+    const itemsToDecrement = orderItems.map((item) => ({
+      productId: item.product_id,
+      variantId: item.variant_id,
+      quantity: item.quantity,
+    }));
+
+    const didMarkPaid = await this.ordersRepo.markPaidTransactionally(orderId, paymentIntent.id, itemsToDecrement);
+    if (!didMarkPaid) {
+      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+      return;
+    }
+
+    const productIds = [...new Set(orderItems.map((item) => item.product_id))];
+    for (const productId of productIds) {
+      await this.productService.syncSizeTags(productId);
+    }
+
+    const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
+    let shippingSnapshot = null as Awaited<ReturnType<AddressesRepository["getOrderShipping"]>> | null;
+
+    if (fulfillment === "ship") {
+      const shipping = paymentIntent.shipping;
+      const address = shipping?.address;
+      if (address) {
+        const addressInput = {
+          name: shipping?.name ?? null,
+          phone: (shipping as any)?.phone ?? null,
+          line1: address.line1 ?? null,
+          line2: address.line2 ?? null,
+          city: address.city ?? null,
+          state: address.state ?? null,
+          postalCode: address.postal_code ?? null,
+          country: address.country ?? null,
+        };
+
+        await this.addressesRepo.insertOrderShippingSnapshot(orderId, addressInput);
+
+        if (order.user_id) {
+          await this.addressesRepo.upsertUserAddress(order.user_id, addressInput);
+        }
+
+        await this.ordersRepo.setFulfillmentStatus(orderId, "unfulfilled");
+      }
+
+      shippingSnapshot = await this.addressesRepo.getOrderShipping(orderId);
+    }
+
+    if (this.adminSupabase && fulfillment === "pickup") {
+      try {
+        const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
+        if (order.user_id) {
+          await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
+        } else if (order.public_token) {
+          await chatService.createChatForGuest({
+            orderId: order.id,
+            publicToken: order.public_token,
+            guestEmail: paymentIntent.receipt_email ?? null,
+          });
+        }
+      } catch (chatError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "pickup_chat_create_failed",
+          requestId,
+          orderId,
+          error: chatError instanceof Error ? chatError.message : String(chatError),
+        });
+      }
+    }
+
+    await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+
+    if (this.adminSupabase) {
+      try {
+        const notifications = new AdminNotificationService(this.adminSupabase);
+        await notifications.notifyOrderPlaced(orderId);
+      } catch (notifyError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "order_admin_notification_failed",
+          requestId,
+          orderId,
+          error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+        });
+      }
+    }
+
+    try {
+      for (const item of orderItems) {
+        revalidateTag(`product:${item.product_id}`, "max");
+      }
+      revalidateTag("products:list", "max");
+    } catch (cacheError) {
+      log({
+        level: "warn",
+        layer: "job",
+        message: "cache_revalidation_failed",
+        requestId,
+        orderId,
+        error: cacheError instanceof Error ? cacheError.message : String(cacheError),
+      });
+    }
+
+    try {
+      let email = paymentIntent.receipt_email ?? null;
       if (!email && order.user_id) {
         const profile = await this.profilesRepo.getByUserId(order.user_id);
         email = profile?.email ?? null;

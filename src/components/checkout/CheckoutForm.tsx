@@ -3,17 +3,20 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { ShippingAddressForm } from './ShippingAddressForm';
 import { SavedAddresses } from './SavedAddresses';
 import { Loader2, Lock, Package, TruckIcon } from 'lucide-react';
-import type { CartItem } from '@/types/views/cart';
 import Link from 'next/link';
+import type { CartItem } from '@/types/views/cart';
 
 interface CheckoutFormProps {
   orderId: string;
   items: CartItem[];
   total: number;
+  fulfillment: 'ship' | 'pickup';
+  onFulfillmentChange: (fulfillment: 'ship' | 'pickup') => void;
+  isUpdatingFulfillment?: boolean;
 }
 
 export interface ShippingAddress {
@@ -27,46 +30,64 @@ export interface ShippingAddress {
   country: string;
 }
 
-export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
+export function CheckoutForm({
+  orderId,
+  items,
+  total,
+  fulfillment,
+  onFulfillmentChange,
+  isUpdatingFulfillment = false,
+}: CheckoutFormProps) {
   const router = useRouter();
   const stripe = useStripe();
   const elements = useElements();
 
-  const [fulfillment, setFulfillment] = useState<'ship' | 'pickup'>('ship');
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const confirmBackendPayment = async (paymentIntentId: string) => {
+    const response = await fetch('/api/checkout/confirm-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        paymentIntentId,
+        fulfillment,
+        shippingAddress: fulfillment === 'ship' ? shippingAddress : null,
+      }),
+    });
 
-    if (!stripe || !elements) {
-      return;
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok && !data?.processing) {
+      throw new Error(data.error || 'Failed to confirm payment');
     }
+  };
 
-    if (!agreedToTerms) {
-      setError('Please agree to the terms and conditions');
-      return;
+  const handlePayment = async (withSubmit: boolean) => {
+    if (!stripe || !elements) {
+      setError('Stripe is still loading. Please wait a moment.');
+      return { ok: false, error: 'Stripe not ready' };
     }
 
     if (fulfillment === 'ship' && !shippingAddress) {
-      setError('Please provide a shipping address');
-      return;
+      const message = 'Please provide a shipping address';
+      setError(message);
+      return { ok: false, error: message };
     }
 
     setIsProcessing(true);
     setError(null);
 
     try {
-      // Submit the payment to Stripe
-      const { error: submitError } = await elements.submit();
-      if (submitError) {
-        throw new Error(submitError.message);
+      if (withSubmit) {
+        const { error: submitError } = await elements.submit();
+        if (submitError) {
+          throw new Error(submitError.message);
+        }
       }
 
-      // Confirm the payment
       const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -91,27 +112,68 @@ export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
         throw new Error(confirmError.message);
       }
 
-      // Payment succeeded
-      if (paymentIntent?.status === 'succeeded') {
-        // Confirm with our backend
-        await fetch('/api/checkout/confirm-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            orderId,
-            paymentIntentId: paymentIntent.id,
-            fulfillment,
-            shippingAddress: fulfillment === 'ship' ? shippingAddress : null,
-          }),
-        });
-
-        router.push(`/checkout/success?orderId=${orderId}`);
+      if (!paymentIntent) {
+        throw new Error('Payment failed. Please try again.');
       }
+
+      if (paymentIntent.status === 'succeeded') {
+        await confirmBackendPayment(paymentIntent.id);
+        router.push(`/checkout/success?orderId=${orderId}`);
+        return { ok: true };
+      }
+
+      if (paymentIntent.status === 'processing') {
+        router.push(`/checkout/success?orderId=${orderId}`);
+        return { ok: true };
+      }
+
+      if (paymentIntent.status === 'requires_action') {
+        router.push(`/checkout/processing?orderId=${orderId}`);
+        return { ok: true };
+      }
+
+      throw new Error('Payment failed. Please try again.');
     } catch (err: any) {
       console.error('Payment error:', err);
-      setError(err.message || 'Payment failed. Please try again.');
+      const message = err.message || 'Payment failed. Please try again.';
+      setError(message);
+      return { ok: false, error: message };
+    } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await handlePayment(true);
+  };
+
+  const handleExpressConfirm = async (event: any) => {
+    if (isUpdatingFulfillment || isProcessing) {
+      event.paymentFailed({ reason: 'fail', message: 'Please wait a moment and try again.' });
+      return;
+    }
+    const result = await handlePayment(false);
+    if (!result.ok) {
+      event.paymentFailed({ reason: 'fail', message: result.error });
+    }
+  };
+
+  const handleExpressClick = (event: any) => {
+    const lineItems = items.map((item) => ({
+      name: item.titleDisplay,
+      amount: item.priceCents * item.quantity,
+    }));
+
+    const totalCents = Math.round(total * 100);
+    const itemsTotalCents = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const shippingCents = Math.max(totalCents - itemsTotalCents, 0);
+
+    if (fulfillment === 'ship' && shippingCents > 0) {
+      lineItems.push({ name: 'Shipping', amount: shippingCents });
+    }
+
+    event.resolve({ lineItems });
   };
 
   return (
@@ -135,8 +197,9 @@ export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
               name="fulfillment"
               value="ship"
               checked={fulfillment === 'ship'}
-              onChange={() => setFulfillment('ship')}
+              onChange={() => onFulfillmentChange('ship')}
               className="mt-1"
+              disabled={isUpdatingFulfillment || isProcessing}
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -155,8 +218,9 @@ export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
               name="fulfillment"
               value="pickup"
               checked={fulfillment === 'pickup'}
-              onChange={() => setFulfillment('pickup')}
+              onChange={() => onFulfillmentChange('pickup')}
               className="mt-1"
+              disabled={isUpdatingFulfillment || isProcessing}
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -194,6 +258,24 @@ export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
           Payment Information
         </h2>
 
+        <div className="mb-4">
+          <ExpressCheckoutElement
+            onConfirm={handleExpressConfirm}
+            onClick={handleExpressClick}
+            options={{
+              layout: { maxColumns: 2 },
+              paymentMethods: {
+                applePay: 'auto',
+                googlePay: 'auto',
+              },
+            }}
+          />
+        </div>
+
+        <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
+          Or pay with card
+        </div>
+
         <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
           <p className="flex items-center gap-2">
             <Lock className="w-4 h-4" />
@@ -206,44 +288,40 @@ export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
 
       {/* Legal Agreements */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={agreedToTerms}
-            onChange={(e) => setAgreedToTerms(e.target.checked)}
-            className="mt-1"
-          />
-          <div className="text-sm text-gray-400">
-            <p>
-              By placing your order, you agree to our{' '}
-              <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
-                Terms of Service
-              </Link>
-              {', '}
-              <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
-                Privacy Policy
-              </Link>
-              {', '}
-              <Link href="/legal/refund-policy" className="text-red-500 hover:text-red-400 underline">
-                Refund Policy
-              </Link>
-              {', and '}
-              <Link href="/legal/shipping-policy" className="text-red-500 hover:text-red-400 underline">
-                Shipping Policy
-              </Link>
-              .
-            </p>
-            <p className="mt-2">
-              You also agree to all of the terms found in our policies and acknowledge that orders are final once placed.
-            </p>
+        <div className="text-sm text-gray-400">
+          <p>
+            By placing your order, you agree to our{' '}
+            <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
+              Terms of Service
+            </Link>
+            {', '}
+            <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </div>
+
+        <details className="mt-4 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
+          <summary className="cursor-pointer list-none text-white font-semibold flex items-center justify-between">
+            Refund & Shipping Policies
+            <span className="text-xs text-gray-500">View</span>
+          </summary>
+          <div className="mt-3 space-y-2">
+            <Link href="/legal/refund-policy" className="text-red-500 hover:text-red-400 underline block">
+              Refund Policy
+            </Link>
+            <Link href="/legal/shipping-policy" className="text-red-500 hover:text-red-400 underline block">
+              Shipping Policy
+            </Link>
           </div>
-        </label>
+        </details>
       </div>
 
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={!stripe || isProcessing || !agreedToTerms}
+        disabled={!stripe || isProcessing || isUpdatingFulfillment}
         className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-lg flex items-center justify-center gap-2"
       >
         {isProcessing ? (
@@ -254,7 +332,7 @@ export function CheckoutForm({ orderId, items, total }: CheckoutFormProps) {
         ) : (
           <>
             <Lock className="w-5 h-5" />
-            Place Order - ${(total / 100).toFixed(2)}
+            Place Order - ${total.toFixed(2)}
           </>
         )}
       </button>

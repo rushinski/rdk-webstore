@@ -7,11 +7,14 @@ import type { CartItem } from '@/types/views/cart';
 
 interface OrderSummaryProps {
   items: CartItem[];
+  subtotal: number;
+  shipping: number;
   total: number;
+  fulfillment: "ship" | "pickup";
 }
 
-export function OrderSummary({ items, total }: OrderSummaryProps) {
-  const subtotal = total;
+export function OrderSummary({ items, subtotal, shipping, total, fulfillment }: OrderSummaryProps) {
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="sticky top-8">
@@ -58,17 +61,19 @@ export function OrderSummary({ items, total }: OrderSummaryProps) {
         {/* Pricing Breakdown */}
         <div className="space-y-2 text-sm border-t border-zinc-800 pt-4">
           <div className="flex justify-between text-gray-400">
-            <span>Subtotal ({items.length} {items.length === 1 ? 'item' : 'items'})</span>
-            <span>${(subtotal / 100).toFixed(2)}</span>
+            <span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+            <span>${subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-gray-400">
             <span>Shipping</span>
-            <span className="text-xs">Calculated at checkout</span>
+            <span className="text-xs">
+              {fulfillment === 'pickup' ? 'Free (Pickup)' : `$${shipping.toFixed(2)}`}
+            </span>
           </div>
           <div className="border-t border-zinc-800 pt-2 mt-2">
             <div className="flex justify-between text-lg font-bold text-white">
               <span>Total</span>
-              <span>${(total / 100).toFixed(2)}</span>
+              <span>${total.toFixed(2)}</span>
             </div>
           </div>
         </div>

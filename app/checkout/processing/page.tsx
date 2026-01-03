@@ -4,19 +4,18 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { useStripe } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CheckoutProcessingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const stripe = useStripe();
 
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
 
   useEffect(() => {
-    if (!stripe) return;
-
     const orderId = searchParams.get('orderId');
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
 
@@ -26,8 +25,17 @@ export default function CheckoutProcessingPage() {
       return;
     }
 
+    let retryTimeout: NodeJS.Timeout;
+
     const checkPaymentStatus = async () => {
       try {
+        const stripe = await stripePromise;
+        if (!stripe) {
+          setStatus('error');
+          setMessage('Stripe failed to initialize.');
+          return;
+        }
+
         const { paymentIntent } = await stripe.retrievePaymentIntent(paymentIntentClientSecret);
 
         if (paymentIntent?.status === 'succeeded') {
@@ -40,6 +48,7 @@ export default function CheckoutProcessingPage() {
           }, 2000);
         } else if (paymentIntent?.status === 'processing') {
           setMessage('Your payment is processing. Please wait...');
+          retryTimeout = setTimeout(checkPaymentStatus, 2500);
         } else {
           setStatus('error');
           setMessage('Payment failed. Please try again.');
@@ -52,7 +61,10 @@ export default function CheckoutProcessingPage() {
     };
 
     checkPaymentStatus();
-  }, [stripe, searchParams, router]);
+    return () => {
+      if (retryTimeout) clearTimeout(retryTimeout);
+    };
+  }, [searchParams, router]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-20 text-center">

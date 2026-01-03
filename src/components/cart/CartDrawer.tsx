@@ -4,7 +4,6 @@
 
 import { X, Minus, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from './CartProvider';
 
@@ -28,8 +27,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
-      <div className="absolute inset-x-0 bottom-0 h-[80vh] max-h-[80vh] w-full bg-black border-t border-zinc-800/70 overflow-y-auto rounded-t-2xl md:rounded-none md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:max-w-md md:border-t-0 md:border-l">
-        <div className="p-6">
+      <div className="absolute inset-x-0 bottom-0 h-[90vh] max-h-[90vh] w-full bg-black border-t border-zinc-800/70 overflow-y-auto rounded-t-2xl md:rounded-none md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:max-w-2xl md:border-t-0 md:border-l">
+        <div className="p-6 md:p-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-white">Cart</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-white">
@@ -43,43 +42,49 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <>
               <div className="space-y-4 mb-6">
                 {items.map((item) => (
-                  <div key={`${item.productId}-${item.variantId}`} className="flex gap-4 bg-zinc-900 p-4 rounded">
-                    <div className="w-20 h-20 relative flex-shrink-0">
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.titleDisplay}
-                        fill
-                        className="object-cover rounded"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold truncate">{item.titleDisplay}</h3>
-                      <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
-                      <p className="text-white font-bold mt-1">
-                        ${(item.priceCents / 100).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end justify-between">
-                      <button
-                        onClick={() => removeItem(item.productId, item.variantId)}
-                        className="text-gray-400 hover:text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <div className="flex items-center gap-2">
+                  <div key={`${item.productId}-${item.variantId}`} className="bg-zinc-900 p-4 rounded">
+                    <div className="flex items-start gap-4">
+                      <div className="w-20 h-20 relative flex-shrink-0">
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.titleDisplay}
+                          fill
+                          className="object-cover rounded"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-semibold">{item.titleDisplay}</h3>
+                        <p className="text-xs text-gray-500 mt-1">{item.brand} - {item.name}</p>
+                        <p className="text-sm text-gray-400 mt-2">Size: {item.sizeLabel}</p>
+                        <p className="text-sm text-gray-300 mt-1">
+                          Price: ${(item.priceCents / 100).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-3">
                         <button
-                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
-                          className="w-6 h-6 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                          onClick={() => removeItem(item.productId, item.variantId)}
+                          className="text-gray-400 hover:text-red-500"
                         >
-                          <Minus className="w-3 h-3 text-white" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                        <span className="text-white w-8 text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
-                          className="w-6 h-6 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
-                        >
-                          <Plus className="w-3 h-3 text-white" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
+                            className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                          >
+                            <Minus className="w-3 h-3 text-white" />
+                          </button>
+                          <span className="text-white w-8 text-center">{item.quantity}</span>
+                          <button
+                            onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
+                            className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                          >
+                            <Plus className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                        <div className="text-sm font-semibold text-white">
+                          ${(item.priceCents * item.quantity / 100).toFixed(2)}
+                        </div>
                       </div>
                     </div>
                   </div>

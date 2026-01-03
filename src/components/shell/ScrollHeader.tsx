@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useCart } from '@/components/cart/CartProvider';
 import { Navbar } from './Navbar';
 
 interface ScrollHeaderProps {
@@ -11,9 +12,11 @@ interface ScrollHeaderProps {
 
 export function ScrollHeader({ isAuthenticated = false, userEmail }: ScrollHeaderProps) {
   const pathname = usePathname();
+  const { itemCount } = useCart();
   const isAuthRoute = pathname.startsWith('/auth');
   const isAdminRoute = pathname.startsWith('/admin');
-  const hideHeader = isAuthRoute || isAdminRoute;
+  const isCheckoutRoute = pathname.startsWith('/checkout');
+  const hideHeader = isAuthRoute || isAdminRoute || isCheckoutRoute;
 
   // ✅ Hooks must be unconditional
   const [isVisible, setIsVisible] = useState(true);
@@ -65,7 +68,7 @@ export function ScrollHeader({ isAuthenticated = false, userEmail }: ScrollHeade
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
-      <Navbar isAuthenticated={isAuthenticated} userEmail={userEmail} />
+      <Navbar isAuthenticated={isAuthenticated} userEmail={userEmail} cartCount={itemCount} />
     </header>
   );
 }

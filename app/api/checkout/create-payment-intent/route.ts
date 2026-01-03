@@ -7,7 +7,6 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { createCartHash } from "@/lib/crypto";
-import { generateIdempotencyKey } from "@/lib/idempotency";
 import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -22,13 +21,131 @@ export async function POST(request: NextRequest) {
     const userId = user?.id ?? null;
 
     const body = await request.json();
-    const { items } = body;
+    const { items, idempotencyKey, fulfillment } = body;
 
     if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json(
         { error: "Invalid items" },
         { status: 400 }
       );
+    }
+
+    if (!idempotencyKey || typeof idempotencyKey !== "string") {
+      return NextResponse.json(
+        { error: "Missing idempotency key" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedFulfillment = fulfillment === "pickup" ? "pickup" : "ship";
+    const cartHash = createCartHash(items, normalizedFulfillment);
+    const ordersRepo = new OrdersRepository(supabase);
+
+    const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
+    if (existingOrder) {
+      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
+      if (expiresAt && expiresAt < new Date()) {
+        return NextResponse.json(
+          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED" },
+          { status: 409 }
+        );
+      }
+
+      if (existingOrder.cart_hash !== cartHash) {
+        return NextResponse.json(
+          { error: "CART_MISMATCH", code: "CART_MISMATCH" },
+          { status: 409 }
+        );
+      }
+
+      if (existingOrder.status === "paid") {
+        return NextResponse.json({
+          status: "paid",
+          orderId: existingOrder.id,
+        });
+      }
+
+      if (existingOrder.stripe_payment_intent_id) {
+        const paymentIntent = await stripe.paymentIntents.retrieve(
+          existingOrder.stripe_payment_intent_id
+        );
+
+        if (paymentIntent.status === "succeeded") {
+          return NextResponse.json({
+            status: "paid",
+            orderId: existingOrder.id,
+          });
+        }
+
+        if (paymentIntent.status === "canceled") {
+          return NextResponse.json(
+            { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED" },
+            { status: 409 }
+          );
+        }
+
+        return NextResponse.json({
+          clientSecret: paymentIntent.client_secret,
+          orderId: existingOrder.id,
+          paymentIntentId: paymentIntent.id,
+          subtotal: Number(existingOrder.subtotal ?? 0),
+          shipping: Number(existingOrder.shipping ?? 0),
+          total: Number(existingOrder.total ?? 0),
+          fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
+        });
+      }
+    }
+
+    if (existingOrder && !existingOrder.stripe_payment_intent_id) {
+      const subtotal = Number(existingOrder.subtotal ?? 0);
+      const shipping = Number(existingOrder.shipping ?? 0);
+      const total = Number(existingOrder.total ?? 0);
+
+      // Get or create Stripe customer
+      let stripeCustomerId: string | undefined;
+      if (userId) {
+        const profileRepo = new ProfileRepository(supabase);
+        const profile = await profileRepo.getByUserId(userId);
+        if (profile?.stripe_customer_id) {
+          stripeCustomerId = profile.stripe_customer_id;
+        } else if (user?.email) {
+          const customer = await stripe.customers.create({
+            email: user.email,
+            metadata: { userId },
+          });
+          stripeCustomerId = customer.id;
+          await profileRepo.setStripeCustomerId(userId, stripeCustomerId);
+        }
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create(
+        {
+          amount: Math.round(total * 100),
+          currency: "usd",
+          customer: stripeCustomerId,
+          metadata: {
+            order_id: existingOrder.id,
+            cart_hash: cartHash,
+            fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
+          },
+          automatic_payment_methods: {
+            enabled: true,
+          },
+        },
+        { idempotencyKey }
+      );
+
+      await ordersRepo.updateStripePaymentIntent(existingOrder.id, paymentIntent.id);
+
+      return NextResponse.json({
+        clientSecret: paymentIntent.client_secret,
+        orderId: existingOrder.id,
+        paymentIntentId: paymentIntent.id,
+        subtotal,
+        shipping,
+        total,
+        fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
+      });
     }
 
     // Fetch products
@@ -93,18 +210,18 @@ export async function POST(request: NextRequest) {
     const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
     // Calculate max shipping (flat rate)
-    const shippingCosts = lineItems.map((item) => {
-      const costInCents = shippingDefaultsMap.get(item.category) ?? 0;
-      return costInCents / 100;
-    });
-    const shipping = Math.max(...shippingCosts, 0);
+    let shipping = 0;
+    if (normalizedFulfillment === "ship") {
+      const shippingCosts = lineItems.map((item) => {
+        const costInCents = shippingDefaultsMap.get(item.category) ?? 0;
+        return costInCents / 100;
+      });
+      shipping = Math.max(...shippingCosts, 0);
+    }
 
     const total = subtotal + shipping;
 
     // Create pending order
-    const ordersRepo = new OrdersRepository(supabase);
-    const idempotencyKey = generateIdempotencyKey();
-    const cartHash = createCartHash(items, "ship"); // Default to ship for now
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
     const order = await ordersRepo.createPendingOrder({
@@ -114,7 +231,7 @@ export async function POST(request: NextRequest) {
       subtotal,
       shipping,
       total,
-      fulfillment: "ship", // Will be updated on confirmation
+      fulfillment: normalizedFulfillment,
       idempotencyKey,
       cartHash,
       expiresAt,
@@ -146,18 +263,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Create Payment Intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(total * 100),
-      currency: "usd",
-      customer: stripeCustomerId,
-      metadata: {
-        order_id: order.id,
-        cart_hash: cartHash,
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(total * 100),
+        currency: "usd",
+        customer: stripeCustomerId,
+        metadata: {
+          order_id: order.id,
+          cart_hash: cartHash,
+          fulfillment: normalizedFulfillment,
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    });
+      { idempotencyKey }
+    );
 
     log({
       level: "info",
@@ -167,10 +288,18 @@ export async function POST(request: NextRequest) {
       paymentIntentId: paymentIntent.id,
     });
 
+    if (!order.stripe_payment_intent_id) {
+      await ordersRepo.updateStripePaymentIntent(order.id, paymentIntent.id);
+    }
+
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       orderId: order.id,
       paymentIntentId: paymentIntent.id,
+      subtotal,
+      shipping,
+      total,
+      fulfillment: normalizedFulfillment,
     });
   } catch (error: any) {
     logError(error, {

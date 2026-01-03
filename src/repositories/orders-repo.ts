@@ -138,22 +138,53 @@ export class OrdersRepository {
     if (error) throw error;
   }
 
+  async updateStripePaymentIntent(orderId: string, stripePaymentIntentId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({ stripe_payment_intent_id: stripePaymentIntentId })
+      .eq("id", orderId);
+
+    if (error) throw error;
+  }
+
+  async updatePricingAndFulfillment(
+    orderId: string,
+    input: { subtotal: number; shipping: number; total: number; fulfillment: "ship" | "pickup"; cartHash: string }
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({
+        subtotal: input.subtotal,
+        shipping: input.shipping,
+        total: input.total,
+        fulfillment: input.fulfillment,
+        cart_hash: input.cartHash,
+      })
+      .eq("id", orderId);
+
+    if (error) throw error;
+  }
+
   async markPaidTransactionally(
     orderId: string,
     stripePaymentIntentId: string,
     itemsToDecrement: Array<{ productId: string; variantId: string | null; quantity: number }>
-  ): Promise<void> {
+  ): Promise<boolean> {
     // Update order status
-    const { error: orderError } = await this.supabase
+    const { data: updated, error: orderError } = await this.supabase
       .from("orders")
       .update({
         status: "paid",
         stripe_payment_intent_id: stripePaymentIntentId,
       })
       .eq("id", orderId)
-      .eq("status", "pending"); // only update if still pending
+      .eq("status", "pending") // only update if still pending
+      .select("id");
 
     if (orderError) throw orderError;
+    if (!updated || updated.length === 0) {
+      return false;
+    }
 
     // Decrement inventory
     for (const item of itemsToDecrement) {
@@ -167,6 +198,8 @@ export class OrdersRepository {
         if (variantError) throw variantError;
       }
     }
+
+    return true;
   }
 
   async getOrderItems(orderId: string): Promise<OrderItemRow[]> {

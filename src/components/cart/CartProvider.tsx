@@ -13,6 +13,7 @@ interface CartContextType {
   clearCart: () => void;
   itemCount: number;
   total: number;
+  isReady: boolean;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -20,9 +21,11 @@ const CartContext = createContext<CartContextType | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart] = useState(() => new CartService());
   const [items, setItems] = useState<CartItem[]>([]);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     setItems(cart.getCart());
+    setIsReady(true);
 
     const handleCartUpdate = (event: Event) => {
       const customEvent = event as CustomEvent<{ count: number; items: CartItem[] }>;
@@ -52,6 +55,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     cart.clearCart();
   };
 
+  const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  const total = items.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
+
   return (
     <CartContext.Provider
       value={{
@@ -60,8 +66,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         removeItem,
         updateQuantity,
         clearCart,
-        itemCount: cart.getItemCount(),
-        total: cart.getTotal(),
+        itemCount,
+        total,
+        isReady,
       }}
     >
       {children}
