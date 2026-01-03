@@ -31,9 +31,10 @@ export async function GET(request: NextRequest) {
     // Retrieve account details and balance in parallel
     const [account, balance] = await Promise.all([
       stripe.accounts.retrieve(stripeAccountId),
-      stripe.balance.retrieve({
-        stripeAccount: stripeAccountId,
-      }),
+      stripe.balance.retrieve(
+        {}, // params
+        { stripeAccount: stripeAccountId } // request options
+      ),
     ]);
 
     // Return a subset of account and balance information

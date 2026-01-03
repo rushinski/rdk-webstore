@@ -112,7 +112,9 @@ export const security = {
           "base-uri 'self'",
           "frame-ancestors 'none'",
           // Allow Stripe Connect embedded iframes + your existing map frames
-          "frame-src 'self' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "font-src 'self' https://*.stripe.com data:",
+          "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "form-action 'self' https://*.stripe.com",
         ],
 
         /**
@@ -131,7 +133,8 @@ export const security = {
           "connect-src 'self' https:",
           "frame-ancestors 'none'",
           // Allow Connect embedded frames + Checkout frames + your existing map frames
-          "frame-src https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "font-src 'self' https://*.stripe.com data:",
+          "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
           "form-action 'self' https://*.stripe.com",
         ],
       },
