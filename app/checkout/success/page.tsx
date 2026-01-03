@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { clearIdempotencyKeyFromStorage } from '@/lib/idempotency';
@@ -21,6 +21,7 @@ function SuccessContent() {
   const [isPolling, setIsPolling] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chatReady, setChatReady] = useState(false);
+  const hasClearedRef = useRef(false);
 
   useEffect(() => {
     if (!orderId) {
@@ -76,7 +77,8 @@ function SuccessContent() {
   }, [orderId, router, publicToken]);
 
   useEffect(() => {
-    if (status?.status === 'paid') {
+    if (status?.status === 'paid' && !hasClearedRef.current) {
+      hasClearedRef.current = true;
       clearCart();
     }
   }, [status?.status, clearCart]);

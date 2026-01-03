@@ -9,6 +9,7 @@ import {
   ConnectAccountOnboarding,
   ConnectAccountManagement,
   ConnectBalances,
+  ConnectPayments,
   ConnectPayouts,
 } from '@stripe/react-connect-js';
 import { logError } from '@/lib/log';
@@ -187,16 +188,25 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
           <ConnectBalances />
         </div>
 
+        {/* Payments & Refunds */}
+        <div className="bg-black border border-zinc-800 p-6">
+          <h2 className="text-lg font-semibold text-white mb-2">Payments & Refunds</h2>
+          <p className="text-sm text-zinc-400 mb-4">
+            Review payments and issue refunds directly from Stripe.
+          </p>
+          <ConnectPayments />
+        </div>
+
         {/* Payouts */}
         <div className="bg-black border border-zinc-800 p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Payout History</h2>
           <div className="mb-4 p-3 bg-zinc-900 border border-zinc-800">
             <p className="text-xs text-zinc-400">
-              <span className="text-zinc-300 font-medium">ⓘ About Payouts:</span>
-              <br />• Stripe processing fees are deducted from each sale
-              <br />• Standard payouts (free) arrive in 2-5 business days  
-              <br />• Instant payouts available for 1.5% fee (if enabled)
-              <br />• Fees are not refunded when issuing refunds
+              <span className="text-zinc-300 font-medium">About Payouts:</span>
+              <br />- Stripe processing fees are deducted from each sale
+              <br />- Standard payouts (free) arrive in 2-5 business days
+              <br />- Instant payouts available for 1.5% fee (if enabled)
+              <br />- Fees are not refunded when issuing refunds
             </p>
           </div>
           <ConnectPayouts />

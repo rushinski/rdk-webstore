@@ -71,7 +71,7 @@ export default function BankPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-2xl bg-zinc-900 border border-zinc-800/70 p-6">
+            <div key={i} className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
               <div className="h-3 w-24 rounded bg-zinc-800 mb-3" />
               <div className="h-8 w-32 rounded bg-zinc-800" />
             </div>
@@ -93,7 +93,7 @@ export default function BankPage() {
           <h1 className="text-3xl font-bold text-white mb-2">Bank & Payouts</h1>
           <p className="text-zinc-400 text-sm">Manage your payouts and banking information</p>
         </div>
-        <div className="rounded-2xl bg-zinc-900 border border-red-900 p-6">
+        <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
             <p className="text-red-400 text-sm">{errorMessage}</p>
@@ -104,93 +104,110 @@ export default function BankPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="mb-3">
         <h1 className="text-3xl font-bold text-white mb-1">Bank & Payouts</h1>
         <p className="text-zinc-400 text-sm">Manage your payouts and banking information</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="rounded-2xl bg-zinc-900 border border-zinc-800/70 p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <CreditCard className="w-4 h-4 text-zinc-400" />
-            <p className="text-xs text-zinc-400 uppercase tracking-wider">Account Status</p>
-          </div>
-          <p className="text-xl font-bold text-white">
-            {isSetupComplete ? (
-              <span className="text-green-500">Active</span>
-            ) : account ? (
-              <span className="text-yellow-500">Setup Required</span>
-            ) : (
-              <span className="text-zinc-500">Not Connected</span>
-            )}
-          </p>
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 bg-red-600" />
+          <h2 className="text-lg font-semibold text-white">Overview</h2>
         </div>
-
-        <div className="rounded-2xl bg-zinc-900 border border-zinc-800/70 p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <TrendingUp className="w-4 h-4 text-zinc-400" />
-            <p className="text-xs text-zinc-400 uppercase tracking-wider">Available</p>
-          </div>
-          <p className="text-xl font-bold text-white">
-            {availableBalance
-              ? formatCurrency(availableBalance.amount, availableBalance.currency)
-              : '$0.00'}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-zinc-900 border border-zinc-800/70 p-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="w-4 h-4 text-zinc-400" />
-            <p className="text-xs text-zinc-400 uppercase tracking-wider">Pending</p>
-          </div>
-          <p className="text-xl font-bold text-white">
-            {pendingBalance
-              ? formatCurrency(pendingBalance.amount, pendingBalance.currency)
-              : '$0.00'}
-          </p>
-        </div>
-      </div>
-
-      {isSetupComplete && (
-        <div className="rounded-2xl bg-zinc-900 border border-zinc-800/70 p-5">
-          <div className="flex items-start gap-3">
-            <Info className="w-4 h-4 text-zinc-400 mt-1" />
-            <div className="flex-1 space-y-1">
-              <p className="text-xs text-zinc-300 font-medium mb-1">Automatic Payouts Enabled</p>
-              <p className="text-xs text-zinc-500">
-                Funds are automatically transferred to your bank account daily. Standard payouts (free)
-                typically arrive within 2-5 business days.
-              </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <CreditCard className="w-4 h-4 text-zinc-400" />
+              <p className="text-xs text-zinc-400 uppercase tracking-wider">Account Status</p>
             </div>
+            <p className="text-xl font-bold text-white">
+              {isSetupComplete ? (
+                <span className="text-green-500">Active</span>
+              ) : account ? (
+                <span className="text-yellow-500">Setup Required</span>
+              ) : (
+                <span className="text-zinc-500">Not Connected</span>
+              )}
+            </p>
+            <p className="text-xs text-zinc-500 mt-2">
+              {isSetupComplete
+                ? 'Payouts are enabled for this account.'
+                : 'Finish Stripe setup to enable payouts.'}
+            </p>
+          </div>
+
+          <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-zinc-400" />
+              <p className="text-xs text-zinc-400 uppercase tracking-wider">Available</p>
+            </div>
+            <p className="text-xl font-bold text-white">
+              {availableBalance
+                ? formatCurrency(availableBalance.amount, availableBalance.currency)
+                : '$0.00'}
+            </p>
+          </div>
+
+          <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Calendar className="w-4 h-4 text-zinc-400" />
+              <p className="text-xs text-zinc-400 uppercase tracking-wider">Pending</p>
+            </div>
+            <p className="text-xl font-bold text-white">
+              {pendingBalance
+                ? formatCurrency(pendingBalance.amount, pendingBalance.currency)
+                : '$0.00'}
+            </p>
           </div>
         </div>
-      )}
+      </section>
 
-      <div className="rounded-2xl bg-zinc-900 border border-zinc-800/70 p-5">
-        <div className="flex items-start gap-3">
-          <Info className="w-4 h-4 text-zinc-400 mt-1" />
-          <div className="flex-1">
-            <p className="text-xs text-zinc-300 font-medium mb-3">Processing Fees</p>
-            <ul className="list-disc list-inside space-y-1 text-xs text-zinc-500">
-              <li>Stripe processing fees are deducted from every charge.</li>
-              <li>Standard payouts are free and land within 2-5 business days.</li>
-              <li>Instant payouts incur a 1.5% fee when enabled.</li>
-              <li>Processing fees are not refunded alongside customer refunds.</li>
-            </ul>
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Info className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Payout Schedule</h3>
           </div>
-        </div>
-      </div>
-
-      {publishableKey ? (
-        <EmbeddedAccount publishableKey={publishableKey} />
-      ) : (
-        <div className="rounded-2xl bg-zinc-900 border border-red-900 p-6">
-          <p className="text-red-400 text-sm">
-            Stripe publishable key is not configured. Contact support.
+          <p className="text-sm text-zinc-300 mb-3">
+            {isSetupComplete
+              ? 'Automatic payouts are enabled.'
+              : 'Payouts will start after Stripe onboarding is complete.'}
           </p>
+          <div className="text-xs text-zinc-500 space-y-1 border-t border-zinc-800/70 pt-3">
+            <p>Standard payouts are free and arrive in 2-5 business days.</p>
+            <p>Instant payouts incur a 1.5% fee (if enabled).</p>
+          </div>
         </div>
-      )}
+
+        <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Info className="w-4 h-4 text-zinc-400" />
+            <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Processing Fees</h3>
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-xs text-zinc-500">
+            <li>Stripe processing fees are deducted from every charge.</li>
+            <li>Fees are not refunded when issuing refunds.</li>
+            <li>Payout timing depends on your Stripe settings.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 bg-red-600" />
+          <h2 className="text-lg font-semibold text-white">Stripe Tools</h2>
+        </div>
+        {publishableKey ? (
+          <EmbeddedAccount publishableKey={publishableKey} />
+        ) : (
+          <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
+            <p className="text-red-400 text-sm">
+              Stripe publishable key is not configured. Contact support.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

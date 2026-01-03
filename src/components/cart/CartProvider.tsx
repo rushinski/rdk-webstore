@@ -1,7 +1,7 @@
 // src/components/cart/CartProvider.tsx (FIXED - handles new event structure)
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { CartService } from '@/services/cart-service';
 import type { CartItem } from "@/types/views/cart";
 
@@ -46,21 +46,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, [cart]);
 
-  const addItem = (item: Omit<CartItem, 'quantity'>) => {
+  const addItem = useCallback((item: Omit<CartItem, 'quantity'>) => {
     cart.addItem(item);
-  };
+  }, [cart]);
 
-  const removeItem = (productId: string, variantId: string) => {
+  const removeItem = useCallback((productId: string, variantId: string) => {
     cart.removeItem(productId, variantId);
-  };
+  }, [cart]);
 
-  const updateQuantity = (productId: string, variantId: string, quantity: number) => {
+  const updateQuantity = useCallback((productId: string, variantId: string, quantity: number) => {
     cart.updateQuantity(productId, variantId, quantity);
-  };
+  }, [cart]);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     cart.clearCart();
-  };
+  }, [cart]);
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const total = items.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);

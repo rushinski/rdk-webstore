@@ -132,7 +132,7 @@ export default function SalesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                <th className="text-left text-gray-400 font-semibold p-4">Date</th>
+                <th className="text-left text-gray-400 font-semibold p-4">Placed At</th>
                 <th className="text-left text-gray-400 font-semibold p-4">Order</th>
                 <th className="text-left text-gray-400 font-semibold p-4">Customer</th>
                 <th className="text-right text-gray-400 font-semibold p-4">Amount</th>
@@ -151,10 +151,21 @@ export default function SalesPage() {
                 const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
                 const status = order.status ?? 'pending';
 
+                const createdAt = order.created_at ? new Date(order.created_at) : null;
+
                 return (
                   <tr key={order.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
                     <td className="p-4 text-gray-400">
-                      {order.created_at ? new Date(order.created_at).toLocaleDateString() : '-'}
+                      {createdAt ? (
+                        <div className="space-y-1">
+                          <div>{createdAt.toLocaleDateString()}</div>
+                          <div className="text-xs text-gray-500">
+                            {createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                      ) : (
+                        '-'
+                      )}
                     </td>
                     <td className="p-4 text-white">#{order.id.slice(0, 8)}</td>
                     <td className="p-4 text-gray-400">{order.user_id ? order.user_id.slice(0, 6) : 'Guest'}</td>
