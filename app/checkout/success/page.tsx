@@ -7,10 +7,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { clearIdempotencyKeyFromStorage } from '@/lib/idempotency';
 import type { OrderStatusResponse } from '@/types/views/checkout';
+import { useCart } from '@/components/cart/CartProvider';
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { clearCart } = useCart();
   const orderId = searchParams.get('orderId');
   const sessionId = searchParams.get('session_id');
   const publicToken = searchParams.get('token');
@@ -29,6 +31,7 @@ function SuccessContent() {
     clearIdempotencyKeyFromStorage();
 
     let pollInterval: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout;
 
     const pollOrderStatus = async () => {
       try {
@@ -45,11 +48,13 @@ function SuccessContent() {
         if (data.status === 'paid') {
           setIsPolling(false);
           clearInterval(pollInterval);
+          clearTimeout(timeoutId);
         }
       } catch (err: any) {
         setError(err.message);
         setIsPolling(false);
         clearInterval(pollInterval);
+        clearTimeout(timeoutId);
       }
     };
 
@@ -58,9 +63,23 @@ function SuccessContent() {
 
     // Poll every 2 seconds until paid
     pollInterval = setInterval(pollOrderStatus, 2000);
+    timeoutId = setTimeout(() => {
+      setError('Payment is taking longer than expected. Please check your account or return to your cart.');
+      setIsPolling(false);
+      clearInterval(pollInterval);
+    }, 60000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      clearInterval(pollInterval);
+      clearTimeout(timeoutId);
+    };
   }, [orderId, router, publicToken]);
+
+  useEffect(() => {
+    if (status?.status === 'paid') {
+      clearCart();
+    }
+  }, [status?.status, clearCart]);
 
   useEffect(() => {
     if (!publicToken || !orderId) return;
@@ -110,6 +129,12 @@ function SuccessContent() {
         <div className="bg-red-900/20 border border-red-500 text-red-400 p-6 rounded">
           <p className="text-lg font-semibold mb-2">Error</p>
           <p>{error}</p>
+          <button
+            onClick={() => router.push('/cart')}
+            className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
+          >
+            Return to Cart
+          </button>
         </div>
       </div>
     );
@@ -183,10 +208,10 @@ function SuccessContent() {
           </button>
         )}
         <button
-          onClick={() => router.push('/account/orders')}
+          onClick={() => router.push('/account')}
           className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
         >
-          View Order History
+          Go to Account
         </button>
         <button
           onClick={() => router.push('/store')}

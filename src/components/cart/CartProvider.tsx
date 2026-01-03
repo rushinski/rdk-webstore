@@ -24,8 +24,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    setItems(cart.getCart());
+    const storedItems = cart.getCart();
+    setItems(storedItems);
     setIsReady(true);
+    try {
+      const count = storedItems.reduce((sum, item) => sum + item.quantity, 0);
+      window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count, items: storedItems } }));
+    } catch {
+      // ignore storage/event errors
+    }
 
     const handleCartUpdate = (event: Event) => {
       const customEvent = event as CustomEvent<{ count: number; items: CartItem[] }>;

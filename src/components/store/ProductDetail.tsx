@@ -13,7 +13,7 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ product }: ProductDetailProps) {
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showShipping, setShowShipping] = useState(false);
@@ -21,9 +21,18 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
   const selectedVariant = product.variants.find(v => v.id === selectedVariantId) || product.variants[0];
   const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
+  const inCartItem = selectedVariant
+    ? items.find(item => item.productId === product.id && item.variantId === selectedVariant.id)
+    : undefined;
+  const inCartQuantity = inCartItem?.quantity ?? 0;
+  const canAddMore = selectedVariant ? selectedVariant.stock > inCartQuantity : false;
 
   const handleAddToCart = () => {
     if (!selectedVariant) return;
+    if (!canAddMore) {
+      setToast({ message: 'Only limited stock is available for this size.', tone: 'info' });
+      return;
+    }
 
     addItem({
       productId: product.id,
@@ -34,6 +43,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       titleDisplay: product.title_display ?? `${product.brand} ${product.name}`.trim(),
       priceCents: selectedVariant.price_cents,
       imageUrl: primaryImage?.url || '/placeholder.png',
+      maxStock: selectedVariant.stock,
     });
 
     setToast({ message: 'Added to cart.', tone: 'success' });
@@ -130,11 +140,22 @@ export function ProductDetail({ product }: ProductDetailProps) {
           {/* Add to Cart */}
           <button
             onClick={handleAddToCart}
-            disabled={selectedVariant.stock === 0}
+            disabled={selectedVariant.stock === 0 || !canAddMore}
             className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded transition mb-6"
           >
-            {selectedVariant.stock > 0 ? 'Add to Cart' : 'Out of Stock'}
+            {selectedVariant.stock === 0
+              ? 'Out of Stock'
+              : inCartQuantity > 0
+                ? canAddMore
+                  ? `Add Another (${inCartQuantity} in cart)`
+                  : 'In Cart (Max)'
+                : 'Add to Cart'}
           </button>
+          {inCartQuantity > 0 && (
+            <p className="text-xs text-gray-500 mb-6">
+              This size is already in your cart.
+            </p>
+          )}
 
           {/* Description */}
           {product.description && (
@@ -172,10 +193,10 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a href="/shipping" className="text-red-500 hover:underline">
-                    Shipping Policy →
+                    Shipping Policy 
                   </a>
                   <a href="/refunds" className="text-red-500 hover:underline">
-                    Returns &amp; Refunds →
+                    Returns &amp; Refunds 
                   </a>
                 </div>
               </div>
@@ -192,3 +213,5 @@ export function ProductDetail({ product }: ProductDetailProps) {
     </div>
   );
 }
+
+

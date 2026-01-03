@@ -25,10 +25,26 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
   );
 
   useEffect(() => {
+    if (initialAddress) {
+      setAddress(initialAddress);
+      return;
+    }
+    setAddress({
+      name: '',
+      phone: '',
+      line1: '',
+      line2: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: 'US',
+    });
+  }, [initialAddress]);
+
+  useEffect(() => {
     // Validate and notify parent
     const isValid =
       address.name.trim() !== '' &&
-      address.phone.trim() !== '' &&
       address.line1.trim() !== '' &&
       address.city.trim() !== '' &&
       address.state.trim() !== '' &&
@@ -67,7 +83,7 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
         {/* Phone */}
         <div>
           <label htmlFor="phone" className="block text-sm font-medium text-gray-300 mb-1">
-            Phone Number *
+            Phone Number (optional)
           </label>
           <input
             type="tel"
@@ -75,7 +91,6 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
             value={address.phone}
             onChange={(e) => handleChange('phone', e.target.value)}
             className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            required
           />
         </div>
 

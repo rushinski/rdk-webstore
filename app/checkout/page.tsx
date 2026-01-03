@@ -8,6 +8,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useCart } from '@/components/cart/CartProvider';
 import { CheckoutForm } from '@/components/checkout/CheckoutForm';
 import { OrderSummary } from '@/components/checkout/OrderSummary';
+import Image from 'next/image';
+import Link from 'next/link';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { CartItem } from '@/types/views/cart';
 import {
@@ -211,7 +213,7 @@ export default function CheckoutPage() {
     return null;
   }
 
-  if (isLoading || !pricing) {
+  if (isLoading) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-20">
         <div className="flex flex-col items-center justify-center">
@@ -239,23 +241,45 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!clientSecret) {
-    return null;
+  if (!clientSecret || !pricing) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-20">
+        <div className="flex flex-col items-center justify-center">
+          <Loader2 className="w-12 h-12 text-red-600 animate-spin mb-4" />
+          <p className="text-gray-400">Preparing checkout...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => router.push('/cart')}
+      <header className="flex items-center justify-between border-b border-zinc-800/70 pb-4 mb-8">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="w-10 h-10 relative flex-shrink-0">
+            <Image
+              src="/images/rdk-logo.png"
+              alt="Realdealkickzsc"
+              fill
+              sizes="40px"
+              className="object-contain"
+              priority
+            />
+          </div>
+          <span className="text-white font-bold text-lg tracking-tight hidden sm:block">
+            REALDEALKICKZSC
+          </span>
+        </Link>
+        <Link
+          href="/cart"
           className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to cart
-        </button>
-        <h1 className="text-3xl font-bold text-white">Checkout</h1>
-        <span className="w-24" aria-hidden="true" />
-      </div>
+        </Link>
+      </header>
+
+      <h1 className="text-3xl font-bold text-white mb-6">Checkout</h1>
 
       {error ? (
         <div className="mb-6 bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">

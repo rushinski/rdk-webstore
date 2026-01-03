@@ -59,7 +59,7 @@ export default function InventoryPage() {
   }) => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100' });
+      const params = new URLSearchParams({ limit: '100', stockStatus: 'all' });
       if (filters?.q) {
         params.set('q', filters.q.trim());
       }
@@ -69,13 +69,18 @@ export default function InventoryPage() {
       if (filters?.condition && filters.condition !== 'all') {
         params.append('condition', filters.condition);
       }
-      if (filters?.stockStatus) {
-        params.set('stockStatus', filters.stockStatus);
-      }
-
       const response = await fetch(`/api/store/products?${params.toString()}`);
       const data = await response.json();
-      setProducts(data.products || []);
+      const loaded = data.products || [];
+      const filtered = filters?.stockStatus
+        ? loaded.filter((product: ProductWithDetails) => {
+            const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+            if (filters.stockStatus === 'out_of_stock') return totalStock <= 0;
+            if (filters.stockStatus === 'in_stock') return totalStock > 0;
+            return true;
+          })
+        : loaded;
+      setProducts(filtered);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
     } finally {

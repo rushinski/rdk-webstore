@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
 import { logError } from '@/lib/log';
+import { CartService } from '@/services/cart-service';
 
 type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
 
@@ -199,9 +200,13 @@ export function Navbar({
   useEffect(() => {
     const handleCartUpdate = (e: Event) => {
       const event = e as CustomEvent;
-      setLocalCartCount(event.detail?.count ?? 0);
+      const nextCount = typeof event.detail?.count === 'number'
+        ? event.detail.count
+        : new CartService().getItemCount();
+      setLocalCartCount(nextCount);
     };
 
+    setLocalCartCount(new CartService().getItemCount());
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, []);

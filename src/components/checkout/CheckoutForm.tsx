@@ -264,9 +264,14 @@ export function CheckoutForm({
             onClick={handleExpressClick}
             options={{
               layout: { maxColumns: 2 },
+              paymentMethodOrder: ['apple_pay', 'google_pay'],
               paymentMethods: {
                 applePay: 'auto',
                 googlePay: 'auto',
+                amazonPay: 'never',
+                klarna: 'never',
+                paypal: 'never',
+                link: 'auto',
               },
             }}
           />
@@ -304,15 +309,25 @@ export function CheckoutForm({
 
         <details className="mt-4 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
           <summary className="cursor-pointer list-none text-white font-semibold flex items-center justify-between">
-            Refund & Shipping Policies
+            Refund Policy
             <span className="text-xs text-gray-500">View</span>
           </summary>
           <div className="mt-3 space-y-2">
-            <Link href="/legal/refund-policy" className="text-red-500 hover:text-red-400 underline block">
-              Refund Policy
+            <p>Refunds are reviewed per our policy for eligible items and timelines.</p>
+            <Link href="/refunds" className="text-red-500 hover:text-red-400 underline block">
+              Read the full refund policy
             </Link>
-            <Link href="/legal/shipping-policy" className="text-red-500 hover:text-red-400 underline block">
-              Shipping Policy
+          </div>
+        </details>
+        <details className="mt-3 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
+          <summary className="cursor-pointer list-none text-white font-semibold flex items-center justify-between">
+            Shipping Policy
+            <span className="text-xs text-gray-500">View</span>
+          </summary>
+          <div className="mt-3 space-y-2">
+            <p>Shipping timelines and costs depend on your delivery option at checkout.</p>
+            <Link href="/shipping" className="text-red-500 hover:text-red-400 underline block">
+              Read the full shipping policy
             </Link>
           </div>
         </details>

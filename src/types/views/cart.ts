@@ -9,4 +9,5 @@ export interface CartItem {
   priceCents: number;
   imageUrl: string;
   quantity: number;
+  maxStock?: number;
 }

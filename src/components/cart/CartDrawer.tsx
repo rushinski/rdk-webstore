@@ -4,6 +4,7 @@
 
 import { X, Minus, Plus, Trash2 } from 'lucide-react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from './CartProvider';
 
@@ -41,25 +42,35 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           ) : (
             <>
               <div className="space-y-4 mb-6">
-                {items.map((item) => (
-                  <div key={`${item.productId}-${item.variantId}`} className="bg-zinc-900 p-4 rounded">
+                {items.map((item) => {
+                  const canIncrease = typeof item.maxStock === 'number'
+                    ? item.quantity < item.maxStock
+                    : true;
+                  return (
+                    <div key={`${item.productId}-${item.variantId}`} className="bg-zinc-900 p-4 rounded">
                     <div className="flex items-start gap-4">
-                      <div className="w-20 h-20 relative flex-shrink-0">
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.titleDisplay}
-                          fill
-                          className="object-cover rounded"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-semibold">{item.titleDisplay}</h3>
-                        <p className="text-xs text-gray-500 mt-1">{item.brand} - {item.name}</p>
-                        <p className="text-sm text-gray-400 mt-2">Size: {item.sizeLabel}</p>
-                        <p className="text-sm text-gray-300 mt-1">
-                          Price: ${(item.priceCents / 100).toFixed(2)}
-                        </p>
-                      </div>
+                      <Link
+                        href={`/store/${item.productId}`}
+                        onClick={onClose}
+                        className="flex items-start gap-4 flex-1 min-w-0"
+                      >
+                        <div className="w-20 h-20 relative flex-shrink-0">
+                          <Image
+                            src={item.imageUrl}
+                            alt={item.titleDisplay}
+                            fill
+                            className="object-cover rounded"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-semibold">{item.titleDisplay}</h3>
+                          <p className="text-xs text-gray-500 mt-1">{item.brand} - {item.name}</p>
+                          <p className="text-sm text-gray-400 mt-2">Size: {item.sizeLabel}</p>
+                          <p className="text-sm text-gray-300 mt-1">
+                            Price: ${(item.priceCents / 100).toFixed(2)}
+                          </p>
+                        </div>
+                      </Link>
                       <div className="flex flex-col items-end gap-3">
                         <button
                           onClick={() => removeItem(item.productId, item.variantId)}
@@ -77,7 +88,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                           <span className="text-white w-8 text-center">{item.quantity}</span>
                           <button
                             onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
-                            className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                            disabled={!canIncrease}
+                            className={`w-7 h-7 flex items-center justify-center rounded ${
+                              canIncrease ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-900 opacity-50 cursor-not-allowed'
+                            }`}
                           >
                             <Plus className="w-3 h-3 text-white" />
                           </button>
@@ -87,8 +101,9 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="border-t border-zinc-800/70 pt-4 mb-4">

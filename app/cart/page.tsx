@@ -39,27 +39,36 @@ export default function CartPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
+          {items.map((item) => {
+            const canIncrease = typeof item.maxStock === 'number'
+              ? item.quantity < item.maxStock
+              : true;
+            return (
             <div
               key={`${item.productId}-${item.variantId}`}
               className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex gap-4"
             >
-              <div className="w-24 h-24 relative flex-shrink-0">
-                <Image
-                  src={item.imageUrl}
-                  alt={item.titleDisplay}
-                  fill
-                  className="object-cover rounded"
-                />
-              </div>
+              <Link
+                href={`/store/${item.productId}`}
+                className="flex gap-4 flex-1 min-w-0"
+              >
+                <div className="w-24 h-24 relative flex-shrink-0">
+                  <Image
+                    src={item.imageUrl}
+                    alt={item.titleDisplay}
+                    fill
+                    className="object-cover rounded"
+                  />
+                </div>
 
-              <div className="flex-1 min-w-0">
-                <h3 className="text-white font-bold truncate">{item.titleDisplay}</h3>
-                <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
-                <p className="text-white font-bold mt-2">
-                  ${(item.priceCents / 100).toFixed(2)}
-                </p>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-bold truncate">{item.titleDisplay}</h3>
+                  <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
+                  <p className="text-white font-bold mt-2">
+                    ${(item.priceCents / 100).toFixed(2)}
+                  </p>
+                </div>
+              </Link>
 
               <div className="flex flex-col items-end justify-between">
                 <button
@@ -85,14 +94,18 @@ export default function CartPage() {
                     onClick={() =>
                       updateQuantity(item.productId, item.variantId, item.quantity + 1)
                     }
-                    className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                    disabled={!canIncrease}
+                    className={`w-8 h-8 flex items-center justify-center rounded ${
+                      canIncrease ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-900 opacity-50 cursor-not-allowed'
+                    }`}
                   >
                     <Plus className="w-4 h-4 text-white" />
                   </button>
                 </div>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
 
         {/* Order Summary */}

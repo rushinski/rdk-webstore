@@ -17,11 +17,24 @@ export class CartService {
     const existing = cart.find(
       i => i.productId === item.productId && i.variantId === item.variantId
     );
+    const incomingMax = typeof item.maxStock === 'number' ? item.maxStock : undefined;
+
+    if (incomingMax !== undefined && incomingMax <= 0) {
+      return cart;
+    }
 
     if (existing) {
-      existing.quantity += 1;
+      if (incomingMax !== undefined) {
+        existing.maxStock = incomingMax;
+      }
+      const maxStock = existing.maxStock ?? incomingMax;
+      if (typeof maxStock === 'number') {
+        existing.quantity = Math.min(existing.quantity + 1, maxStock);
+      } else {
+        existing.quantity += 1;
+      }
     } else {
-      cart.push({ ...item, quantity: 1 });
+      cart.push({ ...item, quantity: 1, maxStock: incomingMax });
     }
 
     this.saveCart(cart);
@@ -43,6 +56,9 @@ export class CartService {
     );
 
     if (item) {
+      if (typeof item.maxStock === 'number') {
+        quantity = Math.min(quantity, item.maxStock);
+      }
       if (quantity <= 0) {
         return this.removeItem(productId, variantId);
       }
