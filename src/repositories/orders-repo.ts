@@ -275,4 +275,13 @@ export class OrdersRepository {
     if (error) throw error;
     return data as OrderRow;
   }
+
+  async updateFulfillment(orderId: string, fulfillment: 'ship' | 'pickup'): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({ fulfillment })
+      .eq("id", orderId);
+
+    if (error) throw error;
+  }
 }
