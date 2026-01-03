@@ -1,4 +1,4 @@
-// src/services/checkout-service.ts (CORRECTED)
+// src/services/checkout-service.ts (FIXED)
 
 import Stripe from "stripe";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
@@ -10,6 +10,7 @@ import { env } from "@/config/env";
 import { createCartHash } from "@/lib/crypto";
 import type { CheckoutSessionRequest, CheckoutSessionResponse } from "@/types/views/checkout";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
+import { log } from "@/lib/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
@@ -34,7 +35,6 @@ export class CheckoutService {
   ): Promise<CheckoutSessionResponse> {
     // Validate input
     const validated = checkoutSessionSchema.parse(request);
-
     const { items, fulfillment, idempotencyKey } = validated;
 
     // Fetch product data
@@ -47,32 +47,37 @@ export class CheckoutService {
 
     // Build product map
     const productMap = new Map(products.map((p) => [p.id, p]));
-    const categories = [...new Set(products.map((p) => p.category))];
+    
+    // Validate single tenant
     const tenantIds = new Set(
       products.map((product) => product.tenantId).filter((id): id is string => Boolean(id))
     );
     if (tenantIds.size !== 1) {
-      throw new Error("Checkout requires a single tenant.");
+      throw new Error("Checkout requires a single tenant");
     }
     const [tenantId] = [...tenantIds];
+
+    // Get categories and shipping defaults
+    const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaults = await this.shippingDefaultsRepo.getByCategories(tenantId, categories);
     const shippingDefaultsMap = new Map(
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
     );
 
+    // Build line items
     const lineItems = items.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
-        throw new Error("Product not found");
+        throw new Error(`Product not found: ${item.productId}`);
       }
 
       const variant = product.variants.find((v) => v.id === item.variantId);
       if (!variant) {
-        throw new Error("Variant not found");
+        throw new Error(`Variant not found: ${item.variantId}`);
       }
 
       if (variant.stock < item.quantity) {
-        throw new Error("INSUFFICIENT_STOCK");
+        throw new Error(`INSUFFICIENT_STOCK: ${product.titleDisplay} (${variant.sizeLabel})`);
       }
 
       const unitPrice = Number(variant.priceCents ?? 0) / 100;
@@ -89,26 +94,25 @@ export class CheckoutService {
         titleDisplay: product.titleDisplay,
         brand: product.brand,
         name: product.name,
+        category: product.category,
       };
     });
 
     const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
-    // Compute shipping (max per-product default, not multiplied by quantity)
+    // Calculate shipping: max of all product shipping costs (flat rate approach)
     let shipping = 0;
     if (fulfillment === "ship") {
-      const shippingPrices = items.map((item) => {
-        const product = productMap.get(item.productId);
-        if (!product) return 0;
-        const costInCents = shippingDefaultsMap.get(product.category) ?? 0;
-        return costInCents / 100; // Convert to dollars for this calculation
+      const shippingCosts = lineItems.map((item) => {
+        const costInCents = shippingDefaultsMap.get(item.category) ?? 0;
+        return costInCents / 100;
       });
-      shipping = Math.max(...shippingPrices, 0);
+      shipping = Math.max(...shippingCosts, 0);
     }
 
     const total = subtotal + shipping;
 
-    // Create cart hash
+    // Create cart hash for idempotency
     const cartHash = createCartHash(items, fulfillment);
 
     // Check for existing order with this idempotency key
@@ -160,6 +164,17 @@ export class CheckoutService {
       })),
     });
 
+    log({
+      level: "info",
+      layer: "service",
+      message: "order_created",
+      orderId: order.id,
+      subtotal,
+      shipping,
+      total,
+      fulfillment,
+    });
+
     // Get or create Stripe customer for signed-in users
     let stripeCustomerId: string | undefined;
     if (userId) {
@@ -168,23 +183,27 @@ export class CheckoutService {
         stripeCustomerId = profile.stripe_customer_id;
       } else {
         const { data: userData } = await this.supabase.auth.getUser();
-        // FIXED: Handle nullable email
         if (userData?.user?.email) {
           const customer = await stripe.customers.create({
             email: userData.user.email,
             metadata: { userId },
           });
           stripeCustomerId = customer.id;
-
-          // Save customer ID
           await this.profilesRepo.setStripeCustomerId(userId, stripeCustomerId);
         }
       }
     }
 
-    // Create Stripe Checkout Session
+    // Build success/cancel URLs
     const guestToken = userId ? null : order.public_token;
+    const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    
+    const successUrl = `${siteUrl}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}${
+      guestToken ? `&token=${guestToken}` : ""
+    }`;
+    const cancelUrl = `${siteUrl}/checkout/cancel`;
 
+    // Create Stripe Checkout Session
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       line_items: lineItems.map((li) => ({
@@ -197,11 +216,8 @@ export class CheckoutService {
         },
         quantity: li.quantity,
       })),
-      // FIXED: Use NEXT_PUBLIC_SITE_URL from env
-      success_url: `${env.NEXT_PUBLIC_SITE_URL}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}${
-        guestToken ? `&token=${guestToken}` : ""
-      }`,
-      cancel_url: `${env.NEXT_PUBLIC_SITE_URL}/checkout/cancel`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: {
         order_id: order.id,
         fulfillment,
@@ -238,12 +254,21 @@ export class CheckoutService {
       ];
     }
 
+    // Create Stripe session with idempotency
     const session = await stripe.checkout.sessions.create(sessionParams, {
-      idempotencyKey, // Use same idempotency key for Stripe
+      idempotencyKey,
     });
 
     // Update order with Stripe session ID
     await this.ordersRepo.updateStripeSession(order.id, session.id);
+
+    log({
+      level: "info",
+      layer: "service",
+      message: "stripe_session_created",
+      orderId: order.id,
+      stripeSessionId: session.id,
+    });
 
     return {
       url: session.url!,

@@ -1,4 +1,4 @@
-// src/components/cart/CartProvider.tsx
+// src/components/cart/CartProvider.tsx (FIXED - handles new event structure)
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -25,8 +25,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems(cart.getCart());
 
     const handleCartUpdate = (event: Event) => {
-      const customEvent = event as CustomEvent<CartItem[]>;
-      setItems(customEvent.detail);
+      const customEvent = event as CustomEvent<{ count: number; items: CartItem[] }>;
+      // Update items from the event detail
+      if (customEvent.detail?.items) {
+        setItems(customEvent.detail.items);
+      }
     };
 
     window.addEventListener('cartUpdated', handleCartUpdate);

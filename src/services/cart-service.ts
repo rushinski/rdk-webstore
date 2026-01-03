@@ -1,4 +1,4 @@
-// src/services/cart-service.ts
+// src/services/cart-service.ts (FIXED - dispatches count for navbar)
 'use client';
 
 import type { CartItem } from "@/types/views/cart";
@@ -71,7 +71,11 @@ export class CartService {
 
   private saveCart(cart: CartItem[]) {
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    // Dispatch custom event for cart updates
-    window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cart }));
+    
+    // Dispatch custom event with count for navbar
+    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+    window.dispatchEvent(new CustomEvent('cartUpdated', { 
+      detail: { count, items: cart } 
+    }));
   }
 }

@@ -1,3 +1,4 @@
+// src/jobs/stripe-order-job.ts
 import Stripe from "stripe";
 import { revalidateTag } from "next/cache";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
