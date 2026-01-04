@@ -323,119 +323,106 @@ export default function ShippingPage() {
 
     return (
       <Fragment key={order.id}>
-        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-xs text-zinc-500 uppercase tracking-widest">Placed At</div>
-              <div className="text-white text-sm">{placedAt.date}</div>
-              {placedAt.time && <div className="text-xs text-zinc-500">{placedAt.time}</div>}
+        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-4 text-sm">
+              <div className="text-white font-semibold">#{order.id.slice(0, 8)}</div>
+              <div className="text-zinc-400">{customerHandle}</div>
+              <div className="text-zinc-500">
+                {placedAt.date}
+                {placedAt.time ? ` - ${placedAt.time}` : ''}
+              </div>
+              <div className="text-zinc-400">{statusLabel}</div>
             </div>
-            <div className="space-y-1">
-              <div className="text-xs text-zinc-500 uppercase tracking-widest">Order</div>
-              <div className="text-white text-sm">#{order.id.slice(0, 8)}</div>
-            </div>
-            <div className="space-y-1">
-              <div className="text-xs text-zinc-500 uppercase tracking-widest">Customer</div>
-              <div className="text-white text-sm">{customerHandle}</div>
-            </div>
-            <div className="space-y-1 text-right">
-              <div className="text-xs text-zinc-500 uppercase tracking-widest">Status</div>
-              <div className="text-sm text-gray-300">{statusLabel}</div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => toggleItems(order.id)}
-                className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300"
-              >
-                <span>{itemsExpanded ? 'Hide items' : `View items (${itemCount})`}</span>
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`}
-                />
-              </button>
-              {itemsExpanded && (
-                <div className="space-y-3">
-                  {(order.items ?? []).map((item: any) => {
-                    const imageUrl = getPrimaryImage(item);
-                    const title =
-                      (item.product?.title_display ??
-                        `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
-                      'Item';
-                    return (
-                      <div key={item.id} className="flex items-center gap-3">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={imageUrl}
-                          alt={title}
-                          className="h-12 w-12 object-cover border border-zinc-800/70 bg-black"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-sm text-white truncate">{title}</div>
-                          <div className="text-xs text-zinc-500">
-                            Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+            <div className="flex items-center gap-3 text-sm">
+              {activeTab === 'label' && (
+                <button
+                  onClick={() => toggleOrder(order.id)}
+                  className="text-sm text-red-400 hover:text-red-300"
+                >
+                  {isExpanded ? 'Close' : 'Create Label'}
+                </button>
+              )}
+              {activeTab === 'ready' && (
+                <button
+                  onClick={() => handleMarkShipped(order)}
+                  disabled={markingShippedId === order.id}
+                  className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
+                >
+                  {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
+                </button>
               )}
             </div>
+          </div>
 
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Destination</div>
-                {addressLine ? (
-                  <div className="text-sm text-zinc-200">{addressLine}</div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <div className="min-w-[220px] flex-1 text-zinc-400">
+              <span className="text-zinc-500">Destination:</span>{' '}
+              {addressLine ? (
+                <span className="text-zinc-200">{addressLine}</span>
+              ) : (
+                <span className="text-red-400">Missing shipping address</span>
+              )}
+            </div>
+            <div className="text-zinc-400">
+              <span className="text-zinc-500">Tracking:</span>{' '}
+              {order.tracking_number ? (
+                trackingUrl ? (
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    {order.tracking_number}
+                  </a>
                 ) : (
-                  <div className="text-sm text-red-400">Missing shipping address</div>
-                )}
-              </div>
-              <div>
-                <div className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Tracking</div>
-                {order.tracking_number ? (
-                  trackingUrl ? (
-                    <a
-                      href={trackingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-red-400 hover:text-red-300"
-                    >
-                      {order.tracking_number}
-                    </a>
-                  ) : (
-                    <div className="text-sm text-zinc-300">{order.tracking_number}</div>
-                  )
-                ) : (
-                  <div className="text-sm text-zinc-500">No label yet</div>
-                )}
-              </div>
+                  <span className="text-zinc-300">{order.tracking_number}</span>
+                )
+              ) : (
+                <span className="text-zinc-500">No label yet</span>
+              )}
             </div>
           </div>
 
-          {activeTab === 'label' && (
-            <div className="mt-5 flex justify-end">
-              <button
-                onClick={() => toggleOrder(order.id)}
-                className="text-sm text-red-400 hover:text-red-300"
-              >
-                {isExpanded ? 'Close' : 'Create Label'}
-              </button>
-            </div>
-          )}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => toggleItems(order.id)}
+              className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300"
+            >
+              <span>{itemsExpanded ? 'Hide items' : `View items (${itemCount})`}</span>
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`}
+              />
+            </button>
+          </div>
 
-          {activeTab === 'ready' && (
-            <div className="mt-5 flex justify-end">
-              <button
-                onClick={() => handleMarkShipped(order)}
-                disabled={markingShippedId === order.id}
-                className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
-              >
-                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
-              </button>
+          {itemsExpanded && (
+            <div className="mt-3 space-y-3">
+              {(order.items ?? []).map((item: any) => {
+                const imageUrl = getPrimaryImage(item);
+                const title =
+                  (item.product?.title_display ??
+                    `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
+                  'Item';
+                return (
+                  <div key={item.id} className="flex items-center gap-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrl}
+                      alt={title}
+                      className="h-10 w-10 object-cover border border-zinc-800/70 bg-black"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm text-white truncate">{title}</div>
+                      <div className="text-xs text-zinc-500">
+                        Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

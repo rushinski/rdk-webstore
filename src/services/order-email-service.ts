@@ -146,6 +146,11 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
       <tr>
         <td style="padding:0 24px;">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+            <tr>
+              <td colspan="2" style="padding:4px 0 12px;">
+                <div style="${emailStyles.labelAccent}">Receipt</div>
+              </td>
+            </tr>
             ${itemsHtml}
             <tr>
               <td style="padding:12px 0 4px;font-size:13px;color:${EMAIL_COLORS.muted};">Subtotal</td>
@@ -199,6 +204,7 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
     "Realdealkickzsc",
     `Order #${orderShort}`,
     `Placed: ${orderDate}`,
+    "Receipt",
     "",
     "Items:",
     ...input.items.map((item) => {

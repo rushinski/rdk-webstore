@@ -1,8 +1,8 @@
 // app/admin/sales/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { MoreVertical, Search } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Toast } from '@/components/ui/Toast';
@@ -12,36 +12,27 @@ export default function SalesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefundMode, setIsRefundMode] = useState(false);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
   const [pendingRefundId, setPendingRefundId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   useEffect(() => {
-    if (!openMenuId) return;
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
-      const activeMenus = Array.from(document.querySelectorAll(`[data-menu-id="${openMenuId}"]`));
-      if (target && activeMenus.some((menu) => menu.contains(target))) return;
-      setOpenMenuId(null);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [openMenuId]);
-
-  useEffect(() => {
     setPage(1);
     setSelectedOrderId(null);
+    setIsRefundMode(false);
   }, [statusFilter]);
 
   useEffect(() => {
     setSelectedOrderId(null);
+    setIsRefundMode(false);
   }, [page]);
 
   useEffect(() => {
@@ -49,9 +40,11 @@ export default function SalesPage() {
       setIsLoading(true);
       try {
         const params = new URLSearchParams();
-        if (statusFilter !== 'all') {
-          params.append('status', statusFilter);
-        }
+        const statusValues =
+          statusFilter === 'all'
+            ? ['paid', 'shipped', 'refunded', 'refund_pending', 'refund_failed']
+            : [statusFilter];
+        statusValues.forEach((status) => params.append('status', status));
         params.set('limit', String(PAGE_SIZE));
         params.set('page', String(page));
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
@@ -79,6 +72,13 @@ export default function SalesPage() {
     }
     return order.user_id ? order.user_id.slice(0, 6) : 'Guest';
   };
+
+  const getCustomerEmail = (order: any) => order.customer?.email ?? order.guest_email ?? '-';
+
+  const getOrderTitle = (item: any) =>
+    (item.product?.title_display ??
+      `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
+    'Item';
 
   const summary = useMemo(() => {
     let revenue = 0;
@@ -109,26 +109,25 @@ export default function SalesPage() {
 
     return orders.filter((order) => {
       const handle = getCustomerHandle(order).toLowerCase();
+      const email = getCustomerEmail(order).toLowerCase();
       const createdAt = order.created_at ? new Date(order.created_at) : null;
       const dateString = createdAt ? createdAt.toLocaleDateString().toLowerCase() : '';
       const timeString = createdAt ? createdAt.toLocaleTimeString().toLowerCase() : '';
       const isoString = createdAt ? createdAt.toISOString().slice(0, 10) : '';
       const orderId = order.id ? String(order.id).toLowerCase() : '';
+      const fulfillment = (order.fulfillment ?? '').toString().toLowerCase();
 
       return (
         handle.includes(query) ||
+        email.includes(query) ||
         dateString.includes(query) ||
         timeString.includes(query) ||
         isoString.includes(query) ||
-        orderId.includes(query)
+        orderId.includes(query) ||
+        fulfillment.includes(query)
       );
     });
   }, [orders, searchQuery]);
-
-  const requestRefund = (orderId: string) => {
-    setOpenMenuId(null);
-    setPendingRefundId(orderId);
-  };
 
   const requestSelectedRefund = () => {
     if (!selectedOrderId) return;
@@ -157,6 +156,19 @@ export default function SalesPage() {
       setToast({ message: 'Refund failed.', tone: 'error' });
     }
   };
+
+  const toggleOrderItems = (orderId: string) => {
+    setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const cancelRefundMode = () => {
+    setIsRefundMode(false);
+    setSelectedOrderId(null);
+  };
+
+  const hasRefundableOrders = orders.some(
+    (order) => order.status === 'paid' || order.status === 'shipped'
+  );
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -236,14 +248,34 @@ export default function SalesPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={requestSelectedRefund}
-            disabled={!selectedOrderId}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-4 py-2 rounded-sm text-sm transition"
-          >
-            Refund selected
-          </button>
+          {isRefundMode ? (
+            <>
+              <button
+                type="button"
+                onClick={requestSelectedRefund}
+                disabled={!selectedOrderId}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-4 py-2 rounded-sm text-sm transition"
+              >
+                Refund selected
+              </button>
+              <button
+                type="button"
+                onClick={cancelRefundMode}
+                className="bg-zinc-900 text-white px-4 py-2 rounded-sm text-sm border border-zinc-800/70"
+              >
+                Cancel
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsRefundMode(true)}
+              disabled={!hasRefundableOrders}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-4 py-2 rounded-sm text-sm transition"
+            >
+              Refund
+            </button>
+          )}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -252,8 +284,9 @@ export default function SalesPage() {
             <option value="all">All Status</option>
             <option value="paid">Paid</option>
             <option value="shipped">Shipped</option>
-            <option value="pending">Pending</option>
             <option value="refunded">Refunded</option>
+            <option value="refund_pending">Refund pending</option>
+            <option value="refund_failed">Refund failed</option>
           </select>
         </div>
       </div>
@@ -264,7 +297,7 @@ export default function SalesPage() {
           type="text"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search by date, customer, or order"
+          placeholder="Search by date, customer, email, or order"
           className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
         />
       </div>
@@ -293,16 +326,20 @@ export default function SalesPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                <th className="text-left text-gray-400 font-semibold p-4">
-                  <span className="sr-only">Select</span>
-                </th>
+                {isRefundMode && (
+                  <th className="text-left text-gray-400 font-semibold p-4">
+                    <span className="sr-only">Select</span>
+                  </th>
+                )}
                 <th className="text-left text-gray-400 font-semibold p-4">Placed At</th>
                 <th className="text-left text-gray-400 font-semibold p-4">Order</th>
                 <th className="text-left text-gray-400 font-semibold p-4">Customer</th>
+                <th className="text-left text-gray-400 font-semibold p-4">Email</th>
+                <th className="text-left text-gray-400 font-semibold p-4">Fulfillment</th>
                 <th className="text-right text-gray-400 font-semibold p-4">Amount</th>
                 <th className="text-right text-gray-400 font-semibold p-4">Profit</th>
                 <th className="text-center text-gray-400 font-semibold p-4">Status</th>
-                <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                <th className="text-right text-gray-400 font-semibold p-4">Items</th>
               </tr>
             </thead>
             <tbody>
@@ -313,82 +350,93 @@ export default function SalesPage() {
                 }, 0);
                 const refundAmount = Number(order.refund_amount ?? 0) / 100;
                 const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
-                const status = order.status ?? 'pending';
+                const status = order.status ?? 'paid';
                 const canRefund = status === 'paid' || status === 'shipped';
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
                 const customerHandle = getCustomerHandle(order);
+                const customerEmail = getCustomerEmail(order);
+                const fulfillmentLabel = order.fulfillment === 'pickup' ? 'Pickup' : 'Ship';
+                const itemsExpanded = expandedOrders[order.id] ?? false;
+                const colSpan = isRefundMode ? 10 : 9;
 
                 return (
-                  <tr key={order.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
-                    <td className="p-4">
-                      <input
-                        type="checkbox"
-                        name="refundOrder"
-                        className="rdk-checkbox"
-                        checked={selectedOrderId === order.id}
-                        onChange={() =>
-                          setSelectedOrderId((prev) => (prev === order.id ? null : order.id))
-                        }
-                        aria-label={`Select order ${order.id}`}
-                      />
-                    </td>
-                    <td className="p-4 text-gray-400">
-                      {createdAt ? (
-                        <div className="space-y-1">
-                          <div>{createdAt.toLocaleDateString()}</div>
-                          <div className="text-xs text-gray-500">
-                            {createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </div>
-                      ) : (
-                        '-'
+                  <Fragment key={order.id}>
+                    <tr className="border-b border-zinc-800/70 hover:bg-zinc-800">
+                      {isRefundMode && (
+                        <td className="p-4">
+                          <input
+                            type="checkbox"
+                            name="refundOrder"
+                            className="rdk-checkbox"
+                            checked={selectedOrderId === order.id}
+                            onChange={() =>
+                              setSelectedOrderId((prev) => (prev === order.id ? null : order.id))
+                            }
+                            aria-label={`Select order ${order.id}`}
+                            disabled={!canRefund}
+                          />
+                        </td>
                       )}
-                    </td>
-                    <td className="p-4 text-white">#{order.id.slice(0, 8)}</td>
-                    <td className="p-4 text-gray-400">{customerHandle}</td>
-                    <td className="p-4 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
-                    <td className="p-4 text-right text-green-400">+${profit.toFixed(2)}</td>
-                    <td className="p-4 text-center">
-                      <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
-                        status === 'paid' || status === 'shipped' ? 'bg-green-900/20 text-green-400' :
-                        status === 'pending' ? 'bg-yellow-900/20 text-yellow-400' :
-                        'bg-red-900/20 text-red-400'
-                      }`}>
-                        {status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="relative" data-menu-id={order.id}>
+                      <td className="p-4 text-gray-400">
+                        {createdAt ? (
+                          <div className="space-y-1">
+                            <div>{createdAt.toLocaleDateString()}</div>
+                            <div className="text-xs text-gray-500">
+                              {createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="p-4 text-white">#{order.id.slice(0, 8)}</td>
+                      <td className="p-4 text-gray-400">{customerHandle}</td>
+                      <td className="p-4 text-gray-400">{customerEmail}</td>
+                      <td className="p-4 text-gray-400">{fulfillmentLabel}</td>
+                      <td className="p-4 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
+                      <td className="p-4 text-right text-green-400">+${profit.toFixed(2)}</td>
+                      <td className="p-4 text-center">
+                        <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
+                          status === 'paid' || status === 'shipped' ? 'bg-green-900/20 text-green-400' :
+                          status === 'refund_pending' ? 'bg-yellow-900/20 text-yellow-400' :
+                          status === 'refund_failed' ? 'bg-red-900/20 text-red-400' :
+                          status === 'refunded' ? 'bg-zinc-800 text-zinc-200' :
+                          'bg-zinc-800 text-zinc-200'
+                        }`}>
+                          {status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
                         <button
                           type="button"
-                          onClick={() =>
-                            setOpenMenuId((prev) => (prev === order.id ? null : order.id))
-                          }
-                          className="text-gray-400 hover:text-white p-1 cursor-pointer"
-                          aria-label="Open actions"
+                          onClick={() => toggleOrderItems(order.id)}
+                          className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-2"
                         >
-                          <MoreVertical className="w-4 h-4" />
+                          {itemsExpanded ? 'Hide items' : 'View items'}
+                          <ChevronDown className={`w-4 h-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`} />
                         </button>
-                        {openMenuId === order.id && (
-                          <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
-                            {canRefund ? (
-                              <button
-                                type="button"
-                                onClick={() => requestRefund(order.id)}
-                                className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
-                              >
-                                Refund
-                              </button>
-                            ) : (
-                              <div className="px-3 py-2 text-sm text-gray-500">
-                                Refund unavailable
+                      </td>
+                    </tr>
+                    {itemsExpanded && (
+                      <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
+                        <td colSpan={colSpan} className="px-4 pb-4 pt-2">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {(order.items ?? []).map((item: any) => (
+                              <div key={item.id} className="flex items-center justify-between text-sm text-gray-400">
+                                <div className="min-w-0">
+                                  <div className="text-white truncate">{getOrderTitle(item)}</div>
+                                  <div className="text-xs text-gray-500">
+                                    Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+                                  </div>
+                                </div>
+                                <div className="text-white">${Number(item.line_total ?? 0).toFixed(2)}</div>
                               </div>
-                            )}
+                            ))}
                           </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

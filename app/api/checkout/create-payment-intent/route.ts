@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
+    const userEmail = user?.email ?? null;
 
     const body = await request.json();
     const { items, idempotencyKey, fulfillment } = body;
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
 
       // Get or create Stripe customer
       let stripeCustomerId: string | undefined;
+      let receiptEmail: string | undefined;
       if (userId) {
         const profileRepo = new ProfileRepository(supabase);
         const profile = await profileRepo.getByUserId(userId);
@@ -116,6 +118,7 @@ export async function POST(request: NextRequest) {
           stripeCustomerId = customer.id;
           await profileRepo.setStripeCustomerId(userId, stripeCustomerId);
         }
+        receiptEmail = userEmail ?? profile?.email ?? undefined;
       }
 
       const paymentIntent = await stripe.paymentIntents.create(
@@ -123,6 +126,7 @@ export async function POST(request: NextRequest) {
           amount: Math.round(total * 100),
           currency: "usd",
           customer: stripeCustomerId,
+          receipt_email: receiptEmail,
           metadata: {
             order_id: existingOrder.id,
             cart_hash: cartHash,
@@ -247,6 +251,7 @@ export async function POST(request: NextRequest) {
 
     // Get or create Stripe customer
     let stripeCustomerId: string | undefined;
+    let receiptEmail: string | undefined;
     if (userId) {
       const profileRepo = new ProfileRepository(supabase);
       const profile = await profileRepo.getByUserId(userId);
@@ -260,6 +265,7 @@ export async function POST(request: NextRequest) {
         stripeCustomerId = customer.id;
         await profileRepo.setStripeCustomerId(userId, stripeCustomerId);
       }
+      receiptEmail = userEmail ?? profile?.email ?? undefined;
     }
 
     // Create Payment Intent
@@ -268,6 +274,7 @@ export async function POST(request: NextRequest) {
         amount: Math.round(total * 100),
         currency: "usd",
         customer: stripeCustomerId,
+        receipt_email: receiptEmail,
         metadata: {
           order_id: order.id,
           cart_hash: cartHash,
