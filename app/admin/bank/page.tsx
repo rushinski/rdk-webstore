@@ -1,10 +1,10 @@
-// app/admin/bank/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { logError } from '@/lib/log';
 import { Loader2, AlertCircle, TrendingUp, Calendar, CreditCard, Info } from 'lucide-react';
 import { EmbeddedAccount } from '@/components/admin/stripe/EmbeddedAccount';
+import { StripeSetupWizardModal } from '@/components/admin/stripe/StripeSetupWizardModal';
 
 type StripeAccount = {
   id: string;
@@ -32,34 +32,45 @@ export default function BankPage() {
   const [account, setAccount] = useState<StripeAccount | null>(null);
   const [balance, setBalance] = useState<StripeBalance | null>(null);
 
+  const [setupOpen, setSetupOpen] = useState(false);
+
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
+  const fetchAccountStatus = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/admin/stripe/account', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch account status');
+
+      const data = await response.json();
+      setAccount(data.account);
+      setBalance(data.balance);
+      setErrorMessage('');
+    } catch (error) {
+      logError(error, { layer: 'frontend', event: 'fetch_stripe_account_status' });
+      setErrorMessage('Could not load your banking information.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchAccountStatus = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch('/api/admin/stripe/account');
-        if (!response.ok) {
-          throw new Error('Failed to fetch account status');
-        }
-
-        const data = await response.json();
-        setAccount(data.account);
-        setBalance(data.balance);
-      } catch (error) {
-        logError(error, { layer: 'frontend', event: 'fetch_stripe_account_status' });
-        setErrorMessage('Could not load your banking information.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchAccountStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const isSetupComplete = account?.details_submitted && account?.payouts_enabled;
+  const isSetupComplete = !!account?.details_submitted && !!account?.payouts_enabled;
+
   const availableBalance = balance?.available?.[0];
   const pendingBalance = balance?.pending?.[0];
+
+  const statusLabel = !account
+    ? 'Not Connected'
+    : isSetupComplete
+    ? 'Active'
+    : account.details_submitted && !account.payouts_enabled
+    ? 'In Review'
+    : 'Setup Required';
 
   if (isLoading) {
     return (
@@ -105,9 +116,55 @@ export default function BankPage() {
 
   return (
     <div className="space-y-8">
-      <div className="mb-3">
-        <h1 className="text-3xl font-bold text-white mb-1">Bank & Payouts</h1>
-        <p className="text-zinc-400 text-sm">Manage your payouts and banking information</p>
+      <StripeSetupWizardModal
+        open={setupOpen}
+        onClose={() => setSetupOpen(false)}
+        publishableKey={publishableKey}
+        onCompleted={fetchAccountStatus}
+      />
+
+      <div className="mb-3 flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-1">Bank & Payouts</h1>
+          <p className="text-zinc-400 text-sm">Manage your payouts and banking information</p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setSetupOpen(true)}
+          className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500"
+        >
+          {!account ? 'Setup Account' : isSetupComplete ? 'Review Settings' : 'Continue Setup'}
+        </button>
+      </div>
+
+      {/* Status banner */}
+      <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-4">
+        <p className="text-sm text-zinc-300">
+          <span className="text-zinc-400">Stripe Status:</span>{' '}
+          <span
+            className={
+              statusLabel === 'Active'
+                ? 'text-green-500 font-semibold'
+                : statusLabel === 'In Review'
+                ? 'text-yellow-500 font-semibold'
+                : statusLabel === 'Setup Required'
+                ? 'text-yellow-500 font-semibold'
+                : 'text-zinc-500 font-semibold'
+            }
+          >
+            {statusLabel}
+          </span>
+        </p>
+        <p className="text-xs text-zinc-500 mt-1">
+          {statusLabel === 'Active'
+            ? 'Your payout info is set and payouts are enabled.'
+            : statusLabel === 'In Review'
+            ? 'Your information was submitted. Stripe may be reviewing it.'
+            : statusLabel === 'Setup Required'
+            ? 'Finish setup to enable payouts.'
+            : 'Click “Setup Account” to begin.'}
+        </p>
       </div>
 
       <section className="space-y-4">
@@ -115,6 +172,7 @@ export default function BankPage() {
           <div className="h-2 w-2 bg-red-600" />
           <h2 className="text-lg font-semibold text-white">Overview</h2>
         </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
             <div className="flex items-center gap-2 mb-3">
@@ -122,18 +180,15 @@ export default function BankPage() {
               <p className="text-xs text-zinc-400 uppercase tracking-wider">Account Status</p>
             </div>
             <p className="text-xl font-bold text-white">
-              {isSetupComplete ? (
+              {statusLabel === 'Active' ? (
                 <span className="text-green-500">Active</span>
-              ) : account ? (
+              ) : statusLabel === 'In Review' ? (
+                <span className="text-yellow-500">In Review</span>
+              ) : statusLabel === 'Setup Required' ? (
                 <span className="text-yellow-500">Setup Required</span>
               ) : (
                 <span className="text-zinc-500">Not Connected</span>
               )}
-            </p>
-            <p className="text-xs text-zinc-500 mt-2">
-              {isSetupComplete
-                ? 'Payouts are enabled for this account.'
-                : 'Finish Stripe setup to enable payouts.'}
             </p>
           </div>
 
@@ -143,9 +198,7 @@ export default function BankPage() {
               <p className="text-xs text-zinc-400 uppercase tracking-wider">Available</p>
             </div>
             <p className="text-xl font-bold text-white">
-              {availableBalance
-                ? formatCurrency(availableBalance.amount, availableBalance.currency)
-                : '$0.00'}
+              {availableBalance ? formatCurrency(availableBalance.amount, availableBalance.currency) : '$0.00'}
             </p>
           </div>
 
@@ -155,9 +208,7 @@ export default function BankPage() {
               <p className="text-xs text-zinc-400 uppercase tracking-wider">Pending</p>
             </div>
             <p className="text-xl font-bold text-white">
-              {pendingBalance
-                ? formatCurrency(pendingBalance.amount, pendingBalance.currency)
-                : '$0.00'}
+              {pendingBalance ? formatCurrency(pendingBalance.amount, pendingBalance.currency) : '$0.00'}
             </p>
           </div>
         </div>
@@ -170,9 +221,7 @@ export default function BankPage() {
             <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Payout Schedule</h3>
           </div>
           <p className="text-sm text-zinc-300 mb-3">
-            {isSetupComplete
-              ? 'Automatic payouts are enabled.'
-              : 'Payouts will start after Stripe onboarding is complete.'}
+            {isSetupComplete ? 'Automatic payouts are enabled.' : 'Payouts start after onboarding is complete.'}
           </p>
           <div className="text-xs text-zinc-500 space-y-1 border-t border-zinc-800/70 pt-3">
             <p>Standard payouts are free and arrive in 2-5 business days.</p>
@@ -193,21 +242,23 @@ export default function BankPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 bg-red-600" />
-          <h2 className="text-lg font-semibold text-white">Stripe Tools</h2>
-        </div>
-        {publishableKey ? (
-          <EmbeddedAccount publishableKey={publishableKey} />
-        ) : (
-          <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
-            <p className="text-red-400 text-sm">
-              Stripe publishable key is not configured. Contact support.
-            </p>
+      {/* Stripe Tools show AFTER setup completes */}
+      {isSetupComplete ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 bg-red-600" />
+            <h2 className="text-lg font-semibold text-white">Stripe Tools</h2>
           </div>
-        )}
-      </section>
+
+          {publishableKey ? (
+            <EmbeddedAccount publishableKey={publishableKey} showOnboarding={false} />
+          ) : (
+            <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
+              <p className="text-red-400 text-sm">Stripe publishable key is not configured. Contact support.</p>
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

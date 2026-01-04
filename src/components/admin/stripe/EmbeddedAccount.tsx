@@ -1,4 +1,3 @@
-// src/components/admin/stripe/EmbeddedAccount.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -13,20 +12,20 @@ import {
   ConnectPayouts,
 } from '@stripe/react-connect-js';
 import { logError } from '@/lib/log';
+import { connectAppearance } from '@/lib/stripe/connect-appearance';
 
 interface EmbeddedAccountProps {
   publishableKey: string;
+  showOnboarding?: boolean; // NEW
 }
 
-export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
+export function EmbeddedAccount({ publishableKey, showOnboarding = false }: EmbeddedAccountProps) {
   const [stripeConnectInstance, setStripeConnectInstance] = useState<any>(null);
   const [accountId, setAccountId] = useState<string>('');
 
   useEffect(() => {
     const fetchClientSecret = async () => {
-      const response = await fetch('/api/admin/stripe/account-session', {
-        method: 'POST',
-      });
+      const response = await fetch('/api/admin/stripe/account-session', { method: 'POST' });
 
       if (!response.ok) {
         const text = await response.text();
@@ -43,84 +42,12 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
         const instance = loadConnectAndInitialize({
           publishableKey,
           fetchClientSecret,
-          appearance: {
-            overlays: 'dialog',
-            variables: {
-              // Match your pure black/white/red theme
-              colorPrimary: '#dc2626',           // Your red accent
-              colorBackground: '#000000',        // Pure black background
-              colorText: '#ffffff',              // White text
-              colorSecondaryText: '#a1a1aa',     // Zinc-400 for secondary text
-              colorBorder: '#3f3f46',            // Zinc-700 borders
-              colorDanger: '#dc2626',            // Red for errors
-              
-              // Layout & spacing
-              fontFamily: 'Arial, Helvetica, sans-serif', // Match your font
-              fontSize: '14px',
-              borderRadius: '0px',               // Square corners!
-              spacingUnit: '4px',
-              
-              // Additional theme colors
-              buttonPrimaryColorBackground: '#dc2626',
-              buttonPrimaryColorText: '#ffffff',
-              buttonPrimaryColorBorder: '#dc2626',
-              buttonSecondaryColorBackground: '#18181b',
-              buttonSecondaryColorText: '#ffffff',
-              buttonSecondaryColorBorder: '#3f3f46',
-              
-              // Form elements
-              formBackgroundColor: '#0a0a0a',
-              formBorderColor: '#3f3f46',
-              formHighlightColorBorder: '#dc2626',
-              
-              // Action colors
-              actionPrimaryColorText: '#dc2626',
-              actionSecondaryColorText: '#a1a1aa',
-              
-              // Overlays (modals/dialogs)
-              overlayBackgroundColor: '#000000',
-              overlayBorderColor: '#3f3f46',
-            },
-            rules: {
-              // Remove any border radius globally
-              '.Input': {
-                borderRadius: '0',
-                backgroundColor: '#0a0a0a',
-                borderColor: '#3f3f46',
-                color: '#ffffff',
-              },
-              '.Button': {
-                borderRadius: '0',
-              },
-              '.Tab': {
-                borderRadius: '0',
-                borderColor: '#3f3f46',
-              },
-              '.Tab--selected': {
-                color: '#dc2626',
-                borderBottomColor: '#dc2626',
-              },
-              '.Dialog': {
-                borderRadius: '0',
-                backgroundColor: '#000000',
-                borderColor: '#3f3f46',
-              },
-              '.Label': {
-                color: '#ffffff',
-              },
-              '.Text': {
-                color: '#a1a1aa',
-              },
-            },
-          },
+          appearance: connectAppearance,
         });
 
         setStripeConnectInstance(instance);
       } catch (err: any) {
-        logError(err, {
-          layer: 'frontend',
-          event: 'stripe_connect_init_failed',
-        });
+        logError(err, { layer: 'frontend', event: 'stripe_connect_init_failed' });
       }
     };
 
@@ -130,8 +57,7 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
   if (!stripeConnectInstance) {
     return (
       <div className="space-y-8">
-        {/* Loading skeleton that matches your design */}
-        {[1, 2, 3, 4].map((i) => (
+        {[1, 2, 3].map((i) => (
           <div key={i} className="bg-black border border-zinc-800 p-6">
             <div className="h-6 w-48 bg-zinc-900 mb-4" />
             <div className="space-y-3">
@@ -143,7 +69,7 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
         ))}
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-6 h-6 animate-spin text-red-600" />
-          <span className="ml-3 text-zinc-400 text-sm">Loading components...</span>
+          <span className="ml-3 text-zinc-400 text-sm">Loading Stripe tools...</span>
         </div>
       </div>
     );
@@ -152,34 +78,24 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
   return (
     <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
       <div className="space-y-6">
-        {/* Account Onboarding */}
-        <div className="bg-black border border-zinc-800 p-6">
-          <h2 className="text-lg font-semibold text-white mb-2">Account Setup</h2>
-          <p className="text-sm text-zinc-400 mb-4">
-            Complete verification to receive payouts. All sensitive data is securely handled by Stripe.
-          </p>
-          <ConnectAccountOnboarding
-            onExit={() => {
-              console.log('Onboarding exited');
-            }}
-          />
-        </div>
+        {showOnboarding ? (
+          <div className="bg-black border border-zinc-800 p-6">
+            <h2 className="text-lg font-semibold text-white mb-2">Account Setup</h2>
+            <p className="text-sm text-zinc-400 mb-4">
+              Complete verification to receive payouts. All sensitive data is securely handled by Stripe.
+            </p>
+            <ConnectAccountOnboarding onExit={() => {}} />
+          </div>
+        ) : null}
 
-        {/* Account Management */}
         <div className="bg-black border border-zinc-800 p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Bank Account</h2>
-          <p className="text-sm text-zinc-400 mb-4">
-            Manage your bank account used for payouts.
-          </p>
+          <p className="text-sm text-zinc-400 mb-4">Manage your bank account used for payouts.</p>
           <ConnectAccountManagement
-            collectionOptions={{
-              fields: 'eventually_due',
-              futureRequirements: 'include',
-            }}
+            collectionOptions={{ fields: 'eventually_due', futureRequirements: 'include' }}
           />
         </div>
 
-        {/* Balance */}
         <div className="bg-black border border-zinc-800 p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Balance</h2>
           <p className="text-sm text-zinc-400 mb-4">
@@ -188,7 +104,6 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
           <ConnectBalances />
         </div>
 
-        {/* Payments & Refunds */}
         <div className="bg-black border border-zinc-800 p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Payments & Refunds</h2>
           <p className="text-sm text-zinc-400 mb-4">
@@ -197,7 +112,6 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
           <ConnectPayments />
         </div>
 
-        {/* Payouts */}
         <div className="bg-black border border-zinc-800 p-6">
           <h2 className="text-lg font-semibold text-white mb-2">Payout History</h2>
           <div className="mb-4 p-3 bg-zinc-900 border border-zinc-800">
@@ -212,11 +126,7 @@ export function EmbeddedAccount({ publishableKey }: EmbeddedAccountProps) {
           <ConnectPayouts />
         </div>
 
-        {accountId && (
-          <div className="text-xs text-zinc-600 font-mono">
-            Account ID: {accountId}
-          </div>
-        )}
+        {accountId && <div className="text-xs text-zinc-600 font-mono">Account ID: {accountId}</div>}
       </div>
     </ConnectComponentsProvider>
   );
