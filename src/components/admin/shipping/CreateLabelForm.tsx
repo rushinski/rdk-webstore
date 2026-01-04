@@ -3,6 +3,12 @@
 
 import { useState, useEffect } from 'react';
 
+const getPrimaryImage = (item: any) => {
+    const images = item.product?.images ?? [];
+    const primary = images.find((img: any) => img.is_primary) ?? images[0];
+    return primary?.url ?? '/images/boxes.png';
+};
+
 export function CreateLabelForm({ order, onSuccess }: { order: any, onSuccess: () => void }) {
     
     const [weight, setWeight] = useState(16);
@@ -110,13 +116,31 @@ export function CreateLabelForm({ order, onSuccess }: { order: any, onSuccess: (
         <div className="space-y-6">
             <div>
                 <h3 className="text-lg font-medium text-white">Order #{order.id.slice(0, 8)}</h3>
-                <ul className="text-sm text-gray-400 list-disc list-inside">
-                    {order.items?.map((item: any) => (
-                        <li key={item.id}>
-                            {item.quantity}x {item.product?.name} ({item.variant?.size_label})
-                        </li>
-                    ))}
-                </ul>
+                <div className="mt-3 space-y-3">
+                    {order.items?.map((item: any) => {
+                        const imageUrl = getPrimaryImage(item);
+                        const title =
+                            (item.product?.title_display ??
+                                `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
+                            'Item';
+                        return (
+                            <div key={item.id} className="flex items-center gap-3">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={imageUrl}
+                                    alt={title}
+                                    className="h-12 w-12 object-cover border border-zinc-800/70 bg-black"
+                                />
+                                <div className="min-w-0">
+                                    <p className="text-sm text-white truncate">{title}</p>
+                                    <p className="text-xs text-gray-400">
+                                        Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
             <div className="border-t border-zinc-800/70 pt-6">

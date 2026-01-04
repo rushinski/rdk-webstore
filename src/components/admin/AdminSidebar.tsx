@@ -11,7 +11,6 @@ import {
   Package,
   Truck,
   BarChart3,
-  DollarSign,
   Settings,
   MessageCircle,
   Globe,
@@ -36,7 +35,8 @@ type NavGroupItem = {
   type: "group";
   label: string;
   icon: any;
-  baseHref: string;
+  groupKey: "analytics" | "orders";
+  isActive: (pathname: string) => boolean;
   children: Array<{ href: string; label: string }>;
 };
 
@@ -48,15 +48,26 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     type: "group",
     label: "Analytics",
     icon: BarChart3,
-    baseHref: "/admin/analytics",
+    groupKey: "analytics",
+    isActive: (pathname: string) => pathname.startsWith("/admin/analytics"),
     children: [
       { href: "/admin/analytics/traffic", label: "Traffic" },
       { href: "/admin/analytics/financials", label: "Financials" },
     ],
   },
-  { type: "link", href: "/admin/sales", label: "Sales", icon: DollarSign },
+  {
+    type: "group",
+    label: "Orders",
+    icon: Truck,
+    groupKey: "orders",
+    isActive: (pathname: string) =>
+      pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping"),
+    children: [
+      { href: "/admin/sales", label: "Sales" },
+      { href: "/admin/shipping", label: "Shipping" },
+    ],
+  },
   { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
-  { type: "link", href: "/admin/shipping", label: "Shipping", icon: Truck },
   { type: "link", href: "/admin/catalog", label: "Catalog", icon: Package },
   { type: "link", href: "/admin/settings", label: "Settings", icon: Settings },
 ];
@@ -70,7 +81,8 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname();
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
-  const [analyticsOpen, setAnalyticsOpen] = useState<boolean>(false);
+  const ordersActive = pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping");
+  const [openGroups, setOpenGroups] = useState({ analytics: false, orders: false });
 
   const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
 
@@ -98,10 +110,15 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     return () => window.removeEventListener('adminNotificationsUpdated', onUpdated);
   }, []);
 
-  // Auto-open group when you’re inside it
+  // Auto-open group when you're inside it
   useEffect(() => {
-    if (analyticsActive) setAnalyticsOpen(true);
-  }, [analyticsActive]);
+    if (analyticsActive) {
+      setOpenGroups((prev) => ({ ...prev, analytics: true }));
+    }
+    if (ordersActive) {
+      setOpenGroups((prev) => ({ ...prev, orders: true }));
+    }
+  }, [analyticsActive, ordersActive]);
 
   useEffect(() => {
     let isActive = true;
@@ -249,19 +266,25 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
 
               // group
               const Icon = item.icon;
-              const isGroupActive = pathname.startsWith(item.baseHref);
-              const Chevron = analyticsOpen ? ChevronDown : ChevronRight;
+              const isGroupActive = item.isActive(pathname);
+              const isOpen = openGroups[item.groupKey];
+              const Chevron = isOpen ? ChevronDown : ChevronRight;
 
               return (
-                <div key={item.baseHref} className="space-y-1">
+                <div key={item.label} className="space-y-1">
                   <button
                     type="button"
-                    onClick={() => setAnalyticsOpen((v) => !v)}
+                    onClick={() =>
+                      setOpenGroups((prev) => ({
+                        ...prev,
+                        [item.groupKey]: !prev[item.groupKey],
+                      }))
+                    }
                     className={`${baseItemClass} w-full justify-between ${
                       isGroupActive ? activeItemClass : inactiveItemClass
                     }`}
-                    aria-expanded={analyticsOpen}
-                    aria-controls="admin-analytics-subnav"
+                    aria-expanded={isOpen}
+                    aria-controls={`admin-${item.groupKey}-subnav`}
                   >
                     <span className="flex items-center gap-3">
                       <Icon className="w-5 h-5" />
@@ -270,9 +293,9 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                     <Chevron className="w-4 h-4 opacity-80" />
                   </button>
 
-                  {analyticsOpen && (
+                  {isOpen && (
                     <div
-                      id="admin-analytics-subnav"
+                      id={`admin-${item.groupKey}-subnav`}
                       className="ml-4 border-l border-zinc-800/70 pl-3 space-y-1"
                     >
                       {item.children.map((child) => {
