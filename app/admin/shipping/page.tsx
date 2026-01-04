@@ -27,13 +27,6 @@ const TABS: Array<{ key: TabKey; label: string; status: string }> = [
   { key: 'delivered', label: 'Delivered', status: 'delivered' },
 ];
 
-const STATUS_LABELS: Record<string, string> = {
-  unfulfilled: 'Review & Create Label',
-  ready_to_ship: 'Need to Ship',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
-};
-
 const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null) => {
   if (!trackingNumber) return null;
   const normalized = (carrier ?? '').toLowerCase();
@@ -306,7 +299,7 @@ export default function ShippingPage() {
     );
   };
 
-  const renderOrderCard = (order: any) => {
+  const renderOrderRow = (order: any) => {
     const itemCount = (order.items ?? []).reduce(
       (sum: number, item: any) => sum + Number(item.quantity ?? 0),
       0
@@ -318,122 +311,117 @@ export default function ShippingPage() {
     const customerHandle = getCustomerHandle(order);
     const isExpanded = selectedOrderId === order.id;
     const itemsExpanded = expandedItems[order.id] ?? false;
-    const status = order.fulfillment_status ?? 'unfulfilled';
-    const statusLabel = STATUS_LABELS[status] ?? status;
+    const colSpan = 7;
 
     return (
       <Fragment key={order.id}>
-        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <div className="text-white font-semibold">#{order.id.slice(0, 8)}</div>
-              <div className="text-zinc-400">{customerHandle}</div>
-              <div className="text-zinc-500">
-                {placedAt.date}
-                {placedAt.time ? ` - ${placedAt.time}` : ''}
+        <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
+          <td className="p-4 text-gray-400">
+            {placedAt.date !== '-' ? (
+              <div className="space-y-1">
+                <div>{placedAt.date}</div>
+                {placedAt.time && <div className="text-xs text-gray-500">{placedAt.time}</div>}
               </div>
-              <div className="text-zinc-400">{statusLabel}</div>
-            </div>
-            <div className="flex items-center gap-3 text-sm">
-              {activeTab === 'label' && (
-                <button
-                  onClick={() => toggleOrder(order.id)}
-                  className="text-sm text-red-400 hover:text-red-300"
+            ) : (
+              '-'
+            )}
+          </td>
+          <td className="p-4 text-white">#{order.id.slice(0, 8)}</td>
+          <td className="p-4 text-gray-400">{customerHandle}</td>
+          <td className="p-4 text-gray-400 max-w-[320px] truncate">
+            {addressLine ? addressLine : <span className="text-red-400">Missing address</span>}
+          </td>
+          <td className="p-4 text-gray-400">
+            {order.tracking_number ? (
+              trackingUrl ? (
+                <a
+                  href={trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-400 hover:text-red-300"
                 >
-                  {isExpanded ? 'Close' : 'Create Label'}
-                </button>
-              )}
-              {activeTab === 'ready' && (
-                <button
-                  onClick={() => handleMarkShipped(order)}
-                  disabled={markingShippedId === order.id}
-                  className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
-                >
-                  {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div className="min-w-[220px] flex-1 text-zinc-400">
-              <span className="text-zinc-500">Destination:</span>{' '}
-              {addressLine ? (
-                <span className="text-zinc-200">{addressLine}</span>
+                  {order.tracking_number}
+                </a>
               ) : (
-                <span className="text-red-400">Missing shipping address</span>
-              )}
-            </div>
-            <div className="text-zinc-400">
-              <span className="text-zinc-500">Tracking:</span>{' '}
-              {order.tracking_number ? (
-                trackingUrl ? (
-                  <a
-                    href={trackingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    {order.tracking_number}
-                  </a>
-                ) : (
-                  <span className="text-zinc-300">{order.tracking_number}</span>
-                )
-              ) : (
-                <span className="text-zinc-500">No label yet</span>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3">
+                <span className="text-zinc-300">{order.tracking_number}</span>
+              )
+            ) : (
+              <span className="text-zinc-500">No label yet</span>
+            )}
+          </td>
+          <td className="p-4 text-right">
             <button
               type="button"
               onClick={() => toggleItems(order.id)}
-              className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300"
+              className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-2"
             >
-              <span>{itemsExpanded ? 'Hide items' : `View items (${itemCount})`}</span>
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`}
-              />
+              {itemsExpanded ? 'Hide items' : `View items (${itemCount})`}
+              <ChevronDown className={`h-4 w-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`} />
             </button>
-          </div>
+          </td>
+          <td className="p-4 text-right">
+            {activeTab === 'label' ? (
+              <button
+                onClick={() => toggleOrder(order.id)}
+                className="text-sm text-red-400 hover:text-red-300"
+              >
+                {isExpanded ? 'Close' : 'Create label'}
+              </button>
+            ) : activeTab === 'ready' ? (
+              <button
+                onClick={() => handleMarkShipped(order)}
+                disabled={markingShippedId === order.id}
+                className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
+              >
+                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
+              </button>
+            ) : (
+              <span className="text-zinc-500">-</span>
+            )}
+          </td>
+        </tr>
 
-          {itemsExpanded && (
-            <div className="mt-3 space-y-3">
-              {(order.items ?? []).map((item: any) => {
-                const imageUrl = getPrimaryImage(item);
-                const title =
-                  (item.product?.title_display ??
-                    `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
-                  'Item';
-                return (
-                  <div key={item.id} className="flex items-center gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imageUrl}
-                      alt={title}
-                      className="h-10 w-10 object-cover border border-zinc-800/70 bg-black"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm text-white truncate">{title}</div>
-                      <div className="text-xs text-zinc-500">
-                        Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+        {itemsExpanded && (
+          <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
+            <td colSpan={colSpan} className="px-4 pb-4 pt-2">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(order.items ?? []).map((item: any) => {
+                  const imageUrl = getPrimaryImage(item);
+                  const title =
+                    (item.product?.title_display ??
+                      `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
+                    'Item';
+                  return (
+                    <div key={item.id} className="flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageUrl}
+                        alt={title}
+                        className="h-10 w-10 object-cover border border-zinc-800/70 bg-black"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-sm text-white truncate">{title}</div>
+                        <div className="text-xs text-zinc-500">
+                          Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            </td>
+          </tr>
+        )}
 
         {activeTab === 'label' && isExpanded && (
-          <div className="mt-4 rounded-sm border border-zinc-800/70 bg-zinc-950 p-5">
-            <CreateLabelForm
-              order={order}
-              onSuccess={() => setRefreshToken((t) => t + 1)}
-            />
-          </div>
+          <tr className="border-b border-zinc-800/70 bg-zinc-950/70">
+            <td colSpan={colSpan} className="p-5">
+              <CreateLabelForm
+                order={order}
+                onSuccess={() => setRefreshToken((t) => t + 1)}
+              />
+            </td>
+          </tr>
         )}
       </Fragment>
     );
@@ -477,8 +465,35 @@ export default function ShippingPage() {
           No orders in this queue.
         </div>
       ) : (
-        <div className="space-y-6">
-          {orders.map((order) => renderOrderCard(order))}
+        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 overflow-x-auto overflow-y-visible">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-zinc-800">
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Placed At
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Order
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Customer
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Destination
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Tracking
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
+                  Items
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
+                  Action
+                </th>
+              </tr>
+            </thead>
+            <tbody>{orders.map((order) => renderOrderRow(order))}</tbody>
+          </table>
         </div>
       )}
 

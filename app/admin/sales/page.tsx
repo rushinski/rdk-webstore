@@ -7,14 +7,22 @@ import { logError } from '@/lib/log';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Toast } from '@/components/ui/Toast';
 
+type TabKey = 'paid' | 'refunded';
+
+const SALES_TABS: Array<{ key: TabKey; label: string; statuses: string[] }> = [
+  { key: 'paid', label: 'Paid', statuses: ['paid', 'shipped'] },
+  { key: 'refunded', label: 'Refunded', statuses: ['refunded', 'refund_pending', 'refund_failed'] },
+];
+
 export default function SalesPage() {
   const [orders, setOrders] = useState<any[]>([]);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState<TabKey>('paid');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefundMode, setIsRefundMode] = useState(false);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [counts, setCounts] = useState<Record<TabKey, number>>({ paid: 0, refunded: 0 });
   const [refreshToken, setRefreshToken] = useState(0);
   const [pendingRefundId, setPendingRefundId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
@@ -28,7 +36,7 @@ export default function SalesPage() {
     setPage(1);
     setSelectedOrderId(null);
     setIsRefundMode(false);
-  }, [statusFilter]);
+  }, [activeTab]);
 
   useEffect(() => {
     setSelectedOrderId(null);
@@ -39,12 +47,9 @@ export default function SalesPage() {
     const loadOrders = async () => {
       setIsLoading(true);
       try {
+        const tab = SALES_TABS.find((entry) => entry.key === activeTab) ?? SALES_TABS[0];
         const params = new URLSearchParams();
-        const statusValues =
-          statusFilter === 'all'
-            ? ['paid', 'shipped', 'refunded', 'refund_pending', 'refund_failed']
-            : [statusFilter];
-        statusValues.forEach((status) => params.append('status', status));
+        tab.statuses.forEach((status) => params.append('status', status));
         params.set('limit', String(PAGE_SIZE));
         params.set('page', String(page));
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
@@ -59,7 +64,36 @@ export default function SalesPage() {
     };
 
     loadOrders();
-  }, [statusFilter, refreshToken, page]);
+  }, [activeTab, refreshToken, page]);
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const results = await Promise.all(
+          SALES_TABS.map(async (tab) => {
+            const params = new URLSearchParams();
+            tab.statuses.forEach((status) => params.append('status', status));
+            params.set('limit', '1');
+            params.set('page', '1');
+            const response = await fetch(`/api/admin/orders?${params.toString()}`);
+            const data = await response.json();
+            return { key: tab.key, count: Number(data.count ?? 0) };
+          })
+        );
+
+        const nextCounts: Record<TabKey, number> = { paid: 0, refunded: 0 };
+        results.forEach((result) => {
+          nextCounts[result.key] = result.count;
+        });
+        setCounts(nextCounts);
+      } catch (error) {
+        logError(error, { layer: 'frontend', event: 'admin_load_sales_counts' });
+      }
+    };
+
+    loadCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -146,11 +180,13 @@ export default function SalesPage() {
         body: JSON.stringify({}),
       });
 
-      if (response.ok) {
+      const data = await response.json().catch(() => ({}));
+
+      if (response.ok && data?.success !== false) {
         setToast({ message: 'Order refunded.', tone: 'success' });
         setRefreshToken((prev) => prev + 1);
       } else {
-        setToast({ message: 'Refund failed.', tone: 'error' });
+        setToast({ message: data?.error ?? 'Refund failed.', tone: 'error' });
       }
     } catch (error) {
       setToast({ message: 'Refund failed.', tone: 'error' });
@@ -166,9 +202,9 @@ export default function SalesPage() {
     setSelectedOrderId(null);
   };
 
-  const hasRefundableOrders = orders.some(
-    (order) => order.status === 'paid' || order.status === 'shipped'
-  );
+  const hasRefundableOrders =
+    activeTab === 'paid' &&
+    orders.some((order) => order.status === 'paid' || order.status === 'shipped');
 
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -276,19 +312,26 @@ export default function SalesPage() {
               Refund
             </button>
           )}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-zinc-900 text-white px-4 py-2 rounded border border-zinc-800/70 text-sm"
-          >
-            <option value="all">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="shipped">Shipped</option>
-            <option value="refunded">Refunded</option>
-            <option value="refund_pending">Refund pending</option>
-            <option value="refund_failed">Refund failed</option>
-          </select>
         </div>
+      </div>
+
+      <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
+        {SALES_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === tab.key
+                ? 'text-white border-b-2 border-red-600'
+                : 'text-gray-400 hover:text-white border-b-2 border-transparent'
+            }`}
+          >
+            {tab.label}
+            <span className="text-[11px] px-2 py-0.5 rounded-sm bg-zinc-900 border border-zinc-800/70 text-gray-300">
+              {counts[tab.key] > 99 ? '99+' : counts[tab.key]}
+            </span>
+          </button>
+        ))}
       </div>
 
       <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 max-w-md">
@@ -338,7 +381,6 @@ export default function SalesPage() {
                 <th className="text-left text-gray-400 font-semibold p-4">Fulfillment</th>
                 <th className="text-right text-gray-400 font-semibold p-4">Amount</th>
                 <th className="text-right text-gray-400 font-semibold p-4">Profit</th>
-                <th className="text-center text-gray-400 font-semibold p-4">Status</th>
                 <th className="text-right text-gray-400 font-semibold p-4">Items</th>
               </tr>
             </thead>
@@ -357,7 +399,7 @@ export default function SalesPage() {
                 const customerEmail = getCustomerEmail(order);
                 const fulfillmentLabel = order.fulfillment === 'pickup' ? 'Pickup' : 'Ship';
                 const itemsExpanded = expandedOrders[order.id] ?? false;
-                const colSpan = isRefundMode ? 10 : 9;
+                const colSpan = isRefundMode ? 9 : 8;
 
                 return (
                   <Fragment key={order.id}>
@@ -395,17 +437,6 @@ export default function SalesPage() {
                       <td className="p-4 text-gray-400">{fulfillmentLabel}</td>
                       <td className="p-4 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
                       <td className="p-4 text-right text-green-400">+${profit.toFixed(2)}</td>
-                      <td className="p-4 text-center">
-                        <span className={`inline-block px-3 py-1 rounded text-xs font-semibold ${
-                          status === 'paid' || status === 'shipped' ? 'bg-green-900/20 text-green-400' :
-                          status === 'refund_pending' ? 'bg-yellow-900/20 text-yellow-400' :
-                          status === 'refund_failed' ? 'bg-red-900/20 text-red-400' :
-                          status === 'refunded' ? 'bg-zinc-800 text-zinc-200' :
-                          'bg-zinc-800 text-zinc-200'
-                        }`}>
-                          {status}
-                        </span>
-                      </td>
                       <td className="p-4 text-right">
                         <button
                           type="button"

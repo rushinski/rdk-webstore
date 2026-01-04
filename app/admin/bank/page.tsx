@@ -163,7 +163,7 @@ export default function BankPage() {
             ? 'Your information was submitted. Stripe may be reviewing it.'
             : statusLabel === 'Setup Required'
             ? 'Finish setup to enable payouts.'
-            : 'Click “Setup Account” to begin.'}
+            : "Click 'Setup Account' to begin."}
         </p>
       </div>
 
@@ -236,7 +236,6 @@ export default function BankPage() {
           </div>
           <ul className="list-disc list-inside space-y-1 text-xs text-zinc-500">
             <li>Stripe processing fees are deducted from every charge.</li>
-            <li>Fees are not refunded when issuing refunds.</li>
             <li>Payout timing depends on your Stripe settings.</li>
           </ul>
         </div>

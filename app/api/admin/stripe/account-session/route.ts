@@ -117,14 +117,6 @@ export async function POST(request: NextRequest) {
             standard_payouts: true,     // Standard payouts only (free)
           },
         },
-        payments: {
-          enabled: true,
-          features: {
-            capture_payments: true,
-            dispute_management: true,
-            refund_management: true,
-          },
-        },
       },
     });
 
