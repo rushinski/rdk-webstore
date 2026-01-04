@@ -1,7 +1,8 @@
 // app/admin/shipping/page.tsx
 'use client';
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { CreateLabelForm } from '@/components/admin/shipping/CreateLabelForm';
 
@@ -13,6 +14,24 @@ type ShippingAddress = {
   state?: string | null;
   postal_code?: string | null;
   country?: string | null;
+};
+
+type TabKey = 'label' | 'ready' | 'shipped' | 'delivered';
+
+const PAGE_SIZE = 8;
+
+const TABS: Array<{ key: TabKey; label: string; status: string }> = [
+  { key: 'label', label: 'Review & Create Label', status: 'unfulfilled' },
+  { key: 'ready', label: 'Need to Ship', status: 'ready_to_ship' },
+  { key: 'shipped', label: 'Shipped', status: 'shipped' },
+  { key: 'delivered', label: 'Delivered', status: 'delivered' },
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  unfulfilled: 'Review & Create Label',
+  ready_to_ship: 'Need to Ship',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
 };
 
 const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null) => {
@@ -85,18 +104,72 @@ const getPrimaryImage = (item: any) => {
 };
 
 export default function ShippingPage() {
+  const [activeTab, setActiveTab] = useState<TabKey>('label');
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [pageByTab, setPageByTab] = useState<Record<TabKey, number>>({
+    label: 1,
+    ready: 1,
+    shipped: 1,
+    delivered: 1,
+  });
+  const [counts, setCounts] = useState<Record<TabKey, number>>({
+    label: 0,
+    ready: 0,
+    shipped: 0,
+    delivered: 0,
+  });
   const [refreshToken, setRefreshToken] = useState(0);
+  const [markingShippedId, setMarkingShippedId] = useState<string | null>(null);
+
+  const currentPage = pageByTab[activeTab];
+  const activeCount = counts[activeTab] ?? 0;
+  const totalPages = Math.max(1, Math.ceil(activeCount / PAGE_SIZE));
+
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const results = await Promise.all(
+          TABS.map(async (tab) => {
+            const params = new URLSearchParams({
+              fulfillment: 'ship',
+              fulfillmentStatus: tab.status,
+              limit: '1',
+              page: '1',
+            });
+            const response = await fetch(`/api/admin/orders?${params.toString()}`);
+            const data = await response.json();
+            return { key: tab.key, count: Number(data.count ?? 0) };
+          })
+        );
+
+        const nextCounts = { ...counts };
+        results.forEach((result) => {
+          nextCounts[result.key] = result.count;
+        });
+        setCounts(nextCounts);
+      } catch (error) {
+        logError(error, { layer: 'frontend', event: 'admin_load_shipping_counts' });
+      }
+    };
+
+    loadCounts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshToken]);
 
   useEffect(() => {
     const loadOrders = async () => {
       setIsLoading(true);
       setSelectedOrderId(null);
       try {
+        const tab = TABS.find((entry) => entry.key === activeTab) ?? TABS[0];
         const params = new URLSearchParams({
           fulfillment: 'ship',
+          fulfillmentStatus: tab.status,
+          limit: String(PAGE_SIZE),
+          page: String(currentPage),
         });
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
         if (!response.ok) {
@@ -104,6 +177,9 @@ export default function ShippingPage() {
         }
         const data = await response.json();
         setOrders(data.orders || []);
+        if (typeof data.count === 'number') {
+          setCounts((prev) => ({ ...prev, [activeTab]: data.count }));
+        }
       } catch (error) {
         logError(error, { layer: 'frontend', event: 'admin_load_shipping_orders' });
         setOrders([]);
@@ -113,41 +189,124 @@ export default function ShippingPage() {
     };
 
     loadOrders();
-  }, [refreshToken]);
+  }, [activeTab, currentPage, refreshToken]);
 
-  const { approvalNeeded, labelCreation, needToShip } = useMemo(() => {
-    const buckets = {
-      approvalNeeded: [] as any[],
-      labelCreation: [] as any[],
-      needToShip: [] as any[],
-    };
-
-    orders.forEach((order) => {
-      const address = resolveShippingAddress(order.shipping);
-      const addressValid = Boolean(address?.line1 && address?.city && address?.postal_code);
-      const hasLabel = Boolean(order.tracking_number);
-      const status = (order.fulfillment_status ?? 'unfulfilled') as string;
-      const isDelivered = status === 'delivered';
-
-      if (isDelivered) return;
-
-      if (!addressValid) {
-        buckets.approvalNeeded.push(order);
-      } else if (!hasLabel) {
-        buckets.labelCreation.push(order);
-      } else {
-        buckets.needToShip.push(order);
-      }
-    });
-
-    return buckets;
-  }, [orders]);
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setPageByTab((prev) => ({ ...prev, [activeTab]: totalPages }));
+    }
+  }, [currentPage, totalPages, activeTab]);
 
   const toggleOrder = (orderId: string) => {
+    if (activeTab !== 'label') return;
     setSelectedOrderId((prev) => (prev === orderId ? null : orderId));
   };
 
-  const renderOrderCard = (order: any, options?: { allowLabel?: boolean }) => {
+  const toggleItems = (orderId: string) => {
+    setExpandedItems((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const handleMarkShipped = async (order: any) => {
+    setMarkingShippedId(order.id);
+    try {
+      const response = await fetch(`/api/admin/orders/${order.id}/fulfill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          carrier: order.shipping_carrier ?? null,
+          trackingNumber: order.tracking_number ?? null,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to mark as shipped');
+      }
+      setRefreshToken((token) => token + 1);
+    } catch (error) {
+      logError(error, { layer: 'frontend', event: 'admin_mark_shipped' });
+    } finally {
+      setMarkingShippedId(null);
+    }
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pages: number[] = [];
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setPageByTab((prev) => ({ ...prev, [activeTab]: Math.max(1, currentPage - 1) }))
+          }
+          disabled={currentPage === 1}
+          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+        >
+          Previous
+        </button>
+
+        {start > 1 && (
+          <button
+            type="button"
+            onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: 1 }))}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+          >
+            1
+          </button>
+        )}
+        {start > 2 && <span className="text-gray-500">...</span>}
+
+        {pages.map((page) => (
+          <button
+            key={page}
+            type="button"
+            onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: page }))}
+            className={`px-3 py-2 rounded-sm border text-sm ${
+              page === currentPage
+                ? 'border-red-600 text-white'
+                : 'border-zinc-800/70 text-gray-300'
+            }`}
+          >
+            {page}
+          </button>
+        ))}
+
+        {end < totalPages - 1 && <span className="text-gray-500">...</span>}
+        {end < totalPages && (
+          <button
+            type="button"
+            onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: totalPages }))}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+          >
+            {totalPages}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() =>
+            setPageByTab((prev) => ({
+              ...prev,
+              [activeTab]: Math.min(totalPages, currentPage + 1),
+            }))
+          }
+          disabled={currentPage === totalPages}
+          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+        >
+          Next
+        </button>
+      </div>
+    );
+  };
+
+  const renderOrderCard = (order: any) => {
     const itemCount = (order.items ?? []).reduce(
       (sum: number, item: any) => sum + Number(item.quantity ?? 0),
       0
@@ -158,6 +317,9 @@ export default function ShippingPage() {
     const placedAt = formatPlacedAt(order.created_at);
     const customerHandle = getCustomerHandle(order);
     const isExpanded = selectedOrderId === order.id;
+    const itemsExpanded = expandedItems[order.id] ?? false;
+    const status = order.fulfillment_status ?? 'unfulfilled';
+    const statusLabel = STATUS_LABELS[status] ?? status;
 
     return (
       <Fragment key={order.id}>
@@ -177,41 +339,50 @@ export default function ShippingPage() {
               <div className="text-white text-sm">{customerHandle}</div>
             </div>
             <div className="space-y-1 text-right">
-              <div className="text-xs text-zinc-500 uppercase tracking-widest">Items</div>
-              <div className="text-white text-sm">
-                {itemCount} {itemCount === 1 ? 'item' : 'items'}
-              </div>
+              <div className="text-xs text-zinc-500 uppercase tracking-widest">Status</div>
+              <div className="text-sm text-gray-300">{statusLabel}</div>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div>
-              <div className="text-xs text-zinc-500 uppercase tracking-widest mb-3">Order Items</div>
-              <div className="space-y-3">
-                {(order.items ?? []).map((item: any) => {
-                  const imageUrl = getPrimaryImage(item);
-                  const title =
-                    (item.product?.title_display ??
-                      `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
-                    'Item';
-                  return (
-                    <div key={item.id} className="flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={imageUrl}
-                        alt={title}
-                        className="h-12 w-12 object-cover border border-zinc-800/70 bg-black"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-sm text-white truncate">{title}</div>
-                        <div className="text-xs text-zinc-500">
-                          Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+          <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => toggleItems(order.id)}
+                className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300"
+              >
+                <span>{itemsExpanded ? 'Hide items' : `View items (${itemCount})`}</span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {itemsExpanded && (
+                <div className="space-y-3">
+                  {(order.items ?? []).map((item: any) => {
+                    const imageUrl = getPrimaryImage(item);
+                    const title =
+                      (item.product?.title_display ??
+                        `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
+                      'Item';
+                    return (
+                      <div key={item.id} className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageUrl}
+                          alt={title}
+                          className="h-12 w-12 object-cover border border-zinc-800/70 bg-black"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-sm text-white truncate">{title}</div>
+                          <div className="text-xs text-zinc-500">
+                            Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -245,7 +416,7 @@ export default function ShippingPage() {
             </div>
           </div>
 
-          {options?.allowLabel ? (
+          {activeTab === 'label' && (
             <div className="mt-5 flex justify-end">
               <button
                 onClick={() => toggleOrder(order.id)}
@@ -254,10 +425,22 @@ export default function ShippingPage() {
                 {isExpanded ? 'Close' : 'Create Label'}
               </button>
             </div>
-          ) : null}
+          )}
+
+          {activeTab === 'ready' && (
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => handleMarkShipped(order)}
+                disabled={markingShippedId === order.id}
+                className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
+              >
+                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
+              </button>
+            </div>
+          )}
         </div>
 
-        {options?.allowLabel && isExpanded && (
+        {activeTab === 'label' && isExpanded && (
           <div className="mt-4 rounded-sm border border-zinc-800/70 bg-zinc-950 p-5">
             <CreateLabelForm
               order={order}
@@ -269,63 +452,50 @@ export default function ShippingPage() {
     );
   };
 
-  const renderSection = (
-    title: string,
-    subtitle: string,
-    ordersList: any[],
-    options?: { allowLabel?: boolean }
-  ) => {
-    return (
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
-            <p className="text-xs text-zinc-500">{subtitle}</p>
-          </div>
-          <span className="text-sm text-zinc-400">{ordersList.length} orders</span>
-        </div>
-        {ordersList.length === 0 ? (
-          <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 p-6 text-sm text-zinc-500">
-            No orders in this queue.
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {ordersList.map((order) => renderOrderCard(order, options))}
-          </div>
-        )}
-      </section>
-    );
+  const tabBadge = (count: number) => {
+    if (count > 99) return '99+';
+    return String(count);
   };
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Shipping</h1>
-        <p className="text-gray-400">Review, approve, and ship your orders.</p>
+        <p className="text-gray-400">Review, label, and ship your orders.</p>
+      </div>
+
+      <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
+        {TABS.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+              activeTab === tab.key
+                ? 'text-white border-b-2 border-red-600'
+                : 'text-gray-400 hover:text-white border-b-2 border-transparent'
+            }`}
+          >
+            {tab.label}
+            <span className="text-[11px] px-2 py-0.5 rounded-sm bg-zinc-900 border border-zinc-800/70 text-gray-300">
+              {tabBadge(counts[tab.key] ?? 0)}
+            </span>
+          </button>
+        ))}
       </div>
 
       {isLoading ? (
         <div className="text-center py-12 text-gray-400">Loading...</div>
+      ) : orders.length === 0 ? (
+        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 p-6 text-sm text-zinc-500">
+          No orders in this queue.
+        </div>
       ) : (
-        <div className="space-y-10">
-          {renderSection(
-            'Approval Needed',
-            'Orders missing shipping details or needing review.',
-            approvalNeeded
-          )}
-          {renderSection(
-            'Label Creation',
-            'Orders ready for label purchase and packaging.',
-            labelCreation,
-            { allowLabel: true }
-          )}
-          {renderSection(
-            'Need to Ship',
-            'Labels created. Packages ready to hand off.',
-            needToShip
-          )}
+        <div className="space-y-6">
+          {orders.map((order) => renderOrderCard(order))}
         </div>
       )}
+
+      {renderPagination()}
     </div>
   );
 }

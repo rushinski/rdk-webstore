@@ -122,7 +122,7 @@ export class AnalyticsService {
     filtered.forEach((order: any) => {
       orderCount += 1;
       const total = Number(order.total ?? 0);
-      const refundAmount = Number(order.refund_amount ?? 0);
+      const refundAmount = Number(order.refund_amount ?? 0) / 100;
 
       const itemCost = (order.items || []).reduce((sum: number, item: any) => {
         const unitCost = Number(item.unit_cost ?? 0);

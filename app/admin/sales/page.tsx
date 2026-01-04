@@ -12,11 +12,16 @@ export default function SalesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [refreshToken, setRefreshToken] = useState(0);
   const [pendingRefundId, setPendingRefundId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+
+  const PAGE_SIZE = 20;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -31,6 +36,15 @@ export default function SalesPage() {
   }, [openMenuId]);
 
   useEffect(() => {
+    setPage(1);
+    setSelectedOrderId(null);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    setSelectedOrderId(null);
+  }, [page]);
+
+  useEffect(() => {
     const loadOrders = async () => {
       setIsLoading(true);
       try {
@@ -38,9 +52,12 @@ export default function SalesPage() {
         if (statusFilter !== 'all') {
           params.append('status', statusFilter);
         }
+        params.set('limit', String(PAGE_SIZE));
+        params.set('page', String(page));
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
         const data = await response.json();
         setOrders(data.orders || []);
+        setTotalCount(Number(data.count ?? 0));
       } catch (error) {
         logError(error, { layer: "frontend", event: "admin_load_orders" });
       } finally {
@@ -49,7 +66,11 @@ export default function SalesPage() {
     };
 
     loadOrders();
-  }, [statusFilter, refreshToken]);
+  }, [statusFilter, refreshToken, page]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const getCustomerHandle = (order: any) => {
     const email = order.customer?.email ?? null;
@@ -69,7 +90,7 @@ export default function SalesPage() {
         totalSales += 1;
       }
       const total = Number(order.total ?? 0);
-      const refundAmount = Number(order.refund_amount ?? 0);
+      const refundAmount = Number(order.refund_amount ?? 0) / 100;
       revenue += total - refundAmount;
 
       const itemCost = (order.items || []).reduce((sum: number, item: any) => {
@@ -135,6 +156,75 @@ export default function SalesPage() {
     } catch (error) {
       setToast({ message: 'Refund failed.', tone: 'error' });
     }
+  };
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    const pages: number[] = [];
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, page + 2);
+
+    for (let p = start; p <= end; p += 1) {
+      pages.push(p);
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPage(Math.max(1, page - 1))}
+          disabled={page === 1}
+          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+        >
+          Previous
+        </button>
+
+        {start > 1 && (
+          <button
+            type="button"
+            onClick={() => setPage(1)}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+          >
+            1
+          </button>
+        )}
+        {start > 2 && <span className="text-gray-500">...</span>}
+
+        {pages.map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setPage(p)}
+            className={`px-3 py-2 rounded-sm border text-sm ${
+              p === page ? 'border-red-600 text-white' : 'border-zinc-800/70 text-gray-300'
+            }`}
+          >
+            {p}
+          </button>
+        ))}
+
+        {end < totalPages - 1 && <span className="text-gray-500">...</span>}
+        {end < totalPages && (
+          <button
+            type="button"
+            onClick={() => setPage(totalPages)}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+          >
+            {totalPages}
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setPage(Math.min(totalPages, page + 1))}
+          disabled={page === totalPages}
+          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+        >
+          Next
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -221,7 +311,7 @@ export default function SalesPage() {
                   const unitCost = Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100);
                   return sum + unitCost * Number(item.quantity ?? 0);
                 }, 0);
-                const refundAmount = Number(order.refund_amount ?? 0);
+                const refundAmount = Number(order.refund_amount ?? 0) / 100;
                 const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
                 const status = order.status ?? 'pending';
                 const canRefund = status === 'paid' || status === 'shipped';
@@ -232,11 +322,13 @@ export default function SalesPage() {
                   <tr key={order.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
                     <td className="p-4">
                       <input
-                        type="radio"
+                        type="checkbox"
                         name="refundOrder"
                         className="rdk-checkbox"
                         checked={selectedOrderId === order.id}
-                        onChange={() => setSelectedOrderId(order.id)}
+                        onChange={() =>
+                          setSelectedOrderId((prev) => (prev === order.id ? null : order.id))
+                        }
                         aria-label={`Select order ${order.id}`}
                       />
                     </td>
@@ -303,6 +395,8 @@ export default function SalesPage() {
           </table>
         )}
       </div>
+
+      {renderPagination()}
 
       <ConfirmDialog
         isOpen={Boolean(pendingRefundId)}

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         const purchasedShipment = await easyPostService.purchaseLabel(shipmentId, rateId);
 
         // Save the tracking number to the order
-        await ordersRepo.markFulfilled(orderId, {
+        await ordersRepo.markReadyToShip(orderId, {
             carrier: purchasedShipment.carrier,
             trackingNumber: purchasedShipment.tracking_code,
         });

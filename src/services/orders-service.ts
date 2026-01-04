@@ -58,6 +58,16 @@ export class OrdersService {
     return this.ordersRepo.listOrders(params);
   }
 
+  async listOrdersPaged(params?: {
+    status?: string[];
+    fulfillment?: string;
+    fulfillmentStatus?: string;
+    limit?: number;
+    page?: number;
+  }) {
+    return this.ordersRepo.listOrdersPaged(params);
+  }
+
   async markRefunded(orderId: string, amount: number) {
     return this.ordersRepo.markRefunded(orderId, amount);
   }

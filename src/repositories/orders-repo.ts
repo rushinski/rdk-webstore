@@ -241,6 +241,42 @@ export class OrdersRepository {
     return data ?? [];
   }
 
+  async listOrdersPaged(params?: {
+    status?: string[];
+    fulfillment?: string;
+    fulfillmentStatus?: string;
+    limit?: number;
+    page?: number;
+  }) {
+    let query = this.supabase
+      .from("orders")
+      .select(
+        "*, customer:profiles(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
+        { count: "exact" }
+      )
+      .order("created_at", { ascending: false });
+
+    if (params?.status?.length) {
+      query = query.in("status", params.status);
+    }
+    if (params?.fulfillment) {
+      query = query.eq("fulfillment", params.fulfillment);
+    }
+    if (params?.fulfillmentStatus) {
+      query = query.eq("fulfillment_status", params.fulfillmentStatus);
+    }
+    if (params?.limit) {
+      const page = Math.max(params.page ?? 1, 1);
+      const start = (page - 1) * params.limit;
+      const end = start + params.limit - 1;
+      query = query.range(start, end);
+    }
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { orders: data ?? [], count: count ?? 0 };
+  }
+
   async getOrderItemsDetailed(orderId: string) {
     const { data, error } = await this.supabase
       .from("order_items")
@@ -300,6 +336,26 @@ export class OrdersRepository {
         shipping_carrier: input.carrier ?? null,
         tracking_number: input.trackingNumber ?? null,
         shipped_at: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data as OrderRow;
+  }
+
+  async markReadyToShip(
+    orderId: string,
+    input: { carrier?: string | null; trackingNumber?: string | null }
+  ): Promise<OrderRow> {
+    const { data, error } = await this.supabase
+      .from("orders")
+      .update({
+        fulfillment_status: "ready_to_ship",
+        shipping_carrier: input.carrier ?? null,
+        tracking_number: input.trackingNumber ?? null,
+        shipped_at: null,
       })
       .eq("id", orderId)
       .select()
