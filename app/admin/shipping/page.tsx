@@ -16,9 +16,42 @@ type ShippingAddress = {
   country?: string | null;
 };
 
+type ShippingDefault = {
+  category: string;
+  shipping_cost_cents?: number | null;
+  default_weight_oz?: number | null;
+  default_length_in?: number | null;
+  default_width_in?: number | null;
+  default_height_in?: number | null;
+};
+
+type ShippingOrigin = {
+  name: string;
+  company?: string | null;
+  phone: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+};
+
 type TabKey = 'label' | 'ready' | 'shipped' | 'delivered';
 
 const PAGE_SIZE = 8;
+const DEFAULT_PACKAGE = { weight: 16, length: 12, width: 12, height: 12 };
+const EMPTY_ORIGIN: ShippingOrigin = {
+  name: '',
+  company: '',
+  phone: '',
+  line1: '',
+  line2: '',
+  city: '',
+  state: '',
+  postal_code: '',
+  country: 'US',
+};
 
 const TABS: Array<{ key: TabKey; label: string; status: string }> = [
   { key: 'label', label: 'Review & Create Label', status: 'unfulfilled' },
@@ -70,6 +103,23 @@ const formatAddress = (address: ShippingAddress | null) => {
   return parts.join(' - ');
 };
 
+const formatOriginAddress = (origin: ShippingOrigin | null) => {
+  if (!origin) return null;
+  const clean = (value?: string | null) => (value ?? '').trim();
+  const line1 = [clean(origin.line1), clean(origin.line2)].filter(Boolean).join(', ');
+  const line2 = [clean(origin.city), clean(origin.state), clean(origin.postal_code)]
+    .filter(Boolean)
+    .join(', ');
+  const parts = [
+    clean(origin.name),
+    clean(origin.company),
+    line1,
+    line2,
+    clean(origin.country),
+  ].filter(Boolean);
+  return parts.join(' - ');
+};
+
 const formatPlacedAt = (value?: string | null) => {
   if (!value) return { date: '-', time: '' };
   const date = new Date(value);
@@ -102,6 +152,7 @@ export default function ShippingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefault>>({});
   const [pageByTab, setPageByTab] = useState<Record<TabKey, number>>({
     label: 1,
     ready: 1,
@@ -116,10 +167,46 @@ export default function ShippingPage() {
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [markingShippedId, setMarkingShippedId] = useState<string | null>(null);
+  const [originAddress, setOriginAddress] = useState<ShippingOrigin | null>(null);
+  const [originModalOpen, setOriginModalOpen] = useState(false);
+  const [originMessage, setOriginMessage] = useState('');
+  const [originError, setOriginError] = useState('');
+  const [savingOrigin, setSavingOrigin] = useState(false);
 
   const currentPage = pageByTab[activeTab];
   const activeCount = counts[activeTab] ?? 0;
   const totalPages = Math.max(1, Math.ceil(activeCount / PAGE_SIZE));
+
+  const loadShippingDefaults = async () => {
+    try {
+      const response = await fetch('/api/admin/shipping/defaults', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Failed to load shipping defaults');
+      }
+      const data = await response.json();
+      const defaultsMap: Record<string, ShippingDefault> = {};
+      (data.defaults ?? []).forEach((entry: ShippingDefault) => {
+        defaultsMap[entry.category] = entry;
+      });
+      setShippingDefaults(defaultsMap);
+    } catch (error) {
+      logError(error, { layer: 'frontend', event: 'admin_load_shipping_defaults' });
+    }
+  };
+
+  const loadOriginAddress = async () => {
+    try {
+      const response = await fetch('/api/admin/shipping/origin', { cache: 'no-store' });
+      if (!response.ok) {
+        throw new Error('Failed to load shipping origin');
+      }
+      const data = await response.json();
+      setOriginAddress(data.origin ?? null);
+    } catch (error) {
+      logError(error, { layer: 'frontend', event: 'admin_load_shipping_origin' });
+      setOriginAddress(null);
+    }
+  };
 
   useEffect(() => {
     const loadCounts = async () => {
@@ -151,6 +238,20 @@ export default function ShippingPage() {
     loadCounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken]);
+
+  useEffect(() => {
+    loadShippingDefaults();
+    loadOriginAddress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!originModalOpen) return;
+    setOriginError('');
+    setOriginMessage('');
+    loadOriginAddress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [originModalOpen]);
 
   useEffect(() => {
     const loadOrders = async () => {
@@ -199,6 +300,52 @@ export default function ShippingPage() {
     setExpandedItems((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
+  const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+  const getPackageProfile = (order: any) => {
+    const items = order.items ?? [];
+    if (items.length === 0) {
+      return {
+        weight: DEFAULT_PACKAGE.weight,
+        length: DEFAULT_PACKAGE.length,
+        width: DEFAULT_PACKAGE.width,
+        height: DEFAULT_PACKAGE.height,
+        costCents: 0,
+      };
+    }
+
+    let totalWeight = 0;
+    let maxLength = 0;
+    let maxWidth = 0;
+    let maxHeight = 0;
+    let maxCost = 0;
+
+    items.forEach((item: any) => {
+      const quantity = Math.max(1, Number(item.quantity ?? 0));
+      const category = item.product?.category ?? null;
+      const defaults = category ? shippingDefaults[category] : null;
+      const weight = Number(defaults?.default_weight_oz ?? DEFAULT_PACKAGE.weight);
+      const length = Number(defaults?.default_length_in ?? DEFAULT_PACKAGE.length);
+      const width = Number(defaults?.default_width_in ?? DEFAULT_PACKAGE.width);
+      const height = Number(defaults?.default_height_in ?? DEFAULT_PACKAGE.height);
+      const cost = Number(defaults?.shipping_cost_cents ?? 0);
+
+      totalWeight += weight * quantity;
+      maxLength = Math.max(maxLength, length);
+      maxWidth = Math.max(maxWidth, width);
+      maxHeight = Math.max(maxHeight, height);
+      maxCost = Math.max(maxCost, cost);
+    });
+
+    return {
+      weight: totalWeight > 0 ? totalWeight : DEFAULT_PACKAGE.weight,
+      length: maxLength > 0 ? maxLength : DEFAULT_PACKAGE.length,
+      width: maxWidth > 0 ? maxWidth : DEFAULT_PACKAGE.width,
+      height: maxHeight > 0 ? maxHeight : DEFAULT_PACKAGE.height,
+      costCents: maxCost,
+    };
+  };
+
   const handleMarkShipped = async (order: any) => {
     setMarkingShippedId(order.id);
     try {
@@ -218,6 +365,38 @@ export default function ShippingPage() {
       logError(error, { layer: 'frontend', event: 'admin_mark_shipped' });
     } finally {
       setMarkingShippedId(null);
+    }
+  };
+
+  const handleOriginChange = (field: keyof ShippingOrigin, value: string) => {
+    setOriginAddress((prev) => ({
+      ...(prev ?? EMPTY_ORIGIN),
+      [field]: value,
+    }));
+  };
+
+  const handleSaveOrigin = async () => {
+    const payload = originAddress ?? EMPTY_ORIGIN;
+    setSavingOrigin(true);
+    setOriginError('');
+    setOriginMessage('');
+    try {
+      const response = await fetch('/api/admin/shipping/origin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || 'Failed to save origin');
+      }
+      setOriginAddress(data.origin ?? payload);
+      setOriginMessage('Origin address updated.');
+      setOriginModalOpen(false);
+    } catch (error: any) {
+      setOriginError(error?.message || 'Failed to save origin.');
+    } finally {
+      setSavingOrigin(false);
     }
   };
 
@@ -311,7 +490,11 @@ export default function ShippingPage() {
     const customerHandle = getCustomerHandle(order);
     const isExpanded = selectedOrderId === order.id;
     const itemsExpanded = expandedItems[order.id] ?? false;
-    const colSpan = 7;
+    const packageProfile = getPackageProfile(order);
+    const shippingLabel = packageProfile.costCents
+      ? `Standard (${formatCurrency(packageProfile.costCents)})`
+      : 'Standard';
+    const colSpan = 9;
 
     return (
       <Fragment key={order.id}>
@@ -331,6 +514,13 @@ export default function ShippingPage() {
           <td className="p-4 text-gray-400 max-w-[320px] truncate">
             {addressLine ? addressLine : <span className="text-red-400">Missing address</span>}
           </td>
+          <td className="p-4 text-gray-400">
+            <div>Wt {packageProfile.weight} oz</div>
+            <div className="text-xs text-gray-500">
+              {packageProfile.length} x {packageProfile.width} x {packageProfile.height} in
+            </div>
+          </td>
+          <td className="p-4 text-gray-400">{shippingLabel}</td>
           <td className="p-4 text-gray-400">
             {order.tracking_number ? (
               trackingUrl ? (
@@ -432,6 +622,8 @@ export default function ShippingPage() {
     return String(count);
   };
 
+  const originLine = formatOriginAddress(originAddress);
+
   return (
     <div className="space-y-8">
       <div>
@@ -458,6 +650,20 @@ export default function ShippingPage() {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <div className="text-gray-400">
+          <span className="text-gray-500">Origin:</span>{' '}
+          {originLine ? originLine : 'Not set'}
+        </div>
+        <button
+          type="button"
+          onClick={() => setOriginModalOpen(true)}
+          className="px-4 py-2 bg-zinc-900 text-white text-sm border border-zinc-800/70 hover:border-zinc-700"
+        >
+          Change origin address
+        </button>
+      </div>
+
       {isLoading ? (
         <div className="text-center py-12 text-gray-400">Loading...</div>
       ) : orders.length === 0 ? (
@@ -482,6 +688,12 @@ export default function ShippingPage() {
                   Destination
                 </th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Package
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                  Service
+                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
                   Tracking
                 </th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
@@ -498,6 +710,134 @@ export default function ShippingPage() {
       )}
 
       {renderPagination()}
+
+      {originModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-6">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Change origin address</h2>
+                <p className="text-sm text-zinc-400">Update the address used to create shipping labels.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOriginModalOpen(false)}
+                className="text-zinc-400 hover:text-white text-sm"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label className="block text-gray-400 mb-1">Name</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).name}
+                  onChange={(e) => handleOriginChange('name', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Company</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).company ?? ''}
+                  onChange={(e) => handleOriginChange('company', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Phone</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).phone}
+                  onChange={(e) => handleOriginChange('phone', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Line 1</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).line1}
+                  onChange={(e) => handleOriginChange('line1', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Line 2</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).line2 ?? ''}
+                  onChange={(e) => handleOriginChange('line2', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">City</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).city}
+                  onChange={(e) => handleOriginChange('city', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">State</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).state}
+                  onChange={(e) => handleOriginChange('state', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Postal Code</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).postal_code}
+                  onChange={(e) => handleOriginChange('postal_code', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Country</label>
+                <input
+                  type="text"
+                  value={(originAddress ?? EMPTY_ORIGIN).country}
+                  onChange={(e) => handleOriginChange('country', e.target.value)}
+                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+                />
+              </div>
+            </div>
+
+            {(originError || originMessage) && (
+              <div className={`mt-4 text-sm ${originError ? 'text-red-400' : 'text-green-400'}`}>
+                {originError || originMessage}
+              </div>
+            )}
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setOriginModalOpen(false)}
+                className="px-4 py-2 border border-zinc-800/70 text-sm text-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveOrigin}
+                disabled={savingOrigin}
+                className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500 disabled:bg-zinc-700"
+              >
+                {savingOrigin ? 'Saving...' : 'Save origin'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

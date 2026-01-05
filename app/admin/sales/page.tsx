@@ -315,6 +315,22 @@ export default function SalesPage() {
         </div>
       </div>
 
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <span className="text-gray-400 text-sm">Total Sales</span>
+          <div className="text-3xl font-bold text-white mt-2">{summary.totalSales}</div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <span className="text-gray-400 text-sm">Revenue</span>
+          <div className="text-3xl font-bold text-white mt-2">${summary.revenue.toFixed(2)}</div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <span className="text-gray-400 text-sm">Profit</span>
+          <div className="text-3xl font-bold text-green-400 mt-2">${summary.profit.toFixed(2)}</div>
+        </div>
+      </div>
+
       <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
         {SALES_TABS.map((tab) => (
           <button
@@ -343,22 +359,6 @@ export default function SalesPage() {
           placeholder="Search by date, customer, email, or order"
           className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
         />
-      </div>
-
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <span className="text-gray-400 text-sm">Total Sales</span>
-          <div className="text-3xl font-bold text-white mt-2">{summary.totalSales}</div>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <span className="text-gray-400 text-sm">Revenue</span>
-          <div className="text-3xl font-bold text-white mt-2">${summary.revenue.toFixed(2)}</div>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <span className="text-gray-400 text-sm">Profit</span>
-          <div className="text-3xl font-bold text-green-400 mt-2">${summary.profit.toFixed(2)}</div>
-        </div>
       </div>
 
       {/* Sales List */}
