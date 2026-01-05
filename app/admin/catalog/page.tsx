@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { MoreHorizontal, Search } from 'lucide-react';
+import { ChevronDown, MoreHorizontal, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
 
 type BrandGroup = {
@@ -144,17 +144,6 @@ export default function CatalogPage() {
     return preferred?.id ?? groups[0]?.id ?? null;
   }, [groups]);
 
-  const filteredBrands = useMemo(
-    () =>
-      brands.filter((brand) => {
-        if (!showInactive && !brand.is_active) return false;
-        if (!showUnverified && !brand.is_verified) return false;
-        if (!matchesQuery(brand.canonical_label)) return false;
-        return true;
-      }),
-    [brands, showInactive, showUnverified, normalizedQuery]
-  );
-
   const filteredModels = useMemo(
     () =>
       models.filter((model) => {
@@ -165,6 +154,33 @@ export default function CatalogPage() {
         return true;
       }),
     [models, showInactive, showUnverified, normalizedQuery, brandMap]
+  );
+
+  const filteredModelsByBrandId = useMemo(() => {
+    const map: Record<string, Model[]> = {};
+    filteredModels.forEach((model) => {
+      if (!map[model.brand_id]) {
+        map[model.brand_id] = [];
+      }
+      map[model.brand_id].push(model);
+    });
+    Object.keys(map).forEach((brandId) => {
+      map[brandId].sort((a, b) => a.canonical_label.localeCompare(b.canonical_label));
+    });
+    return map;
+  }, [filteredModels]);
+
+  const filteredBrands = useMemo(
+    () =>
+      brands.filter((brand) => {
+        if (!showInactive && !brand.is_active) return false;
+        if (!showUnverified && !brand.is_verified) return false;
+        const matchesBrand = matchesQuery(brand.canonical_label);
+        const matchesModel = (filteredModelsByBrandId[brand.id]?.length ?? 0) > 0;
+        if (!matchesBrand && !matchesModel) return false;
+        return true;
+      }),
+    [brands, showInactive, showUnverified, normalizedQuery, filteredModelsByBrandId]
   );
 
   const filteredAliases = useMemo(
@@ -720,26 +736,58 @@ export default function CatalogPage() {
             {!isLoading && filteredBrands.length === 0 && (
               <div className="text-gray-500 text-sm">No brands found.</div>
             )}
-            {filteredBrands.map((brand) => (
-              <div key={brand.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                  <div className="md:col-span-4">
-                    <div className="text-white font-medium">{brand.canonical_label}</div>
-                  </div>
-                  <div className="md:col-span-4 flex flex-wrap gap-2">
-                    <StatusPill active={brand.is_active} />
-                    <VerifiedPill verified={brand.is_verified} />
-                  </div>
-                  <div className="md:col-span-4 flex justify-end">
-                    {renderMenu(
-                      `brand-${brand.id}`,
-                      () => setEditTarget({ type: 'brand', item: brand }),
-                      () => setConfirmTarget({ type: 'brand', item: brand })
+            {filteredBrands.map((brand) => {
+              const visibleModels = filteredModelsByBrandId[brand.id] ?? [];
+              return (
+                <details
+                  key={brand.id}
+                  className="group/brand rounded border border-zinc-800/70 bg-zinc-950/40"
+                >
+                  <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-white font-medium">{brand.canonical_label}</div>
+                      <div className="text-xs text-gray-500">
+                        {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <StatusPill active={brand.is_active} />
+                      <VerifiedPill verified={brand.is_verified} />
+                      {renderMenu(
+                        `brand-${brand.id}`,
+                        () => setEditTarget({ type: 'brand', item: brand }),
+                        () => setConfirmTarget({ type: 'brand', item: brand })
+                      )}
+                      <ChevronDown className="w-4 h-4 text-gray-400 group-open/brand:rotate-180 transition-transform" />
+                    </div>
+                  </summary>
+                  <div className="px-4 pb-4 space-y-2">
+                    {visibleModels.length === 0 && (
+                      <div className="text-xs text-gray-500">No matching models.</div>
                     )}
+                    {visibleModels.map((model) => (
+                      <div
+                        key={model.id}
+                        className="flex items-center justify-between gap-3 border border-zinc-800/70 rounded px-3 py-2 bg-zinc-900/60"
+                      >
+                        <div>
+                          <div className="text-white text-sm">{model.canonical_label}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <StatusPill active={model.is_active} />
+                          <VerifiedPill verified={model.is_verified} />
+                          {renderMenu(
+                            `model-${model.id}`,
+                            () => setEditTarget({ type: 'model', item: model }),
+                            () => setConfirmTarget({ type: 'model', item: model })
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              </div>
-            ))}
+                </details>
+              );
+            })}
           </div>
         </section>
       )}
