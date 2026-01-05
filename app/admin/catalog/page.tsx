@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, MoreHorizontal, Search } from 'lucide-react';
+import { MoreHorizontal, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
 
 type BrandGroup = {
@@ -46,23 +46,22 @@ type Candidate = {
   status: string;
 };
 
-type ActiveTab = 'catalog' | 'brands' | 'models' | 'aliases' | 'groups' | 'candidates';
+type ActiveTab = 'brands' | 'models' | 'aliases' | 'candidates';
 
 type EditTarget =
-  | { type: 'group'; item: BrandGroup }
   | { type: 'brand'; item: Brand }
   | { type: 'model'; item: Model }
   | { type: 'alias'; item: Alias };
 
 const tabs: Array<{ key: ActiveTab; label: string }> = [
-  { key: 'catalog', label: 'Catalog' },
+  { key: 'brands', label: 'Brands' },
+  { key: 'models', label: 'Models' },
   { key: 'aliases', label: 'Aliases' },
   { key: 'candidates', label: 'Candidates' },
 ];
 
 const emptyDraft = {
-  group: { key: '', label: '' },
-  brand: { groupId: '', label: '' },
+  brand: { label: '' },
   model: { brandId: '', label: '' },
   alias: { entityType: 'brand' as 'brand' | 'model', entityId: '', label: '', priority: '0' },
 };
@@ -81,30 +80,7 @@ const toTitleCase = (value: string) =>
     })
     .join(' ');
 
-const toGroupKey = (value: string) =>
-  normalizeWhitespace(value)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-
 const normalizeLabel = (value: string) => normalizeWhitespace(value).toLowerCase();
-
-const collectDuplicates = <T,>(items: T[], keyFn: (item: T) => string) => {
-  const map = new Map<string, T[]>();
-  items.forEach((item) => {
-    const key = keyFn(item);
-    if (!key) return;
-    const existing = map.get(key);
-    if (existing) {
-      existing.push(item);
-    } else {
-      map.set(key, [item]);
-    }
-  });
-  return Array.from(map.entries())
-    .map(([key, values]) => ({ key, items: values }))
-    .filter((entry) => entry.items.length > 1);
-};
 
 function StatusPill({ active }: { active: boolean }) {
   return (
@@ -139,80 +115,44 @@ export default function CatalogPage() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('brands');
   const [query, setQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [showUnverified, setShowUnverified] = useState(true);
   const [openMenuKey, setOpenMenuKey] = useState<string | null>(null);
 
-  const [newGroup, setNewGroup] = useState(emptyDraft.group);
   const [newBrand, setNewBrand] = useState(emptyDraft.brand);
   const [newModel, setNewModel] = useState(emptyDraft.model);
   const [newAlias, setNewAlias] = useState(emptyDraft.alias);
-  const [candidateGroupSelections, setCandidateGroupSelections] = useState<Record<string, string>>({});
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [editDraft, setEditDraft] = useState<any>(null);
   const [confirmTarget, setConfirmTarget] = useState<EditTarget | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [addType, setAddType] = useState<'group' | 'brand' | 'model'>('group');
 
   const normalizedQuery = query.trim().toLowerCase();
   const matchesQuery = (value: string) =>
     normalizedQuery.length === 0 || value.toLowerCase().includes(normalizedQuery);
 
-  const groupMap = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
   const brandMap = useMemo(() => new Map(brands.map((brand) => [brand.id, brand])), [brands]);
   const modelMap = useMemo(() => new Map(models.map((model) => [model.id, model])), [models]);
 
-  const duplicateGroups = useMemo(
-    () => collectDuplicates(groups, (group) => normalizeLabel(group.label)),
-    [groups]
-  );
-  const duplicateBrands = useMemo(
-    () => collectDuplicates(brands, (brand) => normalizeLabel(brand.canonical_label)),
-    [brands]
-  );
-  const duplicateModels = useMemo(
-    () =>
-      collectDuplicates(
-        models,
-        (model) => `${model.brand_id}:${normalizeLabel(model.canonical_label)}`
-      ),
-    [models]
-  );
-  const duplicateAliases = useMemo(
-    () =>
-      collectDuplicates(aliases, (alias) => {
-        const targetId = alias.entity_type === 'brand' ? alias.brand_id : alias.model_id;
-        return `${alias.entity_type}:${targetId ?? 'unknown'}:${normalizeLabel(alias.alias_label)}`;
-      }),
-    [aliases]
-  );
-  const duplicateTotal =
-    duplicateGroups.length + duplicateBrands.length + duplicateModels.length + duplicateAliases.length;
-
-  const filteredGroups = useMemo(
-    () =>
-      groups.filter((group) => {
-        if (!showInactive && !group.is_active) return false;
-        if (!matchesQuery(group.label) && !matchesQuery(group.key)) return false;
-        return true;
-      }),
-    [groups, showInactive, normalizedQuery]
-  );
+  const defaultGroupId = useMemo(() => {
+    if (groups.length === 0) return null;
+    const activeGroups = groups.filter((group) => group.is_active);
+    const preferred = activeGroups.find((group) => group.key === 'other') ?? activeGroups[0];
+    return preferred?.id ?? groups[0]?.id ?? null;
+  }, [groups]);
 
   const filteredBrands = useMemo(
     () =>
       brands.filter((brand) => {
         if (!showInactive && !brand.is_active) return false;
         if (!showUnverified && !brand.is_verified) return false;
-        const groupLabel = groupMap.get(brand.group_id)?.label ?? '';
-        if (!matchesQuery(brand.canonical_label) && !matchesQuery(groupLabel)) return false;
+        if (!matchesQuery(brand.canonical_label)) return false;
         return true;
       }),
-    [brands, showInactive, showUnverified, normalizedQuery, groupMap]
+    [brands, showInactive, showUnverified, normalizedQuery]
   );
 
   const filteredModels = useMemo(
@@ -251,109 +191,6 @@ export default function CatalogPage() {
     [candidates, normalizedQuery, brandMap]
   );
 
-  const eligibleGroups = useMemo(
-    () => groups.filter((group) => showInactive || group.is_active),
-    [groups, showInactive]
-  );
-
-  const eligibleBrands = useMemo(
-    () =>
-      brands.filter((brand) => {
-        if (!showInactive && !brand.is_active) return false;
-        if (!showUnverified && !brand.is_verified) return false;
-        return true;
-      }),
-    [brands, showInactive, showUnverified]
-  );
-
-  const eligibleModels = useMemo(
-    () =>
-      models.filter((model) => {
-        if (!showInactive && !model.is_active) return false;
-        if (!showUnverified && !model.is_verified) return false;
-        return true;
-      }),
-    [models, showInactive, showUnverified]
-  );
-
-  const eligibleGroupIds = useMemo(
-    () => new Set(eligibleGroups.map((group) => group.id)),
-    [eligibleGroups]
-  );
-  const eligibleBrandIds = useMemo(
-    () => new Set(eligibleBrands.map((brand) => brand.id)),
-    [eligibleBrands]
-  );
-  const eligibleModelIds = useMemo(
-    () => new Set(eligibleModels.map((model) => model.id)),
-    [eligibleModels]
-  );
-
-  const queryGroupIds = useMemo(
-    () => new Set(filteredGroups.map((group) => group.id)),
-    [filteredGroups]
-  );
-  const queryBrandIds = useMemo(
-    () => new Set(filteredBrands.map((brand) => brand.id)),
-    [filteredBrands]
-  );
-  const queryModelIds = useMemo(
-    () => new Set(filteredModels.map((model) => model.id)),
-    [filteredModels]
-  );
-
-  const brandsByGroup = useMemo(() => {
-    const map: Record<string, Brand[]> = {};
-    brands.forEach((brand) => {
-      if (!map[brand.group_id]) {
-        map[brand.group_id] = [];
-      }
-      map[brand.group_id].push(brand);
-    });
-    Object.keys(map).forEach((groupId) => {
-      map[groupId].sort((a, b) => a.canonical_label.localeCompare(b.canonical_label));
-    });
-    return map;
-  }, [brands]);
-
-  const modelsByBrandId = useMemo(() => {
-    const map: Record<string, Model[]> = {};
-    models.forEach((model) => {
-      if (!map[model.brand_id]) {
-        map[model.brand_id] = [];
-      }
-      map[model.brand_id].push(model);
-    });
-    Object.keys(map).forEach((brandId) => {
-      map[brandId].sort((a, b) => a.canonical_label.localeCompare(b.canonical_label));
-    });
-    return map;
-  }, [models]);
-
-  const visibleGroups = useMemo(() => {
-    return groups.filter((group) => {
-      if (!eligibleGroupIds.has(group.id)) return false;
-      if (normalizedQuery.length === 0) return true;
-      if (queryGroupIds.has(group.id)) return true;
-      const groupBrands = brandsByGroup[group.id] ?? [];
-      return groupBrands.some((brand) => {
-        if (!eligibleBrandIds.has(brand.id)) return false;
-        if (queryBrandIds.has(brand.id)) return true;
-        const brandModels = modelsByBrandId[brand.id] ?? [];
-        return brandModels.some((model) => queryModelIds.has(model.id));
-      });
-    });
-  }, [
-    brandsByGroup,
-    eligibleBrandIds,
-    eligibleGroupIds,
-    groups,
-    modelsByBrandId,
-    normalizedQuery,
-    queryBrandIds,
-    queryGroupIds,
-    queryModelIds,
-  ]);
 
   const loadAll = async () => {
     setIsLoading(true);
@@ -380,7 +217,7 @@ export default function CatalogPage() {
       setCandidates(candidatesData.candidates || []);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_catalog" });
-      setMessage('Failed to load catalog data.');
+      setMessage('Failed to load tag data.');
     } finally {
       setIsLoading(false);
     }
@@ -396,17 +233,9 @@ export default function CatalogPage() {
       return;
     }
 
-    if (editTarget.type === 'group') {
-      setEditDraft({
-        key: editTarget.item.key,
-        label: editTarget.item.label,
-        is_active: editTarget.item.is_active,
-      });
-    }
     if (editTarget.type === 'brand') {
       setEditDraft({
         canonical_label: editTarget.item.canonical_label,
-        group_id: editTarget.item.group_id,
         is_active: editTarget.item.is_active,
         is_verified: editTarget.item.is_verified,
       });
@@ -432,42 +261,28 @@ export default function CatalogPage() {
     setOpenMenuKey((prev) => (prev === key ? null : key));
   };
 
-  const handleCreateGroup = async () => {
-    if (!newGroup.label.trim()) {
-      setMessage('Group label is required.');
-      return;
-    }
-    const formattedLabel = toTitleCase(newGroup.label);
-    const formattedKey = newGroup.key.trim()
-      ? toGroupKey(newGroup.key)
-      : toGroupKey(formattedLabel);
-    if (!formattedKey) {
-      setMessage('Group key is required.');
-      return;
-    }
-    const response = await fetch('/api/admin/catalog/brand-groups', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: formattedKey, label: formattedLabel }),
-    });
-    if (response.ok) {
-      setNewGroup(emptyDraft.group);
-      await loadAll();
-    } else {
-      setMessage('Failed to create brand group.');
-    }
-  };
-
   const handleCreateBrand = async () => {
-    if (!newBrand.groupId || !newBrand.label.trim()) {
-      setMessage('Brand group and label are required.');
+    if (!newBrand.label.trim()) {
+      setMessage('Brand label is required.');
+      return;
+    }
+    if (!defaultGroupId) {
+      setMessage('No default tag bucket available for new brands.');
       return;
     }
     const formattedLabel = toTitleCase(newBrand.label);
+    const normalizedLabel = normalizeLabel(formattedLabel);
+    const isDuplicate = brands.some(
+      (brand) => normalizeLabel(brand.canonical_label) === normalizedLabel
+    );
+    if (isDuplicate) {
+      setMessage('Brand already exists.');
+      return;
+    }
     const response = await fetch('/api/admin/catalog/brands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupId: newBrand.groupId, canonicalLabel: formattedLabel }),
+      body: JSON.stringify({ groupId: defaultGroupId, canonicalLabel: formattedLabel }),
     });
     if (response.ok) {
       setNewBrand(emptyDraft.brand);
@@ -483,6 +298,16 @@ export default function CatalogPage() {
       return;
     }
     const formattedLabel = toTitleCase(newModel.label);
+    const normalizedLabel = normalizeLabel(formattedLabel);
+    const isDuplicate = models.some(
+      (model) =>
+        model.brand_id === newModel.brandId &&
+        normalizeLabel(model.canonical_label) === normalizedLabel
+    );
+    if (isDuplicate) {
+      setMessage('Model already exists for this brand.');
+      return;
+    }
     const response = await fetch('/api/admin/catalog/models', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -499,6 +324,19 @@ export default function CatalogPage() {
   const handleCreateAlias = async () => {
     if (!newAlias.label.trim() || !newAlias.entityId) {
       setMessage('Alias label and entity are required.');
+      return;
+    }
+    const normalizedLabel = normalizeLabel(newAlias.label);
+    const isDuplicate = aliases.some((alias) => {
+      const targetId = alias.entity_type === 'brand' ? alias.brand_id : alias.model_id;
+      return (
+        alias.entity_type === newAlias.entityType &&
+        targetId === newAlias.entityId &&
+        normalizeLabel(alias.alias_label) === normalizedLabel
+      );
+    });
+    if (isDuplicate) {
+      setMessage('Alias already exists for that tag.');
       return;
     }
     const response = await fetch('/api/admin/catalog/aliases', {
@@ -521,13 +359,16 @@ export default function CatalogPage() {
   };
 
   const handleAcceptCandidate = async (candidate: Candidate) => {
-    const groupId = candidateGroupSelections[candidate.id] || '';
+    if (candidate.entity_type === 'brand' && !defaultGroupId) {
+      setMessage('No default tag bucket available for brand candidates.');
+      return;
+    }
+    const payload =
+      candidate.entity_type === 'brand' && defaultGroupId ? { groupId: defaultGroupId } : {};
     const response = await fetch(`/api/admin/catalog/candidates/${candidate.id}/accept`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        groupId: candidate.entity_type === 'brand' ? groupId || undefined : undefined,
-      }),
+      body: JSON.stringify(payload),
     });
     if (response.ok) {
       await loadAll();
@@ -549,27 +390,74 @@ export default function CatalogPage() {
 
   const handleSaveEdit = async () => {
     if (!editTarget || !editDraft) return;
-    setIsSaving(true);
     setMessage('');
-    try {
-      if (editTarget.type === 'group') {
-        await fetch(`/api/admin/catalog/brand-groups/${editTarget.item.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            key: editDraft.key,
-            label: editDraft.label,
-            isActive: editDraft.is_active,
-          }),
-        });
+    if (editTarget.type === 'brand') {
+      const normalizedLabel = normalizeLabel(editDraft.canonical_label ?? '');
+      if (!normalizedLabel) {
+        setMessage('Brand label is required.');
+        return;
       }
+      const isDuplicate = brands.some(
+        (brand) =>
+          brand.id !== editTarget.item.id &&
+          normalizeLabel(brand.canonical_label) === normalizedLabel
+      );
+      if (isDuplicate) {
+        setMessage('Brand already exists.');
+        return;
+      }
+    }
 
+    if (editTarget.type === 'model') {
+      const normalizedLabel = normalizeLabel(editDraft.canonical_label ?? '');
+      if (!normalizedLabel || !editDraft.brand_id) {
+        setMessage('Brand and model label are required.');
+        return;
+      }
+      const isDuplicate = models.some(
+        (model) =>
+          model.id !== editTarget.item.id &&
+          model.brand_id === editDraft.brand_id &&
+          normalizeLabel(model.canonical_label) === normalizedLabel
+      );
+      if (isDuplicate) {
+        setMessage('Model already exists for this brand.');
+        return;
+      }
+    }
+
+    if (editTarget.type === 'alias') {
+      const normalizedLabel = normalizeLabel(editDraft.alias_label ?? '');
+      if (!normalizedLabel) {
+        setMessage('Alias label is required.');
+        return;
+      }
+      const targetId =
+        editTarget.item.entity_type === 'brand'
+          ? editTarget.item.brand_id
+          : editTarget.item.model_id;
+      const isDuplicate = aliases.some((alias) => {
+        const aliasTargetId = alias.entity_type === 'brand' ? alias.brand_id : alias.model_id;
+        return (
+          alias.id !== editTarget.item.id &&
+          alias.entity_type === editTarget.item.entity_type &&
+          aliasTargetId === targetId &&
+          normalizeLabel(alias.alias_label) === normalizedLabel
+        );
+      });
+      if (isDuplicate) {
+        setMessage('Alias already exists for that tag.');
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    try {
       if (editTarget.type === 'brand') {
         await fetch(`/api/admin/catalog/brands/${editTarget.item.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            groupId: editDraft.group_id,
             canonicalLabel: editDraft.canonical_label,
             isActive: editDraft.is_active,
             isVerified: editDraft.is_verified,
@@ -606,7 +494,7 @@ export default function CatalogPage() {
       setEditTarget(null);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_save_catalog_edit" });
-      setMessage('Failed to update catalog item.');
+      setMessage('Failed to update tag entry.');
     } finally {
       setIsSaving(false);
     }
@@ -617,13 +505,6 @@ export default function CatalogPage() {
     setIsSaving(true);
     setMessage('');
     try {
-      if (confirmTarget.type === 'group') {
-        await fetch(`/api/admin/catalog/brand-groups/${confirmTarget.item.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isActive: false }),
-        });
-      }
       if (confirmTarget.type === 'brand') {
         await fetch(`/api/admin/catalog/brands/${confirmTarget.item.id}`, {
           method: 'PATCH',
@@ -649,7 +530,7 @@ export default function CatalogPage() {
       setConfirmTarget(null);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_delete_catalog" });
-      setMessage('Failed to delete catalog item.');
+      setMessage('Failed to delete tag entry.');
     } finally {
       setIsSaving(false);
     }
@@ -660,9 +541,6 @@ export default function CatalogPage() {
 
   const resolveModelLabel = (modelId?: string | null) =>
     modelMap.get(modelId ?? '')?.canonical_label || 'Unknown';
-
-  const resolveGroupLabel = (groupId?: string | null) =>
-    groupMap.get(groupId ?? '')?.label || 'Unknown';
 
   const renderMenu = (key: string, onEdit: () => void, onDelete: () => void) => (
     <div
@@ -711,7 +589,7 @@ export default function CatalogPage() {
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Catalog Manager</h1>
+          <h1 className="text-3xl font-bold text-white">Tags Manager</h1>
           <p className="text-gray-400">
             Verified means the brand or model is confirmed and trusted for storefront filters. Unverified entries are
             allowed but treated as provisional.
@@ -724,18 +602,14 @@ export default function CatalogPage() {
       <div className="bg-zinc-900 border border-zinc-800/70 p-5">
         <details className="group">
           <summary className="cursor-pointer list-none text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-4 py-3">
-            <span>Info key: how the catalog system works</span>
+            <span>Info key: how the tags system works</span>
             <span className="text-xs text-gray-500 group-open:hidden">Show</span>
             <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
           </summary>
           <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm text-gray-300">
             <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Brand Groups</div>
-              <div>Top-level buckets used for navigation (Nike, Designer). Groups are not brands.</div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Brands</div>
-              <div>Canonical brand labels used for products and filters. Each brand belongs to one group.</div>
+              <div>Canonical brand labels used for products, filters, and parsing.</div>
             </div>
             <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
               <div className="text-xs uppercase tracking-wide text-gray-500">Models</div>
@@ -779,7 +653,7 @@ export default function CatalogPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search catalog..."
+              placeholder="Search tags..."
               className="bg-transparent text-sm text-white outline-none flex-1"
             />
           </div>
@@ -822,322 +696,13 @@ export default function CatalogPage() {
         </div>
       </div>
 
-      {activeTab === 'catalog' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Catalog</h2>
-              <p className="text-xs text-gray-500">Groups - Brands - Models in one place.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-xs text-gray-500">
-                {eligibleGroups.length} groups | {eligibleBrands.length} brands | {eligibleModels.length} models
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded text-sm"
-              >
-                Add Catalog Entry
-              </button>
-            </div>
-          </div>
-
-          <div className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-white">Duplicate check</h3>
-                <p className="text-xs text-gray-500">
-                  Normalized labels grouped by type to spot duplicate entries.
-                </p>
-              </div>
-              <span className="text-xs text-gray-500">
-                {duplicateTotal} duplicate set{duplicateTotal === 1 ? '' : 's'}
-              </span>
-            </div>
-            {duplicateTotal === 0 ? (
-              <div className="mt-3 text-xs text-gray-500">
-                No duplicates detected across groups, brands, models, or aliases.
-              </div>
-            ) : (
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-400">
-                {duplicateGroups.length > 0 && (
-                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
-                      Groups
-                    </div>
-                    <div className="space-y-1">
-                      {duplicateGroups.map((entry) => (
-                        <div key={`group-${entry.key}`} className="flex items-center justify-between">
-                          <span className="text-gray-200">{entry.items[0].label}</span>
-                          <span className="text-gray-500">{entry.items.length} matches</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {duplicateBrands.length > 0 && (
-                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
-                      Brands
-                    </div>
-                    <div className="space-y-1">
-                      {duplicateBrands.map((entry) => {
-                        const groupLabels = Array.from(
-                          new Set(
-                            entry.items.map(
-                              (brand) => groupMap.get(brand.group_id)?.label ?? 'Unassigned'
-                            )
-                          )
-                        ).join(', ');
-                        return (
-                          <div key={`brand-${entry.key}`} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-200">{entry.items[0].canonical_label}</span>
-                              <span className="text-gray-500">{entry.items.length} matches</span>
-                            </div>
-                            <div className="text-[11px] text-gray-500">Groups: {groupLabels}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {duplicateModels.length > 0 && (
-                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
-                      Models
-                    </div>
-                    <div className="space-y-1">
-                      {duplicateModels.map((entry) => {
-                        const brandLabel =
-                          brandMap.get(entry.items[0].brand_id)?.canonical_label ?? 'Unknown brand';
-                        return (
-                          <div key={`model-${entry.key}`} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-200">{entry.items[0].canonical_label}</span>
-                              <span className="text-gray-500">{entry.items.length} matches</span>
-                            </div>
-                            <div className="text-[11px] text-gray-500">Brand: {brandLabel}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {duplicateAliases.length > 0 && (
-                  <div className="border border-zinc-800/70 rounded p-3 bg-black/40">
-                    <div className="text-[11px] uppercase tracking-[0.2em] text-gray-500 mb-2">
-                      Aliases
-                    </div>
-                    <div className="space-y-1">
-                      {duplicateAliases.map((entry) => {
-                        const alias = entry.items[0];
-                        const targetLabel =
-                          alias.entity_type === 'brand'
-                            ? brandMap.get(alias.brand_id ?? '')?.canonical_label ?? 'Unknown brand'
-                            : modelMap.get(alias.model_id ?? '')?.canonical_label ?? 'Unknown model';
-                        return (
-                          <div key={`alias-${entry.key}`} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-gray-200">{alias.alias_label}</span>
-                              <span className="text-gray-500">{entry.items.length} matches</span>
-                            </div>
-                            <div className="text-[11px] text-gray-500">
-                              {alias.entity_type === 'brand' ? 'Brand' : 'Model'}: {targetLabel}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && visibleGroups.length === 0 && (
-              <div className="text-gray-500 text-sm">No matching groups or brands.</div>
-            )}
-            {visibleGroups.map((group) => {
-              const groupBrands = brandsByGroup[group.id] ?? [];
-              const groupMatchesQuery = queryGroupIds.has(group.id);
-              const showAllBrands = normalizedQuery.length === 0 || groupMatchesQuery;
-              const visibleBrands = groupBrands.filter((brand) => {
-                if (!eligibleBrandIds.has(brand.id)) return false;
-                if (showAllBrands) return true;
-                if (queryBrandIds.has(brand.id)) return true;
-                const brandModels = modelsByBrandId[brand.id] ?? [];
-                return brandModels.some((model) => queryModelIds.has(model.id));
-              });
-
-              return (
-                <details key={group.id} className="group rounded border border-zinc-800/70 bg-zinc-950/40">
-                  <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-white font-medium">{group.label}</div>
-                      <div className="text-xs text-gray-500">
-                        {group.key} | {visibleBrands.length} brands
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <StatusPill active={group.is_active} />
-                      {renderMenu(
-                        `group-${group.id}`,
-                        () => setEditTarget({ type: 'group', item: group }),
-                        () => setConfirmTarget({ type: 'group', item: group })
-                      )}
-                      <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
-                    </div>
-                  </summary>
-                  <div className="px-4 pb-4 space-y-2">
-                    {visibleBrands.length === 0 && (
-                      <div className="text-xs text-gray-500">No matching brands.</div>
-                    )}
-                    {visibleBrands.map((brand) => {
-                      const brandModels = modelsByBrandId[brand.id] ?? [];
-                      const brandMatchesQuery = queryBrandIds.has(brand.id);
-                      const showAllModels = normalizedQuery.length === 0 || brandMatchesQuery || groupMatchesQuery;
-                      const visibleModels = brandModels.filter((model) => {
-                        if (!eligibleModelIds.has(model.id)) return false;
-                        if (showAllModels) return true;
-                        return queryModelIds.has(model.id);
-                      });
-
-                      return (
-                        <details
-                          key={brand.id}
-                          className="group/brand rounded border border-zinc-800/70 bg-black/60"
-                        >
-                          <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
-                            <div>
-                              <div className="text-white font-medium">{brand.canonical_label}</div>
-                              <div className="text-xs text-gray-500">
-                                {visibleModels.length} models
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <StatusPill active={brand.is_active} />
-                              <VerifiedPill verified={brand.is_verified} />
-                              {renderMenu(
-                                `brand-${brand.id}`,
-                                () => setEditTarget({ type: 'brand', item: brand }),
-                                () => setConfirmTarget({ type: 'brand', item: brand })
-                              )}
-                              <ChevronDown className="w-4 h-4 text-gray-400 group-open/brand:rotate-180 transition-transform" />
-                            </div>
-                          </summary>
-                          <div className="px-4 pb-4 space-y-2">
-                            {visibleModels.length === 0 && (
-                              <div className="text-xs text-gray-500">No matching models.</div>
-                            )}
-                            {visibleModels.map((model) => (
-                              <div
-                                key={model.id}
-                                className="flex items-center justify-between gap-3 border border-zinc-800/70 rounded px-3 py-2"
-                              >
-                                <div>
-                                  <div className="text-white text-sm">{model.canonical_label}</div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <StatusPill active={model.is_active} />
-                                  <VerifiedPill verified={model.is_verified} />
-                                  {renderMenu(
-                                    `model-${model.id}`,
-                                    () => setEditTarget({ type: 'model', item: model }),
-                                    () => setConfirmTarget({ type: 'model', item: model })
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'groups' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Brand Groups</h2>
-            <span className="text-xs text-gray-500">{filteredGroups.length} groups</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <input
-              value={newGroup.key}
-              onChange={(e) => setNewGroup((prev) => ({ ...prev, key: e.target.value }))}
-              placeholder="Key"
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            />
-            <input
-              value={newGroup.label}
-              onChange={(e) => setNewGroup((prev) => ({ ...prev, label: e.target.value }))}
-              placeholder="Label"
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            />
-            <button
-              onClick={handleCreateGroup}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-            >
-              Add Group
-            </button>
-          </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && filteredGroups.length === 0 && (
-              <div className="text-gray-500 text-sm">No groups found.</div>
-            )}
-            {filteredGroups.map((group) => (
-              <div key={group.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                  <div className="md:col-span-4">
-                    <div className="text-white font-medium">{group.label}</div>
-                    <div className="text-xs text-gray-500">{group.key}</div>
-                  </div>
-                  <div className="md:col-span-3">
-                    <StatusPill active={group.is_active} />
-                  </div>
-                  <div className="md:col-span-5 flex justify-end">
-                    {renderMenu(
-                      `group-${group.id}`,
-                      () => setEditTarget({ type: 'group', item: group }),
-                      () => setConfirmTarget({ type: 'group', item: group })
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {activeTab === 'brands' && (
         <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Brands</h2>
             <span className="text-xs text-gray-500">{filteredBrands.length} brands</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select
-              value={newBrand.groupId}
-              onChange={(e) => setNewBrand((prev) => ({ ...prev, groupId: e.target.value }))}
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            >
-              <option value="">Select group</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.label}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <input
               value={newBrand.label}
               onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
@@ -1161,7 +726,6 @@ export default function CatalogPage() {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   <div className="md:col-span-4">
                     <div className="text-white font-medium">{brand.canonical_label}</div>
-                    <div className="text-xs text-gray-500">{resolveGroupLabel(brand.group_id)}</div>
                   </div>
                   <div className="md:col-span-4 flex flex-wrap gap-2">
                     <StatusPill active={brand.is_active} />
@@ -1361,28 +925,9 @@ export default function CatalogPage() {
                   <div className="md:col-span-4 text-xs text-gray-400">
                     {candidate.entity_type === 'model'
                       ? `Brand: ${resolveBrandLabel(candidate.parent_brand_id)}`
-                      : 'Brand group required for accept'}
+                      : 'Brand will be added to Brands'}
                   </div>
                   <div className="md:col-span-4 flex flex-wrap gap-2 md:justify-end">
-                    {candidate.entity_type === 'brand' && (
-                      <select
-                        value={candidateGroupSelections[candidate.id] || ''}
-                        onChange={(e) =>
-                          setCandidateGroupSelections((prev) => ({
-                            ...prev,
-                            [candidate.id]: e.target.value,
-                          }))
-                        }
-                        className="bg-zinc-900 text-white px-3 py-2 rounded"
-                      >
-                        <option value="">Select group</option>
-                        {groups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.label}
-                          </option>
-                        ))}
-                      </select>
-                    )}
                     <button
                       onClick={() => handleAcceptCandidate(candidate)}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-2"
@@ -1403,171 +948,6 @@ export default function CatalogPage() {
         </section>
       )}
 
-      {showAddModal && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => setShowAddModal(false)}
-        >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-3xl p-6 space-y-5"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Add Catalog Entry</h3>
-                <p className="text-xs text-gray-500">
-                  Choose what you want to add and where it should live.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {(['group', 'brand', 'model'] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setAddType(type)}
-                  className={`px-3 py-2 text-sm border ${
-                    addType === type
-                      ? 'border-red-600 bg-red-600 text-white'
-                      : 'border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-                  }`}
-                >
-                  {type === 'group' ? 'Group' : type === 'brand' ? 'Brand' : 'Model'}
-                </button>
-              ))}
-            </div>
-
-            {addType === 'group' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Group details</div>
-                  <input
-                    value={newGroup.label}
-                    onChange={(e) =>
-                      setNewGroup((prev) => ({
-                        ...prev,
-                        label: e.target.value,
-                        key: prev.key ? prev.key : toGroupKey(e.target.value),
-                      }))
-                    }
-                    onBlur={(e) =>
-                      setNewGroup((prev) => ({
-                        ...prev,
-                        label: toTitleCase(e.target.value),
-                        key: prev.key ? toGroupKey(prev.key) : toGroupKey(e.target.value),
-                      }))
-                    }
-                    placeholder="Group label (e.g., New Balance)"
-                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                  />
-                  <input
-                    value={newGroup.key}
-                    onChange={(e) => setNewGroup((prev) => ({ ...prev, key: e.target.value }))}
-                    onBlur={(e) => setNewGroup((prev) => ({ ...prev, key: toGroupKey(e.target.value) }))}
-                    placeholder="Group key (auto if blank)"
-                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                  />
-                </div>
-                <div className="flex flex-col justify-between gap-3">
-                  <p className="text-xs text-gray-500">
-                    Groups are the top-level navigation buckets (Nike, Designer). Key auto-fills if blank.
-                  </p>
-                  <button
-                    onClick={handleCreateGroup}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-                  >
-                    Add Group
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {addType === 'brand' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Brand details</div>
-                  <select
-                    value={newBrand.groupId}
-                    onChange={(e) => setNewBrand((prev) => ({ ...prev, groupId: e.target.value }))}
-                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                  >
-                    <option value="">Select group</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={newBrand.label}
-                    onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
-                    onBlur={(e) =>
-                      setNewBrand((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                    }
-                    placeholder="Brand label (e.g., Off-White)"
-                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                  />
-                </div>
-                <div className="flex flex-col justify-between gap-3">
-                  <p className="text-xs text-gray-500">Brands are canonical labels tied to a single group.</p>
-                  <button
-                    onClick={handleCreateBrand}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-                  >
-                    Add Brand
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {addType === 'model' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-gray-500">Model details</div>
-                  <select
-                    value={newModel.brandId}
-                    onChange={(e) => setNewModel((prev) => ({ ...prev, brandId: e.target.value }))}
-                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                  >
-                    <option value="">Select brand</option>
-                    {brands.map((brand) => (
-                      <option key={brand.id} value={brand.id}>
-                        {brand.canonical_label}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={newModel.label}
-                    onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
-                    onBlur={(e) =>
-                      setNewModel((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                    }
-                    placeholder="Model label (e.g., Air Max 90)"
-                    className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                  />
-                </div>
-                <div className="flex flex-col justify-between gap-3">
-                  <p className="text-xs text-gray-500">Models are sneaker-only and live under a brand.</p>
-                  <button
-                    onClick={handleCreateModel}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-                  >
-                    Add Model
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {editTarget && editDraft && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
           <div
@@ -1584,45 +964,8 @@ export default function CatalogPage() {
               </button>
             </div>
 
-            {editTarget.type === 'group' && (
-              <div className="space-y-3">
-                <input
-                  value={editDraft.key}
-                  onChange={(e) => setEditDraft({ ...editDraft, key: e.target.value })}
-                  placeholder="Key"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <input
-                  value={editDraft.label}
-                  onChange={(e) => setEditDraft({ ...editDraft, label: e.target.value })}
-                  placeholder="Label"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <label className="flex items-center gap-2 text-sm text-gray-300">
-                  <input
-                    type="checkbox"
-                    className="rdk-checkbox"
-                    checked={editDraft.is_active}
-                    onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
-                  />
-                  Active
-                </label>
-              </div>
-            )}
-
             {editTarget.type === 'brand' && (
               <div className="space-y-3">
-                <select
-                  value={editDraft.group_id}
-                  onChange={(e) => setEditDraft({ ...editDraft, group_id: e.target.value })}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                >
-                  {groups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.label}
-                    </option>
-                  ))}
-                </select>
                 <input
                   value={editDraft.canonical_label}
                   onChange={(e) =>

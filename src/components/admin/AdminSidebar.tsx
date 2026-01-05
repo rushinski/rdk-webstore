@@ -68,7 +68,7 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     ],
   },
   { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
-  { type: "link", href: "/admin/catalog", label: "Catalog", icon: Package },
+  { type: "link", href: "/admin/catalog", label: "Tags", icon: Package },
   { type: "link", href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
