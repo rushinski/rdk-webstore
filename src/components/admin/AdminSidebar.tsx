@@ -35,7 +35,7 @@ type NavGroupItem = {
   type: "group";
   label: string;
   icon: any;
-  groupKey: "analytics" | "orders";
+  groupKey: "analytics" | "orders" | "settings";
   isActive: (pathname: string) => boolean;
   children: Array<{ href: string; label: string }>;
 };
@@ -69,7 +69,14 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
   },
   { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
   { type: "link", href: "/admin/catalog", label: "Tags", icon: Package },
-  { type: "link", href: "/admin/settings", label: "Settings", icon: Settings },
+  {
+    type: "group",
+    label: "Settings",
+    icon: Settings,
+    groupKey: "settings",
+    isActive: (pathname: string) => pathname.startsWith("/admin/settings"),
+    children: [{ href: "/admin/settings/shipping", label: "Shipping" }],
+  },
 ];
 
 export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
@@ -82,7 +89,8 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
   const ordersActive = pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping");
-  const [openGroups, setOpenGroups] = useState({ analytics: false, orders: false });
+  const settingsActive = pathname.startsWith("/admin/settings");
+  const [openGroups, setOpenGroups] = useState({ analytics: false, orders: false, settings: false });
 
   const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
 
@@ -118,7 +126,10 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     if (ordersActive) {
       setOpenGroups((prev) => ({ ...prev, orders: true }));
     }
-  }, [analyticsActive, ordersActive]);
+    if (settingsActive) {
+      setOpenGroups((prev) => ({ ...prev, settings: true }));
+    }
+  }, [analyticsActive, ordersActive, settingsActive]);
 
   useEffect(() => {
     let isActive = true;
