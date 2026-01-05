@@ -762,9 +762,9 @@ export default function TagsPage() {
                 <thead>
                   <tr className="border-b border-zinc-800/70 bg-zinc-800">
                     <th className="text-left text-gray-400 font-semibold p-4">Brand</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Status</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Verified</th>
-                    <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                    <th className="p-4">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -789,18 +789,16 @@ export default function TagsPage() {
                                 />
                               </button>
                               <div>
-                                <div className="text-white font-semibold">{brand.canonical_label}</div>
+                                <div className="flex items-center gap-2">
+                                  <div className="text-white font-semibold">{brand.canonical_label}</div>
+                                  <StatusPill active={brand.is_active} />
+                                  <VerifiedPill verified={brand.is_verified} />
+                                </div>
                                 <div className="text-xs text-gray-500">
                                   {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
                                 </div>
                               </div>
                             </div>
-                          </td>
-                          <td className="p-4">
-                            <StatusPill active={brand.is_active} />
-                          </td>
-                          <td className="p-4">
-                            <VerifiedPill verified={brand.is_verified} />
                           </td>
                           <td className="p-4">
                             <div className="flex items-center justify-end gap-2">
@@ -821,7 +819,7 @@ export default function TagsPage() {
                         </tr>
                         {isExpanded && (
                           <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
-                            <td className="p-4" colSpan={4}>
+                            <td className="p-4" colSpan={2}>
                               <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
                                 Models
                               </div>
