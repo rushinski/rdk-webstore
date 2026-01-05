@@ -933,15 +933,19 @@ export default function TagsPage() {
                     <th className="text-left text-gray-400 font-semibold p-4">Alias</th>
                     <th className="text-left text-gray-400 font-semibold p-4">Type</th>
                     <th className="text-left text-gray-400 font-semibold p-4">Priority</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Status</th>
-                    <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                    <th className="p-4">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAliases.map((alias) => (
                     <tr key={alias.id} className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
                       <td className="p-4">
-                        <div className="text-white font-semibold">{alias.alias_label}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-white font-semibold">{alias.alias_label}</div>
+                          <StatusPill active={alias.is_active} />
+                        </div>
                         <div className="text-xs text-gray-500">
                           {alias.entity_type === 'brand'
                             ? resolveBrandLabel(alias.brand_id)
@@ -950,9 +954,6 @@ export default function TagsPage() {
                       </td>
                       <td className="p-4 text-xs uppercase text-gray-400">{alias.entity_type}</td>
                       <td className="p-4 text-gray-400">{alias.priority ?? 0}</td>
-                      <td className="p-4">
-                        <StatusPill active={alias.is_active} />
-                      </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end">
                           {renderMenu(
@@ -987,9 +988,10 @@ export default function TagsPage() {
                 <thead>
                   <tr className="border-b border-zinc-800/70 bg-zinc-800">
                     <th className="text-left text-gray-400 font-semibold p-4">Candidate</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Type</th>
                     <th className="text-left text-gray-400 font-semibold p-4">Brand</th>
-                    <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                    <th className="p-4">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -999,9 +1001,13 @@ export default function TagsPage() {
                       className="border-b border-zinc-800/70 hover:bg-zinc-800/60"
                     >
                       <td className="p-4">
-                        <div className="text-white font-semibold">{candidate.raw_text}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-white font-semibold">{candidate.raw_text}</div>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-zinc-800 text-gray-400 uppercase">
+                            {candidate.entity_type}
+                          </span>
+                        </div>
                       </td>
-                      <td className="p-4 text-xs uppercase text-gray-400">{candidate.entity_type}</td>
                       <td className="p-4 text-gray-400">
                         {candidate.entity_type === 'model'
                           ? resolveBrandLabel(candidate.parent_brand_id)
