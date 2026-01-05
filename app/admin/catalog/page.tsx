@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, MoreHorizontal, Search } from 'lucide-react';
+import { MoreHorizontal, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
 
 type BrandGroup = {
@@ -46,7 +46,7 @@ type Candidate = {
   status: string;
 };
 
-type ActiveTab = 'catalog' | 'brands' | 'models' | 'aliases' | 'candidates';
+type ActiveTab = 'brands' | 'models' | 'aliases' | 'candidates';
 
 type EditTarget =
   | { type: 'brand'; item: Brand }
@@ -54,7 +54,6 @@ type EditTarget =
   | { type: 'alias'; item: Alias };
 
 const tabs: Array<{ key: ActiveTab; label: string }> = [
-  { key: 'catalog', label: 'Tags' },
   { key: 'brands', label: 'Brands' },
   { key: 'models', label: 'Models' },
   { key: 'aliases', label: 'Aliases' },
@@ -116,7 +115,7 @@ export default function CatalogPage() {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('catalog');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('brands');
   const [query, setQuery] = useState('');
   const [showInactive, setShowInactive] = useState(false);
   const [showUnverified, setShowUnverified] = useState(true);
@@ -144,16 +143,6 @@ export default function CatalogPage() {
     const preferred = activeGroups.find((group) => group.key === 'other') ?? activeGroups[0];
     return preferred?.id ?? groups[0]?.id ?? null;
   }, [groups]);
-
-  const filteredGroups = useMemo(
-    () =>
-      groups.filter((group) => {
-        if (!showInactive && !group.is_active) return false;
-        if (!matchesQuery(group.label) && !matchesQuery(group.key)) return false;
-        return true;
-      }),
-    [groups, showInactive, normalizedQuery]
-  );
 
   const filteredBrands = useMemo(
     () =>
@@ -202,111 +191,6 @@ export default function CatalogPage() {
     [candidates, normalizedQuery, brandMap]
   );
 
-  const eligibleGroups = useMemo(
-    () => groups.filter((group) => showInactive || group.is_active),
-    [groups, showInactive]
-  );
-
-  const eligibleBrands = useMemo(
-    () =>
-      brands.filter((brand) => {
-        if (!showInactive && !brand.is_active) return false;
-        if (!showUnverified && !brand.is_verified) return false;
-        return true;
-      }),
-    [brands, showInactive, showUnverified]
-  );
-
-  const eligibleModels = useMemo(
-    () =>
-      models.filter((model) => {
-        if (!showInactive && !model.is_active) return false;
-        if (!showUnverified && !model.is_verified) return false;
-        return true;
-      }),
-    [models, showInactive, showUnverified]
-  );
-
-  const eligibleGroupIds = useMemo(
-    () => new Set(eligibleGroups.map((group) => group.id)),
-    [eligibleGroups]
-  );
-  const eligibleBrandIds = useMemo(
-    () => new Set(eligibleBrands.map((brand) => brand.id)),
-    [eligibleBrands]
-  );
-  const eligibleModelIds = useMemo(
-    () => new Set(eligibleModels.map((model) => model.id)),
-    [eligibleModels]
-  );
-
-  const queryGroupIds = useMemo(
-    () => new Set(filteredGroups.map((group) => group.id)),
-    [filteredGroups]
-  );
-  const queryBrandIds = useMemo(
-    () => new Set(filteredBrands.map((brand) => brand.id)),
-    [filteredBrands]
-  );
-  const queryModelIds = useMemo(
-    () => new Set(filteredModels.map((model) => model.id)),
-    [filteredModels]
-  );
-
-  const brandsByGroup = useMemo(() => {
-    const map: Record<string, Brand[]> = {};
-    brands.forEach((brand) => {
-      if (!map[brand.group_id]) {
-        map[brand.group_id] = [];
-      }
-      map[brand.group_id].push(brand);
-    });
-    Object.keys(map).forEach((groupId) => {
-      map[groupId].sort((a, b) => a.canonical_label.localeCompare(b.canonical_label));
-    });
-    return map;
-  }, [brands]);
-
-  const modelsByBrandId = useMemo(() => {
-    const map: Record<string, Model[]> = {};
-    models.forEach((model) => {
-      if (!map[model.brand_id]) {
-        map[model.brand_id] = [];
-      }
-      map[model.brand_id].push(model);
-    });
-    Object.keys(map).forEach((brandId) => {
-      map[brandId].sort((a, b) => a.canonical_label.localeCompare(b.canonical_label));
-    });
-    return map;
-  }, [models]);
-
-  const visibleGroups = useMemo(() => {
-    return groups.filter((group) => {
-      if (!eligibleGroupIds.has(group.id)) return false;
-      if (normalizedQuery.length === 0) return true;
-      if (queryGroupIds.has(group.id)) return true;
-      const groupBrands = brandsByGroup[group.id] ?? [];
-      return groupBrands.some((brand) => {
-        if (!eligibleBrandIds.has(brand.id)) return false;
-        if (queryBrandIds.has(brand.id)) return true;
-        const brandModels = modelsByBrandId[brand.id] ?? [];
-        return brandModels.some((model) => queryModelIds.has(model.id));
-      });
-    });
-  }, [
-    brandsByGroup,
-    eligibleBrandIds,
-    eligibleGroupIds,
-    groups,
-    modelsByBrandId,
-    normalizedQuery,
-    queryBrandIds,
-    queryGroupIds,
-    queryModelIds,
-  ]);
-
-
   const loadAll = async () => {
     setIsLoading(true);
     setMessage('');
@@ -332,7 +216,7 @@ export default function CatalogPage() {
       setCandidates(candidatesData.candidates || []);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_catalog" });
-      setMessage('Failed to load tag data.');
+      setMessage('Failed to load catalog data.');
     } finally {
       setIsLoading(false);
     }
@@ -382,7 +266,7 @@ export default function CatalogPage() {
       return;
     }
     if (!defaultGroupId) {
-      setMessage('No default tag bucket available for new brands.');
+      setMessage('Unable to create brand: missing default configuration.');
       return;
     }
     const formattedLabel = toTitleCase(newBrand.label);
@@ -451,7 +335,7 @@ export default function CatalogPage() {
       );
     });
     if (isDuplicate) {
-      setMessage('Alias already exists for that tag.');
+      setMessage('Alias already exists for that item.');
       return;
     }
     const response = await fetch('/api/admin/catalog/aliases', {
@@ -475,7 +359,7 @@ export default function CatalogPage() {
 
   const handleAcceptCandidate = async (candidate: Candidate) => {
     if (candidate.entity_type === 'brand' && !defaultGroupId) {
-      setMessage('No default tag bucket available for brand candidates.');
+      setMessage('Unable to accept brand candidate: missing default configuration.');
       return;
     }
     const payload =
@@ -561,7 +445,7 @@ export default function CatalogPage() {
         );
       });
       if (isDuplicate) {
-        setMessage('Alias already exists for that tag.');
+      setMessage('Alias already exists for that item.');
         return;
       }
     }
@@ -609,7 +493,7 @@ export default function CatalogPage() {
       setEditTarget(null);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_save_catalog_edit" });
-      setMessage('Failed to update tag entry.');
+      setMessage('Failed to update catalog entry.');
     } finally {
       setIsSaving(false);
     }
@@ -645,7 +529,7 @@ export default function CatalogPage() {
       setConfirmTarget(null);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_delete_catalog" });
-      setMessage('Failed to delete tag entry.');
+      setMessage('Failed to delete catalog entry.');
     } finally {
       setIsSaving(false);
     }
@@ -717,7 +601,7 @@ export default function CatalogPage() {
       <div className="bg-zinc-900 border border-zinc-800/70 p-5">
         <details className="group">
           <summary className="cursor-pointer list-none text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-4 py-3">
-            <span>Info key: how the tags system works</span>
+            <span>Info key: how the tag system works</span>
             <span className="text-xs text-gray-500 group-open:hidden">Show</span>
             <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
           </summary>
@@ -768,7 +652,7 @@ export default function CatalogPage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tags..."
+              placeholder="Search catalog..."
               className="bg-transparent text-sm text-white outline-none flex-1"
             />
           </div>
@@ -810,124 +694,6 @@ export default function CatalogPage() {
           ))}
         </div>
       </div>
-
-      {activeTab === 'catalog' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Tags</h2>
-              <p className="text-xs text-gray-500">Browse brands and models in one view.</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-xs text-gray-500">
-                {eligibleGroups.length} buckets | {eligibleBrands.length} brands | {eligibleModels.length} models
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && visibleGroups.length === 0 && (
-              <div className="text-gray-500 text-sm">No matching tags.</div>
-            )}
-            {visibleGroups.map((group) => {
-              const groupBrands = brandsByGroup[group.id] ?? [];
-              const groupMatchesQuery = queryGroupIds.has(group.id);
-              const showAllBrands = normalizedQuery.length === 0 || groupMatchesQuery;
-              const visibleBrands = groupBrands.filter((brand) => {
-                if (!eligibleBrandIds.has(brand.id)) return false;
-                if (showAllBrands) return true;
-                if (queryBrandIds.has(brand.id)) return true;
-                const brandModels = modelsByBrandId[brand.id] ?? [];
-                return brandModels.some((model) => queryModelIds.has(model.id));
-              });
-
-              return (
-                <details key={group.id} className="group rounded border border-zinc-800/70 bg-zinc-950/40">
-                  <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-white font-medium">{group.label}</div>
-                      <div className="text-xs text-gray-500">
-                        {visibleBrands.length} brand{visibleBrands.length === 1 ? '' : 's'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <StatusPill active={group.is_active} />
-                      <ChevronDown className="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform" />
-                    </div>
-                  </summary>
-                  <div className="px-4 pb-4 space-y-2">
-                    {visibleBrands.length === 0 && (
-                      <div className="text-xs text-gray-500">No matching brands.</div>
-                    )}
-                    {visibleBrands.map((brand) => {
-                      const brandModels = modelsByBrandId[brand.id] ?? [];
-                      const brandMatchesQuery = queryBrandIds.has(brand.id);
-                      const showAllModels =
-                        normalizedQuery.length === 0 || brandMatchesQuery || groupMatchesQuery;
-                      const visibleModels = brandModels.filter((model) => {
-                        if (!eligibleModelIds.has(model.id)) return false;
-                        if (showAllModels) return true;
-                        return queryModelIds.has(model.id);
-                      });
-
-                      return (
-                        <details
-                          key={brand.id}
-                          className="group/brand rounded border border-zinc-800/70 bg-black/60"
-                        >
-                          <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
-                            <div>
-                              <div className="text-white font-medium">{brand.canonical_label}</div>
-                              <div className="text-xs text-gray-500">
-                                {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <StatusPill active={brand.is_active} />
-                              <VerifiedPill verified={brand.is_verified} />
-                              {renderMenu(
-                                `brand-${brand.id}`,
-                                () => setEditTarget({ type: 'brand', item: brand }),
-                                () => setConfirmTarget({ type: 'brand', item: brand })
-                              )}
-                              <ChevronDown className="w-4 h-4 text-gray-400 group-open/brand:rotate-180 transition-transform" />
-                            </div>
-                          </summary>
-                          <div className="px-4 pb-4 space-y-2">
-                            {visibleModels.length === 0 && (
-                              <div className="text-xs text-gray-500">No matching models.</div>
-                            )}
-                            {visibleModels.map((model) => (
-                              <div
-                                key={model.id}
-                                className="flex items-center justify-between gap-3 border border-zinc-800/70 rounded px-3 py-2"
-                              >
-                                <div>
-                                  <div className="text-white text-sm">{model.canonical_label}</div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <StatusPill active={model.is_active} />
-                                  <VerifiedPill verified={model.is_verified} />
-                                  {renderMenu(
-                                    `model-${model.id}`,
-                                    () => setEditTarget({ type: 'model', item: model }),
-                                    () => setConfirmTarget({ type: 'model', item: model })
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {activeTab === 'brands' && (
         <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
