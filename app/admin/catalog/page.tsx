@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, MoreHorizontal, Search } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, MoreVertical, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
 
 type BrandGroup = {
@@ -46,7 +46,7 @@ type Candidate = {
   status: string;
 };
 
-type ActiveTab = 'brands' | 'models' | 'aliases' | 'candidates';
+type ActiveTab = 'brands' | 'aliases' | 'candidates';
 
 type EditTarget =
   | { type: 'brand'; item: Brand }
@@ -54,8 +54,7 @@ type EditTarget =
   | { type: 'alias'; item: Alias };
 
 const tabs: Array<{ key: ActiveTab; label: string }> = [
-  { key: 'brands', label: 'Brands' },
-  { key: 'models', label: 'Models' },
+  { key: 'brands', label: 'Tags' },
   { key: 'aliases', label: 'Aliases' },
   { key: 'candidates', label: 'Candidates' },
 ];
@@ -106,7 +105,7 @@ function VerifiedPill({ verified }: { verified: boolean }) {
   );
 }
 
-export default function CatalogPage() {
+export default function TagsPage() {
   const [groups, setGroups] = useState<BrandGroup[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<Model[]>([]);
@@ -129,6 +128,10 @@ export default function CatalogPage() {
   const [editDraft, setEditDraft] = useState<any>(null);
   const [confirmTarget, setConfirmTarget] = useState<EditTarget | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAddBrandModal, setShowAddBrandModal] = useState(false);
+  const [showAddModelModal, setShowAddModelModal] = useState(false);
+  const [modelTargetBrand, setModelTargetBrand] = useState<Brand | null>(null);
+  const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
 
   const normalizedQuery = query.trim().toLowerCase();
   const matchesQuery = (value: string) =>
@@ -232,7 +235,7 @@ export default function CatalogPage() {
       setCandidates(candidatesData.candidates || []);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_catalog" });
-      setMessage('Failed to load catalog data.');
+      setMessage('Failed to load tag data.');
     } finally {
       setIsLoading(false);
     }
@@ -276,6 +279,21 @@ export default function CatalogPage() {
     setOpenMenuKey((prev) => (prev === key ? null : key));
   };
 
+  const toggleBrandExpansion = (brandId: string) => {
+    setExpandedBrands((prev) => ({ ...prev, [brandId]: !prev[brandId] }));
+  };
+
+  const openAddBrandModal = () => {
+    setNewBrand(emptyDraft.brand);
+    setShowAddBrandModal(true);
+  };
+
+  const openAddModelModal = (brand: Brand) => {
+    setModelTargetBrand(brand);
+    setNewModel({ ...emptyDraft.model, brandId: brand.id });
+    setShowAddModelModal(true);
+  };
+
   const handleCreateBrand = async () => {
     if (!newBrand.label.trim()) {
       setMessage('Brand label is required.');
@@ -301,6 +319,7 @@ export default function CatalogPage() {
     });
     if (response.ok) {
       setNewBrand(emptyDraft.brand);
+      setShowAddBrandModal(false);
       await loadAll();
     } else {
       setMessage('Failed to create brand.');
@@ -330,6 +349,8 @@ export default function CatalogPage() {
     });
     if (response.ok) {
       setNewModel(emptyDraft.model);
+      setShowAddModelModal(false);
+      setModelTargetBrand(null);
       await loadAll();
     } else {
       setMessage('Failed to create model.');
@@ -509,7 +530,7 @@ export default function CatalogPage() {
       setEditTarget(null);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_save_catalog_edit" });
-      setMessage('Failed to update catalog entry.');
+      setMessage('Failed to update tag entry.');
     } finally {
       setIsSaving(false);
     }
@@ -545,7 +566,7 @@ export default function CatalogPage() {
       setConfirmTarget(null);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_delete_catalog" });
-      setMessage('Failed to delete catalog entry.');
+      setMessage('Failed to delete tag entry.');
     } finally {
       setIsSaving(false);
     }
@@ -565,14 +586,17 @@ export default function CatalogPage() {
       }}
     >
       <button
+        type="button"
         onClick={() => toggleMenu(key)}
-        className="p-2 rounded hover:bg-zinc-800 text-gray-400 hover:text-white"
+        className="text-gray-400 hover:text-white p-1"
+        aria-label="Open actions"
       >
-        <MoreHorizontal className="w-4 h-4" />
+        <MoreVertical className="w-4 h-4" />
       </button>
       {openMenuKey === key && (
-        <div className="absolute right-0 mt-2 w-40 bg-zinc-900 border border-zinc-800/70 rounded shadow-lg z-10">
+        <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
           <button
+            type="button"
             onClick={() => {
               setOpenMenuKey(null);
               onEdit();
@@ -582,11 +606,12 @@ export default function CatalogPage() {
             Edit
           </button>
           <button
+            type="button"
             onClick={() => {
               setOpenMenuKey(null);
               onDelete();
             }}
-            className="w-full text-left px-3 py-2 text-sm text-red-300 hover:bg-zinc-800"
+            className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800"
           >
             Delete
           </button>
@@ -617,7 +642,7 @@ export default function CatalogPage() {
       <div className="bg-zinc-900 border border-zinc-800/70 p-5">
         <details className="group">
           <summary className="cursor-pointer list-none text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-4 py-3">
-            <span>Info key: how the tag system works</span>
+            <span>Info key: how the tags system works</span>
             <span className="text-xs text-gray-500 group-open:hidden">Show</span>
             <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
           </summary>
@@ -661,15 +686,15 @@ export default function CatalogPage() {
         </details>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 space-y-4">
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/70 rounded px-3 py-2 w-full lg:w-80">
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md">
             <Search className="w-4 h-4 text-gray-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search catalog..."
-              className="bg-transparent text-sm text-white outline-none flex-1"
+              placeholder="Search tags..."
+              className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
             />
           </div>
           <div className="flex flex-wrap gap-3 text-sm text-gray-300">
@@ -694,15 +719,15 @@ export default function CatalogPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-3 py-1 rounded-full text-sm ${
+              className={`py-3 text-sm font-medium transition-colors border-b-2 ${
                 activeTab === tab.key
-                  ? 'bg-red-600 text-white'
-                  : 'bg-zinc-800 text-gray-300 hover:bg-zinc-700'
+                  ? 'text-white border-red-600'
+                  : 'text-gray-400 hover:text-white border-transparent'
               }`}
             >
               {tab.label}
@@ -712,287 +737,407 @@ export default function CatalogPage() {
       </div>
 
       {activeTab === 'brands' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Brands</h2>
-            <span className="text-xs text-gray-500">{filteredBrands.length} brands</span>
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold text-white">Tags</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-500">{filteredBrands.length} brands</span>
+              <button
+                type="button"
+                onClick={openAddBrandModal}
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded text-sm"
+              >
+                Add Brands
+              </button>
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input
-              value={newBrand.label}
-              onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
-              placeholder="Brand label"
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            />
-            <button
-              onClick={handleCreateBrand}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-            >
-              Add Brand
-            </button>
-          </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && filteredBrands.length === 0 && (
-              <div className="text-gray-500 text-sm">No brands found.</div>
-            )}
-            {filteredBrands.map((brand) => {
-              const visibleModels = filteredModelsByBrandId[brand.id] ?? [];
-              return (
-                <details
-                  key={brand.id}
-                  className="group/brand rounded border border-zinc-800/70 bg-zinc-950/40"
-                >
-                  <summary className="cursor-pointer list-none px-4 py-3 flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-white font-medium">{brand.canonical_label}</div>
-                      <div className="text-xs text-gray-500">
-                        {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <StatusPill active={brand.is_active} />
-                      <VerifiedPill verified={brand.is_verified} />
-                      {renderMenu(
-                        `brand-${brand.id}`,
-                        () => setEditTarget({ type: 'brand', item: brand }),
-                        () => setConfirmTarget({ type: 'brand', item: brand })
-                      )}
-                      <ChevronDown className="w-4 h-4 text-gray-400 group-open/brand:rotate-180 transition-transform" />
-                    </div>
-                  </summary>
-                  <div className="px-4 pb-4 space-y-2">
-                    {visibleModels.length === 0 && (
-                      <div className="text-xs text-gray-500">No matching models.</div>
-                    )}
-                    {visibleModels.map((model) => (
-                      <div
-                        key={model.id}
-                        className="flex items-center justify-between gap-3 border border-zinc-800/70 rounded px-3 py-2 bg-zinc-900/60"
-                      >
-                        <div>
-                          <div className="text-white text-sm">{model.canonical_label}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <StatusPill active={model.is_active} />
-                          <VerifiedPill verified={model.is_verified} />
-                          {renderMenu(
-                            `model-${model.id}`,
-                            () => setEditTarget({ type: 'model', item: model }),
-                            () => setConfirmTarget({ type: 'model', item: model })
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
-      {activeTab === 'models' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Models</h2>
-            <span className="text-xs text-gray-500">{filteredModels.length} models</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <select
-              value={newModel.brandId}
-              onChange={(e) => setNewModel((prev) => ({ ...prev, brandId: e.target.value }))}
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            >
-              <option value="">Select brand</option>
-              {brands.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.canonical_label}
-                </option>
-              ))}
-            </select>
-            <input
-              value={newModel.label}
-              onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
-              placeholder="Model label"
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            />
-            <button
-              onClick={handleCreateModel}
-              className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
-            >
-              Add Model
-            </button>
-          </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && filteredModels.length === 0 && (
-              <div className="text-gray-500 text-sm">No models found.</div>
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
+            {isLoading ? (
+              <div className="text-center py-12 text-gray-400">Loading...</div>
+            ) : filteredBrands.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No tags found.</div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-800/70 bg-zinc-800">
+                    <th className="text-left text-gray-400 font-semibold p-4">Brand</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Status</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Verified</th>
+                    <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredBrands.map((brand) => {
+                    const visibleModels = filteredModelsByBrandId[brand.id] ?? [];
+                    const isExpanded = expandedBrands[brand.id] ?? false;
+                    return (
+                      <Fragment key={brand.id}>
+                        <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleBrandExpansion(brand.id)}
+                                className="text-gray-400 hover:text-white"
+                                aria-label={`Toggle ${brand.canonical_label} models`}
+                              >
+                                <ChevronDown
+                                  className={`w-4 h-4 transition-transform ${
+                                    isExpanded ? 'rotate-180' : ''
+                                  }`}
+                                />
+                              </button>
+                              <div>
+                                <div className="text-white font-semibold">{brand.canonical_label}</div>
+                                <div className="text-xs text-gray-500">
+                                  {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <StatusPill active={brand.is_active} />
+                          </td>
+                          <td className="p-4">
+                            <VerifiedPill verified={brand.is_verified} />
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openAddModelModal(brand)}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-3 py-2 rounded"
+                              >
+                                Add Model
+                              </button>
+                              {renderMenu(
+                                `brand-${brand.id}`,
+                                () => setEditTarget({ type: 'brand', item: brand }),
+                                () => setConfirmTarget({ type: 'brand', item: brand })
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
+                            <td className="p-4" colSpan={4}>
+                              <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                                Models
+                              </div>
+                              {visibleModels.length === 0 ? (
+                                <div className="text-xs text-gray-500">No models found.</div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {visibleModels.map((model) => (
+                                    <div
+                                      key={model.id}
+                                      className="flex items-center justify-between gap-3 border border-zinc-800/70 rounded px-3 py-2 bg-zinc-900/60"
+                                    >
+                                      <div className="text-white text-sm">{model.canonical_label}</div>
+                                      <div className="flex items-center gap-2">
+                                        <StatusPill active={model.is_active} />
+                                        <VerifiedPill verified={model.is_verified} />
+                                        {renderMenu(
+                                          `model-${model.id}`,
+                                          () => setEditTarget({ type: 'model', item: model }),
+                                          () => setConfirmTarget({ type: 'model', item: model })
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
-            {filteredModels.map((model) => (
-              <div key={model.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                  <div className="md:col-span-4">
-                    <div className="text-white font-medium">{model.canonical_label}</div>
-                    <div className="text-xs text-gray-500">{resolveBrandLabel(model.brand_id)}</div>
-                  </div>
-                  <div className="md:col-span-4 flex flex-wrap gap-2">
-                    <StatusPill active={model.is_active} />
-                    <VerifiedPill verified={model.is_verified} />
-                  </div>
-                  <div className="md:col-span-4 flex justify-end">
-                    {renderMenu(
-                      `model-${model.id}`,
-                      () => setEditTarget({ type: 'model', item: model }),
-                      () => setConfirmTarget({ type: 'model', item: model })
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
       )}
 
       {activeTab === 'aliases' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Aliases</h2>
             <span className="text-xs text-gray-500">{filteredAliases.length} aliases</span>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <select
-              value={newAlias.entityType}
-              onChange={(e) =>
-                setNewAlias((prev) => ({
-                  ...prev,
-                  entityType: e.target.value as 'brand' | 'model',
-                  entityId: '',
-                }))
-              }
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            >
-              <option value="brand">Brand</option>
-              <option value="model">Model</option>
-            </select>
-            <select
-              value={newAlias.entityId}
-              onChange={(e) => setNewAlias((prev) => ({ ...prev, entityId: e.target.value }))}
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            >
-              <option value="">Select {newAlias.entityType}</option>
-              {newAlias.entityType === 'brand'
-                ? brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.canonical_label}
-                    </option>
-                  ))
-                : models.map((model) => (
-                    <option key={model.id} value={model.id}>
-                      {model.canonical_label}
-                    </option>
-                  ))}
-            </select>
-            <input
-              value={newAlias.label}
-              onChange={(e) => setNewAlias((prev) => ({ ...prev, label: e.target.value }))}
-              placeholder="Alias"
-              className="bg-zinc-800 text-white px-3 py-2 rounded"
-            />
-            <div className="flex gap-2">
-              <input
-                value={newAlias.priority}
-                onChange={(e) => setNewAlias((prev) => ({ ...prev, priority: e.target.value }))}
-                placeholder="Priority (higher wins)"
-                className="bg-zinc-800 text-white px-3 py-2 rounded w-24"
-              />
-              <button
-                onClick={handleCreateAlias}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold rounded px-4 py-2"
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <select
+                value={newAlias.entityType}
+                onChange={(e) =>
+                  setNewAlias((prev) => ({
+                    ...prev,
+                    entityType: e.target.value as 'brand' | 'model',
+                    entityId: '',
+                  }))
+                }
+                className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
               >
-                Add Alias
-              </button>
+                <option value="brand">Brand</option>
+                <option value="model">Model</option>
+              </select>
+              <select
+                value={newAlias.entityId}
+                onChange={(e) => setNewAlias((prev) => ({ ...prev, entityId: e.target.value }))}
+                className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+              >
+                <option value="">Select {newAlias.entityType}</option>
+                {newAlias.entityType === 'brand'
+                  ? brands.map((brand) => (
+                      <option key={brand.id} value={brand.id}>
+                        {brand.canonical_label}
+                      </option>
+                    ))
+                  : models.map((model) => (
+                      <option key={model.id} value={model.id}>
+                        {model.canonical_label}
+                      </option>
+                    ))}
+              </select>
+              <input
+                value={newAlias.label}
+                onChange={(e) => setNewAlias((prev) => ({ ...prev, label: e.target.value }))}
+                placeholder="Alias"
+                className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+              />
+              <div className="flex gap-2">
+                <input
+                  value={newAlias.priority}
+                  onChange={(e) => setNewAlias((prev) => ({ ...prev, priority: e.target.value }))}
+                  placeholder="Priority (higher wins)"
+                  className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 w-28"
+                />
+                <button
+                  onClick={handleCreateAlias}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded"
+                >
+                  Add Alias
+                </button>
+              </div>
             </div>
           </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && filteredAliases.length === 0 && (
-              <div className="text-gray-500 text-sm">No aliases found.</div>
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
+            {isLoading ? (
+              <div className="text-center py-12 text-gray-400">Loading...</div>
+            ) : filteredAliases.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No aliases found.</div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-800/70 bg-zinc-800">
+                    <th className="text-left text-gray-400 font-semibold p-4">Alias</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Type</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Priority</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Status</th>
+                    <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAliases.map((alias) => (
+                    <tr key={alias.id} className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
+                      <td className="p-4">
+                        <div className="text-white font-semibold">{alias.alias_label}</div>
+                        <div className="text-xs text-gray-500">
+                          {alias.entity_type === 'brand'
+                            ? resolveBrandLabel(alias.brand_id)
+                            : resolveModelLabel(alias.model_id)}
+                        </div>
+                      </td>
+                      <td className="p-4 text-xs uppercase text-gray-400">{alias.entity_type}</td>
+                      <td className="p-4 text-gray-400">{alias.priority ?? 0}</td>
+                      <td className="p-4">
+                        <StatusPill active={alias.is_active} />
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end">
+                          {renderMenu(
+                            `alias-${alias.id}`,
+                            () => setEditTarget({ type: 'alias', item: alias }),
+                            () => setConfirmTarget({ type: 'alias', item: alias })
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
-            {filteredAliases.map((alias) => (
-              <div key={alias.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                  <div className="md:col-span-4">
-                    <div className="text-white font-medium">{alias.alias_label}</div>
-                    <div className="text-xs text-gray-500">
-                      {alias.entity_type === 'brand'
-                        ? resolveBrandLabel(alias.brand_id)
-                        : resolveModelLabel(alias.model_id)}
-                    </div>
-                  </div>
-                  <div className="md:col-span-3">
-                    <div className="text-xs text-gray-400 uppercase">{alias.entity_type}</div>
-                    <div className="text-xs text-gray-500">Priority {alias.priority ?? 0}</div>
-                  </div>
-                  <div className="md:col-span-3">
-                    <StatusPill active={alias.is_active} />
-                  </div>
-                  <div className="md:col-span-2 flex justify-end">
-                    {renderMenu(
-                      `alias-${alias.id}`,
-                      () => setEditTarget({ type: 'alias', item: alias }),
-                      () => setConfirmTarget({ type: 'alias', item: alias })
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
       )}
 
       {activeTab === 'candidates' && (
-        <section className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
+        <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Candidates</h2>
             <span className="text-xs text-gray-500">{filteredCandidates.length} pending</span>
           </div>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
-            {isLoading && <div className="text-gray-400 text-sm">Loading...</div>}
-            {!isLoading && filteredCandidates.length === 0 && (
-              <div className="text-gray-500 text-sm">No pending candidates.</div>
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
+            {isLoading ? (
+              <div className="text-center py-12 text-gray-400">Loading...</div>
+            ) : filteredCandidates.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">No pending candidates.</div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-zinc-800/70 bg-zinc-800">
+                    <th className="text-left text-gray-400 font-semibold p-4">Candidate</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Type</th>
+                    <th className="text-left text-gray-400 font-semibold p-4">Brand</th>
+                    <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCandidates.map((candidate) => (
+                    <tr
+                      key={candidate.id}
+                      className="border-b border-zinc-800/70 hover:bg-zinc-800/60"
+                    >
+                      <td className="p-4">
+                        <div className="text-white font-semibold">{candidate.raw_text}</div>
+                      </td>
+                      <td className="p-4 text-xs uppercase text-gray-400">{candidate.entity_type}</td>
+                      <td className="p-4 text-gray-400">
+                        {candidate.entity_type === 'model'
+                          ? resolveBrandLabel(candidate.parent_brand_id)
+                          : '-'}
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleAcceptCandidate(candidate)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-2 text-xs font-semibold"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRejectCandidate(candidate)}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-2 text-xs font-semibold"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
-            {filteredCandidates.map((candidate) => (
-              <div key={candidate.id} className="bg-zinc-800/60 border border-zinc-800/70 rounded p-4">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                  <div className="md:col-span-4">
-                    <div className="text-white font-medium">{candidate.raw_text}</div>
-                    <div className="text-xs text-gray-500 uppercase">{candidate.entity_type}</div>
-                  </div>
-                  <div className="md:col-span-4 text-xs text-gray-400">
-                    {candidate.entity_type === 'model'
-                      ? `Brand: ${resolveBrandLabel(candidate.parent_brand_id)}`
-                      : 'Brand will be added to Brands'}
-                  </div>
-                  <div className="md:col-span-4 flex flex-wrap gap-2 md:justify-end">
-                    <button
-                      onClick={() => handleAcceptCandidate(candidate)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-2"
-                    >
-                      Accept
-                    </button>
-                    <button
-                      onClick={() => handleRejectCandidate(candidate)}
-                      className="bg-zinc-700 hover:bg-zinc-600 text-white rounded px-3 py-2"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
+      )}
+
+      {showAddBrandModal && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
+          onClick={() => setShowAddBrandModal(false)}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-white">Add Brand</h3>
+              <button
+                onClick={() => setShowAddBrandModal(false)}
+                className="text-gray-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                value={newBrand.label}
+                onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
+                onBlur={(e) =>
+                  setNewBrand((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
+                }
+                placeholder="Brand label (e.g., Air Jordan)"
+                className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowAddBrandModal(false)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateBrand}
+                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2"
+              >
+                Add Brand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModelModal && modelTargetBrand && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
+          onClick={() => {
+            setShowAddModelModal(false);
+            setModelTargetBrand(null);
+          }}
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Add Model</h3>
+                <p className="text-xs text-gray-500">Brand: {modelTargetBrand.canonical_label}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAddModelModal(false);
+                  setModelTargetBrand(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                value={newModel.label}
+                onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
+                onBlur={(e) =>
+                  setNewModel((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
+                }
+                placeholder="Model label (e.g., Retro 3)"
+                className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowAddModelModal(false);
+                  setModelTargetBrand(null);
+                }}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateModel}
+                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2"
+              >
+                Add Model
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {editTarget && editDraft && (
