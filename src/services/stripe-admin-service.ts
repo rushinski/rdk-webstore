@@ -1,8 +1,8 @@
 // src/services/stripe-admin-service.ts
-import Stripe from "stripe";
-import { stripe } from "@/lib/stripe/stripe-server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProfileRepository } from "@/repositories/profile-repo";
+import Stripe from 'stripe';
+import { stripe } from '@/lib/stripe/stripe-server';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { ProfileRepository } from '@/repositories/profile-repo';
 
 export type StripeAccountSummary = {
   account: {
@@ -60,13 +60,13 @@ export class StripeAdminService {
       stripe.accounts.retrieve(stripeAccountId),
       stripe.balance.retrieve({}, { stripeAccount: stripeAccountId }),
       stripe.accounts.listExternalAccounts(stripeAccountId, {
-        object: "bank_account",
+        object: 'bank_account',
         limit: 10,
       }),
     ]);
 
     const bankAccounts = externalAccounts.data
-      .filter((ea) => ea.object === "bank_account")
+      .filter((ea) => ea.object === 'bank_account')
       .map((ea) => {
         const ba = ea as Stripe.BankAccount;
         return {
@@ -102,24 +102,22 @@ export class StripeAdminService {
     const profileRepo = new ProfileRepository(supabase);
     const profile = await profileRepo.getByUserId(params.userId);
 
-    if (!profile) throw new Error("Admin profile not found.");
+    if (!profile) throw new Error('Admin profile not found.');
 
     let stripeAccountId = profile.stripe_account_id;
 
     if (!stripeAccountId) {
-      // Keep capabilities minimal for payouts.
-      // If you truly need card_payments on the connected account, add it back.
       const account = await stripe.accounts.create({
-        type: "express",
+        type: 'express',
         email: profile.email ?? undefined,
-        country: "US",
+        country: 'US',
         capabilities: {
           transfers: { requested: true },
         },
         settings: {
           payouts: {
             schedule: {
-              interval: "daily",
+              interval: 'daily',
             },
           },
         },
@@ -153,7 +151,7 @@ export class StripeAdminService {
           features: {
             external_account_collection: true,
             edit_payout_schedule: true,
-            instant_payouts: true, // ✅ allow instant payouts
+            instant_payouts: true,
             standard_payouts: true,
           },
         },
@@ -162,7 +160,7 @@ export class StripeAdminService {
           features: {
             external_account_collection: true,
             edit_payout_schedule: true,
-            instant_payouts: true, // ✅ allow instant payouts
+            instant_payouts: true,
             standard_payouts: true,
           },
         },
@@ -193,8 +191,12 @@ export class StripeAdminService {
     });
   }
 
-  async listPayouts(params: { accountId: string }): Promise<StripePayoutDTO[]> {
-    const payouts = await stripe.payouts.list({ limit: 50 }, { stripeAccount: params.accountId });
+  async listPayouts(params: { accountId: string; limit?: number }): Promise<StripePayoutDTO[]> {
+    const payouts = await stripe.payouts.list(
+      { limit: params.limit ?? 50 }, 
+      { stripeAccount: params.accountId }
+    );
+    
     return payouts.data.map((p) => ({
       id: p.id,
       amount: p.amount,
@@ -209,9 +211,9 @@ export class StripeAdminService {
 
   async createManualPayout(params: {
     accountId: string;
-    amount: number; // cents
+    amount: number;
     currency: string;
-    method: "standard" | "instant";
+    method: 'standard' | 'instant';
   }) {
     return stripe.payouts.create(
       {
