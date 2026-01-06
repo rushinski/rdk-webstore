@@ -217,17 +217,8 @@ export default function ShippingSettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">Shipping Settings</h1>
         <p className="text-gray-400">Shipping defaults and origin address</p>
-      </div>
-
-      <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
-        <button
-          type="button"
-          className="py-3 text-sm font-medium transition-colors border-b-2 text-white border-red-600"
-        >
-          Shipping
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
