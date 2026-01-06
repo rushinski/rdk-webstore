@@ -2,8 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
-import Link from 'next/link';
+import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
 import { logError } from '@/lib/log';
 
 type StripePayout = {
@@ -92,9 +91,6 @@ export default function ViewTransfersPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-8">
-          <Link href="/admin/settings/transfers" className="text-zinc-400 hover:text-white">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
           <div>
             <h1 className="text-3xl font-bold text-white">All Transfers</h1>
             <p className="text-zinc-400 text-sm mt-1">Complete payout history</p>
@@ -111,9 +107,6 @@ export default function ViewTransfersPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-8">
-          <Link href="/admin/settings/transfers" className="text-zinc-400 hover:text-white">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
           <div>
             <h1 className="text-3xl font-bold text-white">All Transfers</h1>
           </div>
@@ -133,9 +126,6 @@ export default function ViewTransfersPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/admin/settings/transfers" className="text-zinc-400 hover:text-white">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
           <div>
             <h1 className="text-3xl font-bold text-white">All Transfers</h1>
             <p className="text-zinc-400 text-sm mt-1">
