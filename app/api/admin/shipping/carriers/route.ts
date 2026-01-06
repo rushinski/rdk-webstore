@@ -1,7 +1,7 @@
 // app/api/admin/shipping/carriers/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await requireAdminApi();
-    const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseAdminClient();
     const repo = new ShippingCarriersRepository(supabase);
 
     const carriers = await repo.get();
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await requireAdminApi();
-    const supabase = await createSupabaseServerClient();
+    const supabase = await createSupabaseAdminClient();
     const repo = new ShippingCarriersRepository(supabase);
 
     const body = await request.json();
