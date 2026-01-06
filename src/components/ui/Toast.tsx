@@ -6,9 +6,9 @@ import { X } from 'lucide-react';
 type ToastTone = 'success' | 'error' | 'info';
 
 const toneStyles: Record<ToastTone, string> = {
-  success: 'border-l-4 border-l-red-500 text-red-400',
-  error: 'border-l-4 border-l-red-500 text-red-400',
-  info: 'border-l-4 border-l-red-500 text-red-400',
+  success: 'bg-green-600 text-white',
+  error: 'bg-red-600 text-white',
+  info: 'bg-zinc-900 text-white',
 };
 
 interface ToastProps {
