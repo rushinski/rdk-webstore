@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingOriginsRepository } from "@/repositories/shipping-origins-repo";
+import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
 import { EasyPostService } from "@/services/shipping-label-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -62,7 +63,18 @@ export async function POST(request: NextRequest) {
         const { orderId, weight, length, width, height } = parsed.data;
 
         const originsRepo = new ShippingOriginsRepository(supabase);
+        const carriersRepo = new ShippingCarriersRepository(supabase);
         const easyPostService = new EasyPostService();
+
+        // Get enabled carriers from settings
+        const carriersConfig = await carriersRepo.get();
+        const enabledCarriers = carriersConfig?.enabled_carriers || [];
+        
+        if (enabledCarriers.length === 0) {
+            return NextResponse.json({ 
+              error: "No carriers enabled. Please enable carriers in shipping settings." 
+            }, { status: 400 });
+        }
 
         // Get recipient address from the order
         const recipientResult = await supabase.from('order_shipping').select('*').eq('order_id', orderId).single();
@@ -89,7 +101,18 @@ export async function POST(request: NextRequest) {
 
         const shipment = await easyPostService.createShipment(shipperAddress, recipientAddress, parcel);
 
-        return NextResponse.json({ shipment });
+        // Filter rates to only enabled carriers
+        const filteredRates = (shipment.rates ?? []).filter((r: any) => {
+          const carrier = String(r.carrier ?? "").toUpperCase();
+          return enabledCarriers.some(enabled => enabled.toUpperCase() === carrier);
+        });
+
+        return NextResponse.json({
+          shipment: {
+            id: shipment.id,
+            rates: filteredRates,
+          },
+        });
 
     } catch (error: any) {
         logError(error, { layer: "api", requestId, route: "/api/admin/shipping/rates" });

@@ -1174,6 +1174,27 @@ export type Database = {
           },
         ]
       }
+      shipping_carriers: {
+        Row: {
+          created_at: string
+          enabled_carriers: string[]
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled_carriers?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled_carriers?: string[]
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shipping_defaults: {
         Row: {
           category: string

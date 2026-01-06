@@ -47,10 +47,25 @@ export async function POST(
       );
     }
 
+    // Fetch existing order
+    const existing = await service.getOrderById(paramsParsed.data.orderId);
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Order not found", requestId },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Mark as shipped (fulfillment_status: shipped)
     const updated = await service.markFulfilled(paramsParsed.data.orderId, {
       carrier: parsed.data.carrier ?? null,
       trackingNumber: parsed.data.trackingNumber ?? null,
     });
+
+    // NOTE: We do NOT send email here
+    // The "in transit" email will be sent by the EasyPost webhook
+    // when the carrier first scans the package
+    // This ensures customers get notified when package actually starts moving
 
     return NextResponse.json(
       { order: updated },

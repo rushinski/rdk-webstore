@@ -36,7 +36,7 @@ type OrderConfirmationEmailInput = {
   shippingAddress?: ShippingAddress | null;
 };
 
-type OrderShippedEmailInput = {
+type OrderTrackingEmailBase = {
   to: string;
   orderId: string;
   carrier?: string | null;
@@ -44,8 +44,16 @@ type OrderShippedEmailInput = {
   trackingUrl?: string | null;
 };
 
-const formatMoney = (value: number) => value.toFixed(2);
+type OrderLabelCreatedEmailInput = OrderTrackingEmailBase;
+type OrderInTransitEmailInput = OrderTrackingEmailBase;
+type OrderDeliveredEmailInput = OrderTrackingEmailBase;
+type OrderRefundedEmailInput = {
+  to: string;
+  orderId: string;
+  refundAmount: number;
+};
 
+const formatMoney = (value: number) => value.toFixed(2);
 const formatLine = (value?: string | null) => (value ? value.trim() : "");
 
 const buildAddressLines = (address?: ShippingAddress | null) => {
@@ -63,6 +71,7 @@ const buildAddressLines = (address?: ShippingAddress | null) => {
   return lines.filter(Boolean);
 };
 
+// Order Confirmation
 const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
   const orderDate = new Date(input.createdAt).toLocaleDateString("en-US", {
@@ -229,97 +238,321 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
   return lines.join("\n");
 };
 
-const buildShippedEmailHtml = (input: OrderShippedEmailInput) => {
+// Tracking Panel Builder
+const buildTrackingPanelHtml = (input: OrderTrackingEmailBase) => {
+  const carrierLabel = input.carrier ?? "Carrier";
+  const trackingLabel = input.trackingNumber ?? "Tracking details will be shared soon.";
+  const trackingUrl = input.trackingUrl ?? null;
+
+  return `
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+      <tr>
+        <td style="padding:12px;">
+          <div style="${emailStyles.label}">Carrier</div>
+          <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+            ${carrierLabel}
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
+          <div style="${emailStyles.label}">Tracking</div>
+          <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+            ${trackingUrl ? `<a href="${trackingUrl}" style="${emailStyles.accentLink}">${trackingLabel}</a>` : trackingLabel}
+          </div>
+        </td>
+      </tr>
+    </table>
+  `;
+};
+
+const buildTrackingPanelText = (input: OrderTrackingEmailBase) => {
+  const lines: string[] = [];
+  if (input.carrier) lines.push(`Carrier: ${input.carrier}`);
+  if (input.trackingNumber) lines.push(`Tracking: ${input.trackingNumber}`);
+  if (input.trackingUrl) lines.push(`Track: ${input.trackingUrl}`);
+  return lines.join("\n");
+};
+
+// Label Created
+const buildLabelCreatedEmailHtml = (input: OrderLabelCreatedEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
   const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
-  const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
   const buttonUrl = input.trackingUrl ?? orderUrl;
-
-  const carrierLabel = input.carrier ?? "Shipping carrier";
-  const trackingLabel = input.trackingNumber ?? "Tracking details will be shared soon.";
+  const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
 
   const contentHtml = `
-      <tr>
-        <td style="padding:0 24px 10px;text-align:center;">
-          <div style="${emailStyles.eyebrow}">Order shipped</div>
-          <h1 style="${emailStyles.heading}">Your order is on the way.</h1>
-          <p style="margin:10px 0 0;${emailStyles.copy}">
-            Keep an eye on your tracking details below.
-          </p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:0 24px 16px;">
-          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
-            <tr>
-              <td style="padding:12px;">
-                <div style="${emailStyles.label}">Order</div>
-                <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
-                  #${orderShort}
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
-                <div style="${emailStyles.label}">Carrier</div>
-                <div style="font-size:14px;color:#ffffff;margin-top:4px;">
-                  ${carrierLabel}
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
-                <div style="${emailStyles.label}">Tracking</div>
-                <div style="font-size:14px;color:#ffffff;margin-top:4px;">
-                  ${trackingLabel}
-                </div>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:20px 24px;text-align:left;">
-          <a href="${buttonUrl}" style="${emailStyles.button}">${buttonLabel}</a>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
-          If you have any questions, reply to this email and our team will help you out.
-        </td>
-      </tr>
-    `;
+    <tr>
+      <td style="padding:0 24px 10px;text-align:center;">
+        <div style="${emailStyles.eyebrow}">Label created</div>
+        <h1 style="${emailStyles.heading}">We're preparing your shipment.</h1>
+        <p style="margin:10px 0 0;${emailStyles.copy}">
+          Your shipping label has been created. Tracking may take a bit to update until the carrier scans the package.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+          <tr>
+            <td style="padding:12px;">
+              <div style="${emailStyles.label}">Order</div>
+              <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
+                #${orderShort}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        ${buildTrackingPanelHtml(input)}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px;text-align:left;">
+        <a href="${buttonUrl}" style="${emailStyles.button}">${buttonLabel}</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+        If you have any questions, reply to this email and our team will help you out.
+      </td>
+    </tr>
+  `;
 
   return renderEmailLayout({
-    title: "Order Shipped",
+    title: "Label Created",
+    preheader: `Shipping label created for order #${orderShort}.`,
+    contentHtml,
+  });
+};
+
+const buildLabelCreatedEmailText = (input: OrderLabelCreatedEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const lines = [
+    "Realdealkickzsc",
+    `Order #${orderShort}`,
+    "Your shipping label has been created.",
+    "Tracking may take a bit to update until the carrier scans the package.",
+    buildTrackingPanelText(input),
+    "",
+    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    emailFooterText(),
+  ].filter(Boolean);
+
+  return lines.join("\n");
+};
+
+// In Transit
+const buildInTransitEmailHtml = (input: OrderInTransitEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const buttonUrl = input.trackingUrl ?? orderUrl;
+  const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
+
+  const contentHtml = `
+    <tr>
+      <td style="padding:0 24px 10px;text-align:center;">
+        <div style="${emailStyles.eyebrow}">On the way</div>
+        <h1 style="${emailStyles.heading}">Your order is in transit.</h1>
+        <p style="margin:10px 0 0;${emailStyles.copy}">
+          Your package is moving through the carrier network.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+          <tr>
+            <td style="padding:12px;">
+              <div style="${emailStyles.label}">Order</div>
+              <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
+                #${orderShort}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        ${buildTrackingPanelHtml(input)}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px;text-align:left;">
+        <a href="${buttonUrl}" style="${emailStyles.button}">${buttonLabel}</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+        If you have any questions, reply to this email and our team will help you out.
+      </td>
+    </tr>
+  `;
+
+  return renderEmailLayout({
+    title: "Order In Transit",
     preheader: `Order #${orderShort} is on the way.`,
     contentHtml,
   });
 };
 
-const buildShippedEmailText = (input: OrderShippedEmailInput) => {
+const buildInTransitEmailText = (input: OrderInTransitEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
-  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
-
   const lines = [
     "Realdealkickzsc",
     `Order #${orderShort}`,
-    "Your order has shipped.",
-  ];
-
-  if (input.carrier) {
-    lines.push(`Carrier: ${input.carrier}`);
-  }
-  if (input.trackingNumber) {
-    lines.push(`Tracking: ${input.trackingNumber}`);
-  }
-  lines.push(input.trackingUrl ? `Track: ${input.trackingUrl}` : `View your order: ${orderUrl}`);
-  lines.push(emailFooterText());
+    "Your order is in transit.",
+    buildTrackingPanelText(input),
+    "",
+    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    emailFooterText(),
+  ].filter(Boolean);
 
   return lines.join("\n");
 };
 
+// Delivered
+const buildDeliveredEmailHtml = (input: OrderDeliveredEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const buttonUrl = input.trackingUrl ?? orderUrl;
 
+  const contentHtml = `
+    <tr>
+      <td style="padding:0 24px 10px;text-align:center;">
+        <div style="${emailStyles.eyebrow}">Delivered</div>
+        <h1 style="${emailStyles.heading}">Your order has arrived.</h1>
+        <p style="margin:10px 0 0;${emailStyles.copy}">
+          If anything looks off, reply to this email and we'll help.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+          <tr>
+            <td style="padding:12px;">
+              <div style="${emailStyles.label}">Order</div>
+              <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
+                #${orderShort}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        ${buildTrackingPanelHtml(input)}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px;text-align:left;">
+        <a href="${buttonUrl}" style="${emailStyles.button}">View tracking</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+        If you have any questions, reply to this email and our team will help you out.
+      </td>
+    </tr>
+  `;
+
+  return renderEmailLayout({
+    title: "Order Delivered",
+    preheader: `Order #${orderShort} was delivered.`,
+    contentHtml,
+  });
+};
+
+const buildDeliveredEmailText = (input: OrderDeliveredEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const lines = [
+    "Realdealkickzsc",
+    `Order #${orderShort}`,
+    "Your order was delivered.",
+    buildTrackingPanelText(input),
+    "",
+    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    emailFooterText(),
+  ].filter(Boolean);
+
+  return lines.join("\n");
+};
+
+// Refunded
+const buildRefundedEmailHtml = (input: OrderRefundedEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+
+  const contentHtml = `
+    <tr>
+      <td style="padding:0 24px 10px;text-align:center;">
+        <div style="${emailStyles.eyebrow}">Refund processed</div>
+        <h1 style="${emailStyles.heading}">Your refund has been issued.</h1>
+        <p style="margin:10px 0 0;${emailStyles.copy}">
+          The refund should appear in your account within 5-10 business days.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+          <tr>
+            <td style="padding:12px;">
+              <div style="${emailStyles.label}">Order</div>
+              <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
+                #${orderShort}
+              </div>
+            </td>
+            <td style="padding:12px;text-align:right;">
+              <div style="${emailStyles.label}">Refund Amount</div>
+              <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
+                $${formatMoney(input.refundAmount / 100)}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px;text-align:left;">
+        <a href="${orderUrl}" style="${emailStyles.button}">View your order</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+        If you have any questions about this refund, reply to this email and our team will help you out.
+      </td>
+    </tr>
+  `;
+
+  return renderEmailLayout({
+    title: "Refund Processed",
+    preheader: `Refund processed for order #${orderShort}.`,
+    contentHtml,
+  });
+};
+
+const buildRefundedEmailText = (input: OrderRefundedEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const lines = [
+    "Realdealkickzsc",
+    `Order #${orderShort}`,
+    `Refund amount: $${formatMoney(input.refundAmount / 100)}`,
+    "Your refund has been processed.",
+    "The refund should appear in your account within 5-10 business days.",
+    "",
+    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    emailFooterText(),
+  ];
+
+  return lines.join("\n");
+};
 
 export class OrderEmailService {
   async sendOrderConfirmation(input: OrderConfirmationEmailInput) {
@@ -332,13 +565,43 @@ export class OrderEmailService {
     });
   }
 
-  async sendOrderShipped(input: OrderShippedEmailInput) {
+  async sendOrderLabelCreated(input: OrderLabelCreatedEmailInput) {
     if (!input.to) return;
     await sendEmail({
-        to: input.to,
-        subject: `Your Realdealkickzsc order #${input.orderId.slice(0,8)} has shipped`,
-        html: buildShippedEmailHtml(input),
-        text: buildShippedEmailText(input),
+      to: input.to,
+      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} label is created`,
+      html: buildLabelCreatedEmailHtml(input),
+      text: buildLabelCreatedEmailText(input),
+    });
+  }
+
+  async sendOrderInTransit(input: OrderInTransitEmailInput) {
+    if (!input.to) return;
+    await sendEmail({
+      to: input.to,
+      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} is on the way`,
+      html: buildInTransitEmailHtml(input),
+      text: buildInTransitEmailText(input),
+    });
+  }
+
+  async sendOrderDelivered(input: OrderDeliveredEmailInput) {
+    if (!input.to) return;
+    await sendEmail({
+      to: input.to,
+      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} was delivered`,
+      html: buildDeliveredEmailHtml(input),
+      text: buildDeliveredEmailText(input),
+    });
+  }
+
+  async sendOrderRefunded(input: OrderRefundedEmailInput) {
+    if (!input.to) return;
+    await sendEmail({
+      to: input.to,
+      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} has been refunded`,
+      html: buildRefundedEmailHtml(input),
+      text: buildRefundedEmailText(input),
     });
   }
 }

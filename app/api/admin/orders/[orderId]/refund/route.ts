@@ -4,6 +4,8 @@ import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersRepository } from "@/repositories/orders-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import { OrderEmailService } from "@/services/order-email-service";
 import { env } from "@/config/env";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -23,6 +25,7 @@ export async function POST(
     await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const ordersRepo = new OrdersRepository(supabase);
+    const profilesRepo = new ProfileRepository(supabase);
 
     const order = await ordersRepo.getById(orderId);
 
@@ -50,7 +53,7 @@ export async function POST(
     // Create a refund in Stripe
     const refund = await stripe.refunds.create({
       payment_intent: order.stripe_payment_intent_id,
-      reason: "requested_by_customer", // Can be customized later
+      reason: "requested_by_customer",
     });
 
     if (refund.status === 'failed') {
@@ -59,6 +62,28 @@ export async function POST(
 
     // Update the order in our database
     await ordersRepo.markRefunded(orderId, refund.amount);
+
+    // Send refund confirmation email
+    try {
+      if (order.user_id) {
+        const profile = await profilesRepo.getByUserId(order.user_id);
+        if (profile?.email) {
+          const emailService = new OrderEmailService();
+          await emailService.sendOrderRefunded({
+            to: profile.email,
+            orderId: order.id,
+            refundAmount: refund.amount,
+          });
+        }
+      }
+    } catch (emailError) {
+      logError(emailError, {
+        layer: "api",
+        requestId,
+        message: "Failed to send refund confirmation email",
+      });
+      // Don't fail the refund if email fails
+    }
 
     return NextResponse.json({ success: true, refundId: refund.id });
 

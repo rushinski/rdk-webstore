@@ -11,6 +11,13 @@ const SHIPPING_CATEGORIES = [
   { key: 'electronics', label: 'Electronics' },
 ];
 
+// Available EasyPost carriers for UPS
+const AVAILABLE_CARRIERS = [
+  { key: 'UPS', label: 'UPS', description: 'United Parcel Service' },
+  { key: 'USPS', label: 'USPS', description: 'United States Postal Service' },
+  { key: 'FedEx', label: 'FedEx', description: 'Federal Express' },
+];
+
 type ShippingDefaultValues = {
   shipping_cost_cents: number;
   default_weight_oz: number;
@@ -42,12 +49,17 @@ const initialOrigin = {
 type ShippingOriginAddress = typeof initialOrigin;
 
 export default function ShippingSettingsPage() {
-  const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefaultValues>>({});
+  const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefaultValues>>(
+    {}
+  );
   const [originAddress, setOriginAddress] = useState<ShippingOriginAddress>(initialOrigin);
+  const [enabledCarriers, setEnabledCarriers] = useState<string[]>([]);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [isSavingOrigin, setIsSavingOrigin] = useState(false);
+  const [isSavingCarriers, setIsSavingCarriers] = useState(false);
   const [message, setMessage] = useState('');
   const [originMessage, setOriginMessage] = useState('');
+  const [carriersMessage, setCarriersMessage] = useState('');
   const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [defaultsDraft, setDefaultsDraft] = useState<ShippingDefaultValues | null>(null);
@@ -62,9 +74,10 @@ export default function ShippingSettingsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [defaultsResponse, originResponse] = await Promise.all([
+        const [defaultsResponse, originResponse, carriersResponse] = await Promise.all([
           fetch('/api/admin/shipping/defaults'),
           fetch('/api/admin/shipping/origin'),
+          fetch('/api/admin/shipping/carriers'),
         ]);
 
         const defaultsData = await defaultsResponse.json();
@@ -84,6 +97,9 @@ export default function ShippingSettingsPage() {
         if (originData.origin) {
           setOriginAddress(originData.origin);
         }
+
+        const carriersData = await carriersResponse.json();
+        setEnabledCarriers(carriersData.carriers || []);
       } catch (error) {
         logError(error, { layer: 'frontend', event: 'admin_load_settings_shipping' });
       }
@@ -122,6 +138,15 @@ export default function ShippingSettingsPage() {
     setOriginDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+  const toggleCarrier = (carrierKey: string) => {
+    setEnabledCarriers((prev) => {
+      if (prev.includes(carrierKey)) {
+        return prev.filter((c) => c !== carrierKey);
+      }
+      return [...prev, carrierKey];
+    });
+  };
+
   const saveDefaults = async () => {
     if (!activeCategory || !defaultsDraft) return;
     setIsSavingDefaults(true);
@@ -136,10 +161,14 @@ export default function ShippingSettingsPage() {
       const defaults = SHIPPING_CATEGORIES.map((category) => ({
         category: category.key,
         shipping_cost_cents: Math.round(nextDefaults[category.key]?.shipping_cost_cents ?? 0),
-        default_weight_oz: nextDefaults[category.key]?.default_weight_oz ?? defaultPackage.default_weight_oz,
-        default_length_in: nextDefaults[category.key]?.default_length_in ?? defaultPackage.default_length_in,
-        default_width_in: nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
-        default_height_in: nextDefaults[category.key]?.default_height_in ?? defaultPackage.default_height_in,
+        default_weight_oz:
+          nextDefaults[category.key]?.default_weight_oz ?? defaultPackage.default_weight_oz,
+        default_length_in:
+          nextDefaults[category.key]?.default_length_in ?? defaultPackage.default_length_in,
+        default_width_in:
+          nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
+        default_height_in:
+          nextDefaults[category.key]?.default_height_in ?? defaultPackage.default_height_in,
       }));
 
       const response = await fetch('/api/admin/shipping/defaults', {
@@ -190,6 +219,30 @@ export default function ShippingSettingsPage() {
     }
   };
 
+  const saveCarriers = async () => {
+    setIsSavingCarriers(true);
+    setCarriersMessage('');
+    try {
+      const response = await fetch('/api/admin/shipping/carriers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carriers: enabledCarriers }),
+      });
+
+      if (response.ok) {
+        setCarriersMessage('Enabled carriers updated.');
+        setTimeout(() => setCarriersMessage(''), 3000);
+      } else {
+        const errorData = await response.json();
+        setCarriersMessage(`Failed to save carriers: ${errorData.error}`);
+      }
+    } catch (error) {
+      setCarriersMessage('An unexpected error occurred.');
+    } finally {
+      setIsSavingCarriers(false);
+    }
+  };
+
   const getPackageSummary = (categoryKey: string) => {
     const data = shippingDefaults[categoryKey] ?? defaultPackage;
     const cost = (data.shipping_cost_cents / 100).toFixed(2);
@@ -203,12 +256,7 @@ export default function ShippingSettingsPage() {
   };
 
   const originLine = useMemo(() => {
-    const parts = [
-      originAddress.line1,
-      originAddress.city,
-      originAddress.state,
-      originAddress.postal_code,
-    ].filter(Boolean);
+    const parts = [originAddress.line1, originAddress.city, originAddress.state, originAddress.postal_code].filter(Boolean);
     return parts.join(', ');
   }, [originAddress]);
 
@@ -218,10 +266,11 @@ export default function ShippingSettingsPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white mb-2">Shipping Settings</h1>
-        <p className="text-gray-400">Shipping defaults and origin address</p>
+        <p className="text-gray-400">Shipping defaults, origin address, and carrier options</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Top row (2 cards) + bottom full-width (default packages) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -236,34 +285,64 @@ export default function ShippingSettingsPage() {
               Edit origin
             </button>
           </div>
-          <div className="text-sm text-gray-400">
-            {originLine ? originLine : 'No origin address saved yet.'}
+          <div className="text-sm text-gray-400">{originLine ? originLine : 'No origin address saved yet.'}</div>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-2">Enabled Carriers</h2>
+            <p className="text-sm text-gray-400 mb-4">Select which carriers to offer for label creation.</p>
+          </div>
+          <div className="space-y-2">
+            {AVAILABLE_CARRIERS.map((carrier) => (
+              <label
+                key={carrier.key}
+                className="flex items-start gap-3 p-3 border border-zinc-800/70 rounded cursor-pointer hover:border-zinc-700"
+              >
+                <input
+                  type="checkbox"
+                  checked={enabledCarriers.includes(carrier.key)}
+                  onChange={() => toggleCarrier(carrier.key)}
+                  className="mt-1 rdk-checkbox"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-white">{carrier.label}</div>
+                  <div className="text-xs text-gray-500">{carrier.description}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={saveCarriers}
+              disabled={isSavingCarriers}
+              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded disabled:bg-gray-600"
+            >
+              {isSavingCarriers ? 'Saving...' : 'Save carriers'}
+            </button>
+            {carriersMessage && <div className="mt-2 text-sm text-gray-400">{carriersMessage}</div>}
           </div>
         </div>
 
+        {/* Full-width card on lg, placed below the two cards */}
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-4 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold text-white">Default packages</h2>
-              <p className="text-sm text-gray-400">
-                Configure default cost, weight, and dimensions per category.
-              </p>
+              <p className="text-sm text-gray-400">Configure default cost, weight, and dimensions per category.</p>
             </div>
             {message && <span className="text-sm text-gray-400">{message}</span>}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 gap-4">
             {SHIPPING_CATEGORIES.map((category) => {
               const summary = getPackageSummary(category.key);
               return (
-                <div
-                  key={category.key}
-                  className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40"
-                >
+                <div key={category.key} className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">
-                        {category.label}
-                      </div>
+                      <div className="text-xs uppercase tracking-wide text-gray-500">{category.label}</div>
                       <div className="text-white font-semibold mt-1">${summary.cost} shipping</div>
                       <div className="text-xs text-gray-400 mt-2">
                         {summary.length} x {summary.width} x {summary.height} in · {summary.weight} oz
@@ -274,7 +353,7 @@ export default function ShippingSettingsPage() {
                       onClick={() => openDefaultsModal(category.key)}
                       className="px-3 py-2 text-xs font-semibold bg-zinc-900 text-white border border-zinc-800/70 hover:border-zinc-700"
                     >
-                      Edit defaults
+                      Edit
                     </button>
                   </div>
                 </div>
@@ -298,20 +377,14 @@ export default function ShippingSettingsPage() {
                 <h3 className="text-lg font-semibold text-white">Edit package defaults</h3>
                 <p className="text-xs text-gray-500">{activeCategoryLabel} defaults</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsDefaultsModalOpen(false)}
-                className="text-gray-400 hover:text-white"
-              >
+              <button type="button" onClick={() => setIsDefaultsModalOpen(false)} className="text-gray-400 hover:text-white">
                 Close
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-                  Package size
-                </div>
+                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Package size</div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-gray-400 text-xs mb-1">Length (in)</label>
@@ -400,11 +473,7 @@ export default function ShippingSettingsPage() {
                 <h3 className="text-lg font-semibold text-white">Edit origin</h3>
                 <p className="text-xs text-gray-500">Shipping origin address</p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsOriginModalOpen(false)}
-                className="text-gray-400 hover:text-white"
-              >
+              <button type="button" onClick={() => setIsOriginModalOpen(false)} className="text-gray-400 hover:text-white">
                 Close
               </button>
             </div>

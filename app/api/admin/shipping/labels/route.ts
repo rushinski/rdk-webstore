@@ -12,8 +12,8 @@ import { logError } from "@/lib/log";
 
 const labelsSchema = z.object({
     orderId: z.string().uuid(),
-    shipmentId: z.string(), // The EasyPost shipment ID
-    rateId: z.string(), // The ID of the rate to purchase
+    shipmentId: z.string(),
+    rateId: z.string(),
 });
 
 export async function POST(request: NextRequest) {
@@ -40,21 +40,22 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Order not found", requestId }, { status: 404 });
         }
         
+        // Purchase the label from EasyPost
         const purchasedShipment = await easyPostService.purchaseLabel(shipmentId, rateId);
 
-        // Save the tracking number to the order
+        // Mark order as ready to ship with carrier and tracking info
         await ordersRepo.markReadyToShip(orderId, {
             carrier: purchasedShipment.carrier,
             trackingNumber: purchasedShipment.tracking_code,
         });
 
-        // Send email notification to customer
+        // Send "Label Created" email to customer
         try {
             if (order.user_id) {
                 const profile = await profilesRepo.getByUserId(order.user_id);
                 if (profile?.email) {
                     const emailService = new OrderEmailService();
-                    await emailService.sendOrderShipped({
+                    await emailService.sendOrderLabelCreated({
                         to: profile.email,
                         orderId: order.id,
                         carrier: purchasedShipment.carrier ?? null,
@@ -63,9 +64,9 @@ export async function POST(request: NextRequest) {
                     });
                 }
             }
-            // Guest email support can be added by persisting customer email on the order record.
         } catch (emailError) {
-            logError(emailError, { layer: "api", requestId, message: "Failed to send shipping confirmation email" });
+            logError(emailError, { layer: "api", requestId, message: "Failed to send label created email" });
+            // Don't fail the label creation if email fails
         }
 
         return NextResponse.json({
