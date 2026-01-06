@@ -1,13 +1,14 @@
 // app/admin/shipping/page.tsx
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { CreateLabelForm } from '@/components/admin/shipping/CreateLabelForm';
 
 type ShippingAddress = {
   name?: string | null;
+  phone?: string | null;
   line1?: string | null;
   line2?: string | null;
   city?: string | null;
@@ -110,13 +111,7 @@ const formatOriginAddress = (origin: ShippingOrigin | null) => {
   const line2 = [clean(origin.city), clean(origin.state), clean(origin.postal_code)]
     .filter(Boolean)
     .join(', ');
-  const parts = [
-    clean(origin.name),
-    clean(origin.company),
-    line1,
-    line2,
-    clean(origin.country),
-  ].filter(Boolean);
+  const parts = [clean(origin.name), clean(origin.company), line1, line2, clean(origin.country)].filter(Boolean);
   return parts.join(' - ');
 };
 
@@ -131,9 +126,7 @@ const formatPlacedAt = (value?: string | null) => {
 
 const getCustomerHandle = (order: any) => {
   const email = order.customer?.email ?? null;
-  if (email && email.includes('@')) {
-    return email.split('@')[0];
-  }
+  if (email && email.includes('@')) return email.split('@')[0];
   const address = resolveShippingAddress(order.shipping);
   const name = address?.name?.trim();
   if (name) return name.split(' ')[0];
@@ -150,7 +143,6 @@ export default function ShippingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('label');
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefault>>({});
   const [pageByTab, setPageByTab] = useState<Record<TabKey, number>>({
@@ -173,6 +165,9 @@ export default function ShippingPage() {
   const [originError, setOriginError] = useState('');
   const [savingOrigin, setSavingOrigin] = useState(false);
 
+  // NEW: label modal state
+  const [labelOrder, setLabelOrder] = useState<any | null>(null);
+
   const currentPage = pageByTab[activeTab];
   const activeCount = counts[activeTab] ?? 0;
   const totalPages = Math.max(1, Math.ceil(activeCount / PAGE_SIZE));
@@ -180,9 +175,7 @@ export default function ShippingPage() {
   const loadShippingDefaults = async () => {
     try {
       const response = await fetch('/api/admin/shipping/defaults', { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error('Failed to load shipping defaults');
-      }
+      if (!response.ok) throw new Error('Failed to load shipping defaults');
       const data = await response.json();
       const defaultsMap: Record<string, ShippingDefault> = {};
       (data.defaults ?? []).forEach((entry: ShippingDefault) => {
@@ -197,9 +190,7 @@ export default function ShippingPage() {
   const loadOriginAddress = async () => {
     try {
       const response = await fetch('/api/admin/shipping/origin', { cache: 'no-store' });
-      if (!response.ok) {
-        throw new Error('Failed to load shipping origin');
-      }
+      if (!response.ok) throw new Error('Failed to load shipping origin');
       const data = await response.json();
       setOriginAddress(data.origin ?? null);
     } catch (error) {
@@ -256,7 +247,6 @@ export default function ShippingPage() {
   useEffect(() => {
     const loadOrders = async () => {
       setIsLoading(true);
-      setSelectedOrderId(null);
       try {
         const tab = TABS.find((entry) => entry.key === activeTab) ?? TABS[0];
         const params = new URLSearchParams({
@@ -266,9 +256,7 @@ export default function ShippingPage() {
           page: String(currentPage),
         });
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch orders: ${response.statusText}`);
-        }
+        if (!response.ok) throw new Error(`Failed to fetch orders: ${response.statusText}`);
         const data = await response.json();
         setOrders(data.orders || []);
         if (typeof data.count === 'number') {
@@ -290,11 +278,6 @@ export default function ShippingPage() {
       setPageByTab((prev) => ({ ...prev, [activeTab]: totalPages }));
     }
   }, [currentPage, totalPages, activeTab]);
-
-  const toggleOrder = (orderId: string) => {
-    if (activeTab !== 'label') return;
-    setSelectedOrderId((prev) => (prev === orderId ? null : orderId));
-  };
 
   const toggleItems = (orderId: string) => {
     setExpandedItems((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
@@ -357,9 +340,7 @@ export default function ShippingPage() {
           trackingNumber: order.tracking_number ?? null,
         }),
       });
-      if (!response.ok) {
-        throw new Error('Failed to mark as shipped');
-      }
+      if (!response.ok) throw new Error('Failed to mark as shipped');
       setRefreshToken((token) => token + 1);
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'admin_mark_shipped' });
@@ -369,10 +350,7 @@ export default function ShippingPage() {
   };
 
   const handleOriginChange = (field: keyof ShippingOrigin, value: string) => {
-    setOriginAddress((prev) => ({
-      ...(prev ?? EMPTY_ORIGIN),
-      [field]: value,
-    }));
+    setOriginAddress((prev) => ({ ...(prev ?? EMPTY_ORIGIN), [field]: value }));
   };
 
   const handleSaveOrigin = async () => {
@@ -387,9 +365,7 @@ export default function ShippingPage() {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || 'Failed to save origin');
-      }
+      if (!response.ok) throw new Error(data?.error || 'Failed to save origin');
       setOriginAddress(data.origin ?? payload);
       setOriginMessage('Origin address updated.');
       setOriginModalOpen(false);
@@ -407,17 +383,13 @@ export default function ShippingPage() {
     const start = Math.max(1, currentPage - 2);
     const end = Math.min(totalPages, currentPage + 2);
 
-    for (let page = start; page <= end; page += 1) {
-      pages.push(page);
-    }
+    for (let page = start; page <= end; page += 1) pages.push(page);
 
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() =>
-            setPageByTab((prev) => ({ ...prev, [activeTab]: Math.max(1, currentPage - 1) }))
-          }
+          onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: Math.max(1, currentPage - 1) }))}
           disabled={currentPage === 1}
           className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
         >
@@ -441,9 +413,7 @@ export default function ShippingPage() {
             type="button"
             onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: page }))}
             className={`px-3 py-2 rounded-sm border text-sm ${
-              page === currentPage
-                ? 'border-red-600 text-white'
-                : 'border-zinc-800/70 text-gray-300'
+              page === currentPage ? 'border-red-600 text-white' : 'border-zinc-800/70 text-gray-300'
             }`}
           >
             {page}
@@ -463,12 +433,7 @@ export default function ShippingPage() {
 
         <button
           type="button"
-          onClick={() =>
-            setPageByTab((prev) => ({
-              ...prev,
-              [activeTab]: Math.min(totalPages, currentPage + 1),
-            }))
-          }
+          onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: Math.min(totalPages, currentPage + 1) }))}
           disabled={currentPage === totalPages}
           className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
         >
@@ -479,21 +444,15 @@ export default function ShippingPage() {
   };
 
   const renderOrderRow = (order: any) => {
-    const itemCount = (order.items ?? []).reduce(
-      (sum: number, item: any) => sum + Number(item.quantity ?? 0),
-      0
-    );
+    const itemCount = (order.items ?? []).reduce((sum: number, item: any) => sum + Number(item.quantity ?? 0), 0);
     const address = resolveShippingAddress(order.shipping);
     const addressLine = formatAddress(address);
     const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number);
     const placedAt = formatPlacedAt(order.created_at);
     const customerHandle = getCustomerHandle(order);
-    const isExpanded = selectedOrderId === order.id;
     const itemsExpanded = expandedItems[order.id] ?? false;
     const packageProfile = getPackageProfile(order);
-    const shippingLabel = packageProfile.costCents
-      ? `Standard (${formatCurrency(packageProfile.costCents)})`
-      : 'Standard';
+    const shippingLabel = packageProfile.costCents ? `Standard (${formatCurrency(packageProfile.costCents)})` : 'Standard';
     const colSpan = 9;
 
     return (
@@ -524,12 +483,7 @@ export default function ShippingPage() {
           <td className="p-4 text-gray-400">
             {order.tracking_number ? (
               trackingUrl ? (
-                <a
-                  href={trackingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-400 hover:text-red-300"
-                >
+                <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300">
                   {order.tracking_number}
                 </a>
               ) : (
@@ -552,13 +506,15 @@ export default function ShippingPage() {
           <td className="p-4 text-right">
             {activeTab === 'label' ? (
               <button
-                onClick={() => toggleOrder(order.id)}
+                type="button"
+                onClick={() => setLabelOrder(order)}
                 className="text-sm text-red-400 hover:text-red-300"
               >
-                {isExpanded ? 'Close' : 'Create label'}
+                Create label
               </button>
             ) : activeTab === 'ready' ? (
               <button
+                type="button"
                 onClick={() => handleMarkShipped(order)}
                 disabled={markingShippedId === order.id}
                 className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
@@ -602,27 +558,18 @@ export default function ShippingPage() {
             </td>
           </tr>
         )}
-
-        {activeTab === 'label' && isExpanded && (
-          <tr className="border-b border-zinc-800/70 bg-zinc-950/70">
-            <td colSpan={colSpan} className="p-5">
-              <CreateLabelForm
-                order={order}
-                onSuccess={() => setRefreshToken((t) => t + 1)}
-              />
-            </td>
-          </tr>
-        )}
       </Fragment>
     );
   };
 
-  const tabBadge = (count: number) => {
-    if (count > 99) return '99+';
-    return String(count);
-  };
-
+  const tabBadge = (count: number) => (count > 99 ? '99+' : String(count));
   const originLine = formatOriginAddress(originAddress);
+
+  const labelModalDefaults = useMemo(() => {
+    if (!labelOrder) return null;
+    return getPackageProfile(labelOrder);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelOrder, shippingDefaults]);
 
   return (
     <div className="space-y-8">
@@ -652,8 +599,7 @@ export default function ShippingPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <div className="text-gray-400">
-          <span className="text-gray-500">Origin:</span>{' '}
-          {originLine ? originLine : 'Not set'}
+          <span className="text-gray-500">Origin:</span> {originLine ? originLine : 'Not set'}
         </div>
         <button
           type="button"
@@ -675,33 +621,15 @@ export default function ShippingPage() {
           <table className="w-full">
             <thead>
               <tr className="bg-zinc-800">
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Placed At
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Order
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Customer
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Destination
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Package
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Service
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
-                  Tracking
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
-                  Items
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
-                  Action
-                </th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Placed At</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Order</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Customer</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Destination</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Package</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Service</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Tracking</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">Items</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">Action</th>
               </tr>
             </thead>
             <tbody>{orders.map((order) => renderOrderRow(order))}</tbody>
@@ -710,6 +638,28 @@ export default function ShippingPage() {
       )}
 
       {renderPagination()}
+
+      {/* NEW: Modal-based label creation */}
+      <CreateLabelForm
+        open={!!labelOrder}
+        order={labelOrder}
+        originLine={originLine}
+        initialPackage={
+          labelModalDefaults
+            ? {
+                weight: labelModalDefaults.weight,
+                length: labelModalDefaults.length,
+                width: labelModalDefaults.width,
+                height: labelModalDefaults.height,
+              }
+            : null
+        }
+        onClose={() => setLabelOrder(null)}
+        onSuccess={() => {
+          setLabelOrder(null);
+          setRefreshToken((t) => t + 1);
+        }}
+      />
 
       {originModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">

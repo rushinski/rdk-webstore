@@ -1,202 +1,490 @@
 // src/components/admin/shipping/CreateLabelForm.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 
-const getPrimaryImage = (item: any) => {
-    const images = item.product?.images ?? [];
-    const primary = images.find((img: any) => img.is_primary) ?? images[0];
-    return primary?.url ?? '/images/boxes.png';
+type ShippingAddressDraft = {
+  name: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
 };
 
-export function CreateLabelForm({ order, onSuccess }: { order: any, onSuccess: () => void }) {
-    
-    const [weight, setWeight] = useState(16);
-    const [length, setLength] = useState(12);
-    const [width, setWidth] = useState(12);
-    const [height, setHeight] = useState(12);
+type ParcelDraft = {
+  weight: number; // oz
+  length: number; // in
+  width: number; // in
+  height: number; // in
+};
 
-    const [shipment, setShipment] = useState<any | null>(null);
-    const [isPreparing, setIsPreparing] = useState(false);
-    const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
-    const [isCreatingLabel, setIsCreatingLabel] = useState(false);
-    const [error, setError] = useState('');
-    const [completedShipment, setCompletedShipment] = useState<any | null>(null);
+type EasyPostRate = {
+  id: string;
+  carrier?: string | null;
+  service?: string | null;
+  rate?: string | null;
+  currency?: string | null;
+  delivery_days?: number | null;
+  estimated_delivery_days?: number | null;
+};
 
-    useEffect(() => {
-        // TODO: Pre-fill with defaults from the order items/categories
-        // This would involve fetching shipping_defaults for the categories in the order.
-        // For now, we use hardcoded values.
-    }, [order]);
+type Props = {
+  open: boolean;
+  order: any | null;
+  originLine?: string | null;
+  initialPackage?: ParcelDraft | null;
+  onClose: () => void;
+  onSuccess: () => void;
+};
 
-    const handlePrepareShipment = async () => {
-        setIsPreparing(true);
-        setError('');
-        try {
-            const response = await fetch('/api/admin/shipping/rates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    orderId: order.id,
-                    weight,
-                    length,
-                    width,
-                    height,
-                }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to prepare shipment.');
-            }
-            setShipment(data.shipment);
-            if (data.shipment?.rates?.length > 0) {
-                // Default to the cheapest rate
-                setSelectedRateId(data.shipment.rates[0].id);
-            }
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsPreparing(false);
-        }
+const resolveShippingAddress = (value: unknown): any | null => {
+  if (!value) return null;
+  if (Array.isArray(value)) return value[0] ?? null;
+  if (typeof value === 'object') return value as any;
+  return null;
+};
+
+const clean = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
+
+const money = (rateStr?: string | null, currency?: string | null) => {
+  const rate = Number(rateStr ?? '');
+  if (Number.isFinite(rate)) {
+    return `${currency?.toUpperCase() === 'USD' || !currency ? '$' : ''}${rate.toFixed(2)}`;
+  }
+  return rateStr ?? '-';
+};
+
+export function CreateLabelForm({ open, order, originLine, initialPackage, onClose, onSuccess }: Props) {
+  const orderId = order?.id ?? null;
+
+  const initialRecipient: ShippingAddressDraft = useMemo(() => {
+    const shipping = resolveShippingAddress(order?.shipping);
+    return {
+      name: clean(shipping?.name) || '',
+      phone: clean(shipping?.phone) || '',
+      line1: clean(shipping?.line1) || '',
+      line2: clean(shipping?.line2) || '',
+      city: clean(shipping?.city) || '',
+      state: clean(shipping?.state) || '',
+      postal_code: clean(shipping?.postal_code) || '',
+      country: clean(shipping?.country) || 'US',
     };
+  }, [order]);
 
-    const handleCreateLabel = async () => {
-        if (!shipment || !selectedRateId) {
-            setError('Shipment and rate must be selected.');
-            return;
-        }
-        setIsCreatingLabel(true);
-        setError('');
-        try {
-            const response = await fetch('/api/admin/shipping/labels', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    orderId: order.id,
-                    shipmentId: shipment.id,
-                    rateId: selectedRateId,
-                }),
-            });
-            const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create label.');
-            }
-            setCompletedShipment(data);
-        } catch (err: any) {
-            setError(err.message);
-        } finally {
-            setIsCreatingLabel(false);
-        }
-    };
+  const initialParcel: ParcelDraft = useMemo(() => {
+    return (
+      initialPackage ?? {
+        weight: 16,
+        length: 12,
+        width: 12,
+        height: 12,
+      }
+    );
+  }, [initialPackage]);
 
-    if (completedShipment) {
-        return (
-            <div className="space-y-4 text-center p-4">
-                <h3 className="text-xl font-bold text-white">Label Created!</h3>
-                <p className="text-gray-300">
-                    <a href={completedShipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-red-500 hover:underline">
-                        Track Package: {completedShipment.trackingCode}
-                    </a>
-                </p>
-                <div className="flex justify-center gap-4">
-                     <a href={completedShipment.label.label_url} target="_blank" rel="noopener noreferrer" className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded transition">
-                        View Label
-                     </a>
-                    <button onClick={onSuccess} className="bg-gray-600 hover:bg-gray-700 text-white font-semibold px-6 py-2 rounded transition">
-                        Close
-                    </button>
-                </div>
-            </div>
-        )
+  const [recipient, setRecipient] = useState<ShippingAddressDraft>(initialRecipient);
+  const [parcel, setParcel] = useState<ParcelDraft>(initialParcel);
+
+  const [shipmentId, setShipmentId] = useState<string | null>(null);
+  const [rates, setRates] = useState<EasyPostRate[]>([]);
+  const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
+
+  const [isGettingRates, setIsGettingRates] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
+
+  const [labelUrl, setLabelUrl] = useState<string | null>(null);
+  const [labelPdfUrl, setLabelPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setRecipient(initialRecipient);
+    setParcel(initialParcel);
+    setShipmentId(null);
+    setRates([]);
+    setSelectedRateId(null);
+    setIsGettingRates(false);
+    setIsPurchasing(false);
+    setError('');
+    setSuccess('');
+    setLabelUrl(null);
+    setLabelPdfUrl(null);
+  }, [open, initialRecipient, initialParcel]);
+
+  if (!open || !order || !orderId) return null;
+
+  const setRecipientField = (field: keyof ShippingAddressDraft, value: string) => {
+    setRecipient((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const setParcelField = (field: keyof ParcelDraft, value: string) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return;
+    setParcel((prev) => ({ ...prev, [field]: n }));
+  };
+
+  const validate = () => {
+    if (!originLine) return 'Origin address is not set. Set it before creating labels.';
+    if (!recipient.line1 || !recipient.city || !recipient.state || !recipient.postal_code || !recipient.country) {
+      return 'Recipient address is incomplete.';
+    }
+    if (!Number.isFinite(parcel.weight) || parcel.weight <= 0) return 'Weight must be greater than 0.';
+    if (!Number.isFinite(parcel.length) || parcel.length <= 0) return 'Length must be greater than 0.';
+    if (!Number.isFinite(parcel.width) || parcel.width <= 0) return 'Width must be greater than 0.';
+    if (!Number.isFinite(parcel.height) || parcel.height <= 0) return 'Height must be greater than 0.';
+    return null;
+  };
+
+  const getRates = async () => {
+    const v = validate();
+    if (v) {
+      setError(v);
+      return;
     }
 
-    const selectedRate = shipment?.rates?.find((r: any) => r.id === selectedRateId);
+    setError('');
+    setSuccess('');
+    setIsGettingRates(true);
+    setRates([]);
+    setSelectedRateId(null);
+    setShipmentId(null);
 
-    return (
-        <div className="space-y-6">
+    try {
+      const res = await fetch('/api/admin/shipping/rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          weight: parcel.weight,
+          length: parcel.length,
+          width: parcel.width,
+          height: parcel.height,
+          recipient: {
+            name: recipient.name || null,
+            phone: recipient.phone || null,
+            line1: recipient.line1,
+            line2: recipient.line2 || null,
+            city: recipient.city,
+            state: recipient.state,
+            postal_code: recipient.postal_code,
+            country: recipient.country,
+          },
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error || 'Failed to fetch rates.');
+        return;
+      }
+
+      const nextShipmentId = data?.shipment?.id ?? null;
+      const nextRates = (data?.shipment?.rates ?? []) as EasyPostRate[];
+
+      if (!nextShipmentId) {
+        setError('Rates response missing shipment id.');
+        return;
+      }
+      if (nextRates.length === 0) {
+        setError('No rates available for the enabled carriers. Check carrier settings.');
+        return;
+      }
+
+      setShipmentId(nextShipmentId);
+      setRates(nextRates);
+
+      // default to cheapest
+      const cheapest = [...nextRates].sort((a, b) => Number(a.rate ?? 999999) - Number(b.rate ?? 999999))[0];
+      setSelectedRateId(cheapest?.id ?? nextRates[0]?.id ?? null);
+    } catch {
+      setError('An unexpected error occurred while fetching rates.');
+    } finally {
+      setIsGettingRates(false);
+    }
+  };
+
+  const purchase = async () => {
+    if (!shipmentId || !selectedRateId) {
+      setError('Pick a rate before purchasing.');
+      return;
+    }
+
+    setError('');
+    setSuccess('');
+    setIsPurchasing(true);
+
+    try {
+      const res = await fetch('/api/admin/shipping/labels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, shipmentId, rateId: selectedRateId }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 409) {
+        setError(data?.error || 'Label already purchased for this order.');
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data?.error || 'Failed to purchase label.');
+        return;
+      }
+
+      const pdf = data?.label?.label_pdf_url ?? null;
+      const png = data?.label?.label_url ?? null;
+
+      setLabelPdfUrl(pdf);
+      setLabelUrl(png);
+      setSuccess('Label purchased. You can print it now.');
+    } catch {
+      setError('An unexpected error occurred while purchasing the label.');
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  const print = () => {
+    const url = labelPdfUrl ?? labelUrl;
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={onClose}>
+      <div
+        className="w-full max-w-6xl rounded-lg border border-zinc-800/70 bg-zinc-950"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-zinc-800/70 p-5">
+          <div>
+            <div className="text-white text-lg font-semibold">Create shipping label</div>
+            <div className="text-xs text-zinc-500 mt-1">Order #{String(orderId).slice(0, 8)}</div>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-white">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+          {/* LEFT: details */}
+          <div className="p-5 space-y-6 border-b lg:border-b-0 lg:border-r border-zinc-800/70">
+            <div className="space-y-1">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Shipping from</div>
+              <div className="text-sm text-zinc-200">{originLine ?? 'Not set'}</div>
+              {!originLine && <div className="text-xs text-red-400 mt-1">Set origin in Shipping Settings.</div>}
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Shipping to</div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Name</label>
+                  <input
+                    value={recipient.name}
+                    onChange={(e) => setRecipientField('name', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Phone</label>
+                  <input
+                    value={recipient.phone}
+                    onChange={(e) => setRecipientField('phone', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-zinc-400 mb-1">Address line 1</label>
+                  <input
+                    value={recipient.line1}
+                    onChange={(e) => setRecipientField('line1', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-zinc-400 mb-1">Address line 2</label>
+                  <input
+                    value={recipient.line2}
+                    onChange={(e) => setRecipientField('line2', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">City</label>
+                  <input
+                    value={recipient.city}
+                    onChange={(e) => setRecipientField('city', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">State</label>
+                  <input
+                    value={recipient.state}
+                    onChange={(e) => setRecipientField('state', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">ZIP</label>
+                  <input
+                    value={recipient.postal_code}
+                    onChange={(e) => setRecipientField('postal_code', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Country</label>
+                  <input
+                    value={recipient.country}
+                    onChange={(e) => setRecipientField('country', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Package</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Weight (oz)</label>
+                  <input
+                    type="number"
+                    value={parcel.weight}
+                    onChange={(e) => setParcelField('weight', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Length (in)</label>
+                  <input
+                    type="number"
+                    value={parcel.length}
+                    onChange={(e) => setParcelField('length', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Width (in)</label>
+                  <input
+                    type="number"
+                    value={parcel.width}
+                    onChange={(e) => setParcelField('width', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">Height (in)</label>
+                  <input
+                    type="number"
+                    value={parcel.height}
+                    onChange={(e) => setParcelField('height', e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={getRates}
+                disabled={isGettingRates}
+                className="w-full md:w-auto px-4 py-2 bg-zinc-100 text-black text-sm font-semibold rounded hover:bg-white disabled:opacity-60"
+              >
+                {isGettingRates ? 'Getting rates...' : 'Get rates'}
+              </button>
+
+              {error && <div className="text-sm text-red-400">{error}</div>}
+              {success && <div className="text-sm text-green-400">{success}</div>}
+            </div>
+          </div>
+
+          {/* RIGHT: rates + purchase */}
+          <div className="p-5 space-y-4">
             <div>
-                <h3 className="text-lg font-medium text-white">Order #{order.id.slice(0, 8)}</h3>
-                <div className="mt-3 space-y-3">
-                    {order.items?.map((item: any) => {
-                        const imageUrl = getPrimaryImage(item);
-                        const title =
-                            (item.product?.title_display ??
-                                `${item.product?.brand ?? ''} ${item.product?.name ?? ''}`.trim()) ||
-                            'Item';
-                        return (
-                            <div key={item.id} className="flex items-center gap-3">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={imageUrl}
-                                    alt={title}
-                                    className="h-12 w-12 object-cover border border-zinc-800/70 bg-black"
-                                />
-                                <div className="min-w-0">
-                                    <p className="text-sm text-white truncate">{title}</p>
-                                    <p className="text-xs text-gray-400">
-                                        Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
-                                    </p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Rates</div>
+              <div className="text-sm text-zinc-400 mt-1">
+                Choose a carrier/service, then purchase the label.
+              </div>
             </div>
 
-            <div className="border-t border-zinc-800/70 pt-6">
-                <h4 className="font-medium text-white mb-4">Package Details</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                        <label className="block text-gray-400 text-sm mb-1">Weight (oz)</label>
-                        <input type="number" value={weight} onChange={e => setWeight(Number(e.target.value))} className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70" disabled={!!shipment}/>
-                    </div>
-                    <div>
-                        <label className="block text-gray-400 text-sm mb-1">Length (in)</label>
-                        <input type="number" value={length} onChange={e => setLength(Number(e.target.value))} className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70" disabled={!!shipment}/>
-                    </div>
-                    <div>
-                        <label className="block text-gray-400 text-sm mb-1">Width (in)</label>
-                        <input type="number" value={width} onChange={e => setWidth(Number(e.target.value))} className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70" disabled={!!shipment}/>
-                    </div>
-                    <div>
-                        <label className="block text-gray-400 text-sm mb-1">Height (in)</label>
-                        <input type="number" value={height} onChange={e => setHeight(Number(e.target.value))} className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70" disabled={!!shipment}/>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-start gap-6">
-                {!shipment && (
-                    <button onClick={handlePrepareShipment} disabled={isPreparing} className="bg-gray-600 hover:bg-gray-700 disabled:bg-gray-800 text-white font-semibold px-6 py-2 rounded transition">
-                        {isPreparing ? 'Preparing...' : 'Prepare Shipment'}
-                    </button>
-                )}
-
-                {shipment?.rates?.length > 0 && (
-                    <div className="flex-1 space-y-2">
-                        <h4 className="font-medium text-white mb-2">Select a Rate</h4>
-                        {shipment.rates.map((rate: any) => (
-                             <label key={rate.id} className={`flex justify-between items-center p-3 rounded border cursor-pointer transition ${selectedRateId === rate.id ? 'bg-red-900/30 border-red-500' : 'bg-zinc-800/50 border-zinc-800/70 hover:bg-zinc-800'}`}>
-                                <div className="flex items-center gap-3">
-                                    <input type="radio" name="rate" value={rate.id} checked={selectedRateId === rate.id} onChange={() => setSelectedRateId(rate.id)} className="w-4 h-4" />
-                                    <span className="text-white">{rate.carrier} {rate.service}</span>
-                                </div>
-                                <span className="font-bold text-white">${rate.rate}</span>
-                            </label>
-                        ))}
-                    </div>
-                )}
-            </div>
-
-            {selectedRateId && (
-                 <div className="border-t border-zinc-800/70 pt-6">
-                     <button onClick={handleCreateLabel} disabled={isCreatingLabel} className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-8 py-3 rounded transition text-lg">
-                        {isCreatingLabel ? 'Creating Label...' : `Purchase Label for $${selectedRate?.rate}`}
-                     </button>
-                 </div>
+            {rates.length === 0 ? (
+              <div className="rounded border border-zinc-800/70 bg-zinc-900 p-4 text-sm text-zinc-500">
+                No rates yet. Fill details and click <span className="text-zinc-200">Get rates</span>.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {rates.map((r) => {
+                  const selected = selectedRateId === r.id;
+                  const days = r.delivery_days ?? r.estimated_delivery_days ?? null;
+                  return (
+                    <label
+                      key={r.id}
+                      className={`flex items-start gap-3 p-3 rounded border cursor-pointer ${
+                        selected ? 'border-red-600 bg-zinc-900/60' : 'border-zinc-800/70 bg-zinc-900'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="rate"
+                        checked={selected}
+                        onChange={() => setSelectedRateId(r.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm text-white font-semibold">
+                            {String(r.carrier ?? 'Carrier')} — {String(r.service ?? 'Service')}
+                          </div>
+                          <div className="text-sm text-white">{money(r.rate, r.currency)}</div>
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1">
+                          {days ? `Est. ${days} day(s)` : 'Delivery estimate unavailable'}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
             )}
 
-            {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+            <div className="pt-2 space-y-3">
+              <button
+                type="button"
+                onClick={purchase}
+                disabled={isPurchasing || rates.length === 0 || !shipmentId || !selectedRateId}
+                className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded disabled:bg-zinc-700"
+              >
+                {isPurchasing ? 'Purchasing...' : 'Purchase label'}
+              </button>
+
+              <button
+                type="button"
+                onClick={print}
+                disabled={!labelPdfUrl && !labelUrl}
+                className="w-full px-4 py-2 border border-zinc-800/70 text-sm text-zinc-200 hover:border-zinc-700 disabled:opacity-50"
+              >
+                Print label
+              </button>
+
+              <div className="text-xs text-zinc-500">
+                Rates are limited to the carriers enabled in Shipping Settings.
+              </div>
+            </div>
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 }

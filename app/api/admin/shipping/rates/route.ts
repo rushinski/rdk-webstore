@@ -1,13 +1,27 @@
 // app/api/admin/shipping/rates/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireAdminApi } from "@/lib/auth/session";
-import { ShippingOriginsRepository } from "@/repositories/shipping-origins-repo";
-import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
-import { EasyPostService } from "@/services/shipping-label-service";
-import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { requireAdminApi } from '@/lib/auth/session';
+import { ShippingOriginsRepository } from '@/repositories/shipping-origins-repo';
+import { ShippingCarriersRepository } from '@/repositories/shipping-carriers-repo';
+import { AddressesRepository } from '@/repositories/addresses-repo';
+import { EasyPostService } from '@/services/shipping-label-service';
+import { getRequestIdFromHeaders } from '@/lib/http/request-id';
+import { logError } from '@/lib/log';
+
+const recipientSchema = z
+  .object({
+    name: z.string().trim().optional().nullable(),
+    phone: z.string().trim().optional().nullable(),
+    line1: z.string().trim().min(1),
+    line2: z.string().trim().optional().nullable(),
+    city: z.string().trim().min(1),
+    state: z.string().trim().min(1),
+    postal_code: z.string().trim().min(1),
+    country: z.string().trim().min(1),
+  })
+  .strict();
 
 const ratesSchema = z
   .object({
@@ -16,6 +30,7 @@ const ratesSchema = z
     length: z.number().positive(),
     width: z.number().positive(),
     height: z.number().positive(),
+    recipient: recipientSchema.optional(), // NEW
   })
   .strict();
 
@@ -48,74 +63,72 @@ const toEasyPostAddress = (address: {
 };
 
 export async function POST(request: NextRequest) {
-    const requestId = getRequestIdFromHeaders(request.headers);
-    try {
-        await requireAdminApi();
-        const supabase = await createSupabaseServerClient();
-        
-        const body = await request.json().catch(() => null);
-        const parsed = ratesSchema.safeParse(body);
+  const requestId = getRequestIdFromHeaders(request.headers);
 
-        if (!parsed.success) {
-            return NextResponse.json({ error: "Invalid payload", issues: parsed.error.format() }, { status: 400 });
-        }
+  try {
+    await requireAdminApi();
+    const supabase = await createSupabaseServerClient();
 
-        const { orderId, weight, length, width, height } = parsed.data;
+    const body = await request.json().catch(() => null);
+    const parsed = ratesSchema.safeParse(body);
 
-        const originsRepo = new ShippingOriginsRepository(supabase);
-        const carriersRepo = new ShippingCarriersRepository(supabase);
-        const easyPostService = new EasyPostService();
-
-        // Get enabled carriers from settings
-        const carriersConfig = await carriersRepo.get();
-        const enabledCarriers = carriersConfig?.enabled_carriers || [];
-        
-        if (enabledCarriers.length === 0) {
-            return NextResponse.json({ 
-              error: "No carriers enabled. Please enable carriers in shipping settings." 
-            }, { status: 400 });
-        }
-
-        // Get recipient address from the order
-        const recipientResult = await supabase.from('order_shipping').select('*').eq('order_id', orderId).single();
-        if (!recipientResult.data) {
-            return NextResponse.json({ error: "Recipient address not found for this order." }, { status: 404 });
-        }
-        const recipient = recipientResult.data;
-        const recipientAddress = toEasyPostAddress(recipient);
-        if (!recipientAddress) {
-            return NextResponse.json({ error: "Recipient address is incomplete." }, { status: 400 });
-        }
-
-        // Get shipper address from settings
-        const shipper = await originsRepo.get();
-        if (!shipper) {
-            return NextResponse.json({ error: "Shipping origin address not configured in settings." }, { status: 400 });
-        }
-        const shipperAddress = toEasyPostAddress(shipper);
-        if (!shipperAddress) {
-            return NextResponse.json({ error: "Shipping origin address is incomplete." }, { status: 400 });
-        }
-
-        const parcel = { weight, length, width, height };
-
-        const shipment = await easyPostService.createShipment(shipperAddress, recipientAddress, parcel);
-
-        // Filter rates to only enabled carriers
-        const filteredRates = (shipment.rates ?? []).filter((r: any) => {
-          const carrier = String(r.carrier ?? "").toUpperCase();
-          return enabledCarriers.some(enabled => enabled.toUpperCase() === carrier);
-        });
-
-        return NextResponse.json({
-          shipment: {
-            id: shipment.id,
-            rates: filteredRates,
-          },
-        });
-
-    } catch (error: any) {
-        logError(error, { layer: "api", requestId, route: "/api/admin/shipping/rates" });
-        return NextResponse.json({ error: error.message || "Failed to fetch shipping rates." }, { status: 500 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid payload', issues: parsed.error.format(), requestId }, { status: 400 });
     }
+
+    const { orderId, weight, length, width, height, recipient } = parsed.data;
+
+    const originsRepo = new ShippingOriginsRepository(supabase);
+    const carriersRepo = new ShippingCarriersRepository(supabase);
+    const addressesRepo = new AddressesRepository(supabase);
+    const easyPostService = new EasyPostService();
+
+    const carriersConfig = await carriersRepo.get();
+    const enabledCarriers = carriersConfig?.enabled_carriers || [];
+
+    if (enabledCarriers.length === 0) {
+      return NextResponse.json(
+        { error: 'No carriers enabled. Please enable carriers in shipping settings.', requestId },
+        { status: 400 }
+      );
+    }
+
+    // Recipient: use override from UI if provided, else fall back to order_shipping snapshot
+    const recipientSource = recipient ?? (await addressesRepo.getOrderShipping(orderId));
+    if (!recipientSource) {
+      return NextResponse.json({ error: 'Recipient address not found for this order.', requestId }, { status: 404 });
+    }
+
+    const recipientAddress = toEasyPostAddress(recipientSource as any);
+    if (!recipientAddress) {
+      return NextResponse.json({ error: 'Recipient address is incomplete.', requestId }, { status: 400 });
+    }
+
+    const shipper = await originsRepo.get();
+    if (!shipper) {
+      return NextResponse.json({ error: 'Shipping origin address not configured in settings.', requestId }, { status: 400 });
+    }
+    const shipperAddress = toEasyPostAddress(shipper as any);
+    if (!shipperAddress) {
+      return NextResponse.json({ error: 'Shipping origin address is incomplete.', requestId }, { status: 400 });
+    }
+
+    const parcel = { weight, length, width, height };
+    const shipment = await easyPostService.createShipment(shipperAddress, recipientAddress, parcel);
+
+    const filteredRates = (shipment.rates ?? []).filter((r: any) => {
+      const carrier = String(r.carrier ?? '').toUpperCase();
+      return enabledCarriers.some((enabled) => enabled.toUpperCase() === carrier);
+    });
+
+    return NextResponse.json({
+      shipment: {
+        id: shipment.id,
+        rates: filteredRates,
+      },
+    });
+  } catch (error: any) {
+    logError(error, { layer: 'api', requestId, route: '/api/admin/shipping/rates' });
+    return NextResponse.json({ error: error.message || 'Failed to fetch shipping rates.', requestId }, { status: 500 });
+  }
 }
