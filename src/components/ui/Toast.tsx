@@ -42,7 +42,7 @@ export function Toast({
           <button
             type="button"
             onClick={onClose}
-            className="text-red-300 hover:text-red-200 transition cursor-pointer"
+            className="text-white/70 hover:text-white transition cursor-pointer"
             aria-label="Close notification"
           >
             <X className="w-4 h-4" />
