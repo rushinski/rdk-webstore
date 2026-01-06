@@ -1,44 +1,37 @@
 export const connectAppearance = {
-  // Fix: drawers behave better on smaller screens than big modal dialogs
-  overlays: 'drawer' as const,
+  // Prefer modal-style overlays to match our UI (avoid “squeezed” drawer UX)
+  overlays: 'dialog' as const,
 
   variables: {
-    // Typography + spacing (Connect expects fontSizeBase, not fontSize)
     fontFamily:
-      'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"',
+      'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans"',
     fontSizeBase: '14px',
     spacingUnit: '6px',
 
-    // Hard-square everything
-    borderRadius: '0px',
-    buttonBorderRadius: '0px',
-    formBorderRadius: '0px',
-    overlayBorderRadius: '0px',
+    // match your rounded-sm
+    borderRadius: '2px',
+    buttonBorderRadius: '2px',
+    formBorderRadius: '2px',
+    overlayBorderRadius: '2px',
 
-    // Theme (black/white/red)
     colorPrimary: '#dc2626',
-    colorBackground: '#000000',
+    colorBackground: '#0a0a0a',
     colorText: '#ffffff',
     colorSecondaryText: '#a1a1aa',
-    colorBorder: '#3f3f46',
+    colorBorder: '#27272a',
     colorDanger: '#dc2626',
 
-    // Form surfaces
     formBackgroundColor: '#0a0a0a',
-    formHighlightColorBorder: '#dc2626',
-    formAccentColor: '#dc2626',
-    offsetBackgroundColor: '#111111',
+    offsetBackgroundColor: '#09090b',
 
-    // Buttons
     buttonPrimaryColorBackground: '#dc2626',
     buttonPrimaryColorBorder: '#dc2626',
     buttonPrimaryColorText: '#ffffff',
     buttonSecondaryColorBackground: '#18181b',
-    buttonSecondaryColorBorder: '#3f3f46',
+    buttonSecondaryColorBorder: '#27272a',
     buttonSecondaryColorText: '#ffffff',
 
-    // Overlay stacking/backdrop
-    overlayBackdropColor: 'rgba(0,0,0,0.85)',
+    overlayBackdropColor: 'rgba(0,0,0,0.75)',
     overlayZIndex: 9999,
   },
 };

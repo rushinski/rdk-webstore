@@ -75,7 +75,10 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     icon: Settings,
     groupKey: "settings",
     isActive: (pathname: string) => pathname.startsWith("/admin/settings"),
-    children: [{ href: "/admin/settings/shipping", label: "Shipping" }],
+    children: [
+      { href: "/admin/settings/shipping", label: "Shipping" },
+      { href: "/admin/settings/bank", label: "Banking" },
+    ],
   },
 ];
 
