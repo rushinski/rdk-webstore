@@ -22,7 +22,6 @@
     "caddy:stop": "caddy stop"
   },
   "dependencies": {
-    "@easypost/api": "^8.4.0",
     "@stripe/connect-js": "^3.3.31",
     "@stripe/react-connect-js": "^3.3.31",
     "@stripe/react-stripe-js": "^5.4.1",
@@ -46,6 +45,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "recharts": "^3.6.0",
+    "shippo": "^2.15.0",
     "stripe": "^19.3.1",
     "uuid": "^13.0.0",
     "zod": "^4.1.12"

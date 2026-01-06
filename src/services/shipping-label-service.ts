@@ -1,114 +1,108 @@
-import EasyPostClient from '@easypost/api';
+// src/services/shipping-label-service.ts
+
+import { Shippo } from "shippo";
+import { DistanceUnitEnum, WeightUnitEnum, LabelFileTypeEnum } from "shippo/models/components";
 import { env } from "@/config/env";
 import { logError } from "@/lib/log";
 
-const client = new EasyPostClient(env.EASYPOST_API_KEY);
+// Shippo SDK init (server-side only)
+const shippo = new Shippo({
+  apiKeyHeader: env.SHIPPO_API_TOKEN,
+});
 
-// A simple interface for the address data we need.
-// This should be kept in sync with the data from shipping_origins and order_shipping.
+// Keep these interfaces aligned with shipping_origins + order_shipping snapshots
 interface IAddress {
-    name?: string | null;
-    company?: string | null;
-    street1: string;
-    street2?: string | null;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
-    phone?: string | null;
+  name?: string | null;
+  company?: string | null;
+  street1: string;
+  street2?: string | null;
+  city: string;
+  state: string;
+  zip: string;
+  country: string; // Prefer ISO-3166-1 alpha-2 like "US"
+  phone?: string | null;
 }
 
-// A simple interface for the parcel data we need.
 interface IParcel {
-    length: number;
-    width: number;
-    height: number;
-    weight: number; // in ounces
+  length: number;
+  width: number;
+  height: number;
+  weight: number; // ounces (your app uses oz)
 }
 
-export class EasyPostService {
-    /**
-     * Creates an EasyPost address object.
-     * @param address The address data.
-     * @returns An EasyPost Address object.
-     */
-    private async createAddress(address: IAddress): Promise<any> {
-        return new client.Address({
-            name: address.name,
-            company: address.company,
-            street1: address.street1,
-            street2: address.street2,
-            city: address.city,
-            state: address.state,
-            zip: address.zip,
-            country: address.country,
-            phone: address.phone,
-        });
+export class ShippoService {
+  private toShippoAddress(address: IAddress) {
+    return {
+      name: address.name ?? undefined,
+      company: address.company ?? undefined,
+      street1: address.street1,
+      street2: address.street2 ?? undefined,
+      city: address.city,
+      state: address.state,
+      zip: address.zip,
+      country: address.country,
+      phone: address.phone ?? undefined,
+    };
+  }
+
+  private toShippoParcel(parcel: IParcel) {
+    // Shippo examples commonly use LB; we convert oz -> lb for consistency. :contentReference[oaicite:7]{index=7}
+    const weightLb = parcel.weight / 16;
+
+    return {
+      length: String(parcel.length),
+      width: String(parcel.width),
+      height: String(parcel.height),
+      distanceUnit: DistanceUnitEnum.In,
+      weight: String(Number.isFinite(weightLb) ? weightLb : 1),
+      massUnit: WeightUnitEnum.Lb,
+    };
+  }
+
+  /**
+   * Creates a Shippo shipment and returns rates (async=false).
+   * Shippo shipment creation returns `rates` that include `object_id`/`objectId`. :contentReference[oaicite:8]{index=8}
+   */
+  async createShipment(fromAddress: IAddress, toAddress: IAddress, parcel: IParcel): Promise<any> {
+    try {
+      const shipment = await shippo.shipments.create({
+        addressFrom: this.toShippoAddress(fromAddress),
+        addressTo: this.toShippoAddress(toAddress),
+        parcels: [this.toShippoParcel(parcel)],
+        async: false,
+      });
+
+      return shipment;
+    } catch (error: any) {
+      logError(error, {
+        layer: "service",
+        event: "shippo_create_shipment_failed",
+        errorMessage: error?.message,
+      });
+      throw new Error(`Shippo shipment creation failed: ${error?.message ?? "unknown error"}`);
     }
+  }
 
-    /**
-     * Creates an EasyPost parcel object.
-     * @param parcel The parcel data.
-     * @returns An EasyPost Parcel object.
-     */
-    private async createParcel(parcel: IParcel): Promise<any> {
-        return new client.Parcel({
-            length: parcel.length,
-            width: parcel.width,
-            height: parcel.height,
-            weight: parcel.weight,
-        });
+  /**
+   * Purchases a label by creating a Transaction for the given rateId.
+   * Shippo: transactions.create({ rate, labelFileType, async:false }) :contentReference[oaicite:9]{index=9}
+   */
+  async purchaseLabel(rateId: string): Promise<any> {
+    try {
+      const transaction = await shippo.transactions.create({
+        rate: rateId,
+        labelFileType: LabelFileTypeEnum.Pdf,
+        async: false,
+      });
+
+      return transaction;
+    } catch (error: any) {
+      logError(error, {
+        layer: "service",
+        event: "shippo_purchase_label_failed",
+        errorMessage: error?.message,
+      });
+      throw new Error(`Shippo label purchase failed: ${error?.message ?? "unknown error"}`);
     }
-
-    /**
-     * Creates an EasyPost shipment. This combines the from/to addresses and the parcel.
-     * The returned Shipment object will contain a list of applicable rates.
-     * @param fromAddress The sender's address.
-     * @param toAddress The recipient's address.
-     * @param parcel The parcel details.
-     * @returns An EasyPost Shipment object.
-     */
-    async createShipment(fromAddress: IAddress, toAddress: IAddress, parcel: IParcel): Promise<any> {
-        try {
-            const fromAddressObj = await this.createAddress(fromAddress);
-            const toAddressObj = await this.createAddress(toAddress);
-            const parcelObj = await this.createParcel(parcel);
-
-            const shipment = await client.Shipment.create({
-                from_address: fromAddressObj,
-                to_address: toAddressObj,
-                parcel: parcelObj,
-            });
-
-            return shipment;
-        } catch (error: any) {
-            logError(error, {
-                layer: 'service',
-                event: 'easypost_create_shipment_failed',
-                errorMessage: error.message,
-            });
-            // Re-throw a cleaner error for the API route to handle
-            throw new Error(`EasyPost shipment creation failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Purchases a shipping label using a specific rate from a shipment.
-     * @param shipmentId The ID of the EasyPost Shipment.
-     * @param rateId The ID of the rate to purchase.
-     * @returns The purchased EasyPost Shipment object, which includes the label and tracking info.
-     */
-    async purchaseLabel(shipmentId: string, rateId: string): Promise<any> {
-        try {
-            const shipment = await client.Shipment.buy(shipmentId, rateId);
-            return shipment;
-        } catch (error: any) {
-            logError(error, {
-                layer: 'service',
-                event: 'easypost_purchase_label_failed',
-                errorMessage: error.message,
-            });
-            throw new Error(`EasyPost label purchase failed: ${error.message}`);
-        }
-    }
+  }
 }

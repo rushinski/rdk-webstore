@@ -1,11 +1,12 @@
 // app/api/admin/shipping/labels/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { EasyPostService } from "@/services/shipping-label-service";
+import { ShippoService } from "@/services/shipping-label-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -13,7 +14,7 @@ import { logError } from "@/lib/log";
 const labelsSchema = z
   .object({
     orderId: z.string().uuid(),
-    shipmentId: z.string(),
+    shipmentId: z.string(), // kept for backwards compatibility (Shippo doesn't need it)
     rateId: z.string(),
   })
   .strict();
@@ -21,10 +22,7 @@ const labelsSchema = z
 const isAlreadyLabeledOrPast = (order: any) => {
   const status = String(order?.fulfillment_status ?? "").toLowerCase();
 
-  // If we already have tracking, we already purchased a label (or set it manually)
   if (order?.tracking_number) return true;
-
-  // If we’re already in later stages, don’t allow purchasing again
   if (["ready_to_ship", "shipped", "delivered"].includes(status)) return true;
 
   return false;
@@ -47,18 +45,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { orderId, shipmentId, rateId } = parsed.data;
+    const { orderId, rateId } = parsed.data;
 
     const ordersRepo = new OrdersRepository(supabase);
     const profilesRepo = new ProfileRepository(supabase);
-    const easyPostService = new EasyPostService();
+    const shippoService = new ShippoService();
 
     const order = await ordersRepo.getById(orderId);
     if (!order) {
       return NextResponse.json({ error: "Order not found", requestId }, { status: 404 });
     }
 
-    // ✅ NEW: prevent double-buys
     if (isAlreadyLabeledOrPast(order)) {
       return NextResponse.json(
         {
@@ -71,16 +68,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Purchase the label from EasyPost
-    const purchasedShipment = await easyPostService.purchaseLabel(shipmentId, rateId);
+    // Shippo purchases by Transaction from a Rate object id. :contentReference[oaicite:11]{index=11}
+    const transaction = await shippoService.purchaseLabel(rateId);
 
-    // Mark order as ready to ship with carrier and tracking info
+    const status = String(transaction?.status ?? "").toUpperCase();
+    if (status !== "SUCCESS") {
+      const messages = transaction?.messages ?? [];
+      throw new Error(`Shippo label purchase failed: ${messages?.[0]?.text ?? "transaction not successful"}`);
+    }
+
+    const carrier = transaction?.rate?.provider ?? transaction?.rate?.provider ?? null;
+    const trackingNumber = transaction?.trackingNumber ?? transaction?.tracking_number ?? null;
+    const trackingUrl = transaction?.trackingUrlProvider ?? transaction?.tracking_url_provider ?? null;
+
     await ordersRepo.markReadyToShip(orderId, {
-      carrier: purchasedShipment.carrier,
-      trackingNumber: purchasedShipment.tracking_code,
+      carrier,
+      trackingNumber,
     });
 
-    // Send "Label Created" email to customer (best-effort)
+    // Best-effort email
     try {
       if (order.user_id) {
         const profile = await profilesRepo.getByUserId(order.user_id);
@@ -89,9 +95,9 @@ export async function POST(request: NextRequest) {
           await emailService.sendOrderLabelCreated({
             to: profile.email,
             orderId: order.id,
-            carrier: purchasedShipment.carrier ?? null,
-            trackingNumber: purchasedShipment.tracking_code ?? null,
-            trackingUrl: purchasedShipment.tracker?.public_url ?? null,
+            carrier,
+            trackingNumber,
+            trackingUrl,
           });
         }
       }
@@ -101,13 +107,18 @@ export async function POST(request: NextRequest) {
         requestId,
         message: "Failed to send label created email",
       });
-      // don't fail if email fails
     }
 
+    // Keep response shape close to EasyPost route
+    const labelUrl = transaction?.labelUrl ?? transaction?.label_url ?? null;
+
     return NextResponse.json({
-      label: purchasedShipment.postage_label,
-      trackingCode: purchasedShipment.tracking_code,
-      trackingUrl: purchasedShipment.tracker?.public_url ?? null,
+      label: {
+        label_url: labelUrl,
+        pdf_url: labelUrl,
+      },
+      trackingCode: trackingNumber,
+      trackingUrl,
     });
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/shipping/labels" });

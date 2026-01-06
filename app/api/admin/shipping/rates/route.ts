@@ -6,7 +6,7 @@ import { requireAdminApi } from '@/lib/auth/session';
 import { ShippingOriginsRepository } from '@/repositories/shipping-origins-repo';
 import { ShippingCarriersRepository } from '@/repositories/shipping-carriers-repo';
 import { AddressesRepository } from '@/repositories/addresses-repo';
-import { EasyPostService } from '@/services/shipping-label-service';
+import { ShippoService } from '@/services/shipping-label-service';
 import { getRequestIdFromHeaders } from '@/lib/http/request-id';
 import { logError } from '@/lib/log';
 
@@ -34,7 +34,7 @@ const ratesSchema = z
   })
   .strict();
 
-const toEasyPostAddress = (address: {
+const toShippoAddress = (address: {
   name?: string | null;
   company?: string | null;
   phone?: string | null;
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const originsRepo = new ShippingOriginsRepository(supabase);
     const carriersRepo = new ShippingCarriersRepository(supabase);
     const addressesRepo = new AddressesRepository(supabase);
-    const easyPostService = new EasyPostService();
+    const shippoService = new ShippoService();
 
     const carriersConfig = await carriersRepo.get();
     const enabledCarriers = carriersConfig?.enabled_carriers || [];
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Recipient address not found for this order.', requestId }, { status: 404 });
     }
 
-    const recipientAddress = toEasyPostAddress(recipientSource as any);
+    const recipientAddress = toShippoAddress(recipientSource as any);
     if (!recipientAddress) {
       return NextResponse.json({ error: 'Recipient address is incomplete.', requestId }, { status: 400 });
     }
@@ -108,13 +108,13 @@ export async function POST(request: NextRequest) {
     if (!shipper) {
       return NextResponse.json({ error: 'Shipping origin address not configured in settings.', requestId }, { status: 400 });
     }
-    const shipperAddress = toEasyPostAddress(shipper as any);
+    const shipperAddress = toShippoAddress(shipper as any);
     if (!shipperAddress) {
       return NextResponse.json({ error: 'Shipping origin address is incomplete.', requestId }, { status: 400 });
     }
 
     const parcel = { weight, length, width, height };
-    const shipment = await easyPostService.createShipment(shipperAddress, recipientAddress, parcel);
+    const shipment = await shippoService.createShipment(shipperAddress, recipientAddress, parcel);
 
     const filteredRates = (shipment.rates ?? []).filter((r: any) => {
       const carrier = String(r.carrier ?? '').toUpperCase();
