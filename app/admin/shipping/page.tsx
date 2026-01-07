@@ -257,12 +257,12 @@ export default function ShippingPage() {
           page: String(currentPage),
         });
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
         }
-        
+
         const data = await response.json();
         setOrders(data.orders || []);
         if (typeof data.count === 'number') {
@@ -288,8 +288,6 @@ export default function ShippingPage() {
   const toggleItems = (orderId: string) => {
     setExpandedItems((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
   };
-
-  const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   const getPackageProfile = (order: any) => {
     const items = order.items ?? [];
@@ -473,10 +471,7 @@ export default function ShippingPage() {
     const placedAt = formatPlacedAt(order.created_at);
     const customerHandle = getCustomerHandle(order);
     const itemsExpanded = expandedItems[order.id] ?? false;
-    const packageProfile = getPackageProfile(order);
-    const shippingLabel = packageProfile.costCents ? `Standard (${formatCurrency(packageProfile.costCents)})` : 'Standard';
-    const colSpan = 9;
-    const hasLabel = !!order.tracking_number;
+    const colSpan = 8; // FIX: table has 8 columns
     const labelUrl = order.label_url ?? null; // Add this field to your order model
 
     return (
@@ -497,23 +492,18 @@ export default function ShippingPage() {
           <td className="p-4 text-gray-400 max-w-[320px] truncate">
             {addressLine ? addressLine : <span className="text-red-400">Missing address</span>}
           </td>
-          <td className="p-4 text-gray-400">
-            {labelUrl ? (
-              <button
-                onClick={() => viewLabel(order)}
-                className="text-sm text-red-400 hover:text-red-300"
-              >
-                Print Label
-              </button>
-            ) : (
-              <span className="text-zinc-500">No label yet</span>
-            )}
-          </td>
+
+          {/* SWAPPED: Tracking column now comes before Label */}
           <td className="p-4 text-gray-400">
             {order.tracking_number ? (
               <div className="space-y-1">
                 {trackingUrl ? (
-                  <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 flex items-center gap-1">
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-red-400 hover:text-red-300 flex items-center gap-1"
+                  >
                     {order.tracking_number}
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -525,6 +515,17 @@ export default function ShippingPage() {
               <span className="text-zinc-500">No tracking yet</span>
             )}
           </td>
+
+          <td className="p-4 text-gray-400">
+            {labelUrl ? (
+              <button onClick={() => viewLabel(order)} className="text-sm text-red-400 hover:text-red-300">
+                Print Label
+              </button>
+            ) : (
+              <span className="text-zinc-500">No label yet</span>
+            )}
+          </td>
+
           <td className="p-4 text-right">
             <button
               type="button"
@@ -614,8 +615,9 @@ export default function ShippingPage() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-300">
-              <strong>Automatic tracking:</strong> Once you ship packages, Shippo will automatically update tracking status and send customer emails. 
-              The "Mark shipped (fallback)" button should only be used if the carrier hasn't scanned the package yet.
+              <strong>Automatic tracking:</strong> Once you ship packages, Shippo will automatically update tracking status
+              and send customer emails. The "Mark shipped (fallback)" button should only be used if the carrier hasn't
+              scanned the package yet.
             </div>
           </div>
         </div>
@@ -668,8 +670,11 @@ export default function ShippingPage() {
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Order</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Customer</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Destination</th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Label</th>
+
+                {/* SWAPPED: Tracking header now before Label */}
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Tracking</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Label</th>
+
                 <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">Items</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">Action</th>
               </tr>
@@ -702,7 +707,7 @@ export default function ShippingPage() {
       <ConfirmDialog
         isOpen={!!confirmMarkShipped}
         title="Mark as shipped manually?"
-        description="Important: This should only be used if the carrier hasn't scanned the package yet. Normally, Shippo automatically updates tracking status and sends customer emails when the carrier scans the package. Using this button will manually update the status without waiting for carrier confirmation."
+        description='Important: This should only be used if the carrier hasn&apos;t scanned the package yet. Normally, Shippo automatically updates tracking status and sends customer emails when the carrier scans the package. Using this button will manually update the status without waiting for carrier confirmation.'
         confirmLabel="Mark shipped anyway"
         onConfirm={() => confirmMarkShipped && handleMarkShipped(confirmMarkShipped)}
         onCancel={() => setConfirmMarkShipped(null)}
