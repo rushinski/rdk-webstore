@@ -552,7 +552,7 @@ export default function ShippingPage() {
                 disabled={markingShippedId === order.id}
                 className="text-sm text-zinc-400 hover:text-zinc-300 disabled:text-zinc-600"
               >
-                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped (fallback)'}
+                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
               </button>
             ) : (
               <span className="text-zinc-500">-</span>
@@ -616,7 +616,7 @@ export default function ShippingPage() {
             <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-blue-300">
               <strong>Automatic tracking:</strong> Once you ship packages, Shippo will automatically update tracking status
-              and send customer emails. The "Mark shipped (fallback)" button should only be used if the carrier hasn't
+              and send customer emails. The "Mark shipped" button should only be used if the carrier hasn't
               scanned the package yet.
             </div>
           </div>
