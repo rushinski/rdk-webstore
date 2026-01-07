@@ -48,14 +48,12 @@ const initialOrigin = {
 type ShippingOriginAddress = typeof initialOrigin;
 
 const moneyToCents = (raw: string) => {
-  // Allow normal typing; sanitize to digits + first dot
   const cleaned = raw.replace(/[^\d.]/g, '');
   if (!cleaned || cleaned === '.') return 0;
 
   const firstDot = cleaned.indexOf('.');
   let normalized = cleaned;
 
-  // If multiple dots, keep only the first
   if (firstDot !== -1) {
     const before = cleaned.slice(0, firstDot + 1);
     const after = cleaned.slice(firstDot + 1).replace(/\./g, '');
@@ -79,9 +77,7 @@ const centsToMoneyString = (cents: number) => {
 };
 
 export default function ShippingSettingsPage() {
-  const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefaultValues>>(
-    {}
-  );
+  const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefaultValues>>({});
   const [originAddress, setOriginAddress] = useState<ShippingOriginAddress>(initialOrigin);
   const [enabledCarriers, setEnabledCarriers] = useState<string[]>([]);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
@@ -94,8 +90,12 @@ export default function ShippingSettingsPage() {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [defaultsDraft, setDefaultsDraft] = useState<ShippingDefaultValues | null>(null);
 
-  // NEW: keep a separate "typed string" for money so the user can type normally
+  // String versions for controlled inputs
   const [shippingCostInput, setShippingCostInput] = useState<string>('0.00');
+  const [weightInput, setWeightInput] = useState<string>('16');
+  const [lengthInput, setLengthInput] = useState<string>('12');
+  const [widthInput, setWidthInput] = useState<string>('12');
+  const [heightInput, setHeightInput] = useState<string>('12');
 
   const [isOriginModalOpen, setIsOriginModalOpen] = useState(false);
   const [originDraft, setOriginDraft] = useState<ShippingOriginAddress>(initialOrigin);
@@ -147,6 +147,10 @@ export default function ShippingSettingsPage() {
     setActiveCategory(categoryKey);
     setDefaultsDraft({ ...current });
     setShippingCostInput(centsToMoneyString(current.shipping_cost_cents));
+    setWeightInput(String(current.default_weight_oz));
+    setLengthInput(String(current.default_length_in));
+    setWidthInput(String(current.default_width_in));
+    setHeightInput(String(current.default_height_in));
     setIsDefaultsModalOpen(true);
     setMessage('');
   };
@@ -156,6 +160,10 @@ export default function ShippingSettingsPage() {
     setActiveCategory(null);
     setDefaultsDraft(null);
     setShippingCostInput('0.00');
+    setWeightInput('16');
+    setLengthInput('12');
+    setWidthInput('12');
+    setHeightInput('12');
   };
 
   const openOriginModal = () => {
@@ -164,25 +172,41 @@ export default function ShippingSettingsPage() {
     setOriginMessage('');
   };
 
-  const handleDraftChange = (field: keyof ShippingDefaultValues, value: string) => {
-    // For money, we use handleShippingCostChange instead
-    if (field === 'shipping_cost_cents') return;
+  const handleDimensionInput = (field: 'weight' | 'length' | 'width' | 'height', value: string) => {
+    const cleaned = value.replace(/[^\d.]/g, '');
+    
+    switch (field) {
+      case 'weight':
+        setWeightInput(cleaned);
+        break;
+      case 'length':
+        setLengthInput(cleaned);
+        break;
+      case 'width':
+        setWidthInput(cleaned);
+        break;
+      case 'height':
+        setHeightInput(cleaned);
+        break;
+    }
 
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) return;
+    const numericValue = Number(cleaned);
+    if (!Number.isFinite(numericValue) || numericValue < 0) return;
 
     setDefaultsDraft((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        [field]: numericValue,
+      const fieldMap = {
+        weight: 'default_weight_oz' as const,
+        length: 'default_length_in' as const,
+        width: 'default_width_in' as const,
+        height: 'default_height_in' as const,
       };
+      return { ...prev, [fieldMap[field]]: numericValue };
     });
   };
 
   const handleShippingCostChange = (value: string) => {
     setShippingCostInput(value);
-
     const cents = moneyToCents(value);
     setDefaultsDraft((prev) => {
       if (!prev) return prev;
@@ -217,14 +241,10 @@ export default function ShippingSettingsPage() {
       const defaults = SHIPPING_CATEGORIES.map((category) => ({
         category: category.key,
         shipping_cost_cents: Math.round(nextDefaults[category.key]?.shipping_cost_cents ?? 0),
-        default_weight_oz:
-          nextDefaults[category.key]?.default_weight_oz ?? defaultPackage.default_weight_oz,
-        default_length_in:
-          nextDefaults[category.key]?.default_length_in ?? defaultPackage.default_length_in,
-        default_width_in:
-          nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
-        default_height_in:
-          nextDefaults[category.key]?.default_height_in ?? defaultPackage.default_height_in,
+        default_weight_oz: nextDefaults[category.key]?.default_weight_oz ?? defaultPackage.default_weight_oz,
+        default_length_in: nextDefaults[category.key]?.default_length_in ?? defaultPackage.default_length_in,
+        default_width_in: nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
+        default_height_in: nextDefaults[category.key]?.default_height_in ?? defaultPackage.default_height_in,
       }));
 
       const response = await fetch('/api/admin/shipping/defaults', {
@@ -286,7 +306,6 @@ export default function ShippingSettingsPage() {
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        // Persisted server-side value is source of truth
         setEnabledCarriers(data.carriers || []);
         setCarriersMessage('Enabled carriers updated.');
         setTimeout(() => setCarriersMessage(''), 3000);
@@ -331,7 +350,6 @@ export default function ShippingSettingsPage() {
         <p className="text-gray-400">Shipping defaults, origin address, and carrier options</p>
       </div>
 
-      {/* Top row (2 cards) + bottom full-width (default packages) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
           <div className="flex items-start justify-between gap-4">
@@ -389,7 +407,6 @@ export default function ShippingSettingsPage() {
           </div>
         </div>
 
-        {/* Full-width card on lg, placed below the two cards */}
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-4 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -441,11 +458,7 @@ export default function ShippingSettingsPage() {
                 <h3 className="text-lg font-semibold text-white">Edit package defaults</h3>
                 <p className="text-xs text-gray-500">{activeCategoryLabel} defaults</p>
               </div>
-              <button
-                type="button"
-                onClick={closeDefaultsModal}
-                className="text-gray-400 hover:text-white"
-              >
+              <button type="button" onClick={closeDefaultsModal} className="text-gray-400 hover:text-white">
                 Close
               </button>
             </div>
@@ -457,27 +470,30 @@ export default function ShippingSettingsPage() {
                   <div>
                     <label className="block text-gray-400 text-xs mb-1">Length (in)</label>
                     <input
-                      type="number"
-                      value={defaultsDraft.default_length_in}
-                      onChange={(e) => handleDraftChange('default_length_in', e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      value={lengthInput}
+                      onChange={(e) => handleDimensionInput('length', e.target.value)}
                       className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                     />
                   </div>
                   <div>
                     <label className="block text-gray-400 text-xs mb-1">Width (in)</label>
                     <input
-                      type="number"
-                      value={defaultsDraft.default_width_in}
-                      onChange={(e) => handleDraftChange('default_width_in', e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      value={widthInput}
+                      onChange={(e) => handleDimensionInput('width', e.target.value)}
                       className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                     />
                   </div>
                   <div>
                     <label className="block text-gray-400 text-xs mb-1">Height (in)</label>
                     <input
-                      type="number"
-                      value={defaultsDraft.default_height_in}
-                      onChange={(e) => handleDraftChange('default_height_in', e.target.value)}
+                      type="text"
+                      inputMode="numeric"
+                      value={heightInput}
+                      onChange={(e) => handleDimensionInput('height', e.target.value)}
                       className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                     />
                   </div>
@@ -488,9 +504,10 @@ export default function ShippingSettingsPage() {
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Weight (oz)</label>
                   <input
-                    type="number"
-                    value={defaultsDraft.default_weight_oz}
-                    onChange={(e) => handleDraftChange('default_weight_oz', e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={weightInput}
+                    onChange={(e) => handleDimensionInput('weight', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>

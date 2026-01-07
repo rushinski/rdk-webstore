@@ -58,6 +58,20 @@ const money = (rateStr?: string | null, currency?: string | null) => {
   return rateStr ?? '-';
 };
 
+const formatDeliveryEstimate = (days?: number | null) => {
+  if (!days || days <= 0) return null;
+  
+  const businessDays = Math.ceil(days);
+  
+  if (businessDays === 1) return "Next business day";
+  if (businessDays === 2) return "2 business days";
+  if (businessDays <= 5) return `${businessDays} business days`;
+  
+  // Convert to calendar days for longer estimates
+  const calendarDays = Math.ceil(businessDays * 1.4); // Rough conversion
+  return `${calendarDays} days`;
+};
+
 export function CreateLabelForm({ open, order, originLine, initialPackage, onClose, onSuccess }: Props) {
   const orderId = order?.id ?? null;
 
@@ -89,6 +103,12 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
   const [recipient, setRecipient] = useState<ShippingAddressDraft>(initialRecipient);
   const [parcel, setParcel] = useState<ParcelDraft>(initialParcel);
 
+  // String versions for controlled inputs (prevents spinner issues)
+  const [weightInput, setWeightInput] = useState<string>('16');
+  const [lengthInput, setLengthInput] = useState<string>('12');
+  const [widthInput, setWidthInput] = useState<string>('12');
+  const [heightInput, setHeightInput] = useState<string>('12');
+
   const [shipmentId, setShipmentId] = useState<string | null>(null);
   const [rates, setRates] = useState<EasyPostRate[]>([]);
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
@@ -106,6 +126,13 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
     if (!open) return;
     setRecipient(initialRecipient);
     setParcel(initialParcel);
+    
+    // Set input strings from initial values
+    setWeightInput(String(initialParcel.weight));
+    setLengthInput(String(initialParcel.length));
+    setWidthInput(String(initialParcel.width));
+    setHeightInput(String(initialParcel.height));
+    
     setShipmentId(null);
     setRates([]);
     setSelectedRateId(null);
@@ -123,10 +150,31 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
     setRecipient((prev) => ({ ...prev, [field]: value }));
   };
 
-  const setParcelField = (field: keyof ParcelDraft, value: string) => {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return;
-    setParcel((prev) => ({ ...prev, [field]: n }));
+  const handleParcelInput = (field: 'weight' | 'length' | 'width' | 'height', value: string) => {
+    // Allow only numbers and decimal point
+    const cleaned = value.replace(/[^\d.]/g, '');
+    
+    // Update input string
+    switch (field) {
+      case 'weight':
+        setWeightInput(cleaned);
+        break;
+      case 'length':
+        setLengthInput(cleaned);
+        break;
+      case 'width':
+        setWidthInput(cleaned);
+        break;
+      case 'height':
+        setHeightInput(cleaned);
+        break;
+    }
+    
+    // Update parcel object with number
+    const num = Number(cleaned);
+    if (Number.isFinite(num) && num >= 0) {
+      setParcel((prev) => ({ ...prev, [field]: num }));
+    }
   };
 
   const validate = () => {
@@ -199,7 +247,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
       setShipmentId(nextShipmentId);
       setRates(nextRates);
 
-      // default to cheapest
+      // Default to cheapest
       const cheapest = [...nextRates].sort((a, b) => Number(a.rate ?? 999999) - Number(b.rate ?? 999999))[0];
       setSelectedRateId(cheapest?.id ?? nextRates[0]?.id ?? null);
     } catch {
@@ -238,7 +286,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
         return;
       }
 
-      const pdf = data?.label?.label_pdf_url ?? null;
+      const pdf = data?.label?.label_pdf_url ?? data?.label?.pdf_url ?? null;
       const png = data?.label?.label_url ?? null;
 
       setLabelPdfUrl(pdf);
@@ -289,6 +337,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Name</label>
                   <input
+                    type="text"
                     value={recipient.name}
                     onChange={(e) => setRecipientField('name', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -297,6 +346,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Phone</label>
                   <input
+                    type="text"
                     value={recipient.phone}
                     onChange={(e) => setRecipientField('phone', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -306,6 +356,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div className="md:col-span-2">
                   <label className="block text-xs text-zinc-400 mb-1">Address line 1</label>
                   <input
+                    type="text"
                     value={recipient.line1}
                     onChange={(e) => setRecipientField('line1', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -314,6 +365,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div className="md:col-span-2">
                   <label className="block text-xs text-zinc-400 mb-1">Address line 2</label>
                   <input
+                    type="text"
                     value={recipient.line2}
                     onChange={(e) => setRecipientField('line2', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -323,6 +375,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">City</label>
                   <input
+                    type="text"
                     value={recipient.city}
                     onChange={(e) => setRecipientField('city', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -331,6 +384,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">State</label>
                   <input
+                    type="text"
                     value={recipient.state}
                     onChange={(e) => setRecipientField('state', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -339,6 +393,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">ZIP</label>
                   <input
+                    type="text"
                     value={recipient.postal_code}
                     onChange={(e) => setRecipientField('postal_code', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -347,6 +402,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Country</label>
                   <input
+                    type="text"
                     value={recipient.country}
                     onChange={(e) => setRecipientField('country', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
@@ -361,36 +417,40 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Weight (oz)</label>
                   <input
-                    type="number"
-                    value={parcel.weight}
-                    onChange={(e) => setParcelField('weight', e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={weightInput}
+                    onChange={(e) => handleParcelInput('weight', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Length (in)</label>
                   <input
-                    type="number"
-                    value={parcel.length}
-                    onChange={(e) => setParcelField('length', e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={lengthInput}
+                    onChange={(e) => handleParcelInput('length', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Width (in)</label>
                   <input
-                    type="number"
-                    value={parcel.width}
-                    onChange={(e) => setParcelField('width', e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={widthInput}
+                    onChange={(e) => handleParcelInput('width', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
                 <div>
                   <label className="block text-xs text-zinc-400 mb-1">Height (in)</label>
                   <input
-                    type="number"
-                    value={parcel.height}
-                    onChange={(e) => setParcelField('height', e.target.value)}
+                    type="text"
+                    inputMode="numeric"
+                    value={heightInput}
+                    onChange={(e) => handleParcelInput('height', e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
@@ -427,7 +487,9 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
               <div className="space-y-2">
                 {rates.map((r) => {
                   const selected = selectedRateId === r.id;
-                  const days = r.delivery_days ?? r.estimated_delivery_days ?? null;
+                  const days = r.estimated_delivery_days ?? r.delivery_days ?? null;
+                  const deliveryText = formatDeliveryEstimate(days);
+                  
                   return (
                     <label
                       key={r.id}
@@ -450,7 +512,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                           <div className="text-sm text-white">{money(r.rate, r.currency)}</div>
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">
-                          {days ? `Est. ${days} day(s)` : 'Delivery estimate unavailable'}
+                          {deliveryText ? `Estimated delivery: ${deliveryText}` : 'Delivery estimate unavailable'}
                         </div>
                       </div>
                     </label>
