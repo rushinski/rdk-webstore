@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useMemo, useRef } from 'react';
-import { ImagePlus, Plus, Trash2, X } from 'lucide-react';
-import { TagInput, type TagChip } from './TagInput';
+import { useState, useEffect, useMemo, useRef } from "react";
+import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { TagInput, type TagChip } from "./TagInput";
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/views/product";
-import type { ProductCreateInput } from '@/services/product-service';
-import { logError } from '@/lib/log';
-import { Toast } from '@/components/ui/Toast';
-import { RdkSelect } from '@/components/ui/Select';
+import type { ProductCreateInput } from "@/services/product-service";
+import { logError } from "@/lib/log";
+import { Toast } from "@/components/ui/Toast";
+import { RdkSelect } from "@/components/ui/Select";
 
 interface ProductFormProps {
   initialData?: Partial<ProductCreateInput> & { id?: string };
@@ -64,21 +64,21 @@ const normalizeImages = (items: ImageDraft[]) => {
 const formatMoney = (value: number) => value.toFixed(2);
 
 const AUTO_TAG_GROUP_KEYS = new Set([
-  'brand',
-  'model',
-  'category',
-  'condition',
-  'designer_brand',
-  'size_shoe',
-  'size_clothing',
-  'size_custom',
+  "brand",
+  "model",
+  "category",
+  "condition",
+  "designer_brand",
+  "size_shoe",
+  "size_clothing",
+  "size_custom",
 ]);
 
 const getSizeTypeForCategory = (category: Category): SizeType => {
-  if (category === 'sneakers') return 'shoe';
-  if (category === 'clothing') return 'clothing';
-  if (category === 'accessories') return 'custom';
-  return 'none';
+  if (category === "sneakers") return "shoe";
+  if (category === "clothing") return "clothing";
+  if (category === "accessories") return "custom";
+  return "none";
 };
 
 const getTagKey = (tag: { label: string; group_key: string }) =>
@@ -89,34 +89,36 @@ const RequiredMark = () => <span className="text-red-500">*</span>;
 export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const initialTitle = initialData?.title_raw ?? '';
+  const initialTitle = initialData?.title_raw ?? "";
   const [titleRaw, setTitleRaw] = useState(initialTitle);
 
   const [parseResult, setParseResult] = useState<TitleParseResult | null>(null);
-  const [parseStatus, setParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [parseStatus, setParseStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const [brandOverrideId, setBrandOverrideId] = useState<string | null>(null);
-  const [brandOverrideInput, setBrandOverrideInput] = useState('');
+  const [brandOverrideInput, setBrandOverrideInput] = useState("");
   const [modelOverrideId, setModelOverrideId] = useState<string | null>(null);
-  const [modelOverrideInput, setModelOverrideInput] = useState('');
+  const [modelOverrideInput, setModelOverrideInput] = useState("");
 
   const [brandOptions, setBrandOptions] = useState<CatalogOption[]>([]);
   const [modelOptions, setModelOptions] = useState<CatalogOption[]>([]);
 
-  const [category, setCategory] = useState<Category>(initialData?.category || 'sneakers');
-  const [condition, setCondition] = useState<Condition>(initialData?.condition || 'new');
-  const [conditionNote, setConditionNote] = useState(initialData?.condition_note || '');
-  const [description, setDescription] = useState(initialData?.description || '');
+  const [category, setCategory] = useState<Category>(initialData?.category || "sneakers");
+  const [condition, setCondition] = useState<Condition>(initialData?.condition || "new");
+  const [conditionNote, setConditionNote] = useState(initialData?.condition_note || "");
+  const [description, setDescription] = useState(initialData?.description || "");
 
   const [shippingPrice, setShippingPrice] = useState(() => {
     if (initialData?.shipping_override_cents != null) {
       return formatMoney(initialData.shipping_override_cents / 100);
     }
-    return '';
+    return "";
   });
 
   const [shippingDefaults, setShippingDefaults] = useState<Record<string, number>>({});
-  const [shippingDefaultsStatus, setShippingDefaultsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [shippingDefaultsStatus, setShippingDefaultsStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
 
   const [customTags, setCustomTags] = useState<TagChip[]>(() => {
     const tags = initialData?.tags ?? [];
@@ -125,7 +127,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       .map((tag) => ({
         label: tag.label,
         group_key: tag.group_key,
-        source: 'custom',
+        source: "custom",
       }));
   });
 
@@ -134,7 +136,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const hasInitializedVariants = useRef(false);
 
   const [variants, setVariants] = useState<VariantDraft[]>(() => {
-    const sizeType = getSizeTypeForCategory(initialData?.category || 'sneakers');
+    const sizeType = getSizeTypeForCategory(initialData?.category || "sneakers");
     const mapped = initialData?.variants?.map((variant) => ({
       size_label: variant.size_label,
       price: formatMoney(variant.price_cents / 100),
@@ -145,29 +147,32 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     return (
       mapped || [
         {
-          size_label: sizeType === 'none' ? 'N/A' : '',
-          price: '',
-          cost: '',
-          stock: '1',
+          size_label: sizeType === "none" ? "N/A" : "",
+          price: "",
+          cost: "",
+          stock: "1",
         },
       ]
     );
   });
 
   const [images, setImages] = useState<ImageDraft[]>(() =>
-    normalizeImages(initialData?.images ?? [])
+    normalizeImages(initialData?.images ?? []),
   );
 
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error" | "info";
+  } | null>(null);
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
 
-  const parsedBrandLabel = parseResult?.brand?.label?.trim() ?? '';
+  const parsedBrandLabel = parseResult?.brand?.label?.trim() ?? "";
   const parsedBrandGroup = parseResult?.brand?.groupKey ?? null;
-  const parsedModelLabel = parseResult?.model?.label?.trim() ?? '';
+  const parsedModelLabel = parseResult?.model?.label?.trim() ?? "";
 
   const autoTags = useMemo<TagChip[]>(() => {
     const tags: TagChip[] = [];
@@ -179,30 +184,30 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       const key = `${group_key}:${trimmed}`;
       if (seen.has(key)) return;
       seen.add(key);
-      tags.push({ label: trimmed, group_key, source: 'auto' });
+      tags.push({ label: trimmed, group_key, source: "auto" });
     };
 
     if (parsedBrandLabel) {
-      addTag(parsedBrandLabel, 'brand');
-      if (parsedBrandGroup === 'designer') {
-        addTag(parsedBrandLabel, 'designer_brand');
+      addTag(parsedBrandLabel, "brand");
+      if (parsedBrandGroup === "designer") {
+        addTag(parsedBrandLabel, "designer_brand");
       }
     }
 
-    if (parsedModelLabel && category === 'sneakers') {
-      addTag(parsedModelLabel, 'model');
+    if (parsedModelLabel && category === "sneakers") {
+      addTag(parsedModelLabel, "model");
     }
 
-    if (category) addTag(category, 'category');
-    if (condition) addTag(condition, 'condition');
+    if (category) addTag(category, "category");
+    if (condition) addTag(condition, "condition");
 
-    if (sizeType !== 'none') {
+    if (sizeType !== "none") {
       const groupKey =
-        sizeType === 'shoe'
-          ? 'size_shoe'
-          : sizeType === 'clothing'
-          ? 'size_clothing'
-          : 'size_custom';
+        sizeType === "shoe"
+          ? "size_shoe"
+          : sizeType === "clothing"
+            ? "size_clothing"
+            : "size_custom";
 
       variants.forEach((variant) => {
         const stockCount = Number.parseInt(variant.stock, 10);
@@ -212,11 +217,19 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
 
     return tags;
-  }, [parsedBrandLabel, parsedBrandGroup, parsedModelLabel, category, condition, sizeType, variants]);
+  }, [
+    parsedBrandLabel,
+    parsedBrandGroup,
+    parsedModelLabel,
+    category,
+    condition,
+    sizeType,
+    variants,
+  ]);
 
   const visibleAutoTags = useMemo(
     () => autoTags.filter((tag) => !excludedAutoTagKeys.includes(getTagKey(tag))),
-    [autoTags, excludedAutoTagKeys]
+    [autoTags, excludedAutoTagKeys],
   );
 
   const allTags = useMemo(() => {
@@ -232,27 +245,32 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   useEffect(() => {
     const loadDefaults = async () => {
-      setShippingDefaultsStatus('loading');
+      setShippingDefaultsStatus("loading");
       try {
-        const response = await fetch('/api/admin/shipping/defaults');
+        const response = await fetch("/api/admin/shipping/defaults");
         const data = await response.json();
 
         if (response.ok && data?.defaults) {
           const map: Record<string, number> = {};
           for (const entry of data.defaults) {
             const cents =
-              Number(entry.shipping_cost_cents ?? entry.default_price_cents ?? entry.default_price ?? 0) || 0;
+              Number(
+                entry.shipping_cost_cents ??
+                  entry.default_price_cents ??
+                  entry.default_price ??
+                  0,
+              ) || 0;
             map[entry.category] = cents / 100;
           }
           setShippingDefaults(map);
-          setShippingDefaultsStatus('ready');
+          setShippingDefaultsStatus("ready");
           return;
         }
 
-        setShippingDefaultsStatus('error');
+        setShippingDefaultsStatus("error");
       } catch (error) {
         logError(error, { layer: "frontend", event: "inventory_load_shipping_defaults" });
-        setShippingDefaultsStatus('error');
+        setShippingDefaultsStatus("error");
       }
     };
 
@@ -262,7 +280,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   useEffect(() => {
     const loadBrands = async () => {
       try {
-        const response = await fetch('/api/admin/catalog/brands');
+        const response = await fetch("/api/admin/catalog/brands");
         const data = await response.json();
         if (response.ok) {
           const options = (data.brands || []).map((brand: any) => ({
@@ -290,7 +308,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     const loadModels = async () => {
       try {
-        const response = await fetch(`/api/admin/catalog/models?brandId=${effectiveBrandId}`);
+        const response = await fetch(
+          `/api/admin/catalog/models?brandId=${effectiveBrandId}`,
+        );
         const data = await response.json();
         if (response.ok) {
           const options = (data.models || []).map((model: any) => ({
@@ -312,24 +332,24 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     const stillValid = modelOptions.some((option) => option.id === modelOverrideId);
     if (!stillValid) {
       setModelOverrideId(null);
-      setModelOverrideInput('');
+      setModelOverrideInput("");
     }
   }, [modelOptions, modelOverrideId]);
 
   useEffect(() => {
     if (!titleRaw.trim()) {
       setParseResult(null);
-      setParseStatus('idle');
+      setParseStatus("idle");
       return;
     }
 
     const controller = new AbortController();
     const timeout = setTimeout(async () => {
-      setParseStatus('loading');
+      setParseStatus("loading");
       try {
-        const response = await fetch('/api/admin/catalog/parse-title', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/admin/catalog/parse-title", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             titleRaw,
             category,
@@ -339,13 +359,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           signal: controller.signal,
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data?.error || 'Failed to parse title.');
+        if (!response.ok) throw new Error(data?.error || "Failed to parse title.");
         setParseResult(data);
-        setParseStatus('idle');
+        setParseStatus("idle");
       } catch (error) {
-        if ((error as any)?.name === 'AbortError') return;
+        if ((error as any)?.name === "AbortError") return;
         logError(error, { layer: "frontend", event: "inventory_parse_title" });
-        setParseStatus('error');
+        setParseStatus("error");
       }
     }, 250);
 
@@ -363,10 +383,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     setVariants((current) =>
       current.map((variant) => {
-        if (sizeType === 'none') return { ...variant, size_label: 'N/A' };
-        if (sizeType === 'custom') return variant.size_label === 'N/A' ? { ...variant, size_label: '' } : variant;
-        return { ...variant, size_label: '' };
-      })
+        if (sizeType === "none") return { ...variant, size_label: "N/A" };
+        if (sizeType === "custom")
+          return variant.size_label === "N/A" ? { ...variant, size_label: "" } : variant;
+        return { ...variant, size_label: "" };
+      }),
     );
   }, [sizeType]);
 
@@ -384,10 +405,10 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     setVariants([
       ...variants,
       {
-        size_label: sizeType === 'none' ? 'N/A' : '',
-        price: '',
-        cost: '',
-        stock: '1',
+        size_label: sizeType === "none" ? "N/A" : "",
+        price: "",
+        cost: "",
+        stock: "1",
       },
     ]);
   };
@@ -413,7 +434,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           sort_order: current.length,
           is_primary: current.length === 0,
         },
-      ])
+      ]),
     );
   };
 
@@ -427,8 +448,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         current.map((image, i) => ({
           ...image,
           is_primary: i === index,
-        }))
-      )
+        })),
+      ),
     );
   };
 
@@ -444,7 +465,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           reader.onload = () => resolve(String(reader.result || ""));
           reader.onerror = () => reject(reader.error);
           reader.readAsDataURL(file);
-        })
+        }),
     );
 
     try {
@@ -476,8 +497,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     const newTag: TagChip = {
       label: trimmed,
-      group_key: 'custom',
-      source: 'custom',
+      group_key: "custom",
+      source: "custom",
     };
 
     const existingKeys = new Set(allTags.map(getTagKey));
@@ -488,34 +509,34 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const applyBrandOverride = (option: CatalogOption | null) => {
     setBrandOverrideId(option?.id ?? null);
-    setBrandOverrideInput(option?.label ?? '');
+    setBrandOverrideInput(option?.label ?? "");
     setModelOverrideId(null);
-    setModelOverrideInput('');
+    setModelOverrideInput("");
   };
 
   const applyModelOverride = (option: CatalogOption | null) => {
     setModelOverrideId(option?.id ?? null);
-    setModelOverrideInput(option?.label ?? '');
+    setModelOverrideInput(option?.label ?? "");
   };
 
   const handleBrandOverrideChange = (value: string) => {
     setBrandOverrideInput(value);
     const match = brandOptions.find(
-      (option) => option.label.toLowerCase() === value.trim().toLowerCase()
+      (option) => option.label.toLowerCase() === value.trim().toLowerCase(),
     );
     if (match) {
       applyBrandOverride(match);
     } else {
       setBrandOverrideId(null);
       setModelOverrideId(null);
-      setModelOverrideInput('');
+      setModelOverrideInput("");
     }
   };
 
   const handleModelOverrideChange = (value: string) => {
     setModelOverrideInput(value);
     const match = modelOptions.find(
-      (option) => option.label.toLowerCase() === value.trim().toLowerCase()
+      (option) => option.label.toLowerCase() === value.trim().toLowerCase(),
     );
     if (match) {
       applyModelOverride(match);
@@ -540,7 +561,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   };
 
   const handleRemoveTag = (tag: TagChip) => {
-    if (tag.source === 'auto') {
+    if (tag.source === "auto") {
       const key = getTagKey(tag);
       setExcludedAutoTagKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
       return;
@@ -569,24 +590,28 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     try {
       const trimmedTitle = titleRaw.trim();
-      if (!trimmedTitle) throw new Error('Full title is required.');
+      if (!trimmedTitle) throw new Error("Full title is required.");
 
       const trimmedShipping = shippingPrice.trim();
       const shippingCents = trimmedShipping ? parseMoneyToCents(trimmedShipping) : null;
-      if (trimmedShipping && shippingCents === null) throw new Error("Please enter a valid shipping price.");
+      if (trimmedShipping && shippingCents === null)
+        throw new Error("Please enter a valid shipping price.");
 
       const preparedVariants = variants.map((variant, index) => {
         const priceCents = parseMoneyToCents(variant.price);
-        if (priceCents === null) throw new Error(`Variant ${index + 1} price is invalid.`);
+        if (priceCents === null)
+          throw new Error(`Variant ${index + 1} price is invalid.`);
 
         const costCents = parseMoneyToCents(variant.cost);
         if (costCents === null) throw new Error(`Variant ${index + 1} cost is invalid.`);
 
         const stockCount = parseStockCount(variant.stock);
-        if (stockCount === null) throw new Error(`Variant ${index + 1} stock is invalid.`);
+        if (stockCount === null)
+          throw new Error(`Variant ${index + 1} stock is invalid.`);
 
-        const sizeLabel = sizeType === 'none' ? 'N/A' : variant.size_label.trim();
-        if (sizeType !== 'none' && !sizeLabel) throw new Error(`Variant ${index + 1} size is required.`);
+        const sizeLabel = sizeType === "none" ? "N/A" : variant.size_label.trim();
+        if (sizeType !== "none" && !sizeLabel)
+          throw new Error(`Variant ${index + 1} size is required.`);
 
         return {
           size_type: sizeType,
@@ -601,7 +626,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         .map((image) => ({ ...image, url: image.url.trim() }))
         .filter((image) => image.url);
 
-      if (preparedImages.length === 0) throw new Error("Please add at least one product image.");
+      if (preparedImages.length === 0)
+        throw new Error("Please add at least one product image.");
 
       const data: ProductCreateInput = {
         title_raw: trimmedTitle,
@@ -620,8 +646,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       await onSubmit(data);
     } catch (error) {
       logError(error, { layer: "frontend", event: "inventory_form_submit" });
-      const message = error instanceof Error ? error.message : 'Failed to save product';
-      setToast({ message, tone: 'error' });
+      const message = error instanceof Error ? error.message : "Failed to save product";
+      setToast({ message, tone: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -660,10 +686,10 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={category}
               onChange={(v) => setCategory(v as Category)}
               options={[
-                { value: 'sneakers', label: 'Sneakers' },
-                { value: 'clothing', label: 'Clothing' },
-                { value: 'accessories', label: 'Accessories' },
-                { value: 'electronics', label: 'Electronics' },
+                { value: "sneakers", label: "Sneakers" },
+                { value: "clothing", label: "Clothing" },
+                { value: "accessories", label: "Accessories" },
+                { value: "electronics", label: "Electronics" },
               ]}
               buttonClassName="bg-zinc-800"
             />
@@ -677,8 +703,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={condition}
               onChange={(v) => setCondition(v as Condition)}
               options={[
-                { value: 'new', label: 'New' },
-                { value: 'used', label: 'Used' },
+                { value: "new", label: "New" },
+                { value: "used", label: "Used" },
               ]}
               buttonClassName="bg-zinc-800"
             />
@@ -688,24 +714,28 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         <div className="mt-4 bg-zinc-950/40 border border-zinc-800/70 rounded p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm text-gray-300 font-semibold">Parsed Preview</h3>
-            {parseStatus === 'loading' && <span className="text-xs text-gray-500">Parsing...</span>}
-            {parseStatus === 'error' && <span className="text-xs text-red-400">Unable to parse title</span>}
+            {parseStatus === "loading" && (
+              <span className="text-xs text-gray-500">Parsing...</span>
+            )}
+            {parseStatus === "error" && (
+              <span className="text-xs text-red-400">Unable to parse title</span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div className="text-gray-400">
               <span className="block text-xs uppercase text-gray-500">Brand</span>
-              <span className="text-white">{parseResult?.brand?.label || '-'}</span>
+              <span className="text-white">{parseResult?.brand?.label || "-"}</span>
             </div>
-            {category === 'sneakers' && (
+            {category === "sneakers" && (
               <div className="text-gray-400">
                 <span className="block text-xs uppercase text-gray-500">Model</span>
-                <span className="text-white">{parseResult?.model?.label || '-'}</span>
+                <span className="text-white">{parseResult?.model?.label || "-"}</span>
               </div>
             )}
             <div className="text-gray-400">
               <span className="block text-xs uppercase text-gray-500">Name</span>
-              <span className="text-white">{parseResult?.name || '-'}</span>
+              <span className="text-white">{parseResult?.name || "-"}</span>
             </div>
           </div>
 
@@ -726,7 +756,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                   Did you mean {brandSuggestion.label}?
                 </button>
               )}
-              {category === 'sneakers' && modelSuggestion && (
+              {category === "sneakers" && modelSuggestion && (
                 <button
                   type="button"
                   onClick={applyModelSuggestion}
@@ -766,7 +796,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             )}
           </div>
 
-          {category === 'sneakers' && (
+          {category === "sneakers" && (
             <div>
               <label className="block text-gray-400 text-sm mb-1">Override Model</label>
               <input
@@ -774,7 +804,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 list="model-options"
                 value={modelOverrideInput}
                 onChange={(e) => handleModelOverrideChange(e.target.value)}
-                placeholder={effectiveBrandId ? 'Search models...' : 'Select a brand first'}
+                placeholder={
+                  effectiveBrandId ? "Search models..." : "Select a brand first"
+                }
                 disabled={!effectiveBrandId}
                 className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-700/40"
               />
@@ -796,7 +828,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           )}
         </div>
 
-        {condition === 'used' && (
+        {condition === "used" && (
           <div className="mt-4">
             <label className="block text-gray-400 text-sm mb-1">Condition Note</label>
             <textarea
@@ -842,44 +874,44 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     Size <RequiredMark />
                   </label>
 
-                  {sizeType === 'shoe' && (
+                  {sizeType === "shoe" && (
                     <RdkSelect
                       value={variant.size_label}
-                      onChange={(v) => updateVariant(index, 'size_label', v)}
+                      onChange={(v) => updateVariant(index, "size_label", v)}
                       placeholder="Select…"
                       options={[
-                        { value: '', label: 'Select…' },
+                        { value: "", label: "Select…" },
                         ...SHOE_SIZES.map((size) => ({ value: size, label: size })),
                       ]}
                       buttonClassName="bg-zinc-900"
                     />
                   )}
 
-                  {sizeType === 'clothing' && (
+                  {sizeType === "clothing" && (
                     <RdkSelect
                       value={variant.size_label}
-                      onChange={(v) => updateVariant(index, 'size_label', v)}
+                      onChange={(v) => updateVariant(index, "size_label", v)}
                       placeholder="Select…"
                       options={[
-                        { value: '', label: 'Select…' },
+                        { value: "", label: "Select…" },
                         ...CLOTHING_SIZES.map((size) => ({ value: size, label: size })),
                       ]}
                       buttonClassName="bg-zinc-900"
                     />
                   )}
 
-                  {sizeType === 'custom' && (
+                  {sizeType === "custom" && (
                     <input
                       type="text"
                       value={variant.size_label}
-                      onChange={(e) => updateVariant(index, 'size_label', e.target.value)}
+                      onChange={(e) => updateVariant(index, "size_label", e.target.value)}
                       required
                       placeholder="e.g., One Size"
                       className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                     />
                   )}
 
-                  {sizeType === 'none' && (
+                  {sizeType === "none" && (
                     <input
                       type="text"
                       value="N/A"
@@ -897,7 +929,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     type="text"
                     inputMode="decimal"
                     value={variant.price}
-                    onChange={(e) => updateVariant(index, 'price', e.target.value)}
+                    onChange={(e) => updateVariant(index, "price", e.target.value)}
                     required
                     className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
@@ -911,7 +943,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     type="text"
                     inputMode="decimal"
                     value={variant.cost}
-                    onChange={(e) => updateVariant(index, 'cost', e.target.value)}
+                    onChange={(e) => updateVariant(index, "cost", e.target.value)}
                     required
                     className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
@@ -925,7 +957,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     type="text"
                     inputMode="numeric"
                     value={variant.stock}
-                    onChange={(e) => updateVariant(index, 'stock', e.target.value)}
+                    onChange={(e) => updateVariant(index, "stock", e.target.value)}
                     required
                     className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
@@ -972,21 +1004,25 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={[
-            'w-full h-44 border border-dashed cursor-pointer transition',
-            'rounded',
-            'px-4 py-3 flex items-center gap-3',
+            "w-full h-44 border border-dashed cursor-pointer transition",
+            "rounded",
+            "px-4 py-3 flex items-center gap-3",
             isDragging
-              ? 'border-red-500 bg-red-900/10'
-              : 'border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-950/50',
-          ].join(' ')}
+              ? "border-red-500 bg-red-900/10"
+              : "border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-950/50",
+          ].join(" ")}
         >
           <div className="h-10 w-10 bg-zinc-900 border border-zinc-800/70 flex items-center justify-center shrink-0 rounded">
             <ImagePlus className="w-5 h-5 text-gray-400" />
           </div>
 
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-white font-semibold truncate">Drag & drop images</p>
-            <p className="text-xs text-gray-500 mt-1">Or click to browse. PNG, JPG, WEBP.</p>
+            <p className="text-sm text-white font-semibold truncate">
+              Drag & drop images
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Or click to browse. PNG, JPG, WEBP.
+            </p>
             <p className="text-xs text-gray-500 mt-1">
               First image becomes primary (you can change it below).
             </p>
@@ -1016,16 +1052,22 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                   type="button"
                   onClick={() => setPrimaryImage(index)}
                   className={[
-                    'group relative text-left border overflow-hidden transition',
-                    'rounded',
-                    image.is_primary ? 'border-red-500' : 'border-zinc-800/70 hover:border-zinc-700',
-                  ].join(' ')}
+                    "group relative text-left border overflow-hidden transition",
+                    "rounded",
+                    image.is_primary
+                      ? "border-red-500"
+                      : "border-zinc-800/70 hover:border-zinc-700",
+                  ].join(" ")}
                   title="Click to set primary"
                 >
                   <div className="aspect-square bg-zinc-900 overflow-hidden">
                     {image.url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={image.url} alt="Preview" className="w-full h-full object-cover" />
+                      <img
+                        src={image.url}
+                        alt="Preview"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
                         Missing
@@ -1036,14 +1078,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                   <div className="absolute top-1 left-1">
                     <span
                       className={[
-                        'text-[10px] px-2 py-0.5 border',
-                        'rounded',
+                        "text-[10px] px-2 py-0.5 border",
+                        "rounded",
                         image.is_primary
-                          ? 'bg-red-600 border-red-500 text-white'
-                          : 'bg-black/50 border-white/10 text-gray-200',
-                      ].join(' ')}
+                          ? "bg-red-600 border-red-500 text-white"
+                          : "bg-black/50 border-white/10 text-gray-200",
+                      ].join(" ")}
                     >
-                      {image.is_primary ? 'Primary' : 'Thumb'}
+                      {image.is_primary ? "Primary" : "Thumb"}
                     </span>
                   </div>
 
@@ -1066,7 +1108,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           )}
         </div>
 
-
         <div className="mt-3 text-xs text-gray-500">
           Add at least one image. Click any thumbnail to promote it to primary.
         </div>
@@ -1087,16 +1128,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
 
-            {shippingDefaultsStatus === 'loading' ? (
-              <p className="text-gray-500 text-xs mt-1">Loading default shipping prices…</p>
-            ) : shippingDefaultsStatus === 'error' ? (
+            {shippingDefaultsStatus === "loading" ? (
+              <p className="text-gray-500 text-xs mt-1">
+                Loading default shipping prices…
+              </p>
+            ) : shippingDefaultsStatus === "error" ? (
               <p className="text-red-400 text-xs mt-1">
                 Could not load default shipping prices. (You can still set an override.)
               </p>
             ) : (
               <p className="text-gray-500 text-xs mt-1">
-                Leave blank to use the {category} default:{' '}
-                <span className="text-gray-200">${formatMoney(defaultShippingPrice)}</span>.
+                Leave blank to use the {category} default:{" "}
+                <span className="text-gray-200">
+                  ${formatMoney(defaultShippingPrice)}
+                </span>
+                .
               </p>
             )}
           </div>
@@ -1116,7 +1162,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           disabled={isLoading}
           className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-3 rounded transition"
         >
-          {isLoading ? 'Saving...' : initialData?.id ? 'Update Product' : 'Create Product'}
+          {isLoading
+            ? "Saving..."
+            : initialData?.id
+              ? "Update Product"
+              : "Create Product"}
         </button>
         <button
           type="button"
@@ -1129,8 +1179,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
       <Toast
         open={Boolean(toast)}
-        message={toast?.message ?? ''}
-        tone={toast?.tone ?? 'info'}
+        message={toast?.message ?? ""}
+        tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
       />
     </form>

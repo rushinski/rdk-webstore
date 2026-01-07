@@ -3,7 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { ProfileRepository, isAdminRole, isProfileRole } from "@/repositories/profile-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 import { security } from "@/config/security";
 import { log } from "@/lib/log";

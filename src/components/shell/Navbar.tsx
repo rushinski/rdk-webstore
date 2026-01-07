@@ -1,11 +1,11 @@
 // src/components/shell/Navbar.tsx
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 import {
   Search,
   ShoppingCart,
@@ -23,12 +23,12 @@ import {
   Watch,
   Laptop,
   LayoutGrid,
-} from 'lucide-react';
-import { SHOE_SIZES, CLOTHING_SIZES } from '@/config/constants/sizes';
-import { logError } from '@/lib/log';
-import { CartService } from '@/services/cart-service';
+} from "lucide-react";
+import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
+import { logError } from "@/lib/log";
+import { CartService } from "@/services/cart-service";
 
-type ActiveMenu = 'shop' | 'brands' | 'shoeSizes' | 'clothingSizes' | null;
+type ActiveMenu = "shop" | "brands" | "shoeSizes" | "clothingSizes" | null;
 
 interface NavbarProps {
   isAuthenticated?: boolean;
@@ -43,24 +43,24 @@ function buildStoreHref(params: Record<string, string | string[]>) {
       value.filter(Boolean).forEach((entry) => sp.append(key, entry));
       return;
     }
-    if (value === undefined || value === null || value === '') return;
+    if (value === undefined || value === null || value === "") return;
     sp.set(key, value);
   });
   const query = sp.toString();
-  return query ? `/store?${query}` : '/store';
+  return query ? `/store?${query}` : "/store";
 }
 
 function MenuShell({
-  align = 'left',
+  align = "left",
   children,
 }: {
-  align?: 'left' | 'right';
+  align?: "left" | "right";
   children: React.ReactNode;
 }) {
   return (
     <div
       className={`absolute top-full ${
-        align === 'left' ? 'left-0' : 'right-0'
+        align === "left" ? "left-0" : "right-0"
       } pt-3 z-50 opacity-0 pointer-events-none translate-y-2 transition duration-150 group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0`}
       role="menu"
     >
@@ -102,8 +102,8 @@ function MegaLink({
 }
 
 const SHOE_SIZE_GROUPS = {
-  youth: SHOE_SIZES.filter((s) => s.includes('Y')),
-  mens: SHOE_SIZES.filter((s) => s.includes('M') && !s.includes('Y')),
+  youth: SHOE_SIZES.filter((s) => s.includes("Y")),
+  mens: SHOE_SIZES.filter((s) => s.includes("M") && !s.includes("Y")),
 };
 
 const BRAND_LOGOS: Record<string, { default: string; hover: string }> = {
@@ -138,19 +138,23 @@ export function Navbar({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
   const [localCartCount, setLocalCartCount] = useState(cartCount);
-  const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>([]);
+  const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>(
+    [],
+  );
   const [isMounted, setIsMounted] = useState(false);
-  const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(null);
+  const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(
+    null,
+  );
   const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
-    if (pathname === '/') return '/auth/login';
+    if (pathname === "/") return "/auth/login";
     return `/auth/login?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
 
   const registerUrl = useMemo(() => {
-    if (pathname === '/') return '/auth/register';
+    if (pathname === "/") return "/auth/register";
     return `/auth/register?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
 
@@ -167,7 +171,7 @@ export function Navbar({
 
     const loadSession = async () => {
       try {
-        const response = await fetch('/api/auth/session', { cache: 'no-store' });
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
         if (!response.ok) {
           if (!isActive) return;
           setClientIsAuthenticated(false);
@@ -200,21 +204,22 @@ export function Navbar({
   useEffect(() => {
     const handleCartUpdate = (e: Event) => {
       const event = e as CustomEvent;
-      const nextCount = typeof event.detail?.count === 'number'
-        ? event.detail.count
-        : new CartService().getItemCount();
+      const nextCount =
+        typeof event.detail?.count === "number"
+          ? event.detail.count
+          : new CartService().getItemCount();
       setLocalCartCount(nextCount);
     };
 
     setLocalCartCount(new CartService().getItemCount());
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
   }, []);
 
   useEffect(() => {
     const loadBrandGroups = async () => {
       try {
-        const response = await fetch('/api/store/catalog/brand-groups');
+        const response = await fetch("/api/store/catalog/brand-groups");
         const data = await response.json();
         if (response.ok && Array.isArray(data.groups)) {
           setBrandGroups(data.groups);
@@ -232,7 +237,7 @@ export function Navbar({
     if (!isMobileMenuOpen) return;
 
     const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
 
     return () => {
       document.body.style.overflow = prev;
@@ -240,22 +245,22 @@ export function Navbar({
   }, [isMobileMenuOpen]);
 
   const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/';
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/";
   };
 
-  const handleSearchClick = () => window.dispatchEvent(new CustomEvent('openSearch'));
-  const handleCartClick = () => window.dispatchEvent(new CustomEvent('openCart'));
+  const handleSearchClick = () => window.dispatchEvent(new CustomEvent("openSearch"));
+  const handleCartClick = () => window.dispatchEvent(new CustomEvent("openCart"));
 
   const fallbackGroups = useMemo(
     () => [
-      { key: 'nike', label: 'Nike' },
-      { key: 'jordan', label: 'Air Jordan' },
-      { key: 'asics', label: 'ASICS' },
-      { key: 'vale', label: 'Vale' },
-      { key: 'godspeed', label: 'Godspeed' },
+      { key: "nike", label: "Nike" },
+      { key: "jordan", label: "Air Jordan" },
+      { key: "asics", label: "ASICS" },
+      { key: "vale", label: "Vale" },
+      { key: "godspeed", label: "Godspeed" },
     ],
-    []
+    [],
   );
 
   const resolvedBrandGroups = brandGroups.length > 0 ? brandGroups : fallbackGroups;
@@ -265,7 +270,7 @@ export function Navbar({
         group.key !== "designer" &&
         group.key !== "new_balance" &&
         group.key !== "yeezy" &&
-        group.key !== "other"
+        group.key !== "other",
     );
     const withCustom = [
       ...filtered,
@@ -280,42 +285,43 @@ export function Navbar({
     return base.slice().sort((a, b) => a.label.localeCompare(b.label));
   }, [resolvedBrandGroups]);
   const visibleBrandGroups = orderedBrandGroups;
-  const shopIconClass = "w-5 h-5 text-zinc-400 transition-colors group-hover/item:text-white";
+  const shopIconClass =
+    "w-5 h-5 text-zinc-400 transition-colors group-hover/item:text-white";
 
   const shopItems = useMemo(
     () => [
       {
-        href: '/store',
+        href: "/store",
         icon: <ShoppingBag className={shopIconClass} />,
-        label: 'Shop All',
-        description: 'Browse everything in stock',
+        label: "Shop All",
+        description: "Browse everything in stock",
       },
       {
-        href: buildStoreHref({ category: 'sneakers' }),
+        href: buildStoreHref({ category: "sneakers" }),
         icon: <Tag className={shopIconClass} />,
-        label: 'Sneakers',
-        description: 'Authentic pairs, ready to ship',
+        label: "Sneakers",
+        description: "Authentic pairs, ready to ship",
       },
       {
-        href: buildStoreHref({ category: 'clothing' }),
+        href: buildStoreHref({ category: "clothing" }),
         icon: <Shirt className={shopIconClass} />,
-        label: 'Clothing',
-        description: 'Streetwear essentials & heat',
+        label: "Clothing",
+        description: "Streetwear essentials & heat",
       },
       {
-        href: buildStoreHref({ category: 'accessories' }),
+        href: buildStoreHref({ category: "accessories" }),
         icon: <Watch className={shopIconClass} />,
-        label: 'Accessories',
-        description: 'Add-ons, extras, rare finds',
+        label: "Accessories",
+        description: "Add-ons, extras, rare finds",
       },
       {
-        href: buildStoreHref({ category: 'electronics' }),
+        href: buildStoreHref({ category: "electronics" }),
         icon: <Laptop className={shopIconClass} />,
-        label: 'Electronics',
-        description: 'Tech & collectibles',
+        label: "Electronics",
+        description: "Tech & collectibles",
       },
     ],
-    [shopIconClass]
+    [shopIconClass],
   );
 
   const brandIconClass = "object-contain transition-opacity duration-150";
@@ -363,7 +369,7 @@ export function Navbar({
         description: `Shop ${group.label} drops`,
       })),
     ],
-    [shopIconClass, visibleBrandGroups]
+    [shopIconClass, visibleBrandGroups],
   );
 
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
@@ -408,19 +414,19 @@ export function Navbar({
             {/* Categories */}
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
-              onClick={() => setMobileSection(mobileSection === 'shop' ? null : 'shop')}
-              aria-expanded={mobileSection === 'shop'}
+              onClick={() => setMobileSection(mobileSection === "shop" ? null : "shop")}
+              aria-expanded={mobileSection === "shop"}
             >
               <span className="flex items-center gap-3">
                 <ShoppingBag className="w-4 h-4" />
                 Categories
               </span>
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${mobileSection === 'shop' ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 transition-transform ${mobileSection === "shop" ? "rotate-180" : ""}`}
               />
             </button>
 
-            {mobileSection === 'shop' && (
+            {mobileSection === "shop" && (
               <div className="border-b border-zinc-900">
                 {shopItems.map((it) => (
                   <Link
@@ -438,19 +444,21 @@ export function Navbar({
             {/* Brands */}
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
-              onClick={() => setMobileSection(mobileSection === 'brands' ? null : 'brands')}
-              aria-expanded={mobileSection === 'brands'}
+              onClick={() =>
+                setMobileSection(mobileSection === "brands" ? null : "brands")
+              }
+              aria-expanded={mobileSection === "brands"}
             >
               <span className="flex items-center gap-3">
                 <Tag className="w-4 h-4" />
                 Brands
               </span>
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${mobileSection === 'brands' ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 transition-transform ${mobileSection === "brands" ? "rotate-180" : ""}`}
               />
             </button>
 
-            {mobileSection === 'brands' && (
+            {mobileSection === "brands" && (
               <div className="border-b border-zinc-900 py-2">
                 <Link
                   href="/brands"
@@ -475,25 +483,27 @@ export function Navbar({
             {/* Sneaker Sizes */}
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
-              onClick={() => setMobileSection(mobileSection === 'shoeSizes' ? null : 'shoeSizes')}
-              aria-expanded={mobileSection === 'shoeSizes'}
+              onClick={() =>
+                setMobileSection(mobileSection === "shoeSizes" ? null : "shoeSizes")
+              }
+              aria-expanded={mobileSection === "shoeSizes"}
             >
               <span className="flex items-center gap-3">
                 <Ruler className="w-4 h-4" />
                 Sneaker Sizes
               </span>
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${mobileSection === 'shoeSizes' ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 transition-transform ${mobileSection === "shoeSizes" ? "rotate-180" : ""}`}
               />
             </button>
 
-            {mobileSection === 'shoeSizes' && (
+            {mobileSection === "shoeSizes" && (
               <div className="border-b border-zinc-900 px-4 py-4">
                 <div className="pl-7 grid grid-cols-4 gap-2 max-h-72 overflow-auto">
                   {SHOE_SIZES.map((size) => (
                     <Link
                       key={size}
-                      href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
+                      href={buildStoreHref({ category: "sneakers", sizeShoe: size })}
                       onClick={closeMobileMenu}
                       className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
                     >
@@ -507,25 +517,29 @@ export function Navbar({
             {/* Clothing Sizes */}
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
-              onClick={() => setMobileSection(mobileSection === 'clothingSizes' ? null : 'clothingSizes')}
-              aria-expanded={mobileSection === 'clothingSizes'}
+              onClick={() =>
+                setMobileSection(
+                  mobileSection === "clothingSizes" ? null : "clothingSizes",
+                )
+              }
+              aria-expanded={mobileSection === "clothingSizes"}
             >
               <span className="flex items-center gap-3">
                 <Shirt className="w-4 h-4" />
                 Clothing Sizes
               </span>
               <ChevronDown
-                className={`w-4 h-4 transition-transform ${mobileSection === 'clothingSizes' ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 transition-transform ${mobileSection === "clothingSizes" ? "rotate-180" : ""}`}
               />
             </button>
 
-            {mobileSection === 'clothingSizes' && (
+            {mobileSection === "clothingSizes" && (
               <div className="border-b border-zinc-900 px-4 py-4">
                 <div className="pl-7 grid grid-cols-4 gap-2">
                   {CLOTHING_SIZES.map((size) => (
                     <Link
                       key={size}
-                      href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
+                      href={buildStoreHref({ category: "clothing", sizeClothing: size })}
                       onClick={closeMobileMenu}
                       className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
                     >
@@ -605,7 +619,9 @@ export function Navbar({
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
                     Shop by Brand
                   </h3>
-                  <p className="text-xs text-zinc-600">Premium sneaker & streetwear brands</p>
+                  <p className="text-xs text-zinc-600">
+                    Premium sneaker & streetwear brands
+                  </p>
                 </div>
 
                 <div>
@@ -636,17 +652,21 @@ export function Navbar({
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
                     Find Your Size
                   </h3>
-                  <p className="text-xs text-zinc-600">Men&apos;s, Women&apos;s & Youth sizes available</p>
+                  <p className="text-xs text-zinc-600">
+                    Men&apos;s, Women&apos;s & Youth sizes available
+                  </p>
                 </div>
 
                 <div className="p-6 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar">
                   <div>
-                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Youth</div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">
+                      Youth
+                    </div>
                     <div className="grid grid-cols-4 gap-2">
                       {SHOE_SIZE_GROUPS.youth.map((size) => (
                         <Link
                           key={size}
-                          href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
+                          href={buildStoreHref({ category: "sneakers", sizeShoe: size })}
                           className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {size}
@@ -656,12 +676,14 @@ export function Navbar({
                   </div>
 
                   <div>
-                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">Men&apos;s</div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">
+                      Men&apos;s
+                    </div>
                     <div className="grid grid-cols-4 gap-2">
                       {SHOE_SIZE_GROUPS.mens.map((size) => (
                         <Link
                           key={size}
-                          href={buildStoreHref({ category: 'sneakers', sizeShoe: size })}
+                          href={buildStoreHref({ category: "sneakers", sizeShoe: size })}
                           className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                         >
                           {size}
@@ -687,7 +709,9 @@ export function Navbar({
                   <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
                     Clothing Sizes
                   </h3>
-                  <p className="text-xs text-zinc-600">Filter streetwear by your perfect fit</p>
+                  <p className="text-xs text-zinc-600">
+                    Filter streetwear by your perfect fit
+                  </p>
                 </div>
 
                 <div className="p-6">
@@ -695,7 +719,10 @@ export function Navbar({
                     {CLOTHING_SIZES.map((size) => (
                       <Link
                         key={size}
-                        href={buildStoreHref({ category: 'clothing', sizeClothing: size })}
+                        href={buildStoreHref({
+                          category: "clothing",
+                          sizeClothing: size,
+                        })}
                         className="px-4 py-3 text-center text-sm font-bold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
                       >
                         {size}
@@ -709,7 +736,11 @@ export function Navbar({
         </div>
 
         <div className="hidden md:flex items-center gap-4">
-          <Link href="/" className="text-gray-300 hover:text-white transition-colors cursor-pointer" aria-label="Home">
+          <Link
+            href="/"
+            className="text-gray-300 hover:text-white transition-colors cursor-pointer"
+            aria-label="Home"
+          >
             <Home className="w-5 h-5" />
           </Link>
 
@@ -751,7 +782,9 @@ export function Navbar({
                 >
                   {effectiveUserEmail && (
                     <div className="px-4 py-3 border-b border-zinc-900">
-                      <p className="text-xs text-zinc-500 truncate">{effectiveUserEmail}</p>
+                      <p className="text-xs text-zinc-500 truncate">
+                        {effectiveUserEmail}
+                      </p>
                     </div>
                   )}
 
@@ -789,7 +822,6 @@ export function Navbar({
               </Link>
             </div>
           ) : null}
-
         </div>
 
         <div className="flex items-center gap-3 md:hidden">

@@ -21,6 +21,8 @@ import {
   Landmark,
 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { canViewBank } from "@/config/constants/roles";
+import type { ProfileRole } from "@/config/constants/roles";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { AdminNotificationsDrawer } from "@/components/admin/AdminNotificationsDrawer";
 
@@ -82,7 +84,13 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
   },
 ];
 
-export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
+export function AdminSidebar({
+  userEmail,
+  role,
+}: {
+  userEmail?: string | null;
+  role: ProfileRole;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatBadgeCount, setChatBadgeCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -91,15 +99,22 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname();
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
-  const ordersActive = pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping");
+  const ordersActive =
+    pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping");
   const settingsActive = pathname.startsWith("/admin/settings");
-  const [openGroups, setOpenGroups] = useState({ analytics: false, orders: false, settings: false });
+  const [openGroups, setOpenGroups] = useState({
+    analytics: false,
+    orders: false,
+    settings: false,
+  });
 
   const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
 
   const refreshNotifCount = async () => {
     try {
-      const res = await fetch("/api/admin/notifications/unread-count", { cache: "no-store" });
+      const res = await fetch("/api/admin/notifications/unread-count", {
+        cache: "no-store",
+      });
       if (!res.ok) return;
       const data = await res.json();
       if (typeof data.unreadCount === "number") setNotifBadgeCount(data.unreadCount);
@@ -155,7 +170,9 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
 
         chatLastSenderRef.current = nextMap;
 
-        const count = Array.from(nextMap.values()).filter((role) => role !== "admin").length;
+        const count = Array.from(nextMap.values()).filter(
+          (role) => role !== "admin",
+        ).length;
         if (isActive) setChatBadgeCount(count);
       } catch {
         if (isActive) setChatBadgeCount(0);
@@ -167,44 +184,60 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     const supabase = createSupabaseBrowserClient();
     const channel = supabase
       .channel("admin-sidebar-chats")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chats" }, (payload) => {
-        const chat = payload.new as { id: string; status?: string | null };
-        if (chat.status && chat.status !== "open") return;
-        chatLastSenderRef.current.set(chat.id, "none");
-
-        if (isActive) {
-          const count = Array.from(chatLastSenderRef.current.values()).filter(
-            (role) => role !== "admin"
-          ).length;
-          setChatBadgeCount(count);
-        }
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chats" }, (payload) => {
-        const chat = payload.new as { id: string; status?: string | null };
-        if (chat.status && chat.status !== "open") chatLastSenderRef.current.delete(chat.id);
-        else if (!chatLastSenderRef.current.has(chat.id))
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chats" },
+        (payload) => {
+          const chat = payload.new as { id: string; status?: string | null };
+          if (chat.status && chat.status !== "open") return;
           chatLastSenderRef.current.set(chat.id, "none");
 
-        if (isActive) {
-          const count = Array.from(chatLastSenderRef.current.values()).filter(
-            (role) => role !== "admin"
-          ).length;
-          setChatBadgeCount(count);
-        }
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-        const message = payload.new as { chat_id: string; sender_role?: "customer" | "admin" };
-        if (!chatLastSenderRef.current.has(message.chat_id)) return;
+          if (isActive) {
+            const count = Array.from(chatLastSenderRef.current.values()).filter(
+              (role) => role !== "admin",
+            ).length;
+            setChatBadgeCount(count);
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chats" },
+        (payload) => {
+          const chat = payload.new as { id: string; status?: string | null };
+          if (chat.status && chat.status !== "open")
+            chatLastSenderRef.current.delete(chat.id);
+          else if (!chatLastSenderRef.current.has(chat.id))
+            chatLastSenderRef.current.set(chat.id, "none");
 
-        chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
+          if (isActive) {
+            const count = Array.from(chatLastSenderRef.current.values()).filter(
+              (role) => role !== "admin",
+            ).length;
+            setChatBadgeCount(count);
+          }
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        (payload) => {
+          const message = payload.new as {
+            chat_id: string;
+            sender_role?: "customer" | "admin";
+          };
+          if (!chatLastSenderRef.current.has(message.chat_id)) return;
 
-        if (isActive) {
-          const count = Array.from(chatLastSenderRef.current.values()).filter(
-            (role) => role !== "admin"
-          ).length;
-          setChatBadgeCount(count);
-        }
-      })
+          chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
+
+          if (isActive) {
+            const count = Array.from(chatLastSenderRef.current.values()).filter(
+              (role) => role !== "admin",
+            ).length;
+            setChatBadgeCount(count);
+          }
+        },
+      )
       .subscribe();
 
     return () => {
@@ -214,6 +247,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
   }, []);
 
   const SidebarContent = () => {
+    const canViewBankTab = canViewBank(role);
     const baseItemClass =
       "group flex items-center gap-3 px-4 py-3 border border-transparent bg-transparent " +
       "hover:bg-zinc-950 hover:border-zinc-800/70 transition-colors rounded-sm";
@@ -228,7 +262,9 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       "text-[13px] leading-none bg-zinc-950 text-white";
 
     const notifLabel =
-      typeof notifBadgeCount === "number" && notifBadgeCount > 9 ? "9+" : String(notifBadgeCount ?? 0);
+      typeof notifBadgeCount === "number" && notifBadgeCount > 9
+        ? "9+"
+        : String(notifBadgeCount ?? 0);
 
     // ✅ Match notifications style: red text only, no box
     const chatLabel = chatBadgeCount > 9 ? "9+" : String(chatBadgeCount);
@@ -238,7 +274,9 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           {/* Workspace Indicator (visual only) */}
           <div className="mb-4">
-            <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">Workspace</div>
+            <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">
+              Workspace
+            </div>
 
             <div className={statusBase} aria-current="page">
               {inAdmin ? (
@@ -260,8 +298,12 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           <nav className="space-y-1">
             {navItems.map((item) => {
               if (item.type === "link") {
+                if (item.href === "/admin/bank" && !canViewBankTab) {
+                  return null;
+                }
                 const Icon = item.icon;
-                const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                const isActive =
+                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
                 return (
                   <Link
@@ -281,6 +323,13 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
               const isGroupActive = item.isActive(pathname);
               const isOpen = openGroups[item.groupKey];
               const Chevron = isOpen ? ChevronDown : ChevronRight;
+
+              const filteredChildren = item.children.filter(
+                (child) => child.href !== "/admin/settings/transfers" || canViewBankTab,
+              );
+              if (filteredChildren.length === 0) {
+                return null;
+              }
 
               return (
                 <div key={item.label} className="space-y-1">
@@ -310,7 +359,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                       id={`admin-${item.groupKey}-subnav`}
                       className="ml-4 border-l border-zinc-800/70 pl-3 space-y-1"
                     >
-                      {item.children.map((child) => {
+                      {filteredChildren.map((child) => {
                         const isActive = pathname.startsWith(child.href);
 
                         return (
@@ -402,7 +451,10 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
             </div>
           </div>
 
-          <AdminNotificationsDrawer isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
+          <AdminNotificationsDrawer
+            isOpen={notifOpen}
+            onClose={() => setNotifOpen(false)}
+          />
         </div>
       </div>
     );

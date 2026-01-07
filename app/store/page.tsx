@@ -1,7 +1,6 @@
 // app/store/page.tsx
 
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { FilterPanel } from "@/components/store/FilterPanel";
 import { ProductGrid } from "@/components/store/ProductGrid";
 import { StoreControls } from "@/components/store/StoreControls";
@@ -10,28 +9,7 @@ import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import type { ProductFilters } from "@/repositories/product-repo";
 
-const PRODUCTS_REVALIDATE_SECONDS = 60;
-export const revalidate = PRODUCTS_REVALIDATE_SECONDS;
-
-const listProductsCached = unstable_cache(
-  async (filters: ProductFilters) => {
-    const supabase = createSupabasePublicClient();
-    const service = new StorefrontService(supabase);
-    return service.listProducts(filters);
-  },
-  ["storefront", "products"],
-  { revalidate: PRODUCTS_REVALIDATE_SECONDS, tags: ["products:list"] }
-);
-
-const listFiltersCached = unstable_cache(
-  async () => {
-    const supabase = createSupabasePublicClient();
-    const service = new StorefrontService(supabase);
-    return service.listFilters();
-  },
-  ["storefront", "filters"],
-  { revalidate: PRODUCTS_REVALIDATE_SECONDS, tags: ["products:list"] }
-);
+export const revalidate = 0;
 
 const getArrayParam = (
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -90,16 +68,19 @@ export default async function StorePage({
         includeOutOfStock: false,
       };
 
-  let productsResult = await listProductsCached(filters);
+  const supabase = createSupabasePublicClient();
+  const service = new StorefrontService(supabase);
+
+  let productsResult = await service.listProducts(filters);
   let pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
 
   if (productsResult.total > 0 && productsResult.page > pageCount) {
     const adjustedFilters = { ...filters, page: pageCount };
-    productsResult = await listProductsCached(adjustedFilters);
+    productsResult = await service.listProducts(adjustedFilters);
     pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
   }
 
-  const filterData = await listFiltersCached();
+  const filterData = await service.listFilters();
   const brandOptions = filterData.brands.map((brand) => ({
     value: brand.label,
     label: brand.label,

@@ -7,7 +7,7 @@ import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { otpVerifySchema } from "@/lib/validation/auth";
-import { isAdminRole, isProfileRole } from "@/repositories/profile-repo";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -27,15 +27,12 @@ export async function POST(req: NextRequest) {
     const authService = new AuthService(supabase);
     const adminAuthService = new AdminAuthService(supabase);
 
-    const { user, profile } = await authService.verifyEmailOtpForSignIn(
-      email,
-      code,
-    );
+    const { user, profile } = await authService.verifyEmailOtpForSignIn(email, code);
 
     if (!user) {
       return NextResponse.json(
         { ok: false, error: "Invalid or expired code", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -46,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (!isAdmin) {
       return NextResponse.json(
         { ok: true, isAdmin: false },
-        { headers: { "Cache-Control": "no-store" } }
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -55,29 +52,38 @@ export async function POST(req: NextRequest) {
       await adminAuthService.getMfaRequirements();
 
     if (requiresTwoFASetup) {
-      return NextResponse.json({
-        ok: true,
-        isAdmin: true,
-        requiresTwoFASetup: true,
-        requestId,
-      }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        {
+          ok: true,
+          isAdmin: true,
+          requiresTwoFASetup: true,
+          requestId,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     if (requiresTwoFAChallenge) {
-      return NextResponse.json({
-        ok: true,
-        isAdmin: true,
-        requiresTwoFAChallenge: true,
-        requestId,
-      }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        {
+          ok: true,
+          isAdmin: true,
+          requiresTwoFAChallenge: true,
+          requestId,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     // Already at aal2, set admin cookie
-    let res = NextResponse.json<{ ok: true; isAdmin: true; requestId: string }>({
-      ok: true,
-      isAdmin: true,
-      requestId,
-    }, { headers: { "Cache-Control": "no-store" } });
+    let res = NextResponse.json<{ ok: true; isAdmin: true; requestId: string }>(
+      {
+        ok: true,
+        isAdmin: true,
+        requestId,
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
 
     res = await setAdminSessionCookie(res, user.id);
 
@@ -86,7 +92,7 @@ export async function POST(req: NextRequest) {
     if (error?.message?.includes("Email not confirmed")) {
       return NextResponse.json(
         { ok: false, requiresEmailVerification: true, requestId },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
+        { status: 401, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -98,7 +104,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { ok: false, error: error.message ?? "Login failed", requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

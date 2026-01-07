@@ -88,29 +88,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    const svc = new AdminNotificationService(supabase);
 
-    let deletedIds: Array<{ id: string }> = [];
-
-    if ("delete_all" in parsed.data) {
-      const { data, error } = await supabase
-        .from("admin_notifications")
-        .delete()
-        .eq("admin_id", session.user.id)
-        .select("id");
-
-      if (error) throw error;
-      deletedIds = data ?? [];
-    } else {
-      const { data, error } = await supabase
-        .from("admin_notifications")
-        .delete()
-        .eq("admin_id", session.user.id)
-        .in("id", parsed.data.ids)
-        .select("id");
-
-      if (error) throw error;
-      deletedIds = data ?? [];
-    }
+    const deletedIds =
+      "delete_all" in parsed.data
+        ? await svc.deleteAll(session.user.id)
+        : await svc.deleteMany(session.user.id, parsed.data.ids);
 
     const deletedCount = deletedIds.length;
 

@@ -1,7 +1,7 @@
 // src/services/stripe-admin-service.ts
 import Stripe from 'stripe';
 import { stripe } from '@/lib/stripe/stripe-server';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from '@/repositories/profile-repo';
 
 export type StripeAccountSummary = {
@@ -40,10 +40,14 @@ export type StripePayoutDTO = {
 };
 
 export class StripeAdminService {
+  private profileRepo: ProfileRepository;
+
+  constructor(private readonly supabase: TypedSupabaseClient) {
+    this.profileRepo = new ProfileRepository(supabase);
+  }
+
   async getStripeAccountSummary(params: { userId: string }): Promise<StripeAccountSummary> {
-    const supabase = await createSupabaseServerClient();
-    const profileRepo = new ProfileRepository(supabase);
-    const profile = await profileRepo.getByUserId(params.userId);
+    const profile = await this.profileRepo.getByUserId(params.userId);
 
     if (!profile?.stripe_account_id) {
       return {
@@ -98,9 +102,7 @@ export class StripeAdminService {
   }
 
   async ensureExpressAccount(params: { userId: string }): Promise<{ accountId: string }> {
-    const supabase = await createSupabaseServerClient();
-    const profileRepo = new ProfileRepository(supabase);
-    const profile = await profileRepo.getByUserId(params.userId);
+    const profile = await this.profileRepo.getByUserId(params.userId);
 
     if (!profile) throw new Error('Admin profile not found.');
 
@@ -124,7 +126,7 @@ export class StripeAdminService {
       });
 
       stripeAccountId = account.id;
-      await profileRepo.setStripeAccountId(params.userId, stripeAccountId);
+      await this.profileRepo.setStripeAccountId(params.userId, stripeAccountId);
     }
 
     return { accountId: stripeAccountId };

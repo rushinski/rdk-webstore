@@ -1,5 +1,6 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import { ProfileRepository, isAdminRole, isProfileRole } from "@/repositories/profile-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import type { Factor } from "@supabase/supabase-js";
 
 export class AdminAuthService {

@@ -13,7 +13,7 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-black">
-      <AdminSidebar userEmail={userEmail} />
+      <AdminSidebar userEmail={userEmail} role={session.role} />
       <div className="flex-1 flex flex-col md:ml-64">
         <AdminTopbar />
         <main className="flex-1 p-6">{children}</main>

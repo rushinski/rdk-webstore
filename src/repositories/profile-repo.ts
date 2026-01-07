@@ -1,30 +1,8 @@
 // src/repositories/profile-repo.ts
 import type { Database } from "@/types/database.types";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-
-export type ProfileRole = "customer" | "admin" | "super_admin" | "dev";
-export const PROFILE_ROLES: readonly ProfileRole[] = [
-  "customer",
-  "admin",
-  "super_admin",
-  "dev",
-] as const;
-
-export function isProfileRole(value: unknown): value is ProfileRole {
-  return PROFILE_ROLES.includes(value as ProfileRole);
-}
-
-export function isAdminRole(role: ProfileRole): boolean {
-  return role === "admin" || role === "super_admin" || role === "dev";
-}
-
-export function isSuperAdminRole(role: ProfileRole): boolean {
-  return role === "super_admin" || role === "dev";
-}
-
-export function isDevRole(role: ProfileRole): boolean {
-  return role === "dev";
-}
+import type { ProfileRole } from "@/config/constants/roles";
+import { isProfileRole } from "@/config/constants/roles";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -56,7 +34,10 @@ export class ProfileRepository {
   }
 
   async setRole(userId: string, role: ProfileRole) {
-    const { error } = await this.supabase.from("profiles").update({ role }).eq("id", userId);
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ role })
+      .eq("id", userId);
     if (error) throw error;
   }
 
@@ -65,12 +46,9 @@ export class ProfileRepository {
     input: {
       chat_notifications_enabled?: boolean;
       admin_order_notifications_enabled?: boolean;
-    }
+    },
   ) {
-    const { error } = await this.supabase
-      .from("profiles")
-      .update(input)
-      .eq("id", userId);
+    const { error } = await this.supabase.from("profiles").update(input).eq("id", userId);
 
     if (error) throw error;
   }
@@ -79,7 +57,7 @@ export class ProfileRepository {
     const { data, error } = await this.supabase
       .from("profiles")
       .select(
-        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled"
+        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled",
       )
       .in("role", ["admin", "super_admin", "dev"]);
 

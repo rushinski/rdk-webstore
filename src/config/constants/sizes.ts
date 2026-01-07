@@ -1,4 +1,3 @@
-// src/config/constants/sizes.ts
 export const SHOE_SIZES = [
   "3.5Y / 5W",
   "4Y / 5.5W",

@@ -4,11 +4,8 @@ import type { AdminSupabaseClient } from "@/lib/supabase/admin";
 import { ChatsRepository } from "@/repositories/chats-repo";
 import { ChatMessagesRepository } from "@/repositories/chat-messages-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";
-import {
-  ProfileRepository,
-  isAdminRole,
-  isProfileRole,
-} from "@/repositories/profile-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import { ChatEmailService } from "@/services/chat-email-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
 import { log } from "@/lib/log";
@@ -22,7 +19,7 @@ export class ChatService {
 
   constructor(
     private readonly supabase: TypedSupabaseClient,
-    private readonly adminSupabase?: AdminSupabaseClient
+    private readonly adminSupabase?: AdminSupabaseClient,
   ) {
     this.chatsRepo = new ChatsRepository(supabase);
     this.messagesRepo = new ChatMessagesRepository(supabase);
@@ -132,7 +129,11 @@ export class ChatService {
     return this.messagesRepo.listByChatId(chatId);
   }
 
-  async listMessagesForGuest(input: { chatId: string; orderId: string; publicToken: string }) {
+  async listMessagesForGuest(input: {
+    chatId: string;
+    orderId: string;
+    publicToken: string;
+  }) {
     const adminSupabase = this.ensureAdminSupabase();
     const ordersRepo = new OrdersRepository(adminSupabase);
     const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);
@@ -163,10 +164,10 @@ export class ChatService {
 
     const customerEmail =
       chat.user_id && chat.user_id === input.senderId
-        ? profile?.email ?? null
+        ? (profile?.email ?? null)
         : chat.user_id
-          ? (await this.profilesRepo.getByUserId(chat.user_id))?.email ?? null
-          : chat.guest_email ?? null;
+          ? ((await this.profilesRepo.getByUserId(chat.user_id))?.email ?? null)
+          : (chat.guest_email ?? null);
     const customerLabel = this.formatEmailPrefix(customerEmail) ?? "Customer";
 
     const message = await this.messagesRepo.insertMessage({
@@ -183,11 +184,15 @@ export class ChatService {
         const profilesRepo = new ProfileRepository(this.adminSupabase);
         const staff = await profilesRepo.listStaffProfiles();
         const recipients = staff.filter(
-          (admin) => admin.chat_notifications_enabled !== false
+          (admin) => admin.chat_notifications_enabled !== false,
         );
 
         const notifications = new AdminNotificationService(this.adminSupabase);
-        await notifications.notifyChatMessage(chat.id, input.body.slice(0, 120), customerLabel);
+        await notifications.notifyChatMessage(
+          chat.id,
+          input.body.slice(0, 120),
+          customerLabel,
+        );
 
         await Promise.all(
           recipients.map((admin) =>
@@ -199,8 +204,8 @@ export class ChatService {
               senderLabel: customerLabel,
               message: input.body,
               recipientRole: "admin",
-            })
-          )
+            }),
+          ),
         );
       } else {
         const profilesRepo = new ProfileRepository(this.adminSupabase);
@@ -269,12 +274,18 @@ export class ChatService {
     try {
       const profilesRepo = new ProfileRepository(adminSupabase);
       const staff = await profilesRepo.listStaffProfiles();
-      const recipients = staff.filter((admin) => admin.chat_notifications_enabled !== false);
+      const recipients = staff.filter(
+        (admin) => admin.chat_notifications_enabled !== false,
+      );
 
       const customerLabel = this.formatEmailPrefix(chat.guest_email) ?? "Guest";
 
       const notifications = new AdminNotificationService(adminSupabase);
-      await notifications.notifyChatMessage(chat.id, input.body.slice(0, 120), customerLabel);
+      await notifications.notifyChatMessage(
+        chat.id,
+        input.body.slice(0, 120),
+        customerLabel,
+      );
 
       await Promise.all(
         recipients.map((admin) =>
@@ -286,8 +297,8 @@ export class ChatService {
             senderLabel: customerLabel,
             message: input.body,
             recipientRole: "admin",
-          })
-        )
+          }),
+        ),
       );
     } catch (notifyError) {
       log({
@@ -306,7 +317,11 @@ export class ChatService {
     return this.chatsRepo.closeChat(chatId, closedBy ?? null);
   }
 
-  async closeChatForGuest(input: { chatId: string; orderId: string; publicToken: string }) {
+  async closeChatForGuest(input: {
+    chatId: string;
+    orderId: string;
+    publicToken: string;
+  }) {
     const adminSupabase = this.ensureAdminSupabase();
     const ordersRepo = new OrdersRepository(adminSupabase);
     const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);

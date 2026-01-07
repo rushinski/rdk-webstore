@@ -1,12 +1,9 @@
 // src/lib/auth/session.ts
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import {
-  ProfileRepository,
-  type ProfileRole,
-  isProfileRole,
-  isAdminRole,
-} from "@/repositories/profile-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import type { ProfileRole } from "@/config/constants/roles";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 
 export interface ServerSession {
   user: {

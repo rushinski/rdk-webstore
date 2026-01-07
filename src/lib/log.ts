@@ -67,6 +67,39 @@ const SENSITIVE_KEYS = new Set([
   "secret",
 ]);
 
+const EMAIL_REGEX = /([A-Z0-9._%+-]+)@([A-Z0-9.-]+\.[A-Z]{2,})/gi;
+
+function maskEmail(value: string) {
+  const [local, domain] = value.split("@");
+  if (!domain) return value;
+  const safeLocal =
+    local.length <= 2
+      ? `${local[0] ?? "*"}*`
+      : `${local[0]}***${local[local.length - 1]}`;
+  return `${safeLocal}@${domain}`;
+}
+
+function maskEmailsInString(value: string) {
+  return value.replace(EMAIL_REGEX, (match) => maskEmail(match));
+}
+
+function maskEmailsDeep(value: unknown): unknown {
+  if (typeof value === "string") {
+    return maskEmailsInString(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => maskEmailsDeep(entry));
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      out[k] = maskEmailsDeep(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 function sanitizeExtended(extended: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(extended)) {
@@ -79,7 +112,7 @@ function sanitizeExtended(extended: Record<string, unknown>) {
       continue;
     }
 
-    out[k] = v;
+    out[k] = maskEmailsDeep(v);
   }
   return out;
 }
@@ -119,12 +152,13 @@ export function log(entry: LogEntry) {
   } = entry;
 
   const extended = sanitizeExtended(extendedRaw);
+  const maskedMessage = maskEmailsInString(message);
 
   write(level, {
     timestamp: new Date().toISOString(),
     level,
     layer,
-    message,
+    message: maskedMessage,
     requestId,
     userId,
     route,
@@ -152,12 +186,13 @@ export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
   } = entry;
 
   const extended = sanitizeExtended(extendedRaw);
+  const maskedMessage = maskEmailsInString(err.message || "Unknown error");
 
   write("error", {
     timestamp: new Date().toISOString(),
     level: "error",
     layer,
-    message: err.message || "Unknown error",
+    message: maskedMessage,
     stack: err.stack,
     requestId,
     userId,

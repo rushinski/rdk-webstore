@@ -7,6 +7,7 @@ import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -15,13 +16,14 @@ export async function GET(request: NextRequest) {
   const qParam = searchParams.get("q");
   const sortParam = searchParams.get("sort");
   const stockStatusParam = searchParams.get("stockStatus");
-  
+
   let stockStatus: "in_stock" | "out_of_stock" | "all" = "in_stock";
 
-  if (stockStatusParam === 'out_of_stock' || stockStatusParam === 'all') {
+  if (stockStatusParam === "out_of_stock" || stockStatusParam === "all") {
     const session = await getServerSession();
-    if (session?.role === "admin") {
-        stockStatus = stockStatusParam;
+    const role = isProfileRole(session?.role) ? session?.role : "customer";
+    if (role && isAdminRole(role)) {
+      stockStatus = stockStatusParam;
     }
   }
 
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid query", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to fetch products", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

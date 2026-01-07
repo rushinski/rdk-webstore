@@ -47,15 +47,14 @@ export class ProductRepository {
     const { page = 1, limit = 20, sort = "newest" } = filters;
     const offset = (page - 1) * limit;
 
-    const buildInClause = (values: string[]) =>
-      values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
+    const sizeProductIds = await this.listProductIdsForSizes(filters);
+    if (Array.isArray(sizeProductIds) && sizeProductIds.length === 0) {
+      return { products: [], total: 0, page, limit };
+    }
 
     let query = this.supabase
       .from("products")
-      .select(
-        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
-        { count: "exact" }
-      )
+      .select("id", { count: "exact" })
       .eq("is_active", true);
 
     // Tenant/seller/marketplace scoping
@@ -96,20 +95,8 @@ export class ProductRepository {
     if (filters.model?.length) query = query.in("model", filters.model);
     if (filters.condition?.length) query = query.in("condition", filters.condition);
 
-    // Size filters (variants table)
-    const sizeFilters: string[] = [];
-    if (filters.sizeShoe?.length) {
-      sizeFilters.push(
-        `and(size_type.eq.shoe,size_label.in.(${buildInClause(filters.sizeShoe)}))`
-      );
-    }
-    if (filters.sizeClothing?.length) {
-      sizeFilters.push(
-        `and(size_type.eq.clothing,size_label.in.(${buildInClause(filters.sizeClothing)}))`
-      );
-    }
-    if (sizeFilters.length > 0) {
-      query = query.or(sizeFilters.join(","), { foreignTable: "product_variants" });
+    if (Array.isArray(sizeProductIds)) {
+      query = query.in("id", sizeProductIds);
     }
 
     // Sorting
@@ -138,8 +125,41 @@ export class ProductRepository {
     const { data, error, count } = await query;
     if (error) throw error;
 
+    const ids = (data ?? []).map((row: { id: string }) => row.id);
+    if (ids.length === 0) {
+      return { products: [], total: count ?? 0, page, limit };
+    }
+
+    let detailQuery = this.supabase
+      .from("products")
+      .select(
+        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))"
+      )
+      .in("id", ids)
+      .eq("is_active", true);
+
+    if (filters.stockStatus === "out_of_stock") {
+      detailQuery = detailQuery.eq("is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
+      detailQuery = detailQuery.eq("is_out_of_stock", false);
+    } else if (!includeOutOfStock) {
+      detailQuery = detailQuery.eq("is_out_of_stock", false);
+    }
+
+    if (filters.tenantId) detailQuery = detailQuery.eq("tenant_id", filters.tenantId);
+    if (filters.sellerId) detailQuery = detailQuery.eq("seller_id", filters.sellerId);
+    if (filters.marketplaceId) detailQuery = detailQuery.eq("marketplace_id", filters.marketplaceId);
+
+    const { data: details, error: detailsError } = await detailQuery;
+
+    if (detailsError) throw detailsError;
+
+    const byId = new Map(
+      (details ?? []).map((raw) => [raw.id, this.transformProduct(raw)])
+    );
+
     return {
-      products: (data ?? []).map((raw) => this.transformProduct(raw)),
+      products: ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[],
       total: count ?? 0,
       page,
       limit,
@@ -355,6 +375,41 @@ export class ProductRepository {
       ),
       tags: (raw.tags ?? []).map((pt: any) => pt.tag).filter(Boolean),
     };
+  }
+
+  private buildInClause(values: string[]) {
+    return values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
+  }
+
+  private async listProductIdsForSizes(filters: ProductFilters) {
+    const sizeFilters: string[] = [];
+    if (filters.sizeShoe?.length) {
+      sizeFilters.push(
+        `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`
+      );
+    }
+    if (filters.sizeClothing?.length) {
+      sizeFilters.push(
+        `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`
+      );
+    }
+
+    if (sizeFilters.length === 0) return null;
+
+    const { data, error } = await this.supabase
+      .from("product_variants")
+      .select("product_id")
+      .or(sizeFilters.join(","));
+
+    if (error) throw error;
+
+    return [
+      ...new Set(
+        (data ?? [])
+          .map((row: { product_id: string | null }) => row.product_id)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
   }
 
   async getProductsForCheckout(

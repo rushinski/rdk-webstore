@@ -1,19 +1,14 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import {
-  ProfileRepository,
-  type ProfileRole,
-  isProfileRole,
-  isSuperAdminRole,
-  isDevRole,
-} from "@/repositories/profile-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import type { ProfileRole } from "@/config/constants/roles";
+import { isDevRole, isProfileRole, isSuperAdminRole } from "@/config/constants/roles";
 
 export class AdminService {
   static async promoteUser(
     supabase: TypedSupabaseClient,
     targetUserId: string,
-    targetRole: ProfileRole = "admin"
+    targetRole: ProfileRole = "admin",
   ) {
-
     // 1. Auth
     const {
       data: { user },
@@ -25,7 +20,9 @@ export class AdminService {
 
     // 2. Load caller profile
     const callerProfile = await repo.getByUserId(user.id);
-    const callerRole = isProfileRole(callerProfile?.role) ? callerProfile.role : "customer";
+    const callerRole = isProfileRole(callerProfile?.role)
+      ? callerProfile.role
+      : "customer";
     if (targetRole === "super_admin" && !isDevRole(callerRole)) {
       throw new Error("Forbidden: dev only");
     }

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { PayoutSettingsRepository } from "@/repositories/payout-settings-repo";
-import { ProfileRepository, isSuperAdminRole, isProfileRole } from "@/repositories/profile-repo";
+import { canViewBank } from "@/config/constants/roles";
 import { payoutSettingsSchema } from "@/lib/validation/admin";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -19,24 +19,17 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const supabase = await createSupabaseServerClient();
-    const profileRepo = new ProfileRepository(supabase);
     const payoutRepo = new PayoutSettingsRepository(supabase);
 
-    const profile = await profileRepo.getByUserId(session.user.id);
-    const role = isProfileRole(profile?.role) ? profile!.role : "customer";
-
-    const isSuperAdmin = isSuperAdminRole(role);
-    const isPrimary = profile?.is_primary_admin === true;
-
-    if (!isSuperAdmin && !isPrimary) {
+    if (!canViewBank(session.role)) {
       return NextResponse.json(
         { error: "Forbidden", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -52,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { payoutSettings },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -63,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to update payout settings", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

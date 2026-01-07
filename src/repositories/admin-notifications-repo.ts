@@ -96,4 +96,15 @@ export class AdminNotificationsRepository {
     if (error) throw error;
     return data ?? [];
   }
+
+  async deleteAll(adminId: string) {
+    const { data, error } = await this.supabase
+      .from("admin_notifications")
+      .delete()
+      .eq("admin_id", adminId)
+      .select("id");
+
+    if (error) throw error;
+    return data ?? [];
+  }
 }

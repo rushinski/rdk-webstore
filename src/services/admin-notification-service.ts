@@ -73,4 +73,8 @@ export class AdminNotificationService {
   async deleteMany(adminId: string, ids: string[]) {
     return this.notificationsRepo.deleteMany(adminId, ids);
   }
+
+  async deleteAll(adminId: string) {
+    return this.notificationsRepo.deleteAll(adminId);
+  }
 }

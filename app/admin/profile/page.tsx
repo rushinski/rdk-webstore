@@ -1,13 +1,19 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { logError } from '@/lib/log';
-import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { useEffect, useState } from "react";
+import { logError } from "@/lib/log";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import {
+  canInviteAdmins,
+  isDevRole,
+  isProfileRole,
+  type ProfileRole,
+} from "@/config/constants/roles";
 
 type AdminProfile = {
   id: string;
   email: string | null;
-  role: string | null;
+  role: ProfileRole | null;
   chat_notifications_enabled: boolean;
   admin_order_notifications_enabled: boolean;
   is_primary_admin: boolean;
@@ -16,40 +22,41 @@ type AdminProfile = {
 export default function AdminProfilePage() {
   const [profile, setProfile] = useState<AdminProfile | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'super_admin'>('admin');
-  const [inviteUrl, setInviteUrl] = useState('');
+  const [message, setMessage] = useState("");
+  const [inviteRole, setInviteRole] = useState<"admin" | "super_admin">("admin");
+  const [inviteUrl, setInviteUrl] = useState("");
 
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const response = await fetch('/api/admin/profile', { cache: 'no-store' });
+        const response = await fetch("/api/admin/profile", { cache: "no-store" });
         const data = await response.json();
         setProfile(data.profile ?? null);
       } catch (error) {
-        logError(error, { layer: 'frontend', event: 'admin_load_profile' });
+        logError(error, { layer: "frontend", event: "admin_load_profile" });
       }
     };
 
     loadProfile();
   }, []);
 
-  const isSuperAdmin = profile?.role === 'super_admin' || profile?.role === 'dev';
-  const canInviteSuper = profile?.role === 'dev';
+  const role = isProfileRole(profile?.role) ? profile.role : "customer";
+  const canInvite = canInviteAdmins(role);
+  const canInviteSuper = isDevRole(role);
 
   useEffect(() => {
-    if (!canInviteSuper) setInviteRole('admin');
+    if (!canInviteSuper) setInviteRole("admin");
   }, [canInviteSuper]);
 
   const handleSavePreferences = async () => {
     if (!profile) return;
     setIsSaving(true);
-    setMessage('');
+    setMessage("");
 
     try {
-      const response = await fetch('/api/admin/profile', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           chat_notifications_enabled: profile.chat_notifications_enabled,
           admin_order_notifications_enabled: profile.admin_order_notifications_enabled,
@@ -58,38 +65,38 @@ export default function AdminProfilePage() {
 
       if (!response.ok) {
         const data = await response.json().catch(() => null);
-        setMessage(data?.error ?? 'Failed to update preferences.');
+        setMessage(data?.error ?? "Failed to update preferences.");
         return;
       }
 
-      setMessage('Preferences updated.');
+      setMessage("Preferences updated.");
     } catch (error) {
-      setMessage('Failed to update preferences.');
+      setMessage("Failed to update preferences.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleGenerateInvite = async () => {
-    setInviteUrl('');
-    setMessage('');
+    setInviteUrl("");
+    setMessage("");
 
     try {
-      const response = await fetch('/api/admin/invites', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: inviteRole }),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(data?.error ?? 'Failed to create invite.');
+        setMessage(data?.error ?? "Failed to create invite.");
         return;
       }
 
-      setInviteUrl(data.inviteUrl ?? '');
+      setInviteUrl(data.inviteUrl ?? "");
     } catch (error) {
-      setMessage('Failed to create invite.');
+      setMessage("Failed to create invite.");
     }
   };
 
@@ -97,9 +104,9 @@ export default function AdminProfilePage() {
     if (!inviteUrl) return;
     try {
       await navigator.clipboard.writeText(inviteUrl);
-      setMessage('Invite link copied.');
+      setMessage("Invite link copied.");
     } catch (error) {
-      setMessage('Failed to copy invite link.');
+      setMessage("Failed to copy invite link.");
     }
   };
 
@@ -129,7 +136,9 @@ export default function AdminProfilePage() {
             <ToggleSwitch
               checked={profile?.chat_notifications_enabled ?? true}
               onChange={(next) =>
-                setProfile((prev) => (prev ? { ...prev, chat_notifications_enabled: next } : prev))
+                setProfile((prev) =>
+                  prev ? { ...prev, chat_notifications_enabled: next } : prev,
+                )
               }
               ariaLabel="Chat message notifications"
             />
@@ -141,7 +150,7 @@ export default function AdminProfilePage() {
               checked={profile?.admin_order_notifications_enabled ?? true}
               onChange={(next) =>
                 setProfile((prev) =>
-                  prev ? { ...prev, admin_order_notifications_enabled: next } : prev
+                  prev ? { ...prev, admin_order_notifications_enabled: next } : prev,
                 )
               }
               ariaLabel="Order placed notifications"
@@ -155,22 +164,24 @@ export default function AdminProfilePage() {
           disabled={isSaving}
           className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
         >
-          {isSaving ? 'Saving...' : 'Save Preferences'}
+          {isSaving ? "Saving..." : "Save Preferences"}
         </button>
       </div>
 
-      {/* Invite Admins (Super Admin + Dev only; only Dev can invite Super Admin) */}
-      {isSuperAdmin && (
+      {/* Invite Admins (Dev only) */}
+      {canInvite && (
         <div className="bg-zinc-900 border border-zinc-800/70 p-6 space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-white">Invite Admins</h2>
-            <p className="text-gray-400 text-sm">Generate an invite link for a new admin.</p>
+            <p className="text-gray-400 text-sm">
+              Generate an invite link for a new admin.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value as 'admin' | 'super_admin')}
+              onChange={(e) => setInviteRole(e.target.value as "admin" | "super_admin")}
               className="bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm"
             >
               <option value="admin">Admin</option>

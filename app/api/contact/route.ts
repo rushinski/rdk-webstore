@@ -7,6 +7,7 @@ import { sendEmail } from "@/lib/email/mailer";
 import { emailFooterText } from "@/lib/email/footer";
 import { renderEmailLayout } from "@/lib/email/template";
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
+import { ContactMessagesRepository } from "@/repositories/contact-messages-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { env } from "@/config/env";
@@ -236,23 +237,18 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    const contactRepo = new ContactMessagesRepository(supabase);
     const { data: { user } } = await supabase.auth.getUser();
     const source = parsed.data.source ?? "contact_form";
 
-    const { error: insertError } = await supabase
-      .from("contact_messages")
-      .insert({
-        name: parsed.data.name,
-        email: parsed.data.email,
-        subject: parsed.data.subject,
-        message: parsed.data.message,
-        source,
-        user_id: user?.id ?? null,
-      });
-
-    if (insertError) {
-      throw insertError;
-    }
+    await contactRepo.insertMessage({
+      name: parsed.data.name,
+      email: parsed.data.email,
+      subject: parsed.data.subject,
+      message: parsed.data.message,
+      source,
+      user_id: user?.id ?? null,
+    });
 
     const safeName = escapeHtml(parsed.data.name);
     const safeEmail = escapeHtml(parsed.data.email);

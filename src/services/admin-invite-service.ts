@@ -1,13 +1,9 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { AdminSupabaseClient } from "@/lib/supabase/admin";
 import { AdminInvitesRepository } from "@/repositories/admin-invites-repo";
-import {
-  ProfileRepository,
-  type ProfileRole,
-  isProfileRole,
-  isSuperAdminRole,
-  isDevRole,
-} from "@/repositories/profile-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
+import type { ProfileRole } from "@/config/constants/roles";
+import { canInviteAdmins, isProfileRole } from "@/config/constants/roles";
 import { generatePublicToken, hashString } from "@/lib/crypto";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -22,7 +18,7 @@ const ROLE_PRIORITY: Record<ProfileRole, number> = {
 export class AdminInviteService {
   constructor(
     private readonly supabase: TypedSupabaseClient,
-    private readonly adminSupabase: AdminSupabaseClient
+    private readonly adminSupabase: AdminSupabaseClient,
   ) {}
 
   async createInvite(input: { userId: string; role: "admin" | "super_admin" }) {
@@ -30,11 +26,7 @@ export class AdminInviteService {
     const profile = await profileRepo.getByUserId(input.userId);
     const callerRole = isProfileRole(profile?.role) ? profile!.role : "customer";
 
-    if (input.role === "admin" && !isSuperAdminRole(callerRole)) {
-      throw new Error("Forbidden");
-    }
-
-    if (input.role === "super_admin" && !isDevRole(callerRole)) {
+    if (!canInviteAdmins(callerRole)) {
       throw new Error("Forbidden");
     }
 

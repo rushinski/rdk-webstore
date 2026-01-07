@@ -6,7 +6,7 @@ import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { otpVerifySchema } from "@/lib/validation/auth";
-import { isAdminRole, isProfileRole } from "@/repositories/profile-repo";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { ok: false, error: "Session error", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -51,26 +51,29 @@ export async function POST(req: NextRequest) {
 
       if (requiresTwoFASetup) {
         // Admin has no 2FA setup - require setup
-        return NextResponse.json({
-          ok: true,
-          requiresTwoFASetup: true,
-          requestId,
-        }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json(
+          {
+            ok: true,
+            requiresTwoFASetup: true,
+            requestId,
+          },
+          { headers: { "Cache-Control": "no-store" } },
+        );
       }
 
       if (requiresTwoFAChallenge) {
-        return NextResponse.json({
-          ok: true,
-          requiresTwoFAChallenge: true,
-          requestId,
-        }, { headers: { "Cache-Control": "no-store" } });
+        return NextResponse.json(
+          {
+            ok: true,
+            requiresTwoFAChallenge: true,
+            requestId,
+          },
+          { headers: { "Cache-Control": "no-store" } },
+        );
       }
     }
 
-    return NextResponse.json(
-      { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "auth",

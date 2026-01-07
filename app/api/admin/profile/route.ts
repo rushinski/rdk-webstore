@@ -3,6 +3,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { PayoutSettingsRepository } from "@/repositories/payout-settings-repo";
+import { canViewBank } from "@/config/constants/roles";
 import { adminPreferencesSchema } from "@/lib/validation/admin";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -14,19 +15,21 @@ export async function GET(request: NextRequest) {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const profileRepo = new ProfileRepository(supabase);
-    const payoutRepo = new PayoutSettingsRepository(supabase);
-
     const profile = await profileRepo.getByUserId(session.user.id);
     let payoutSettings = null;
-    try {
-      payoutSettings = await payoutRepo.get();
-    } catch {
-      payoutSettings = null;
+
+    if (canViewBank(session.role)) {
+      const payoutRepo = new PayoutSettingsRepository(supabase);
+      try {
+        payoutSettings = await payoutRepo.get();
+      } catch {
+        payoutSettings = null;
+      }
     }
 
     return NextResponse.json(
       { profile, payoutSettings },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -37,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to load profile", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -53,7 +56,7 @@ export async function PATCH(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -63,10 +66,7 @@ export async function PATCH(request: NextRequest) {
     await profileRepo.updateNotificationPreferences(session.user.id, parsed.data);
     const profile = await profileRepo.getByUserId(session.user.id);
 
-    return NextResponse.json(
-      { profile },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ profile }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -76,7 +76,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to update profile", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
