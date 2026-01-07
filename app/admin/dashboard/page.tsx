@@ -19,11 +19,7 @@ export default function DashboardPage() {
   const [trafficTrend, setTrafficTrend] = useState<Array<{ date: string; visits: number }>>([]);
   const [productsCount, setProductsCount] = useState(0);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [payoutStatus, setPayoutStatus] = useState<{
-    canManage: boolean;
-    hasMethod: boolean;
-  } | null>(null);
-
+  
   useEffect(() => {
     const loadDashboard = async () => {
       try {
@@ -31,12 +27,10 @@ export default function DashboardPage() {
           analyticsResponse,
           productsResponse,
           ordersResponse,
-          payoutResponse,
         ] = await Promise.all([
           fetch('/api/admin/analytics?range=7d'),
           fetch('/api/store/products?limit=1'),
           fetch('/api/admin/orders?status=paid&status=shipped'),
-          fetch('/api/admin/profile', { cache: 'no-store' }),
         ]);
 
         const analyticsData = await analyticsResponse.json();
@@ -57,22 +51,8 @@ export default function DashboardPage() {
 
         const ordersData = await ordersResponse.json();
         setRecentOrders((ordersData.orders || []).slice(0, 3));
-
-        if (payoutResponse.ok) {
-          const payoutData = await payoutResponse.json();
-          const profile = payoutData?.profile;
-          const isSuperAdmin = profile?.role === 'super_admin' || profile?.role === 'dev';
-          const payoutSettings = payoutData?.payoutSettings;
-          const payoutReady = Boolean(
-            payoutSettings?.provider && (payoutSettings?.account_last4 || payoutSettings?.account_label)
-          );
-          setPayoutStatus({ canManage: isSuperAdmin, hasMethod: payoutReady });
-        } else {
-          setPayoutStatus({ canManage: false, hasMethod: true });
-        }
       } catch (error) {
         logError(error, { layer: "frontend", event: "admin_load_dashboard" });
-        setPayoutStatus({ canManage: false, hasMethod: true });
       }
     };
 
@@ -149,42 +129,19 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {payoutStatus?.canManage ? (
-          payoutStatus.hasMethod ? (
-            <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-              <h2 className="text-xl font-semibold text-white mb-4">Sales Trend</h2>
-              <SalesChart data={salesTrend} />
-            </div>
-          ) : (
-            <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 flex flex-col justify-between gap-6">
-              <div>
-                <h2 className="text-xl font-semibold text-white mb-2">Set up payout method</h2>
-                <p className="text-sm text-gray-400">
-                  Finish your payout setup to unlock sales analytics and transfers.
-                </p>
-              </div>
-              <Link
-                href="/admin/profile#payout-settings"
-                className="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2 rounded text-sm"
-              >
-                Setup payout method
-              </Link>
-            </div>
-          )
-        ) : payoutStatus ? (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Sales Trend</h2>
-            <SalesChart data={salesTrend} />
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">Financials</h2>
+            <span className="text-sm text-gray-400">7d</span>
           </div>
-        ) : (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-            <div className="h-5 w-32 bg-zinc-800/70 rounded mb-4" />
-            <div className="h-40 bg-zinc-800/40 rounded" />
-          </div>
-        )}
+          <SalesChart data={salesTrend} />
+        </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <h2 className="text-xl font-semibold text-white mb-4">Traffic</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">Traffic</h2>
+            <span className="text-sm text-gray-400">7d</span>
+          </div>
           <TrafficChart data={trafficTrend} />
         </div>
       </div>
