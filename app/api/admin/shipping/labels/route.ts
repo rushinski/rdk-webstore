@@ -14,7 +14,7 @@ import { logError } from "@/lib/log";
 const labelsSchema = z
   .object({
     orderId: z.string().uuid(),
-    shipmentId: z.string(), // kept for backwards compatibility (Shippo doesn't need it)
+    shipmentId: z.string(), // kept for backwards compatibility
     rateId: z.string(),
   })
   .strict();
@@ -68,25 +68,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Shippo purchases by Transaction from a Rate object id. :contentReference[oaicite:11]{index=11}
+    // Purchase label via Shippo
     const transaction = await shippoService.purchaseLabel(rateId);
 
-    const status = String(transaction?.status ?? "").toUpperCase();
-    if (status !== "SUCCESS") {
-      const messages = transaction?.messages ?? [];
-      throw new Error(`Shippo label purchase failed: ${messages?.[0]?.text ?? "transaction not successful"}`);
+    if (transaction.status !== "SUCCESS") {
+      const errorText = transaction.messages?.[0]?.text ?? "Transaction not successful";
+      throw new Error(`Shippo label purchase failed: ${errorText}`);
     }
 
-    const carrier = transaction?.rate?.provider ?? transaction?.rate?.provider ?? null;
-    const trackingNumber = transaction?.trackingNumber ?? transaction?.tracking_number ?? null;
-    const trackingUrl = transaction?.trackingUrlProvider ?? transaction?.tracking_url_provider ?? null;
+    const carrier = transaction.carrier;
+    const trackingNumber = transaction.trackingNumber;
+    const trackingUrl = transaction.trackingUrl;
 
+    if (!trackingNumber) {
+      throw new Error("Shippo label purchase succeeded but returned no tracking number");
+    }
+
+    // Update order
     await ordersRepo.markReadyToShip(orderId, {
       carrier,
       trackingNumber,
     });
 
-    // Best-effort email
+    // Send email (best effort)
     try {
       if (order.user_id) {
         const profile = await profilesRepo.getByUserId(order.user_id);
@@ -109,8 +113,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Keep response shape close to EasyPost route
-    const labelUrl = transaction?.labelUrl ?? transaction?.label_url ?? null;
+    const labelUrl = transaction.labelUrl;
 
     return NextResponse.json({
       label: {
@@ -118,7 +121,7 @@ export async function POST(request: NextRequest) {
         pdf_url: labelUrl,
       },
       trackingCode: trackingNumber,
-      trackingUrl,
+      trackingUrl: trackingUrl,
     });
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/shipping/labels" });

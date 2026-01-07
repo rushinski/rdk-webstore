@@ -11,7 +11,6 @@ const SHIPPING_CATEGORIES = [
   { key: 'electronics', label: 'Electronics' },
 ];
 
-// Available EasyPost carriers for UPS
 const AVAILABLE_CARRIERS = [
   { key: 'UPS', label: 'UPS', description: 'United Parcel Service' },
   { key: 'USPS', label: 'USPS', description: 'United States Postal Service' },
@@ -48,6 +47,37 @@ const initialOrigin = {
 
 type ShippingOriginAddress = typeof initialOrigin;
 
+const moneyToCents = (raw: string) => {
+  // Allow normal typing; sanitize to digits + first dot
+  const cleaned = raw.replace(/[^\d.]/g, '');
+  if (!cleaned || cleaned === '.') return 0;
+
+  const firstDot = cleaned.indexOf('.');
+  let normalized = cleaned;
+
+  // If multiple dots, keep only the first
+  if (firstDot !== -1) {
+    const before = cleaned.slice(0, firstDot + 1);
+    const after = cleaned.slice(firstDot + 1).replace(/\./g, '');
+    normalized = before + after;
+  }
+
+  const [whole, frac = ''] = normalized.split('.');
+  const wholeNum = Number(whole || '0');
+  if (!Number.isFinite(wholeNum)) return 0;
+
+  const centsStr = `${frac}00`.slice(0, 2);
+  const centsNum = Number(centsStr || '0');
+  if (!Number.isFinite(centsNum)) return 0;
+
+  return wholeNum * 100 + centsNum;
+};
+
+const centsToMoneyString = (cents: number) => {
+  const safe = Number.isFinite(cents) ? cents : 0;
+  return (safe / 100).toFixed(2);
+};
+
 export default function ShippingSettingsPage() {
   const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefaultValues>>(
     {}
@@ -63,6 +93,10 @@ export default function ShippingSettingsPage() {
   const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [defaultsDraft, setDefaultsDraft] = useState<ShippingDefaultValues | null>(null);
+
+  // NEW: keep a separate "typed string" for money so the user can type normally
+  const [shippingCostInput, setShippingCostInput] = useState<string>('0.00');
+
   const [isOriginModalOpen, setIsOriginModalOpen] = useState(false);
   const [originDraft, setOriginDraft] = useState<ShippingOriginAddress>(initialOrigin);
 
@@ -75,9 +109,9 @@ export default function ShippingSettingsPage() {
     const loadData = async () => {
       try {
         const [defaultsResponse, originResponse, carriersResponse] = await Promise.all([
-          fetch('/api/admin/shipping/defaults'),
-          fetch('/api/admin/shipping/origin'),
-          fetch('/api/admin/shipping/carriers'),
+          fetch('/api/admin/shipping/defaults', { cache: 'no-store' }),
+          fetch('/api/admin/shipping/origin', { cache: 'no-store' }),
+          fetch('/api/admin/shipping/carriers', { cache: 'no-store' }),
         ]);
 
         const defaultsData = await defaultsResponse.json();
@@ -112,8 +146,16 @@ export default function ShippingSettingsPage() {
     const current = shippingDefaults[categoryKey] ?? defaultPackage;
     setActiveCategory(categoryKey);
     setDefaultsDraft({ ...current });
+    setShippingCostInput(centsToMoneyString(current.shipping_cost_cents));
     setIsDefaultsModalOpen(true);
     setMessage('');
+  };
+
+  const closeDefaultsModal = () => {
+    setIsDefaultsModalOpen(false);
+    setActiveCategory(null);
+    setDefaultsDraft(null);
+    setShippingCostInput('0.00');
   };
 
   const openOriginModal = () => {
@@ -123,14 +165,28 @@ export default function ShippingSettingsPage() {
   };
 
   const handleDraftChange = (field: keyof ShippingDefaultValues, value: string) => {
+    // For money, we use handleShippingCostChange instead
+    if (field === 'shipping_cost_cents') return;
+
     const numericValue = Number(value);
-    if (isNaN(numericValue)) return;
+    if (!Number.isFinite(numericValue)) return;
+
     setDefaultsDraft((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        [field]: field === 'shipping_cost_cents' ? numericValue * 100 : numericValue,
+        [field]: numericValue,
       };
+    });
+  };
+
+  const handleShippingCostChange = (value: string) => {
+    setShippingCostInput(value);
+
+    const cents = moneyToCents(value);
+    setDefaultsDraft((prev) => {
+      if (!prev) return prev;
+      return { ...prev, shipping_cost_cents: cents };
     });
   };
 
@@ -179,9 +235,7 @@ export default function ShippingSettingsPage() {
 
       if (response.ok) {
         setShippingDefaults(nextDefaults);
-        setIsDefaultsModalOpen(false);
-        setActiveCategory(null);
-        setDefaultsDraft(null);
+        closeDefaultsModal();
         setMessage('Shipping defaults updated.');
       } else {
         const errorData = await response.json();
@@ -229,12 +283,15 @@ export default function ShippingSettingsPage() {
         body: JSON.stringify({ carriers: enabledCarriers }),
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (response.ok) {
+        // Persisted server-side value is source of truth
+        setEnabledCarriers(data.carriers || []);
         setCarriersMessage('Enabled carriers updated.');
         setTimeout(() => setCarriersMessage(''), 3000);
       } else {
-        const errorData = await response.json();
-        setCarriersMessage(`Failed to save carriers: ${errorData.error}`);
+        setCarriersMessage(`Failed to save carriers: ${data.error}`);
       }
     } catch (error) {
       setCarriersMessage('An unexpected error occurred.');
@@ -256,7 +313,12 @@ export default function ShippingSettingsPage() {
   };
 
   const originLine = useMemo(() => {
-    const parts = [originAddress.line1, originAddress.city, originAddress.state, originAddress.postal_code].filter(Boolean);
+    const parts = [
+      originAddress.line1,
+      originAddress.city,
+      originAddress.state,
+      originAddress.postal_code,
+    ].filter(Boolean);
     return parts.join(', ');
   }, [originAddress]);
 
@@ -285,7 +347,9 @@ export default function ShippingSettingsPage() {
               Edit origin
             </button>
           </div>
-          <div className="text-sm text-gray-400">{originLine ? originLine : 'No origin address saved yet.'}</div>
+          <div className="text-sm text-gray-400">
+            {originLine ? originLine : 'No origin address saved yet.'}
+          </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
@@ -366,7 +430,7 @@ export default function ShippingSettingsPage() {
       {isDefaultsModalOpen && defaultsDraft && (
         <div
           className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => setIsDefaultsModalOpen(false)}
+          onClick={closeDefaultsModal}
         >
           <div
             className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-2xl p-6 space-y-5"
@@ -377,7 +441,11 @@ export default function ShippingSettingsPage() {
                 <h3 className="text-lg font-semibold text-white">Edit package defaults</h3>
                 <p className="text-xs text-gray-500">{activeCategoryLabel} defaults</p>
               </div>
-              <button type="button" onClick={() => setIsDefaultsModalOpen(false)} className="text-gray-400 hover:text-white">
+              <button
+                type="button"
+                onClick={closeDefaultsModal}
+                className="text-gray-400 hover:text-white"
+              >
                 Close
               </button>
             </div>
@@ -429,9 +497,12 @@ export default function ShippingSettingsPage() {
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">Shipping cost ($)</label>
                   <input
-                    type="number"
-                    value={(defaultsDraft.shipping_cost_cents / 100).toFixed(2)}
-                    onChange={(e) => handleDraftChange('shipping_cost_cents', e.target.value)}
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={shippingCostInput}
+                    onChange={(e) => handleShippingCostChange(e.target.value)}
+                    onBlur={() => setShippingCostInput(centsToMoneyString(defaultsDraft.shipping_cost_cents))}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
@@ -441,7 +512,7 @@ export default function ShippingSettingsPage() {
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setIsDefaultsModalOpen(false)}
+                onClick={closeDefaultsModal}
                 className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
               >
                 Cancel
@@ -473,7 +544,11 @@ export default function ShippingSettingsPage() {
                 <h3 className="text-lg font-semibold text-white">Edit origin</h3>
                 <p className="text-xs text-gray-500">Shipping origin address</p>
               </div>
-              <button type="button" onClick={() => setIsOriginModalOpen(false)} className="text-gray-400 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setIsOriginModalOpen(false)}
+                className="text-gray-400 hover:text-white"
+              >
                 Close
               </button>
             </div>

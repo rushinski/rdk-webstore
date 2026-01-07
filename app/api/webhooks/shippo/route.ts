@@ -8,8 +8,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderEmailService } from "@/services/order-email-service";
 import { logError } from "@/lib/log";
 
-// Map Shippo tracking statuses -> your fulfillment statuses
-// Shippo webhook payload uses `data.tracking_status.status` like "DELIVERED". :contentReference[oaicite:12]{index=12}
+// Map Shippo tracking statuses to fulfillment statuses
 const TRACKING_STATUS_MAP: Record<string, string | null> = {
   PRE_TRANSIT: null,
   UNKNOWN: null,
@@ -40,7 +39,7 @@ const getEmailTrigger = (currentStatus: string | null, newStatus: string): Email
 
 export async function POST(req: NextRequest) {
   try {
-    // Shippo recommends webhook security via shared secret in a URL query parameter. :contentReference[oaicite:13]{index=13}
+    // Verify webhook token
     const url = new URL(req.url);
     const token = url.searchParams.get("token");
 
@@ -51,7 +50,13 @@ export async function POST(req: NextRequest) {
     }
 
     const event = await req.json().catch(() => null);
-    if (!event) return NextResponse.json({ ok: false }, { status: 400 });
+    if (!event) {
+      logError(new Error("Webhook received invalid JSON"), {
+        layer: "api",
+        route: "/api/webhooks/shippo",
+      });
+      return NextResponse.json({ ok: false }, { status: 400 });
+    }
 
     // Only handle tracking updates
     if (event.event !== "track_updated") {
@@ -59,16 +64,29 @@ export async function POST(req: NextRequest) {
     }
 
     const data = event.data ?? {};
-    const trackingNumber: string | undefined = data.tracking_number;
-    const statusRaw: string | undefined = data.tracking_status?.status;
+    
+    // Shippo webhook sends tracking_number and tracking_status
+    const trackingNumber: string | undefined = 
+      data.tracking_number ?? data.trackingNumber;
+    
+    const trackingStatus = data.tracking_status ?? data.trackingStatus;
+    const statusRaw: string | undefined = trackingStatus?.status;
 
     if (!trackingNumber || !statusRaw) {
+      logError(new Error("Shippo webhook missing tracking data"), {
+        layer: "api",
+        route: "/api/webhooks/shippo",
+        hasTrackingNumber: !!trackingNumber,
+        hasStatus: !!statusRaw,
+        eventType: event.event,
+      });
       return NextResponse.json({ ok: true });
     }
 
     const status = String(statusRaw).toUpperCase();
     const newFulfillmentStatus = TRACKING_STATUS_MAP[status];
 
+    // Ignore statuses we don't track
     if (newFulfillmentStatus === null || newFulfillmentStatus === undefined) {
       return NextResponse.json({ ok: true });
     }
@@ -77,6 +95,7 @@ export async function POST(req: NextRequest) {
     const ordersRepo = new OrdersRepository(supabase);
     const profilesRepo = new ProfileRepository(supabase);
 
+    // Find order by tracking number
     const { data: orders } = await supabase
       .from("orders")
       .select("*")
@@ -84,16 +103,19 @@ export async function POST(req: NextRequest) {
       .limit(1);
 
     if (!orders || orders.length === 0) {
+      // Not an error - webhook might arrive before order is in our system
       return NextResponse.json({ ok: true });
     }
 
     const order = orders[0];
     const currentFulfillmentStatus = order.fulfillment_status;
 
+    // Update status if changed
     if (currentFulfillmentStatus !== newFulfillmentStatus) {
       await ordersRepo.setFulfillmentStatus(order.id, newFulfillmentStatus);
     }
 
+    // Send appropriate email
     const emailTrigger = getEmailTrigger(currentFulfillmentStatus, newFulfillmentStatus);
 
     if (emailTrigger && order.user_id) {
@@ -103,7 +125,10 @@ export async function POST(req: NextRequest) {
           const emailService = new OrderEmailService();
 
           const carrier = order.shipping_carrier ?? data.carrier ?? null;
-          const trackingUrl = null; // Shippo track_updated payload doesn't always include a provider URL :contentReference[oaicite:14]{index=14}
+          const trackingUrl = 
+            data.tracking_url_provider ?? 
+            data.trackingUrlProvider ?? 
+            null;
 
           if (emailTrigger === "in_transit") {
             await emailService.sendOrderInTransit({
@@ -133,7 +158,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Shippo expects a fast 2xx response and retries on certain failures. :contentReference[oaicite:15]{index=15}
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     logError(e, { layer: "api", route: "/api/webhooks/shippo" });

@@ -9,26 +9,30 @@ export class ShippingCarriersRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   async get(): Promise<ShippingCarriersRow | null> {
+    // maybeSingle avoids throwing on "no rows"
     const { data, error } = await this.supabase
       .from("shipping_carriers")
       .select("*")
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-        throw error;
-    }
-    
-    return data;
+    if (error) throw error;
+    return data ?? null;
   }
 
   async upsert(carriers: string[]): Promise<ShippingCarriersRow> {
     const existing = await this.get();
-    
+
+    // Only upsert the fields we actually want to write.
+    // If your table has an `id`, re-use it so we update the same row.
+    const payload: ShippingCarriersInsert = existing?.id
+      ? ({ id: existing.id, enabled_carriers: carriers } as ShippingCarriersInsert)
+      : ({ enabled_carriers: carriers } as ShippingCarriersInsert);
+
     const { data, error } = await this.supabase
       .from("shipping_carriers")
-      .upsert(existing ? { ...existing, enabled_carriers: carriers } : { enabled_carriers: carriers })
-      .select()
+      .upsert(payload)
+      .select("*")
       .single();
 
     if (error) throw error;

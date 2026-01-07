@@ -10,7 +10,6 @@ const shippo = new Shippo({
   apiKeyHeader: env.SHIPPO_API_TOKEN,
 });
 
-// Keep these interfaces aligned with shipping_origins + order_shipping snapshots
 interface IAddress {
   name?: string | null;
   company?: string | null;
@@ -19,7 +18,7 @@ interface IAddress {
   city: string;
   state: string;
   zip: string;
-  country: string; // Prefer ISO-3166-1 alpha-2 like "US"
+  country: string;
   phone?: string | null;
 }
 
@@ -27,7 +26,31 @@ interface IParcel {
   length: number;
   width: number;
   height: number;
-  weight: number; // ounces (your app uses oz)
+  weight: number; // ounces
+}
+
+// Normalized response types
+export interface NormalizedRate {
+  id: string;
+  carrier: string;
+  service: string;
+  rate: string;
+  currency: string;
+  estimated_delivery_days: number | null;
+}
+
+export interface NormalizedShipment {
+  id: string;
+  rates: NormalizedRate[];
+}
+
+export interface NormalizedTransaction {
+  status: string;
+  carrier: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  labelUrl: string | null;
+  messages: Array<{ text: string }>;
 }
 
 export class ShippoService {
@@ -46,7 +69,6 @@ export class ShippoService {
   }
 
   private toShippoParcel(parcel: IParcel) {
-    // Shippo examples commonly use LB; we convert oz -> lb for consistency. :contentReference[oaicite:7]{index=7}
     const weightLb = parcel.weight / 16;
 
     return {
@@ -54,16 +76,43 @@ export class ShippoService {
       width: String(parcel.width),
       height: String(parcel.height),
       distanceUnit: DistanceUnitEnum.In,
-      weight: String(Number.isFinite(weightLb) ? weightLb : 1),
+      weight: String(Number.isFinite(weightLb) && weightLb > 0 ? weightLb : 1),
       massUnit: WeightUnitEnum.Lb,
     };
   }
 
   /**
-   * Creates a Shippo shipment and returns rates (async=false).
-   * Shippo shipment creation returns `rates` that include `object_id`/`objectId`. :contentReference[oaicite:8]{index=8}
+   * Normalize a Shippo rate object to consistent format
    */
-  async createShipment(fromAddress: IAddress, toAddress: IAddress, parcel: IParcel): Promise<any> {
+  private normalizeRate(rate: any): NormalizedRate | null {
+    // Shippo rate fields: objectId, provider, servicelevel, amount, currency, estimatedDays
+    const id = rate?.objectId ?? rate?.object_id ?? null;
+    if (!id) return null;
+
+    const carrier = rate?.provider ?? rate?.carrier ?? "Unknown";
+    const service = rate?.servicelevel?.name ?? rate?.service ?? "Standard";
+    const amount = rate?.amount ?? rate?.rate ?? "0";
+    const currency = rate?.currency ?? "USD";
+    const estimatedDays = rate?.estimatedDays ?? rate?.estimated_days ?? null;
+
+    return {
+      id: String(id),
+      carrier: String(carrier),
+      service: String(service),
+      rate: String(amount),
+      currency: String(currency),
+      estimated_delivery_days: estimatedDays ? Number(estimatedDays) : null,
+    };
+  }
+
+  /**
+   * Creates a Shippo shipment and returns normalized shipment with rates
+   */
+  async createShipment(
+    fromAddress: IAddress,
+    toAddress: IAddress,
+    parcel: IParcel
+  ): Promise<NormalizedShipment> {
     try {
       const shipment = await shippo.shipments.create({
         addressFrom: this.toShippoAddress(fromAddress),
@@ -72,7 +121,26 @@ export class ShippoService {
         async: false,
       });
 
-      return shipment;
+      // Shippo shipment object structure
+      const shipmentId = (shipment as any)?.objectId ?? (shipment as any)?.object_id;
+      if (!shipmentId) {
+        logError(new Error("Shippo shipment missing objectId"), {
+          layer: "service",
+          event: "shippo_shipment_no_id",
+          shipmentKeys: shipment ? Object.keys(shipment) : [],
+        });
+        throw new Error("Shippo shipment creation returned invalid response (missing ID)");
+      }
+
+      const rawRates = (shipment as any)?.rates ?? [];
+      const normalizedRates = rawRates
+        .map((r: any) => this.normalizeRate(r))
+        .filter((r: NormalizedRate | null): r is NormalizedRate => r !== null);
+
+      return {
+        id: String(shipmentId),
+        rates: normalizedRates,
+      };
     } catch (error: any) {
       logError(error, {
         layer: "service",
@@ -84,10 +152,9 @@ export class ShippoService {
   }
 
   /**
-   * Purchases a label by creating a Transaction for the given rateId.
-   * Shippo: transactions.create({ rate, labelFileType, async:false }) :contentReference[oaicite:9]{index=9}
+   * Purchases a label by creating a Transaction for the given rateId
    */
-  async purchaseLabel(rateId: string): Promise<any> {
+  async purchaseLabel(rateId: string): Promise<NormalizedTransaction> {
     try {
       const transaction = await shippo.transactions.create({
         rate: rateId,
@@ -95,7 +162,17 @@ export class ShippoService {
         async: false,
       });
 
-      return transaction;
+      // Normalize transaction response
+      const txn = transaction as any;
+      
+      return {
+        status: String(txn?.status ?? "").toUpperCase(),
+        carrier: txn?.rate?.provider ?? txn?.provider ?? null,
+        trackingNumber: txn?.trackingNumber ?? txn?.tracking_number ?? null,
+        trackingUrl: txn?.trackingUrlProvider ?? txn?.tracking_url_provider ?? null,
+        labelUrl: txn?.labelUrl ?? txn?.label_url ?? null,
+        messages: Array.isArray(txn?.messages) ? txn.messages : [],
+      };
     } catch (error: any) {
       logError(error, {
         layer: "service",
