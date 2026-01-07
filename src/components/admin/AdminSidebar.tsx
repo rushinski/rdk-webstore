@@ -99,10 +99,10 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
 
   const refreshNotifCount = async () => {
     try {
-      const res = await fetch('/api/admin/notifications/unread-count', { cache: 'no-store' });
+      const res = await fetch("/api/admin/notifications/unread-count", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      if (typeof data.unreadCount === 'number') setNotifBadgeCount(data.unreadCount);
+      if (typeof data.unreadCount === "number") setNotifBadgeCount(data.unreadCount);
     } catch {
       // keep last value; do not force 0
     }
@@ -114,11 +114,11 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
     const onUpdated = (e: Event) => {
       const evt = e as CustomEvent;
       const next = evt.detail?.unreadCount;
-      if (typeof next === 'number') setNotifBadgeCount(next);
+      if (typeof next === "number") setNotifBadgeCount(next);
     };
 
-    window.addEventListener('adminNotificationsUpdated', onUpdated);
-    return () => window.removeEventListener('adminNotificationsUpdated', onUpdated);
+    window.addEventListener("adminNotificationsUpdated", onUpdated);
+    return () => window.removeEventListener("adminNotificationsUpdated", onUpdated);
   }, []);
 
   // Auto-open group when you're inside it
@@ -182,7 +182,8 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chats" }, (payload) => {
         const chat = payload.new as { id: string; status?: string | null };
         if (chat.status && chat.status !== "open") chatLastSenderRef.current.delete(chat.id);
-        else if (!chatLastSenderRef.current.has(chat.id)) chatLastSenderRef.current.set(chat.id, "none");
+        else if (!chatLastSenderRef.current.has(chat.id))
+          chatLastSenderRef.current.set(chat.id, "none");
 
         if (isActive) {
           const count = Array.from(chatLastSenderRef.current.values()).filter(
@@ -191,23 +192,19 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           setChatBadgeCount(count);
         }
       })
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_messages" },
-        (payload) => {
-          const message = payload.new as { chat_id: string; sender_role?: "customer" | "admin" };
-          if (!chatLastSenderRef.current.has(message.chat_id)) return;
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const message = payload.new as { chat_id: string; sender_role?: "customer" | "admin" };
+        if (!chatLastSenderRef.current.has(message.chat_id)) return;
 
-          chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
+        chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
 
-          if (isActive) {
-            const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (role) => role !== "admin"
-            ).length;
-            setChatBadgeCount(count);
-          }
+        if (isActive) {
+          const count = Array.from(chatLastSenderRef.current.values()).filter(
+            (role) => role !== "admin"
+          ).length;
+          setChatBadgeCount(count);
         }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -231,17 +228,17 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
       "text-[13px] leading-none bg-zinc-950 text-white";
 
     const notifLabel =
-      typeof notifBadgeCount === 'number' && notifBadgeCount > 9 ? '9+' : String(notifBadgeCount ?? 0);
+      typeof notifBadgeCount === "number" && notifBadgeCount > 9 ? "9+" : String(notifBadgeCount ?? 0);
 
+    // ✅ Match notifications style: red text only, no box
+    const chatLabel = chatBadgeCount > 9 ? "9+" : String(chatBadgeCount);
 
     return (
       <div className="flex flex-col h-full min-h-0 w-full">
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
           {/* Workspace Indicator (visual only) */}
           <div className="mb-4">
-            <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">
-              Workspace
-            </div>
+            <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">Workspace</div>
 
             <div className={statusBase} aria-current="page">
               {inAdmin ? (
@@ -256,9 +253,10 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                 </>
               )}
             </div>
-            
+
             <div className="mt-4 border-t border-zinc-800/70" />
           </div>
+
           <nav className="space-y-1">
             {navItems.map((item) => {
               if (item.type === "link") {
@@ -373,8 +371,8 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                   <span className="relative">
                     <MessageCircle className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
                     {chatBadgeCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-sm">
-                        {chatBadgeCount}
+                      <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
+                        {chatLabel}
                       </span>
                     )}
                   </span>
@@ -393,7 +391,7 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
                 >
                   <span className="relative">
                     <Bell className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
-                    {typeof notifBadgeCount === 'number' && notifBadgeCount > 0 && (
+                    {typeof notifBadgeCount === "number" && notifBadgeCount > 0 && (
                       <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
                         {notifLabel}
                       </span>
@@ -425,7 +423,11 @@ export function AdminSidebar({ userEmail }: { userEmail?: string | null }) {
           <div className="p-6">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-white">Admin Menu</h2>
-              <button onClick={() => setIsOpen(false)} className="text-gray-400 hover:text-white" aria-label="Close">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="text-gray-400 hover:text-white"
+                aria-label="Close"
+              >
                 <X className="w-6 h-6" />
               </button>
             </div>
