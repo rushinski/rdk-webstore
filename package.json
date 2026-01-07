@@ -22,6 +22,8 @@
     "caddy:stop": "caddy stop"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.964.0",
+    "@aws-sdk/client-sesv2": "^3.964.0",
     "@stripe/connect-js": "^3.3.31",
     "@stripe/react-connect-js": "^3.3.31",
     "@stripe/react-stripe-js": "^5.4.1",

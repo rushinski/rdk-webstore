@@ -1,6 +1,8 @@
 // src/lib/email/mailer.ts
-import nodemailer from "nodemailer";
 import { env } from "@/config/env";
+import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import MailComposer from "nodemailer/lib/mail-composer";
 
 type EmailAttachment = {
   filename: string;
@@ -24,33 +26,88 @@ type RetryOptions = {
   timeoutMs?: number;
 };
 
-let transporter: nodemailer.Transporter | null = null;
+let sesv2: SESv2Client | null = null;
+let ses: SESClient | null = null;
 
-const getTransporter = () => {
-  if (transporter) return transporter;
-  const port = Number(env.SES_SMTP_PORT);
-  transporter = nodemailer.createTransport({
-    host: env.SES_SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: {
-      user: env.SES_SMTP_USER,
-      pass: env.SES_SMTP_PASS,
+const getSesv2 = () => {
+  if (sesv2) return sesv2;
+  sesv2 = new SESv2Client({
+    region: env.AWS_REGION,
+    credentials: {
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
     },
   });
-  return transporter;
+  return sesv2;
 };
 
-export async function sendEmail({ to, subject, html, text, attachments }: SendEmailInput) {
-  const mailer = getTransporter();
-  await mailer.sendMail({
-    from: `"${env.SES_FROM_NAME}" <${env.SES_FROM_EMAIL}>`,
-    to,
-    subject,
-    html,
-    text,
-    attachments,
+const getSes = () => {
+  if (ses) return ses;
+  ses = new SESClient({
+    region: env.AWS_REGION,
+    credentials: {
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    },
   });
+  return ses;
+};
+
+const buildFrom = () => `"${env.SES_FROM_NAME}" <${env.SES_FROM_EMAIL}>`;
+
+// Prefer SESv2 for simple emails (no attachments). Use SES raw for attachments / CID.
+export async function sendEmail({ to, subject, html, text, attachments }: SendEmailInput) {
+  const from = buildFrom();
+
+  if (attachments && attachments.length > 0) {
+    // RAW MIME path (supports attachments + inline CID)
+    const composer = new MailComposer({
+      from,
+      to,
+      subject,
+      html,
+      text,
+      attachments: attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+        cid: a.cid,
+        contentDisposition: a.contentDisposition ?? "attachment",
+      })),
+    });
+
+    const raw = await composer.compile().build(); // Buffer
+    const client = getSes();
+
+    await client.send(
+      new SendRawEmailCommand({
+        RawMessage: { Data: raw },
+      })
+    );
+
+    return;
+  }
+
+  // Simple path (fast + clean)
+  const client = getSesv2();
+
+  await client.send(
+    new SendEmailCommand({
+      FromEmailAddress: from,
+      Destination: { ToAddresses: [to] },
+      Content: {
+        Simple: {
+          Subject: { Data: subject, Charset: "UTF-8" },
+          Body: {
+            Html: { Data: html, Charset: "UTF-8" },
+            ...(text ? { Text: { Data: text, Charset: "UTF-8" } } : {}),
+          },
+        },
+      },
+      // Optional: if you use an SES Configuration Set
+      // ConfigurationSetName: env.AWS_SES_CONFIGURATION_SET,
+    })
+  );
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,10 +125,7 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number) => {
   }
 };
 
-export async function sendEmailWithRetry(
-  input: SendEmailInput,
-  options: RetryOptions = {}
-) {
+export async function sendEmailWithRetry(input: SendEmailInput, options: RetryOptions = {}) {
   const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
   const baseDelayMs = Math.max(0, options.baseDelayMs ?? 500);
   const timeoutMs = Math.max(1000, options.timeoutMs ?? 5000);
