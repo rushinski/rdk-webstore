@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { POST } from "@/app/api/checkout/confirm-payment/route";
+import { POST } from "../../../app/api/checkout/confirm-payment/route";
 import { OrdersRepository } from "@/repositories/orders-repo";
 
 jest.mock("@/lib/supabase/server", () => ({
