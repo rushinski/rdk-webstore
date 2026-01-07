@@ -2,13 +2,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { QRDisplay } from "./QRDisplay";
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
+
+type CopyStatus = "idle" | "copied" | "error";
 
 export function EnrollmentForm() {
   const router = useRouter();
@@ -25,6 +27,10 @@ export function EnrollmentForm() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // NEW: copy state for manual key
+  const [manualCopyStatus, setManualCopyStatus] = useState<CopyStatus>("idle");
+  const manualCopyResetTimer = useRef<number | null>(null);
+
   const canVerify = useMemo(() => code.replace(/\D/g, "").length === 6, [code]);
   const formatSecret = (secret: string) => secret.replace(/(.{4})/g, "$1 ").trim();
 
@@ -34,10 +40,58 @@ export function EnrollmentForm() {
       const parsed = new URL(uri);
       const secret = parsed.searchParams.get("secret");
       return secret || null;
-    } catch (error) {
+    } catch {
       return null;
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (manualCopyResetTimer.current) window.clearTimeout(manualCopyResetTimer.current);
+    };
+  }, []);
+
+  const writeClipboard = async (text: string) => {
+    // Clipboard API (preferred)
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    // Fallback for older/mobile browsers
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.setAttribute("readonly", "");
+    el.style.position = "fixed";
+    el.style.top = "-1000px";
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(el);
+    if (!ok) throw new Error("Copy failed");
+  };
+
+  const handleCopyManualKey = async () => {
+    if (!manualSecret) return;
+
+    try {
+      // Copy raw secret (no spaces)
+      await writeClipboard(manualSecret);
+      setManualCopyStatus("copied");
+    } catch {
+      setManualCopyStatus("error");
+    } finally {
+      if (manualCopyResetTimer.current) window.clearTimeout(manualCopyResetTimer.current);
+      manualCopyResetTimer.current = window.setTimeout(() => setManualCopyStatus("idle"), 2000);
+    }
+  };
+
+  const manualCopyLabel =
+    manualCopyStatus === "copied"
+      ? "Copied"
+      : manualCopyStatus === "error"
+        ? "Copy failed"
+        : "Copy";
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "test") return;
@@ -95,7 +149,6 @@ export function EnrollmentForm() {
         return;
       }
 
-      // Success - user is now fully authenticated with admin cookie set
       router.push("/admin");
     } finally {
       setIsSubmitting(false);
@@ -104,10 +157,7 @@ export function EnrollmentForm() {
 
   return (
     <div className="space-y-6">
-      <AuthHeader
-        title="Set up 2FA"
-        description="Scan the QR code with your authenticator app, then verify."
-      />
+      <AuthHeader title="Set up 2FA" description="Scan the QR code with your authenticator app, then verify." />
 
       <div className="space-y-5">
         {!factorId && (
@@ -145,16 +195,38 @@ export function EnrollmentForm() {
               Scan the QR code, then enter the 6-digit code to confirm.
             </div>
 
-            <QRDisplay qrCode={qrCode} copyValue={totpUri ?? manualSecret ?? null} />
+            {/* UPDATED: no copyValue prop anymore */}
+            <QRDisplay qrCode={qrCode} />
 
             {manualSecret && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
-                <div className="text-xs uppercase tracking-wide text-zinc-500">Manual setup key</div>
-                <div className="mt-2 font-mono text-base text-white tracking-widest">
-                  {formatSecret(manualSecret)}
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs uppercase tracking-wide text-zinc-500">Manual setup key</div>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyManualKey}
+                    className="shrink-0 text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-2 rounded"
+                    aria-live="polite"
+                    data-testid="manual-secret-copy-button"
+                  >
+                    {manualCopyLabel}
+                  </button>
                 </div>
-                <div className="mt-2 text-xs text-zinc-500">
-                  If you cannot scan the QR, enter this key in your authenticator app.
+
+                {/* Key field */}
+                <div className="mt-2">
+                  <input
+                    readOnly
+                    value={formatSecret(manualSecret)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full rounded border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs sm:text-sm text-white tracking-[0.12em] outline-none focus:border-zinc-600"
+                    aria-label="Manual setup key"
+                  />
+                  <div className="mt-2 text-xs text-zinc-500">
+                    Tap the field to select. If you cannot scan the QR, enter this key in your authenticator app.
+                  </div>
                 </div>
               </div>
             )}
@@ -176,11 +248,7 @@ export function EnrollmentForm() {
 
             {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
 
-            <button
-              type="submit"
-              disabled={!canVerify || isSubmitting}
-              className={AuthStyles.primaryButton}
-            >
+            <button type="submit" disabled={!canVerify || isSubmitting} className={AuthStyles.primaryButton}>
               {isSubmitting ? "Verifying..." : "Verify & continue"}
             </button>
 

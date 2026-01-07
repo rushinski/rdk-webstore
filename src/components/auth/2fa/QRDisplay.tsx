@@ -41,26 +41,8 @@ export function QRDisplay({ qrCode, copyValue }: { qrCode: string; copyValue?: s
     <div className="border border-zinc-800 bg-zinc-900/50 p-6">
       <div className="flex justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={qrCode}
-          alt="2FA QR Code"
-          className="h-48 w-48 bg-white p-3"
-        />
+        <img src={qrCode} alt="2FA QR Code" className="h-48 w-48 bg-white p-3" />
       </div>
-
-      {copyValue && (
-        <div className="mt-4 flex justify-center">
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-2 rounded"
-            aria-live="polite"
-            data-testid="qr-copy-button"
-          >
-            {copyLabel}
-          </button>
-        </div>
-      )}
 
       <p className="mt-4 text-center text-xs text-zinc-500">
         Scan with Google Authenticator or any TOTP app
