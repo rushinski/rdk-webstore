@@ -1,4 +1,4 @@
-// src/repositories/orders-repo.ts (NEW)
+// src/repositories/orders-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
@@ -109,7 +109,6 @@ export class OrdersRepository {
 
     if (orderError) throw orderError;
 
-    // Insert order items
     const orderItems: OrderItemInsert[] = input.items.map((item) => ({
       order_id: order.id,
       product_id: item.productId,
@@ -170,7 +169,6 @@ export class OrdersRepository {
     stripePaymentIntentId: string,
     itemsToDecrement: Array<{ productId: string; variantId: string | null; quantity: number }>
   ): Promise<boolean> {
-    // Update order status
     const { data: updated, error: orderError } = await this.supabase
       .from("orders")
       .update({
@@ -178,7 +176,7 @@ export class OrdersRepository {
         stripe_payment_intent_id: stripePaymentIntentId,
       })
       .eq("id", orderId)
-      .eq("status", "pending") // only update if still pending
+      .eq("status", "pending")
       .select("id");
 
     if (orderError) throw orderError;
@@ -186,10 +184,8 @@ export class OrdersRepository {
       return false;
     }
 
-    // Decrement inventory
     for (const item of itemsToDecrement) {
       if (item.variantId) {
-        // Decrement variant stock
         const { error: variantError } = await this.supabase.rpc("decrement_variant_stock", {
           p_variant_id: item.variantId,
           p_quantity: item.quantity,
@@ -347,16 +343,41 @@ export class OrdersRepository {
 
   async markReadyToShip(
     orderId: string,
-    input: { carrier?: string | null; trackingNumber?: string | null }
+    input: { 
+      carrier?: string | null; 
+      trackingNumber?: string | null; 
+      labelUrl?: string | null;
+      labelCreatedBy?: string | null;
+      actualShippingCost?: number | null;
+    }
   ): Promise<OrderRow> {
+    const updateData: any = {
+      fulfillment_status: "ready_to_ship",
+      shipping_carrier: input.carrier ?? null,
+      tracking_number: input.trackingNumber ?? null,
+      shipped_at: null,
+    };
+    
+    // Store label URL if provided (for reprinting)
+    if (input.labelUrl) {
+      updateData.label_url = input.labelUrl;
+      // Auto-set label creation timestamp (can also be done via DB trigger)
+      updateData.label_created_at = new Date().toISOString();
+    }
+    
+    // Store who created the label (for audit trail)
+    if (input.labelCreatedBy) {
+      updateData.label_created_by = input.labelCreatedBy;
+    }
+    
+    // Store actual shipping cost (for profit tracking)
+    if (input.actualShippingCost !== null && input.actualShippingCost !== undefined) {
+      updateData.actual_shipping_cost_cents = input.actualShippingCost;
+    }
+
     const { data, error } = await this.supabase
       .from("orders")
-      .update({
-        fulfillment_status: "ready_to_ship",
-        shipping_carrier: input.carrier ?? null,
-        tracking_number: input.trackingNumber ?? null,
-        shipped_at: null,
-      })
+      .update(updateData)
       .eq("id", orderId)
       .select()
       .single();

@@ -142,6 +142,13 @@ export type Database = {
             foreignKeyName: "admin_notifications_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_labels"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "admin_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -494,6 +501,13 @@ export type Database = {
             foreignKeyName: "chats_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_labels"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "chats_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -663,6 +677,13 @@ export type Database = {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_labels"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -727,6 +748,13 @@ export type Database = {
             foreignKeyName: "order_shipping_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: true
+            referencedRelation: "order_labels"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_shipping_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -734,6 +762,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          actual_shipping_cost_cents: number | null
           cart_hash: string | null
           created_at: string | null
           currency: string | null
@@ -743,6 +772,9 @@ export type Database = {
           fulfillment_status: string | null
           id: string
           idempotency_key: string | null
+          label_created_at: string | null
+          label_created_by: string | null
+          label_url: string | null
           marketplace_id: string | null
           public_token: string | null
           refund_amount: number | null
@@ -762,6 +794,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          actual_shipping_cost_cents?: number | null
           cart_hash?: string | null
           created_at?: string | null
           currency?: string | null
@@ -771,6 +804,9 @@ export type Database = {
           fulfillment_status?: string | null
           id?: string
           idempotency_key?: string | null
+          label_created_at?: string | null
+          label_created_by?: string | null
+          label_url?: string | null
           marketplace_id?: string | null
           public_token?: string | null
           refund_amount?: number | null
@@ -790,6 +826,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          actual_shipping_cost_cents?: number | null
           cart_hash?: string | null
           created_at?: string | null
           currency?: string | null
@@ -799,6 +836,9 @@ export type Database = {
           fulfillment_status?: string | null
           id?: string
           idempotency_key?: string | null
+          label_created_at?: string | null
+          label_created_by?: string | null
+          label_url?: string | null
           marketplace_id?: string | null
           public_token?: string | null
           refund_amount?: number | null
@@ -818,6 +858,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_label_created_by_fkey"
+            columns: ["label_created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_marketplace_id_fkey"
             columns: ["marketplace_id"]
@@ -1392,6 +1439,13 @@ export type Database = {
             foreignKeyName: "stripe_events_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_labels"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "stripe_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1494,7 +1548,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      order_labels: {
+        Row: {
+          created_by_email: string | null
+          created_by_name: string | null
+          fulfillment_status: string | null
+          label_created_at: string | null
+          label_created_by: string | null
+          label_url: string | null
+          order_id: string | null
+          shipping_carrier: string | null
+          tracking_number: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_label_created_by_fkey"
+            columns: ["label_created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       decrement_variant_stock: {

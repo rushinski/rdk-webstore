@@ -1,4 +1,5 @@
 // app/api/admin/shipping/labels/route.ts
+// Enhanced version with audit tracking and cost recording
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -14,26 +15,51 @@ import { logError } from "@/lib/log";
 const labelsSchema = z
   .object({
     orderId: z.string().uuid(),
-    shipmentId: z.string(), // kept for backwards compatibility
+    shipmentId: z.string(),
     rateId: z.string(),
   })
   .strict();
 
 const isAlreadyLabeledOrPast = (order: any) => {
   const status = String(order?.fulfillment_status ?? "").toLowerCase();
-
   if (order?.tracking_number) return true;
   if (["ready_to_ship", "shipped", "delivered"].includes(status)) return true;
-
   return false;
+};
+
+const mapShippoError = (error: string): string => {
+  const lower = error.toLowerCase();
+  
+  if (lower.includes('address') && lower.includes('invalid')) {
+    return 'The shipping address is invalid. Please verify the address details.';
+  }
+  if (lower.includes('insufficient funds')) {
+    return 'Insufficient funds in your Shippo account. Please add funds to continue.';
+  }
+  if (lower.includes('rate') && lower.includes('expired')) {
+    return 'The shipping rate has expired. Please get new rates and try again.';
+  }
+  if (lower.includes('carrier')) {
+    return 'Carrier service unavailable. Please try a different carrier or try again later.';
+  }
+  
+  return error;
+};
+
+// Convert dollar string to cents
+const dollarsToCents = (dollars: string | null | undefined): number => {
+  if (!dollars) return 0;
+  const num = parseFloat(dollars);
+  return Math.round(num * 100);
 };
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdminApi();
+    const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
+    const adminUserId = session.profile?.id ?? null;
 
     const body = await request.json().catch(() => null);
     const parsed = labelsSchema.safeParse(body);
@@ -59,7 +85,7 @@ export async function POST(request: NextRequest) {
     if (isAlreadyLabeledOrPast(order)) {
       return NextResponse.json(
         {
-          error: "Label already purchased for this order.",
+          error: "A shipping label has already been purchased for this order.",
           requestId,
           carrier: order.shipping_carrier ?? null,
           trackingNumber: order.tracking_number ?? null,
@@ -69,28 +95,69 @@ export async function POST(request: NextRequest) {
     }
 
     // Purchase label via Shippo
-    const transaction = await shippoService.purchaseLabel(rateId);
+    let transaction;
+    try {
+      transaction = await shippoService.purchaseLabel(rateId);
+    } catch (shippoError: any) {
+      const mappedError = mapShippoError(shippoError?.message || 'Label purchase failed');
+      
+      // Log for monitoring
+      logError(shippoError, {
+        layer: "api",
+        requestId,
+        orderId,
+        rateId,
+        message: "Shippo label purchase failed"
+      });
+      
+      return NextResponse.json(
+        { error: mappedError, requestId },
+        { status: 502 }
+      );
+    }
 
     if (transaction.status !== "SUCCESS") {
       const errorText = transaction.messages?.[0]?.text ?? "Transaction not successful";
-      throw new Error(`Shippo label purchase failed: ${errorText}`);
+      const mappedError = mapShippoError(errorText);
+      
+      logError(new Error(`Shippo transaction failed: ${errorText}`), {
+        layer: "api",
+        requestId,
+        orderId,
+        transactionStatus: transaction.status
+      });
+      
+      return NextResponse.json(
+        { error: `Label purchase failed: ${mappedError}`, requestId },
+        { status: 502 }
+      );
     }
 
     const carrier = transaction.carrier;
     const trackingNumber = transaction.trackingNumber;
     const trackingUrl = transaction.trackingUrl;
+    const labelUrl = transaction.labelUrl;
+    const shippingCostCents = dollarsToCents(transaction.rate);
 
     if (!trackingNumber) {
-      throw new Error("Shippo label purchase succeeded but returned no tracking number");
+      return NextResponse.json(
+        { error: "Label purchase succeeded but returned no tracking number. Please contact support.", requestId },
+        { status: 502 }
+      );
     }
 
-    // Update order
-    await ordersRepo.markReadyToShip(orderId, {
+    // Update order with full audit trail
+    const updateData: any = {
       carrier,
       trackingNumber,
-    });
+      labelUrl,
+      labelCreatedBy: adminUserId,
+      actualShippingCost: shippingCostCents,
+    };
 
-    // Send email (best effort)
+    await ordersRepo.markReadyToShip(orderId, updateData);
+
+    // Send customer notification email
     try {
       if (order.user_id) {
         const profile = await profilesRepo.getByUserId(order.user_id);
@@ -106,27 +173,51 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (emailError) {
+      // Don't fail the request if email fails
       logError(emailError, {
         layer: "api",
         requestId,
-        message: "Failed to send label created email",
+        message: "Failed to send label created email (non-blocking)",
+        orderId,
       });
     }
 
-    const labelUrl = transaction.labelUrl;
+    // Log successful label creation
+    logError(new Error("Label created successfully"), {
+      layer: "api",
+      requestId,
+      orderId,
+      carrier,
+      trackingNumber,
+      cost: shippingCostCents,
+      createdBy: adminUserId,
+      level: "info"
+    });
 
     return NextResponse.json({
+      success: true,
       label: {
         label_url: labelUrl,
         pdf_url: labelUrl,
       },
       trackingCode: trackingNumber,
       trackingUrl: trackingUrl,
+      carrier: carrier,
+      cost: shippingCostCents,
+      message: "Label purchased successfully. Customer has been notified via email.",
     });
   } catch (error: any) {
-    logError(error, { layer: "api", requestId, route: "/api/admin/shipping/labels" });
+    logError(error, { 
+      layer: "api", 
+      requestId, 
+      route: "/api/admin/shipping/labels",
+      message: "Unexpected error during label creation"
+    });
+    
+    const userMessage = mapShippoError(error.message || "Failed to create shipping label.");
+    
     return NextResponse.json(
-      { error: error.message || "Failed to create shipping label.", requestId },
+      { error: userMessage, requestId },
       { status: 500 }
     );
   }

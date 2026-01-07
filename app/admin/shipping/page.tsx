@@ -2,9 +2,10 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ExternalLink, AlertCircle } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { CreateLabelForm } from '@/components/admin/shipping/CreateLabelForm';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 
 type ShippingAddress = {
   name?: string | null;
@@ -159,13 +160,13 @@ export default function ShippingPage() {
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [markingShippedId, setMarkingShippedId] = useState<string | null>(null);
+  const [confirmMarkShipped, setConfirmMarkShipped] = useState<any | null>(null);
   const [originAddress, setOriginAddress] = useState<ShippingOrigin | null>(null);
   const [originModalOpen, setOriginModalOpen] = useState(false);
   const [originMessage, setOriginMessage] = useState('');
   const [originError, setOriginError] = useState('');
   const [savingOrigin, setSavingOrigin] = useState(false);
 
-  // NEW: label modal state
   const [labelOrder, setLabelOrder] = useState<any | null>(null);
 
   const currentPage = pageByTab[activeTab];
@@ -256,7 +257,12 @@ export default function ShippingPage() {
           page: String(currentPage),
         });
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        if (!response.ok) throw new Error(`Failed to fetch orders: ${response.statusText}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
+        }
+        
         const data = await response.json();
         setOrders(data.orders || []);
         if (typeof data.count === 'number') {
@@ -342,6 +348,7 @@ export default function ShippingPage() {
       });
       if (!response.ok) throw new Error('Failed to mark as shipped');
       setRefreshToken((token) => token + 1);
+      setConfirmMarkShipped(null);
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'admin_mark_shipped' });
     } finally {
@@ -373,6 +380,21 @@ export default function ShippingPage() {
       setOriginError(error?.message || 'Failed to save origin.');
     } finally {
       setSavingOrigin(false);
+    }
+  };
+
+  const handleLabelSuccess = () => {
+    setLabelOrder(null);
+    setRefreshToken((t) => t + 1);
+    // Optionally switch to "Need to Ship" tab
+    setActiveTab('ready');
+  };
+
+  const viewLabel = (order: any) => {
+    // Get label URL - you'll need to add this to your order model
+    const labelUrl = order.label_url ?? null;
+    if (labelUrl) {
+      window.open(labelUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -454,6 +476,8 @@ export default function ShippingPage() {
     const packageProfile = getPackageProfile(order);
     const shippingLabel = packageProfile.costCents ? `Standard (${formatCurrency(packageProfile.costCents)})` : 'Standard';
     const colSpan = 9;
+    const hasLabel = !!order.tracking_number;
+    const labelUrl = order.label_url ?? null; // Add this field to your order model
 
     return (
       <Fragment key={order.id}>
@@ -482,13 +506,24 @@ export default function ShippingPage() {
           <td className="p-4 text-gray-400">{shippingLabel}</td>
           <td className="p-4 text-gray-400">
             {order.tracking_number ? (
-              trackingUrl ? (
-                <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300">
-                  {order.tracking_number}
-                </a>
-              ) : (
-                <span className="text-zinc-300">{order.tracking_number}</span>
-              )
+              <div className="space-y-1">
+                {trackingUrl ? (
+                  <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="text-red-400 hover:text-red-300 flex items-center gap-1">
+                    {order.tracking_number}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <span className="text-zinc-300">{order.tracking_number}</span>
+                )}
+                {labelUrl && (
+                  <button
+                    onClick={() => viewLabel(order)}
+                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                  >
+                    View label
+                  </button>
+                )}
+              </div>
             ) : (
               <span className="text-zinc-500">No label yet</span>
             )}
@@ -515,11 +550,11 @@ export default function ShippingPage() {
             ) : activeTab === 'ready' ? (
               <button
                 type="button"
-                onClick={() => handleMarkShipped(order)}
+                onClick={() => setConfirmMarkShipped(order)}
                 disabled={markingShippedId === order.id}
-                className="text-sm text-red-400 hover:text-red-300 disabled:text-zinc-600"
+                className="text-sm text-zinc-400 hover:text-zinc-300 disabled:text-zinc-600"
               >
-                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped'}
+                {markingShippedId === order.id ? 'Marking...' : 'Mark shipped (fallback)'}
               </button>
             ) : (
               <span className="text-zinc-500">-</span>
@@ -539,7 +574,6 @@ export default function ShippingPage() {
                     'Item';
                   return (
                     <div key={item.id} className="flex items-center gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={imageUrl}
                         alt={title}
@@ -577,6 +611,18 @@ export default function ShippingPage() {
         <h1 className="text-3xl font-bold text-white mb-2">Shipping</h1>
         <p className="text-gray-400">Review, label, and ship your orders.</p>
       </div>
+
+      {activeTab === 'ready' && (
+        <div className="rounded-sm border border-blue-400/20 bg-blue-400/10 p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-300">
+              <strong>Automatic tracking:</strong> Once you ship packages, Shippo will automatically update tracking status and send customer emails. 
+              The "Mark shipped (fallback)" button should only be used if the carrier hasn't scanned the package yet.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
         {TABS.map((tab) => (
@@ -639,7 +685,6 @@ export default function ShippingPage() {
 
       {renderPagination()}
 
-      {/* NEW: Modal-based label creation */}
       <CreateLabelForm
         open={!!labelOrder}
         order={labelOrder}
@@ -655,10 +700,16 @@ export default function ShippingPage() {
             : null
         }
         onClose={() => setLabelOrder(null)}
-        onSuccess={() => {
-          setLabelOrder(null);
-          setRefreshToken((t) => t + 1);
-        }}
+        onSuccess={handleLabelSuccess}
+      />
+
+      <ConfirmDialog
+        isOpen={!!confirmMarkShipped}
+        title="Mark as shipped manually?"
+        description="Important: This should only be used if the carrier hasn't scanned the package yet. Normally, Shippo automatically updates tracking status and sends customer emails when the carrier scans the package. Using this button will manually update the status without waiting for carrier confirmation."
+        confirmLabel="Mark shipped anyway"
+        onConfirm={() => confirmMarkShipped && handleMarkShipped(confirmMarkShipped)}
+        onCancel={() => setConfirmMarkShipped(null)}
       />
 
       {originModalOpen && (

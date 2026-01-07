@@ -5,7 +5,6 @@ import { DistanceUnitEnum, WeightUnitEnum, LabelFileTypeEnum } from "shippo/mode
 import { env } from "@/config/env";
 import { logError } from "@/lib/log";
 
-// Shippo SDK init (server-side only)
 const shippo = new Shippo({
   apiKeyHeader: env.SHIPPO_API_TOKEN,
 });
@@ -29,7 +28,6 @@ interface IParcel {
   weight: number; // ounces
 }
 
-// Normalized response types
 export interface NormalizedRate {
   id: string;
   carrier: string;
@@ -50,6 +48,8 @@ export interface NormalizedTransaction {
   trackingNumber: string | null;
   trackingUrl: string | null;
   labelUrl: string | null;
+  rate: string | null; // Actual cost in dollars (e.g., "5.50")
+  currency: string | null;
   messages: Array<{ text: string }>;
 }
 
@@ -81,11 +81,7 @@ export class ShippoService {
     };
   }
 
-  /**
-   * Normalize a Shippo rate object to consistent format
-   */
   private normalizeRate(rate: any): NormalizedRate | null {
-    // Shippo rate fields: objectId, provider, servicelevel, amount, currency, estimatedDays
     const id = rate?.objectId ?? rate?.object_id ?? null;
     if (!id) return null;
 
@@ -105,9 +101,6 @@ export class ShippoService {
     };
   }
 
-  /**
-   * Creates a Shippo shipment and returns normalized shipment with rates
-   */
   async createShipment(
     fromAddress: IAddress,
     toAddress: IAddress,
@@ -121,7 +114,6 @@ export class ShippoService {
         async: false,
       });
 
-      // Shippo shipment object structure
       const shipmentId = (shipment as any)?.objectId ?? (shipment as any)?.object_id;
       if (!shipmentId) {
         logError(new Error("Shippo shipment missing objectId"), {
@@ -151,9 +143,6 @@ export class ShippoService {
     }
   }
 
-  /**
-   * Purchases a label by creating a Transaction for the given rateId
-   */
   async purchaseLabel(rateId: string): Promise<NormalizedTransaction> {
     try {
       const transaction = await shippo.transactions.create({
@@ -162,8 +151,11 @@ export class ShippoService {
         async: false,
       });
 
-      // Normalize transaction response
       const txn = transaction as any;
+      
+      // Extract rate information from the transaction
+      const rate = txn?.rate?.amount ?? txn?.amount ?? null;
+      const currency = txn?.rate?.currency ?? txn?.currency ?? "USD";
       
       return {
         status: String(txn?.status ?? "").toUpperCase(),
@@ -171,6 +163,8 @@ export class ShippoService {
         trackingNumber: txn?.trackingNumber ?? txn?.tracking_number ?? null,
         trackingUrl: txn?.trackingUrlProvider ?? txn?.tracking_url_provider ?? null,
         labelUrl: txn?.labelUrl ?? txn?.label_url ?? null,
+        rate: rate ? String(rate) : null,
+        currency: currency ? String(currency) : null,
         messages: Array.isArray(txn?.messages) ? txn.messages : [],
       };
     } catch (error: any) {
