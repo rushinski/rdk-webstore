@@ -1,15 +1,39 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://127.0.0.1:3000";
+const e2eMode = process.env.E2E_MODE === "vercel" ? "vercel" : "local";
+const baseURL = process.env.E2E_BASE_URL || "http://127.0.0.1:3000";
+const isVercel = e2eMode === "vercel";
+
+const localProjects = [
+  { name: "desktop", use: { ...devices["Desktop Chrome"] } },
+  { name: "tablet", use: { ...devices["iPad (gen 7)"] } },
+  { name: "mobile", use: { ...devices["iPhone 13"] } },
+  { name: "wide", use: { viewport: { width: 1920, height: 1080 } } },
+];
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  use: { baseURL },
-  webServer: baseURL.includes("127.0.0.1")
-    ? {
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  use: {
+    baseURL,
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+  },
+  projects: isVercel ? [{ name: "vercel-smoke", use: { ...devices["Desktop Chrome"] } }] : localProjects,
+  webServer: isVercel
+    ? undefined
+    : {
         command: "npm run dev:test",
         url: baseURL,
-        env: { NODE_ENV: "test" },
-      }
-    : undefined,
+        env: {
+          NODE_ENV: "test",
+          E2E_MODE: "local",
+          E2E_SEED_STRATEGY: process.env.E2E_SEED_STRATEGY ?? "cli",
+        },
+        reuseExistingServer: !process.env.CI,
+      },
+  globalSetup: "./tests/e2e/global-setup.ts",
+  grep: isVercel ? /@smoke/ : undefined,
 });

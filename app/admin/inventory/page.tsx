@@ -249,6 +249,7 @@ export default function InventoryPage() {
               ? 'text-white border-b-2 border-red-600'
               : 'text-gray-400 hover:text-white'
           }`}
+          data-testid="inventory-filter-in-stock"
         >
           In Stock
         </button>
@@ -259,6 +260,7 @@ export default function InventoryPage() {
               ? 'text-white border-b-2 border-red-600'
               : 'text-gray-400 hover:text-white'
           }`}
+          data-testid="inventory-filter-out-of-stock"
         >
           Out of Stock
         </button>
@@ -368,7 +370,12 @@ export default function InventoryPage() {
                   const primaryImage = product.images.find((image) => image.is_primary) ?? product.images[0];
 
                   return (
-                    <tr key={product.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
+                    <tr
+                      key={product.id}
+                      className="border-b border-zinc-800/70 hover:bg-zinc-800"
+                      data-testid="inventory-row"
+                      data-product-id={product.id}
+                    >
                       <td className="px-4 py-3">
                         <input
                           type="checkbox"

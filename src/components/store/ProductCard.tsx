@@ -23,7 +23,12 @@ export function ProductCard({ product }: ProductCardProps) {
     : 'Multiple sizes';
 
   return (
-    <Link href={`/store/${product.id}`} className="group block h-full">
+    <Link
+      href={`/store/${product.id}`}
+      className="group block h-full"
+      data-testid="product-card"
+      data-product-id={product.id}
+    >
       <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
         <div className="aspect-square relative bg-zinc-800">
           {primaryImage && (

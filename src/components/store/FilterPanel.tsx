@@ -55,6 +55,7 @@ export function FilterPanel({
   }, [categories]);
 
   const conditions = ["new", "used"];
+  const toTestId = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
 
   const hasSneakers = categories.includes("sneakers");
   const hasClothing = categories.includes("clothing");
@@ -225,6 +226,7 @@ export function FilterPanel({
             <button
               onClick={clearFilters}
               className="text-red-500 text-xs hover:underline"
+              data-testid="filters-clear-all"
             >
               Clear All
             </button>
@@ -329,6 +331,7 @@ export function FilterPanel({
                   checked={selectedCategories.includes(cat)}
                   onChange={() => handleCategoryChange(cat)}
                   className="rdk-checkbox mr-2"
+                  data-testid={`filter-category-${toTestId(cat)}`}
                 />
                 <span className="capitalize">{cat}</span>
               </label>
@@ -372,6 +375,7 @@ export function FilterPanel({
                           checked={selectedBrands.includes(brandKey)}
                           onChange={() => handleBrandChange(brandKey)}
                           className="rdk-checkbox mr-2"
+                          data-testid={`filter-brand-${toTestId(brandKey)}`}
                         />
                         <span>{brand.label}</span>
                       </label>
@@ -400,6 +404,7 @@ export function FilterPanel({
                               checked={selectedModels.includes(model)}
                               onChange={() => handleModelChange(model, brandKey)}
                               className="rdk-checkbox mr-2"
+                              data-testid={`filter-model-${toTestId(model)}`}
                             />
                             <span>{model}</span>
                           </label>
@@ -442,6 +447,7 @@ export function FilterPanel({
                           checked={selectedShoeSizes.includes(size)}
                           onChange={() => handleShoeSizeChange(size)}
                           className="rdk-checkbox mr-2"
+                          data-testid={`filter-size-shoe-${toTestId(size)}`}
                         />
                         <span>{size}</span>
                       </label>
@@ -463,6 +469,7 @@ export function FilterPanel({
                           checked={selectedClothingSizes.includes(size)}
                           onChange={() => handleClothingSizeChange(size)}
                           className="rdk-checkbox mr-2"
+                          data-testid={`filter-size-clothing-${toTestId(size)}`}
                         />
                         <span>{size}</span>
                       </label>
@@ -498,6 +505,7 @@ export function FilterPanel({
                   checked={selectedConditions.includes(cond)}
                   onChange={() => handleConditionChange(cond)}
                   className="rdk-checkbox mr-2"
+                  data-testid={`filter-condition-${toTestId(cond)}`}
                 />
                 <span className="capitalize">{cond}</span>
               </label>
@@ -540,6 +548,7 @@ export function FilterPanel({
       <div
         className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded p-6 overflow-y-auto"
         style={{ maxHeight: "calc(100vh - var(--rdk-header-offset, 0px) - 1rem)" }}
+        data-testid="filter-panel"
       >
         <h2 className="text-xl font-bold text-white mb-6">Filters</h2>
         {renderFilterContent()}

@@ -311,6 +311,7 @@ export function AdminSidebar({
                     href={item.href}
                     onClick={() => setIsOpen(false)}
                     className={`${baseItemClass} ${isActive ? activeItemClass : inactiveItemClass}`}
+                    data-testid={item.href === "/admin/bank" ? "admin-nav-bank" : undefined}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-[15px]">{item.label}</span>

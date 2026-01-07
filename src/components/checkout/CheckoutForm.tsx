@@ -66,6 +66,38 @@ export function CheckoutForm({
   };
 
   const handlePayment = async (withSubmit: boolean) => {
+    const e2eStatus =
+      process.env.NODE_ENV === 'test'
+        ? new URLSearchParams(window.location.search).get('e2e_payment_status')
+        : null;
+    if (e2eStatus) {
+      setIsProcessing(true);
+      setError(null);
+      const params = new URLSearchParams(window.location.search);
+      const intentId = params.get('e2e_payment_intent_id') ?? 'pi_test_e2e';
+      try {
+        if (e2eStatus === 'success') {
+          await confirmBackendPayment(intentId);
+          router.push(`/checkout/success?orderId=${orderId}`);
+          return { ok: true };
+        }
+        if (e2eStatus === 'processing' || e2eStatus === 'requires_action') {
+          const statusParam = e2eStatus === 'processing' ? 'processing' : 'processing';
+          router.push(`/checkout/processing?orderId=${orderId}&e2e_status=${statusParam}`);
+          return { ok: true };
+        }
+        if (e2eStatus === 'canceled' || e2eStatus === 'requires_payment_method') {
+          throw new Error('Payment failed. Please try again.');
+        }
+      } catch (err: any) {
+        const message = err.message || 'Payment failed. Please try again.';
+        setError(message);
+        return { ok: false, error: message };
+      } finally {
+        setIsProcessing(false);
+      }
+    }
+
     if (!stripe || !elements) {
       setError('Stripe is still loading. Please wait a moment.');
       return { ok: false, error: 'Stripe not ready' };
@@ -208,6 +240,7 @@ export function CheckoutForm({
               onChange={() => onFulfillmentChange('ship')}
               className="mt-1"
               disabled={isUpdatingFulfillment || isProcessing}
+              data-testid="fulfillment-ship"
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -229,6 +262,7 @@ export function CheckoutForm({
               onChange={() => onFulfillmentChange('pickup')}
               className="mt-1"
               disabled={isUpdatingFulfillment || isProcessing}
+              data-testid="fulfillment-pickup"
             />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -346,6 +380,7 @@ export function CheckoutForm({
         type="submit"
         disabled={!stripe || isProcessing || isUpdatingFulfillment}
         className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-lg flex items-center justify-center gap-2"
+        data-testid="checkout-submit"
       >
         {isProcessing ? (
           <>

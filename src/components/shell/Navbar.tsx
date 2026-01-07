@@ -772,6 +772,7 @@ export function Navbar({
               <button
                 type="button"
                 className="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                data-testid="navbar-user-menu"
               >
                 <User className="w-5 h-5" />
                 <ChevronDown className="w-3 h-3" />
@@ -813,18 +814,24 @@ export function Navbar({
               <Link
                 href={loginUrl}
                 className="px-4 py-2 text-sm font-semibold text-gray-300 hover:text-white transition-colors cursor-pointer"
+                data-testid="navbar-login"
               >
                 Login
               </Link>
               <Link
                 href={registerUrl}
                 className="px-4 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white transition-colors cursor-pointer"
+                data-testid="navbar-signup"
               >
                 Sign Up
               </Link>
             </div>
           ) : showAuthLoading ? (
-            <div className="flex items-center gap-2" aria-label="Loading account">
+            <div
+              className="flex items-center gap-2"
+              aria-label="Loading account"
+              data-testid="navbar-auth-loading"
+            >
               <div className="h-9 w-9 rounded-full bg-zinc-800 animate-pulse" />
             </div>
           ) : null}

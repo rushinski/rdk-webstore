@@ -11,6 +11,7 @@ interface PasswordFieldProps {
   onChange: (value: string) => void;
   autoComplete?: string;
   required?: boolean;
+  dataTestId?: string;
 }
 
 export function PasswordField({
@@ -20,6 +21,7 @@ export function PasswordField({
   onChange,
   autoComplete,
   required = true,
+  dataTestId,
 }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
 
@@ -40,6 +42,7 @@ export function PasswordField({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="h-11 w-full bg-zinc-900 border border-zinc-800 px-4 pr-11 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
+          data-testid={dataTestId}
         />
         <button
           type="button"

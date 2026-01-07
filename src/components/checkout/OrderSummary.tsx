@@ -76,7 +76,10 @@ export function OrderSummary({
             <span>Shipping</span>
             <span className="text-xs">
               {isUpdatingShipping ? (
-                <span className="inline-flex items-center gap-2 text-xs text-gray-400">
+                <span
+                  className="inline-flex items-center gap-2 text-xs text-gray-400"
+                  data-testid="shipping-loading"
+                >
                   <Loader2 className="w-3 h-3 animate-spin" />
                   Updating...
                 </span>
@@ -92,7 +95,10 @@ export function OrderSummary({
               <span>Total</span>
               <span>
                 {isUpdatingShipping ? (
-                  <span className="inline-flex items-center gap-2 text-sm text-zinc-400">
+                  <span
+                    className="inline-flex items-center gap-2 text-sm text-zinc-400"
+                    data-testid="total-loading"
+                  >
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Updating...
                   </span>

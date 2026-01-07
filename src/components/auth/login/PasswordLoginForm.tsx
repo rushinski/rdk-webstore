@@ -112,6 +112,7 @@ export function PasswordLoginForm({
               required
               autoComplete="email"
               className={AuthStyles.input}
+              data-testid="login-email"
             />
           </div>
 
@@ -134,6 +135,7 @@ export function PasswordLoginForm({
               value={password}
               onChange={setPassword}
               autoComplete="current-password"
+              dataTestId="login-password"
             />
           </div>
         </div>
@@ -143,6 +145,7 @@ export function PasswordLoginForm({
             type="submit"
             disabled={isSubmitting}
             className={AuthStyles.primaryButton}
+            data-testid="login-submit"
           >
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>

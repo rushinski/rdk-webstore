@@ -9,7 +9,7 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_DB_URL: z.string(),
 
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string(), // Added for Connect.js
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string(), 
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
 

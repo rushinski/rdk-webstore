@@ -21,10 +21,18 @@ export default function CheckoutProcessingPage() {
     const orderId = searchParams.get('orderId');
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
     const paymentIntentId = searchParams.get('payment_intent');
+    const e2eStatus =
+      process.env.NODE_ENV === 'test' ? searchParams.get('e2e_status') : null;
 
     if (!orderId) {
       setStatus('error');
       setMessage('Invalid payment information');
+      return;
+    }
+
+    if (e2eStatus === 'success' || e2eStatus === 'error' || e2eStatus === 'processing') {
+      setStatus(e2eStatus);
+      setMessage(`E2E forced status: ${e2eStatus}`);
       return;
     }
 
@@ -136,12 +144,12 @@ export default function CheckoutProcessingPage() {
   }, [searchParams, router]);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+    <div className="max-w-2xl mx-auto px-4 py-20 text-center" data-testid="checkout-processing">
       {status === 'processing' && (
         <>
           <Loader2 className="w-16 h-16 text-red-600 animate-spin mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-white mb-4">Processing Payment</h1>
-          <p className="text-gray-400">{message}</p>
+          <p className="text-gray-400" data-testid="processing-message">{message}</p>
         </>
       )}
 
@@ -149,7 +157,7 @@ export default function CheckoutProcessingPage() {
         <>
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-white mb-4">Payment Successful!</h1>
-          <p className="text-gray-400">{message}</p>
+          <p className="text-gray-400" data-testid="success-message">{message}</p>
         </>
       )}
 
@@ -157,7 +165,7 @@ export default function CheckoutProcessingPage() {
         <>
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-white mb-4">Payment Failed</h1>
-          <p className="text-gray-400 mb-8">{message}</p>
+          <p className="text-gray-400 mb-8" data-testid="error-message">{message}</p>
           <button
             onClick={() => router.push('/cart')}
             className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded transition"

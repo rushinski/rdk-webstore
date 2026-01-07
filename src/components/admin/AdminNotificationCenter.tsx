@@ -123,6 +123,7 @@ export function AdminNotificationCenter({ placement = 'top' }: Props) {
         onClick={() => setIsOpen((prev) => !prev)}
         className="relative flex items-center justify-center w-10 h-10 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition-colors rounded-sm"
         aria-label="Notifications"
+        data-testid="admin-notifications-toggle"
       >
         <Bell className="w-5 h-5 text-zinc-200" />
         {unreadCount > 0 && (
@@ -166,8 +167,11 @@ export function AdminNotificationCenter({ placement = 'top' }: Props) {
                   className={`block min-w-0 px-4 py-3 border-b border-zinc-900/70 hover:bg-zinc-900 transition ${
                     notification.read_at ? 'text-zinc-400' : 'text-white'
                   }`}
+                  data-testid="admin-notification-item"
                 >
-                  <div className="text-sm font-medium break-words whitespace-pre-wrap">{notification.message}</div>
+                  <div className="text-sm font-medium break-words whitespace-pre-wrap">
+                    {notification.message}
+                  </div>
                   <div className="text-xs text-zinc-500 mt-1">{formatTime(notification.created_at)}</div>
                 </Link>
               ))

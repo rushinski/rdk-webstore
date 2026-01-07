@@ -1,4 +1,5 @@
 import { TextEncoder, TextDecoder } from "node:util";
+import "./tests/helpers/env";
 
 (globalThis as any).TextEncoder = TextEncoder;
 (globalThis as any).TextDecoder = TextDecoder;

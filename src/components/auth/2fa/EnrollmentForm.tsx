@@ -2,8 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { QRDisplay } from "./QRDisplay";
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
@@ -12,6 +12,7 @@ import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
 
 export function EnrollmentForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [factorId, setFactorId] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -37,6 +38,20 @@ export function EnrollmentForm() {
       return null;
     }
   };
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "test") return;
+    if (searchParams.get("e2e_qr") !== "1") return;
+
+    const testUri = "otpauth://totp/RDK-Test?secret=TESTSECRET&issuer=RDK";
+    const testQr =
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iI2ZmZiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIGZpbGw9IiMwMDAiLz48L3N2Zz4=";
+
+    setFactorId("e2e-factor");
+    setQrCode(testQr);
+    setTotpUri(testUri);
+    setManualSecret(extractSecret(testUri));
+  }, [searchParams]);
 
   async function startEnroll() {
     setMsg(null);
