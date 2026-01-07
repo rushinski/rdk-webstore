@@ -1,24 +1,29 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createProductWithVariant } from "../../helpers/fixtures";
 
 test.describe("Storefront filters and duplicates", () => {
   test.beforeEach(async () => {
-    const base = await resetAndSeedForLocal();
-    if (base) {
-      await createProductWithVariant({
-        tenantId: base.tenantId,
-        marketplaceId: base.marketplaceId,
-        sku: "SKU-E2E-1",
-        stock: 5,
-        priceCents: 18000,
-      });
-    }
+    const base = await resetAndSeedForE2E();
+    await createProductWithVariant({
+      tenantId: base.tenantId,
+      marketplaceId: base.marketplaceId,
+      sku: "SKU-E2E-1",
+      stock: 5,
+      priceCents: 18000,
+    });
   });
 
   test("filters apply without crashing @smoke", async ({ page }) => {
     await page.goto("/store");
-    await page.locator('[data-testid="filter-panel"]').waitFor();
+    const panel = page.locator('[data-testid="filter-panel"]');
+    if (!(await panel.isVisible())) {
+      const openButton = page.locator('[data-testid="filters-open"]');
+      await openButton.waitFor();
+      await openButton.click();
+    } else {
+      await panel.waitFor();
+    }
     await page.locator('[data-testid="filter-category-sneakers"]').click();
     const grid = page.locator('[data-testid="product-grid"]');
     if (await grid.count()) {
@@ -35,7 +40,6 @@ test.describe("Storefront filters and duplicates", () => {
   });
 
   test("does not render duplicate product cards", async ({ page }) => {
-    test.skip(process.env.E2E_MODE === "vercel", "local-only seeding");
     await page.goto("/store");
     await page.locator('[data-testid="product-grid"]').waitFor();
     const cards = page.locator('[data-testid="product-card"]');

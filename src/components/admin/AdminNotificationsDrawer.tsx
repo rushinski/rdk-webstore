@@ -194,6 +194,7 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
                   className={`block min-w-0 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition px-4 py-3 rounded-sm ${
                     n.read_at ? 'text-zinc-400' : 'text-white'
                   }`}
+                  data-testid="admin-notification-item"
                 >
                   <div className="text-sm font-medium break-words whitespace-pre-wrap">{n.message}</div>
                   <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>

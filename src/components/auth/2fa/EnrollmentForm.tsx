@@ -94,7 +94,12 @@ export function EnrollmentForm() {
         : "Copy";
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "test") return;
+    if (
+      process.env.NEXT_PUBLIC_E2E_TEST_MODE !== "1" &&
+      process.env.NODE_ENV !== "test"
+    ) {
+      return;
+    }
     if (searchParams.get("e2e_qr") !== "1") return;
 
     const testUri = "otpauth://totp/RDK-Test?secret=TESTSECRET&issuer=RDK";
@@ -196,7 +201,7 @@ export function EnrollmentForm() {
             </div>
 
             {/* UPDATED: no copyValue prop anymore */}
-            <QRDisplay qrCode={qrCode} />
+            <QRDisplay qrCode={qrCode} copyValue={totpUri ?? undefined} />
 
             {manualSecret && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">

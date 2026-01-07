@@ -172,16 +172,19 @@ It must be updated as tests are added so CI/Vercel readiness stays provable.
 - tests/unit/catalog/product-title-parser.test.ts
 
 ## Coverage matrix (planned, Pass 5)
-Legend: Unit = Jest unit, Integration = Jest + Supabase CLI, E2E = Playwright local, Smoke = Playwright vercel mode.
+Legend: Unit = Jest unit, Integration = Jest + Supabase (local or remote DB), E2E = Playwright (local + vercel with seeded DB).
+E2E seeding uses `E2E_SEED_STRATEGY=cli|remote|none`; vercel runs must use a dedicated staging Supabase with `SUPABASE_DB_URL` set.
+Client E2E hooks require `NEXT_PUBLIC_E2E_TEST_MODE=1` and server-side auth bypass uses `E2E_TEST_MODE=1`.
 
 ### Payments (Stripe)
 - Totals computation + rounding (checkout-service): Unit
 - Idempotency store (stripe-events-repo + webhook service): Unit + Integration
 - Webhook state updates (app/api/webhooks/stripe): Integration
-- Confirm-payment status handling (processing/requires_action/succeeded/canceled/requires_payment_method): Unit + Integration
-- Checkout happy path: E2E + Smoke (safe)
-- Non-card payment flow or deterministic simulation: E2E + Smoke (safe)
-- Client tampering (total/shipping) rejected server-side: E2E
+- Confirm-payment status handling (processing/requires_action/succeeded/canceled/requires_payment_method): Unit
+- Create-payment-intent totals + idempotency mismatch: Integration
+- Checkout happy path (mocked Stripe via E2E hooks): E2E
+- Non-card payment flow (processing status): E2E
+- Client tampering (idempotency/cart mismatch, amount mismatch): Integration + Unit
 - Email failure non-blocking order completion: Integration
 
 ### Auth, sessions, password reset/change password
@@ -194,12 +197,14 @@ Legend: Unit = Jest unit, Integration = Jest + Supabase CLI, E2E = Playwright lo
 ### RBAC admin roles
 - Permission helpers (roles constants): Unit
 - Admin invite permissions (admin-invite-service + route): Integration + E2E
-- Bank settings visibility (admin vs super_admin vs dev): E2E + Smoke (read-only)
+- Bank settings visibility (admin vs super_admin vs dev): E2E
 - Server-enforced authz on admin routes: Integration
 
 ### Shipping
 - Shipping calc validation (checkout-service + shipping-service): Unit
 - Shipping address validation edge cases: Unit + Integration
+- Calculate-shipping endpoint max-cost selection: Integration
+- Update-fulfillment recalculates totals: Integration
 - Shipping rates endpoint validates selection: Integration
 - Loading skeleton when delayed (shipping info UI): E2E
 
@@ -218,7 +223,7 @@ Legend: Unit = Jest unit, Integration = Jest + Supabase CLI, E2E = Playwright lo
 ### Proxy + headers
 - Rate limiting (proxy/rate-limit + proxy.ts): Unit + Integration
 - Cache-control + no duplicate headers: Unit + Integration
-- Stripe webhook not blocked: Integration
+- Stripe webhook not blocked: Unit
 
 ### UI robustness
 - Messaging format + long content wrap: E2E
@@ -233,4 +238,3 @@ Legend: Unit = Jest unit, Integration = Jest + Supabase CLI, E2E = Playwright lo
 ### Catalog + admin
 - Catalog candidate accept/reject paths: Integration
 - Title parser pipeline: Unit (existing) + Integration
-

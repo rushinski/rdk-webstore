@@ -46,6 +46,11 @@ export function CheckoutForm({
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const canBypassStripe =
+    (process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test') &&
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('e2e_payment_status');
+  const isStripeReady = Boolean(stripe) || canBypassStripe;
 
   const confirmBackendPayment = async (paymentIntentId: string) => {
     const response = await fetch('/api/checkout/confirm-payment', {
@@ -67,7 +72,7 @@ export function CheckoutForm({
 
   const handlePayment = async (withSubmit: boolean) => {
     const e2eStatus =
-      process.env.NODE_ENV === 'test'
+      process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test'
         ? new URLSearchParams(window.location.search).get('e2e_payment_status')
         : null;
     if (e2eStatus) {
@@ -378,7 +383,7 @@ export function CheckoutForm({
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={!stripe || isProcessing || isUpdatingFulfillment}
+        disabled={!isStripeReady || isProcessing || isUpdatingFulfillment}
         className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-lg flex items-center justify-center gap-2"
         data-testid="checkout-submit"
       >

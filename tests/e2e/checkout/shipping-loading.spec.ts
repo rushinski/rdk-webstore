@@ -1,13 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createProductWithVariant } from "../../helpers/fixtures";
 
 test.describe("Checkout shipping loading", () => {
   test("shows loading indicator while updating fulfillment", async ({ page }) => {
-    test.skip(process.env.E2E_MODE === "vercel", "requires local Stripe + seed");
 
-    const base = await resetAndSeedForLocal();
-    if (!base) return;
+    const base = await resetAndSeedForE2E();
     const { productId, variantId } = await createProductWithVariant({
       tenantId: base.tenantId,
       marketplaceId: base.marketplaceId,
@@ -39,6 +37,22 @@ test.describe("Checkout shipping loading", () => {
       [productId, variantId]
     );
 
+    await page.route("/api/checkout/create-payment-intent", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          clientSecret: "cs_test_shipping",
+          orderId: "order_test_shipping",
+          paymentIntentId: "pi_test_shipping",
+          subtotal: 250,
+          shipping: 9.95,
+          total: 259.95,
+          fulfillment: "ship",
+        }),
+      });
+    });
+
     await page.route("/api/checkout/update-fulfillment", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 800));
       await route.fulfill({
@@ -53,6 +67,7 @@ test.describe("Checkout shipping loading", () => {
     await page.locator('[data-testid="fulfillment-pickup"]').click();
 
     const loading = page.locator('[data-testid="shipping-loading"]');
+    await loading.scrollIntoViewIfNeeded();
     await expect(loading).toBeVisible();
   });
 });

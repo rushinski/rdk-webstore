@@ -23,6 +23,8 @@ if (existsSync(envPath)) {
 
 const defaults: Record<string, string> = {
   NODE_ENV: "test",
+  E2E_TEST_MODE: "1",
+  NEXT_PUBLIC_E2E_TEST_MODE: "1",
   NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-anon-key",

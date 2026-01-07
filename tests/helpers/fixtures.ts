@@ -113,3 +113,34 @@ export async function createPendingOrder(params: {
     ],
   });
 }
+
+export async function createPaidOrder(params: {
+  userId?: string | null;
+  tenantId: string;
+  productId: string;
+  variantId: string;
+  quantity?: number;
+  unitPrice?: number;
+  unitCost?: number;
+  fulfillment?: "ship" | "pickup";
+  paymentIntentId?: string;
+}) {
+  const admin = createAdminClient();
+  const repo = new OrdersRepository(admin);
+  const order = await createPendingOrder(params);
+  const paymentIntentId = params.paymentIntentId ?? `pi_test_${Date.now()}`;
+
+  await repo.markPaidTransactionally(order.id, paymentIntentId, [
+    {
+      productId: params.productId,
+      variantId: params.variantId,
+      quantity: params.quantity ?? 1,
+    },
+  ]);
+
+  const refreshed = await repo.getById(order.id);
+  if (!refreshed) {
+    throw new Error("Failed to load paid order");
+  }
+  return refreshed;
+}

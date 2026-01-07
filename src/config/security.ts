@@ -65,6 +65,7 @@ export const security = {
       blockStatus: 429,
       tooManyRequestsPath: "/too-many-requests",
       redirectStatus: 302,
+      bypassPrefixes: ["/api/webhooks/stripe"],
     },
 
     admin: {

@@ -1,14 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createProductWithVariant } from "../../helpers/fixtures";
 import { createAdminClient } from "../../helpers/supabase";
 
 test.describe("Cart invalidation", () => {
   test("removes items when stock drops to zero", async ({ request }) => {
-    test.skip(process.env.E2E_MODE === "vercel", "local-only mutation");
 
-    const base = await resetAndSeedForLocal();
-    if (!base) return;
+    const base = await resetAndSeedForE2E();
     const { productId, variantId } = await createProductWithVariant({
       tenantId: base.tenantId,
       marketplaceId: base.marketplaceId,

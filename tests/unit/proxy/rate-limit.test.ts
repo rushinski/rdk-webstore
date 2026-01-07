@@ -28,6 +28,16 @@ describe("applyRateLimit", () => {
     expect(await applyRateLimit(req, "req_1")).toBeNull();
   });
 
+  it("bypasses Stripe webhook routes", async () => {
+    const { applyRateLimit } = await import("@/proxy/rate-limit");
+    const req = makeRequest({
+      url: "https://x.test/api/webhooks/stripe",
+      headers: { "x-forwarded-for": "1.2.3.4" },
+    });
+    limitMock.mockResolvedValue({ success: false });
+    expect(await applyRateLimit(req, "req_1")).toBeNull();
+  });
+
   it("allows requests under limit", async () => {
     const { applyRateLimit } = await import("@/proxy/rate-limit");
     const req = makeRequest({

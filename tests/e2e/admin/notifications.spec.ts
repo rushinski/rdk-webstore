@@ -1,13 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createUserWithProfile, createAdminClient } from "../../helpers/supabase";
+import { openAdminMenuIfNeeded } from "./helpers";
 
 test.describe("Admin notifications UI", () => {
   test("renders long message without breaking layout", async ({ page }) => {
-    test.skip(process.env.E2E_MODE === "vercel", "local-only auth seeding");
 
-    const base = await resetAndSeedForLocal();
-    if (!base) return;
+    const base = await resetAndSeedForE2E();
 
     const adminUser = await createUserWithProfile({
       email: "admin@test.com",
@@ -30,8 +29,11 @@ test.describe("Admin notifications UI", () => {
     await page.fill('[data-testid="login-password"]', "Password123!");
     await page.click('[data-testid="login-submit"]');
     await page.waitForURL(/\/admin/);
+    await openAdminMenuIfNeeded(page);
 
-    await page.click('[data-testid="admin-notifications-toggle"]');
+    const toggle = page.locator('[data-testid="admin-notifications-toggle"]');
+    await toggle.scrollIntoViewIfNeeded();
+    await toggle.click();
     const item = page.locator('[data-testid="admin-notification-item"]').first();
     await expect(item).toContainText("New Message -");
   });

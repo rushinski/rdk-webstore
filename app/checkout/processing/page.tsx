@@ -22,7 +22,9 @@ export default function CheckoutProcessingPage() {
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
     const paymentIntentId = searchParams.get('payment_intent');
     const e2eStatus =
-      process.env.NODE_ENV === 'test' ? searchParams.get('e2e_status') : null;
+      process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test'
+        ? searchParams.get('e2e_status')
+        : null;
 
     if (!orderId) {
       setStatus('error');

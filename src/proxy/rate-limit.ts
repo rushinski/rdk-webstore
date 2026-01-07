@@ -67,6 +67,9 @@ export async function applyRateLimit(
   if (pathname === rateLimit.tooManyRequestsPath) {
     return null;
   }
+  if (rateLimit.bypassPrefixes?.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
   let result: Awaited<ReturnType<typeof rateLimiter.limit>>;
 
   try {

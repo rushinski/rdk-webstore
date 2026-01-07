@@ -1,13 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createUserWithProfile, createAdminClient } from "../../helpers/supabase";
 
 test.describe("Admin chat UI", () => {
   test("renders messages and textbox correctly", async ({ page }) => {
-    test.skip(process.env.E2E_MODE === "vercel", "local-only auth seeding");
 
-    const base = await resetAndSeedForLocal();
-    if (!base) return;
+    const base = await resetAndSeedForE2E();
 
     const adminUser = await createUserWithProfile({
       email: "admin@test.com",
@@ -47,7 +45,10 @@ test.describe("Admin chat UI", () => {
     await page.waitForURL(/\/admin/);
 
     await page.goto("/admin/chats");
-    await expect(page.locator('[data-testid="chat-message"]')).toBeVisible();
+    const message = page.locator('[data-testid="chat-message"]');
+    await message.scrollIntoViewIfNeeded();
+    await expect(message).toBeVisible();
+    await expect(message).toContainText("New Message -");
     const input = page.locator('[data-testid="chat-message-input"]');
     await expect(input).toBeVisible();
     await expect(input.evaluate((el) => el.tagName)).resolves.toBe("TEXTAREA");

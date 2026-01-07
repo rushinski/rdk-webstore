@@ -435,6 +435,7 @@ export function AdminSidebar({
                   type="button"
                   onClick={() => setNotifOpen(true)}
                   aria-label="Notifications"
+                  data-testid="admin-notifications-toggle"
                   className="flex h-12 w-full items-center justify-center rounded-sm
                             hover:bg-zinc-900 transition-colors
                             focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"

@@ -1,12 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createUserWithProfile } from "../../helpers/supabase";
+import { openAdminMenuIfNeeded } from "./helpers";
 
 test.describe("Admin role UI gating", () => {
   test.beforeEach(async () => {
-    test.skip(process.env.E2E_MODE === "vercel", "local-only auth seeding");
-    const base = await resetAndSeedForLocal();
-    if (!base) return;
+    const base = await resetAndSeedForE2E();
     await createUserWithProfile({
       email: "admin@test.com",
       password: "Password123!",
@@ -27,6 +26,7 @@ test.describe("Admin role UI gating", () => {
     await page.fill('[data-testid="login-password"]', "Password123!");
     await page.click('[data-testid="login-submit"]');
     await page.waitForURL(/\/admin/);
+    await openAdminMenuIfNeeded(page);
     await expect(page.locator('[data-testid="admin-nav-bank"]')).toHaveCount(0);
   });
 
@@ -36,6 +36,9 @@ test.describe("Admin role UI gating", () => {
     await page.fill('[data-testid="login-password"]', "Password123!");
     await page.click('[data-testid="login-submit"]');
     await page.waitForURL(/\/admin/);
-    await expect(page.locator('[data-testid="admin-nav-bank"]')).toBeVisible();
+    await openAdminMenuIfNeeded(page);
+    const bankLink = page.locator('[data-testid="admin-nav-bank"]');
+    await bankLink.scrollIntoViewIfNeeded();
+    await expect(bankLink).toBeVisible();
   });
 });

@@ -1,14 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { resetAndSeedForLocal } from "../utils/state";
+import { resetAndSeedForE2E } from "../utils/state";
 import { createUserWithProfile, createAdminClient } from "../../helpers/supabase";
 import { createProductWithVariant } from "../../helpers/fixtures";
 
 test.describe("Inventory out-of-stock transitions", () => {
   test("moves product into out-of-stock filter after depletion", async ({ page }) => {
-    test.skip(process.env.E2E_MODE === "vercel", "local-only auth seeding");
 
-    const base = await resetAndSeedForLocal();
-    if (!base) return;
+    const base = await resetAndSeedForE2E();
 
     await createUserWithProfile({
       email: "admin@test.com",
@@ -32,12 +30,16 @@ test.describe("Inventory out-of-stock transitions", () => {
     await page.waitForURL(/\/admin/);
 
     await page.goto("/admin/inventory");
-    await expect(page.locator(`[data-testid="inventory-row"][data-product-id="${productId}"]`)).toBeVisible();
+    const row = page.locator(`[data-testid="inventory-row"][data-product-id="${productId}"]`);
+    await row.scrollIntoViewIfNeeded();
+    await expect(row).toBeVisible();
 
     const admin = createAdminClient();
     await admin.from("product_variants").update({ stock: 0 }).eq("id", variantId);
 
     await page.click('[data-testid="inventory-filter-out-of-stock"]');
-    await expect(page.locator(`[data-testid="inventory-row"][data-product-id="${productId}"]`)).toBeVisible();
+    const outRow = page.locator(`[data-testid="inventory-row"][data-product-id="${productId}"]`);
+    await outRow.scrollIntoViewIfNeeded();
+    await expect(outRow).toBeVisible();
   });
 });

@@ -43,7 +43,10 @@ export class AdminAuthService {
     requiresTwoFASetup: boolean;
     requiresTwoFAChallenge: boolean;
   }> {
-    if (process.env.NODE_ENV === "test") {
+    if (
+      process.env.NODE_ENV === "test" ||
+      process.env.E2E_TEST_MODE === "1"
+    ) {
       return { requiresTwoFASetup: false, requiresTwoFAChallenge: false };
     }
 

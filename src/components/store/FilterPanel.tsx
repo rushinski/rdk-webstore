@@ -522,6 +522,7 @@ export function FilterPanel({
       <button
         onClick={() => setIsOpen(true)}
         className="md:hidden fixed bottom-20 right-4 h-12 w-12 bg-red-600 text-white rounded-full shadow-lg z-30 flex items-center justify-center"
+        data-testid="filters-open"
       >
         <Filter className="w-5 h-5" />
       </button>
