@@ -1,5 +1,3 @@
-// app/admin/inventory/[id]/edit/page.tsx
-
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -48,9 +46,18 @@ export default function EditProductPage() {
 
     if (response.ok) {
       router.push('/admin/inventory');
-    } else {
-      throw new Error('Failed to update product');
+      return;
     }
+
+    // Mirror create-page behavior: prefer server error payload if present
+    let message = 'Failed to update product';
+    try {
+      const payload = await response.json();
+      if (payload?.error) message = payload.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(message);
   };
 
   const handleCancel = () => {

@@ -1,8 +1,6 @@
-// src/services/product-service.ts
-
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { log } from "@/lib/log";
-import { ProductRepository } from "@/repositories/product-repo";
+import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/database.types";
 import type { Category, Condition } from "@/types/views/product";
 import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
@@ -40,6 +38,10 @@ export class ProductService {
     this.repo = new ProductRepository(supabase);
   }
 
+  async listProducts(filters: ProductFilters) {
+    return this.repo.list(filters);
+  }
+
   async createProduct(
     input: ProductCreateInput,
     ctx: { userId: string; tenantId: string; marketplaceId?: string | null; sellerId?: string | null }
@@ -47,6 +49,7 @@ export class ProductService {
     if (!input.title_raw?.trim()) {
       throw new Error("Product title is required.");
     }
+
     const parser = new ProductTitleParserService(this.supabase);
     const parsed = await parser.parseTitle({
       titleRaw: input.title_raw,
@@ -56,11 +59,9 @@ export class ProductService {
       tenantId: ctx.tenantId,
     });
 
-    // Generate SKU
     const sku = this.generateSKU(parsed.brand.label, parsed.name);
     const productCost = this.getProductCost(input.variants);
 
-    // Create product
     const product = await this.repo.create({
       tenant_id: ctx.tenantId,
       marketplace_id: ctx.marketplaceId ?? null,
@@ -86,7 +87,6 @@ export class ProductService {
       created_by: ctx.userId,
     });
 
-    // Create variants
     for (const variant of input.variants) {
       await this.repo.createVariant({
         product_id: product.id,
@@ -95,7 +95,6 @@ export class ProductService {
       });
     }
 
-    // Create images
     for (const image of input.images) {
       await this.repo.createImage({
         product_id: product.id,
@@ -103,7 +102,6 @@ export class ProductService {
       });
     }
 
-    // Generate and link tags
     const tags = await upsertTags(this.supabase, {
       tenantId: ctx.tenantId,
       tags: input.tags ?? [],
@@ -143,7 +141,6 @@ export class ProductService {
 
     const productCost = this.getProductCost(input.variants);
 
-    // Update product
     const product = await this.repo.update(productId, {
       brand: parsed.brand.label,
       model: parsed.model.label ?? null,
@@ -162,7 +159,6 @@ export class ProductService {
       shipping_override_cents: input.shipping_override_cents ?? null,
     });
 
-    // Replace variants
     await this.repo.deleteVariantsByProduct(productId);
     for (const variant of input.variants) {
       await this.repo.createVariant({
@@ -172,7 +168,6 @@ export class ProductService {
       });
     }
 
-    // Replace images
     await this.repo.deleteImagesByProduct(productId);
     for (const image of input.images) {
       await this.repo.createImage({
@@ -181,7 +176,6 @@ export class ProductService {
       });
     }
 
-    // Replace tags
     await this.repo.unlinkProductTags(productId);
     const tags = await upsertTags(this.supabase, {
       tenantId: tenantId,
@@ -201,11 +195,13 @@ export class ProductService {
     productId: string,
     ctx: { userId: string; tenantId: string; marketplaceId?: string | null; sellerId?: string | null }
   ) {
-    const original = await this.repo.getById(productId);
-    if (!original) throw new Error('Product not found');
+    const original = await this.repo.getById(productId, { includeOutOfStock: true });
+    if (!original) throw new Error("Product not found");
 
     const input: ProductCreateInput = {
-      title_raw: `${original.title_raw || `${original.brand} ${original.model ?? ""} ${original.name}`.trim()} (Copy)`,
+      title_raw: `${
+        original.title_raw || `${original.brand} ${original.model ?? ""} ${original.name}`.trim()
+      } (Copy)`,
       category: original.category,
       condition: original.condition,
       condition_note: original.condition_note || undefined,
@@ -213,19 +209,19 @@ export class ProductService {
       shipping_override_cents: original.shipping_override_cents ?? undefined,
       brand_override_id: undefined,
       model_override_id: undefined,
-      variants: original.variants.map(v => ({
+      variants: original.variants.map((v) => ({
         size_type: v.size_type,
         size_label: v.size_label,
         price_cents: v.price_cents,
         cost_cents: v.cost_cents ?? 0,
         stock: v.stock,
       })),
-      images: original.images.map(img => ({
+      images: original.images.map((img) => ({
         url: img.url,
         sort_order: img.sort_order,
         is_primary: img.is_primary,
       })),
-      tags: original.tags.map(tag => ({
+      tags: original.tags.map((tag) => ({
         label: tag.label,
         group_key: tag.group_key,
       })),
@@ -235,7 +231,7 @@ export class ProductService {
   }
 
   async syncSizeTags(productId: string) {
-    const product = await this.repo.getById(productId);
+    const product = await this.repo.getById(productId, { includeOutOfStock: true });
     if (!product) return;
 
     const sizeTags = buildSizeTags(product.variants);

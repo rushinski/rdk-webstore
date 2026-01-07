@@ -1,5 +1,3 @@
-// app/admin/inventory/page.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,6 +8,7 @@ import type { Category, Condition } from "@/types/views/product";
 import { logError } from '@/lib/log';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Toast } from '@/components/ui/Toast';
+import { RdkSelect } from '@/components/ui/Select';
 
 type StockStatus = 'in_stock' | 'out_of_stock';
 
@@ -59,27 +58,27 @@ export default function InventoryPage() {
   }) => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({ limit: '100', stockStatus: 'all' });
-      if (filters?.q) {
-        params.set('q', filters.q.trim());
-      }
-      if (filters?.category && filters.category !== 'all') {
-        params.append('category', filters.category);
-      }
-      if (filters?.condition && filters.condition !== 'all') {
-        params.append('condition', filters.condition);
-      }
-      const response = await fetch(`/api/store/products?${params.toString()}`);
+      // Admin list must include out-of-stock so the admin tabs can display them.
+      const params = new URLSearchParams({ limit: '100', includeOutOfStock: '1' });
+
+      if (filters?.q) params.set('q', filters.q.trim());
+      if (filters?.category && filters.category !== 'all') params.append('category', filters.category);
+      if (filters?.condition && filters.condition !== 'all') params.append('condition', filters.condition);
+
+      const response = await fetch(`/api/admin/products?${params.toString()}`);
       const data = await response.json();
-      const loaded = data.products || [];
+
+      const loaded: ProductWithDetails[] = data.products || [];
+
+      // Client-side tab filter based on actual variant stock (authoritative for admin UI)
       const filtered = filters?.stockStatus
         ? loaded.filter((product: ProductWithDetails) => {
-            const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+            const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
             if (filters.stockStatus === 'out_of_stock') return totalStock <= 0;
-            if (filters.stockStatus === 'in_stock') return totalStock > 0;
-            return true;
+            return totalStock > 0;
           })
         : loaded;
+
       setProducts(filtered);
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
@@ -104,21 +103,19 @@ export default function InventoryPage() {
     setPendingDelete(null);
 
     try {
-      const response = await fetch(`/api/admin/products/${id}`, {
-        method: 'DELETE',
-      });
-
+      const response = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
       if (response.ok) {
         showToast(`Deleted ${label}.`, 'success');
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
           condition: conditionFilter,
+          stockStatus: stockStatusFilter,
         });
       } else {
         showToast('Failed to delete product.', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Error deleting product.', 'error');
     }
   };
@@ -129,23 +126,21 @@ export default function InventoryPage() {
 
     try {
       const results = await Promise.all(
-        selectedIds.map((id) =>
-          fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
-        )
+        selectedIds.map((id) => fetch(`/api/admin/products/${id}`, { method: 'DELETE' }))
       );
       const failed = results.filter((res) => !res.ok).length;
-      if (failed > 0) {
-        showToast(`Deleted ${selectedIds.length - failed} items, ${failed} failed.`, 'error');
-      } else {
-        showToast(`Deleted ${selectedIds.length} items.`, 'success');
-      }
+
+      if (failed > 0) showToast(`Deleted ${selectedIds.length - failed} items, ${failed} failed.`, 'error');
+      else showToast(`Deleted ${selectedIds.length} items.`, 'success');
+
       setSelectedIds([]);
       await loadProducts({
         q: searchQuery,
         category: categoryFilter,
         condition: conditionFilter,
+        stockStatus: stockStatusFilter,
       });
-    } catch (error) {
+    } catch {
       showToast('Error deleting selected items.', 'error');
     }
   };
@@ -153,29 +148,25 @@ export default function InventoryPage() {
   const handleDuplicate = async (id: string) => {
     setOpenMenuId(null);
     try {
-      const response = await fetch(`/api/admin/products/${id}/duplicate`, {
-        method: 'POST',
-      });
-
+      const response = await fetch(`/api/admin/products/${id}/duplicate`, { method: 'POST' });
       if (response.ok) {
         showToast('Product duplicated.', 'success');
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
           condition: conditionFilter,
+          stockStatus: stockStatusFilter,
         });
       } else {
         showToast('Failed to duplicate product.', 'error');
       }
-    } catch (error) {
+    } catch {
       showToast('Error duplicating product.', 'error');
     }
   };
 
   const toggleSelection = (id: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
   const handleMassDelete = () => {
@@ -193,7 +184,7 @@ export default function InventoryPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/inventory/create"
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 transition cursor-pointer"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 transition cursor-pointer rounded"
           >
             <Plus className="w-5 h-5" />
             Create Product
@@ -202,46 +193,69 @@ export default function InventoryPage() {
       </div>
 
       <div className="border-b border-zinc-800/70 flex space-x-6">
-        <button onClick={() => setStockStatusFilter('in_stock')} className={`py-3 text-sm font-medium transition-colors ${stockStatusFilter === 'in_stock' ? 'text-white border-b-2 border-red-600' : 'text-gray-400 hover:text-white'}`}>
-            In Stock
+        <button
+          onClick={() => setStockStatusFilter('in_stock')}
+          className={`py-3 text-sm font-medium transition-colors ${
+            stockStatusFilter === 'in_stock'
+              ? 'text-white border-b-2 border-red-600'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          In Stock
         </button>
-        <button onClick={() => setStockStatusFilter('out_of_stock')} className={`py-3 text-sm font-medium transition-colors ${stockStatusFilter === 'out_of_stock' ? 'text-white border-b-2 border-red-600' : 'text-gray-400 hover:text-white'}`}>
-            Out of Stock
+        <button
+          onClick={() => setStockStatusFilter('out_of_stock')}
+          className={`py-3 text-sm font-medium transition-colors ${
+            stockStatusFilter === 'out_of_stock'
+              ? 'text-white border-b-2 border-red-600'
+              : 'text-gray-400 hover:text-white'
+          }`}
+        >
+          Out of Stock
         </button>
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md">
+        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md rounded
+                        focus-within:border-zinc-700 focus-within:ring-2 focus-within:ring-zinc-700/40">
           <Search className="w-4 h-4 text-gray-500" />
           <input
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search products"
-            className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+            className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none
+                       focus:outline-none focus-visible:outline-none focus-visible:ring-0"
           />
         </div>
+
+        {/* Red-highlight custom dropdowns */}
         <div className="flex flex-1 flex-col sm:flex-row gap-3">
-          <select
-            value={categoryFilter}
-            onChange={(event) => setCategoryFilter(event.target.value as Category | 'all')}
-            className="w-full sm:w-48 bg-zinc-900 border border-zinc-800/70 px-3 py-2 text-sm text-white cursor-pointer"
-          >
-            <option value="all">All categories</option>
-            <option value="sneakers">Sneakers</option>
-            <option value="clothing">Clothing</option>
-            <option value="accessories">Accessories</option>
-            <option value="electronics">Electronics</option>
-          </select>
-          <select
-            value={conditionFilter}
-            onChange={(event) => setConditionFilter(event.target.value as Condition | 'all')}
-            className="w-full sm:w-40 bg-zinc-900 border border-zinc-800/70 px-3 py-2 text-sm text-white cursor-pointer"
-          >
-            <option value="all">All conditions</option>
-            <option value="new">New</option>
-            <option value="used">Used</option>
-          </select>
+          <div className="w-full sm:w-56">
+            <RdkSelect
+              value={categoryFilter}
+              onChange={(v) => setCategoryFilter(v as Category | 'all')}
+              options={[
+                { value: 'all', label: 'All categories' },
+                { value: 'sneakers', label: 'Sneakers' },
+                { value: 'clothing', label: 'Clothing' },
+                { value: 'accessories', label: 'Accessories' },
+                { value: 'electronics', label: 'Electronics' },
+              ]}
+            />
+          </div>
+
+          <div className="w-full sm:w-48">
+            <RdkSelect
+              value={conditionFilter}
+              onChange={(v) => setConditionFilter(v as Condition | 'all')}
+              options={[
+                { value: 'all', label: 'All conditions' },
+                { value: 'new', label: 'New' },
+                { value: 'used', label: 'Used' },
+              ]}
+            />
+          </div>
         </div>
       </div>
 
@@ -264,42 +278,49 @@ export default function InventoryPage() {
         <>
           {/* Desktop Table */}
           <div className="hidden md:block bg-zinc-900 border border-zinc-800/70 rounded overflow-visible relative">
-            <table className="w-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-12" />
+                <col className="w-20" />
+                <col />
+                <col className="w-36" />
+                <col className="w-44" />
+                <col className="w-20" />
+                <col className="w-20" />
+              </colgroup>
+
               <thead>
                 <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                  <th className="text-left p-4">
+                  <th className="text-left px-4 py-3">
                     <input
                       type="checkbox"
                       className="rdk-checkbox"
                       onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(products.map((p) => p.id));
-                        } else {
-                          setSelectedIds([]);
-                        }
+                        if (e.target.checked) setSelectedIds(products.map((p) => p.id));
+                        else setSelectedIds([]);
                       }}
                       checked={selectedIds.length === products.length && products.length > 0}
                     />
                   </th>
-                  <th className="text-left text-gray-400 font-semibold p-4">Image</th>
-                  <th className="text-left text-gray-400 font-semibold p-4">Product</th>
-                  <th className="text-left text-gray-400 font-semibold p-4">Category</th>
-                  <th className="text-left text-gray-400 font-semibold p-4">Price</th>
-                  <th className="text-left text-gray-400 font-semibold p-4">Stock</th>
-                  <th className="text-right text-gray-400 font-semibold p-4">Actions</th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Image</th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Product</th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Category</th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Price</th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Stock</th>
+                  <th className="text-right text-gray-400 font-semibold px-4 py-3">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {products.map((product) => {
                   const minPrice = Math.min(...product.variants.map((v) => v.price_cents));
                   const maxPrice = Math.max(...product.variants.map((v) => v.price_cents));
-                  const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
-                  const primaryImage =
-                    product.images.find((image) => image.is_primary) ?? product.images[0];
+                  const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+                  const primaryImage = product.images.find((image) => image.is_primary) ?? product.images[0];
 
                   return (
                     <tr key={product.id} className="border-b border-zinc-800/70 hover:bg-zinc-800">
-                      <td className="p-4">
+                      <td className="px-4 py-3">
                         <input
                           type="checkbox"
                           className="rdk-checkbox"
@@ -307,8 +328,9 @@ export default function InventoryPage() {
                           onChange={() => toggleSelection(product.id)}
                         />
                       </td>
-                      <td className="p-4">
-                        <div className="w-12 h-12 bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
+
+                      <td className="px-4 py-3">
+                        <div className="w-12 h-12 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
                           {primaryImage?.url ? (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
@@ -321,35 +343,37 @@ export default function InventoryPage() {
                           )}
                         </div>
                       </td>
-                      <td className="p-4">
-                        <div>
-                          <div className="text-white font-semibold">
-                            {product.title_display ?? `${product.brand} ${product.name}`.trim()}
-                          </div>
+
+                      <td className="px-4 py-3 min-w-0">
+                        <div className="text-white font-semibold truncate">
+                          {product.title_display ?? `${product.brand} ${product.name}`.trim()}
                         </div>
                       </td>
-                      <td className="p-4 text-gray-400 capitalize">{product.category}</td>
-                      <td className="p-4 text-white">
+
+                      <td className="px-4 py-3 text-gray-400 capitalize truncate">{product.category}</td>
+
+                      <td className="px-4 py-3 text-white whitespace-nowrap">
                         {minPrice === maxPrice
                           ? `$${(minPrice / 100).toFixed(2)}`
                           : `$${(minPrice / 100).toFixed(2)} - $${(maxPrice / 100).toFixed(2)}`}
                       </td>
-                      <td className="p-4 text-gray-400">{totalStock}</td>
-                      <td className="p-4">
+
+                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{totalStock}</td>
+
+                      <td className="px-4 py-3">
                         <div className="flex items-center justify-end">
                           <div className="relative" data-menu-id={product.id}>
                             <button
                               type="button"
-                              onClick={() =>
-                                setOpenMenuId((prev) => (prev === product.id ? null : product.id))
-                              }
-                              className="text-gray-400 hover:text-white p-1 cursor-pointer"
+                              onClick={() => setOpenMenuId((prev) => (prev === product.id ? null : product.id))}
+                              className="text-gray-400 hover:text-white p-2 rounded hover:bg-zinc-900 cursor-pointer"
                               aria-label="Open actions"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </button>
+
                             {openMenuId === product.id && (
-                              <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
+                              <div className="absolute right-0 mt-2 w-44 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30 rounded overflow-hidden">
                                 <Link
                                   href={`/admin/inventory/${product.id}/edit`}
                                   onClick={() => setOpenMenuId(null)}
@@ -364,6 +388,7 @@ export default function InventoryPage() {
                                 >
                                   Duplicate
                                 </button>
+                                <div className="h-px bg-zinc-800/70" />
                                 <button
                                   type="button"
                                   onClick={() => requestDelete(product)}
@@ -383,80 +408,87 @@ export default function InventoryPage() {
             </table>
           </div>
 
-          {/* Mobile Cards */}
+          {/* Mobile Cards (unchanged layout) */}
           <div className="md:hidden space-y-4">
             {products.map((product) => {
-              const primaryImage =
-                product.images.find((image) => image.is_primary) ?? product.images[0];
+              const primaryImage = product.images.find((image) => image.is_primary) ?? product.images[0];
+              const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
 
               return (
                 <div key={product.id} className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-14 h-14 bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
-                    {primaryImage?.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={primaryImage.url}
-                        alt={product.title_display ?? product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-[10px] text-gray-500">No image</span>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-white font-semibold">
-                      {product.title_display ?? `${product.brand} ${product.name}`.trim()}
-                    </h3>
-                    <span className="text-gray-400 text-xs capitalize">{product.category}</span>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={selectedIds.includes(product.id)}
-                      onChange={() => toggleSelection(product.id)}
-                    />
-                    <div className="relative" data-menu-id={product.id}>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenMenuId((prev) => (prev === product.id ? null : product.id))
-                        }
-                        className="text-gray-400 hover:text-white p-1 cursor-pointer"
-                        aria-label="Open actions"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      {openMenuId === product.id && (
-                        <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
-                          <Link
-                            href={`/admin/inventory/${product.id}/edit`}
-                            onClick={() => setOpenMenuId(null)}
-                            className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            type="button"
-                            onClick={() => handleDuplicate(product.id)}
-                            className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
-                          >
-                            Duplicate
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => requestDelete(product)}
-                            className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
-                          >
-                            Delete
-                          </button>
-                        </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-14 h-14 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
+                      {primaryImage?.url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={primaryImage.url}
+                          alt={product.title_display ?? product.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-gray-500">No image</span>
                       )}
+                    </div>
+
+                    <div className="flex-1">
+                      <h3 className="text-white font-semibold">
+                        {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                      </h3>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-gray-400 text-xs capitalize">{product.category}</span>
+                        <span className="text-gray-500 text-xs">•</span>
+                        <span className="text-gray-400 text-xs">Stock: {totalStock}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                      <input
+                        type="checkbox"
+                        className="rdk-checkbox"
+                        checked={selectedIds.includes(product.id)}
+                        onChange={() => toggleSelection(product.id)}
+                      />
+
+                      <div className="relative" data-menu-id={product.id}>
+                        <button
+                          type="button"
+                          onClick={() => setOpenMenuId((prev) => (prev === product.id ? null : product.id))}
+                          className="text-gray-400 hover:text-white p-2 rounded hover:bg-zinc-800 cursor-pointer"
+                          aria-label="Open actions"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {openMenuId === product.id && (
+                          <div className="absolute right-0 mt-2 w-44 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30 rounded overflow-hidden">
+                            <Link
+                              href={`/admin/inventory/${product.id}/edit`}
+                              onClick={() => setOpenMenuId(null)}
+                              className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicate(product.id)}
+                              className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
+                            >
+                              Duplicate
+                            </button>
+                            <div className="h-px bg-zinc-800/70" />
+                            <button
+                              type="button"
+                              onClick={() => requestDelete(product)}
+                              className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
               );
             })}
           </div>
@@ -475,6 +507,7 @@ export default function InventoryPage() {
         onConfirm={confirmDelete}
         onCancel={() => setPendingDelete(null)}
       />
+
       <ConfirmDialog
         isOpen={pendingMassDelete}
         title="Delete selected products?"
@@ -483,6 +516,7 @@ export default function InventoryPage() {
         onConfirm={confirmMassDelete}
         onCancel={() => setPendingMassDelete(false)}
       />
+
       <Toast
         open={Boolean(toast)}
         message={toast?.message ?? ''}

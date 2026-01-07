@@ -1,4 +1,3 @@
-// src/repositories/product-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
 
@@ -13,10 +12,9 @@ export interface ProductFilters {
   sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
   page?: number;
   limit?: number;
-  stockStatus?: 'in_stock' | 'out_of_stock' | 'all';
+  stockStatus?: "in_stock" | "out_of_stock" | "all";
   includeOutOfStock?: boolean;
 
-  // Optional multi-tenant hooks (safe now, useful later)
   tenantId?: string;
   sellerId?: string;
   marketplaceId?: string;
@@ -48,6 +46,7 @@ export class ProductRepository {
   async list(filters: ProductFilters = {}) {
     const { page = 1, limit = 20, sort = "newest" } = filters;
     const offset = (page - 1) * limit;
+
     const buildInClause = (values: string[]) =>
       values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
 
@@ -59,16 +58,23 @@ export class ProductRepository {
       )
       .eq("is_active", true);
 
-    // Tenant/seller/marketplace scoping (optional today, but repo-ready)
+    // Tenant/seller/marketplace scoping
     if (filters.tenantId) query = query.eq("tenant_id", filters.tenantId);
     if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
     if (filters.marketplaceId) query = query.eq("marketplace_id", filters.marketplaceId);
 
-    // Stock status filter
-    if (filters.stockStatus === 'in_stock') {
+    // IMPORTANT:
+    // - Storefront must not include out-of-stock items by default.
+    // - Admin can include them by passing includeOutOfStock=true.
+    const includeOutOfStock = Boolean(filters.includeOutOfStock);
+
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
       query = query.eq("is_out_of_stock", false);
-    } else if (filters.stockStatus === 'out_of_stock') {
-        query = query.eq("is_out_of_stock", true);
+    } else if (!includeOutOfStock) {
+      // default (storefront-safe)
+      query = query.eq("is_out_of_stock", false);
     }
 
     // Text search
@@ -90,7 +96,7 @@ export class ProductRepository {
     if (filters.model?.length) query = query.in("model", filters.model);
     if (filters.condition?.length) query = query.in("condition", filters.condition);
 
-    // Size filters
+    // Size filters (variants table)
     const sizeFilters: string[] = [];
     if (filters.sizeShoe?.length) {
       sizeFilters.push(
@@ -113,7 +119,6 @@ export class ProductRepository {
         break;
       case "price_asc":
       case "price_desc":
-        // Keep newest until you implement real price sorting via SQL/RPC.
         query = query.order("created_at", { ascending: false });
         break;
       case "name_asc":
@@ -280,7 +285,6 @@ export class ProductRepository {
       .from("product_tags")
       .insert({ product_id: productId, tag_id: tagId });
 
-    // ignore duplicate key (23505)
     if (error && (error as any).code !== "23505") throw error;
   }
 
@@ -346,34 +350,40 @@ export class ProductRepository {
     return {
       ...raw,
       variants: raw.variants ?? [],
-      images: (raw.images ?? []).sort((a: ImageRow, b: ImageRow) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+      images: (raw.images ?? []).sort(
+        (a: ImageRow, b: ImageRow) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+      ),
       tags: (raw.tags ?? []).map((pt: any) => pt.tag).filter(Boolean),
     };
   }
 
   async getProductsForCheckout(
     productIds: string[]
-  ): Promise<Array<{
-    id: string;
-    name: string;
-    brand: string;
-    model: string | null;
-    titleDisplay: string;
-    category: string;
-    tenantId: string | null;
-    defaultShippingPrice: number;
-    shippingOverrideCents: number | null;
-    variants: Array<{
+  ): Promise<
+    Array<{
       id: string;
-      sizeLabel: string;
-      priceCents: number;
-      costCents: number | null;
-      stock: number;
-    }>;
-  }>> {
+      name: string;
+      brand: string;
+      model: string | null;
+      titleDisplay: string;
+      category: string;
+      tenantId: string | null;
+      defaultShippingPrice: number;
+      shippingOverrideCents: number | null;
+      variants: Array<{
+        id: string;
+        sizeLabel: string;
+        priceCents: number;
+        costCents: number | null;
+        stock: number;
+      }>;
+    }>
+  > {
     const { data, error } = await this.supabase
       .from("products")
-      .select("id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)")
+      .select(
+        "id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)"
+      )
       .in("id", productIds)
       .eq("is_active", true)
       .eq("is_out_of_stock", false);
@@ -424,5 +434,3 @@ export class ProductRepository {
     return models.sort();
   }
 }
-
-

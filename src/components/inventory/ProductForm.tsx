@@ -1,4 +1,3 @@
-// src/components/inventory/ProductForm.tsx (Part 1 of 2)
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
@@ -9,6 +8,7 @@ import type { Category, Condition, SizeType } from "@/types/views/product";
 import type { ProductCreateInput } from '@/services/product-service';
 import { logError } from '@/lib/log';
 import { Toast } from '@/components/ui/Toast';
+import { RdkSelect } from '@/components/ui/Select';
 
 interface ProductFormProps {
   initialData?: Partial<ProductCreateInput> & { id?: string };
@@ -84,29 +84,40 @@ const getSizeTypeForCategory = (category: Category): SizeType => {
 const getTagKey = (tag: { label: string; group_key: string }) =>
   `${tag.group_key}:${tag.label}`;
 
+const RequiredMark = () => <span className="text-red-500">*</span>;
+
 export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+
   const initialTitle = initialData?.title_raw ?? '';
   const [titleRaw, setTitleRaw] = useState(initialTitle);
+
   const [parseResult, setParseResult] = useState<TitleParseResult | null>(null);
   const [parseStatus, setParseStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+
   const [brandOverrideId, setBrandOverrideId] = useState<string | null>(null);
   const [brandOverrideInput, setBrandOverrideInput] = useState('');
   const [modelOverrideId, setModelOverrideId] = useState<string | null>(null);
   const [modelOverrideInput, setModelOverrideInput] = useState('');
+
   const [brandOptions, setBrandOptions] = useState<CatalogOption[]>([]);
   const [modelOptions, setModelOptions] = useState<CatalogOption[]>([]);
+
   const [category, setCategory] = useState<Category>(initialData?.category || 'sneakers');
   const [condition, setCondition] = useState<Condition>(initialData?.condition || 'new');
   const [conditionNote, setConditionNote] = useState(initialData?.condition_note || '');
   const [description, setDescription] = useState(initialData?.description || '');
+
   const [shippingPrice, setShippingPrice] = useState(() => {
     if (initialData?.shipping_override_cents != null) {
       return formatMoney(initialData.shipping_override_cents / 100);
     }
     return '';
   });
+
   const [shippingDefaults, setShippingDefaults] = useState<Record<string, number>>({});
+  const [shippingDefaultsStatus, setShippingDefaultsStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+
   const [customTags, setCustomTags] = useState<TagChip[]>(() => {
     const tags = initialData?.tags ?? [];
     return tags
@@ -117,10 +128,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         source: 'custom',
       }));
   });
+
   const [excludedAutoTagKeys, setExcludedAutoTagKeys] = useState<string[]>([]);
   const hasInitializedTags = useRef(false);
   const hasInitializedVariants = useRef(false);
-  
+
   const [variants, setVariants] = useState<VariantDraft[]>(() => {
     const sizeType = getSizeTypeForCategory(initialData?.category || 'sneakers');
     const mapped = initialData?.variants?.map((variant) => ({
@@ -141,10 +153,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       ]
     );
   });
-  
+
   const [images, setImages] = useState<ImageDraft[]>(() =>
     normalizeImages(initialData?.images ?? [])
   );
+
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
@@ -180,13 +193,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       addTag(parsedModelLabel, 'model');
     }
 
-    if (category) {
-      addTag(category, 'category');
-    }
-
-    if (condition) {
-      addTag(condition, 'condition');
-    }
+    if (category) addTag(category, 'category');
+    if (condition) addTag(condition, 'condition');
 
     if (sizeType !== 'none') {
       const groupKey =
@@ -224,18 +232,27 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   useEffect(() => {
     const loadDefaults = async () => {
+      setShippingDefaultsStatus('loading');
       try {
         const response = await fetch('/api/admin/shipping/defaults');
         const data = await response.json();
+
         if (response.ok && data?.defaults) {
           const map: Record<string, number> = {};
           for (const entry of data.defaults) {
-            map[entry.category] = Number(entry.default_price ?? 0);
+            const cents =
+              Number(entry.shipping_cost_cents ?? entry.default_price_cents ?? entry.default_price ?? 0) || 0;
+            map[entry.category] = cents / 100;
           }
           setShippingDefaults(map);
+          setShippingDefaultsStatus('ready');
+          return;
         }
+
+        setShippingDefaultsStatus('error');
       } catch (error) {
         logError(error, { layer: "frontend", event: "inventory_load_shipping_defaults" });
+        setShippingDefaultsStatus('error');
       }
     };
 
@@ -322,9 +339,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           signal: controller.signal,
         });
         const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data?.error || 'Failed to parse title.');
-        }
+        if (!response.ok) throw new Error(data?.error || 'Failed to parse title.');
         setParseResult(data);
         setParseStatus('idle');
       } catch (error) {
@@ -348,12 +363,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     setVariants((current) =>
       current.map((variant) => {
-        if (sizeType === 'none') {
-          return { ...variant, size_label: 'N/A' };
-        }
-        if (sizeType === 'custom') {
-          return variant.size_label === 'N/A' ? { ...variant, size_label: '' } : variant;
-        }
+        if (sizeType === 'none') return { ...variant, size_label: 'N/A' };
+        if (sizeType === 'custom') return variant.size_label === 'N/A' ? { ...variant, size_label: '' } : variant;
         return { ...variant, size_label: '' };
       })
     );
@@ -363,27 +374,26 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     if (hasInitializedTags.current || !initialData?.tags) return;
 
     const existingKeys = new Set(initialData.tags.map(getTagKey));
-    const missing = autoTags
-      .map(getTagKey)
-      .filter((key) => !existingKeys.has(key));
+    const missing = autoTags.map(getTagKey).filter((key) => !existingKeys.has(key));
 
     setExcludedAutoTagKeys(missing);
     hasInitializedTags.current = true;
   }, [autoTags, initialData?.tags]);
 
   const addVariant = () => {
-    setVariants([...variants, {
-      size_label: sizeType === 'none' ? 'N/A' : '',
-      price: '',
-      cost: '',
-      stock: '1'
-    }]);
+    setVariants([
+      ...variants,
+      {
+        size_label: sizeType === 'none' ? 'N/A' : '',
+        price: '',
+        cost: '',
+        stock: '1',
+      },
+    ]);
   };
 
   const removeVariant = (index: number) => {
-    if (variants.length > 1) {
-      setVariants(variants.filter((_, i) => i !== index));
-    }
+    if (variants.length > 1) setVariants(variants.filter((_, i) => i !== index));
   };
 
   const updateVariant = (index: number, field: keyof VariantDraft, value: string) => {
@@ -424,10 +434,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const uploads = Array.from(files).filter((file) =>
-      file.type.startsWith("image/")
-    );
+    const uploads = Array.from(files).filter((file) => file.type.startsWith("image/"));
     if (uploads.length === 0) return;
+
     const reads = uploads.map(
       (file) =>
         new Promise<string>((resolve, reject) => {
@@ -444,9 +453,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     } catch (error) {
       logError(error, { layer: "frontend", event: "inventory_image_upload" });
     } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -455,9 +462,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
+  const handleDragLeave = () => setIsDragging(false);
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -525,17 +530,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const applyBrandSuggestion = () => {
     if (!brandSuggestion) return;
     const match = brandOptions.find((option) => option.id === brandSuggestion.id);
-    if (match) {
-      applyBrandOverride(match);
-    }
+    if (match) applyBrandOverride(match);
   };
 
   const applyModelSuggestion = () => {
     if (!modelSuggestion) return;
     const match = modelOptions.find((option) => option.id === modelSuggestion.id);
-    if (match) {
-      applyModelOverride(match);
-    }
+    if (match) applyModelOverride(match);
   };
 
   const handleRemoveTag = (tag: TagChip) => {
@@ -568,33 +569,24 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     try {
       const trimmedTitle = titleRaw.trim();
-      if (!trimmedTitle) {
-        throw new Error('Full title is required.');
-      }
+      if (!trimmedTitle) throw new Error('Full title is required.');
 
       const trimmedShipping = shippingPrice.trim();
       const shippingCents = trimmedShipping ? parseMoneyToCents(trimmedShipping) : null;
-      if (trimmedShipping && shippingCents === null) {
-        throw new Error("Please enter a valid shipping price.");
-      }
+      if (trimmedShipping && shippingCents === null) throw new Error("Please enter a valid shipping price.");
 
       const preparedVariants = variants.map((variant, index) => {
         const priceCents = parseMoneyToCents(variant.price);
-        if (priceCents === null) {
-          throw new Error(`Variant ${index + 1} price is invalid.`);
-        }
+        if (priceCents === null) throw new Error(`Variant ${index + 1} price is invalid.`);
+
         const costCents = parseMoneyToCents(variant.cost);
-        if (costCents === null) {
-          throw new Error(`Variant ${index + 1} cost is invalid.`);
-        }
+        if (costCents === null) throw new Error(`Variant ${index + 1} cost is invalid.`);
+
         const stockCount = parseStockCount(variant.stock);
-        if (stockCount === null) {
-          throw new Error(`Variant ${index + 1} stock is invalid.`);
-        }
+        if (stockCount === null) throw new Error(`Variant ${index + 1} stock is invalid.`);
+
         const sizeLabel = sizeType === 'none' ? 'N/A' : variant.size_label.trim();
-        if (sizeType !== 'none' && !sizeLabel) {
-          throw new Error(`Variant ${index + 1} size is required.`);
-        }
+        if (sizeType !== 'none' && !sizeLabel) throw new Error(`Variant ${index + 1} size is required.`);
 
         return {
           size_type: sizeType,
@@ -609,9 +601,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         .map((image) => ({ ...image, url: image.url.trim() }))
         .filter((image) => image.url);
 
-      if (preparedImages.length === 0) {
-        throw new Error("Please add at least one product image.");
-      }
+      if (preparedImages.length === 0) throw new Error("Please add at least one product image.");
 
       const data: ProductCreateInput = {
         title_raw: trimmedTitle,
@@ -624,10 +614,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         shipping_override_cents: shippingCents ?? undefined,
         variants: preparedVariants,
         images: preparedImages,
-        tags: allTags.map((tag) => ({
-          label: tag.label,
-          group_key: tag.group_key,
-        })),
+        tags: allTags.map((tag) => ({ label: tag.label, group_key: tag.group_key })),
       };
 
       await onSubmit(data);
@@ -647,16 +634,17 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       {/* Basic Info */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Basic Information</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-gray-400 text-sm mb-1">Full Title *</label>
+            <label className="block text-gray-400 text-sm mb-1">
+              Full Title <RequiredMark />
+            </label>
             <input
               type="text"
               value={titleRaw}
               onChange={(e) => setTitleRaw(e.target.value)}
               required
-              placeholder="e.g., New Balance 2002R Protection Pack Stone Grey"
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
             <p className="text-xs text-gray-500 mt-2">
@@ -665,44 +653,45 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Category *</label>
-            <select
+            <label className="block text-gray-400 text-sm mb-1">
+              Category <RequiredMark />
+            </label>
+            <RdkSelect
               value={category}
-              onChange={(e) => setCategory(e.target.value as Category)}
-              required
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            >
-              <option value="sneakers">Sneakers</option>
-              <option value="clothing">Clothing</option>
-              <option value="accessories">Accessories</option>
-              <option value="electronics">Electronics</option>
-            </select>
+              onChange={(v) => setCategory(v as Category)}
+              options={[
+                { value: 'sneakers', label: 'Sneakers' },
+                { value: 'clothing', label: 'Clothing' },
+                { value: 'accessories', label: 'Accessories' },
+                { value: 'electronics', label: 'Electronics' },
+              ]}
+              buttonClassName="bg-zinc-800"
+            />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Condition *</label>
-            <select
+            <label className="block text-gray-400 text-sm mb-1">
+              Condition <RequiredMark />
+            </label>
+            <RdkSelect
               value={condition}
-              onChange={(e) => setCondition(e.target.value as Condition)}
-              required
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            >
-              <option value="new">New</option>
-              <option value="used">Used</option>
-            </select>
+              onChange={(v) => setCondition(v as Condition)}
+              options={[
+                { value: 'new', label: 'New' },
+                { value: 'used', label: 'Used' },
+              ]}
+              buttonClassName="bg-zinc-800"
+            />
           </div>
         </div>
 
         <div className="mt-4 bg-zinc-950/40 border border-zinc-800/70 rounded p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm text-gray-300 font-semibold">Parsed Preview</h3>
-            {parseStatus === 'loading' && (
-              <span className="text-xs text-gray-500">Parsing...</span>
-            )}
-            {parseStatus === 'error' && (
-              <span className="text-xs text-red-400">Unable to parse title</span>
-            )}
+            {parseStatus === 'loading' && <span className="text-xs text-gray-500">Parsing...</span>}
+            {parseStatus === 'error' && <span className="text-xs text-red-400">Unable to parse title</span>}
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             <div className="text-gray-400">
               <span className="block text-xs uppercase text-gray-500">Brand</span>
@@ -719,11 +708,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <span className="text-white">{parseResult?.name || '-'}</span>
             </div>
           </div>
+
           {parseResult?.titleDisplay && (
             <div className="text-xs text-gray-500">
               Display: <span className="text-gray-200">{parseResult.titleDisplay}</span>
             </div>
           )}
+
           {(brandSuggestion || modelSuggestion) && (
             <div className="flex flex-wrap gap-2">
               {brandSuggestion && (
@@ -757,7 +748,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={brandOverrideInput}
               onChange={(e) => handleBrandOverrideChange(e.target.value)}
               placeholder="Search brands..."
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70"
+              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-zinc-700/40"
             />
             <datalist id="brand-options">
               {brandOptions.map((brand) => (
@@ -785,7 +776,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 onChange={(e) => handleModelOverrideChange(e.target.value)}
                 placeholder={effectiveBrandId ? 'Search models...' : 'Select a brand first'}
                 disabled={!effectiveBrandId}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500"
+                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-700/40"
               />
               <datalist id="model-options">
                 {modelOptions.map((model) => (
@@ -835,7 +826,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           <button
             type="button"
             onClick={addVariant}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition"
+            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition"
           >
             <Plus className="w-4 h-4" />
             Add Variant
@@ -848,34 +839,35 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Size <span className="text-red-500">*</span>
+                    Size <RequiredMark />
                   </label>
+
                   {sizeType === 'shoe' && (
-                    <select
+                    <RdkSelect
                       value={variant.size_label}
-                      onChange={(e) => updateVariant(index, 'size_label', e.target.value)}
-                      required
-                      className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
-                    >
-                      <option value="">Select...</option>
-                      {SHOE_SIZES.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => updateVariant(index, 'size_label', v)}
+                      placeholder="Select…"
+                      options={[
+                        { value: '', label: 'Select…' },
+                        ...SHOE_SIZES.map((size) => ({ value: size, label: size })),
+                      ]}
+                      buttonClassName="bg-zinc-900"
+                    />
                   )}
+
                   {sizeType === 'clothing' && (
-                    <select
+                    <RdkSelect
                       value={variant.size_label}
-                      onChange={(e) => updateVariant(index, 'size_label', e.target.value)}
-                      required
-                      className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
-                    >
-                      <option value="">Select...</option>
-                      {CLOTHING_SIZES.map(size => (
-                        <option key={size} value={size}>{size}</option>
-                      ))}
-                    </select>
+                      onChange={(v) => updateVariant(index, 'size_label', v)}
+                      placeholder="Select…"
+                      options={[
+                        { value: '', label: 'Select…' },
+                        ...CLOTHING_SIZES.map((size) => ({ value: size, label: size })),
+                      ]}
+                      buttonClassName="bg-zinc-900"
+                    />
                   )}
+
                   {sizeType === 'custom' && (
                     <input
                       type="text"
@@ -883,22 +875,23 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       onChange={(e) => updateVariant(index, 'size_label', e.target.value)}
                       required
                       placeholder="e.g., One Size"
-                      className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
+                      className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                     />
                   )}
+
                   {sizeType === 'none' && (
                     <input
                       type="text"
                       value="N/A"
                       disabled
-                      className="w-full bg-zinc-900 text-gray-500 px-3 py-2 rounded text-sm"
+                      className="w-full bg-zinc-900 text-gray-500 px-3 py-2 rounded text-sm border border-zinc-800/70"
                     />
                   )}
                 </div>
 
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Price ($) <span className="text-red-500">*</span>
+                    Price ($) <RequiredMark />
                   </label>
                   <input
                     type="text"
@@ -906,13 +899,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     value={variant.price}
                     onChange={(e) => updateVariant(index, 'price', e.target.value)}
                     required
-                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
+                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
 
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Cost ($) <span className="text-red-500">*</span>
+                    Cost ($) <RequiredMark />
                   </label>
                   <input
                     type="text"
@@ -920,19 +913,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     value={variant.cost}
                     onChange={(e) => updateVariant(index, 'cost', e.target.value)}
                     required
-                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
+                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 text-xs mb-1">Stock</label>
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Stock <RequiredMark />
+                  </label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={variant.stock}
                     onChange={(e) => updateVariant(index, 'stock', e.target.value)}
                     required
-                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm"
+                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
               </div>
@@ -941,7 +936,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 <button
                   type="button"
                   onClick={() => removeVariant(index)}
-                  className="text-red-500 hover:text-red-400"
+                  className="text-red-500 hover:text-red-400 p-2 rounded hover:bg-zinc-900"
+                  aria-label="Remove variant"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -955,7 +951,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">
-            Images <span className="text-red-500">*</span>
+            Images <RequiredMark />
           </h2>
           <span className="text-xs text-gray-500">{images.length} total</span>
         </div>
@@ -969,106 +965,117 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           className="hidden"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4">
-          <div className="space-y-3">
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border border-dashed rounded-lg p-4 cursor-pointer transition ${
-                isDragging
-                  ? 'border-red-500 bg-red-900/10'
-                  : 'border-zinc-800/70 bg-zinc-950/40'
-              }`}
-            >
-              <div className="flex items-center gap-3 text-gray-300">
-                <div className="h-11 w-11 rounded-full border border-zinc-800/70 flex items-center justify-center">
-                  <ImagePlus className="w-5 h-5 text-gray-500" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-gray-200">Drag & drop or click to upload</p>
-                  <p className="text-xs text-gray-500">PNG, JPG, WEBP. First image becomes primary.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    fileInputRef.current?.click();
-                  }}
-                  className="text-xs uppercase tracking-[0.18em] text-gray-300 border border-zinc-800/70 px-3 py-2 hover:bg-zinc-900"
-                >
-                  Upload
-                </button>
-              </div>
-            </div>
-            <div className="text-xs text-gray-500">
-              Add at least one image. You can promote any thumbnail to primary.
-            </div>
+        {/* Full-width Dropzone */}
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={[
+            'w-full h-44 border border-dashed cursor-pointer transition',
+            'rounded',
+            'px-4 py-3 flex items-center gap-3',
+            isDragging
+              ? 'border-red-500 bg-red-900/10'
+              : 'border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-950/50',
+          ].join(' ')}
+        >
+          <div className="h-10 w-10 bg-zinc-900 border border-zinc-800/70 flex items-center justify-center shrink-0 rounded">
+            <ImagePlus className="w-5 h-5 text-gray-400" />
           </div>
 
-          <div className="bg-zinc-950/60 border border-zinc-800/70 p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-gray-500">Primary preview</div>
-            <div className="mt-3 aspect-[4/3] bg-zinc-900 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
-              {primaryImage?.url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={primaryImage.url} alt="Primary preview" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs text-gray-500">No primary image yet</span>
-              )}
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Set a primary image to anchor your storefront grid.
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-white font-semibold truncate">Drag & drop images</p>
+            <p className="text-xs text-gray-500 mt-1">Or click to browse. PNG, JPG, WEBP.</p>
+            <p className="text-xs text-gray-500 mt-1">
+              First image becomes primary (you can change it below).
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            className="text-xs font-semibold bg-zinc-900 border border-zinc-800/70 px-3 py-2 rounded hover:bg-zinc-800"
+          >
+            Browse
+          </button>
         </div>
 
-        {images.length === 0 ? (
-          <div className="text-gray-500 text-sm mt-4">No images added yet.</div>
-        ) : (
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-            {images.map((image, index) => (
-              <div key={index} className="relative group bg-zinc-900 border border-zinc-800/70 overflow-hidden">
-                <div className="aspect-[4/3] bg-zinc-900 overflow-hidden">
-                  {image.url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image.url} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
-                      Missing image
-                    </div>
-                  )}
-                </div>
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="bg-black/60 hover:bg-black/80 text-white p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+        {/* Thumbnails BELOW primary */}
+        <div className="mt-4">
+          {images.length === 0 ? (
+            <div className="text-gray-500 text-sm">No images yet.</div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+              {images.map((image, index) => (
                 <button
+                  key={index}
                   type="button"
                   onClick={() => setPrimaryImage(index)}
-                  className={`absolute bottom-2 left-2 px-2 py-1 text-xs ${
-                    image.is_primary
-                      ? 'bg-green-600 text-white'
-                      : 'bg-black/60 text-gray-200 hover:bg-black/80'
-                  }`}
+                  className={[
+                    'group relative text-left border overflow-hidden transition',
+                    'rounded',
+                    image.is_primary ? 'border-red-500' : 'border-zinc-800/70 hover:border-zinc-700',
+                  ].join(' ')}
+                  title="Click to set primary"
                 >
-                  {image.is_primary ? 'Primary' : 'Set Primary'}
+                  <div className="aspect-square bg-zinc-900 overflow-hidden">
+                    {image.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={image.url} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
+                        Missing
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="absolute top-1 left-1">
+                    <span
+                      className={[
+                        'text-[10px] px-2 py-0.5 border',
+                        'rounded',
+                        image.is_primary
+                          ? 'bg-red-600 border-red-500 text-white'
+                          : 'bg-black/50 border-white/10 text-gray-200',
+                      ].join(' ')}
+                    >
+                      {image.is_primary ? 'Primary' : 'Thumb'}
+                    </span>
+                  </div>
+
+                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeImage(index);
+                      }}
+                      className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded"
+                      aria-label="Remove image"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </button>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
+
+
+        <div className="mt-3 text-xs text-gray-500">
+          Add at least one image. Click any thumbnail to promote it to primary.
+        </div>
       </div>
 
       {/* Pricing & Shipping */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Pricing & Shipping</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-gray-400 text-sm mb-1">Shipping Price ($)</label>
@@ -1077,12 +1084,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               inputMode="decimal"
               value={shippingPrice}
               onChange={(e) => setShippingPrice(e.target.value)}
-              placeholder={`Default $${formatMoney(defaultShippingPrice)}`}
               className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
-            <p className="text-gray-500 text-xs mt-1">
-              Leave blank to use the {category} default: ${formatMoney(defaultShippingPrice)}.
-            </p>
+
+            {shippingDefaultsStatus === 'loading' ? (
+              <p className="text-gray-500 text-xs mt-1">Loading default shipping prices…</p>
+            ) : shippingDefaultsStatus === 'error' ? (
+              <p className="text-red-400 text-xs mt-1">
+                Could not load default shipping prices. (You can still set an override.)
+              </p>
+            ) : (
+              <p className="text-gray-500 text-xs mt-1">
+                Leave blank to use the {category} default:{' '}
+                <span className="text-gray-200">${formatMoney(defaultShippingPrice)}</span>.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -1110,6 +1126,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           Cancel
         </button>
       </div>
+
       <Toast
         open={Boolean(toast)}
         message={toast?.message ?? ''}
