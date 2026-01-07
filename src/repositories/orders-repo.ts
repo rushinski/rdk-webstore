@@ -169,33 +169,21 @@ export class OrdersRepository {
     stripePaymentIntentId: string,
     itemsToDecrement: Array<{ productId: string; variantId: string | null; quantity: number }>
   ): Promise<boolean> {
-    const { data: updated, error: orderError } = await this.supabase
-      .from("orders")
-      .update({
-        status: "paid",
-        stripe_payment_intent_id: stripePaymentIntentId,
-      })
-      .eq("id", orderId)
-      .eq("status", "pending")
-      .select("id");
+    const payload = itemsToDecrement
+      .filter((item) => item.variantId)
+      .map((item) => ({
+        variant_id: item.variantId,
+        quantity: item.quantity,
+      }));
 
-    if (orderError) throw orderError;
-    if (!updated || updated.length === 0) {
-      return false;
-    }
+    const { data, error } = await this.supabase.rpc("mark_order_paid_and_decrement", {
+      p_order_id: orderId,
+      p_stripe_payment_intent_id: stripePaymentIntentId,
+      p_items: payload,
+    });
 
-    for (const item of itemsToDecrement) {
-      if (item.variantId) {
-        const { error: variantError } = await this.supabase.rpc("decrement_variant_stock", {
-          p_variant_id: item.variantId,
-          p_quantity: item.quantity,
-        });
-
-        if (variantError) throw variantError;
-      }
-    }
-
-    return true;
+    if (error) throw error;
+    return data === true;
   }
 
   async getOrderItems(orderId: string): Promise<OrderItemRow[]> {
@@ -230,6 +218,26 @@ export class OrdersRepository {
     }
     if (params?.limit) {
       query = query.limit(params.limit);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data ?? [];
+  }
+
+  async listOrdersForAnalytics(params?: { status?: string[]; since?: string }) {
+    let query = this.supabase
+      .from("orders")
+      .select(
+        "id, created_at, subtotal, total, refund_amount, items:order_items(quantity, unit_cost)"
+      )
+      .order("created_at", { ascending: false });
+
+    if (params?.status?.length) {
+      query = query.in("status", params.status);
+    }
+    if (params?.since) {
+      query = query.gte("created_at", params.since);
     }
 
     const { data, error } = await query;

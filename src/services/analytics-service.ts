@@ -101,8 +101,9 @@ export class AnalyticsService {
     startDate.setDate(startDate.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
 
-    const orders = await this.ordersRepo.listOrders({
+    const orders = await this.ordersRepo.listOrdersForAnalytics({
       status: ["paid", "shipped", "refunded"],
+      since: startDate.toISOString(),
     });
 
     const pageviewRows = await this.pageviewsRepo.listSince(

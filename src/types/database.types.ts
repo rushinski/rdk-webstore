@@ -1580,6 +1580,14 @@ export type Database = {
       is_admin_for_tenant: { Args: { target_tenant: string }; Returns: boolean }
       is_dev: { Args: never; Returns: boolean }
       is_super_admin: { Args: never; Returns: boolean }
+      mark_order_paid_and_decrement: {
+        Args: {
+          p_items: Json
+          p_order_id: string
+          p_stripe_payment_intent_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
