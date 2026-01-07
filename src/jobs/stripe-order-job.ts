@@ -69,12 +69,6 @@ export class StripeOrderJob {
       return;
     }
 
-    if (order.status === "paid") {
-      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
-      return;
-    }
-
     const orderItems = await this.ordersRepo.getOrderItems(orderId);
     const itemsToDecrement = orderItems.map((item) => ({
       productId: item.product_id,
@@ -85,8 +79,7 @@ export class StripeOrderJob {
     const paymentIntentId = session.payment_intent as string;
     const didMarkPaid = await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
     if (!didMarkPaid) {
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
-      return;
+      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
     }
 
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];
@@ -294,12 +287,6 @@ export class StripeOrderJob {
       return;
     }
 
-    if (order.status === "paid") {
-      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
-      return;
-    }
-
     const orderItems = await this.ordersRepo.getOrderItems(orderId);
     const itemsToDecrement = orderItems.map((item) => ({
       productId: item.product_id,
@@ -309,8 +296,7 @@ export class StripeOrderJob {
 
     const didMarkPaid = await this.ordersRepo.markPaidTransactionally(orderId, paymentIntent.id, itemsToDecrement);
     if (!didMarkPaid) {
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
-      return;
+      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
     }
 
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];

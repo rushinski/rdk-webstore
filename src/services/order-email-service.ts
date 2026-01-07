@@ -1,6 +1,6 @@
 // src/services/order-email-service.ts
 import { env } from "@/config/env";
-import { sendEmail } from "@/lib/email/mailer";
+import { sendEmailWithRetry } from "@/lib/email/mailer";
 import { emailFooterText } from "@/lib/email/footer";
 import { renderEmailLayout } from "@/lib/email/template";
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
@@ -558,51 +558,66 @@ const buildRefundedEmailText = (input: OrderRefundedEmailInput) => {
 export class OrderEmailService {
   async sendOrderConfirmation(input: OrderConfirmationEmailInput) {
     if (!input.to) return;
-    await sendEmail({
-      to: input.to,
-      subject: "Your Realdealkickzsc order is confirmed",
-      html: buildEmailHtml(input),
-      text: buildEmailText(input),
-    });
+    await sendEmailWithRetry(
+      {
+        to: input.to,
+        subject: "Your Realdealkickzsc order is confirmed",
+        html: buildEmailHtml(input),
+        text: buildEmailText(input),
+      },
+      { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
+    );
   }
 
   async sendOrderLabelCreated(input: OrderLabelCreatedEmailInput) {
     if (!input.to) return;
-    await sendEmail({
-      to: input.to,
-      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} label is created`,
-      html: buildLabelCreatedEmailHtml(input),
-      text: buildLabelCreatedEmailText(input),
-    });
+    await sendEmailWithRetry(
+      {
+        to: input.to,
+        subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} label is created`,
+        html: buildLabelCreatedEmailHtml(input),
+        text: buildLabelCreatedEmailText(input),
+      },
+      { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
+    );
   }
 
   async sendOrderInTransit(input: OrderInTransitEmailInput) {
     if (!input.to) return;
-    await sendEmail({
-      to: input.to,
-      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} is on the way`,
-      html: buildInTransitEmailHtml(input),
-      text: buildInTransitEmailText(input),
-    });
+    await sendEmailWithRetry(
+      {
+        to: input.to,
+        subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} is on the way`,
+        html: buildInTransitEmailHtml(input),
+        text: buildInTransitEmailText(input),
+      },
+      { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
+    );
   }
 
   async sendOrderDelivered(input: OrderDeliveredEmailInput) {
     if (!input.to) return;
-    await sendEmail({
-      to: input.to,
-      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} was delivered`,
-      html: buildDeliveredEmailHtml(input),
-      text: buildDeliveredEmailText(input),
-    });
+    await sendEmailWithRetry(
+      {
+        to: input.to,
+        subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} was delivered`,
+        html: buildDeliveredEmailHtml(input),
+        text: buildDeliveredEmailText(input),
+      },
+      { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
+    );
   }
 
   async sendOrderRefunded(input: OrderRefundedEmailInput) {
     if (!input.to) return;
-    await sendEmail({
-      to: input.to,
-      subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} has been refunded`,
-      html: buildRefundedEmailHtml(input),
-      text: buildRefundedEmailText(input),
-    });
+    await sendEmailWithRetry(
+      {
+        to: input.to,
+        subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} has been refunded`,
+        html: buildRefundedEmailHtml(input),
+        text: buildRefundedEmailText(input),
+      },
+      { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
+    );
   }
 }

@@ -7,6 +7,8 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { createCartHash } from "@/lib/crypto";
+import { checkoutSessionSchema } from "@/lib/validation/checkout";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -15,28 +17,25 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
 });
 
 export async function POST(request: NextRequest) {
+  const requestId = getRequestIdFromHeaders(request.headers);
+
   try {
     const supabase = await createSupabaseServerClient();
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
     const userEmail = user?.email ?? null;
 
-    const body = await request.json();
-    const { items, idempotencyKey, fulfillment } = body;
+    const body = await request.json().catch(() => null);
+    const parsed = checkoutSessionSchema.safeParse(body ?? {});
 
-    if (!Array.isArray(items) || items.length === 0) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid items" },
-        { status: 400 }
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    if (!idempotencyKey || typeof idempotencyKey !== "string") {
-      return NextResponse.json(
-        { error: "Missing idempotency key" },
-        { status: 400 }
-      );
-    }
+    const { items, idempotencyKey, fulfillment } = parsed.data;
 
     const normalizedFulfillment = fulfillment === "pickup" ? "pickup" : "ship";
     const cartHash = createCartHash(items, normalizedFulfillment);
@@ -47,23 +46,23 @@ export async function POST(request: NextRequest) {
       const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
       if (expiresAt && expiresAt < new Date()) {
         return NextResponse.json(
-          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED" },
-          { status: 409 }
+          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId },
+          { status: 409, headers: { "Cache-Control": "no-store" } }
         );
       }
 
       if (existingOrder.cart_hash !== cartHash) {
         return NextResponse.json(
-          { error: "CART_MISMATCH", code: "CART_MISMATCH" },
-          { status: 409 }
+          { error: "CART_MISMATCH", code: "CART_MISMATCH", requestId },
+          { status: 409, headers: { "Cache-Control": "no-store" } }
         );
       }
 
       if (existingOrder.status === "paid") {
-        return NextResponse.json({
-          status: "paid",
-          orderId: existingOrder.id,
-        });
+        return NextResponse.json(
+          { status: "paid", orderId: existingOrder.id, requestId },
+          { headers: { "Cache-Control": "no-store" } }
+        );
       }
 
       if (existingOrder.stripe_payment_intent_id) {
@@ -72,28 +71,32 @@ export async function POST(request: NextRequest) {
         );
 
         if (paymentIntent.status === "succeeded") {
-          return NextResponse.json({
-            status: "paid",
-            orderId: existingOrder.id,
-          });
+          return NextResponse.json(
+            { status: "paid", orderId: existingOrder.id, requestId },
+            { headers: { "Cache-Control": "no-store" } }
+          );
         }
 
         if (paymentIntent.status === "canceled") {
           return NextResponse.json(
-            { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED" },
-            { status: 409 }
+            { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
+            { status: 409, headers: { "Cache-Control": "no-store" } }
           );
         }
 
-        return NextResponse.json({
-          clientSecret: paymentIntent.client_secret,
-          orderId: existingOrder.id,
-          paymentIntentId: paymentIntent.id,
-          subtotal: Number(existingOrder.subtotal ?? 0),
-          shipping: Number(existingOrder.shipping ?? 0),
-          total: Number(existingOrder.total ?? 0),
-          fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
-        });
+        return NextResponse.json(
+          {
+            clientSecret: paymentIntent.client_secret,
+            orderId: existingOrder.id,
+            paymentIntentId: paymentIntent.id,
+            subtotal: Number(existingOrder.subtotal ?? 0),
+            shipping: Number(existingOrder.shipping ?? 0),
+            total: Number(existingOrder.total ?? 0),
+            fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
+            requestId,
+          },
+          { headers: { "Cache-Control": "no-store" } }
+        );
       }
     }
 
@@ -141,15 +144,19 @@ export async function POST(request: NextRequest) {
 
       await ordersRepo.updateStripePaymentIntent(existingOrder.id, paymentIntent.id);
 
-      return NextResponse.json({
-        clientSecret: paymentIntent.client_secret,
-        orderId: existingOrder.id,
-        paymentIntentId: paymentIntent.id,
-        subtotal,
-        shipping,
-        total,
-        fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
-      });
+      return NextResponse.json(
+        {
+          clientSecret: paymentIntent.client_secret,
+          orderId: existingOrder.id,
+          paymentIntentId: paymentIntent.id,
+          subtotal,
+          shipping,
+          total,
+          fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
+          requestId,
+        },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     // Fetch products
@@ -159,8 +166,8 @@ export async function POST(request: NextRequest) {
 
     if (products.length === 0) {
       return NextResponse.json(
-        { error: "No valid products found" },
-        { status: 400 }
+        { error: "No valid products found", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
@@ -173,8 +180,8 @@ export async function POST(request: NextRequest) {
     );
     if (tenantIds.size !== 1) {
       return NextResponse.json(
-        { error: "Checkout requires a single tenant" },
-        { status: 400 }
+        { error: "Checkout requires a single tenant", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
     const [tenantId] = [...tenantIds];
@@ -291,6 +298,7 @@ export async function POST(request: NextRequest) {
       level: "info",
       layer: "api",
       message: "payment_intent_created",
+      requestId,
       orderId: order.id,
       paymentIntentId: paymentIntent.id,
     });
@@ -299,24 +307,29 @@ export async function POST(request: NextRequest) {
       await ordersRepo.updateStripePaymentIntent(order.id, paymentIntent.id);
     }
 
-    return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      orderId: order.id,
-      paymentIntentId: paymentIntent.id,
-      subtotal,
-      shipping,
-      total,
-      fulfillment: normalizedFulfillment,
-    });
+    return NextResponse.json(
+      {
+        clientSecret: paymentIntent.client_secret,
+        orderId: order.id,
+        paymentIntentId: paymentIntent.id,
+        subtotal,
+        shipping,
+        total,
+        fulfillment: normalizedFulfillment,
+        requestId,
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error: any) {
     logError(error, {
       layer: "api",
+      requestId,
       route: "/api/checkout/create-payment-intent",
     });
 
     return NextResponse.json(
-      { error: error.message || "Failed to create payment intent" },
-      { status: 500 }
+      { error: error.message || "Failed to create payment intent", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }

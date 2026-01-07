@@ -2,7 +2,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ShoppingBag } from 'lucide-react';
+import { Loader2, ShoppingBag } from 'lucide-react';
 import type { CartItem } from '@/types/views/cart';
 
 interface OrderSummaryProps {
@@ -11,9 +11,17 @@ interface OrderSummaryProps {
   shipping: number;
   total: number;
   fulfillment: "ship" | "pickup";
+  isUpdatingShipping?: boolean;
 }
 
-export function OrderSummary({ items, subtotal, shipping, total, fulfillment }: OrderSummaryProps) {
+export function OrderSummary({
+  items,
+  subtotal,
+  shipping,
+  total,
+  fulfillment,
+  isUpdatingShipping = false,
+}: OrderSummaryProps) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -67,13 +75,31 @@ export function OrderSummary({ items, subtotal, shipping, total, fulfillment }: 
           <div className="flex justify-between text-gray-400">
             <span>Shipping</span>
             <span className="text-xs">
-              {fulfillment === 'pickup' ? 'Free (Pickup)' : `$${shipping.toFixed(2)}`}
+              {isUpdatingShipping ? (
+                <span className="inline-flex items-center gap-2 text-xs text-gray-400">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Updating...
+                </span>
+              ) : fulfillment === 'pickup' ? (
+                'Free (Pickup)'
+              ) : (
+                `$${shipping.toFixed(2)}`
+              )}
             </span>
           </div>
           <div className="border-t border-zinc-800 pt-2 mt-2">
             <div className="flex justify-between text-lg font-bold text-white">
               <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+              <span>
+                {isUpdatingShipping ? (
+                  <span className="inline-flex items-center gap-2 text-sm text-zinc-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Updating...
+                  </span>
+                ) : (
+                  `$${total.toFixed(2)}`
+                )}
+              </span>
             </div>
           </div>
         </div>

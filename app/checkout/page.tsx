@@ -326,6 +326,7 @@ export default function CheckoutPage() {
             shipping={pricing.shipping}
             total={pricing.total}
             fulfillment={fulfillment}
+            isUpdatingShipping={isUpdatingFulfillment}
           />
         </div>
       </div>

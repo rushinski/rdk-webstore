@@ -359,7 +359,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                       <div className="text-xs text-zinc-500 mb-1">
                         {message.sender_role === 'customer' ? 'You' : 'Admin'}
                       </div>
-                      <div className="text-sm whitespace-pre-wrap">{message.body}</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">{message.body}</div>
                     </div>
                   ))
                 )}
@@ -379,8 +379,8 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                       }
                     }}
                     placeholder="Type your message..."
-                    className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm
-                              resize-none overflow-y-auto max-h-32 whitespace-pre-wrap"
+                    className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm rounded
+                              resize-none overflow-y-auto max-h-32 whitespace-pre-wrap focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
                   />
                   <button
                     type="button"
@@ -410,7 +410,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           <div className="relative bg-zinc-950 border border-zinc-800/70 p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-white mb-2">Close this chat?</h3>
             <p className="text-sm text-zinc-400 mb-4">
-              Closing will end the conversation. You can’t send new messages unless you sign in again.
+              Closing will end the conversation. You can't send new messages unless you sign in again.
             </p>
             <div className="flex gap-3">
               <button

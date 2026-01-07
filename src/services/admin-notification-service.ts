@@ -38,11 +38,11 @@ export class AdminNotificationService {
         (!excludeAdminId || admin.id !== excludeAdminId)
     );
 
-    const label = customerLabel ? `${customerLabel}: ` : "";
+    const label = customerLabel?.trim() || "Customer";
     const rows = recipients.map((admin) => ({
       admin_id: admin.id,
       type: "chat_message",
-      message: `${label}${messagePreview}`,
+      message: `New Message - ${label} : ${messagePreview}`,
       chat_id: chatId,
     }));
 

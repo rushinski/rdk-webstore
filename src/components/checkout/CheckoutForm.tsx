@@ -123,12 +123,20 @@ export function CheckoutForm({
       }
 
       if (paymentIntent.status === 'processing') {
-        router.push(`/checkout/success?orderId=${orderId}`);
+        const secretParam = paymentIntent.client_secret
+          ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
+          : '';
+        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : '';
+        router.push(`/checkout/processing?orderId=${orderId}${intentParam}${secretParam}`);
         return { ok: true };
       }
 
       if (paymentIntent.status === 'requires_action') {
-        router.push(`/checkout/processing?orderId=${orderId}`);
+        const secretParam = paymentIntent.client_secret
+          ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
+          : '';
+        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : '';
+        router.push(`/checkout/processing?orderId=${orderId}${intentParam}${secretParam}`);
         return { ok: true };
       }
 

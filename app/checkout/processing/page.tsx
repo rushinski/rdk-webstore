@@ -1,7 +1,7 @@
 // src/app/checkout/processing/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
@@ -14,21 +14,37 @@ export default function CheckoutProcessingPage() {
 
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const orderId = searchParams.get('orderId');
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
+    const paymentIntentId = searchParams.get('payment_intent');
 
-    if (!orderId || !paymentIntentClientSecret) {
+    if (!orderId) {
       setStatus('error');
       setMessage('Invalid payment information');
       return;
     }
 
-    let retryTimeout: NodeJS.Timeout;
+    const clearTimers = () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
 
     const checkPaymentStatus = async () => {
       try {
+        if (!paymentIntentClientSecret) {
+          return;
+        }
+
         const stripe = await stripePromise;
         if (!stripe) {
           setStatus('error');
@@ -41,28 +57,81 @@ export default function CheckoutProcessingPage() {
         if (paymentIntent?.status === 'succeeded') {
           setStatus('success');
           setMessage('Payment successful! Redirecting...');
-          
-          // Redirect to success page after 2 seconds
+          clearTimers();
+
+          try {
+            if (paymentIntentId) {
+              await fetch('/api/checkout/confirm-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId, paymentIntentId }),
+              });
+            }
+          } catch {
+            // ignore confirmation errors; webhook will reconcile
+          }
+
           setTimeout(() => {
             router.push(`/checkout/success?orderId=${orderId}`);
-          }, 2000);
-        } else if (paymentIntent?.status === 'processing') {
+          }, 1200);
+          return;
+        }
+
+        if (paymentIntent?.status === 'processing') {
           setMessage('Your payment is processing. Please wait...');
-          retryTimeout = setTimeout(checkPaymentStatus, 2500);
-        } else {
+          return;
+        }
+
+        if (paymentIntent?.status === 'requires_payment_method' || paymentIntent?.status === 'canceled') {
           setStatus('error');
           setMessage('Payment failed. Please try again.');
+          clearTimers();
+          return;
         }
+
+        setMessage('Finalizing your payment confirmation...');
       } catch (error) {
         console.error('Error checking payment status:', error);
         setStatus('error');
         setMessage('An error occurred while processing your payment.');
+        clearTimers();
+      }
+    };
+
+    const pollOrderStatus = async () => {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data?.status === 'paid') {
+          setStatus('success');
+          setMessage('Payment confirmed! Redirecting...');
+          clearTimers();
+          setTimeout(() => {
+            router.push(`/checkout/success?orderId=${orderId}`);
+          }, 1200);
+        }
+      } catch {
+        // ignore polling errors
       }
     };
 
     checkPaymentStatus();
+    pollOrderStatus();
+
+    pollIntervalRef.current = setInterval(() => {
+      checkPaymentStatus();
+      pollOrderStatus();
+    }, 2500);
+
+    timeoutRef.current = setTimeout(() => {
+      setStatus('error');
+      setMessage('Payment is taking longer than expected. Please check your account or return to your cart.');
+      clearTimers();
+    }, 60000);
+
     return () => {
-      if (retryTimeout) clearTimeout(retryTimeout);
+      clearTimers();
     };
   }, [searchParams, router]);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, MoreVertical, Search } from 'lucide-react';
 import type { ProductWithDetails } from "@/types/views/product";
@@ -9,6 +9,7 @@ import { logError } from '@/lib/log';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Toast } from '@/components/ui/Toast';
 import { RdkSelect } from '@/components/ui/Select';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 type StockStatus = 'in_stock' | 'out_of_stock';
 
@@ -24,19 +25,71 @@ export default function InventoryPage() {
   const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null);
   const [pendingMassDelete, setPendingMassDelete] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const filtersRef = useRef<{
+    q?: string;
+    category?: Category | 'all';
+    condition?: Condition | 'all';
+    stockStatus?: StockStatus;
+  }>({});
+  const refreshTimerRef = useRef<number | null>(null);
+
+  const loadProducts = useCallback(
+    async (
+      filters?: {
+        q?: string;
+        category?: Category | 'all';
+        condition?: Condition | 'all';
+        stockStatus?: StockStatus;
+      },
+      showLoading = true
+    ) => {
+      if (showLoading) setIsLoading(true);
+      try {
+        // Admin list must include out-of-stock so the admin tabs can display them.
+        const params = new URLSearchParams({ limit: '100', includeOutOfStock: '1' });
+
+        if (filters?.q) params.set('q', filters.q.trim());
+        if (filters?.category && filters.category !== 'all') params.append('category', filters.category);
+        if (filters?.condition && filters.condition !== 'all') params.append('condition', filters.condition);
+
+        const response = await fetch(`/api/admin/products?${params.toString()}`);
+        const data = await response.json();
+
+        const loaded: ProductWithDetails[] = data.products || [];
+
+        // Client-side tab filter based on actual variant stock (authoritative for admin UI)
+        const filtered = filters?.stockStatus
+          ? loaded.filter((product: ProductWithDetails) => {
+              const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+              if (filters.stockStatus === 'out_of_stock') return totalStock <= 0;
+              return totalStock > 0;
+            })
+          : loaded;
+
+        setProducts(filtered);
+      } catch (error) {
+        logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
+      } finally {
+        if (showLoading) setIsLoading(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
+    filtersRef.current = {
+      q: searchQuery,
+      category: categoryFilter,
+      condition: conditionFilter,
+      stockStatus: stockStatusFilter,
+    };
+
     const timeout = setTimeout(() => {
-      loadProducts({
-        q: searchQuery,
-        category: categoryFilter,
-        condition: conditionFilter,
-        stockStatus: stockStatusFilter,
-      });
+      loadProducts(filtersRef.current);
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery, categoryFilter, conditionFilter, stockStatusFilter]);
+  }, [searchQuery, categoryFilter, conditionFilter, stockStatusFilter, loadProducts]);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -50,42 +103,38 @@ export default function InventoryPage() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [openMenuId]);
 
-  const loadProducts = async (filters?: {
-    q?: string;
-    category?: Category | 'all';
-    condition?: Condition | 'all';
-    stockStatus?: StockStatus;
-  }) => {
-    setIsLoading(true);
-    try {
-      // Admin list must include out-of-stock so the admin tabs can display them.
-      const params = new URLSearchParams({ limit: '100', includeOutOfStock: '1' });
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+      refreshTimerRef.current = window.setTimeout(() => {
+        loadProducts(filtersRef.current, false);
+      }, 300);
+    };
 
-      if (filters?.q) params.set('q', filters.q.trim());
-      if (filters?.category && filters.category !== 'all') params.append('category', filters.category);
-      if (filters?.condition && filters.condition !== 'all') params.append('condition', filters.condition);
+    const channel = supabase
+      .channel('admin-inventory')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'product_variants' },
+        scheduleRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'products' },
+        scheduleRefresh
+      )
+      .subscribe();
 
-      const response = await fetch(`/api/admin/products?${params.toString()}`);
-      const data = await response.json();
-
-      const loaded: ProductWithDetails[] = data.products || [];
-
-      // Client-side tab filter based on actual variant stock (authoritative for admin UI)
-      const filtered = filters?.stockStatus
-        ? loaded.filter((product: ProductWithDetails) => {
-            const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
-            if (filters.stockStatus === 'out_of_stock') return totalStock <= 0;
-            return totalStock > 0;
-          })
-        : loaded;
-
-      setProducts(filtered);
-    } catch (error) {
-      logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [loadProducts]);
 
   const showToast = (message: string, tone: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, tone });

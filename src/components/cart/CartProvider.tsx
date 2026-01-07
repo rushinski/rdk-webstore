@@ -1,7 +1,7 @@
 // src/components/cart/CartProvider.tsx (FIXED - handles new event structure)
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { CartService } from '@/services/cart-service';
 import type { CartItem } from "@/types/views/cart";
 
@@ -22,6 +22,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [cart] = useState(() => new CartService());
   const [items, setItems] = useState<CartItem[]>([]);
   const [isReady, setIsReady] = useState(false);
+  const didInitialValidation = useRef(false);
+  const isValidatingRef = useRef(false);
+
+  const refreshCart = useCallback(async () => {
+    const current = cart.getCart();
+    if (current.length === 0 || isValidatingRef.current) return;
+    isValidatingRef.current = true;
+
+    try {
+      const response = await fetch('/api/cart/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: current.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (response.ok && Array.isArray(data?.items)) {
+        cart.setCart(data.items as CartItem[]);
+      }
+    } catch {
+      // ignore validation failures
+    } finally {
+      isValidatingRef.current = false;
+    }
+  }, [cart]);
 
   useEffect(() => {
     const storedItems = cart.getCart();
@@ -45,6 +76,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
     window.addEventListener('cartUpdated', handleCartUpdate);
     return () => window.removeEventListener('cartUpdated', handleCartUpdate);
   }, [cart]);
+
+  useEffect(() => {
+    if (didInitialValidation.current || !isReady) return;
+    didInitialValidation.current = true;
+    if (items.length > 0) {
+      refreshCart();
+    }
+  }, [isReady, items.length, refreshCart]);
+
+  useEffect(() => {
+    const handleOpenCart = () => {
+      refreshCart();
+    };
+
+    window.addEventListener('openCart', handleOpenCart);
+    return () => window.removeEventListener('openCart', handleOpenCart);
+  }, [refreshCart]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshCart();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [refreshCart]);
 
   const addItem = useCallback((item: Omit<CartItem, 'quantity'>) => {
     cart.addItem(item);

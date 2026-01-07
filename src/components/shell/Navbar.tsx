@@ -372,9 +372,11 @@ export function Navbar({
     [shopIconClass, visibleBrandGroups],
   );
 
+  const authResolved = clientIsAuthenticated !== null || isAuthenticated;
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
   const effectiveUserEmail = clientUserEmail ?? userEmail;
-  const showAuthButtons = !effectiveIsAuthenticated;
+  const showAuthButtons = authResolved && !effectiveIsAuthenticated;
+  const showAuthLoading = !authResolved;
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
@@ -820,6 +822,10 @@ export function Navbar({
               >
                 Sign Up
               </Link>
+            </div>
+          ) : showAuthLoading ? (
+            <div className="flex items-center gap-2" aria-label="Loading account">
+              <div className="h-9 w-9 rounded-full bg-zinc-800 animate-pulse" />
             </div>
           ) : null}
         </div>

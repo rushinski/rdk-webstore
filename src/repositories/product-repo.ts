@@ -31,6 +31,20 @@ export type ProductWithDetails = ProductRow & {
   tags: TagRow[];
 };
 
+export type CartVariantDetails = {
+  variantId: string;
+  productId: string;
+  sizeLabel: string;
+  priceCents: number;
+  stock: number;
+  brand: string;
+  name: string;
+  titleDisplay: string;
+  isActive: boolean;
+  isOutOfStock: boolean;
+  imageUrl: string | null;
+};
+
 type ProductInsert = TablesInsert<"products">;
 type ProductUpdate = TablesUpdate<"products">;
 
@@ -46,88 +60,95 @@ export class ProductRepository {
   async list(filters: ProductFilters = {}) {
     const { page = 1, limit = 20, sort = "newest" } = filters;
     const offset = (page - 1) * limit;
+    const isPriceSort = sort === "price_asc" || sort === "price_desc";
 
-    const sizeProductIds = await this.listProductIdsForSizes(filters);
+    const sizeProductIds = isPriceSort ? null : await this.listProductIdsForSizes(filters);
     if (Array.isArray(sizeProductIds) && sizeProductIds.length === 0) {
       return { products: [], total: 0, page, limit };
     }
-
-    let query = this.supabase
-      .from("products")
-      .select("id", { count: "exact" })
-      .eq("is_active", true);
-
-    // Tenant/seller/marketplace scoping
-    if (filters.tenantId) query = query.eq("tenant_id", filters.tenantId);
-    if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
-    if (filters.marketplaceId) query = query.eq("marketplace_id", filters.marketplaceId);
 
     // IMPORTANT:
     // - Storefront must not include out-of-stock items by default.
     // - Admin can include them by passing includeOutOfStock=true.
     const includeOutOfStock = Boolean(filters.includeOutOfStock);
 
-    if (filters.stockStatus === "out_of_stock") {
-      query = query.eq("is_out_of_stock", true);
-    } else if (filters.stockStatus === "in_stock") {
-      query = query.eq("is_out_of_stock", false);
-    } else if (!includeOutOfStock) {
-      // default (storefront-safe)
-      query = query.eq("is_out_of_stock", false);
+    let total = 0;
+    let ids: string[] = [];
+
+    if (isPriceSort) {
+      const result = await this.listProductIdsByPrice(filters, sort, includeOutOfStock);
+      ids = result.ids;
+      total = result.total;
+    } else {
+      let query = this.supabase
+        .from("products")
+        .select("id", { count: "exact" })
+        .eq("is_active", true);
+
+      // Tenant/seller/marketplace scoping
+      if (filters.tenantId) query = query.eq("tenant_id", filters.tenantId);
+      if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
+      if (filters.marketplaceId) query = query.eq("marketplace_id", filters.marketplaceId);
+
+      if (filters.stockStatus === "out_of_stock") {
+        query = query.eq("is_out_of_stock", true);
+      } else if (filters.stockStatus === "in_stock") {
+        query = query.eq("is_out_of_stock", false);
+      } else if (!includeOutOfStock) {
+        // default (storefront-safe)
+        query = query.eq("is_out_of_stock", false);
+      }
+
+      // Text search
+      if (filters.q) {
+        query = query.or(
+          [
+            `brand.ilike.%${filters.q}%`,
+            `name.ilike.%${filters.q}%`,
+            `model.ilike.%${filters.q}%`,
+            `title_raw.ilike.%${filters.q}%`,
+            `title_display.ilike.%${filters.q}%`,
+          ].join(",")
+        );
+      }
+
+      // Category / brand / condition filters
+      if (filters.category?.length) query = query.in("category", filters.category);
+      if (filters.brand?.length) query = query.in("brand", filters.brand);
+      if (filters.model?.length) query = query.in("model", filters.model);
+      if (filters.condition?.length) query = query.in("condition", filters.condition);
+
+      if (Array.isArray(sizeProductIds)) {
+        query = query.in("id", sizeProductIds);
+      }
+
+      // Sorting
+      switch (sort) {
+        case "newest":
+          query = query.order("created_at", { ascending: false });
+          break;
+        case "name_asc":
+          query = query
+            .order("title_display", { ascending: true })
+            .order("created_at", { ascending: false });
+          break;
+        case "name_desc":
+          query = query
+            .order("title_display", { ascending: false })
+            .order("created_at", { ascending: false });
+          break;
+      }
+
+      query = query.range(offset, offset + limit - 1);
+
+      const { data, error, count } = await query;
+      if (error) throw error;
+
+      ids = (data ?? []).map((row: { id: string }) => row.id);
+      total = count ?? 0;
     }
-
-    // Text search
-    if (filters.q) {
-      query = query.or(
-        [
-          `brand.ilike.%${filters.q}%`,
-          `name.ilike.%${filters.q}%`,
-          `model.ilike.%${filters.q}%`,
-          `title_raw.ilike.%${filters.q}%`,
-          `title_display.ilike.%${filters.q}%`,
-        ].join(",")
-      );
-    }
-
-    // Category / brand / condition filters
-    if (filters.category?.length) query = query.in("category", filters.category);
-    if (filters.brand?.length) query = query.in("brand", filters.brand);
-    if (filters.model?.length) query = query.in("model", filters.model);
-    if (filters.condition?.length) query = query.in("condition", filters.condition);
-
-    if (Array.isArray(sizeProductIds)) {
-      query = query.in("id", sizeProductIds);
-    }
-
-    // Sorting
-    switch (sort) {
-      case "newest":
-        query = query.order("created_at", { ascending: false });
-        break;
-      case "price_asc":
-      case "price_desc":
-        query = query.order("created_at", { ascending: false });
-        break;
-      case "name_asc":
-        query = query
-          .order("title_display", { ascending: true })
-          .order("created_at", { ascending: false });
-        break;
-      case "name_desc":
-        query = query
-          .order("title_display", { ascending: false })
-          .order("created_at", { ascending: false });
-        break;
-    }
-
-    query = query.range(offset, offset + limit - 1);
-
-    const { data, error, count } = await query;
-    if (error) throw error;
-
-    const ids = (data ?? []).map((row: { id: string }) => row.id);
     if (ids.length === 0) {
-      return { products: [], total: count ?? 0, page, limit };
+      return { products: [], total, page, limit };
     }
 
     let detailQuery = this.supabase
@@ -160,7 +181,7 @@ export class ProductRepository {
 
     return {
       products: ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[],
-      total: count ?? 0,
+      total,
       page,
       limit,
     };
@@ -381,6 +402,85 @@ export class ProductRepository {
     return values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
   }
 
+  private async listProductIdsByPrice(
+    filters: ProductFilters,
+    sort: "price_asc" | "price_desc",
+    includeOutOfStock: boolean
+  ) {
+    const { page = 1, limit = 20 } = filters;
+    const offset = (page - 1) * limit;
+
+    let query = this.supabase
+      .from("product_variants")
+      .select("product_id, min_price:price_cents.min(), product:products!inner(id)", {
+        count: "exact",
+      });
+
+    if (filters.sizeShoe?.length || filters.sizeClothing?.length) {
+      const sizeFilters: string[] = [];
+      if (filters.sizeShoe?.length) {
+        sizeFilters.push(
+          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`
+        );
+      }
+      if (filters.sizeClothing?.length) {
+        sizeFilters.push(
+          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`
+        );
+      }
+      if (sizeFilters.length > 0) {
+        query = query.or(sizeFilters.join(","));
+      }
+    }
+
+    // Tenant/seller/marketplace scoping
+    if (filters.tenantId) query = query.eq("product.tenant_id", filters.tenantId);
+    if (filters.sellerId) query = query.eq("product.seller_id", filters.sellerId);
+    if (filters.marketplaceId) query = query.eq("product.marketplace_id", filters.marketplaceId);
+
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("product.is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
+      query = query.eq("product.is_out_of_stock", false);
+    } else if (!includeOutOfStock) {
+      query = query.eq("product.is_out_of_stock", false);
+    }
+
+    query = query.eq("product.is_active", true);
+
+    // Text search on product fields
+    if (filters.q) {
+      query = query.or(
+        [
+          `brand.ilike.%${filters.q}%`,
+          `name.ilike.%${filters.q}%`,
+          `model.ilike.%${filters.q}%`,
+          `title_raw.ilike.%${filters.q}%`,
+          `title_display.ilike.%${filters.q}%`,
+        ].join(","),
+        { foreignTable: "product" }
+      );
+    }
+
+    // Category / brand / condition filters
+    if (filters.category?.length) query = query.in("product.category", filters.category);
+    if (filters.brand?.length) query = query.in("product.brand", filters.brand);
+    if (filters.model?.length) query = query.in("product.model", filters.model);
+    if (filters.condition?.length) query = query.in("product.condition", filters.condition);
+
+    query = query.order("min_price", { ascending: sort === "price_asc" });
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    const ids = (data ?? [])
+      .map((row: { product_id: string | null }) => row.product_id)
+      .filter((id): id is string => Boolean(id));
+
+    return { ids, total: count ?? 0 };
+  }
+
   private async listProductIdsForSizes(filters: ProductFilters) {
     const sizeFilters: string[] = [];
     if (filters.sizeShoe?.length) {
@@ -463,6 +563,63 @@ export class ProductRepository {
         stock: v.stock,
       })),
     }));
+  }
+
+  async getVariantsForCart(variantIds: string[]): Promise<CartVariantDetails[]> {
+    if (variantIds.length === 0) return [];
+
+    const { data, error } = await this.supabase
+      .from("product_variants")
+      .select(
+        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_display, is_active, is_out_of_stock)"
+      )
+      .in("id", variantIds);
+
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const productIds = [
+      ...new Set(
+        rows
+          .map((row: any) => row.product?.id ?? row.product_id)
+          .filter((id: string | null): id is string => Boolean(id))
+      ),
+    ];
+
+    const imageMap = new Map<string, string>();
+    if (productIds.length > 0) {
+      const { data: images, error: imagesError } = await this.supabase
+        .from("product_images")
+        .select("product_id, url, is_primary, sort_order")
+        .in("product_id", productIds)
+        .order("is_primary", { ascending: false })
+        .order("sort_order", { ascending: true });
+
+      if (imagesError) throw imagesError;
+
+      for (const image of images ?? []) {
+        if (!imageMap.has(image.product_id)) {
+          imageMap.set(image.product_id, image.url);
+        }
+      }
+    }
+
+    return rows.map((row: any) => {
+      const product = row.product;
+      return {
+        variantId: row.id,
+        productId: product?.id ?? row.product_id,
+        sizeLabel: row.size_label,
+        priceCents: row.price_cents,
+        stock: row.stock,
+        brand: product?.brand ?? "",
+        name: product?.name ?? "",
+        titleDisplay: product?.title_display ?? "",
+        isActive: product?.is_active ?? false,
+        isOutOfStock: product?.is_out_of_stock ?? false,
+        imageUrl: imageMap.get(product?.id ?? row.product_id) ?? null,
+      };
+    });
   }
 
   async getModels(category?: string): Promise<string[]> {

@@ -130,7 +130,7 @@ export function EnrollmentForm() {
               Scan the QR code, then enter the 6-digit code to confirm.
             </div>
 
-            <QRDisplay qrCode={qrCode} />
+            <QRDisplay qrCode={qrCode} copyValue={totpUri ?? manualSecret ?? null} />
 
             {manualSecret && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">

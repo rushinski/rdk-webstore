@@ -163,11 +163,11 @@ export function AdminNotificationCenter({ placement = 'top' }: Props) {
                     setIsOpen(false);
                     if (!notification.read_at) markRead(notification.id);
                   }}
-                  className={`block px-4 py-3 border-b border-zinc-900/70 hover:bg-zinc-900 transition ${
+                  className={`block min-w-0 px-4 py-3 border-b border-zinc-900/70 hover:bg-zinc-900 transition ${
                     notification.read_at ? 'text-zinc-400' : 'text-white'
                   }`}
                 >
-                  <div className="text-sm font-medium">{notification.message}</div>
+                  <div className="text-sm font-medium break-words whitespace-pre-wrap">{notification.message}</div>
                   <div className="text-xs text-zinc-500 mt-1">{formatTime(notification.created_at)}</div>
                 </Link>
               ))

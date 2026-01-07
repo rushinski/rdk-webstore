@@ -48,7 +48,7 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // prevent “0 flash”
+  // prevent unread count flash before first load
   const [unreadCountServer, setUnreadCountServer] = useState<number | null>(null);
   const loadedOnceRef = useRef(false);
 
@@ -145,7 +145,7 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
               <h2 className="text-2xl font-bold text-white">Notifications</h2>
               <p className="text-xs text-zinc-500 mt-1">
                 {isLoading && !loadedOnceRef.current
-                  ? 'Loading…'
+                  ? 'Loading...'
                   : showUnread
                     ? `Unread: ${unreadCountServer}`
                     : `Unread: ${unreadCountLocal}`}
@@ -178,7 +178,7 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
           </div>
 
           {isLoading && !loadedOnceRef.current ? (
-            <div className="text-sm text-zinc-500 py-8 text-center">Loading notifications…</div>
+            <div className="text-sm text-zinc-500 py-8 text-center">Loading notifications...</div>
           ) : notifications.length === 0 ? (
             <div className="text-sm text-zinc-500 py-10 text-center">No notifications yet.</div>
           ) : (
@@ -191,11 +191,11 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
                     onClose();
                     if (!n.read_at) markRead(n.id);
                   }}
-                  className={`block border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition px-4 py-3 rounded-sm ${
+                  className={`block min-w-0 border border-zinc-800/70 bg-zinc-950 hover:bg-zinc-900 transition px-4 py-3 rounded-sm ${
                     n.read_at ? 'text-zinc-400' : 'text-white'
                   }`}
                 >
-                  <div className="text-sm font-medium">{n.message}</div>
+                  <div className="text-sm font-medium break-words whitespace-pre-wrap">{n.message}</div>
                   <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>
                 </Link>
               ))}

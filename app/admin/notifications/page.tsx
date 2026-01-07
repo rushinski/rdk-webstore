@@ -308,7 +308,7 @@ export default function AdminNotificationsPage() {
                   onClick={confirmDeleteAll}
                   disabled={isDeletingAll}
                 >
-                  {isDeletingAll ? 'Deleting…' : 'Delete all'}
+                  {isDeletingAll ? 'Deleting...' : 'Delete all'}
                 </button>
               </div>
             </div>
@@ -401,7 +401,7 @@ export default function AdminNotificationsPage() {
 
       {/* Body */}
       {isLoading ? (
-        <div className="text-sm text-zinc-500 py-10 text-center">Loading…</div>
+        <div className="text-sm text-zinc-500 py-10 text-center">Loading...</div>
       ) : notifications.length === 0 ? (
         <div className="text-sm text-zinc-500 py-10 text-center">No notifications yet.</div>
       ) : (
@@ -439,11 +439,11 @@ export default function AdminNotificationsPage() {
                       }
                       if (!n.read_at) markRead(n.id);
                     }}
-                    className={`block flex-1 px-4 py-3 transition group-hover:bg-zinc-900 ${
+                    className={`block flex-1 min-w-0 px-4 py-3 transition group-hover:bg-zinc-900 ${
                       n.read_at ? 'text-zinc-400' : 'text-white'
                     }`}
                   >
-                    <div className="text-sm font-medium">{n.message}</div>
+                    <div className="text-sm font-medium break-words whitespace-pre-wrap">{n.message}</div>
                     <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>
                   </Link>
 
@@ -478,7 +478,7 @@ export default function AdminNotificationsPage() {
                             enterSelectMode([n.id]); // auto-select clicked
                           }}
                         >
-                          Delete…
+                          Delete...
                         </button>
                       </div>
                     )}

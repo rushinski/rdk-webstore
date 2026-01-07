@@ -295,7 +295,7 @@ export default function AdminChatsPage() {
                 const preview = chat.messages?.[0]?.body ?? 'No messages yet.';
                 const label = customerLabel(chat);
                 const orderLabel = chat.order_id
-                  ? `${label} • Order #${chat.order_id.slice(0, 8)}`
+                  ? `${label} - Order #${chat.order_id.slice(0, 8)}`
                   : label;
                 const isActive = chat.id === activeChatId;
 
@@ -303,12 +303,12 @@ export default function AdminChatsPage() {
                   <button
                     key={chat.id}
                     onClick={() => setActiveChatId(chat.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-zinc-800/70 transition ${
+                    className={`w-full text-left px-4 py-3 border-b border-zinc-800/70 transition min-w-0 ${
                       isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/60'
                     }`}
                   >
-                    <div className="text-sm font-semibold text-white">{orderLabel}</div>
-                    <div className="text-xs text-zinc-500 mt-1">{preview}</div>
+                    <div className="text-sm font-semibold text-white truncate">{orderLabel}</div>
+                    <div className="text-xs text-zinc-500 mt-1 truncate">{preview}</div>
                   </button>
                 );
               })
@@ -322,7 +322,7 @@ export default function AdminChatsPage() {
               <div className="text-white font-semibold">
                 {activeChat
                   ? activeChat.order_id
-                    ? `${customerLabel(activeChat)} • Order #${activeChat.order_id.slice(0, 8)}`
+                    ? `${customerLabel(activeChat)} - Order #${activeChat.order_id.slice(0, 8)}`
                     : customerLabel(activeChat)
                   : 'Chat'}
               </div>
@@ -362,7 +362,7 @@ export default function AdminChatsPage() {
                         ? customerLabel(activeChat)
                         : 'Customer'}
                   </div>
-                  <div className="text-sm whitespace-pre-wrap">{message.body}</div>
+                  <div className="text-sm whitespace-pre-wrap break-words">{message.body}</div>
                 </div>
               ))
             )}
@@ -383,8 +383,8 @@ export default function AdminChatsPage() {
                 }}
                 placeholder={activeChat ? "Type a reply..." : "Select a chat to reply"}
                 disabled={!activeChat}
-                className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm
-                          disabled:opacity-60 resize-none overflow-y-auto max-h-32 whitespace-pre-wrap"
+                className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm rounded
+                          disabled:opacity-60 resize-none overflow-y-auto max-h-32 whitespace-pre-wrap focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
               />
               <button
                 type="button"

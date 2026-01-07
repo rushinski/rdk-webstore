@@ -74,6 +74,11 @@ export class CartService {
     return [];
   }
 
+  setCart(items: CartItem[]) {
+    this.saveCart(items);
+    return items;
+  }
+
   getItemCount(): number {
     return this.getCart().reduce((sum, item) => sum + item.quantity, 0);
   }

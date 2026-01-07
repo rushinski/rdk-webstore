@@ -4,19 +4,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
+import { calculateShippingSchema } from "@/lib/validation/checkout";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json().catch(() => ({}));
-    const { productIds } = body;
+  const requestId = getRequestIdFromHeaders(request.headers);
 
-    if (!Array.isArray(productIds) || productIds.length === 0) {
+  try {
+    const body = await request.json().catch(() => null);
+    const parsed = calculateShippingSchema.safeParse(body ?? {});
+
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "productIds array required" },
-        { status: 400 }
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
+
+    const { productIds } = parsed.data;
 
     const supabase = await createSupabaseServerClient();
     const productsRepo = new ProductRepository(supabase);
@@ -25,7 +31,10 @@ export async function POST(request: NextRequest) {
     const products = await productsRepo.getProductsForCheckout(productIds);
     
     if (products.length === 0) {
-      return NextResponse.json({ shippingCost: 0 });
+      return NextResponse.json(
+        { shippingCost: 0, requestId },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const categories = [...new Set(products.map(p => p.category))];
@@ -34,7 +43,10 @@ export async function POST(request: NextRequest) {
     );
     
     if (tenantIds.size !== 1) {
-      return NextResponse.json({ shippingCost: 0 });
+      return NextResponse.json(
+        { shippingCost: 0, requestId },
+        { headers: { "Cache-Control": "no-store" } }
+      );
     }
 
     const [tenantId] = [...tenantIds];
@@ -48,18 +60,19 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json(
-      { shippingCost: maxShipping },
+      { shippingCost: maxShipping, requestId },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error: any) {
     logError(error, {
       layer: "api",
+      requestId,
       route: "/api/checkout/calculate-shipping",
     });
 
     return NextResponse.json(
-      { error: "Failed to calculate shipping" },
-      { status: 500 }
+      { error: "Failed to calculate shipping", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
