@@ -498,12 +498,17 @@ export default function ShippingPage() {
             {addressLine ? addressLine : <span className="text-red-400">Missing address</span>}
           </td>
           <td className="p-4 text-gray-400">
-            <div>Wt {packageProfile.weight} oz</div>
-            <div className="text-xs text-gray-500">
-              {packageProfile.length} x {packageProfile.width} x {packageProfile.height} in
-            </div>
+            {labelUrl ? (
+              <button
+                onClick={() => viewLabel(order)}
+                className="text-sm text-red-400 hover:text-red-300"
+              >
+                Print Label
+              </button>
+            ) : (
+              <span className="text-zinc-500">No label yet</span>
+            )}
           </td>
-          <td className="p-4 text-gray-400">{shippingLabel}</td>
           <td className="p-4 text-gray-400">
             {order.tracking_number ? (
               <div className="space-y-1">
@@ -515,17 +520,9 @@ export default function ShippingPage() {
                 ) : (
                   <span className="text-zinc-300">{order.tracking_number}</span>
                 )}
-                {labelUrl && (
-                  <button
-                    onClick={() => viewLabel(order)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300"
-                  >
-                    View label
-                  </button>
-                )}
               </div>
             ) : (
-              <span className="text-zinc-500">No label yet</span>
+              <span className="text-zinc-500">No tracking yet</span>
             )}
           </td>
           <td className="p-4 text-right">
@@ -671,8 +668,7 @@ export default function ShippingPage() {
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Order</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Customer</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Destination</th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Package</th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Service</th>
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Label</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">Tracking</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">Items</th>
                 <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">Action</th>

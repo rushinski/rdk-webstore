@@ -280,12 +280,13 @@ const buildLabelCreatedEmailHtml = (input: OrderLabelCreatedEmailInput) => {
   const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const buttonUrl = input.trackingUrl ?? orderUrl;
   const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
+  const trackingNumber = input.trackingNumber ? ` (${input.trackingNumber})` : '';
 
   const contentHtml = `
     <tr>
       <td style="padding:0 24px 10px;text-align:center;">
         <div style="${emailStyles.eyebrow}">Label created</div>
-        <h1 style="${emailStyles.heading}">We're preparing your shipment.</h1>
+        <h1 style="${emailStyles.heading}">We're preparing your shipment.${trackingNumber}</h1>
         <p style="margin:10px 0 0;${emailStyles.copy}">
           Your shipping label has been created. Tracking may take a bit to update until the carrier scans the package.
         </p>
