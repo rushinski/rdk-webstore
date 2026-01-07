@@ -216,7 +216,7 @@ export class OrdersRepository {
   }) {
     let query = this.supabase
       .from("orders")
-      .select("*, customer:profiles(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)")
+      .select("*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)")
       .order("created_at", { ascending: false });
 
     if (params?.status?.length) {
@@ -247,7 +247,7 @@ export class OrdersRepository {
     let query = this.supabase
       .from("orders")
       .select(
-        "*, customer:profiles(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
+        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
         { count: "exact" }
       )
       .order("created_at", { ascending: false });

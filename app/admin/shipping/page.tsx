@@ -126,7 +126,7 @@ const formatPlacedAt = (value?: string | null) => {
 };
 
 const getCustomerHandle = (order: any) => {
-  const email = order.customer?.email ?? null;
+  const email = order.profiles?.email ?? null;
   if (email && email.includes('@')) return email.split('@')[0];
   const address = resolveShippingAddress(order.shipping);
   const name = address?.name?.trim();
