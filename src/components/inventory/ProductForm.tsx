@@ -1047,13 +1047,20 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {images.map((image, index) => (
-                <button
+                <div
                   key={index}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setPrimaryImage(index)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setPrimaryImage(index);
+                    }
+                  }}
                   className={[
                     "group relative text-left border overflow-hidden transition",
-                    "rounded",
+                    "rounded cursor-pointer select-none",
                     image.is_primary
                       ? "border-red-500"
                       : "border-zinc-800/70 hover:border-zinc-700",
@@ -1102,11 +1109,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
         </div>
+
 
         <div className="mt-3 text-xs text-gray-500">
           Add at least one image. Click any thumbnail to promote it to primary.
