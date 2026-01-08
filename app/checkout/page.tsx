@@ -1,26 +1,23 @@
 // src/app/checkout/page.tsx (EMBEDDED STRIPE CHECKOUT)
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import { useCart } from '@/components/cart/CartProvider';
 import { CheckoutForm } from '@/components/checkout/CheckoutForm';
 import { OrderSummary } from '@/components/checkout/OrderSummary';
+import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import type { CartItem } from '@/types/views/cart';
 import {
   clearIdempotencyKeyFromStorage,
   generateIdempotencyKey,
   getIdempotencyKeyFromStorage,
   setIdempotencyKeyInStorage,
 } from '@/lib/idempotency';
-import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
-import type { CartItem } from '@/types/views/cart';
-import { checkoutSessionSchema } from '@/lib/validation/checkout';
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import type { User } from '@supabase/supabase-js';
-import { ArrowLeft, Loader2 } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -50,22 +47,6 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [email, setEmail] = useState('');
-  const [supabase] = useState(() => createSupabaseBrowserClient());
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user: currentUser },
-      } = await supabase.auth.getUser();
-      setUser(currentUser);
-      if (currentUser) {
-        setEmail(currentUser.email ?? '');
-      }
-    };
-    fetchUser();
-  }, [supabase]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -121,34 +102,24 @@ export default function CheckoutPage() {
       setError(null);
 
       try {
-        const payload: any = {
-          idempotencyKey,
-          fulfillment,
-          items: items.map(item => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-          })),
-        };
-
-        if (!user) {
-          payload.email = email;
-        }
-
         const response = await fetch('/api/checkout/create-payment-intent', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify({
+            idempotencyKey,
+            fulfillment,
+            items: items.map(item => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+            })),
+          }),
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          if (
-            data?.code === 'CART_MISMATCH' ||
-            data?.code === 'IDEMPOTENCY_KEY_EXPIRED' ||
-            data?.code === 'PAYMENT_INTENT_CANCELED'
-          ) {
+          if (data?.code === 'CART_MISMATCH' || data?.code === 'IDEMPOTENCY_KEY_EXPIRED' || data?.code === 'PAYMENT_INTENT_CANCELED') {
             clearIdempotencyKeyFromStorage();
             const signature = buildCartSignature(items);
             const nextKey = generateIdempotencyKey();
@@ -199,7 +170,7 @@ export default function CheckoutPage() {
     return () => {
       isActive = false;
     };
-  }, [idempotencyKey, items, isReady, router, user, email]);
+  }, [idempotencyKey, items, isReady, router]);
 
   const handleFulfillmentChange = async (next: 'ship' | 'pickup') => {
     if (next === fulfillment || !orderId) {
@@ -343,9 +314,6 @@ export default function CheckoutPage() {
               fulfillment={fulfillment}
               onFulfillmentChange={handleFulfillmentChange}
               isUpdatingFulfillment={isUpdatingFulfillment}
-              user={user}
-              email={email}
-              onEmailChange={setEmail}
             />
           </Elements>
         </div>
