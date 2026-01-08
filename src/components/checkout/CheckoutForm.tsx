@@ -8,6 +8,7 @@ import { ShippingAddressForm } from './ShippingAddressForm';
 import { SavedAddresses } from './SavedAddresses';
 import { Loader2, Lock, Package, TruckIcon } from 'lucide-react';
 import Link from 'next/link';
+import type { User } from '@supabase/supabase-js';
 import type { CartItem } from '@/types/views/cart';
 
 interface CheckoutFormProps {
@@ -17,6 +18,9 @@ interface CheckoutFormProps {
   fulfillment: 'ship' | 'pickup';
   onFulfillmentChange: (fulfillment: 'ship' | 'pickup') => void;
   isUpdatingFulfillment?: boolean;
+  user: User | null;
+  email: string;
+  onEmailChange: (email: string) => void;
 }
 
 export interface ShippingAddress {
@@ -37,6 +41,9 @@ export function CheckoutForm({
   fulfillment,
   onFulfillmentChange,
   isUpdatingFulfillment = false,
+  user,
+  email,
+  onEmailChange,
 }: CheckoutFormProps) {
   const router = useRouter();
   const stripe = useStripe();
@@ -226,6 +233,27 @@ export function CheckoutForm({
       {error && (
         <div className="bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">
           {error}
+        </div>
+      )}
+
+      {!user && (
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Contact Information</h2>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
+              Email Address
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={email}
+              onChange={e => onEmailChange(e.target.value)}
+              className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white focus:ring-red-500 focus:border-red-500"
+              placeholder="you@example.com"
+              required
+            />
+          </div>
         </div>
       )}
 

@@ -1,3 +1,4 @@
+// src/lib/auth/tenant.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { ServerSession } from "@/lib/auth/session";
 import { TenantService } from "@/services/tenant-service";

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Stripe from "stripe";
 import { OrdersRepository } from "@/repositories/orders-repo";
+import { ChatsRepository } from "@/repositories/chats-repo";
 import { confirmPaymentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -114,6 +115,16 @@ export async function POST(request: NextRequest) {
         { headers: { "Cache-Control": "no-store" } }
       );
     }
+
+    if (order.fulfillment === "pickup" && !order.user_id) {
+      const chatsRepo = new ChatsRepository(supabase);
+      await chatsRepo.createChat({
+        orderId: order.id,
+        guestEmail: paymentIntent.receipt_email,
+        source: "order",
+      });
+    }
+
     return NextResponse.json(
       { success: true },
       { headers: { "Cache-Control": "no-store" } }

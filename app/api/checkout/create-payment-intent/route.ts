@@ -105,9 +105,9 @@ export async function POST(request: NextRequest) {
       const shipping = Number(existingOrder.shipping ?? 0);
       const total = Number(existingOrder.total ?? 0);
 
-      // Get or create Stripe customer
       let stripeCustomerId: string | undefined;
       let receiptEmail: string | undefined;
+
       if (userId) {
         const profileRepo = new ProfileRepository(supabase);
         const profile = await profileRepo.getByUserId(userId);
@@ -122,6 +122,14 @@ export async function POST(request: NextRequest) {
           await profileRepo.setStripeCustomerId(userId, stripeCustomerId);
         }
         receiptEmail = userEmail ?? profile?.email ?? undefined;
+      } else {
+        if (!parsed.data.email) {
+          return NextResponse.json(
+            { error: "Email is required for guest checkout", requestId },
+            { status: 400, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        receiptEmail = parsed.data.email;
       }
 
       const paymentIntent = await stripe.paymentIntents.create(
@@ -273,6 +281,14 @@ export async function POST(request: NextRequest) {
         await profileRepo.setStripeCustomerId(userId, stripeCustomerId);
       }
       receiptEmail = userEmail ?? profile?.email ?? undefined;
+    } else {
+      if (!parsed.data.email) {
+        return NextResponse.json(
+          { error: "Email is required for guest checkout", requestId },
+          { status: 400, headers: { "Cache-Control": "no-store" } }
+        );
+      }
+      receiptEmail = parsed.data.email;
     }
 
     // Create Payment Intent

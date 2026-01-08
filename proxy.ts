@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 
 import { security, startsWithAny, isCsrfUnsafeMethod } from "@/config/security";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { refreshSession } from "@/lib/supabase/proxy";
+import { generateRequestId } from "@/lib/http/request-id";
 
 import { applyRateLimit } from "@/proxy/rate-limit";
 import { protectAdminRoute } from "@/proxy/auth";
@@ -16,7 +18,7 @@ import { finalizeProxyResponse } from "@/proxy/finalize";
  * @see docs/PROXY_PIPELINE.md
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const requestId = `req_${globalThis.crypto.randomUUID()}`;
+  const requestId = generateRequestId();
   const { pathname, hostname } = request.nextUrl;
   const isLocalhost =
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
@@ -28,11 +30,21 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return finalizeProxyResponse(canonicalizeResponse, requestId);
   }
 
+  // Refresh Supabase session and get response with cookies
+  const sessionResponse = await refreshSession(request);
+
+  // Create forwarded headers with request ID for downstream handlers
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set(security.proxy.requestIdHeader, requestId);
 
+  // Create new response with forwarded headers
   let response = NextResponse.next({
     request: { headers: forwardedHeaders },
+  });
+
+  // Copy all Supabase session cookies to the new response
+  sessionResponse.cookies.getAll().forEach((cookie) => {
+    response.cookies.set(cookie.name, cookie.value, cookie);
   });
 
   response = finalizeProxyResponse(response, requestId);
@@ -41,7 +53,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     const botResponse = checkBot(request, requestId);
 
     if (botResponse) {
-      // Bot detected - return block response
       return finalizeProxyResponse(botResponse, requestId);
     }
   }
@@ -50,7 +61,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     const csrfResponse = checkCsrf(request, requestId);
 
     if (csrfResponse) {
-      // CSRF attack detected - return block response
       return finalizeProxyResponse(csrfResponse, requestId);
     }
   }
@@ -59,7 +69,6 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     const rateLimitResponse = await applyRateLimit(request, requestId);
 
     if (rateLimitResponse) {
-      // Rate limit exceeded - return block response
       return finalizeProxyResponse(rateLimitResponse, requestId);
     }
   }
