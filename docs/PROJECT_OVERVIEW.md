@@ -1,6 +1,6 @@
-# PROJECT_OVERVIEW.md — Realdealkickz
+﻿# PROJECT_OVERVIEW.md â€” Realdealkickz
 
-> Purpose: Single authoritative overview of the Real Deal Kickz platform — architecture, environments, processes, and ownership. This document maps the entire system at a high level and links into deeper docs (Architecture, Security, Infra Guide, Runbook, Deployment Pipeline).
+> Purpose: Single authoritative overview of the Real Deal Kickz platform â€” architecture, environments, processes, and ownership. This document maps the entire system at a high level and links into deeper docs (Architecture, Security, Infra Guide, Runbook, Deployment Pipeline).
 > 
 
 ---
@@ -11,13 +11,13 @@
 
 **Mission:** Build a production-grade resale platform with **predictable reliability**, **strict security**, and **scalable architecture**.
 
-**Core Stack:** Next.js (App Router) · Supabase · Stripe Checkout · Vercel · Docker · GitHub Actions
+**Core Stack:** Next.js (App Router) Â· Supabase Â· Stripe Checkout Â· Vercel Â· Docker Â· GitHub Actions
 
 **Architecture Principles:**
 
 - Enforce correctness through **explicit versioned migrations** and **tag-gated deployments**.
 - Guarantee config safety via the **central env validator**.
-- Adopt a clean **layered application architecture** (repositories → services → jobs → route handlers).
+- Adopt a clean **layered application architecture** (repositories â†’ services â†’ jobs â†’ route handlers).
 - Treat staging as a **production-like test bed**.
 - Every workflow and component passes the **Critical Validation Loop (CVL)**.
 
@@ -63,7 +63,7 @@
 
 **Why this matters:**
 
-No more “works locally, breaks in prod.” Staging guarantees runtime parity, reduces unknowns, and prevents last-minute deploy failures.
+No more â€œworks locally, breaks in prod.â€ Staging guarantees runtime parity, reduces unknowns, and prevents last-minute deploy failures.
 
 ---
 
@@ -71,24 +71,24 @@ No more “works locally, breaks in prod.” Staging guarantees runtime parity, 
 
 ```
 /
-├─ app/                     # Next.js (App Router)
-│  ├─ api/                  # Route Handlers (thin controllers)
-│  ├─ (store)/...           # Pages
-│  └─ admin/...
-├─ src/
-│  ├─ repositories/         # Data access (Supabase queries)
-│  ├─ services/             # Domain logic
-│  ├─ jobs/                 # Background workflows
-│  ├─ config/               # env.ts, caching, rate limits, runtime config
-│  ├─ lib/                  # supabase client, stripe, logging, helpers
-│  └─ types/
-├─ supabase/
-│  ├─ migrations/           # Versioned SQL migrations
-│  └─ seed.sql
-├─ infra/                   # Docker, Caddy, local env
-├─ docs/                    # All documentation
-├─ .github/workflows/       # CI/CD
-└─ .env.example
+â”œâ”€ app/                     # Next.js (App Router)
+â”‚  â”œâ”€ api/                  # Route Handlers (thin controllers)
+â”‚  â”œâ”€ (store)/...           # Pages
+â”‚  â””â”€ admin/...
+â”œâ”€ src/
+â”‚  â”œâ”€ repositories/         # Data access (Supabase queries)
+â”‚  â”œâ”€ services/             # Domain logic
+â”‚  â”œâ”€ jobs/                 # Background workflows
+â”‚  â”œâ”€ config/               # env.ts, caching, rate limits, runtime config
+â”‚  â”œâ”€ lib/                  # supabase client, stripe, logging, helpers
+â”‚  â””â”€ types/
+â”œâ”€ supabase/
+â”‚  â”œâ”€ migrations/           # Versioned SQL migrations
+â”‚  â””â”€ seed.sql
+â”œâ”€ infra/                   # Docker, Caddy, local env
+â”œâ”€ docs/                    # All documentation
+â”œâ”€ .github/workflows/       # CI/CD
+â””â”€ .env.example
 
 ```
 
@@ -121,7 +121,7 @@ The application is now structured as a **professional multi-layered architecture
 ### **Route Handlers (I/O Layer)**
 
 - Thin controllers.
-- Input validation → call service → return response.
+- Input validation â†’ call service â†’ return response.
 
 **Why this matters:**
 
@@ -156,7 +156,7 @@ Cache invalidation triggered from both **admin actions** and **Stripe events**.
 
 ---
 
-## 8) Rate Limiting (Edge Middleware)
+## 8) Rate Limiting (Edge Proxy)
 
 Upstash-based:
 
@@ -211,7 +211,7 @@ Critical for high-fidelity debugging.
     - OpenAPI validation
     - Migration dry-run
     - Preview + e2e tests (PRs)
-    - Staging → Production release path
+    - Staging â†’ Production release path
 
 No untagged deploys allowed.
 
@@ -252,7 +252,7 @@ Guarantees safety under real load.
 
 - 99.9% uptime
 - <200ms p95 DB latency
-- ≥98% checkout success rate
+- â‰¥98% checkout success rate
 
 ---
 
@@ -287,11 +287,11 @@ Guarantees safety under real load.
 
 **New Engineer:**
 
-Read ARCHITECTURE.md → INFRA_GUIDE.md → SYSTEM_PLAN.md.
+Read ARCHITECTURE.md â†’ INFRA_GUIDE.md â†’ SYSTEM_PLAN.md.
 
 **Ops & Admin:**
 
-Read RUNBOOK.md → MONITORING_GUIDE.md → SECURITY.md.
+Read RUNBOOK.md â†’ MONITORING_GUIDE.md â†’ SECURITY.md.
 
 **Integrators:**
 
@@ -299,5 +299,5 @@ Read API_SPEC.yaml (version linked to deployment tag).
 
 ---
 
-**Real Deal Kickz — Modern, defensible, scalable system architecture.
+**Real Deal Kickz â€” Modern, defensible, scalable system architecture.
 Built for correctness today and flexibility tomorrow.**
