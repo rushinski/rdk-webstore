@@ -205,33 +205,35 @@ export function EnrollmentForm() {
 
             {manualSecret && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
-                {/* Header row */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-xs uppercase tracking-wide text-zinc-500">Manual setup key</div>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyManualKey}
-                    className="shrink-0 text-xs font-semibold text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-3 py-2 rounded"
-                    aria-live="polite"
-                    data-testid="manual-secret-copy-button"
-                  >
-                    {manualCopyLabel}
-                  </button>
+                <div className="text-xs uppercase tracking-wide text-zinc-500">
+                  Manual setup key
                 </div>
 
-                {/* Key field */}
+                {/* Tap/click to copy field */}
                 <div className="mt-2">
                   <input
                     readOnly
                     value={formatSecret(manualSecret)}
+                    // Mobile-friendly: click/pointer counts as a user gesture for clipboard permissions
+                    onClick={() => void handleCopyManualKey()}
+                    onPointerUp={() => void handleCopyManualKey()} // helps on some mobile browsers
                     onFocus={(e) => e.currentTarget.select()}
-                    className="w-full rounded border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs sm:text-sm text-white tracking-[0.12em] outline-none focus:border-zinc-600"
-                    aria-label="Manual setup key"
+                    className="w-full cursor-pointer select-all rounded border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs sm:text-sm text-white tracking-[0.12em] outline-none focus:border-zinc-600 active:border-zinc-600"
+                    aria-label="Manual setup key (tap to copy)"
+                    aria-describedby="manual-key-help"
+                    data-testid="manual-secret-field"
                   />
-                  <div className="mt-2 text-xs text-zinc-500">
-                    Tap the field to select. If you cannot scan the QR, enter this key in your authenticator app.
+
+                  <div id="manual-key-help" className="mt-2 text-xs text-zinc-500">
+                    Tap the key to copy. If you cannot scan the QR, paste this key into your authenticator app.
                   </div>
+
+                  {/* Inline status feedback (reuses your timer/state) */}
+                  {manualCopyStatus !== "idle" && (
+                    <div className="mt-2 text-xs" aria-live="polite">
+                      {manualCopyStatus === "copied" ? "Copied" : "Copy failed"}
+                    </div>
+                  )}
                 </div>
               </div>
             )}

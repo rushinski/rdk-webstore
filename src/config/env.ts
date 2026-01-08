@@ -24,9 +24,6 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
 
-  FACEBOOK_CLIENT_ID: z.string(),
-  FACEBOOK_CLIENT_SECRET: z.string(),
-
   SES_SMTP_HOST: z.string(),
   SES_SMTP_USER: z.string(),
   SES_SMTP_PASS: z.string(),

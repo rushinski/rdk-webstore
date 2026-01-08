@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { logError } from "@/lib/log";
 
-type Provider = "google" | "facebook";
+type Provider = "google";
 
 interface SocialButtonProps {
   provider: Provider;
@@ -37,22 +37,9 @@ function GoogleIcon() {
   );
 }
 
-function FacebookIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-      <path d="M22 12.06C22 6.505 17.523 2 12 2S2 6.505 2 12.06C2 17.083 5.657 21.245 10.438 22v-6.999H7.898v-2.94h2.54V9.845c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.196 2.238.196v2.47h-1.26c-1.243 0-1.63.775-1.63 1.567v1.882h2.773l-.443 2.94h-2.33V22C18.343 21.245 22 17.083 22 12.06Z" />
-    </svg>
-  );
-}
-
-export function SocialButton({
-  provider,
-  label,
-  nextOverride,
-}: SocialButtonProps) {
+export function SocialButton({ provider, label, nextOverride }: SocialButtonProps) {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
-
   const next = nextOverride ?? searchParams.get("next") ?? "/";
 
   const handleClick = async () => {
@@ -84,7 +71,7 @@ export function SocialButton({
       disabled={loading}
       className="h-11 w-full flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {provider === "google" ? <GoogleIcon /> : <FacebookIcon />}
+      <GoogleIcon />
       <span>{loading ? "Connecting..." : label}</span>
     </button>
   );

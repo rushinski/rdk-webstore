@@ -40,8 +40,6 @@ const defaults: Record<string, string> = {
   ADMIN_SESSION_SECRET: "test-admin-session-secret",
   GOOGLE_CLIENT_ID: "test-google-client-id",
   GOOGLE_CLIENT_SECRET: "test-google-client-secret",
-  FACEBOOK_CLIENT_ID: "test-facebook-client-id",
-  FACEBOOK_CLIENT_SECRET: "test-facebook-client-secret",
   SES_SMTP_HOST: "smtp.test",
   SES_SMTP_USER: "smtp-user",
   SES_SMTP_PASS: "smtp-pass",

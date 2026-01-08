@@ -91,7 +91,6 @@ export function PasswordLoginForm({
 
         <div className="space-y-3">
           <SocialButton provider="google" label="Continue with Google" />
-          <SocialButton provider="facebook" label="Continue with Facebook" />
         </div>
 
         <div className={AuthStyles.divider}>
