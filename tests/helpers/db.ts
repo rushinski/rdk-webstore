@@ -1,3 +1,4 @@
+// tests/helpers/db.ts
 import { Client } from "pg";
 import { createAdminClient } from "./supabase";
 

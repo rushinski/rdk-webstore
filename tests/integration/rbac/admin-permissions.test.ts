@@ -4,17 +4,6 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-/**
- * RBAC Role Definitions:
- * 
- * - dev: Can do EVERYTHING including send invites
- * - super_admin: Can do EVERYTHING EXCEPT cannot send invites
- * - admin: Cannot send invites; cannot see bank settings/tab
- * - user: Regular user (not admin)
- * 
- * These tests ensure server-side enforcement of these rules.
- */
-
 type UserRole = 'dev' | 'super_admin' | 'admin' | 'user';
 
 interface TestUser {

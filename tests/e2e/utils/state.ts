@@ -1,3 +1,4 @@
+// tests/e2e/utils/state.ts
 import "../../helpers/env";
 import { resetDatabase, seedBaseData } from "../../helpers/db";
 
