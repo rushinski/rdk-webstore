@@ -1,3 +1,4 @@
+// src/services/admin-invite-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { AdminSupabaseClient } from "@/lib/supabase/admin";
 import { AdminInvitesRepository } from "@/repositories/admin-invites-repo";

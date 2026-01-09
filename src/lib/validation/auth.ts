@@ -1,3 +1,4 @@
+// src/lib/validation/auth.ts
 import { z } from "zod";
 
 const emailSchema = z.string().trim().email();

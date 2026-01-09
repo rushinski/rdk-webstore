@@ -53,16 +53,18 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 
 ## Cart
 - `POST /api/cart/validate` - validate cart contents (body: `cartValidateSchema`)
+- `POST /api/cart/snapshot` - store cart snapshot for auth redirects (body: `cartSnapshotSchema`)
+- `GET /api/cart/restore` - restore cart snapshot
 
 ## Checkout
-- `POST /api/checkout/session` - create Stripe checkout session (body: `checkoutSessionSchema`)
+- `POST /api/checkout/session` - create Stripe checkout session (body: `checkoutSessionSchema`, optional `guestEmail`)
 - `POST /api/checkout/create-payment-intent` - create or update payment intent (body: `checkoutSessionSchema`)
 - `POST /api/checkout/update-fulfillment` - update fulfillment (body: `updateFulfillmentSchema`)
 - `POST /api/checkout/calculate-shipping` - calculate shipping (body: `calculateShippingSchema`)
 - `POST /api/checkout/confirm-payment` - confirm payment (body: `confirmPaymentSchema`)
 
 ## Orders
-- `GET /api/orders/{orderId}` - order details (auth or guest token)
+- `GET /api/orders/{orderId}` - order status + events (auth or guest token query)
 
 ## Email subscriptions
 - `POST /api/email/subscribe` - request subscription (body: `emailSubscribeSchema`)
@@ -78,11 +80,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `GET /api/chats/{chatId}/messages` - list messages
 - `POST /api/chats/{chatId}/messages` - send message
 - `POST /api/chats/{chatId}/close` - close chat
-- `GET /api/chats/guest` - guest chat lookup
-- `POST /api/chats/guest` - guest chat create
-- `GET /api/chats/guest/{chatId}/messages` - list guest messages
-- `POST /api/chats/guest/{chatId}/messages` - send guest message
-- `POST /api/chats/guest/{chatId}/close` - close guest chat
+- Guest chat endpoints are disabled in MVP (return 403).
 
 ## Analytics
 - `POST /api/analytics/track` - record client events

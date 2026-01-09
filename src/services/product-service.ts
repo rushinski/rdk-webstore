@@ -1,3 +1,4 @@
+// src/services/product-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { log } from "@/lib/log";
 import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";

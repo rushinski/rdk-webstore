@@ -1,3 +1,4 @@
+// src/lib/validation/product.ts
 import { z } from "zod";
 
 const CATEGORY_VALUES = ["sneakers", "clothing", "accessories", "electronics"] as const;

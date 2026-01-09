@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ProductRepository } from "@/repositories/product-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -25,6 +26,16 @@ export async function POST(request: NextRequest) {
     const userId = user?.id ?? null;
     const userEmail = user?.email ?? null;
 
+    if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
+      return NextResponse.json(
+        { error: "GUEST_CHECKOUT_DISABLED", code: "GUEST_CHECKOUT_DISABLED", requestId },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const adminSupabase = createSupabaseAdminClient();
+    const ordersSupabase = userId ? supabase : adminSupabase;
+
     const body = await request.json().catch(() => null);
     const parsed = checkoutSessionSchema.safeParse(body ?? {});
 
@@ -35,11 +46,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { items, idempotencyKey, fulfillment } = parsed.data;
+    const { items, idempotencyKey, fulfillment, guestEmail } = parsed.data;
+
+    if (!userId && !guestEmail) {
+      return NextResponse.json(
+        { error: "GUEST_EMAIL_REQUIRED", code: "GUEST_EMAIL_REQUIRED", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     const normalizedFulfillment = fulfillment === "pickup" ? "pickup" : "ship";
     const cartHash = createCartHash(items, normalizedFulfillment);
-    const ordersRepo = new OrdersRepository(supabase);
+    const ordersRepo = new OrdersRepository(ordersSupabase);
 
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
@@ -63,6 +81,10 @@ export async function POST(request: NextRequest) {
           { status: "paid", orderId: existingOrder.id, requestId },
           { headers: { "Cache-Control": "no-store" } }
         );
+      }
+
+      if (!existingOrder.user_id && guestEmail && !existingOrder.guest_email) {
+        await ordersRepo.updateGuestEmail(existingOrder.id, guestEmail);
       }
 
       if (existingOrder.stripe_payment_intent_id) {
@@ -129,7 +151,7 @@ export async function POST(request: NextRequest) {
           amount: Math.round(total * 100),
           currency: "usd",
           customer: stripeCustomerId,
-          receipt_email: receiptEmail,
+          receipt_email: receiptEmail ?? guestEmail ?? undefined,
           metadata: {
             order_id: existingOrder.id,
             cart_hash: cartHash,
@@ -160,7 +182,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch products
-    const productsRepo = new ProductRepository(supabase);
+    const productsRepo = new ProductRepository(adminSupabase);
     const productIds = [...new Set(items.map((i: any) => i.productId))];
     const products = await productsRepo.getProductsForCheckout(productIds);
 
@@ -188,7 +210,7 @@ export async function POST(request: NextRequest) {
 
     // Get shipping defaults
     const categories = [...new Set(products.map((p) => p.category))];
-    const shippingDefaultsRepo = new ShippingDefaultsRepository(supabase);
+    const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
     const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
     const shippingDefaultsMap = new Map(
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
@@ -237,6 +259,7 @@ export async function POST(request: NextRequest) {
 
     const order = await ordersRepo.createPendingOrder({
       userId,
+      guestEmail: guestEmail ?? null,
       tenantId,
       currency: "USD",
       subtotal,
@@ -281,7 +304,7 @@ export async function POST(request: NextRequest) {
         amount: Math.round(total * 100),
         currency: "usd",
         customer: stripeCustomerId,
-        receipt_email: receiptEmail,
+        receipt_email: receiptEmail ?? guestEmail ?? undefined,
         metadata: {
           order_id: order.id,
           cart_hash: cartHash,

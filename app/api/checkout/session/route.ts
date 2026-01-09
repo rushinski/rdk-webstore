@@ -2,10 +2,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { CheckoutService } from "@/services/checkout-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
+import { env } from "@/config/env";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -16,6 +18,13 @@ export async function POST(request: NextRequest) {
     // Get user (optional)
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
+
+    if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
+      return NextResponse.json(
+        { error: "GUEST_CHECKOUT_DISABLED", code: "GUEST_CHECKOUT_DISABLED", requestId },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
     // Parse body
     const body = await request.json().catch(() => null);
@@ -38,7 +47,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Create checkout session
-    const checkoutService = new CheckoutService(supabase);
+    const adminSupabase = createSupabaseAdminClient();
+    const checkoutService = new CheckoutService(supabase, adminSupabase);
     const result = await checkoutService.createCheckoutSession(parsed.data, userId);
 
     log({
@@ -59,14 +69,22 @@ export async function POST(request: NextRequest) {
       route: "/api/checkout/session",
     });
 
-    if (error.message === "IDEMPOTENCY_KEY_EXPIRED" || error.message === "CART_MISMATCH") {
+    if (
+      error.message === "IDEMPOTENCY_KEY_EXPIRED" ||
+      error.message === "CART_MISMATCH" ||
+      error.message === "GUEST_EMAIL_REQUIRED" ||
+      error.message === "GUEST_CHECKOUT_DISABLED"
+    ) {
       return NextResponse.json(
         {
           error: error.message,
           code: error.message,
           requestId,
         },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        {
+          status: error.message === "GUEST_EMAIL_REQUIRED" ? 400 : error.message === "GUEST_CHECKOUT_DISABLED" ? 403 : 409,
+          headers: { "Cache-Control": "no-store" },
+        }
       );
     }
 

@@ -1,3 +1,4 @@
+// src/services/admin-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import type { ProfileRole } from "@/config/constants/roles";

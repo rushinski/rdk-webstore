@@ -1,3 +1,4 @@
+// src/services/product-title-parser-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import {

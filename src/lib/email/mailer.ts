@@ -18,6 +18,7 @@ type SendEmailInput = {
   html: string;
   text?: string;
   attachments?: EmailAttachment[];
+  replyTo?: string;
 };
 
 type RetryOptions = {
@@ -56,7 +57,7 @@ const getSes = () => {
 const buildFrom = () => `"${env.SES_FROM_NAME}" <${env.SES_FROM_EMAIL}>`;
 
 // Prefer SESv2 for simple emails (no attachments). Use SES raw for attachments / CID.
-export async function sendEmail({ to, subject, html, text, attachments }: SendEmailInput) {
+export async function sendEmail({ to, subject, html, text, attachments, replyTo }: SendEmailInput) {
   const from = buildFrom();
 
   if (attachments && attachments.length > 0) {
@@ -67,6 +68,7 @@ export async function sendEmail({ to, subject, html, text, attachments }: SendEm
       subject,
       html,
       text,
+      ...(replyTo ? { replyTo } : {}),
       attachments: attachments.map((a) => ({
         filename: a.filename,
         content: a.content,
@@ -95,6 +97,7 @@ export async function sendEmail({ to, subject, html, text, attachments }: SendEm
     new SendEmailCommand({
       FromEmailAddress: from,
       Destination: { ToAddresses: [to] },
+      ...(replyTo ? { ReplyToAddresses: [replyTo] } : {}),
       Content: {
         Simple: {
           Subject: { Data: subject, Charset: "UTF-8" },
@@ -104,7 +107,6 @@ export async function sendEmail({ to, subject, html, text, attachments }: SendEm
           },
         },
       },
-      // Optional: if you use an SES Configuration Set
       // ConfigurationSetName: env.AWS_SES_CONFIGURATION_SET,
     })
   );

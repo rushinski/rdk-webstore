@@ -1,3 +1,4 @@
+// src/services/product-title-parser.ts
 import type { Category } from "@/types/views/product";
 
 export type CatalogBrandAlias = {

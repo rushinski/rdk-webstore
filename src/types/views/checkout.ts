@@ -13,6 +13,7 @@ export interface CheckoutSessionRequest {
   }>;
   fulfillment: FulfillmentMethod;
   idempotencyKey: string;
+  guestEmail?: string;
 }
 
 export interface CheckoutSessionResponse {
@@ -29,4 +30,11 @@ export interface OrderStatusResponse {
   total: number;
   fulfillment: FulfillmentMethod;
   updatedAt: string;
+  events: Array<{
+    type: string;
+    message: string | null;
+    createdAt: string;
+  }>;
+  pickupInstructions?: string | null;
+  supportEmail: string;
 }

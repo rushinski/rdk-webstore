@@ -1,3 +1,4 @@
+// src/lib/validation/analytics.ts
 import { z } from "zod";
 
 export const analyticsTrackSchema = z

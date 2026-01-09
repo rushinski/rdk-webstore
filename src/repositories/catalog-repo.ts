@@ -1,3 +1,4 @@
+// src/repositories/catalog-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
 

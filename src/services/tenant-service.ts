@@ -1,3 +1,4 @@
+// src/services/tenant-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { ServerSession } from "@/lib/auth/session";
 import { ProfileRepository } from "@/repositories/profile-repo";

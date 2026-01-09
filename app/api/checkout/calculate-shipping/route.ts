@@ -1,7 +1,7 @@
 // src/app/api/checkout/calculate-shipping/route.ts (NEW)
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { calculateShippingSchema } from "@/lib/validation/checkout";
@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     const { productIds } = parsed.data;
 
-    const supabase = await createSupabaseServerClient();
-    const productsRepo = new ProductRepository(supabase);
+    const adminSupabase = createSupabaseAdminClient();
+    const productsRepo = new ProductRepository(adminSupabase);
 
     // Fetch products to get categories
     const products = await productsRepo.getProductsForCheckout(productIds);
@@ -50,14 +50,15 @@ export async function POST(request: NextRequest) {
     }
 
     const [tenantId] = [...tenantIds];
-    const shippingDefaultsRepo = new ShippingDefaultsRepository(supabase);
+    const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
     const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
 
     // Calculate max shipping (flat rate approach)
-    const maxShipping = Math.max(
+    const maxShippingCents = Math.max(
       ...shippingDefaults.map(d => Number(d.shipping_cost_cents ?? 0)),
       0
     );
+    const maxShipping = maxShippingCents / 100;
 
     return NextResponse.json(
       { shippingCost: maxShipping, requestId },

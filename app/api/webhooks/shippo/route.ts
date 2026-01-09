@@ -2,10 +2,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderEmailService } from "@/services/order-email-service";
+import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { logError } from "@/lib/log";
 
 // Map Shippo tracking statuses to fulfillment statuses
@@ -91,12 +93,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const supabase = await createSupabaseServerClient();
-    const ordersRepo = new OrdersRepository(supabase);
-    const profilesRepo = new ProfileRepository(supabase);
+    const adminSupabase = createSupabaseAdminClient();
+    const ordersRepo = new OrdersRepository(adminSupabase);
+    const profilesRepo = new ProfileRepository(adminSupabase);
+    const orderEventsRepo = new OrderEventsRepository(adminSupabase);
+    const accessTokenService = new OrderAccessTokenService(adminSupabase);
 
     // Find order by tracking number
-    const { data: orders } = await supabase
+    const { data: orders } = await adminSupabase
       .from("orders")
       .select("*")
       .eq("tracking_number", trackingNumber)
@@ -115,38 +119,72 @@ export async function POST(req: NextRequest) {
       await ordersRepo.setFulfillmentStatus(order.id, newFulfillmentStatus);
     }
 
+    // Create fulfillment events
+    if (currentFulfillmentStatus !== newFulfillmentStatus) {
+      const eventType = newFulfillmentStatus === "delivered" ? "delivered" : "shipped";
+      try {
+        const hasEvent = await orderEventsRepo.hasEvent(order.id, eventType);
+        if (!hasEvent) {
+          await orderEventsRepo.insertEvent({
+            orderId: order.id,
+            type: eventType,
+            message:
+              eventType === "delivered"
+                ? "Order delivered."
+                : "Order is in transit with the carrier.",
+          });
+        }
+      } catch (eventError) {
+        logError(eventError, {
+          layer: "api",
+          route: "/api/webhooks/shippo",
+          message: "Failed to create order event",
+          orderId: order.id,
+        });
+      }
+    }
+
     // Send appropriate email
     const emailTrigger = getEmailTrigger(currentFulfillmentStatus, newFulfillmentStatus);
 
-    if (emailTrigger && order.user_id) {
+    if (emailTrigger && (order.user_id || order.guest_email)) {
       try {
-        const profile = await profilesRepo.getByUserId(order.user_id);
-        if (profile?.email) {
-          const emailService = new OrderEmailService();
+        const profile = order.user_id ? await profilesRepo.getByUserId(order.user_id) : null;
+        const email = profile?.email ?? order.guest_email ?? null;
+        if (!email) return NextResponse.json({ ok: true });
 
-          const carrier = order.shipping_carrier ?? data.carrier ?? null;
-          const trackingUrl = 
-            data.tracking_url_provider ?? 
-            data.trackingUrlProvider ?? 
-            null;
+        const emailService = new OrderEmailService();
 
-          if (emailTrigger === "in_transit") {
-            await emailService.sendOrderInTransit({
-              to: profile.email,
-              orderId: order.id,
-              carrier,
-              trackingNumber,
-              trackingUrl,
-            });
-          } else if (emailTrigger === "delivered") {
-            await emailService.sendOrderDelivered({
-              to: profile.email,
-              orderId: order.id,
-              carrier,
-              trackingNumber,
-              trackingUrl,
-            });
-          }
+        const carrier = order.shipping_carrier ?? data.carrier ?? null;
+        const trackingUrl =
+          data.tracking_url_provider ??
+          data.trackingUrlProvider ??
+          null;
+
+        let orderUrl: string | null = null;
+        if (!order.user_id && order.guest_email) {
+          const { token } = await accessTokenService.createToken({ orderId: order.id });
+          orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
+        }
+
+        if (emailTrigger === "in_transit") {
+          await emailService.sendOrderInTransit({
+            to: email,
+            orderId: order.id,
+            carrier,
+            trackingNumber,
+            trackingUrl,
+            orderUrl,
+          });
+        } else if (emailTrigger === "delivered") {
+          await emailService.sendOrderDelivered({
+            to: email,
+            orderId: order.id,
+            carrier,
+            trackingNumber,
+            trackingUrl,
+            orderUrl,
+          });
         }
       } catch (emailError) {
         logError(emailError, {

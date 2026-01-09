@@ -1,3 +1,4 @@
+// src/services/storefront-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";

@@ -1,7 +1,8 @@
-// src/services/checkout-service.ts (FIXED)
+// src/services/checkout-service.ts
 
 import Stripe from "stripe";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import type { AdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -21,12 +22,23 @@ export class CheckoutService {
   private productsRepo: ProductRepository;
   private profilesRepo: ProfileRepository;
   private shippingDefaultsRepo: ShippingDefaultsRepository;
+  private adminOrdersRepo: OrdersRepository | null;
+  private adminProductsRepo: ProductRepository | null;
+  private adminShippingDefaultsRepo: ShippingDefaultsRepository | null;
 
-  constructor(private readonly supabase: TypedSupabaseClient) {
+  constructor(
+    private readonly supabase: TypedSupabaseClient,
+    private readonly adminSupabase?: AdminSupabaseClient
+  ) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.productsRepo = new ProductRepository(supabase);
     this.profilesRepo = new ProfileRepository(supabase);
     this.shippingDefaultsRepo = new ShippingDefaultsRepository(supabase);
+    this.adminOrdersRepo = adminSupabase ? new OrdersRepository(adminSupabase) : null;
+    this.adminProductsRepo = adminSupabase ? new ProductRepository(adminSupabase) : null;
+    this.adminShippingDefaultsRepo = adminSupabase
+      ? new ShippingDefaultsRepository(adminSupabase)
+      : null;
   }
 
   async createCheckoutSession(
@@ -35,11 +47,23 @@ export class CheckoutService {
   ): Promise<CheckoutSessionResponse> {
     // Validate input
     const validated = checkoutSessionSchema.parse(request);
-    const { items, fulfillment, idempotencyKey } = validated;
+    const { items, fulfillment, idempotencyKey, guestEmail } = validated;
+
+    if (!userId && !guestEmail) {
+      throw new Error("GUEST_EMAIL_REQUIRED");
+    }
+
+    if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
+      throw new Error("GUEST_CHECKOUT_DISABLED");
+    }
+
+    const ordersRepo = userId ? this.ordersRepo : this.adminOrdersRepo ?? this.ordersRepo;
+    const productsRepo = this.adminProductsRepo ?? this.productsRepo;
+    const shippingDefaultsRepo = this.adminShippingDefaultsRepo ?? this.shippingDefaultsRepo;
 
     // Fetch product data
     const productIds = [...new Set(items.map((i) => i.productId))];
-    const products = await this.productsRepo.getProductsForCheckout(productIds);
+    const products = await productsRepo.getProductsForCheckout(productIds);
 
     if (products.length === 0) {
       throw new Error("No valid products found");
@@ -59,7 +83,7 @@ export class CheckoutService {
 
     // Get categories and shipping defaults
     const categories = [...new Set(products.map((p) => p.category))];
-    const shippingDefaults = await this.shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
     const shippingDefaultsMap = new Map(
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
     );
@@ -116,7 +140,7 @@ export class CheckoutService {
     const cartHash = createCartHash(items, fulfillment);
 
     // Check for existing order with this idempotency key
-    const existingOrder = await this.ordersRepo.getByIdempotencyKey(idempotencyKey);
+    const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
 
     if (existingOrder) {
       // Check if expired
@@ -132,6 +156,9 @@ export class CheckoutService {
 
       // Return existing session
       if (existingOrder.stripe_session_id) {
+        if (!existingOrder.user_id && guestEmail && !existingOrder.guest_email) {
+          await ordersRepo.updateGuestEmail(existingOrder.id, guestEmail);
+        }
         return {
           url: `https://checkout.stripe.com/pay/${existingOrder.stripe_session_id}`,
           orderId: existingOrder.id,
@@ -143,8 +170,9 @@ export class CheckoutService {
     // Create pending order
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    const order = existingOrder ?? await this.ordersRepo.createPendingOrder({
+    const order = existingOrder ?? await ordersRepo.createPendingOrder({
       userId,
+      guestEmail: guestEmail ?? null,
       tenantId,
       currency: "USD",
       subtotal,
@@ -163,6 +191,10 @@ export class CheckoutService {
         lineTotal: li.lineTotal,
       })),
     });
+
+    if (existingOrder && !order.user_id && guestEmail && !order.guest_email) {
+      await ordersRepo.updateGuestEmail(order.id, guestEmail);
+    }
 
     log({
       level: "info",
@@ -195,12 +227,9 @@ export class CheckoutService {
     }
 
     // Build success/cancel URLs
-    const guestToken = userId ? null : order.public_token;
     const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     
-    const successUrl = `${siteUrl}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}${
-      guestToken ? `&token=${guestToken}` : ""
-    }`;
+    const successUrl = `${siteUrl}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${siteUrl}/checkout/cancel`;
 
     // Create Stripe Checkout Session
@@ -230,8 +259,9 @@ export class CheckoutService {
       sessionParams.customer = stripeCustomerId;
     } else {
       const { data: userData } = await this.supabase.auth.getUser();
-      if (userData?.user?.email) {
-        sessionParams.customer_email = userData.user.email;
+      const fallbackEmail = userData?.user?.email ?? guestEmail ?? null;
+      if (fallbackEmail) {
+        sessionParams.customer_email = fallbackEmail;
       }
     }
 
@@ -260,7 +290,7 @@ export class CheckoutService {
     });
 
     // Update order with Stripe session ID
-    await this.ordersRepo.updateStripeSession(order.id, session.id);
+    await ordersRepo.updateStripeSession(order.id, session.id);
 
     log({
       level: "info",

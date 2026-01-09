@@ -7,10 +7,12 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import { ChatService } from "@/services/chat-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
+import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
 
@@ -29,19 +31,24 @@ export class StripeOrderJob {
   private eventsRepo: StripeEventsRepository;
   private addressesRepo: AddressesRepository;
   private profilesRepo: ProfileRepository;
+  private orderEventsRepo: OrderEventsRepository;
   private productService: ProductService;
   private orderEmailService: OrderEmailService;
+  private orderAccessTokens: OrderAccessTokenService | null;
 
   constructor(
     private readonly supabase: TypedSupabaseClient,
     private readonly adminSupabase?: AdminSupabaseClient
   ) {
-    this.ordersRepo = new OrdersRepository(supabase);
-    this.eventsRepo = new StripeEventsRepository(supabase);
-    this.addressesRepo = new AddressesRepository(supabase);
-    this.profilesRepo = new ProfileRepository(supabase);
-    this.productService = new ProductService(supabase);
+    const primarySupabase = adminSupabase ?? supabase;
+    this.ordersRepo = new OrdersRepository(primarySupabase);
+    this.eventsRepo = new StripeEventsRepository(primarySupabase);
+    this.addressesRepo = new AddressesRepository(primarySupabase);
+    this.profilesRepo = new ProfileRepository(primarySupabase);
+    this.orderEventsRepo = new OrderEventsRepository(primarySupabase);
+    this.productService = new ProductService(primarySupabase);
     this.orderEmailService = new OrderEmailService();
+    this.orderAccessTokens = adminSupabase ? new OrderAccessTokenService(adminSupabase) : null;
   }
 
   async processCheckoutSessionCompleted(event: Stripe.Event, requestId: string): Promise<void> {
@@ -87,6 +94,26 @@ export class StripeOrderJob {
       await this.productService.syncSizeTags(productId);
     }
 
+    try {
+      const hasPaidEvent = await this.orderEventsRepo.hasEvent(orderId, "paid");
+      if (!hasPaidEvent) {
+        await this.orderEventsRepo.insertEvent({
+          orderId,
+          type: "paid",
+          message: "Payment confirmed.",
+        });
+      }
+    } catch (eventError) {
+      log({
+        level: "warn",
+        layer: "job",
+        message: "order_event_create_failed",
+        requestId,
+        orderId,
+        error: eventError instanceof Error ? eventError.message : String(eventError),
+      });
+    }
+
     let sessionEmail = session.customer_details?.email ?? session.customer_email ?? null;
     let shippingSnapshot = null as Awaited<ReturnType<AddressesRepository["getOrderShipping"]>> | null;
     const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
@@ -98,21 +125,10 @@ export class StripeOrderJob {
     const fullSession = unwrapStripe<Stripe.Checkout.Session>(retrieved);
     sessionEmail = fullSession.customer_details?.email ?? sessionEmail;
 
-    if (this.adminSupabase && order.fulfillment === "pickup") {
+    if (this.adminSupabase && order.fulfillment === "pickup" && order.user_id) {
       try {
         const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
-        if (order.user_id) {
-          await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
-        } else if (order.public_token) {
-          await chatService.createChatForGuest({
-            orderId: order.id,
-            publicToken: order.public_token,
-            guestEmail: sessionEmail ?? null,
-          });
-          if (sessionEmail) {
-            await chatService.updateGuestEmailForOrder(order.id, sessionEmail);
-          }
-        }
+        await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
       } catch (chatError) {
         log({
           level: "warn",
@@ -181,7 +197,7 @@ export class StripeOrderJob {
       }
     }
 
-    // ✅ Next.js 16+ requires 2 args: revalidateTag(tag, profile)
+    // Next.js 16+ requires 2 args: revalidateTag(tag, profile).
     try {
       for (const item of orderItems) {
         revalidateTag(`product:${item.product_id}`, "max");
@@ -203,6 +219,19 @@ export class StripeOrderJob {
       if (!email && order.user_id) {
         const profile = await this.profilesRepo.getByUserId(order.user_id);
         email = profile?.email ?? null;
+      }
+      if (!email && !order.user_id) {
+        email = order.guest_email ?? null;
+      }
+
+      if (!order.user_id && email && order.guest_email !== email) {
+        await this.ordersRepo.updateGuestEmail(order.id, email);
+      }
+
+      let orderUrl: string | null = null;
+      if (!order.user_id && email && this.orderAccessTokens) {
+        const { token } = await this.orderAccessTokens.createToken({ orderId: order.id });
+        orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
       }
 
       const detailedItems = await this.ordersRepo.getOrderItemsDetailed(orderId);
@@ -234,6 +263,7 @@ export class StripeOrderJob {
           shipping: Number(order.shipping ?? 0),
           total: Number(order.total ?? 0),
           items,
+          orderUrl,
           shippingAddress: shippingSnapshot
             ? {
                 name: shippingSnapshot.name,
@@ -246,6 +276,34 @@ export class StripeOrderJob {
               }
             : null,
         });
+
+        if (fulfillment === "pickup") {
+          await this.orderEmailService.sendPickupInstructions({
+            to: email,
+            orderId: order.id,
+            orderUrl,
+          });
+
+          try {
+            const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
+            if (!hasPickupEvent) {
+              await this.orderEventsRepo.insertEvent({
+                orderId: order.id,
+                type: "pickup_instructions_sent",
+                message: "Pickup instructions emailed.",
+              });
+            }
+          } catch (eventError) {
+            log({
+              level: "warn",
+              layer: "job",
+              message: "order_event_create_failed",
+              requestId,
+              orderId: order.id,
+              error: eventError instanceof Error ? eventError.message : String(eventError),
+            });
+          }
+        }
       }
     } catch (emailError) {
       log({
@@ -304,6 +362,26 @@ export class StripeOrderJob {
       await this.productService.syncSizeTags(productId);
     }
 
+    try {
+      const hasPaidEvent = await this.orderEventsRepo.hasEvent(orderId, "paid");
+      if (!hasPaidEvent) {
+        await this.orderEventsRepo.insertEvent({
+          orderId,
+          type: "paid",
+          message: "Payment confirmed.",
+        });
+      }
+    } catch (eventError) {
+      log({
+        level: "warn",
+        layer: "job",
+        message: "order_event_create_failed",
+        requestId,
+        orderId,
+        error: eventError instanceof Error ? eventError.message : String(eventError),
+      });
+    }
+
     const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
     let shippingSnapshot = null as Awaited<ReturnType<AddressesRepository["getOrderShipping"]>> | null;
 
@@ -334,18 +412,10 @@ export class StripeOrderJob {
       shippingSnapshot = await this.addressesRepo.getOrderShipping(orderId);
     }
 
-    if (this.adminSupabase && fulfillment === "pickup") {
+    if (this.adminSupabase && fulfillment === "pickup" && order.user_id) {
       try {
         const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
-        if (order.user_id) {
-          await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
-        } else if (order.public_token) {
-          await chatService.createChatForGuest({
-            orderId: order.id,
-            publicToken: order.public_token,
-            guestEmail: paymentIntent.receipt_email ?? null,
-          });
-        }
+        await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
       } catch (chatError) {
         log({
           level: "warn",
@@ -398,6 +468,19 @@ export class StripeOrderJob {
         const profile = await this.profilesRepo.getByUserId(order.user_id);
         email = profile?.email ?? null;
       }
+      if (!email && !order.user_id) {
+        email = order.guest_email ?? null;
+      }
+
+      if (!order.user_id && email && order.guest_email !== email) {
+        await this.ordersRepo.updateGuestEmail(order.id, email);
+      }
+
+      let orderUrl: string | null = null;
+      if (!order.user_id && email && this.orderAccessTokens) {
+        const { token } = await this.orderAccessTokens.createToken({ orderId: order.id });
+        orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
+      }
 
       const detailedItems = await this.ordersRepo.getOrderItemsDetailed(orderId);
       const items = detailedItems.map((item: any) => {
@@ -428,6 +511,7 @@ export class StripeOrderJob {
           shipping: Number(order.shipping ?? 0),
           total: Number(order.total ?? 0),
           items,
+          orderUrl,
           shippingAddress: shippingSnapshot
             ? {
                 name: shippingSnapshot.name,
@@ -440,6 +524,34 @@ export class StripeOrderJob {
               }
             : null,
         });
+
+        if (fulfillment === "pickup") {
+          await this.orderEmailService.sendPickupInstructions({
+            to: email,
+            orderId: order.id,
+            orderUrl,
+          });
+
+          try {
+            const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
+            if (!hasPickupEvent) {
+              await this.orderEventsRepo.insertEvent({
+                orderId: order.id,
+                type: "pickup_instructions_sent",
+                message: "Pickup instructions emailed.",
+              });
+            }
+          } catch (eventError) {
+            log({
+              level: "warn",
+              layer: "job",
+              message: "order_event_create_failed",
+              requestId,
+              orderId: order.id,
+              error: eventError instanceof Error ? eventError.message : String(eventError),
+            });
+          }
+        }
       }
     } catch (emailError) {
       log({
@@ -456,3 +568,4 @@ export class StripeOrderJob {
     log({ level: "info", layer: "job", message: "stripe_order_completed", requestId, stripeEventId: eventId, orderId });
   }
 }
+

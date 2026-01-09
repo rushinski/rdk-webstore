@@ -10,6 +10,7 @@ interface CartContextType {
   addItem: (item: Omit<CartItem, 'quantity'>) => void;
   removeItem: (productId: string, variantId: string) => void;
   updateQuantity: (productId: string, variantId: string, quantity: number) => void;
+  setCartItems: (items: CartItem[]) => void;
   clearCart: () => void;
   itemCount: number;
   total: number;
@@ -117,6 +118,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     cart.updateQuantity(productId, variantId, quantity);
   }, [cart]);
 
+  const setCartItems = useCallback((nextItems: CartItem[]) => {
+    cart.setCart(nextItems);
+  }, [cart]);
+
   const clearCart = useCallback(() => {
     cart.clearCart();
   }, [cart]);
@@ -131,6 +136,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        setCartItems,
         clearCart,
         itemCount,
         total,

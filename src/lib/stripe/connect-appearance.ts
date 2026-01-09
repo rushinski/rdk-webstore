@@ -1,3 +1,4 @@
+// src/lib/stripe/connect-appearance.ts
 export const connectAppearance = {
   // Prefer modal-style overlays to match our UI (avoid “squeezed” drawer UX)
   overlays: 'dialog' as const,

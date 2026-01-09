@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { OrdersService } from "@/services/orders-service";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
@@ -50,15 +51,16 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
 
-    // Get public_token from query (for guest access)
-    const publicToken = queryParsed.data.token ?? null;
+    // Get access token from query (for guest access)
+    const accessToken = queryParsed.data.token ?? null;
 
     // Get order status
-    const ordersService = new OrdersService(supabase);
+    const adminSupabase = createSupabaseAdminClient();
+    const ordersService = new OrdersService(supabase, adminSupabase);
     const status = await ordersService.getOrderStatus(
       paramsParsed.data.orderId,
       userId,
-      publicToken
+      accessToken
     );
 
     return NextResponse.json(status, {

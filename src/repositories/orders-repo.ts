@@ -2,7 +2,6 @@
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
-import { generatePublicToken } from "@/lib/crypto";
 
 type OrderRow = Tables<"orders">;
 type OrderInsert = TablesInsert<"orders">;
@@ -13,6 +12,7 @@ type OrderItemInsert = TablesInsert<"order_items">;
 
 export interface CreatePendingOrderInput {
   userId: string | null;
+  guestEmail?: string | null;
   tenantId: string;
   sellerId?: string | null;
   marketplaceId?: string | null;
@@ -24,6 +24,8 @@ export interface CreatePendingOrderInput {
   idempotencyKey: string;
   cartHash: string;
   expiresAt: Date;
+  pickupLocationId?: string | null;
+  pickupInstructions?: string | null;
   items: Array<{
     productId: string;
     variantId: string | null;
@@ -84,12 +86,11 @@ export class OrdersRepository {
   }
 
   async createPendingOrder(input: CreatePendingOrderInput): Promise<OrderRow> {
-    const publicToken = generatePublicToken();
-
     const { data: order, error: orderError } = await this.supabase
       .from("orders")
       .insert({
         user_id: input.userId,
+        guest_email: input.guestEmail ?? null,
         tenant_id: input.tenantId,
         seller_id: input.sellerId ?? null,
         marketplace_id: input.marketplaceId ?? null,
@@ -101,8 +102,9 @@ export class OrdersRepository {
         fulfillment: input.fulfillment,
         idempotency_key: input.idempotencyKey,
         cart_hash: input.cartHash,
-        public_token: publicToken,
         expires_at: input.expiresAt.toISOString(),
+        pickup_location_id: input.pickupLocationId ?? null,
+        pickup_instructions: input.pickupInstructions ?? null,
       })
       .select()
       .single();
@@ -126,6 +128,15 @@ export class OrdersRepository {
     if (itemsError) throw itemsError;
 
     return order;
+  }
+
+  async updateGuestEmail(orderId: string, guestEmail: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({ guest_email: guestEmail })
+      .eq("id", orderId);
+
+    if (error) throw error;
   }
 
   async updateStripeSession(orderId: string, stripeSessionId: string): Promise<void> {

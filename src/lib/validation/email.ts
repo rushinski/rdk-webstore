@@ -1,3 +1,4 @@
+// src/lib/validation/email.ts
 import { z } from "zod";
 
 export const emailSubscribeSchema = z

@@ -46,9 +46,12 @@ const defaults: Record<string, string> = {
   SES_SMTP_PASS: "smtp-pass",
   SES_FROM_EMAIL: "no-reply@example.com",
   SES_FROM_NAME: "RDK Test",
+  SUPPORT_INBOX_EMAIL: "support@example.com",
   AWS_REGION: "us-east-1",
   AWS_ACCESS_KEY_ID: "test-aws-access-key",
   AWS_SECRET_ACCESS_KEY: "test-aws-secret-key",
+  ORDER_ACCESS_TOKEN_SECRET: "test-order-access-token-secret",
+  NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: "true",
 };
 
 for (const [key, value] of Object.entries(defaults)) {

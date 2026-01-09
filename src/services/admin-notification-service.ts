@@ -1,3 +1,4 @@
+// src/services/admin-notification-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { AdminNotificationsRepository } from "@/repositories/admin-notifications-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";

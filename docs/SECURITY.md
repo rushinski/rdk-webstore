@@ -38,6 +38,16 @@ Configuration lives in `src/config/security.ts`. The proxy is the enforcement po
 - Shippo webhooks must validate their shared secret.
 - Stripe events are persisted for idempotency in the `stripe_events` table.
 
+## Guest order access links
+- Guest order status links use expiring access tokens.
+- Raw tokens are never stored; only HMAC-SHA256 hashes (peppered with `ORDER_ACCESS_TOKEN_SECRET`) are persisted.
+- Tokens are validated server-side with the service role and never logged in plaintext.
+
+## Email safety
+- Reply-To is routed to the support/pickup inbox for order communications.
+- Do not rely on email `From:` or reply-to headers as authentication.
+- Guest email and shipping address data are used only for order fulfillment and support.
+
 ## Logging and PII
 - Logs are structured JSON via `src/lib/log.ts`.
 - Email addresses are masked in logs.

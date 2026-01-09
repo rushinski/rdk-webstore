@@ -29,10 +29,14 @@ const schema = z.object({
   SES_SMTP_PASS: z.string(),
   SES_FROM_EMAIL: z.string(),
   SES_FROM_NAME: z.string(),
+  SUPPORT_INBOX_EMAIL: z.string().email(),
 
   AWS_REGION: z.string(),
   AWS_ACCESS_KEY_ID: z.string(),
   AWS_SECRET_ACCESS_KEY: z.string(),
+
+  ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
+  NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("true"),
 });
 
 export const env = schema.parse(process.env);

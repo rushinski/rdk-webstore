@@ -1,4 +1,4 @@
-// src/lib/idempotency.ts (FIXED for client-side)
+// src/lib/idempotency.ts
 
 /**
  * Generate a UUID v4 idempotency key (client-safe)

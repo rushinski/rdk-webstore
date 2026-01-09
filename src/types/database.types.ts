@@ -703,6 +703,83 @@ export type Database = {
           },
         ]
       }
+      order_access_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          last_used_at: string | null
+          order_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          last_used_at?: string | null
+          order_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          last_used_at?: string | null
+          order_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_access_tokens_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          message: string | null
+          order_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string | null
+          order_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          message?: string | null
+          order_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_shipping: {
         Row: {
           city: string | null
@@ -770,12 +847,15 @@ export type Database = {
           fee: number | null
           fulfillment: string | null
           fulfillment_status: string | null
+          guest_email: string | null
           id: string
           idempotency_key: string | null
           label_created_at: string | null
           label_created_by: string | null
           label_url: string | null
           marketplace_id: string | null
+          pickup_instructions: string | null
+          pickup_location_id: string | null
           public_token: string | null
           refund_amount: number | null
           refunded_at: string | null
@@ -802,12 +882,15 @@ export type Database = {
           fee?: number | null
           fulfillment?: string | null
           fulfillment_status?: string | null
+          guest_email?: string | null
           id?: string
           idempotency_key?: string | null
           label_created_at?: string | null
           label_created_by?: string | null
           label_url?: string | null
           marketplace_id?: string | null
+          pickup_instructions?: string | null
+          pickup_location_id?: string | null
           public_token?: string | null
           refund_amount?: number | null
           refunded_at?: string | null
@@ -834,12 +917,15 @@ export type Database = {
           fee?: number | null
           fulfillment?: string | null
           fulfillment_status?: string | null
+          guest_email?: string | null
           id?: string
           idempotency_key?: string | null
           label_created_at?: string | null
           label_created_by?: string | null
           label_url?: string | null
           marketplace_id?: string | null
+          pickup_instructions?: string | null
+          pickup_location_id?: string | null
           public_token?: string | null
           refund_amount?: number | null
           refunded_at?: string | null

@@ -1,3 +1,4 @@
+// src/components/store/StoreControls.tsx
 "use client";
 
 import { useMemo } from "react";

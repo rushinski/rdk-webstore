@@ -1,71 +1,102 @@
-// src/app/checkout/success/page.tsx (NEW)
+// app/checkout/success/page.tsx
+"use client";
 
-'use client';
-
-import { useEffect, useState, useRef, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, Loader2 } from 'lucide-react';
-import { clearIdempotencyKeyFromStorage } from '@/lib/idempotency';
-import type { OrderStatusResponse } from '@/types/views/checkout';
-import { useCart } from '@/components/cart/CartProvider';
+import { useEffect, useRef, useState, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { CheckCircle, Loader2, Mail } from "lucide-react";
+import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
+import type { OrderStatusResponse } from "@/types/views/checkout";
+import { useCart } from "@/components/cart/CartProvider";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { clearCart } = useCart();
-  const orderId = searchParams.get('orderId');
-  const sessionId = searchParams.get('session_id');
-  const publicToken = searchParams.get('token');
+  const orderId = searchParams.get("orderId");
+  const accessToken = searchParams.get("token");
 
   const [status, setStatus] = useState<OrderStatusResponse | null>(null);
-  const [isPolling, setIsPolling] = useState(true);
+  const [canFetchStatus, setCanFetchStatus] = useState<boolean | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chatReady, setChatReady] = useState(false);
   const hasClearedRef = useRef(false);
 
   useEffect(() => {
     if (!orderId) {
-      router.push('/cart');
+      router.push("/cart");
       return;
     }
 
     clearIdempotencyKeyFromStorage();
+
+    if (!hasClearedRef.current) {
+      hasClearedRef.current = true;
+      clearCart();
+    }
+  }, [orderId, router, clearCart]);
+
+  useEffect(() => {
+    if (accessToken) {
+      setCanFetchStatus(true);
+      return;
+    }
+
+    const loadSession = async () => {
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        const data = await response.json().catch(() => null);
+        const hasUser = Boolean(data?.user);
+        setIsAuthenticated(hasUser);
+        setCanFetchStatus(hasUser);
+      } catch {
+        setCanFetchStatus(false);
+      }
+    };
+
+    loadSession();
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!orderId || !canFetchStatus) return;
 
     let pollInterval: NodeJS.Timeout;
     let timeoutId: NodeJS.Timeout;
 
     const pollOrderStatus = async () => {
       try {
-        const tokenQuery = publicToken ? `?token=${encodeURIComponent(publicToken)}` : '';
-        const response = await fetch(`/api/orders/${orderId}${tokenQuery}`);
-        
+        const tokenQuery = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
+        const response = await fetch(`/api/orders/${orderId}${tokenQuery}`, { cache: "no-store" });
+
+        const data = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error('Failed to fetch order status');
+          if (data?.error === "Unauthorized") {
+            setCanFetchStatus(false);
+            return;
+          }
+          throw new Error(data?.error || "Failed to fetch order status");
         }
 
-        const data: OrderStatusResponse = await response.json();
         setStatus(data);
 
-        if (data.status === 'paid') {
+        if (data?.status === "paid") {
           setIsPolling(false);
           clearInterval(pollInterval);
           clearTimeout(timeoutId);
         }
       } catch (err: any) {
-        setError(err.message);
+        setError(err.message || "Failed to fetch order status");
         setIsPolling(false);
         clearInterval(pollInterval);
         clearTimeout(timeoutId);
       }
     };
 
-    // Initial poll
+    setIsPolling(true);
     pollOrderStatus();
 
-    // Poll every 2 seconds until paid
     pollInterval = setInterval(pollOrderStatus, 2000);
     timeoutId = setTimeout(() => {
-      setError('Payment is taking longer than expected. Please check your account or return to your cart.');
       setIsPolling(false);
       clearInterval(pollInterval);
     }, 60000);
@@ -74,52 +105,7 @@ function SuccessContent() {
       clearInterval(pollInterval);
       clearTimeout(timeoutId);
     };
-  }, [orderId, router, publicToken]);
-
-  useEffect(() => {
-    if (status?.status === 'paid' && !hasClearedRef.current) {
-      hasClearedRef.current = true;
-      clearCart();
-    }
-  }, [status?.status, clearCart]);
-
-  useEffect(() => {
-    if (!publicToken || !orderId) return;
-    try {
-      sessionStorage.setItem('rdk_guest_order_id', orderId);
-      sessionStorage.setItem('rdk_guest_order_token', publicToken);
-    } catch {
-      // ignore storage errors
-    }
-  }, [publicToken, orderId]);
-
-  useEffect(() => {
-    if (!status || status.status !== 'paid' || status.fulfillment !== 'pickup') return;
-    if (chatReady) return;
-
-    const ensureChat = async () => {
-      try {
-        const endpoint = publicToken ? '/api/chats/guest' : '/api/chats';
-        const payload = publicToken
-          ? { orderId: status.id, token: publicToken }
-          : { orderId: status.id };
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-          setChatReady(true);
-        }
-      } catch (error) {
-        // Chat creation can be retried when the user opens chat
-      }
-    };
-
-    ensureChat();
-  }, [status, chatReady]);
+  }, [accessToken, canFetchStatus, orderId]);
 
   if (!orderId) {
     return null;
@@ -132,7 +118,7 @@ function SuccessContent() {
           <p className="text-lg font-semibold mb-2">Error</p>
           <p>{error}</p>
           <button
-            onClick={() => router.push('/cart')}
+            onClick={() => router.push("/cart")}
             className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
           >
             Return to Cart
@@ -142,7 +128,27 @@ function SuccessContent() {
     );
   }
 
-  if (isPolling || !status || status.status !== 'paid') {
+  if (canFetchStatus === false) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+        <Mail className="w-16 h-16 text-red-600 mx-auto mb-6" />
+        <h1 className="text-3xl font-bold text-white mb-4">Order received</h1>
+        <p className="text-gray-400 mb-6">
+          Thanks for your purchase. We are finalizing your order and will email a secure order
+          status link shortly.
+        </p>
+        <p className="text-xs text-zinc-500 mb-6">Order ID: {orderId}</p>
+        <button
+          onClick={() => router.push("/store")}
+          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+        >
+          Continue Shopping
+        </button>
+      </div>
+    );
+  }
+
+  if (isPolling || !status || status.status !== "paid") {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <Loader2 className="w-16 h-16 text-red-600 mx-auto mb-6 animate-spin" />
@@ -188,7 +194,7 @@ function SuccessContent() {
           <div className="flex justify-between">
             <span>Shipping:</span>
             <span className="text-white">
-              {status.fulfillment === 'pickup' ? 'Free (Pickup)' : `$${status.shipping.toFixed(2)}`}
+              {status.fulfillment === "pickup" ? "Free (Pickup)" : `$${status.shipping.toFixed(2)}`}
             </span>
           </div>
           <div className="border-t border-zinc-800/70 pt-2 mt-2">
@@ -201,22 +207,24 @@ function SuccessContent() {
       </div>
 
       <div className="space-y-3">
-        {status.fulfillment === 'pickup' && (
+        {isAuthenticated && status.fulfillment === "pickup" && (
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent('openChat'))}
+            onClick={() => window.dispatchEvent(new CustomEvent("openChat"))}
             className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
           >
             Open pickup chat
           </button>
         )}
+        {isAuthenticated && (
+          <button
+            onClick={() => router.push("/account")}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+          >
+            Go to Account
+          </button>
+        )}
         <button
-          onClick={() => router.push('/account')}
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
-        >
-          Go to Account
-        </button>
-        <button
-          onClick={() => router.push('/store')}
+          onClick={() => router.push("/store")}
           className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
         >
           Continue Shopping
@@ -228,11 +236,13 @@ function SuccessContent() {
 
 export default function CheckoutSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <Loader2 className="w-16 h-16 text-red-600 mx-auto animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+          <Loader2 className="w-16 h-16 text-red-600 mx-auto animate-spin" />
+        </div>
+      }
+    >
       <SuccessContent />
     </Suspense>
   );

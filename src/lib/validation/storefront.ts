@@ -1,3 +1,4 @@
+// src/lib/validation/storefront.ts
 import { z } from "zod";
 
 const stringList = z.array(z.string().trim().min(1)).default([]);

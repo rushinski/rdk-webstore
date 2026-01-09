@@ -1,3 +1,4 @@
+// src/repositories/email-subscription-token-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 
 export interface EmailSubscriptionToken {

@@ -1,3 +1,4 @@
+// src/services/email-subscription-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { EmailSubscriberRepository } from "@/repositories/email-subscriber-repo";
 import { EmailSubscriptionTokenRepository } from "@/repositories/email-subscription-token-repo";

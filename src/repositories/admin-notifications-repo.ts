@@ -1,3 +1,4 @@
+// src/repositories/admin-notifications-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert } from "@/types/database.types";
 

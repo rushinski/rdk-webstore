@@ -1,3 +1,4 @@
+// src/config/constants/roles.ts
 export const PROFILE_ROLES = ["customer", "admin", "super_admin", "dev"] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
 

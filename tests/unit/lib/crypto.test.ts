@@ -1,5 +1,5 @@
 // tests/unit/lib/crypto.test.ts
-import { generatePublicToken, hashString, createCartHash } from "@/lib/crypto";
+import { generatePublicToken, generateOrderAccessToken, hashString, hashToken, createCartHash } from "@/lib/crypto";
 
 describe("Unit: Crypto Utilities", () => {
   describe("generatePublicToken", () => {
@@ -63,7 +63,7 @@ describe("Unit: Crypto Utilities", () => {
     });
 
     it("handles unicode", () => {
-      const hash = hashString("你好世界");
+      const hash = hashString("\u4f60\u597d\u4e16\u754c");
       expect(hash).toBeTruthy();
     });
 
@@ -82,6 +82,45 @@ describe("Unit: Crypto Utilities", () => {
     it("produces different hash for whitespace differences", () => {
       const hash1 = hashString("test");
       const hash2 = hashString(" test");
+      expect(hash1).not.toBe(hash2);
+    });
+  });
+
+  describe("generateOrderAccessToken", () => {
+    it("generates a token", () => {
+      const token = generateOrderAccessToken();
+      expect(token).toBeTruthy();
+      expect(typeof token).toBe("string");
+    });
+
+    it("generates base64url string", () => {
+      const token = generateOrderAccessToken();
+      expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
+    });
+
+    it("generates different tokens", () => {
+      const token1 = generateOrderAccessToken();
+      const token2 = generateOrderAccessToken();
+      expect(token1).not.toBe(token2);
+    });
+  });
+
+  describe("hashToken", () => {
+    it("hashes token with secret", () => {
+      const hash = hashToken("token", "secret");
+      expect(hash).toBeTruthy();
+      expect(hash).toMatch(/^[0-9a-f]+$/);
+    });
+
+    it("returns consistent hash for same secret", () => {
+      const hash1 = hashToken("token", "secret");
+      const hash2 = hashToken("token", "secret");
+      expect(hash1).toBe(hash2);
+    });
+
+    it("returns different hash for different secrets", () => {
+      const hash1 = hashToken("token", "secret");
+      const hash2 = hashToken("token", "other-secret");
       expect(hash1).not.toBe(hash2);
     });
   });

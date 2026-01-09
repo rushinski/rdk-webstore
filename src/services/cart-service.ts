@@ -1,4 +1,4 @@
-// src/services/cart-service.ts (FIXED - dispatches count for navbar)
+// src/services/cart-service.ts 
 'use client';
 
 import type { CartItem } from "@/types/views/cart";

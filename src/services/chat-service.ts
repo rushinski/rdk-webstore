@@ -17,6 +17,10 @@ export class ChatService {
   private profilesRepo: ProfileRepository;
   private chatEmailService: ChatEmailService;
 
+  private ensureGuestChatDisabled() {
+    throw new Error("Guest chat disabled");
+  }
+
   constructor(
     private readonly supabase: TypedSupabaseClient,
     private readonly adminSupabase?: AdminSupabaseClient,
@@ -74,13 +78,7 @@ export class ChatService {
   }
 
   async getChatForGuest(input: { orderId: string; publicToken: string }) {
-    const adminSupabase = this.ensureAdminSupabase();
-    const ordersRepo = new OrdersRepository(adminSupabase);
-    const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);
-    if (!order) throw new Error("Order not found");
-
-    const chatsRepo = new ChatsRepository(adminSupabase);
-    return chatsRepo.getByOrderId(order.id);
+    this.ensureGuestChatDisabled();
   }
 
   async createChatForGuest(input: {
@@ -88,27 +86,7 @@ export class ChatService {
     publicToken: string;
     guestEmail?: string | null;
   }) {
-    const adminSupabase = this.ensureAdminSupabase();
-    const ordersRepo = new OrdersRepository(adminSupabase);
-    const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);
-    if (!order) throw new Error("Order not found");
-    if (order.fulfillment !== "pickup") throw new Error("Invalid fulfillment");
-    if (order.status !== "paid") throw new Error("Order not ready");
-    if (order.user_id) throw new Error("Order requires account");
-
-    const chatsRepo = new ChatsRepository(adminSupabase);
-    const existing = await chatsRepo.getByOrderId(order.id);
-    if (existing) return { chat: existing, created: false };
-
-    const customerLabel = this.formatEmailPrefix(input.guestEmail);
-    const chat = await chatsRepo.createChat({
-      userId: null,
-      orderId: order.id,
-      source: "order",
-      guestEmail: input.guestEmail ?? null,
-    });
-
-    return { chat, created: true };
+    this.ensureGuestChatDisabled();
   }
 
   async updateGuestEmailForOrder(orderId: string, guestEmail: string | null) {
@@ -134,17 +112,7 @@ export class ChatService {
     orderId: string;
     publicToken: string;
   }) {
-    const adminSupabase = this.ensureAdminSupabase();
-    const ordersRepo = new OrdersRepository(adminSupabase);
-    const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);
-    if (!order) throw new Error("Order not found");
-
-    const chatsRepo = new ChatsRepository(adminSupabase);
-    const chat = await chatsRepo.getById(input.chatId);
-    if (!chat || chat.order_id !== order.id) throw new Error("Chat not found");
-
-    const messagesRepo = new ChatMessagesRepository(adminSupabase);
-    return messagesRepo.listByChatId(chat.id);
+    this.ensureGuestChatDisabled();
   }
 
   async sendMessage(input: { chatId: string; senderId: string; body: string }) {
@@ -253,64 +221,7 @@ export class ChatService {
     publicToken: string;
     body: string;
   }) {
-    const adminSupabase = this.ensureAdminSupabase();
-    const ordersRepo = new OrdersRepository(adminSupabase);
-    const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);
-    if (!order) throw new Error("Order not found");
-
-    const chatsRepo = new ChatsRepository(adminSupabase);
-    const chat = await chatsRepo.getById(input.chatId);
-    if (!chat || chat.order_id !== order.id) throw new Error("Chat not found");
-    if (chat.status === "closed") throw new Error("Chat closed");
-
-    const messagesRepo = new ChatMessagesRepository(adminSupabase);
-    const message = await messagesRepo.insertMessage({
-      chatId: chat.id,
-      senderId: null,
-      senderRole: "customer",
-      body: input.body,
-    });
-
-    try {
-      const profilesRepo = new ProfileRepository(adminSupabase);
-      const staff = await profilesRepo.listStaffProfiles();
-      const recipients = staff.filter(
-        (admin) => admin.chat_notifications_enabled !== false,
-      );
-
-      const customerLabel = this.formatEmailPrefix(chat.guest_email) ?? "Guest";
-
-      const notifications = new AdminNotificationService(adminSupabase);
-      await notifications.notifyChatMessage(
-        chat.id,
-        input.body.slice(0, 120),
-        customerLabel,
-      );
-
-      await Promise.all(
-        recipients.map((admin) =>
-          this.chatEmailService.sendChatNotification({
-            to: admin.email ?? "",
-            chatId: chat.id,
-            orderId: chat.order_id ?? null,
-            senderRole: "customer",
-            senderLabel: customerLabel,
-            message: input.body,
-            recipientRole: "admin",
-          }),
-        ),
-      );
-    } catch (notifyError) {
-      log({
-        level: "warn",
-        layer: "service",
-        message: "chat_notification_failed",
-        error: notifyError instanceof Error ? notifyError.message : String(notifyError),
-        chatId: chat.id,
-      });
-    }
-
-    return message;
+    this.ensureGuestChatDisabled();
   }
 
   async closeChat(chatId: string, closedBy?: string | null) {
@@ -322,15 +233,6 @@ export class ChatService {
     orderId: string;
     publicToken: string;
   }) {
-    const adminSupabase = this.ensureAdminSupabase();
-    const ordersRepo = new OrdersRepository(adminSupabase);
-    const order = await ordersRepo.getByIdAndToken(input.orderId, input.publicToken);
-    if (!order) throw new Error("Order not found");
-
-    const chatsRepo = new ChatsRepository(adminSupabase);
-    const chat = await chatsRepo.getById(input.chatId);
-    if (!chat || chat.order_id !== order.id) throw new Error("Chat not found");
-
-    return chatsRepo.closeChat(chat.id, null);
+    this.ensureGuestChatDisabled();
   }
 }

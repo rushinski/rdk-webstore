@@ -1,3 +1,4 @@
+// src/lib/validation/password.ts
 export interface PasswordRequirementState {
   minLength: boolean;
   notRepeatedChar: boolean;

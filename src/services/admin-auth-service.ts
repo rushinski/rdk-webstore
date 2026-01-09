@@ -1,3 +1,4 @@
+// src/services/admin-auth-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";

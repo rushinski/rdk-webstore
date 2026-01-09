@@ -1,3 +1,4 @@
+// src/components/inventory/ProductForm.tsx
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";

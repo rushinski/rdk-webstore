@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
+import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
@@ -25,7 +26,7 @@ export async function POST(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdminApi();
+    const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const service = new OrdersService(supabase);
 
@@ -61,6 +62,27 @@ export async function POST(
       carrier: parsed.data.carrier ?? null,
       trackingNumber: parsed.data.trackingNumber ?? null,
     });
+
+    try {
+      const eventsRepo = new OrderEventsRepository(supabase);
+      const hasEvent = await eventsRepo.hasEvent(updated.id, "shipped");
+      if (!hasEvent) {
+        await eventsRepo.insertEvent({
+          orderId: updated.id,
+          type: "shipped",
+          message: "Order marked as shipped.",
+          createdBy: session.user.id,
+        });
+      }
+    } catch (eventError) {
+      logError(eventError, {
+        layer: "api",
+        requestId,
+        route: "/api/admin/orders/:orderId/fulfill",
+        message: "Failed to create order event",
+        orderId: updated.id,
+      });
+    }
 
     // NOTE: We do NOT send email here
     // The "in transit" email will be sent by the EasyPost webhook

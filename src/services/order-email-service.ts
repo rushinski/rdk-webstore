@@ -4,6 +4,7 @@ import { sendEmailWithRetry } from "@/lib/email/mailer";
 import { emailFooterText } from "@/lib/email/footer";
 import { renderEmailLayout } from "@/lib/email/template";
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
+import { PICKUP_INSTRUCTIONS, PICKUP_LOCATION_SUMMARY } from "@/config/pickup";
 
 type OrderItemEmail = {
   title: string;
@@ -34,6 +35,7 @@ type OrderConfirmationEmailInput = {
   total: number;
   items: OrderItemEmail[];
   shippingAddress?: ShippingAddress | null;
+  orderUrl?: string | null;
 };
 
 type OrderTrackingEmailBase = {
@@ -42,6 +44,7 @@ type OrderTrackingEmailBase = {
   carrier?: string | null;
   trackingNumber?: string | null;
   trackingUrl?: string | null;
+  orderUrl?: string | null;
 };
 
 type OrderLabelCreatedEmailInput = OrderTrackingEmailBase;
@@ -51,6 +54,15 @@ type OrderRefundedEmailInput = {
   to: string;
   orderId: string;
   refundAmount: number;
+  orderUrl?: string | null;
+};
+
+type PickupInstructionsEmailInput = {
+  to: string;
+  orderId: string;
+  orderUrl?: string | null;
+  instructions?: string[];
+  locationSummary?: string | null;
 };
 
 const formatMoney = (value: number) => value.toFixed(2);
@@ -80,7 +92,7 @@ const buildEmailHtml = (input: OrderConfirmationEmailInput) => {
     year: "numeric",
   });
   const addressLines = buildAddressLines(input.shippingAddress);
-  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
 
   const itemsHtml = input.items
     .map((item) => {
@@ -208,6 +220,7 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
   const orderDate = new Date(input.createdAt).toLocaleDateString("en-US");
   const addressLines = buildAddressLines(input.shippingAddress);
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
 
   const lines = [
     "Realdealkickzsc",
@@ -232,8 +245,85 @@ const buildEmailText = (input: OrderConfirmationEmailInput) => {
     lines.push("", "Fulfillment: Store pickup");
   }
 
-  lines.push("", `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`);
+  lines.push("", `View your order: ${orderUrl}`);
   lines.push(emailFooterText());
+
+  return lines.join("\n");
+};
+
+const buildPickupInstructionsEmailHtml = (input: PickupInstructionsEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const instructions = input.instructions ?? PICKUP_INSTRUCTIONS;
+  const locationSummary = input.locationSummary ?? PICKUP_LOCATION_SUMMARY;
+
+  const instructionItems = instructions
+    .map((line) => `<li style="margin:0 0 8px;">${line}</li>`)
+    .join("");
+
+  const contentHtml = `
+    <tr>
+      <td style="padding:0 24px 10px;text-align:center;">
+        <div style="${emailStyles.eyebrow}">Local pickup</div>
+        <h1 style="${emailStyles.heading}">Pickup instructions for order #${orderShort}</h1>
+        <p style="margin:10px 0 0;${emailStyles.copy}">
+          We are ready to coordinate your pickup in ${locationSummary}.
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 16px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="${emailStyles.panel}">
+          <tr>
+            <td style="padding:16px;">
+              <div style="${emailStyles.labelAccent}">Next steps</div>
+              <ul style="margin:12px 0 0;padding-left:18px;font-size:13px;line-height:1.7;color:${EMAIL_COLORS.text};">
+                ${instructionItems}
+              </ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 24px;text-align:left;">
+        <a href="${orderUrl}" style="${emailStyles.button}">View order status</a>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 24px 24px;font-size:11px;line-height:1.6;color:${EMAIL_COLORS.subtle};">
+        Reply to this email to coordinate your pickup time.
+      </td>
+    </tr>
+  `;
+
+  return renderEmailLayout({
+    title: "Local Pickup Instructions",
+    preheader: `Pickup instructions for order #${orderShort}.`,
+    contentHtml,
+  });
+};
+
+const buildPickupInstructionsEmailText = (input: PickupInstructionsEmailInput) => {
+  const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const instructions = input.instructions ?? PICKUP_INSTRUCTIONS;
+  const locationSummary = input.locationSummary ?? PICKUP_LOCATION_SUMMARY;
+
+  const lines = [
+    "Realdealkickzsc",
+    `Pickup instructions for order #${orderShort}`,
+    "",
+    `Pickup location: ${locationSummary}`,
+    "",
+    "Next steps:",
+    ...instructions.map((line) => `- ${line}`),
+    "",
+    `View your order: ${orderUrl}`,
+    "",
+    "Reply to this email to coordinate your pickup time.",
+    emailFooterText(),
+  ];
 
   return lines.join("\n");
 };
@@ -277,7 +367,7 @@ const buildTrackingPanelText = (input: OrderTrackingEmailBase) => {
 // Label Created
 const buildLabelCreatedEmailHtml = (input: OrderLabelCreatedEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
-  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const buttonUrl = input.trackingUrl ?? orderUrl;
   const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
   const trackingNumber = input.trackingNumber ? ` (${input.trackingNumber})` : '';
@@ -332,6 +422,7 @@ const buildLabelCreatedEmailHtml = (input: OrderLabelCreatedEmailInput) => {
 
 const buildLabelCreatedEmailText = (input: OrderLabelCreatedEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const lines = [
     "Realdealkickzsc",
     `Order #${orderShort}`,
@@ -339,7 +430,7 @@ const buildLabelCreatedEmailText = (input: OrderLabelCreatedEmailInput) => {
     "Tracking may take a bit to update until the carrier scans the package.",
     buildTrackingPanelText(input),
     "",
-    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    `View your order: ${orderUrl}`,
     emailFooterText(),
   ].filter(Boolean);
 
@@ -349,7 +440,7 @@ const buildLabelCreatedEmailText = (input: OrderLabelCreatedEmailInput) => {
 // In Transit
 const buildInTransitEmailHtml = (input: OrderInTransitEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
-  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const buttonUrl = input.trackingUrl ?? orderUrl;
   const buttonLabel = input.trackingUrl ? "Track your package" : "View your order";
 
@@ -403,13 +494,14 @@ const buildInTransitEmailHtml = (input: OrderInTransitEmailInput) => {
 
 const buildInTransitEmailText = (input: OrderInTransitEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const lines = [
     "Realdealkickzsc",
     `Order #${orderShort}`,
     "Your order is in transit.",
     buildTrackingPanelText(input),
     "",
-    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    `View your order: ${orderUrl}`,
     emailFooterText(),
   ].filter(Boolean);
 
@@ -419,7 +511,7 @@ const buildInTransitEmailText = (input: OrderInTransitEmailInput) => {
 // Delivered
 const buildDeliveredEmailHtml = (input: OrderDeliveredEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
-  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const buttonUrl = input.trackingUrl ?? orderUrl;
 
   const contentHtml = `
@@ -472,13 +564,14 @@ const buildDeliveredEmailHtml = (input: OrderDeliveredEmailInput) => {
 
 const buildDeliveredEmailText = (input: OrderDeliveredEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const lines = [
     "Realdealkickzsc",
     `Order #${orderShort}`,
     "Your order was delivered.",
     buildTrackingPanelText(input),
     "",
-    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    `View your order: ${orderUrl}`,
     emailFooterText(),
   ].filter(Boolean);
 
@@ -488,7 +581,7 @@ const buildDeliveredEmailText = (input: OrderDeliveredEmailInput) => {
 // Refunded
 const buildRefundedEmailHtml = (input: OrderRefundedEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
-  const orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/account`;
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
 
   const contentHtml = `
     <tr>
@@ -541,6 +634,7 @@ const buildRefundedEmailHtml = (input: OrderRefundedEmailInput) => {
 
 const buildRefundedEmailText = (input: OrderRefundedEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
+  const orderUrl = input.orderUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/account`;
   const lines = [
     "Realdealkickzsc",
     `Order #${orderShort}`,
@@ -548,7 +642,7 @@ const buildRefundedEmailText = (input: OrderRefundedEmailInput) => {
     "Your refund has been processed.",
     "The refund should appear in your account within 5-10 business days.",
     "",
-    `View your order: ${env.NEXT_PUBLIC_SITE_URL}/account`,
+    `View your order: ${orderUrl}`,
     emailFooterText(),
   ];
 
@@ -564,6 +658,21 @@ export class OrderEmailService {
         subject: "Your Realdealkickzsc order is confirmed",
         html: buildEmailHtml(input),
         text: buildEmailText(input),
+        replyTo: env.SUPPORT_INBOX_EMAIL,
+      },
+      { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
+    );
+  }
+
+  async sendPickupInstructions(input: PickupInstructionsEmailInput) {
+    if (!input.to) return;
+    await sendEmailWithRetry(
+      {
+        to: input.to,
+        subject: `Local pickup instructions for order #${input.orderId.slice(0, 8)}`,
+        html: buildPickupInstructionsEmailHtml(input),
+        text: buildPickupInstructionsEmailText(input),
+        replyTo: env.SUPPORT_INBOX_EMAIL,
       },
       { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
     );
@@ -577,6 +686,7 @@ export class OrderEmailService {
         subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} label is created`,
         html: buildLabelCreatedEmailHtml(input),
         text: buildLabelCreatedEmailText(input),
+        replyTo: env.SUPPORT_INBOX_EMAIL,
       },
       { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
     );
@@ -590,6 +700,7 @@ export class OrderEmailService {
         subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} is on the way`,
         html: buildInTransitEmailHtml(input),
         text: buildInTransitEmailText(input),
+        replyTo: env.SUPPORT_INBOX_EMAIL,
       },
       { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
     );
@@ -603,6 +714,7 @@ export class OrderEmailService {
         subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} was delivered`,
         html: buildDeliveredEmailHtml(input),
         text: buildDeliveredEmailText(input),
+        replyTo: env.SUPPORT_INBOX_EMAIL,
       },
       { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
     );
@@ -616,6 +728,7 @@ export class OrderEmailService {
         subject: `Your Realdealkickzsc order #${input.orderId.slice(0, 8)} has been refunded`,
         html: buildRefundedEmailHtml(input),
         text: buildRefundedEmailText(input),
+        replyTo: env.SUPPORT_INBOX_EMAIL,
       },
       { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 }
     );
