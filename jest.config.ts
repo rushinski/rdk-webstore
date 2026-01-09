@@ -25,7 +25,7 @@ module.exports = {
     '!src/**/*.stories.tsx',
     '!src/**/__tests__/**',
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       statements: 80,
       branches: 75,
