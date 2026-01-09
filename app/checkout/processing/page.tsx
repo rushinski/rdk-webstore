@@ -21,6 +21,8 @@ export default function CheckoutProcessingPage() {
     const orderId = searchParams.get('orderId');
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
     const paymentIntentId = searchParams.get('payment_intent');
+    const fulfillment = searchParams.get('fulfillment');
+    const fulfillmentParam = fulfillment ? `&fulfillment=${encodeURIComponent(fulfillment)}` : '';
     const e2eStatus =
       process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test'
         ? searchParams.get('e2e_status')
@@ -71,10 +73,15 @@ export default function CheckoutProcessingPage() {
 
           try {
             if (paymentIntentId) {
+              const payload: Record<string, string> = { orderId, paymentIntentId };
+              if (fulfillment) {
+                payload.fulfillment = fulfillment;
+              }
+
               await fetch('/api/checkout/confirm-payment', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId, paymentIntentId }),
+                body: JSON.stringify(payload),
               });
             }
           } catch {
@@ -82,7 +89,7 @@ export default function CheckoutProcessingPage() {
           }
 
           setTimeout(() => {
-            router.push(`/checkout/success?orderId=${orderId}`);
+            router.push(`/checkout/success?orderId=${orderId}${fulfillmentParam}`);
           }, 1200);
           return;
         }
@@ -118,7 +125,7 @@ export default function CheckoutProcessingPage() {
           setMessage('Payment confirmed! Redirecting...');
           clearTimers();
           setTimeout(() => {
-            router.push(`/checkout/success?orderId=${orderId}`);
+            router.push(`/checkout/success?orderId=${orderId}${fulfillmentParam}`);
           }, 1200);
         }
       } catch {

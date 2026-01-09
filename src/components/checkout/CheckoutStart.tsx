@@ -363,6 +363,7 @@ export function CheckoutStart() {
               fulfillment={fulfillment}
               onFulfillmentChange={handleFulfillmentChange}
               isUpdatingFulfillment={isUpdatingFulfillment}
+              canUseChat={isAuthenticated === true}
             />
           </Elements>
         </div>

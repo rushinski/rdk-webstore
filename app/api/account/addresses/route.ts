@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { requireUserApi } from "@/lib/auth/session";
+import { AuthError, requireUserApi } from "@/lib/auth/session";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -45,6 +45,12 @@ export async function GET(request: NextRequest) {
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { error: error.message, requestId },
+        { status: error.status, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     logError(error, {
       layer: "api",
       requestId,
@@ -92,6 +98,12 @@ export async function POST(request: NextRequest) {
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json(
+        { error: error.message, requestId },
+        { status: error.status, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     logError(error, {
       layer: "api",
       requestId,

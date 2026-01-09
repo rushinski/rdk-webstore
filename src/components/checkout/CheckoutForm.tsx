@@ -17,6 +17,7 @@ interface CheckoutFormProps {
   fulfillment: 'ship' | 'pickup';
   onFulfillmentChange: (fulfillment: 'ship' | 'pickup') => void;
   isUpdatingFulfillment?: boolean;
+  canUseChat?: boolean;
 }
 
 export interface ShippingAddress {
@@ -37,6 +38,7 @@ export function CheckoutForm({
   fulfillment,
   onFulfillmentChange,
   isUpdatingFulfillment = false,
+  canUseChat = false,
 }: CheckoutFormProps) {
   const router = useRouter();
   const stripe = useStripe();
@@ -83,12 +85,14 @@ export function CheckoutForm({
       try {
         if (e2eStatus === 'success') {
           await confirmBackendPayment(intentId);
-          router.push(`/checkout/success?orderId=${orderId}`);
+          router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
           return { ok: true };
         }
         if (e2eStatus === 'processing' || e2eStatus === 'requires_action') {
           const statusParam = e2eStatus === 'processing' ? 'processing' : 'processing';
-          router.push(`/checkout/processing?orderId=${orderId}&e2e_status=${statusParam}`);
+          router.push(
+            `/checkout/processing?orderId=${orderId}&e2e_status=${statusParam}&fulfillment=${fulfillment}`
+          );
           return { ok: true };
         }
         if (e2eStatus === 'canceled' || e2eStatus === 'requires_payment_method') {
@@ -128,7 +132,7 @@ export function CheckoutForm({
       const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/checkout/processing?orderId=${orderId}`,
+          return_url: `${window.location.origin}/checkout/processing?orderId=${orderId}&fulfillment=${fulfillment}`,
           shipping: fulfillment === 'ship' && shippingAddress ? {
             name: shippingAddress.name,
             phone: shippingAddress.phone,
@@ -155,7 +159,7 @@ export function CheckoutForm({
 
       if (paymentIntent.status === 'succeeded') {
         await confirmBackendPayment(paymentIntent.id);
-        router.push(`/checkout/success?orderId=${orderId}`);
+        router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
         return { ok: true };
       }
 
@@ -164,7 +168,9 @@ export function CheckoutForm({
           ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
           : '';
         const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : '';
-        router.push(`/checkout/processing?orderId=${orderId}${intentParam}${secretParam}`);
+        router.push(
+          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`
+        );
         return { ok: true };
       }
 
@@ -173,7 +179,9 @@ export function CheckoutForm({
           ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
           : '';
         const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : '';
-        router.push(`/checkout/processing?orderId=${orderId}${intentParam}${secretParam}`);
+        router.push(
+          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`
+        );
         return { ok: true };
       }
 
@@ -280,16 +288,41 @@ export function CheckoutForm({
             </div>
           </label>
         </div>
+
+        {fulfillment === 'pickup' && (
+          <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
+            <p>
+              After purchase, you will receive a pickup email you can reply to for scheduling.
+            </p>
+            <p>
+              You can also DM us on{" "}
+              <a
+                href="https://instagram.com/realdealkickzllc"
+                className="text-red-400 hover:text-red-300"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Instagram @realdealkickzllc
+              </a>
+              .
+            </p>
+            {canUseChat && (
+              <p>Signed-in customers can also use the in-app pickup chat.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Shipping Address */}
       {fulfillment === 'ship' && (
         <>
-          <SavedAddresses
-            onSelectAddress={setShippingAddress}
-            selectedAddressId={selectedAddressId}
-            onSelectAddressId={setSelectedAddressId}
-          />
+          {canUseChat && (
+            <SavedAddresses
+              onSelectAddress={setShippingAddress}
+              selectedAddressId={selectedAddressId}
+              onSelectAddressId={setSelectedAddressId}
+            />
+          )}
 
           <ShippingAddressForm
             onAddressChange={setShippingAddress}

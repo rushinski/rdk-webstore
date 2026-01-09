@@ -14,6 +14,8 @@ function SuccessContent() {
   const { clearCart } = useCart();
   const orderId = searchParams.get("orderId");
   const accessToken = searchParams.get("token");
+  const fulfillmentParam = searchParams.get("fulfillment");
+  const isPickupParam = fulfillmentParam === "pickup";
 
   const [status, setStatus] = useState<OrderStatusResponse | null>(null);
   const [canFetchStatus, setCanFetchStatus] = useState<boolean | null>(null);
@@ -137,6 +139,26 @@ function SuccessContent() {
           Thanks for your purchase. We are finalizing your order and will email a secure order
           status link shortly.
         </p>
+        {isPickupParam && (
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
+            <h2 className="text-lg font-semibold text-white mb-2">Local pickup</h2>
+            <p className="text-sm text-gray-400 mb-2">
+              Check your email for pickup instructions and scheduling.
+            </p>
+            <p className="text-sm text-gray-400">
+              You can also DM us on{" "}
+              <a
+                href="https://instagram.com/realdealkickzllc"
+                className="text-red-400 hover:text-red-300"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Instagram @realdealkickzllc
+              </a>
+              .
+            </p>
+          </div>
+        )}
         <p className="text-xs text-zinc-500 mb-6">Order ID: {orderId}</p>
         <button
           onClick={() => router.push("/store")}
@@ -172,6 +194,8 @@ function SuccessContent() {
     );
   }
 
+  const isPickup = status.fulfillment === "pickup" || isPickupParam;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-20 text-center">
       <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
@@ -206,8 +230,34 @@ function SuccessContent() {
         </div>
       </div>
 
+      {isPickup && (
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
+          <h2 className="text-lg font-semibold text-white mb-2">Local pickup</h2>
+          <p className="text-sm text-gray-400 mb-2">
+            Check your email for pickup instructions and scheduling.
+          </p>
+          <p className="text-sm text-gray-400 mb-2">
+            You can also DM us on{" "}
+            <a
+              href="https://instagram.com/realdealkickzllc"
+              className="text-red-400 hover:text-red-300"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Instagram @realdealkickzllc
+            </a>
+            .
+          </p>
+          {isAuthenticated && (
+            <p className="text-sm text-gray-400">
+              You can also use the in-app pickup chat below if you prefer.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {isAuthenticated && status.fulfillment === "pickup" && (
+        {isAuthenticated && isPickup && (
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("openChat"))}
             className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"

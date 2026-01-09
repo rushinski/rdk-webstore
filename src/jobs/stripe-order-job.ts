@@ -253,31 +253,53 @@ export class StripeOrderJob {
       });
 
       if (email) {
-        await this.orderEmailService.sendOrderConfirmation({
-          to: email,
-          orderId: order.id,
-          createdAt: order.created_at ?? new Date().toISOString(),
-          fulfillment,
-          currency: order.currency ?? "USD",
-          subtotal: Number(order.subtotal ?? 0),
-          shipping: Number(order.shipping ?? 0),
-          total: Number(order.total ?? 0),
-          items,
-          orderUrl,
-          shippingAddress: shippingSnapshot
-            ? {
-                name: shippingSnapshot.name,
-                line1: shippingSnapshot.line1,
-                line2: shippingSnapshot.line2,
-                city: shippingSnapshot.city,
-                state: shippingSnapshot.state,
-                postalCode: shippingSnapshot.postal_code,
-                country: shippingSnapshot.country,
-              }
-            : null,
-        });
+        const hasConfirmationEvent = await this.orderEventsRepo.hasEvent(order.id, "confirmation_email_sent");
+        const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
 
-        if (fulfillment === "pickup") {
+        if (!hasConfirmationEvent) {
+          await this.orderEmailService.sendOrderConfirmation({
+            to: email,
+            orderId: order.id,
+            createdAt: order.created_at ?? new Date().toISOString(),
+            fulfillment,
+            currency: order.currency ?? "USD",
+            subtotal: Number(order.subtotal ?? 0),
+            shipping: Number(order.shipping ?? 0),
+            total: Number(order.total ?? 0),
+            items,
+            orderUrl,
+            shippingAddress: shippingSnapshot
+              ? {
+                  name: shippingSnapshot.name,
+                  line1: shippingSnapshot.line1,
+                  line2: shippingSnapshot.line2,
+                  city: shippingSnapshot.city,
+                  state: shippingSnapshot.state,
+                  postalCode: shippingSnapshot.postal_code,
+                  country: shippingSnapshot.country,
+                }
+              : null,
+          });
+
+          try {
+            await this.orderEventsRepo.insertEvent({
+              orderId: order.id,
+              type: "confirmation_email_sent",
+              message: "Order confirmation emailed.",
+            });
+          } catch (eventError) {
+            log({
+              level: "warn",
+              layer: "job",
+              message: "order_event_create_failed",
+              requestId,
+              orderId: order.id,
+              error: eventError instanceof Error ? eventError.message : String(eventError),
+            });
+          }
+        }
+
+        if (fulfillment === "pickup" && !hasPickupEvent) {
           await this.orderEmailService.sendPickupInstructions({
             to: email,
             orderId: order.id,
@@ -285,14 +307,11 @@ export class StripeOrderJob {
           });
 
           try {
-            const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
-            if (!hasPickupEvent) {
-              await this.orderEventsRepo.insertEvent({
-                orderId: order.id,
-                type: "pickup_instructions_sent",
-                message: "Pickup instructions emailed.",
-              });
-            }
+            await this.orderEventsRepo.insertEvent({
+              orderId: order.id,
+              type: "pickup_instructions_sent",
+              message: "Pickup instructions emailed.",
+            });
           } catch (eventError) {
             log({
               level: "warn",
@@ -501,31 +520,53 @@ export class StripeOrderJob {
       });
 
       if (email) {
-        await this.orderEmailService.sendOrderConfirmation({
-          to: email,
-          orderId: order.id,
-          createdAt: order.created_at ?? new Date().toISOString(),
-          fulfillment,
-          currency: order.currency ?? "USD",
-          subtotal: Number(order.subtotal ?? 0),
-          shipping: Number(order.shipping ?? 0),
-          total: Number(order.total ?? 0),
-          items,
-          orderUrl,
-          shippingAddress: shippingSnapshot
-            ? {
-                name: shippingSnapshot.name,
-                line1: shippingSnapshot.line1,
-                line2: shippingSnapshot.line2,
-                city: shippingSnapshot.city,
-                state: shippingSnapshot.state,
-                postalCode: shippingSnapshot.postal_code,
-                country: shippingSnapshot.country,
-              }
-            : null,
-        });
+        const hasConfirmationEvent = await this.orderEventsRepo.hasEvent(order.id, "confirmation_email_sent");
+        const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
 
-        if (fulfillment === "pickup") {
+        if (!hasConfirmationEvent) {
+          await this.orderEmailService.sendOrderConfirmation({
+            to: email,
+            orderId: order.id,
+            createdAt: order.created_at ?? new Date().toISOString(),
+            fulfillment,
+            currency: order.currency ?? "USD",
+            subtotal: Number(order.subtotal ?? 0),
+            shipping: Number(order.shipping ?? 0),
+            total: Number(order.total ?? 0),
+            items,
+            orderUrl,
+            shippingAddress: shippingSnapshot
+              ? {
+                  name: shippingSnapshot.name,
+                  line1: shippingSnapshot.line1,
+                  line2: shippingSnapshot.line2,
+                  city: shippingSnapshot.city,
+                  state: shippingSnapshot.state,
+                  postalCode: shippingSnapshot.postal_code,
+                  country: shippingSnapshot.country,
+                }
+              : null,
+          });
+
+          try {
+            await this.orderEventsRepo.insertEvent({
+              orderId: order.id,
+              type: "confirmation_email_sent",
+              message: "Order confirmation emailed.",
+            });
+          } catch (eventError) {
+            log({
+              level: "warn",
+              layer: "job",
+              message: "order_event_create_failed",
+              requestId,
+              orderId: order.id,
+              error: eventError instanceof Error ? eventError.message : String(eventError),
+            });
+          }
+        }
+
+        if (fulfillment === "pickup" && !hasPickupEvent) {
           await this.orderEmailService.sendPickupInstructions({
             to: email,
             orderId: order.id,
@@ -533,14 +574,11 @@ export class StripeOrderJob {
           });
 
           try {
-            const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
-            if (!hasPickupEvent) {
-              await this.orderEventsRepo.insertEvent({
-                orderId: order.id,
-                type: "pickup_instructions_sent",
-                message: "Pickup instructions emailed.",
-              });
-            }
+            await this.orderEventsRepo.insertEvent({
+              orderId: order.id,
+              type: "pickup_instructions_sent",
+              message: "Pickup instructions emailed.",
+            });
           } catch (eventError) {
             log({
               level: "warn",
