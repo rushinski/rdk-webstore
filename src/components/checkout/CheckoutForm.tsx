@@ -243,7 +243,7 @@ export function CheckoutForm({
               value="ship"
               checked={fulfillment === 'ship'}
               onChange={() => onFulfillmentChange('ship')}
-              className="mt-1"
+              className="rdk-radio mt-1"
               disabled={isUpdatingFulfillment || isProcessing}
               data-testid="fulfillment-ship"
             />
@@ -265,7 +265,7 @@ export function CheckoutForm({
               value="pickup"
               checked={fulfillment === 'pickup'}
               onChange={() => onFulfillmentChange('pickup')}
-              className="mt-1"
+              className="rdk-radio mt-1"
               disabled={isUpdatingFulfillment || isProcessing}
               data-testid="fulfillment-pickup"
             />

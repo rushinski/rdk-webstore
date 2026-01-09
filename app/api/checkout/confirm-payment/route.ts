@@ -1,6 +1,7 @@
 // src/app/api/checkout/confirm-payment/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import Stripe from "stripe";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { confirmPaymentSchema } from "@/lib/validation/checkout";
@@ -17,6 +18,11 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const userId = user?.id ?? null;
+    const adminSupabase = createSupabaseAdminClient();
     const body = await request.json().catch(() => null);
     const parsed = confirmPaymentSchema.safeParse(body ?? {});
 
@@ -29,13 +35,27 @@ export async function POST(request: NextRequest) {
 
     const { orderId, paymentIntentId, fulfillment } = parsed.data;
 
-    const ordersRepo = new OrdersRepository(supabase);
+    const ordersRepo = new OrdersRepository(adminSupabase);
     const order = await ordersRepo.getById(orderId);
 
     if (!order) {
       return NextResponse.json(
         { error: "Order not found", requestId },
         { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (!userId && order.user_id) {
+      return NextResponse.json(
+        { error: "Unauthorized", requestId },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    if (userId && order.user_id && order.user_id !== userId) {
+      return NextResponse.json(
+        { error: "Unauthorized", requestId },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
       );
     }
 

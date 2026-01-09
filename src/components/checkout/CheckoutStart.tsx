@@ -4,11 +4,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
+import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/checkout/OrderSummary";
 import type { CartItem } from "@/types/views/cart";
-import { clientEnv } from "@/config/client-env";
 import {
   clearIdempotencyKeyFromStorage,
   generateIdempotencyKey,
@@ -16,6 +18,9 @@ import {
   setIdempotencyKeyInStorage,
 } from "@/lib/idempotency";
 import { CartSnapshotService } from "@/services/cart-snapshot-service";
+import { clientEnv } from "@/config/client-env";
+
+const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
 const buildCartSignature = (items: CartItem[]) => {
   const sorted = [...items].sort((a, b) => {
@@ -32,31 +37,46 @@ const buildCartSignature = (items: CartItem[]) => {
   );
 };
 
-const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
+const stripeAppearance: StripeElementsOptions["appearance"] = {
+  theme: "night",
+  variables: {
+    fontFamily: "Arial, Helvetica, sans-serif",
+    colorPrimary: "#dc2626",
+    colorBackground: "#09090b",
+    colorText: "#ffffff",
+    colorSecondaryText: "#a1a1aa",
+    colorDanger: "#dc2626",
+    borderRadius: "2px",
+  },
+};
 
 export function CheckoutStart() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items, isReady, setCartItems } = useCart();
 
-  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
-  const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
-  const [shipping, setShipping] = useState(0);
-  const [isUpdatingShipping, setIsUpdatingShipping] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [guestEmail, setGuestEmail] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [isRestoring, setIsRestoring] = useState(false);
-
-  const isGuestFlow = searchParams.get("guest") === "1";
+  const stripePromise = useMemo(
+    () => loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!),
+    []
+  );
   const snapshotService = useMemo(() => new CartSnapshotService(), []);
 
-  const subtotal = useMemo(
-    () => items.reduce((sum, item) => sum + (item.priceCents * item.quantity) / 100, 0),
-    [items]
-  );
-  const total = subtotal + shipping;
+  const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [subtotal, setSubtotal] = useState(0);
+  const [shipping, setShipping] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
+  const [guestEmail, setGuestEmail] = useState<string | null>(null);
+  const [guestEmailChecked, setGuestEmailChecked] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isGuestFlow = searchParams.get("guest") === "1";
 
   useEffect(() => {
     const loadSession = async () => {
@@ -91,16 +111,36 @@ export function CheckoutStart() {
   }, [isReady, items.length, router, setCartItems, snapshotService]);
 
   useEffect(() => {
-    if (!isReady) return;
-    if (!isGuestFlow) return;
+    if (!isReady || !isGuestFlow) return;
 
     try {
       const stored = localStorage.getItem("rdk_guest_email");
       setGuestEmail(stored ? stored.trim() : null);
     } catch {
       setGuestEmail(null);
+    } finally {
+      setGuestEmailChecked(true);
     }
   }, [isReady, isGuestFlow]);
+
+  useEffect(() => {
+    if (isAuthenticated === null) return;
+    if (isAuthenticated) return;
+
+    if (!isGuestFlow || !guestEnabled) {
+      router.push("/checkout");
+    }
+  }, [isAuthenticated, isGuestFlow, router]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    if (isAuthenticated !== false) return;
+    if (!isGuestFlow || !guestEnabled) return;
+    if (!guestEmailChecked) return;
+    if (!guestEmail) {
+      router.push("/checkout");
+    }
+  }, [guestEmail, guestEmailChecked, isAuthenticated, isGuestFlow, isReady, router]);
 
   useEffect(() => {
     if (!isReady || items.length === 0) return;
@@ -114,6 +154,8 @@ export function CheckoutStart() {
         setIdempotencyKeyInStorage(nextKey);
         sessionStorage.setItem("checkout_cart_signature", signature);
         setIdempotencyKey(nextKey);
+        setOrderId(null);
+        setClientSecret(null);
         return;
       }
       setIdempotencyKey(storedKey);
@@ -121,91 +163,129 @@ export function CheckoutStart() {
       const fallbackKey = generateIdempotencyKey();
       setIdempotencyKeyInStorage(fallbackKey);
       setIdempotencyKey(fallbackKey);
+      setOrderId(null);
+      setClientSecret(null);
     }
   }, [isReady, items]);
 
   useEffect(() => {
     if (!isReady || items.length === 0) return;
+    if (!idempotencyKey) return;
+    if (isAuthenticated === null) return;
+    if (!isAuthenticated && !isGuestFlow) return;
+    if (!isAuthenticated && !guestEnabled) return;
+    if (!isAuthenticated && !guestEmail) return;
+    if (clientSecret && orderId) return;
 
-    const calculate = async () => {
-      if (fulfillment === "pickup") {
-        setShipping(0);
-        return;
-      }
+    let isActive = true;
 
-      setIsUpdatingShipping(true);
+    const initializeCheckout = async () => {
+      setIsInitializing(true);
+      setError(null);
+
       try {
-        const response = await fetch("/api/checkout/calculate-shipping", {
+        const response = await fetch("/api/checkout/create-payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productIds: items.map((item) => item.productId) }),
+          body: JSON.stringify({
+            idempotencyKey,
+            fulfillment,
+            guestEmail: isAuthenticated ? undefined : guestEmail ?? undefined,
+            items: items.map((item) => ({
+              productId: item.productId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+            })),
+          }),
         });
 
         const data = await response.json().catch(() => null);
-        if (response.ok) {
-          setShipping(Number(data?.shippingCost ?? 0));
+        if (!response.ok) {
+          if (data?.code === "IDEMPOTENCY_KEY_EXPIRED" || data?.code === "CART_MISMATCH") {
+            clearIdempotencyKeyFromStorage();
+          }
+          if (data?.code === "GUEST_EMAIL_REQUIRED" || data?.code === "GUEST_CHECKOUT_DISABLED") {
+            router.push("/checkout");
+            return;
+          }
+          throw new Error(data?.error || "Failed to start checkout");
         }
+
+        if (!isActive) return;
+
+        if (data?.status === "paid" && data?.orderId) {
+          router.push(`/checkout/success?orderId=${data.orderId}`);
+          return;
+        }
+
+        if (!data?.clientSecret || !data?.orderId) {
+          throw new Error("Checkout is missing payment details.");
+        }
+
+        setOrderId(data.orderId);
+        setClientSecret(data.clientSecret);
+        setSubtotal(Number(data.subtotal ?? 0));
+        setShipping(Number(data.shipping ?? 0));
+        setTotal(Number(data.total ?? 0));
+        setFulfillment(data.fulfillment ?? fulfillment);
+      } catch (err: any) {
+        if (!isActive) return;
+        setError(err?.message ?? "Failed to start checkout.");
       } finally {
-        setIsUpdatingShipping(false);
+        if (isActive) {
+          setIsInitializing(false);
+        }
       }
     };
 
-    calculate();
-  }, [fulfillment, isReady, items]);
+    initializeCheckout();
 
-  useEffect(() => {
-    if (isAuthenticated === null) return;
-    if (isAuthenticated) return;
-    if (!isGuestFlow || !guestEnabled) {
-      router.push("/checkout");
-    }
-  }, [isAuthenticated, isGuestFlow, router, guestEnabled]);
+    return () => {
+      isActive = false;
+    };
+  }, [
+    clientSecret,
+    guestEmail,
+    fulfillment,
+    idempotencyKey,
+    isAuthenticated,
+    isGuestFlow,
+    isReady,
+    items,
+    orderId,
+    router,
+  ]);
 
-  const handleSubmit = async () => {
-    if (!idempotencyKey) return;
-    setError(null);
-
-    if (!isAuthenticated && !guestEmail) {
-      setError("We need your email to continue as a guest.");
-      router.push("/checkout");
+  const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
+    if (nextFulfillment === fulfillment) return;
+    if (!orderId) {
+      setFulfillment(nextFulfillment);
       return;
     }
 
-    setIsSubmitting(true);
+    setIsUpdatingFulfillment(true);
+    setError(null);
+
     try {
-      const response = await fetch("/api/checkout/session", {
+      const response = await fetch("/api/checkout/update-fulfillment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          idempotencyKey,
-          fulfillment,
-          guestEmail: isAuthenticated ? undefined : guestEmail ?? undefined,
-          items: items.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-          })),
-        }),
+        body: JSON.stringify({ orderId, fulfillment: nextFulfillment }),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        if (data?.code === "CART_MISMATCH" || data?.code === "IDEMPOTENCY_KEY_EXPIRED") {
-          clearIdempotencyKeyFromStorage();
-        }
-        throw new Error(data?.error || "Failed to start checkout");
+        throw new Error(data?.error || "Failed to update fulfillment.");
       }
 
-      if (data?.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      throw new Error("Checkout URL missing.");
+      setFulfillment(data.fulfillment ?? nextFulfillment);
+      setSubtotal(Number(data.subtotal ?? subtotal));
+      setShipping(Number(data.shipping ?? shipping));
+      setTotal(Number(data.total ?? total));
     } catch (err: any) {
-      setError(err?.message ?? "Failed to start checkout.");
+      setError(err?.message ?? "Failed to update fulfillment.");
     } finally {
-      setIsSubmitting(false);
+      setIsUpdatingFulfillment(false);
     }
   };
 
@@ -218,14 +298,43 @@ export function CheckoutStart() {
     );
   }
 
+  if (!clientSecret || !orderId || isInitializing) {
+    if (error) {
+      return (
+        <div className="max-w-3xl mx-auto px-4 py-20 text-center">
+          <div className="bg-red-900/20 border border-red-500 text-red-400 p-6 rounded">
+            <p className="text-lg font-semibold mb-2">Unable to start checkout</p>
+            <p className="mb-4">{error}</p>
+            <button
+              onClick={() => router.push("/cart")}
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
+            >
+              Return to Cart
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center">
+        <Loader2 className="w-12 h-12 text-red-600 animate-spin mx-auto mb-4" />
+        <p className="text-gray-400">Loading secure checkout...</p>
+      </div>
+    );
+  }
+
+  const elementsOptions: StripeElementsOptions = {
+    clientSecret,
+    appearance: stripeAppearance,
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">Secure Checkout</h1>
-          <p className="text-gray-400">
-            Choose shipping or local pickup, then continue to Stripe Checkout.
-          </p>
+          <h1 className="text-3xl font-bold text-white">Checkout</h1>
+          <p className="text-gray-400">Complete payment securely with Stripe.</p>
         </div>
         <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
           Back to cart
@@ -238,65 +347,25 @@ export function CheckoutStart() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-            <h2 className="text-xl font-semibold text-white mb-4">Fulfillment</h2>
-            <div className="space-y-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="fulfillment"
-                  checked={fulfillment === "ship"}
-                  onChange={() => setFulfillment("ship")}
-                  className="rdk-radio mt-1"
-                />
-                <div>
-                  <p className="text-white font-medium">Ship to me</p>
-                  <p className="text-sm text-zinc-400">Shipping address collected in Stripe Checkout.</p>
-                </div>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="radio"
-                  name="fulfillment"
-                  checked={fulfillment === "pickup"}
-                  onChange={() => setFulfillment("pickup")}
-                  className="rdk-radio mt-1"
-                />
-                <div>
-                  <p className="text-white font-medium">Local pickup</p>
-                  <p className="text-sm text-zinc-400">
-                    We will email pickup instructions and coordinate a time.
-                  </p>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {!isAuthenticated && guestEmail && (
-            <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-              <h2 className="text-lg font-semibold text-white mb-2">Guest email</h2>
-              <p className="text-sm text-zinc-400">{guestEmail}</p>
-            </div>
-          )}
-
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Ready to pay</h2>
-            <p className="text-sm text-zinc-400 mb-4">
-              You will be redirected to Stripe Checkout to complete payment.
-            </p>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded transition"
-              data-testid="checkout-start"
-            >
-              {isSubmitting ? "Redirecting..." : "Continue to secure payment"}
-            </button>
-          </div>
+      {!isAuthenticated && guestEmail && (
+        <div className="mb-6 bg-zinc-900 border border-zinc-800/70 rounded p-4 text-sm text-gray-400">
+          Guest checkout as <span className="text-white font-medium">{guestEmail}</span>
         </div>
+      )}
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          <Elements stripe={stripePromise} options={elementsOptions}>
+            <CheckoutForm
+              orderId={orderId}
+              items={items}
+              total={total}
+              fulfillment={fulfillment}
+              onFulfillmentChange={handleFulfillmentChange}
+              isUpdatingFulfillment={isUpdatingFulfillment}
+            />
+          </Elements>
+        </div>
         <div className="lg:col-span-1">
           <OrderSummary
             items={items}
@@ -304,7 +373,7 @@ export function CheckoutStart() {
             shipping={shipping}
             total={total}
             fulfillment={fulfillment}
-            isUpdatingShipping={isUpdatingShipping}
+            isUpdatingShipping={isUpdatingFulfillment}
           />
         </div>
       </div>
