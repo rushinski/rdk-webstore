@@ -11,7 +11,7 @@ const clientSchema = z.object({
 });
 
 // We don't pass full process.env here.
-// Next will inline these two at build time in the client bundle.
+// Next will inline these values at build time in the client bundle.
 export const clientEnv = clientSchema.parse({
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,

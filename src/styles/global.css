@@ -130,6 +130,50 @@ body[data-route='admin'] main {
   cursor: not-allowed;
 }
 
+.rdk-radio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 1px solid #52525b;
+  background-color: #0b0b0c;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.rdk-radio::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: #ffffff;
+  transform: scale(0);
+  transition: transform 0.12s ease-in-out;
+}
+
+.rdk-radio:checked {
+  border-color: #dc2626;
+  background-color: #dc2626;
+}
+
+.rdk-radio:checked::after {
+  transform: scale(1);
+}
+
+.rdk-radio:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.7);
+}
+
+.rdk-radio:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .rdk-toggle {
   width: 46px;
   height: 24px;

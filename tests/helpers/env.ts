@@ -1,61 +1,38 @@
 // tests/helpers/env.ts
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { config } from "dotenv";
+import { resolve } from "path";
 
-const envPath = resolve(process.cwd(), ".env.test");
-
-if (existsSync(envPath)) {
-  const raw = readFileSync(envPath, "utf8");
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIndex = trimmed.indexOf("=");
-    if (eqIndex === -1) continue;
-    const key = trimmed.slice(0, eqIndex).trim();
-    let value = trimmed.slice(eqIndex + 1).trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-      value = value.slice(1, -1);
-    }
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
+/**
+ * Load test environment variables
+ * This MUST be imported first in all test setup files
+ */
+export function loadTestEnv() {
+  // Load .env.test from root
+  const result = config({ path: resolve(process.cwd(), ".env.test") });
+  
+  if (result.error) {
+    console.warn("Warning: Could not load .env.test file:", result.error.message);
   }
+  
+  // Validate that critical test vars are present
+  const required = [
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SECRET_KEY",
+    "TEST_BASE_URL",
+  ];
+  
+  const missing = required.filter((key) => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required test environment variables: ${missing.join(", ")}\n` +
+      "Make sure .env.test exists and contains all required variables."
+    );
+  }
+  
+  return process.env;
 }
 
-const defaults: Record<string, string> = {
-  NODE_ENV: "test",
-  E2E_TEST_MODE: "1",
-  NEXT_PUBLIC_E2E_TEST_MODE: "1",
-  NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
-  NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "test-anon-key",
-  SUPABASE_SECRET_KEY: "test-service-role-key",
-  SUPABASE_DB_URL: "postgres://postgres:postgres@127.0.0.1:54322/postgres",
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "pk_test_placeholder",
-  STRIPE_SECRET_KEY: "sk_test_placeholder",
-  STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder",
-  SHIPPO_API_TOKEN: "shippo_test_placeholder",
-  SHIPPO_WEBHOOK_TOKEN: "shippo_webhook_test_placeholder",
-  UPSTASH_REDIS_REST_URL: "https://example.com/redis",
-  UPSTASH_REDIS_REST_TOKEN: "test-redis-token",
-  ADMIN_SESSION_SECRET: "test-admin-session-secret",
-  GOOGLE_CLIENT_ID: "test-google-client-id",
-  GOOGLE_CLIENT_SECRET: "test-google-client-secret",
-  SES_SMTP_HOST: "smtp.test",
-  SES_SMTP_USER: "smtp-user",
-  SES_SMTP_PASS: "smtp-pass",
-  SES_FROM_EMAIL: "no-reply@example.com",
-  SES_FROM_NAME: "RDK Test",
-  SUPPORT_INBOX_EMAIL: "support@example.com",
-  AWS_REGION: "us-east-1",
-  AWS_ACCESS_KEY_ID: "test-aws-access-key",
-  AWS_SECRET_ACCESS_KEY: "test-aws-secret-key",
-  ORDER_ACCESS_TOKEN_SECRET: "test-order-access-token-secret",
-  NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: "true",
-};
-
-for (const [key, value] of Object.entries(defaults)) {
-  if (!process.env[key]) {
-    process.env[key] = value;
-  }
-}
+// Auto-load when this module is imported
+loadTestEnv();

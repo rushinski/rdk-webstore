@@ -159,7 +159,7 @@ export function CheckoutStart() {
     if (!isGuestFlow || !guestEnabled) {
       router.push("/checkout");
     }
-  }, [isAuthenticated, isGuestFlow, router]);
+  }, [isAuthenticated, isGuestFlow, router, guestEnabled]);
 
   const handleSubmit = async () => {
     if (!idempotencyKey) return;
