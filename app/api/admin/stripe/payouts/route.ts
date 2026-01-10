@@ -6,6 +6,7 @@ import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { StripeAdminService } from "@/services/stripe-admin-service";
+import { stripePayoutsQuerySchema } from "@/lib/validation/stripe";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -31,10 +32,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get limit from query params (default to 50)
     const url = new URL(request.url);
-    const limitParam = url.searchParams.get("limit");
-    const limit = limitParam ? Math.min(Math.max(parseInt(limitParam, 10), 1), 100) : 50;
+    const parsedQuery = stripePayoutsQuerySchema.safeParse({
+      limit: url.searchParams.get("limit") ?? undefined,
+    });
+
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { error: "Invalid query parameters", issues: parsedQuery.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const { limit } = parsedQuery.data;
 
     const payouts = await service.listPayouts({
       accountId: summary.account.id,

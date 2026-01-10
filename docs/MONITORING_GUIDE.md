@@ -22,7 +22,7 @@ This document describes the current monitoring and observability approach.
 
 ## Rate limiting
 - Proxy rate limiting emits structured logs when limits are exceeded.
-- Upstash dashboard provides request metrics and usage.
+- Upstash dashboard provides request metrics and usage in production; local/dev uses the in-memory limiter.
 
 ## External observability
 - `src/config/ci-env.ts` includes placeholders for Sentry and PostHog.
@@ -31,5 +31,5 @@ This document describes the current monitoring and observability approach.
 ## Recommended alerts
 - High rate of 4xx/5xx in `/api/checkout/*`
 - Spike in `/api/webhooks/stripe` failures
-- Elevated rate limit blocks on `/auth` and `/admin`
+- Elevated rate limit blocks across high-traffic routes
 - Email send failures (SES timeouts)

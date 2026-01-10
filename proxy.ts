@@ -65,7 +65,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  if (!isLocalDev && startsWithAny(pathname, security.proxy.rateLimitPrefixes)) {
+  const shouldApplyRateLimit =
+    (security.proxy.rateLimit.applyInLocalDev || !isLocalDev) &&
+    startsWithAny(pathname, security.proxy.rateLimitPrefixes);
+
+  if (shouldApplyRateLimit) {
     const rateLimitResponse = await applyRateLimit(request, requestId);
 
     if (rateLimitResponse) {

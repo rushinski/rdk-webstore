@@ -71,25 +71,24 @@ No more â€œworks locally, breaks in prod.â€ Staging guarantees runtime 
 
 ```
 /
-â”œâ”€ app/                     # Next.js (App Router)
-â”‚  â”œâ”€ api/                  # Route Handlers (thin controllers)
-â”‚  â”œâ”€ (store)/...           # Pages
-â”‚  â””â”€ admin/...
-â”œâ”€ src/
-â”‚  â”œâ”€ repositories/         # Data access (Supabase queries)
-â”‚  â”œâ”€ services/             # Domain logic
-â”‚  â”œâ”€ jobs/                 # Background workflows
-â”‚  â”œâ”€ config/               # env.ts, caching, rate limits, runtime config
-â”‚  â”œâ”€ lib/                  # supabase client, stripe, logging, helpers
-â”‚  â””â”€ types/
-â”œâ”€ supabase/
-â”‚  â”œâ”€ migrations/           # Versioned SQL migrations
-â”‚  â””â”€ seed.sql
-â”œâ”€ infra/                   # Docker, Caddy, local env
-â”œâ”€ docs/                    # All documentation
-â”œâ”€ .github/workflows/       # CI/CD
-â””â”€ .env.example
-
+|-- app/                     # Next.js (App Router)
+|   |-- api/                 # Route Handlers (thin controllers)
+|   |-- (store)/...          # Pages
+|   `-- admin/...
+|-- src/
+|   |-- repositories/        # Data access (Supabase queries)
+|   |-- services/            # Domain logic
+|   |-- jobs/                # Background workflows
+|   |-- config/              # env.ts, caching, rate limits, runtime config
+|   |-- lib/                 # supabase client, stripe, logging, helpers
+|   `-- types/
+|-- supabase/
+|   |-- migrations/          # Versioned SQL migrations
+|   `-- seed.sql
+|-- infra/                   # Docker, Caddy, local env
+|-- docs/                    # All documentation
+|-- .github/workflows/       # CI/CD
+`-- .env.example
 ```
 
 ---
@@ -158,16 +157,14 @@ Cache invalidation triggered from both **admin actions** and **Stripe events**.
 
 ## 8) Rate Limiting (Edge Proxy)
 
-Upstash-based:
+Global by default (`rateLimitPrefixes = ["/"]`), with webhook bypasses:
 
-- `/api/*`
-- `/auth/*`
-- `/checkout/*`
-- `/admin/*`
+- `/api/webhooks/stripe`
+- `/api/webhooks/shippo`
 
 Default: **30 requests/min per IP**.
 
-Protects Stripe, Supabase, and prevents bot scrapers.
+Uses Upstash in production and an in-memory limiter in local/dev/test.
 
 ---
 

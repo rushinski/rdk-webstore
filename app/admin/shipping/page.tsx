@@ -6,40 +6,8 @@ import { ChevronDown, ExternalLink, AlertCircle } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { CreateLabelForm } from '@/components/admin/shipping/CreateLabelForm';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-
-type ShippingAddress = {
-  name?: string | null;
-  phone?: string | null;
-  line1?: string | null;
-  line2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  postal_code?: string | null;
-  country?: string | null;
-};
-
-type ShippingDefault = {
-  category: string;
-  shipping_cost_cents?: number | null;
-  default_weight_oz?: number | null;
-  default_length_in?: number | null;
-  default_width_in?: number | null;
-  default_height_in?: number | null;
-};
-
-type ShippingOrigin = {
-  name: string;
-  company?: string | null;
-  phone: string;
-  line1: string;
-  line2?: string | null;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-};
-
-type TabKey = 'label' | 'ready' | 'shipped' | 'delivered';
+import { OriginModal } from './components/OriginModal';
+import type { ShippingAddress, ShippingDefault, ShippingOrigin, TabKey } from './types';
 
 const PAGE_SIZE = 8;
 const DEFAULT_PACKAGE = { weight: 16, length: 12, width: 12, height: 12 };
@@ -713,133 +681,17 @@ export default function ShippingPage() {
         onCancel={() => setConfirmMarkShipped(null)}
       />
 
-      {originModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-6">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-white">Change origin address</h2>
-                <p className="text-sm text-zinc-400">Update the address used to create shipping labels.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOriginModalOpen(false)}
-                className="text-zinc-400 hover:text-white text-sm"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <label className="block text-gray-400 mb-1">Name</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).name}
-                  onChange={(e) => handleOriginChange('name', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">Company</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).company ?? ''}
-                  onChange={(e) => handleOriginChange('company', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">Phone</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).phone}
-                  onChange={(e) => handleOriginChange('phone', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">Line 1</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).line1}
-                  onChange={(e) => handleOriginChange('line1', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">Line 2</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).line2 ?? ''}
-                  onChange={(e) => handleOriginChange('line2', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">City</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).city}
-                  onChange={(e) => handleOriginChange('city', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">State</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).state}
-                  onChange={(e) => handleOriginChange('state', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">Postal Code</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).postal_code}
-                  onChange={(e) => handleOriginChange('postal_code', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-1">Country</label>
-                <input
-                  type="text"
-                  value={(originAddress ?? EMPTY_ORIGIN).country}
-                  onChange={(e) => handleOriginChange('country', e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
-                />
-              </div>
-            </div>
-
-            {(originError || originMessage) && (
-              <div className={`mt-4 text-sm ${originError ? 'text-red-400' : 'text-green-400'}`}>
-                {originError || originMessage}
-              </div>
-            )}
-
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setOriginModalOpen(false)}
-                className="px-4 py-2 border border-zinc-800/70 text-sm text-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveOrigin}
-                disabled={savingOrigin}
-                className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500 disabled:bg-zinc-700"
-              >
-                {savingOrigin ? 'Saving...' : 'Save origin'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <OriginModal
+        open={originModalOpen}
+        originAddress={originAddress}
+        emptyOrigin={EMPTY_ORIGIN}
+        originError={originError}
+        originMessage={originMessage}
+        savingOrigin={savingOrigin}
+        onClose={() => setOriginModalOpen(false)}
+        onChange={handleOriginChange}
+        onSave={handleSaveOrigin}
+      />
     </div>
   );
 }

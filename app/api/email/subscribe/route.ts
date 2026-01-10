@@ -8,9 +8,11 @@ import { emailSubscribeSchema } from "@/lib/validation/email";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { sendEmail } from "@/lib/email/mailer";
-import { emailFooterText } from "@/lib/email/footer";
-import { renderEmailLayout } from "@/lib/email/template";
-import { emailStyles } from "@/lib/email/theme";
+import {
+  buildSubscriptionConfirmationEmail,
+  buildSubscriptionConfirmedEmail,
+} from "@/lib/email/subscription";
+import { emailSubjects } from "@/config/constants/email";
 import { env } from "@/config/env";
 
 export async function POST(req: NextRequest) {
@@ -45,34 +47,12 @@ export async function POST(req: NextRequest) {
       );
 
       if (status === "subscribed") {
-        const contentHtml = `
-          <tr>
-            <td style="padding:0 24px 10px;text-align:center;">
-              <div style="${emailStyles.eyebrow}">Subscription confirmed</div>
-              <h1 style="${emailStyles.heading}">Thanks for signing up</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:0 24px 24px;text-align:center;">
-              <p style="${emailStyles.copy}">You're all set to receive updates from Realdealkickzsc.</p>
-            </td>
-          </tr>
-        `;
-        const html = renderEmailLayout({
-          title: "Subscription confirmed",
-          preheader: "You're subscribed to Realdealkickzsc updates.",
-          contentHtml,
-        });
-
-        const text = `Subscription confirmed
-Thanks for signing up for Realdealkickzsc updates.
-${emailFooterText()}
-`;
+        const { html, text } = buildSubscriptionConfirmedEmail();
 
         try {
           await sendEmail({
             to: normalizedEmail,
-            subject: "Thanks for subscribing to Realdealkickzsc",
+            subject: emailSubjects.subscriptionConfirmed(),
             html,
             text,
           });
@@ -103,43 +83,12 @@ ${emailFooterText()}
 
     if (status === "pending") {
       const confirmUrl = `${env.NEXT_PUBLIC_SITE_URL}/api/email/confirm?token=${token}`;
-      const contentHtml = `
-        <tr>
-          <td style="padding:0 24px 10px;text-align:center;">
-            <div style="${emailStyles.eyebrow}">Confirm subscription</div>
-            <h1 style="${emailStyles.heading}">Finish subscribing</h1>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:0 24px 20px;text-align:center;">
-            <p style="${emailStyles.copy}">Confirm your email to receive updates from Realdealkickzsc.</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:0 24px 24px;text-align:center;">
-            <a href="${confirmUrl}" style="${emailStyles.button}">Confirm subscription</a>
-            <p style="margin:14px 0 0;${emailStyles.subcopy}">This link expires in 24 hours.</p>
-            <p style="margin:6px 0 0;${emailStyles.subcopy}">If you didn't request this email, you can safely ignore it.</p>
-          </td>
-        </tr>
-      `;
-      const html = renderEmailLayout({
-        title: "Confirm your subscription",
-        preheader: "Confirm your email to get Realdealkickzsc updates.",
-        contentHtml,
-      });
-
-      const text = `Confirm your Realdealkickzsc subscription
-Confirm here: ${confirmUrl}
-This link expires in 24 hours.
-If you didn't request this email, you can safely ignore it.
-${emailFooterText()}
-`;
+      const { html, text } = buildSubscriptionConfirmationEmail(confirmUrl);
 
       try {
         await sendEmail({
           to: parsed.data.email,
-          subject: "Confirm your Realdealkickzsc subscription",
+          subject: emailSubjects.subscriptionConfirmation(),
           html,
           text,
         });

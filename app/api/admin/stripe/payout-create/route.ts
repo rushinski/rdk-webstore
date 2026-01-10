@@ -6,6 +6,7 @@ import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { StripeAdminService } from "@/services/stripe-admin-service";
+import { stripePayoutCreateSchema } from "@/lib/validation/stripe";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -23,14 +24,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const service = new StripeAdminService(supabase);
     const body = await request.json().catch(() => null);
+    const parsed = stripePayoutCreateSchema.safeParse(body ?? {});
 
-    const amount = Number(body?.amount);
-    const currency = (body?.currency ?? "usd").toString().toLowerCase();
-    const method = body?.method === "instant" ? "instant" : "standard";
-
-    if (!Number.isInteger(amount) || amount <= 0) {
-      return NextResponse.json({ error: "Invalid amount", requestId }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
     }
+
+    const { amount, currency, method } = parsed.data;
 
     const summary = await service.getStripeAccountSummary({ userId: session.user.id });
     if (!summary.account?.id) {

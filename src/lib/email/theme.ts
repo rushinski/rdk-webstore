@@ -1,8 +1,9 @@
 // src/lib/email/theme.ts
+import { BRAND_LOGO_URL, BRAND_NAME } from "@/config/constants/brand";
+
 export const EMAIL_BRAND = {
-  name: "Realdealkickzsc",
-  logoUrl:
-    "https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/public/assets/rdk-logo.png",
+  name: BRAND_NAME,
+  logoUrl: BRAND_LOGO_URL,
 };
 
 export const EMAIL_FONT_STACK =

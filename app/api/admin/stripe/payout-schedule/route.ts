@@ -7,20 +7,11 @@ import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { StripeAdminService } from "@/services/stripe-admin-service";
+import { STRIPE_PAYOUT_INTERVALS, STRIPE_PAYOUT_WEEKLY_ANCHORS } from "@/config/constants/stripe";
+import { stripePayoutScheduleSchema } from "@/lib/validation/stripe";
 
-const VALID_INTERVALS = ["manual", "daily", "weekly", "monthly"] as const;
-const WEEKLY_ANCHORS = [
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-  "sunday",
-] as const;
-
-type Interval = (typeof VALID_INTERVALS)[number];
-type WeeklyAnchor = (typeof WEEKLY_ANCHORS)[number];
+type Interval = (typeof STRIPE_PAYOUT_INTERVALS)[number];
+type WeeklyAnchor = (typeof STRIPE_PAYOUT_WEEKLY_ANCHORS)[number];
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -38,14 +29,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const service = new StripeAdminService(supabase);
     const body = await request.json().catch(() => null);
+    const parsed = stripePayoutScheduleSchema.safeParse(body ?? {});
 
-    const interval = body?.interval as Interval | undefined;
-    if (!interval || !VALID_INTERVALS.includes(interval)) {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid payout interval", requestId },
-        { status: 400 },
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
+
+    const interval = parsed.data.interval as Interval;
 
     // Need the stripe account id (via summary lookup)
     const summary = await service.getStripeAccountSummary({ userId: session.user.id });
@@ -59,25 +52,11 @@ export async function POST(request: NextRequest) {
     const schedule: Stripe.AccountUpdateParams.Settings.Payouts.Schedule = { interval };
 
     if (interval === "weekly") {
-      const weeklyAnchor = body?.weekly_anchor as WeeklyAnchor | undefined;
-      if (!weeklyAnchor || !WEEKLY_ANCHORS.includes(weeklyAnchor)) {
-        return NextResponse.json(
-          { error: "Invalid weekly anchor", requestId },
-          { status: 400 },
-        );
-      }
-      schedule.weekly_anchor = weeklyAnchor;
+      schedule.weekly_anchor = parsed.data.weekly_anchor as WeeklyAnchor;
     }
 
     if (interval === "monthly") {
-      const monthlyAnchor = Number(body?.monthly_anchor);
-      if (!Number.isInteger(monthlyAnchor) || monthlyAnchor < 1 || monthlyAnchor > 31) {
-        return NextResponse.json(
-          { error: "Invalid monthly anchor", requestId },
-          { status: 400 },
-        );
-      }
-      schedule.monthly_anchor = monthlyAnchor;
+      schedule.monthly_anchor = parsed.data.monthly_anchor!;
     }
 
     await service.updatePayoutSchedule({ accountId: summary.account.id, schedule });

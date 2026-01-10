@@ -27,11 +27,11 @@ All requests pass through the proxy pipeline in `proxy.ts`:
 - Canonicalization (lowercase, no duplicate slashes)
 - Bot filtering (UA checks)
 - CSRF protection for unsafe methods
-- Upstash rate limiting for `/api`, `/admin`, `/auth`, `/checkout`
+- Rate limiting for all routes (prefix-configurable) with Upstash in prod and memory fallback in dev/test
 - Admin guard for `/admin` and `/api/admin`
 - Response finalization with security headers and `x-request-id`
 
-Configuration lives in `src/config/security.ts`. The proxy is the enforcement point for request IDs, security headers, and admin guardrails.
+Configuration lives in `src/config/security.ts`. Rate limiting can be scoped with `rateLimitPrefixes`, bypassed for webhooks, and toggled locally via `rateLimit.applyInLocalDev`. The proxy is the enforcement point for request IDs, security headers, and admin guardrails.
 
 ## Webhooks
 - Stripe webhooks must validate signatures before processing.

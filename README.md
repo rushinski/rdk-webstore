@@ -7,7 +7,7 @@ Real Deal Kickz is a full-stack ecommerce storefront and admin console built on 
 - Supabase Postgres + Auth (SSR helpers)
 - Stripe Checkout + Stripe Connect (admin payouts)
 - Shippo (shipping rates and labels)
-- Upstash Redis (rate limiting)
+- Upstash Redis (rate limiting; memory fallback in dev/test)
 - AWS SES (transactional email)
 - Tailwind CSS
 
@@ -33,6 +33,7 @@ cp .env.example .env.local
 # PowerShell: Copy-Item .env.example .env.local
 ```
 Fill in values in `.env.local`.
+Upstash is optional for local dev; the proxy uses an in-memory rate limiter when Upstash is not configured.
 
 3) Start Supabase locally:
 ```

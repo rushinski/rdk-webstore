@@ -3,55 +3,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, MoreVertical, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
-
-type BrandGroup = {
-  id: string;
-  key: string;
-  label: string;
-  is_active: boolean;
-};
-
-type Brand = {
-  id: string;
-  group_id: string;
-  canonical_label: string;
-  is_active: boolean;
-  is_verified: boolean;
-  group?: { id: string; key: string; label: string };
-};
-
-type Model = {
-  id: string;
-  brand_id: string;
-  canonical_label: string;
-  is_active: boolean;
-  is_verified: boolean;
-};
-
-type Alias = {
-  id: string;
-  entity_type: 'brand' | 'model';
-  brand_id: string | null;
-  model_id: string | null;
-  alias_label: string;
-  priority: number;
-  is_active: boolean;
-};
-
-type Candidate = {
-  id: string;
-  entity_type: 'brand' | 'model';
-  raw_text: string;
-  parent_brand_id: string | null;
-  status: string;
-};
-
-type ActiveTab = 'brands' | 'aliases' | 'candidates';
-
-type EditTarget =
-  | { type: 'brand'; item: Brand }
-  | { type: 'model'; item: Model }
-  | { type: 'alias'; item: Alias };
+import type { ActiveTab, Alias, Brand, BrandGroup, Candidate, EditTarget, Model } from './types';
+import { TagModals } from './components/TagModals';
 
 const tabs: Array<{ key: ActiveTab; label: string }> = [
   { key: 'brands', label: 'Tags' },
@@ -1038,288 +991,31 @@ export default function TagsPage() {
         </section>
       )}
 
-      {showAddBrandModal && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => setShowAddBrandModal(false)}
-        >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Add Brand</h3>
-              <button
-                onClick={() => setShowAddBrandModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-            <div className="space-y-3">
-              <input
-                value={newBrand.label}
-                onChange={(e) => setNewBrand((prev) => ({ ...prev, label: e.target.value }))}
-                onBlur={(e) =>
-                  setNewBrand((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                }
-                placeholder="Brand label (e.g., Air Jordan)"
-                className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setShowAddBrandModal(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateBrand}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2"
-              >
-                Add Brand
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddModelModal && modelTargetBrand && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => {
-            setShowAddModelModal(false);
-            setModelTargetBrand(null);
-          }}
-        >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Add Model</h3>
-                <p className="text-xs text-gray-500">Brand: {modelTargetBrand.canonical_label}</p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModelModal(false);
-                  setModelTargetBrand(null);
-                }}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-            <div className="space-y-3">
-              <input
-                value={newModel.label}
-                onChange={(e) => setNewModel((prev) => ({ ...prev, label: e.target.value }))}
-                onBlur={(e) =>
-                  setNewModel((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                }
-                placeholder="Model label (e.g., Retro 3)"
-                className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-              />
-            </div>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowAddModelModal(false);
-                  setModelTargetBrand(null);
-                }}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateModel}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2"
-              >
-                Add Model
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editTarget && editDraft && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Edit {editTarget.type}</h3>
-              <button
-                onClick={() => setEditTarget(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-
-            {editTarget.type === 'brand' && (
-              <div className="space-y-3">
-                <input
-                  value={editDraft.canonical_label}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, canonical_label: e.target.value })
-                  }
-                  placeholder="Brand label"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_active}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_active: e.target.checked })
-                      }
-                    />
-                    Active
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_verified}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_verified: e.target.checked })
-                      }
-                    />
-                    Verified
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {editTarget.type === 'model' && (
-              <div className="space-y-3">
-                <select
-                  value={editDraft.brand_id}
-                  onChange={(e) => setEditDraft({ ...editDraft, brand_id: e.target.value })}
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                >
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.canonical_label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={editDraft.canonical_label}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, canonical_label: e.target.value })
-                  }
-                  placeholder="Model label"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_active}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_active: e.target.checked })
-                      }
-                    />
-                    Active
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_verified}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_verified: e.target.checked })
-                      }
-                    />
-                    Verified
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {editTarget.type === 'alias' && (
-              <div className="space-y-3">
-                <input
-                  value={editDraft.alias_label}
-                  onChange={(e) => setEditDraft({ ...editDraft, alias_label: e.target.value })}
-                  placeholder="Alias"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <input
-                  value={editDraft.priority ?? 0}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, priority: Number(e.target.value) })
-                  }
-                  placeholder="Priority"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <label className="flex items-center gap-2 text-sm text-gray-300">
-                  <input
-                    type="checkbox"
-                    className="rdk-checkbox"
-                    checked={editDraft.is_active}
-                    onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
-                  />
-                  Active
-                </label>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setEditTarget(null)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={isSaving}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
-              >
-                {isSaving ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmTarget && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-md p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-white">Delete {confirmTarget.type}</h3>
-            <p className="text-sm text-gray-400">
-              This will disable the item (soft delete). You can re-enable it later by editing the record.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setConfirmTarget(null)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                disabled={isSaving}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
-              >
-                {isSaving ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <TagModals
+        showAddBrandModal={showAddBrandModal}
+        showAddModelModal={showAddModelModal}
+        editTarget={editTarget}
+        editDraft={editDraft}
+        confirmTarget={confirmTarget}
+        isSaving={isSaving}
+        brands={brands}
+        modelTargetBrand={modelTargetBrand}
+        newBrand={newBrand}
+        newModel={newModel}
+        setNewBrand={setNewBrand}
+        setNewModel={setNewModel}
+        setShowAddBrandModal={setShowAddBrandModal}
+        setShowAddModelModal={setShowAddModelModal}
+        setModelTargetBrand={setModelTargetBrand}
+        setEditTarget={setEditTarget}
+        setEditDraft={setEditDraft}
+        setConfirmTarget={setConfirmTarget}
+        onCreateBrand={handleCreateBrand}
+        onCreateModel={handleCreateModel}
+        onSaveEdit={handleSaveEdit}
+        onConfirmDelete={handleConfirmDelete}
+        toTitleCase={toTitleCase}
+      />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService } from "@/services/product-service";
-import { productCreateSchema } from "@/lib/validation/product";
+import { adminProductsQuerySchema, productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
@@ -19,23 +19,30 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
-    const q = searchParams.get("q")?.trim() || undefined;
-    const limitRaw = Number(searchParams.get("limit") ?? "100");
-    const pageRaw = Number(searchParams.get("page") ?? "1");
+    const parsedQuery = adminProductsQuerySchema.safeParse({
+      q: searchParams.get("q") ?? undefined,
+      limit: searchParams.get("limit") ?? undefined,
+      page: searchParams.get("page") ?? undefined,
+      category: searchParams.getAll("category").filter(Boolean),
+      condition: searchParams.getAll("condition").filter(Boolean),
+      includeOutOfStock: searchParams.get("includeOutOfStock") ?? undefined,
+    });
 
-    const category = searchParams.getAll("category");
-    const condition = searchParams.getAll("condition");
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { error: "Invalid query parameters", issues: parsedQuery.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
 
-    // Admin list should include out-of-stock so the admin tabs can show them.
-    const includeOutOfStock =
-      (searchParams.get("includeOutOfStock") ?? "1") === "1";
+    const { q, limit, page, category, condition, includeOutOfStock } = parsedQuery.data;
 
     const result = await service.listProducts({
       q,
-      category: category.length ? category : undefined,
-      condition: condition.length ? condition : undefined,
-      limit: Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 500) : 100,
-      page: Number.isFinite(pageRaw) ? Math.max(pageRaw, 1) : 1,
+      category: category && category.length ? category : undefined,
+      condition: condition && condition.length ? condition : undefined,
+      limit,
+      page,
       includeOutOfStock,
       tenantId,
     });

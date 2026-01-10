@@ -7,6 +7,14 @@ import { security } from "@/config/security";
 describe("Unit: Bot Check", () => {
   const requestId = "test-request-id";
   const baseUrl = "http://localhost:3000";
+  const createMockRequest = (userAgent: string | null) =>
+    ({
+      headers: {
+        get: (name: string) => (name.toLowerCase() === "user-agent" ? userAgent : null),
+      },
+      nextUrl: new URL(`${baseUrl}/admin`),
+    } as unknown as NextRequest);
+
 
   describe("Allowed Bots", () => {
     it("allows Googlebot", () => {
@@ -346,27 +354,21 @@ describe("Unit: Bot Check", () => {
     });
 
     it("handles user-agent with unicode", () => {
-      const request = new NextRequest(`${baseUrl}/admin`, {
-        headers: { "user-agent": "Mozilla/5.0 (Windows) 你好世界" },
-      });
+      const request = createMockRequest("Mozilla/5.0 (Windows) 你好世界");
 
       const result = checkBot(request, requestId);
       expect(result).toBeNull();
     });
 
     it("handles user-agent with newlines", () => {
-      const request = new NextRequest(`${baseUrl}/admin`, {
-        headers: { "user-agent": "Mozilla/5.0\nWindows\nChrome" },
-      });
+      const request = createMockRequest("Mozilla/5.0\nWindows\nChrome");
 
       const result = checkBot(request, requestId);
       expect(result).toBeNull();
     });
 
     it("handles user-agent with tabs", () => {
-      const request = new NextRequest(`${baseUrl}/admin`, {
-        headers: { "user-agent": "Mozilla/5.0\tWindows\tChrome" },
-      });
+      const request = createMockRequest("Mozilla/5.0\tWindows\tChrome");
 
       const result = checkBot(request, requestId);
       expect(result).toBeNull();

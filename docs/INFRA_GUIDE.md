@@ -7,7 +7,7 @@ This document describes the infrastructure components used by the RDK stack.
 - **Supabase**: Postgres, Auth, Storage, and SSR helpers
 - **Stripe**: checkout payments and Connect payouts
 - **Shippo**: shipping rates and label purchase
-- **Upstash Redis**: rate limiting
+- **Upstash Redis**: rate limiting (prod; memory fallback in dev/test)
 - **AWS SES**: transactional email
 
 ## Supabase
@@ -36,7 +36,8 @@ Local ports (default):
 
 ## Upstash Redis
 - Used by `src/proxy/rate-limit.ts` and `app/api/contact/route.ts`.
-- Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
+- Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for production.
+- Local/dev uses the in-memory limiter when `security.proxy.rateLimit.store` is `memory` or Upstash is not configured.
 
 ## Email (AWS SES)
 - Email sending via `src/lib/email/mailer.ts`.

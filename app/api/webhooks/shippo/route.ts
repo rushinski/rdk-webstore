@@ -9,24 +9,12 @@ import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderEmailService } from "@/services/order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { logError } from "@/lib/log";
-
-// Map Shippo tracking statuses to fulfillment statuses
-const TRACKING_STATUS_MAP: Record<string, string | null> = {
-  PRE_TRANSIT: null,
-  UNKNOWN: null,
-
-  TRANSIT: "shipped",
-  IN_TRANSIT: "shipped",
-  OUT_FOR_DELIVERY: "shipped",
-  AVAILABLE_FOR_PICKUP: "shipped",
-
-  DELIVERED: "delivered",
-
-  RETURNED: null,
-  FAILURE: null,
-  CANCELLED: null,
-  ERROR: null,
-};
+import { SHIPPO_TRACKING_STATUS_MAP } from "@/config/constants/shipping";
+import {
+  shippoTrackingUpdateSchema,
+  shippoWebhookEventSchema,
+  shippoWebhookQuerySchema,
+} from "@/lib/validation/webhooks";
 
 type EmailTrigger = "in_transit" | "delivered" | null;
 
@@ -43,7 +31,15 @@ export async function POST(req: NextRequest) {
   try {
     // Verify webhook token
     const url = new URL(req.url);
-    const token = url.searchParams.get("token");
+    const queryParsed = shippoWebhookQuerySchema.safeParse({
+      token: url.searchParams.get("token") ?? undefined,
+    });
+
+    if (!queryParsed.success) {
+      return NextResponse.json({ error: "invalid token" }, { status: 401 });
+    }
+
+    const { token } = queryParsed.data;
 
     if (env.SHIPPO_WEBHOOK_TOKEN) {
       if (!token || token !== env.SHIPPO_WEBHOOK_TOKEN) {
@@ -51,8 +47,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const event = await req.json().catch(() => null);
-    if (!event) {
+    const payload = await req.json().catch(() => null);
+    const parsedEvent = shippoWebhookEventSchema.safeParse(payload);
+    if (!parsedEvent.success) {
       logError(new Error("Webhook received invalid JSON"), {
         layer: "api",
         route: "/api/webhooks/shippo",
@@ -61,11 +58,21 @@ export async function POST(req: NextRequest) {
     }
 
     // Only handle tracking updates
-    if (event.event !== "track_updated") {
+    if (parsedEvent.data.event !== "track_updated") {
       return NextResponse.json({ ok: true });
     }
 
-    const data = event.data ?? {};
+    const trackingEvent = shippoTrackingUpdateSchema.safeParse(parsedEvent.data);
+    if (!trackingEvent.success) {
+      logError(new Error("Shippo webhook missing tracking data"), {
+        layer: "api",
+        route: "/api/webhooks/shippo",
+        eventType: parsedEvent.data.event,
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    const data = trackingEvent.data.data ?? {};
     
     // Shippo webhook sends tracking_number and tracking_status
     const trackingNumber: string | undefined = 
@@ -80,13 +87,13 @@ export async function POST(req: NextRequest) {
         route: "/api/webhooks/shippo",
         hasTrackingNumber: !!trackingNumber,
         hasStatus: !!statusRaw,
-        eventType: event.event,
+        eventType: parsedEvent.data.event,
       });
       return NextResponse.json({ ok: true });
     }
 
     const status = String(statusRaw).toUpperCase();
-    const newFulfillmentStatus = TRACKING_STATUS_MAP[status];
+    const newFulfillmentStatus = SHIPPO_TRACKING_STATUS_MAP[status];
 
     // Ignore statuses we don't track
     if (newFulfillmentStatus === null || newFulfillmentStatus === undefined) {

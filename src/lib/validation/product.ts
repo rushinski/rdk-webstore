@@ -29,6 +29,23 @@ const tagSchema = z
   })
   .strict();
 
+const includeOutOfStockSchema = z.preprocess((value) => {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "1" || normalized === "true";
+  }
+  if (typeof value === "number") {
+    return value === 1;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (value === undefined || value === null) {
+    return true;
+  }
+  return Boolean(value);
+}, z.boolean());
+
 export const productCreateSchema = z
   .object({
     title_raw: z.string().trim().min(1),
@@ -42,5 +59,16 @@ export const productCreateSchema = z
     variants: z.array(variantSchema).min(1),
     images: z.array(imageSchema).min(1),
     tags: z.array(tagSchema).optional(),
+  })
+  .strict();
+
+export const adminProductsQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).optional(),
+    category: z.array(z.enum(CATEGORY_VALUES)).optional(),
+    condition: z.array(z.enum(CONDITION_VALUES)).optional(),
+    limit: z.coerce.number().int().min(1).max(500).default(100),
+    page: z.coerce.number().int().min(1).default(1),
+    includeOutOfStock: includeOutOfStockSchema,
   })
   .strict();

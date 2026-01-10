@@ -7,3 +7,9 @@ export const emailSubscribeSchema = z
     source: z.string().trim().min(1).optional(),
   })
   .strict();
+
+export const emailConfirmTokenSchema = z
+  .object({
+    token: z.string().trim().min(32),
+  })
+  .strict();

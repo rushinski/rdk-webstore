@@ -29,9 +29,9 @@ This runbook provides operational steps for common incidents.
 3) Check MFA status (AAL2) for the user.
 
 ## Incident: rate limiting blocks legitimate users
-1) Check Upstash usage and logs.
-2) Review `security.proxy.rateLimitPrefixes` and bypass rules.
-3) Adjust limits in `src/config/security.ts` if needed.
+1) Check Upstash usage and logs (if `rateLimit.store = "upstash"`).
+2) Review `security.proxy.rateLimitPrefixes`, `rateLimit.bypassPrefixes`, and `rateLimit.applyInLocalDev`.
+3) Adjust limits in `src/config/security.ts` if needed and redeploy.
 
 ## Incident: email delivery errors
 1) Check SES send failures in logs (`order_email_failed`).

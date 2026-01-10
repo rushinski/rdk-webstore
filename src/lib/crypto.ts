@@ -19,6 +19,23 @@ export function hashToken(token: string, secret: string): string {
 }
 
 export function createCartHash(items: any[], fulfillment: string): string {
-  const canonical = JSON.stringify({ items, fulfillment }, Object.keys({ items, fulfillment }).sort());
+  const normalizedItems = (items ?? [])
+    .map((item) => ({
+      productId: String(item?.productId ?? ""),
+      variantId: String(item?.variantId ?? ""),
+      quantity: Number(item?.quantity ?? 0),
+    }))
+    .sort((a, b) => {
+      const keyA = `${a.productId}:${a.variantId}`;
+      const keyB = `${b.productId}:${b.variantId}`;
+      if (keyA !== keyB) return keyA.localeCompare(keyB);
+      return a.quantity - b.quantity;
+    });
+
+  const canonical = JSON.stringify({
+    fulfillment: String(fulfillment ?? ""),
+    items: normalizedItems,
+  });
+
   return hashString(canonical);
 }

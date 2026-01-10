@@ -5,7 +5,7 @@ import { AdminNotificationService } from "@/services/admin-notification-service"
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { z } from "zod";
-import { adminNotificationUpdateSchema } from "@/lib/validation/admin";
+import { adminNotificationUpdateSchema, adminNotificationsQuerySchema } from "@/lib/validation/admin";
 
 const deleteSchema = z.union([
   z.object({ ids: z.array(z.string().uuid()).min(1) }),
@@ -20,13 +20,24 @@ export async function GET(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const svc = new AdminNotificationService(supabase);
 
-    const limitParam = request.nextUrl.searchParams.get("limit");
-    const pageParam = request.nextUrl.searchParams.get("page");
-    const unreadParam = request.nextUrl.searchParams.get("unread");
+    const limitParam = request.nextUrl.searchParams.get("limit") ?? undefined;
+    const pageParam = request.nextUrl.searchParams.get("page") ?? undefined;
+    const unreadParam = request.nextUrl.searchParams.get("unread") ?? undefined;
 
-    const limit = limitParam ? Math.min(Number(limitParam) || 20, 50) : 20;
-    const page = pageParam ? Math.max(1, Number(pageParam) || 1) : 1;
-    const unreadOnly = unreadParam === "1" || unreadParam === "true";
+    const parsedQuery = adminNotificationsQuerySchema.safeParse({
+      limit: limitParam,
+      page: pageParam,
+      unread: unreadParam,
+    });
+
+    if (!parsedQuery.success) {
+      return NextResponse.json(
+        { error: "Invalid query parameters", issues: parsedQuery.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    const { limit, page, unread: unreadOnly } = parsedQuery.data;
 
     const data = await svc.listCenter(session.user.id, { limit, page, unreadOnly });
 

@@ -1,5 +1,5 @@
 // src/config/constants/roles.ts
-export const PROFILE_ROLES = ["customer", "admin", "super_admin", "dev"] as const;
+export const PROFILE_ROLES = ["customer", "seller", "admin", "super_admin", "dev"] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
 
 export const ADMIN_ROLES = ["admin", "super_admin", "dev"] as const;
@@ -10,6 +10,7 @@ export const ADMIN_PERMISSIONS: Record<
   { canInvite: boolean; canViewBank: boolean }
 > = {
   customer: { canInvite: false, canViewBank: false },
+  seller: { canInvite: false, canViewBank: false },
   admin: { canInvite: false, canViewBank: false },
   super_admin: { canInvite: false, canViewBank: true },
   dev: { canInvite: true, canViewBank: true },

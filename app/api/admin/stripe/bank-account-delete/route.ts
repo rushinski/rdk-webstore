@@ -6,6 +6,7 @@ import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { StripeAdminService } from "@/services/stripe-admin-service";
+import { stripeBankAccountSchema } from "@/lib/validation/stripe";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -23,14 +24,16 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const service = new StripeAdminService(supabase);
     const body = await request.json().catch(() => null);
-    const bankAccountId = body?.bank_account_id;
+    const parsed = stripeBankAccountSchema.safeParse(body ?? {});
 
-    if (!bankAccountId || typeof bankAccountId !== "string") {
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid bank account id", requestId },
-        { status: 400 },
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
+
+    const bankAccountId = parsed.data.bank_account_id;
 
     const summary = await service.getStripeAccountSummary({ userId: session.user.id });
     if (!summary.account?.id) {

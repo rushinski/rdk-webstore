@@ -1,5 +1,6 @@
 // tests/setup-e2e.ts (for Playwright global setup)
 import { chromium, FullConfig } from '@playwright/test';
+import "./helpers/env";
 
 async function globalSetup(config: FullConfig) {
   console.log('Starting E2E test setup...');

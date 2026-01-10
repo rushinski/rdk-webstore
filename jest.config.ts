@@ -6,11 +6,7 @@ const config: Config = {
   testEnvironment: "node",
   roots: ["<rootDir>/tests", "<rootDir>/src"],
   
-  // Match by directory, not separate configs
-  testMatch: [
-    "**/tests/unit/**/*.test.ts",
-    "**/tests/integration/**/*.test.ts",
-  ],
+  testMatch: ["**/tests/unit/**/*.test.ts"],
   
   transform: {
     "^.+\\.tsx?$": ["ts-jest", {
@@ -23,6 +19,7 @@ const config: Config = {
   
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^jose$": "<rootDir>/tests/mocks/jose.ts",
   },
   
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],

@@ -1,4 +1,6 @@
 // src/config/security.ts
+const isProdEnv = process.env.NODE_ENV === "production";
+
 export const security = {
   contact: {
     rateLimit: {
@@ -15,7 +17,7 @@ export const security = {
   proxy: {
     requestIdHeader: "x-request-id",
     botCheckPrefixes: ["/admin", "/api", "/auth", "/products"],
-    rateLimitPrefixes: ["/api", "/admin", "/auth", "/checkout"],
+    rateLimitPrefixes: ["/"],
     adminGuard: {
       protectedPrefixes: ["/admin", "/api/admin"],
       exemptPrefixes: ["/api/auth/2fa"],
@@ -26,6 +28,7 @@ export const security = {
       lowercasePathname: true,
       collapseMultipleSlashes: true,
       removeTrailingSlash: true,
+      maxPathLength: 200,
     },
 
     bot: {
@@ -52,6 +55,7 @@ export const security = {
     csrf: {
       blockStatus: 403,
       unsafeMethods: ["POST", "PUT", "PATCH", "DELETE"] as const,
+      maxOriginLength: 512,
       
       bypassPrefixes: [
         "/api/stripe/webhook",           // Stripe signature verification
@@ -60,12 +64,14 @@ export const security = {
     },
 
     rateLimit: {
+      store: isProdEnv ? "upstash" : "memory",
+      applyInLocalDev: true,
       maxRequests: 30,
       window: "1 m",
       blockStatus: 429,
       tooManyRequestsPath: "/too-many-requests",
       redirectStatus: 302,
-      bypassPrefixes: ["/api/webhooks/stripe"],
+      bypassPrefixes: ["/api/webhooks/stripe", "/api/webhooks/shippo"],
     },
 
     admin: {

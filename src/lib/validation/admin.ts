@@ -38,3 +38,28 @@ export const payoutSettingsSchema = z
     account_last4: z.string().trim().regex(/^[0-9]{4}$/).nullable(),
   })
   .strict();
+
+const booleanFromQuery = z.preprocess((value) => {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "1" || normalized === "true";
+  }
+  if (typeof value === "number") {
+    return value === 1;
+  }
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (value === undefined || value === null) {
+    return false;
+  }
+  return Boolean(value);
+}, z.boolean());
+
+export const adminNotificationsQuerySchema = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    page: z.coerce.number().int().min(1).default(1),
+    unread: booleanFromQuery,
+  })
+  .strict();

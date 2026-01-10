@@ -7,7 +7,7 @@ This document describes the current architecture of the RDK codebase. It is deri
 - Supabase provides Postgres, Auth, Storage, and SSR session helpers.
 - Stripe handles checkout and Connect payouts.
 - Shippo handles shipping rates and label purchase.
-- Upstash Redis provides rate limiting.
+- Upstash Redis provides rate limiting in production; local/dev/test uses an in-memory fallback.
 - AWS SES is used for transactional email.
 
 ## Layering and boundaries
@@ -28,7 +28,7 @@ Rules:
 - UI components do not import server-only modules.
 
 ## Request flow
-1) Request enters `proxy.ts` (canonicalization, bot checks, CSRF, rate limits, admin guard).
+1) Request enters `middleware.ts`, which delegates to `proxy.ts` (canonicalization, bot checks, CSRF, rate limits, admin guard).
 2) Route handler validates input using `src/lib/validation/**`.
 3) Route creates Supabase client (SSR) and calls services.
 4) Services coordinate repositories and external APIs.

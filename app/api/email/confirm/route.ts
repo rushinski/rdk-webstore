@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { EmailSubscriptionService } from "@/services/email-subscription-service";
 import { sendEmail } from "@/lib/email/mailer";
-import { emailFooterText } from "@/lib/email/footer";
-import { renderEmailLayout } from "@/lib/email/template";
-import { emailStyles } from "@/lib/email/theme";
+import { buildSubscriptionConfirmedEmail } from "@/lib/email/subscription";
+import { emailSubjects } from "@/config/constants/email";
+import { emailConfirmTokenSchema } from "@/lib/validation/email";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { env } from "@/config/env";
@@ -14,11 +14,13 @@ const buildRedirect = (status: string) =>
 
 export async function GET(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
-  const token = req.nextUrl.searchParams.get("token");
+  const tokenParam = req.nextUrl.searchParams.get("token") ?? undefined;
+  const parsed = emailConfirmTokenSchema.safeParse({ token: tokenParam });
 
-  if (!token) {
+  if (!parsed.success) {
     return NextResponse.redirect(buildRedirect("invalid"), { status: 302 });
   }
+  const { token } = parsed.data;
 
   try {
     const supabase = createSupabaseAdminClient();
@@ -37,34 +39,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.redirect(buildRedirect("already"), { status: 302 });
     }
 
-    const contentHtml = `
-      <tr>
-        <td style="padding:0 24px 10px;text-align:center;">
-          <div style="${emailStyles.eyebrow}">Subscription confirmed</div>
-          <h1 style="${emailStyles.heading}">Thanks for signing up</h1>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:0 24px 24px;text-align:center;">
-          <p style="${emailStyles.copy}">You're all set to receive updates from Realdealkickzsc.</p>
-        </td>
-      </tr>
-    `;
-    const html = renderEmailLayout({
-      title: "Subscription confirmed",
-      preheader: "You're subscribed to Realdealkickzsc updates.",
-      contentHtml,
-    });
-
-    const text = `Subscription confirmed
-Thanks for signing up for Realdealkickzsc updates.
-${emailFooterText()}
-`;
+    const { html, text } = buildSubscriptionConfirmedEmail();
 
     try {
       await sendEmail({
         to: result.email,
-        subject: "Thanks for subscribing to Realdealkickzsc",
+        subject: emailSubjects.subscriptionConfirmed(),
         html,
         text,
       });

@@ -15,6 +15,10 @@ export function canonicalizePath(
 
   let canonicalPathname = rawPathname;
 
+  if (rawPathname.length > canonicalize.maxPathLength) {
+    return null;
+  }
+
   if (canonicalize.collapseMultipleSlashes) {
     canonicalPathname = canonicalPathname.replace(/\/{2,}/g, "/");
   }
