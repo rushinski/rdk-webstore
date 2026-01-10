@@ -28,7 +28,7 @@ Rules:
 - UI components do not import server-only modules.
 
 ## Request flow
-1) Request enters `middleware.ts`, which delegates to `proxy.ts` (canonicalization, bot checks, CSRF, rate limits, admin guard).
+1) Request enters `proxy.ts` (canonicalization, bot checks, CSRF, rate limits, admin guard).
 2) Route handler validates input using `src/lib/validation/**`.
 3) Route creates Supabase client (SSR) and calls services.
 4) Services coordinate repositories and external APIs.

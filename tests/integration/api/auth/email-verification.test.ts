@@ -1,6 +1,6 @@
 // tests/integration/api/auth/email-verification.test.ts
 import { describe, it, expect, beforeEach } from "@jest/globals";
-import { resetDatabase, seedBaseData } from "../../../helpers/db";
+import { resetDatabase, seedBaseData } from "../../../helpers/db/assertions";
 
 describe("POST /api/auth/verify-email", () => {
   beforeEach(async () => {

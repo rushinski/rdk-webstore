@@ -1,6 +1,8 @@
 // jest.setup.ts
 import { TextEncoder, TextDecoder } from "node:util";
-import "./tests/helpers/env";
+import { loadTestEnv } from "./tests/helpers/env/load-test-env";
+
+loadTestEnv();
 
 (globalThis as any).TextEncoder = TextEncoder;
 (globalThis as any).TextDecoder = TextDecoder;
@@ -14,6 +16,8 @@ if (!globalThis.crypto) {
   (globalThis as any).crypto = require("node:crypto").webcrypto;
 }
 
-jest
-  .spyOn(globalThis.crypto, "randomUUID")
-  .mockReturnValue("00000000-0000-0000-0000-000000000000");
+beforeEach(() => {
+  jest
+    .spyOn(globalThis.crypto, "randomUUID")
+    .mockReturnValue("00000000-0000-0000-0000-000000000000");
+});

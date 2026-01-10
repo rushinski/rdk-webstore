@@ -1,13 +1,11 @@
-// tests/helpers/db.ts
+// tests/helpers/db/lifecycle.ts
 import { Client } from "pg";
-import { createAdminClient } from "./supabase";
-
-const connectionString = process.env.SUPABASE_DB_URL ?? "";
+import { testConfig } from "../config";
+import { createAdminClient } from "../supabase/clients";
 
 export async function resetDatabase(): Promise<void> {
-  if (!connectionString) {
-    throw new Error("SUPABASE_DB_URL is required for database resets.");
-  }
+  const connectionString = testConfig.supabase.dbUrl;
+  if (!connectionString) throw new Error("SUPABASE_DB_URL is required for database resets.");
 
   const client = new Client({ connectionString });
   await client.connect();
@@ -64,7 +62,6 @@ export async function seedBaseData() {
     .insert({ name: "Test Tenant" })
     .select("id")
     .single();
-
   if (tenantError) throw tenantError;
 
   const tenantId = tenantRows.id as string;
@@ -74,7 +71,6 @@ export async function seedBaseData() {
     .insert({ tenant_id: tenantId, name: "Test Marketplace" })
     .select("id")
     .single();
-
   if (marketplaceError) throw marketplaceError;
 
   const marketplaceId = marketplaceRows.id as string;
@@ -90,11 +86,13 @@ export async function seedBaseData() {
     default_height_in: 12,
   }));
 
-  const { error: defaultsError } = await admin
-    .from("shipping_defaults")
-    .insert(defaultsPayload);
-
+  const { error: defaultsError } = await admin.from("shipping_defaults").insert(defaultsPayload);
   if (defaultsError) throw defaultsError;
 
   return { tenantId, marketplaceId };
+}
+
+export async function resetAndSeed() {
+  await resetDatabase();
+  return seedBaseData();
 }
