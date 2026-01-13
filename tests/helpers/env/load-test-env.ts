@@ -34,6 +34,15 @@ export function loadTestEnv() {
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   }
 
+  // Back-compat: mirror public Supabase envs to server-style names for tests
+  if (!process.env.SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    process.env.SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  }
+
+  if (!process.env.SUPABASE_ANON_KEY && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    process.env.SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  }
+
   // Normalize base URL across all test types
   if (!process.env.TEST_BASE_URL) {
     process.env.TEST_BASE_URL = "http://localhost:3100";
@@ -42,8 +51,8 @@ export function loadTestEnv() {
   const required = [
     "TEST_BASE_URL",
     "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_SECRET_KEY",
     "SUPABASE_DB_URL",
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",

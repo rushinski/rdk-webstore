@@ -1,4 +1,5 @@
-// src/app/api/checkout/create-payment-intent/route.ts
+// app/api/checkout/create-payment-intent/route.ts (UPDATED with Tax)
+
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -7,6 +8,7 @@ import { ProductRepository } from "@/repositories/product-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
+import { StripeTaxService } from "@/services/stripe-tax-service";
 import { createCartHash } from "@/lib/crypto";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { items, idempotencyKey, fulfillment, guestEmail } = parsed.data;
+    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } = parsed.data;
 
     if (!userId && !guestEmail) {
       return NextResponse.json(
@@ -113,6 +115,7 @@ export async function POST(request: NextRequest) {
             paymentIntentId: paymentIntent.id,
             subtotal: Number(existingOrder.subtotal ?? 0),
             shipping: Number(existingOrder.shipping ?? 0),
+            tax: Number(existingOrder.tax_amount ?? 0),
             total: Number(existingOrder.total ?? 0),
             fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
             requestId,
@@ -120,65 +123,6 @@ export async function POST(request: NextRequest) {
           { headers: { "Cache-Control": "no-store" } }
         );
       }
-    }
-
-    if (existingOrder && !existingOrder.stripe_payment_intent_id) {
-      const subtotal = Number(existingOrder.subtotal ?? 0);
-      const shipping = Number(existingOrder.shipping ?? 0);
-      const total = Number(existingOrder.total ?? 0);
-
-      // Get or create Stripe customer
-      let stripeCustomerId: string | undefined;
-      let receiptEmail: string | undefined;
-      if (userId) {
-        const profileRepo = new ProfileRepository(supabase);
-        const profile = await profileRepo.getByUserId(userId);
-        if (profile?.stripe_customer_id) {
-          stripeCustomerId = profile.stripe_customer_id;
-        } else if (user?.email) {
-          const customer = await stripe.customers.create({
-            email: user.email,
-            metadata: { userId },
-          });
-          stripeCustomerId = customer.id;
-          await profileRepo.setStripeCustomerId(userId, stripeCustomerId);
-        }
-        receiptEmail = userEmail ?? profile?.email ?? undefined;
-      }
-
-      const paymentIntent = await stripe.paymentIntents.create(
-        {
-          amount: Math.round(total * 100),
-          currency: "usd",
-          customer: stripeCustomerId,
-          receipt_email: receiptEmail ?? guestEmail ?? undefined,
-          metadata: {
-            order_id: existingOrder.id,
-            cart_hash: cartHash,
-            fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
-          },
-          automatic_payment_methods: {
-            enabled: true,
-          },
-        },
-        { idempotencyKey }
-      );
-
-      await ordersRepo.updateStripePaymentIntent(existingOrder.id, paymentIntent.id);
-
-      return NextResponse.json(
-        {
-          clientSecret: paymentIntent.client_secret,
-          orderId: existingOrder.id,
-          paymentIntentId: paymentIntent.id,
-          subtotal,
-          shipping,
-          total,
-          fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
-          requestId,
-        },
-        { headers: { "Cache-Control": "no-store" } }
-      );
     }
 
     // Fetch products
@@ -193,10 +137,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build product map
     const productMap = new Map(products.map((p) => [p.id, p]));
 
-    // Validate single tenant
     const tenantIds = new Set(
       products.map((p) => p.tenantId).filter((id): id is string => Boolean(id))
     );
@@ -208,7 +150,6 @@ export async function POST(request: NextRequest) {
     }
     const [tenantId] = [...tenantIds];
 
-    // Get shipping defaults
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
     const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
@@ -216,7 +157,6 @@ export async function POST(request: NextRequest) {
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
     );
 
-    // Build line items
     const lineItems = items.map((item: any) => {
       const product = productMap.get(item.productId);
       if (!product) throw new Error("Product not found");
@@ -242,7 +182,6 @@ export async function POST(request: NextRequest) {
 
     const subtotal = lineItems.reduce((sum, item) => sum + item.lineTotal, 0);
 
-    // Calculate max shipping (flat rate)
     let shipping = 0;
     if (normalizedFulfillment === "ship") {
       const shippingCosts = lineItems.map((item) => {
@@ -252,12 +191,26 @@ export async function POST(request: NextRequest) {
       shipping = Math.max(...shippingCosts, 0);
     }
 
-    const total = subtotal + shipping;
+    // Calculate tax using Stripe Tax
+    const taxService = new StripeTaxService(adminSupabase);
+    const taxCalc = await taxService.calculateTax({
+      currency: "usd",
+      customerAddress: normalizedFulfillment === "ship" ? (shippingAddress ?? null) : null,
+      lineItems: lineItems.map(item => ({
+        amount: Math.round(item.unitPrice * 100),
+        quantity: item.quantity,
+        productId: item.productId,
+        category: item.category,
+      })),
+      shippingCost: Math.round(shipping * 100),
+    });
 
-    // Create pending order
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const tax = taxCalc.taxAmount / 100;
+    const total = subtotal + shipping + tax;
 
-    const order = await ordersRepo.createPendingOrder({
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    const order = existingOrder ?? await ordersRepo.createPendingOrder({
       userId,
       guestEmail: guestEmail ?? null,
       tenantId,
@@ -279,7 +232,16 @@ export async function POST(request: NextRequest) {
       })),
     });
 
-    // Get or create Stripe customer
+    // Update order with tax info
+    await adminSupabase
+      .from('orders')
+      .update({
+        tax_amount: tax,
+        tax_calculation_id: taxCalc.taxCalculationId,
+        customer_state: normalizedFulfillment === "ship" ? shippingAddress?.state : 'SC',
+      })
+      .eq('id', order.id);
+
     let stripeCustomerId: string | undefined;
     let receiptEmail: string | undefined;
     if (userId) {
@@ -298,7 +260,6 @@ export async function POST(request: NextRequest) {
       receiptEmail = userEmail ?? profile?.email ?? undefined;
     }
 
-    // Create Payment Intent
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount: Math.round(total * 100),
@@ -309,6 +270,7 @@ export async function POST(request: NextRequest) {
           order_id: order.id,
           cart_hash: cartHash,
           fulfillment: normalizedFulfillment,
+          tax_calculation_id: taxCalc.taxCalculationId ?? '',
         },
         automatic_payment_methods: {
           enabled: true,
@@ -324,6 +286,7 @@ export async function POST(request: NextRequest) {
       requestId,
       orderId: order.id,
       paymentIntentId: paymentIntent.id,
+      tax,
     });
 
     if (!order.stripe_payment_intent_id) {
@@ -337,6 +300,7 @@ export async function POST(request: NextRequest) {
         paymentIntentId: paymentIntent.id,
         subtotal,
         shipping,
+        tax,
         total,
         fulfillment: normalizedFulfillment,
         requestId,

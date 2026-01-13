@@ -1,4 +1,4 @@
-// src/app/api/checkout/confirm-payment/route.ts
+// app/api/checkout/confirm-payment/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
           line2: paymentIntent.shipping.address?.line2 ?? null,
           city: paymentIntent.shipping.address?.city ?? null,
           state: paymentIntent.shipping.address?.state ?? null,
-          postalCode: paymentIntent.shipping.address?.postal_code ?? null,
+          postal_code: paymentIntent.shipping.address?.postal_code ?? null, // Changed from postalCode
           country: paymentIntent.shipping.address?.country ?? null,
         }
       : null;
@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
       resolvedShipping?.line1 &&
       resolvedShipping.city &&
       resolvedShipping.state &&
-      resolvedShipping.postalCode &&
+      resolvedShipping.postal_code && // Changed from postalCode
       resolvedShipping.country
     ) {
       await addressesRepo.insertOrderShippingSnapshot(orderId, {
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
         line2: resolvedShipping.line2 ?? null,
         city: resolvedShipping.city,
         state: resolvedShipping.state,
-        postalCode: resolvedShipping.postalCode,
+        postalCode: resolvedShipping.postal_code, // Convert back to camelCase for repository
         country: resolvedShipping.country,
       });
 
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
           line2: resolvedShipping.line2 ?? null,
           city: resolvedShipping.city,
           state: resolvedShipping.state,
-          postalCode: resolvedShipping.postalCode,
+          postalCode: resolvedShipping.postal_code, // Convert back to camelCase for repository
           country: resolvedShipping.country,
         });
       }
@@ -285,7 +285,7 @@ export async function POST(request: NextRequest) {
               line2: resolvedShipping.line2 ?? null,
               city: resolvedShipping.city ?? null,
               state: resolvedShipping.state ?? null,
-              postalCode: resolvedShipping.postalCode ?? null,
+              postalCode: resolvedShipping.postal_code ?? null, // Changed from postalCode
               country: resolvedShipping.country ?? null,
             }
           : null;

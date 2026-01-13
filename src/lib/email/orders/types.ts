@@ -1,3 +1,4 @@
+// src/lib/email/orders/types.ts
 export type OrderItemEmail = {
   title: string;
   sizeLabel?: string | null;

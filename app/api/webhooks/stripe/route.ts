@@ -1,10 +1,11 @@
-// src/app/api/webhooks/stripe/route.ts
+// app/api/webhooks/stripe/route.ts (UPDATED with tax transaction)
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { StripeOrderJob } from "@/jobs/stripe-order-job";
+import { StripeTaxService } from "@/services/stripe-tax-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
@@ -33,7 +34,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify signature
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
@@ -58,12 +58,10 @@ export async function POST(request: NextRequest) {
       eventId: event.id,
     });
 
-    // Process event
     const supabase = await createSupabaseServerClient();
     const adminSupabase = createSupabaseAdminClient();
     const job = new StripeOrderJob(supabase, adminSupabase);
 
-    // Handle different event types
     switch (event.type) {
       case "checkout.session.completed":
         await job.processCheckoutSessionCompleted(event, requestId);
@@ -71,9 +69,46 @@ export async function POST(request: NextRequest) {
 
       case "payment_intent.succeeded":
         await job.processPaymentIntentSucceeded(event, requestId);
+        
+        // Record tax transaction if tax calculation ID exists
+        const paymentIntent = event.data.object as Stripe.PaymentIntent;
+        const taxCalculationId = paymentIntent.metadata?.tax_calculation_id;
+        const orderId = paymentIntent.metadata?.order_id;
+        
+        if (taxCalculationId && orderId) {
+          try {
+            const taxService = new StripeTaxService(adminSupabase);
+            const taxTransactionId = await taxService.createTaxTransaction({
+              taxCalculationId,
+              reference: orderId,
+            });
+
+            if (taxTransactionId) {
+              await adminSupabase
+                .from('orders')
+                .update({ stripe_tax_transaction_id: taxTransactionId })
+                .eq('id', orderId);
+
+              log({
+                level: "info",
+                layer: "stripe",
+                message: "tax_transaction_created",
+                requestId,
+                orderId,
+                taxTransactionId,
+              });
+            }
+          } catch (taxError) {
+            logError(taxError, {
+              layer: "stripe",
+              requestId,
+              message: "Failed to create tax transaction",
+              orderId,
+            });
+          }
+        }
         break;
 
-      // Account events - log for monitoring
       case "account.updated":
         log({
           level: "info",
@@ -85,7 +120,6 @@ export async function POST(request: NextRequest) {
         });
         break;
 
-      // Payout events - log for monitoring
       case "payout.created":
       case "payout.updated":
       case "payout.paid":
@@ -102,7 +136,6 @@ export async function POST(request: NextRequest) {
         });
         break;
 
-      // Refund events - track refund state
       case "charge.refunded":
       case "charge.refund.updated":
       case "refund.created":
@@ -132,7 +165,6 @@ export async function POST(request: NextRequest) {
       route: "/api/stripe/webhook",
     });
 
-    // Always return 200 to Stripe to avoid retries on our errors
     return NextResponse.json(
       { error: "Internal error", requestId },
       { status: 200, headers: { "Cache-Control": "no-store" } }
@@ -140,9 +172,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * Handle refund events and update order status
- */
 async function handleRefundEvent(
   event: Stripe.Event,
   requestId: string,
@@ -164,7 +193,6 @@ async function handleRefundEvent(
       reason: refund.reason,
     });
 
-    // Find order by charge ID (payment_intent or charge metadata)
     const chargeId = typeof refund.charge === 'string' ? refund.charge : refund.charge?.id;
     
     if (!chargeId) {
@@ -178,8 +206,6 @@ async function handleRefundEvent(
       return;
     }
 
-    // Query orders table for matching charge/payment intent
-    // This assumes you store stripe_charge_id or stripe_payment_intent_id on orders
     const { data: orders, error: queryError } = await adminSupabase
       .from("orders")
       .select("id, status, refund_amount, refund_reason")
@@ -204,14 +230,12 @@ async function handleRefundEvent(
 
     const order = orders[0];
 
-    // Update order with refund information
     const updateData: any = {
       refund_amount: refund.amount,
       refund_reason: refund.reason || 'requested_by_customer',
       refunded_at: new Date(refund.created * 1000).toISOString(),
     };
 
-    // Update status based on refund status
     if (refund.status === 'succeeded') {
       updateData.status = 'refunded';
     } else if (refund.status === 'pending') {

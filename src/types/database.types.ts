@@ -638,6 +638,50 @@ export type Database = {
           },
         ]
       }
+      nexus_registrations: {
+        Row: {
+          created_at: string
+          id: string
+          is_registered: boolean
+          registered_at: string | null
+          registration_type: string
+          state_code: string
+          stripe_registration_id: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_registered?: boolean
+          registered_at?: string | null
+          registration_type: string
+          state_code: string
+          stripe_registration_id?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_registered?: boolean
+          registered_at?: string | null
+          registration_type?: string
+          state_code?: string
+          stripe_registration_id?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nexus_registrations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_access_tokens: {
         Row: {
           created_at: string
@@ -857,6 +901,7 @@ export type Database = {
           cart_hash: string | null
           created_at: string | null
           currency: string | null
+          customer_state: string | null
           expires_at: string | null
           fee: number | null
           fulfillment: string | null
@@ -880,7 +925,10 @@ export type Database = {
           status: string | null
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
+          stripe_tax_transaction_id: string | null
           subtotal: number
+          tax_amount: number | null
+          tax_calculation_id: string | null
           tenant_id: string | null
           total: number
           tracking_number: string | null
@@ -892,6 +940,7 @@ export type Database = {
           cart_hash?: string | null
           created_at?: string | null
           currency?: string | null
+          customer_state?: string | null
           expires_at?: string | null
           fee?: number | null
           fulfillment?: string | null
@@ -915,7 +964,10 @@ export type Database = {
           status?: string | null
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
+          stripe_tax_transaction_id?: string | null
           subtotal: number
+          tax_amount?: number | null
+          tax_calculation_id?: string | null
           tenant_id?: string | null
           total: number
           tracking_number?: string | null
@@ -927,6 +979,7 @@ export type Database = {
           cart_hash?: string | null
           created_at?: string | null
           currency?: string | null
+          customer_state?: string | null
           expires_at?: string | null
           fee?: number | null
           fulfillment?: string | null
@@ -950,7 +1003,10 @@ export type Database = {
           status?: string | null
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
+          stripe_tax_transaction_id?: string | null
           subtotal?: number
+          tax_amount?: number | null
+          tax_calculation_id?: string | null
           tenant_id?: string | null
           total?: number
           tracking_number?: string | null
@@ -1157,6 +1213,7 @@ export type Database = {
           seller_id: string | null
           shipping_override_cents: number | null
           sku: string
+          stripe_tax_code: string | null
           tenant_id: string
           title_display: string
           title_raw: string
@@ -1185,6 +1242,7 @@ export type Database = {
           seller_id?: string | null
           shipping_override_cents?: number | null
           sku: string
+          stripe_tax_code?: string | null
           tenant_id: string
           title_display: string
           title_raw: string
@@ -1213,6 +1271,7 @@ export type Database = {
           seller_id?: string | null
           shipping_override_cents?: number | null
           sku?: string
+          stripe_tax_code?: string | null
           tenant_id?: string
           title_display?: string
           title_raw?: string
@@ -1506,6 +1565,53 @@ export type Database = {
         }
         Relationships: []
       }
+      state_sales_tracking: {
+        Row: {
+          created_at: string
+          id: string
+          month: number
+          state_code: string
+          taxable_sales: number
+          tenant_id: string
+          total_sales: number
+          transaction_count: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          month: number
+          state_code: string
+          taxable_sales?: number
+          tenant_id: string
+          total_sales?: number
+          transaction_count?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          month?: number
+          state_code?: string
+          taxable_sales?: number
+          tenant_id?: string
+          total_sales?: number
+          transaction_count?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "state_sales_tracking_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stripe_events: {
         Row: {
           created: number
@@ -1575,6 +1681,47 @@ export type Database = {
             foreignKeyName: "tags_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_tax_settings: {
+        Row: {
+          business_name: string | null
+          created_at: string
+          home_state: string
+          id: string
+          stripe_tax_settings_id: string | null
+          tax_id_number: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string
+          home_state: string
+          id?: string
+          stripe_tax_settings_id?: string | null
+          tax_id_number?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string
+          home_state?: string
+          id?: string
+          stripe_tax_settings_id?: string | null
+          tax_id_number?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_tax_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
