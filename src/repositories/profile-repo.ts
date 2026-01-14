@@ -2,7 +2,6 @@
 import type { Database } from "@/types/database.types";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { ProfileRole } from "@/config/constants/roles";
-import { isProfileRole } from "@/config/constants/roles";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -20,17 +19,46 @@ export class ProfileRepository {
     return data;
   }
 
-  async ensureProfile(userId: string, email: string) {
+  async ensureProfile(userId: string, email: string, tenantId?: string) {
     const existing = await this.getByUserId(userId);
-    if (existing) return;
+    if (existing) return existing;
 
-    const { error } = await this.supabase.from("profiles").insert({
-      id: userId,
-      email,
-      role: "customer",
-    });
+    // If no tenantId provided, get the first tenant (your seeded "Real Deal Kickz")
+    let assignedTenantId = tenantId;
+    
+    if (!assignedTenantId) {
+      // Use maybeSingle() instead of single() to avoid throwing on no results
+      const { data: firstTenant, error } = await this.supabase
+        .from("tenants")
+        .select("id")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Failed to query tenants: ${error.message}`);
+      }
+
+      if (!firstTenant) {
+        throw new Error("No tenant found in database. Please run seed script.");
+      }
+
+      assignedTenantId = firstTenant.id;
+    }
+
+    const { data, error } = await this.supabase
+      .from("profiles")
+      .insert({
+        id: userId,
+        email,
+        role: "customer",
+        tenant_id: assignedTenantId,
+      })
+      .select()
+      .single();
 
     if (error) throw error;
+    return data;
   }
 
   async setRole(userId: string, role: ProfileRole) {
