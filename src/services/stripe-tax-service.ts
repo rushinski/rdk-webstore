@@ -34,34 +34,32 @@ export class StripeTaxService {
       country: string;
     } | null;
     lineItems: Array<{
-      amount: number; // in cents
+      amount: number;
       quantity: number;
       productId: string;
       category: string;
     }>;
-    shippingCost?: number; // in cents
+    shippingCost?: number;
   }): Promise<{
-    taxAmount: number; // in cents
-    totalAmount: number; // in cents
+    taxAmount: number;
+    totalAmount: number;
     taxCalculationId: string | null;
   }> {
-    // For pickup orders, use SC (home state)
     const state = params.customerAddress?.state ?? 'SC';
     
     const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map(item => ({
       amount: item.amount,
-      quantity: item.quantity ?? 1, // Add default
+      quantity: item.quantity ?? 1,
       reference: item.productId,
       tax_code: PRODUCT_TAX_CODES[item.category as keyof typeof PRODUCT_TAX_CODES] ?? 'txcd_99999999',
     }));
 
-    // Add shipping as a line item if present
     if (params.shippingCost && params.shippingCost > 0) {
       lineItems.push({
         amount: params.shippingCost,
         quantity: 1,
         reference: 'shipping',
-        tax_code: 'txcd_92010001', // Shipping tax code
+        tax_code: 'txcd_92010001',
       });
     }
 
@@ -78,7 +76,6 @@ export class StripeTaxService {
             postal_code: params.customerAddress.postal_code,
             country: params.customerAddress.country,
           } : {
-            // Default to SC for pickup
             line1: '123 Main St',
             city: 'Charleston',
             state: 'SC',
@@ -101,7 +98,6 @@ export class StripeTaxService {
       };
     } catch (error) {
       console.error('Stripe tax calculation error:', error);
-      // Fallback to 0 tax on error
       const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
       return {
         taxAmount: 0,
@@ -112,11 +108,11 @@ export class StripeTaxService {
   }
 
   /**
-   * Register a tax calculation as a transaction (after payment succeeds)
+   * Register a tax calculation as a transaction
    */
   async createTaxTransaction(params: {
     taxCalculationId: string;
-    reference: string; // order ID
+    reference: string;
   }): Promise<string | null> {
     try {
       const transaction = await stripe.tax.transactions.createFromCalculation({
@@ -132,60 +128,123 @@ export class StripeTaxService {
   }
 
   /**
-   * Register for tax collection in a state
+   * Register for tax collection with Stripe Tax
    */
   async registerState(params: {
     tenantId: string;
     stateCode: string;
     registrationType: 'physical' | 'economic';
   }): Promise<void> {
-    await this.nexusRepo.upsertRegistration({
-      tenantId: params.tenantId,
-      stateCode: params.stateCode,
-      registrationType: params.registrationType,
-      isRegistered: true,
-      registeredAt: new Date().toISOString(),
-    });
+    try {
+      // Create Stripe Tax registration
+      const registration = await stripe.tax.registrations.create({
+        country: 'US',
+        country_options: {
+          us: {
+            type: 'state_sales_tax',
+            state: params.stateCode,
+          },
+        },
+        active_from: 'now',
+      });
 
-    // Note: Actual Stripe Tax registration would happen through their API
-    // For now, we're tracking this in our database
+      // Store registration in database
+      await this.nexusRepo.upsertRegistration({
+        tenantId: params.tenantId,
+        stateCode: params.stateCode,
+        registrationType: params.registrationType,
+        isRegistered: true,
+        registeredAt: new Date().toISOString(),
+        stripeRegistrationId: registration.id,
+      });
+    } catch (error: any) {
+      console.error('Stripe tax registration error:', error);
+      
+      // Still mark as registered locally even if Stripe fails
+      await this.nexusRepo.upsertRegistration({
+        tenantId: params.tenantId,
+        stateCode: params.stateCode,
+        registrationType: params.registrationType,
+        isRegistered: true,
+        registeredAt: new Date().toISOString(),
+      });
+    }
   }
 
   /**
-   * Unregister from tax collection in a state
+   * Unregister from tax collection with Stripe Tax
    */
   async unregisterState(params: {
     tenantId: string;
     stateCode: string;
   }): Promise<void> {
+    const registration = await this.nexusRepo.getRegistration(params.tenantId, params.stateCode);
+    
+    if (registration?.stripe_registration_id) {
+      try {
+        await stripe.tax.registrations.update(registration.stripe_registration_id, {
+          expires_at: 'now',
+        });
+      } catch (error) {
+        console.error('Stripe tax unregistration error:', error);
+      }
+    }
+
     await this.nexusRepo.upsertRegistration({
       tenantId: params.tenantId,
       stateCode: params.stateCode,
       registrationType: 'economic',
       isRegistered: false,
       registeredAt: null,
+      stripeRegistrationId: null,
     });
   }
 
   /**
-   * Set or update home state
+   * Set or update home state with Stripe Tax
    */
   async setHomeState(params: {
     tenantId: string;
     stateCode: string;
   }): Promise<void> {
+    // Update local settings
     await this.taxSettingsRepo.upsert({
       tenantId: params.tenantId,
       homeState: params.stateCode,
     });
 
-    // Home state is always physical nexus
-    await this.nexusRepo.upsertRegistration({
+    // Register home state as physical nexus with Stripe
+    await this.registerState({
       tenantId: params.tenantId,
       stateCode: params.stateCode,
       registrationType: 'physical',
-      isRegistered: true,
-      registeredAt: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Get all Stripe Tax registrations
+   */
+  async getStripeRegistrations(): Promise<Map<string, { id: string; state: string; active: boolean }>> {
+    try {
+      const registrations = await stripe.tax.registrations.list({ limit: 100 });
+      
+      const map = new Map<string, { id: string; state: string; active: boolean }>();
+      
+      for (const reg of registrations.data) {
+        if (reg.country === 'US' && reg.country_options?.us?.state) {
+          const state = reg.country_options.us.state;
+          map.set(state, {
+            id: reg.id,
+            state,
+            active: reg.status === 'active',
+          });
+        }
+      }
+      
+      return map;
+    } catch (error) {
+      console.error('Failed to fetch Stripe registrations:', error);
+      return new Map();
+    }
   }
 }

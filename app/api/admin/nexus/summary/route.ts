@@ -8,7 +8,22 @@ import { logError } from "@/lib/log";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { StripeTaxService } from "@/services/stripe-tax-service";
 import { NEXUS_THRESHOLDS, STATE_NAMES } from "@/config/constants/nexus-thresholds";
+
+function getResetDate(window: string): string {
+  const now = new Date();
+  
+  if (window === 'calendar year') {
+    return `Jan 1, ${now.getFullYear() + 1}`;
+  } else if (window === 'rolling 12 months') {
+    const future = new Date(now);
+    future.setMonth(future.getMonth() + 1);
+    return `${future.toLocaleString('default', { month: 'short' })} 1, ${future.getFullYear()}`;
+  }
+  
+  return 'N/A';
+}
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -29,11 +44,14 @@ export async function GET(request: NextRequest) {
 
     const nexusRepo = new NexusRepository(supabase);
     const taxSettingsRepo = new TaxSettingsRepository(supabase);
+    const taxService = new StripeTaxService(supabase);
 
-    const [registrations, taxSettings, allSales] = await Promise.all([
+    // Fetch all data in parallel
+    const [registrations, taxSettings, allSales, stripeRegistrations] = await Promise.all([
       nexusRepo.getRegistrationsByTenant(profile.tenant_id),
       taxSettingsRepo.getByTenant(profile.tenant_id),
       nexusRepo.getAllStateSales(profile.tenant_id, 'calendar'),
+      taxService.getStripeRegistrations(),
     ]);
 
     const homeState = taxSettings?.home_state ?? 'SC';
@@ -42,6 +60,7 @@ export async function GET(request: NextRequest) {
       const threshold = NEXUS_THRESHOLDS[stateCode as keyof typeof NEXUS_THRESHOLDS];
       const registration = registrations.find(r => r.state_code === stateCode);
       const sales = allSales.get(stateCode) ?? { totalSales: 0, taxableSales: 0, transactionCount: 0 };
+      const stripeReg = stripeRegistrations.get(stateCode);
 
       const relevantSales = threshold.type === 'taxable' ? sales.taxableSales : sales.totalSales;
       const thresholdAmount = threshold.threshold;
@@ -82,6 +101,8 @@ export async function GET(request: NextRequest) {
         transactionThreshold: threshold.transactions ?? null,
         meetsTransactionThreshold,
         both: threshold.both ?? false,
+        stripeRegistered: stripeReg?.active ?? false,
+        resetDate: getResetDate(threshold.window),
       };
     });
 

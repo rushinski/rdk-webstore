@@ -3,7 +3,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { AlertCircle, ExternalLink, CheckCircle, XCircle, TrendingUp } from "lucide-react";
+import { AlertCircle, ExternalLink, CheckCircle, XCircle, TrendingUp, X, AlertTriangle } from "lucide-react";
+import { USMap } from "./USMap";
 
 type StateSummary = {
   stateCode: string;
@@ -27,6 +28,8 @@ type StateSummary = {
   transactionThreshold?: number;
   meetsTransactionThreshold?: boolean;
   both?: boolean;
+  stripeRegistered?: boolean;
+  resetDate?: string;
 };
 
 type NexusData = {
@@ -53,9 +56,9 @@ const STATE_REGISTRATION_URLS: Record<string, string> = {
 
 export function NexusTrackerClient() {
   const [data, setData] = useState<NexusData | null>(null);
-  const [hoveredState, setHoveredState] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<StateSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     fetchNexusData();
@@ -64,27 +67,13 @@ export function NexusTrackerClient() {
   const fetchNexusData = async () => {
     try {
       setLoading(true);
-
       const res = await fetch("/api/admin/nexus/summary", { cache: "no-store" });
 
       if (!res.ok) {
-        // Read body for debugging, but don’t trust its shape as NexusData
-        const bodyText = await res.text().catch(() => "");
-        throw new Error(`Failed /api/admin/nexus/summary: ${res.status} ${bodyText}`);
+        throw new Error(`Failed: ${res.status}`);
       }
 
-      const json = (await res.json()) as unknown;
-
-      // Runtime guard (don’t rely only on TS)
-      if (
-        !json ||
-        typeof json !== "object" ||
-        !("states" in json) ||
-        !Array.isArray((json as any).states)
-      ) {
-        throw new Error("Invalid nexus payload shape");
-      }
-
+      const json = await res.json();
       setData(json as NexusData);
     } catch (err) {
       console.error("Failed to fetch nexus data:", err);
@@ -119,6 +108,7 @@ export function NexusTrackerClient() {
     nexusType: 'physical' | 'economic'
   ) => {
     try {
+      setIsUpdating(true);
       await fetch("/api/admin/nexus/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,17 +118,25 @@ export function NexusTrackerClient() {
           isRegistered: !currentRegistered,
         }),
       });
-      fetchNexusData();
+      
+      await fetchNexusData();
+      
       if (selectedState?.stateCode === stateCode) {
-        setSelectedState(null);
+        const updatedState = data?.states.find(s => s.stateCode === stateCode);
+        if (updatedState) {
+          setSelectedState({ ...updatedState, isRegistered: !currentRegistered });
+        }
       }
     } catch (err) {
       console.error("Failed to toggle registration:", err);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
   const handleNexusTypeChange = async (stateCode: string, newType: 'physical' | 'economic') => {
     try {
+      setIsUpdating(true);
       await fetch("/api/admin/nexus/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,9 +146,19 @@ export function NexusTrackerClient() {
           isRegistered: true,
         }),
       });
-      fetchNexusData();
+      
+      await fetchNexusData();
+      
+      if (selectedState?.stateCode === stateCode) {
+        const updatedState = data?.states.find(s => s.stateCode === stateCode);
+        if (updatedState) {
+          setSelectedState({ ...updatedState, nexusType: newType });
+        }
+      }
     } catch (err) {
       console.error("Failed to change nexus type:", err);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -170,16 +178,15 @@ export function NexusTrackerClient() {
     );
   }
 
-  const stateData = (data?.states ?? []).reduce((acc, s) => {
-    acc[s.stateCode] = s;
-    return acc;
-  }, {} as Record<string, StateSummary>);
-
-  const atRiskStates = (data?.states ?? []).filter(
+  const atRiskStates = data.states.filter(
     (s) => !s.isRegistered && s.percentageToThreshold >= 85
   ).length;
 
-  const registeredStates = (data?.states ?? []).filter((s) => s.isRegistered).length;
+  const registeredStates = data.states.filter((s) => s.isRegistered).length;
+
+  const needsStripeRegistration = data.states.filter(
+    (s) => s.nexusType === 'physical' && s.isRegistered && !s.stripeRegistered
+  ).length;
 
   return (
     <div className="p-8 space-y-8">
@@ -191,7 +198,7 @@ export function NexusTrackerClient() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -211,6 +218,18 @@ export function NexusTrackerClient() {
             <AlertCircle className="w-12 h-12 text-red-500" />
           </div>
         </div>
+
+        {needsStripeRegistration > 0 && (
+          <div className="bg-zinc-900 border border-yellow-800 rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-400 mb-1">Needs Stripe Registration</p>
+                <p className="text-3xl font-bold text-yellow-500">{needsStripeRegistration}</p>
+              </div>
+              <AlertTriangle className="w-12 h-12 text-yellow-500" />
+            </div>
+          </div>
+        )}
 
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
           <div className="flex items-center justify-between">
@@ -251,196 +270,193 @@ export function NexusTrackerClient() {
         </div>
       </div>
 
-      {/* Interactive Map */}
+      {/* US Map */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
         <h2 className="text-xl font-bold text-white mb-6">United States Nexus Map</h2>
-        <div className="grid grid-cols-10 gap-1">
-          {(data?.states ?? []).map((state) => {
-            const color = getStateColor(state);
-            const isHovered = hoveredState === state.stateCode;
-
-            return (
-              <button
-                key={state.stateCode}
-                className="aspect-square flex items-center justify-center text-xs font-medium transition-all relative"
-                style={{
-                  backgroundColor: color,
-                  transform: isHovered ? "scale(1.2)" : "scale(1)",
-                  zIndex: isHovered ? 10 : 1,
-                }}
-                onMouseEnter={() => setHoveredState(state.stateCode)}
-                onMouseLeave={() => setHoveredState(null)}
-                onClick={() => setSelectedState(state)}
-              >
-                {state.stateCode}
-                {isHovered && (
-                  <div className="absolute left-full ml-2 bg-zinc-800 border border-zinc-700 rounded p-3 text-left whitespace-nowrap shadow-xl z-50">
-                    <div className="font-bold mb-1 text-white">{state.stateName}</div>
-                    <div className="text-xs space-y-1 text-gray-300">
-                      <div>Sales: {formatCurrency(state.relevantSales)}</div>
-                      <div>Threshold: {formatCurrency(state.threshold)}</div>
-                      <div className="font-semibold text-white">
-                        {state.percentageToThreshold.toFixed(1)}% to threshold
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        <USMap 
+          states={data.states}
+          onStateClick={setSelectedState}
+          getStateColor={getStateColor}
+          formatCurrency={formatCurrency}
+        />
       </div>
 
-      {/* Selected State Detail */}
+      {/* Modal Overlay for State Details */}
       {selectedState && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h2 className="text-2xl font-bold text-white">{selectedState.stateName}</h2>
-              <div className="flex gap-2 mt-2">
-                {selectedState.isRegistered && (
-                  <span className="px-2 py-1 bg-gray-700 text-white text-xs rounded">
-                    Registered
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedState(null)}
+        >
+          <div 
+            className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-white">{selectedState.stateName}</h2>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {selectedState.isRegistered && (
+                    <span className="px-2 py-1 bg-gray-700 text-white text-xs rounded">
+                      Registered Locally
+                    </span>
+                  )}
+                  {selectedState.stripeRegistered && (
+                    <span className="px-2 py-1 bg-green-700 text-white text-xs rounded">
+                      Registered with Stripe
+                    </span>
+                  )}
+                  <span className="px-2 py-1 bg-zinc-800 text-white text-xs rounded">
+                    {selectedState.nexusType}
                   </span>
-                )}
-                <span className="px-2 py-1 bg-zinc-800 text-white text-xs rounded">
-                  {selectedState.nexusType}
-                </span>
-                {selectedState.isHomeState && (
-                  <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded">
-                    Home State
-                  </span>
-                )}
+                  {selectedState.isHomeState && (
+                    <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded">
+                      Home State
+                    </span>
+                  )}
+                </div>
               </div>
+              <button
+                onClick={() => setSelectedState(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
-            <button
-              onClick={() => setSelectedState(null)}
-              className="text-gray-400 hover:text-white"
-            >
-              ×
-            </button>
-          </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Nexus Threshold</div>
-              <div className="text-xl font-bold text-white">
-                {formatCurrency(selectedState.threshold)}
-              </div>
-              <div className="text-xs text-gray-500">
-                {selectedState.thresholdType} sales / {selectedState.window}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Current Sales</div>
-              <div className="text-xl font-bold text-white">
-                {formatCurrency(selectedState.relevantSales)}
-              </div>
-              <div className="text-xs text-gray-500">
-                {selectedState.percentageToThreshold.toFixed(1)}% to threshold
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Total Sales</div>
-              <div className="text-lg text-white">
-                {formatCurrency(selectedState.totalSales)}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-gray-400 mb-1">Transactions</div>
-              <div className="text-lg text-white">{selectedState.transactionCount}</div>
-            </div>
-          </div>
-
-          {selectedState.transactionThreshold && (
-            <div className="mb-6 p-3 bg-zinc-800 rounded">
-              <div className="text-sm text-gray-400">Transaction Requirement</div>
-              <div className="text-sm text-white">
-                {selectedState.transactionCount} / {selectedState.transactionThreshold}{" "}
-                transactions
-                {selectedState.both && " (BOTH thresholds required)"}
-              </div>
-            </div>
-          )}
-
-          {!selectedState.taxable && (
-            <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-800 rounded flex gap-2">
-              <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-              <div className="text-sm">
-                <div className="font-semibold text-yellow-500">Product Tax Exemption</div>
-                {selectedState.exemption && (
+            {selectedState.nexusType === 'physical' && !selectedState.stripeRegistered && (
+              <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-800 rounded flex gap-2">
+                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                <div className="text-sm">
+                  <div className="font-semibold text-yellow-500">Physical Nexus - Register with Stripe</div>
                   <div className="text-gray-300">
-                    Sneakers/clothing exempt{" "}
-                    {selectedState.marginal
-                      ? `under $${selectedState.exemption} (marginal)`
-                      : selectedState.allOrNothing
-                        ? `under $${selectedState.exemption} (all or nothing)`
-                        : ""}
+                    This state has physical nexus and must be registered with Stripe Tax to collect taxes automatically.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-6 mb-6">
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Nexus Threshold</div>
+                <div className="text-xl font-bold text-white">
+                  {formatCurrency(selectedState.threshold)}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {selectedState.thresholdType} sales / {selectedState.window}
+                </div>
+                {selectedState.resetDate && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Resets: {selectedState.resetDate}
                   </div>
                 )}
               </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Current Sales</div>
+                <div className="text-xl font-bold text-white">
+                  {formatCurrency(selectedState.relevantSales)}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {selectedState.percentageToThreshold.toFixed(1)}% to threshold
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Total Sales</div>
+                <div className="text-lg text-white">
+                  {formatCurrency(selectedState.totalSales)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-400 mb-1">Transactions</div>
+                <div className="text-lg text-white">{selectedState.transactionCount}</div>
+              </div>
             </div>
-          )}
 
-          {!selectedState.isHomeState && (
-            <div className="flex gap-3 mb-4">
-              <button
-                onClick={() =>
-                  handleNexusTypeChange(selectedState.stateCode, "physical")
-                }
-                className={`px-4 py-2 rounded text-sm ${
-                  selectedState.nexusType === "physical"
-                    ? "bg-red-600 text-white"
-                    : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
-                }`}
-              >
-                Physical Nexus
-              </button>
-              <button
-                onClick={() =>
-                  handleNexusTypeChange(selectedState.stateCode, "economic")
-                }
-                className={`px-4 py-2 rounded text-sm ${
-                  selectedState.nexusType === "economic"
-                    ? "bg-red-600 text-white"
-                    : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
-                }`}
-              >
-                Economic Nexus
-              </button>
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              onClick={() =>
-                handleRegisterToggle(
-                  selectedState.stateCode,
-                  selectedState.isRegistered,
-                  selectedState.nexusType
-                )
-              }
-              className={`px-4 py-2 rounded font-medium ${
-                selectedState.isRegistered
-                  ? "bg-red-600 hover:bg-red-700 text-white"
-                  : "bg-green-600 hover:bg-green-700 text-white"
-              }`}
-            >
-              {selectedState.isRegistered
-                ? "Mark as Unregistered"
-                : "Mark as Registered"}
-            </button>
-            {STATE_REGISTRATION_URLS[selectedState.stateCode] && (
-              <a
-                href={STATE_REGISTRATION_URLS[selectedState.stateCode]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded font-medium flex items-center gap-2"
-              >
-                Register in {selectedState.stateCode}
-                <ExternalLink className="w-4 h-4" />
-              </a>
+            {selectedState.transactionThreshold && (
+              <div className="mb-6 p-3 bg-zinc-800 rounded">
+                <div className="text-sm text-gray-400">Transaction Requirement</div>
+                <div className="text-sm text-white">
+                  {selectedState.transactionCount} / {selectedState.transactionThreshold} transactions
+                  {selectedState.both && " (BOTH thresholds required)"}
+                </div>
+              </div>
             )}
+
+            {!selectedState.taxable && (
+              <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-800 rounded flex gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                <div className="text-sm">
+                  <div className="font-semibold text-yellow-500">Product Tax Exemption</div>
+                  {selectedState.exemption && (
+                    <div className="text-gray-300">
+                      Sneakers/clothing exempt{" "}
+                      {selectedState.marginal
+                        ? `under $${selectedState.exemption} (marginal)`
+                        : selectedState.allOrNothing
+                          ? `under $${selectedState.exemption} (all or nothing)`
+                          : ""}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {!selectedState.isHomeState && (
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => handleNexusTypeChange(selectedState.stateCode, "physical")}
+                  disabled={isUpdating}
+                  className={`px-4 py-2 rounded text-sm ${
+                    selectedState.nexusType === "physical"
+                      ? "bg-red-600 text-white"
+                      : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Physical Nexus
+                </button>
+                <button
+                  onClick={() => handleNexusTypeChange(selectedState.stateCode, "economic")}
+                  disabled={isUpdating}
+                  className={`px-4 py-2 rounded text-sm ${
+                    selectedState.nexusType === "economic"
+                      ? "bg-red-600 text-white"
+                      : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Economic Nexus
+                </button>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  handleRegisterToggle(
+                    selectedState.stateCode,
+                    selectedState.isRegistered,
+                    selectedState.nexusType
+                  )
+                }
+                disabled={isUpdating}
+                className={`px-4 py-2 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                  selectedState.isRegistered
+                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    : "bg-green-600 hover:bg-green-700 text-white"
+                }`}
+              >
+                {selectedState.isRegistered ? "Unregister" : "Register with Stripe"}
+              </button>
+              {STATE_REGISTRATION_URLS[selectedState.stateCode] && (
+                <a
+                  href={STATE_REGISTRATION_URLS[selectedState.stateCode]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded font-medium flex items-center gap-2"
+                >
+                  Register in {selectedState.stateCode}
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -451,22 +467,12 @@ export function NexusTrackerClient() {
           <thead className="bg-zinc-800">
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium text-white">State</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Threshold
-              </th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Threshold</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-white">Sales</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Progress
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Nexus Type
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Actions
-              </th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Progress</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Type</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
@@ -481,6 +487,9 @@ export function NexusTrackerClient() {
                     <span className="font-medium text-white">{state.stateName}</span>
                     {state.isHomeState && (
                       <span className="text-xs text-red-400">(Home)</span>
+                    )}
+                    {state.nexusType === 'physical' && !state.stripeRegistered && (
+                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
                     )}
                   </div>
                 </td>
@@ -513,10 +522,15 @@ export function NexusTrackerClient() {
                 </td>
                 <td className="px-4 py-3">
                   {state.isRegistered ? (
-                    <span className="flex items-center gap-1 text-sm text-green-400">
-                      <CheckCircle className="w-4 h-4" />
-                      Registered
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className="flex items-center gap-1 text-sm text-green-400">
+                        <CheckCircle className="w-4 h-4" />
+                        Registered
+                      </span>
+                      {state.stripeRegistered && (
+                        <span className="text-xs text-gray-500">With Stripe</span>
+                      )}
+                    </div>
                   ) : (
                     <span className="flex items-center gap-1 text-sm text-gray-400">
                       <XCircle className="w-4 h-4" />
@@ -529,7 +543,7 @@ export function NexusTrackerClient() {
                     onClick={() => setSelectedState(state)}
                     className="text-sm text-red-400 hover:text-red-300"
                   >
-                    View Details
+                    More Details
                   </button>
                 </td>
               </tr>
