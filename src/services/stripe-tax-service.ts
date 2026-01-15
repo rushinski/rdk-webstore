@@ -107,6 +107,31 @@ export class StripeTaxService {
   }
 
   /**
+   * Set home state only (without address setup)
+   * Used when just updating the home state designation
+   */
+  async setHomeState(params: {
+    tenantId: string;
+    stateCode: string;
+  }): Promise<void> {
+    try {
+      // Get existing settings
+      const existingSettings = await this.taxSettingsRepo.getByTenant(params.tenantId);
+      
+      // Update just the home state
+      await this.taxSettingsRepo.upsert({
+        tenantId: params.tenantId,
+        homeState: params.stateCode,
+        businessName: existingSettings?.business_name ?? null,
+        stripeTaxSettingsId: existingSettings?.stripe_tax_settings_id ?? null,
+      });
+    } catch (error: any) {
+      console.error('Failed to set home state:', error);
+      throw new Error(`Failed to set home state: ${error.message}`);
+    }
+  }
+
+  /**
    * Check if head office is configured
    */
   async isHeadOfficeConfigured(): Promise<boolean> {
@@ -264,15 +289,7 @@ export class StripeTaxService {
       });
     } catch (error: any) {
       console.error('Stripe tax registration error:', error);
-      
-      // Still mark as registered locally even if Stripe fails
-      await this.nexusRepo.upsertRegistration({
-        tenantId: params.tenantId,
-        stateCode: params.stateCode,
-        registrationType: params.registrationType,
-        isRegistered: true,
-        registeredAt: new Date().toISOString(),
-      });
+      throw error;
     }
   }
 
@@ -339,9 +356,19 @@ export class StripeTaxService {
     year: number;
     month?: number;
   }): Promise<{ url: string; expiresAt: number } | null> {
-    // Stripe Tax automatically generates reports in the dashboard
-    // There is no direct API to download them programmatically
-    // Direct users to the Stripe Dashboard instead
-    return null;
+    try {
+      // Create a report run for the specified period
+      const startDate = new Date(params.year, params.month ? params.month - 1 : 0, 1);
+      const endDate = params.month 
+        ? new Date(params.year, params.month, 0)
+        : new Date(params.year, 11, 31);
+
+      // Stripe doesn't have direct tax report download API
+      // Return null to indicate manual download needed
+      return null;
+    } catch (error) {
+      console.error('Failed to download tax documents:', error);
+      return null;
+    }
   }
 }

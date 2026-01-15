@@ -1,5 +1,7 @@
-// src/components/admin/StateDetailModal.tsx
-import React, { useState, useEffect } from "react";
+// src/components/admin/nexus/StateDetailModal.tsx
+"use client";
+
+import React, { useState } from "react";
 import { X, AlertTriangle, ExternalLink } from "lucide-react";
 import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 
@@ -60,6 +62,9 @@ export default function StateDetailModal({
   const [salesLogTotal, setSalesLogTotal] = useState(0);
   const [salesLogPage, setSalesLogPage] = useState(0);
   const [loadingSalesLog, setLoadingSalesLog] = useState(false);
+  const [hasCheckedSales, setHasCheckedSales] = useState(false);
+
+  const hasSales = state.totalSales > 0 || state.transactionCount > 0;
 
   const fetchSalesLog = async (offset: number = 0) => {
     try {
@@ -74,16 +79,19 @@ export default function StateDetailModal({
       const result = await res.json();
       setSalesLog(result.sales);
       setSalesLogTotal(result.total);
+      setHasCheckedSales(true);
     } catch (err) {
       console.error("Failed to fetch sales log:", err);
       setSalesLog([]);
       setSalesLogTotal(0);
+      setHasCheckedSales(true);
     } finally {
       setLoadingSalesLog(false);
     }
   };
 
   const handleViewSalesLog = () => {
+    if (!hasSales) return;
     setSalesLogPage(0);
     fetchSalesLog(0);
   };
@@ -199,13 +207,24 @@ export default function StateDetailModal({
             {salesLog.length === 0 && (
               <button
                 onClick={handleViewSalesLog}
-                disabled={loadingSalesLog}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm disabled:opacity-50"
+                disabled={!hasSales || loadingSalesLog}
+                className={`px-4 py-2 rounded text-sm ${
+                  !hasSales
+                    ? "bg-zinc-800 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                } disabled:opacity-50`}
+                title={!hasSales ? "No sales in this state yet" : "View all sales"}
               >
-                {loadingSalesLog ? "Loading..." : "View All Sales"}
+                {loadingSalesLog ? "Loading..." : !hasSales ? "No Sales Yet" : "View All Sales"}
               </button>
             )}
           </div>
+
+          {!hasSales && !hasCheckedSales && (
+            <div className="p-4 bg-zinc-800 rounded-lg text-center text-gray-400">
+              No sales recorded for this state yet
+            </div>
+          )}
 
           {salesLog.length > 0 && (
             <div className="space-y-4">

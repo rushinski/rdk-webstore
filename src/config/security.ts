@@ -112,7 +112,7 @@ export const security = {
             "'self'",
             "ws://localhost:*",      // Next.js HMR WebSocket
             "http://localhost:*",    // Local API calls
-            "http://127.0.0.1:*",    // Alternative localhost
+            "http://127.0.0.1:*",  
             "https:",                // All HTTPS (Supabase, Stripe, etc.)
           ].join(" "),
           "object-src 'none'",

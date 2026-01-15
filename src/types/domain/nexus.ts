@@ -1,4 +1,4 @@
-// DTO/view-model
+// src/types/domain/nexus.ts
 export type NexusType = "physical" | "economic";
 
 export type StateSummary = {

@@ -1,7 +1,10 @@
-// src/components/admin/NexusMap.tsx
+// src/components/admin/nexus/NexusMap.tsx
+"use client";
+
 import React, { useMemo, useRef, useState } from "react";
 import { ComposableMap, Geographies, Geography } from "@vnedyalk0v/react19-simple-maps";
 import type { StateSummary } from "@/types/domain/nexus";
+import { clientEnv } from "@/config/client-env";
 
 type NexusMapProps = {
   states: StateSummary[];
@@ -11,7 +14,7 @@ type NexusMapProps = {
 };
 
 // US GeoJSON topology URL from CDN
-const geoUrl = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+const geoUrl = `${clientEnv.NEXT_PUBLIC_SITE_URL}/api/maps/us-states`;
 
 // State name to code mapping for tooltip lookup
 const STATE_NAME_TO_CODE: Record<string, string> = {

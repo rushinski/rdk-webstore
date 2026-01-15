@@ -1,8 +1,7 @@
 // app/admin/nexus/page.tsx
-
 import { requireAdmin } from "@/lib/auth/session";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { NexusTrackerClient } from "@/components/admin/NexusTrackerClient";
+import NexusTrackerClient from "@/components/admin/nexus/NexusTrackerClient";
 
 export const metadata = {
   title: "Sales Tax Nexus Tracker | Admin",
@@ -21,4 +20,3 @@ export default async function NexusPage() {
     </div>
   );
 }
-

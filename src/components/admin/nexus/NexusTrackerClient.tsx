@@ -1,4 +1,6 @@
-// src/components/admin/NexusTrackerClient.tsx
+// src/components/admin/nexus/NexusTrackerClient.tsx
+"use client";
+
 import React, { useState, useEffect, useMemo } from "react";
 import {
   AlertCircle,
@@ -7,6 +9,7 @@ import {
   AlertTriangle,
   Search,
   Download,
+  Home,
 } from "lucide-react";
 import {
   STATE_NAMES,
@@ -14,6 +17,7 @@ import {
 } from "@/config/constants/nexus-thresholds";
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
+import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
 export default function NexusTrackerClient() {
@@ -27,11 +31,15 @@ export default function NexusTrackerClient() {
   const [filterRegistered, setFilterRegistered] = useState<
     "all" | "registered" | "unregistered"
   >("all");
+  const [filterNexusType, setFilterNexusType] = useState<"all" | "physical" | "economic">("all");
+  const [filterWindow, setFilterWindow] = useState<"all" | "calendar" | "rolling">("all");
   const [filterNeedsAction, setFilterNeedsAction] = useState(false);
   const [showHomeSetup, setShowHomeSetup] = useState(false);
+  const [isHomeOfficeConfigured, setIsHomeOfficeConfigured] = useState(false);
 
   useEffect(() => {
     fetchNexusData();
+    checkHomeOfficeStatus();
   }, []);
 
   const fetchNexusData = async () => {
@@ -53,25 +61,20 @@ export default function NexusTrackerClient() {
     }
   };
 
-  const handleDownloadTaxDocs = async () => {
+  const checkHomeOfficeStatus = async () => {
     try {
-      const year = new Date().getFullYear();
-      const res = await fetch("/api/admin/nexus/tax-documents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ year }),
-      });
-
-      const result = await res.json();
-
-      if (result.message) {
-        alert(result.message);
-        window.open("https://dashboard.stripe.com/tax/reports", "_blank");
+      const res = await fetch("/api/admin/nexus/home-office-status");
+      if (res.ok) {
+        const { configured } = await res.json();
+        setIsHomeOfficeConfigured(configured);
       }
     } catch (err) {
-      console.error("Failed to download tax documents:", err);
-      alert("Failed to download tax documents");
+      console.error("Failed to check home office status:", err);
     }
+  };
+
+  const handleDownloadTaxDocs = async () => {
+    window.open("https://dashboard.stripe.com/tax/reports", "_blank");
   };
 
   const getStateColor = (state: StateSummary | undefined) => {
@@ -98,6 +101,12 @@ export default function NexusTrackerClient() {
     currentRegistered: boolean,
     nexusType: "physical" | "economic",
   ) => {
+    if (!isHomeOfficeConfigured && !currentRegistered) {
+      setShowHomeSetup(true);
+      alert("Please set up your home office address first before registering states.");
+      return;
+    }
+
     try {
       setIsUpdating(true);
       const res = await fetch("/api/admin/nexus/register", {
@@ -115,9 +124,7 @@ export default function NexusTrackerClient() {
       if (!res.ok) {
         if (result.error && result.error.includes("head office")) {
           setShowHomeSetup(true);
-          alert(
-            "Please set up your home office address first before registering states.",
-          );
+          alert("Please set up your home office address first.");
           return;
         }
         throw new Error(result.error);
@@ -175,7 +182,7 @@ export default function NexusTrackerClient() {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     } else {
       setSortField(field);
-      setSortDirection("desc");
+      setSortDirection(field === "percentageToThreshold" ? "desc" : "asc");
     }
   };
 
@@ -195,6 +202,12 @@ export default function NexusTrackerClient() {
 
       if (filterRegistered === "registered" && !state.isRegistered) return false;
       if (filterRegistered === "unregistered" && state.isRegistered) return false;
+
+      if (filterNexusType === "physical" && state.nexusType !== "physical") return false;
+      if (filterNexusType === "economic" && state.nexusType !== "economic") return false;
+
+      if (filterWindow === "calendar" && state.window !== "calendar") return false;
+      if (filterWindow === "rolling" && state.window !== "rolling 12 months") return false;
 
       if (filterNeedsAction) {
         const needsStripeReg =
@@ -224,7 +237,7 @@ export default function NexusTrackerClient() {
     });
 
     return filtered;
-  }, [data, searchQuery, sortField, sortDirection, filterRegistered, filterNeedsAction]);
+  }, [data, searchQuery, sortField, sortDirection, filterRegistered, filterNexusType, filterWindow, filterNeedsAction]);
 
   if (loading) {
     return (
@@ -254,11 +267,22 @@ export default function NexusTrackerClient() {
 
   return (
     <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
-        <p className="text-gray-400">
-          Monitor your sales tax obligations across all US states
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
+          <p className="text-gray-400">
+            Monitor your sales tax obligations across all US states
+          </p>
+        </div>
+        {!isHomeOfficeConfigured && (
+          <button
+            onClick={() => setShowHomeSetup(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+          >
+            <Home className="w-4 h-4" />
+            Setup Home Office
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -345,6 +369,26 @@ export default function NexusTrackerClient() {
             <option value="unregistered">Unregistered Only</option>
           </select>
 
+          <select
+            value={filterNexusType}
+            onChange={(e) => setFilterNexusType(e.target.value as any)}
+            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="all">All Nexus Types</option>
+            <option value="physical">Physical Nexus</option>
+            <option value="economic">Economic Nexus</option>
+          </select>
+
+          <select
+            value={filterWindow}
+            onChange={(e) => setFilterWindow(e.target.value as any)}
+            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="all">All Windows</option>
+            <option value="calendar">Calendar Year</option>
+            <option value="rolling">Rolling 12 Months</option>
+          </select>
+
           <label className="flex items-center gap-2 text-white">
             <input
               type="checkbox"
@@ -392,6 +436,18 @@ export default function NexusTrackerClient() {
         getStateColor={getStateColor}
         formatCurrency={formatCurrency}
       />
+
+      {/* Home Office Setup Modal */}
+      {showHomeSetup && (
+        <HomeOfficeSetupModal
+          onClose={() => setShowHomeSetup(false)}
+          onSuccess={() => {
+            setShowHomeSetup(false);
+            setIsHomeOfficeConfigured(true);
+            fetchNexusData();
+          }}
+        />
+      )}
 
       {/* Modal for State Details */}
       {selectedState && (
