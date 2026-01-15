@@ -296,26 +296,27 @@ export class StripeTaxService {
   /**
    * Unregister from tax collection with Stripe Tax
    */
-  async unregisterState(params: {
-    tenantId: string;
-    stateCode: string;
-  }): Promise<void> {
+  async unregisterState(params: { tenantId: string; stateCode: string; }): Promise<void> {
     const registration = await this.nexusRepo.getRegistration(params.tenantId, params.stateCode);
-    
+
     if (registration?.stripe_registration_id) {
       try {
         await stripe.tax.registrations.update(registration.stripe_registration_id, {
-          expires_at: 'now',
+          expires_at: "now",
         });
-      } catch (error) {
-        console.error('Stripe tax unregistration error:', error);
+      } catch (error: any) {
+        // If Stripe says it's missing, proceed to clear local state; otherwise surface error.
+        const msg = String(error?.message ?? "");
+        if (!msg.toLowerCase().includes("no such") && !msg.toLowerCase().includes("resource")) {
+          throw new Error(`Failed to unregister on Stripe: ${msg}`);
+        }
       }
     }
 
     await this.nexusRepo.upsertRegistration({
       tenantId: params.tenantId,
       stateCode: params.stateCode,
-      registrationType: 'economic',
+      registrationType: "economic",
       isRegistered: false,
       registeredAt: null,
       stripeRegistrationId: null,

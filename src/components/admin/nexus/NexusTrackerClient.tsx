@@ -78,16 +78,33 @@ export default function NexusTrackerClient() {
   };
 
   const getStateColor = (state: StateSummary | undefined) => {
+    // Grey: not exposed (no sales tax / threshold type none)
     if (!state) return "#374151";
-    if (state.isRegistered) return "#6b7280";
+    if (state.thresholdType === "none" || state.threshold <= 0) return "#374151";
+
+    // Green: registered (exclusive)
+    if (state.isRegistered) return "#22c55e";
 
     const pct = state.percentageToThreshold;
-    if (pct < 50) return "#10b981";
-    if (pct < 70) return "#84cc16";
-    if (pct < 85) return "#eab308";
-    if (pct < 95) return "#f97316";
-    return "#ef4444";
+
+    // Keep “getting bad” logic, but avoid greens for progress ranges
+    if (pct < 50) return "#38bdf8";   // sky
+    if (pct < 70) return "#facc15";   // amber
+    if (pct < 85) return "#f59e0b";   // orange/amber
+    if (pct < 95) return "#f97316";   // orange
+    return "#ef4444";                 // red
   };
+
+  const legendItems = useMemo(() => ([
+    { label: "Not exposed", color: "#374151" },
+    { label: "Registered", color: "#22c55e" },
+    { label: "< 50%", color: "#38bdf8" },
+    { label: "50–70%", color: "#facc15" },
+    { label: "70–85%", color: "#f59e0b" },
+    { label: "85–95%", color: "#f97316" },
+    { label: "> 95%", color: "#ef4444" },
+  ]), []);
+
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-US", {
@@ -103,7 +120,6 @@ export default function NexusTrackerClient() {
   ) => {
     if (!isHomeOfficeConfigured && !currentRegistered) {
       setShowHomeSetup(true);
-      alert("Please set up your home office address first before registering states.");
       return;
     }
 
@@ -266,324 +282,278 @@ export default function NexusTrackerClient() {
   ).length;
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
-          <p className="text-gray-400">
-            Monitor your sales tax obligations across all US states
-          </p>
-        </div>
-        {!isHomeOfficeConfigured && (
-          <button
-            onClick={() => setShowHomeSetup(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
-          >
-            <Home className="w-4 h-4" />
-            Setup Home Office
-          </button>
-        )}
-      </div>
+    <div className="p-6">
+      <div className="mx-auto max-w-6xl w-full space-y-6">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
+            <p className="text-gray-400">Monitor your sales tax obligations across all US states</p>
+          </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Registered States</p>
-              <p className="text-3xl font-bold text-white">{registeredStates}</p>
-            </div>
-            <CheckCircle className="w-12 h-12 text-green-500" />
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={handleDownloadTaxDocs}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            >
+              <Download className="w-4 h-4" />
+              View Tax Reports in Stripe
+            </button>
+
+            <button
+              onClick={() => setShowHomeSetup(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white ${
+                isHomeOfficeConfigured ? "bg-zinc-800 hover:bg-zinc-700" : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              <Home className="w-4 h-4" />
+              {isHomeOfficeConfigured ? "Change Home Office" : "Setup Home Office"}
+            </button>
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400 mb-1">At Risk States</p>
-              <p className="text-3xl font-bold text-white">{atRiskStates}</p>
-            </div>
-            <AlertCircle className="w-12 h-12 text-red-500" />
-          </div>
-        </div>
-
-        {needsStripeRegistration > 0 && (
-          <div className="bg-zinc-900 border border-yellow-800 rounded-lg p-6">
+        {/* Stats Cards - smaller */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400 mb-1">Needs Stripe Registration</p>
-                <p className="text-3xl font-bold text-yellow-500">
-                  {needsStripeRegistration}
+                <p className="text-xs text-gray-400 mb-1">Registered States</p>
+                <p className="text-2xl font-bold text-white">{registeredStates}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">At Risk States</p>
+                <p className="text-2xl font-bold text-white">{atRiskStates}</p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Needs Stripe Setup</p>
+                <p className="text-2xl font-bold text-white">{needsStripeRegistration}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Home Office State</p>
+                <p className="text-lg font-bold text-white">
+                  {STATE_NAMES[data.homeState] ? `${STATE_NAMES[data.homeState]} (${data.homeState})` : data.homeState}
                 </p>
               </div>
-              <AlertTriangle className="w-12 h-12 text-yellow-500" />
+              <TrendingUp className="w-8 h-8 text-blue-500" />
             </div>
           </div>
+        </div>
+
+        {/* Filters and Search */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex-1 min-w-[220px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search states..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <select
+              value={filterRegistered}
+              onChange={(e) => setFilterRegistered(e.target.value as any)}
+              className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+              title="Filter by registration status"
+            >
+              <option value="all">All States</option>
+              <option value="registered">Registered Only</option>
+              <option value="unregistered">Unregistered Only</option>
+            </select>
+
+            <label className="flex items-center gap-2 text-white">
+              <input
+                type="checkbox"
+                checked={filterNeedsAction}
+                onChange={(e) => setFilterNeedsAction(e.target.checked)}
+                className="w-4 h-4"
+              />
+              Needs Action Only
+            </label>
+          </div>
+        </div>
+
+        {/* US Map */}
+        <NexusMap
+          states={data.states}
+          onStateClick={setSelectedState}
+          getStateColor={getStateColor}
+          formatCurrency={formatCurrency}
+          legendItems={legendItems}
+        />
+
+        {/* Home Office Setup Modal */}
+        {showHomeSetup && (
+          <HomeOfficeSetupModal
+            onClose={() => setShowHomeSetup(false)}
+            onSuccess={() => {
+              setShowHomeSetup(false);
+              setIsHomeOfficeConfigured(true);
+              fetchNexusData();
+            }}
+          />
         )}
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400 mb-1">Home State</p>
-              <p className="text-3xl font-bold text-white">{data.homeState}</p>
-            </div>
-            <TrendingUp className="w-12 h-12 text-blue-500" />
-          </div>
-        </div>
-      </div>
+        {/* Modal for State Details */}
+        {selectedState && (
+          <StateDetailModal
+            state={selectedState}
+            onClose={() => setSelectedState(null)}
+            onRegisterToggle={handleRegisterToggle}
+            onNexusTypeChange={handleNexusTypeChange}
+            isUpdating={isUpdating}
+            formatCurrency={formatCurrency}
+            isHomeOfficeConfigured={isHomeOfficeConfigured}
+            onOpenHomeOffice={() => setShowHomeSetup(true)}
+          />
+        )}
 
-      {/* Tax Documents Download */}
-      <div className="flex gap-4">
-        <button
-          onClick={handleDownloadTaxDocs}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
-        >
-          <Download className="w-4 h-4" />
-          View Tax Reports in Stripe
-        </button>
-      </div>
-
-      {/* Filters and Search */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search states..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
-              />
-            </div>
-          </div>
-
-          <select
-            value={filterRegistered}
-            onChange={(e) => setFilterRegistered(e.target.value as any)}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="all">All States</option>
-            <option value="registered">Registered Only</option>
-            <option value="unregistered">Unregistered Only</option>
-          </select>
-
-          <select
-            value={filterNexusType}
-            onChange={(e) => setFilterNexusType(e.target.value as any)}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="all">All Nexus Types</option>
-            <option value="physical">Physical Nexus</option>
-            <option value="economic">Economic Nexus</option>
-          </select>
-
-          <select
-            value={filterWindow}
-            onChange={(e) => setFilterWindow(e.target.value as any)}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="all">All Windows</option>
-            <option value="calendar">Calendar Year</option>
-            <option value="rolling">Rolling 12 Months</option>
-          </select>
-
-          <label className="flex items-center gap-2 text-white">
-            <input
-              type="checkbox"
-              checked={filterNeedsAction}
-              onChange={(e) => setFilterNeedsAction(e.target.checked)}
-              className="w-4 h-4"
-            />
-            Needs Action Only
-          </label>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 items-center">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-gray-600 rounded" />
-          <span className="text-sm text-gray-400">Registered</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-green-500 rounded" />
-          <span className="text-sm text-gray-400">&lt;50%</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-lime-500 rounded" />
-          <span className="text-sm text-gray-400">50-70%</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-yellow-500 rounded" />
-          <span className="text-sm text-gray-400">70-85%</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-orange-500 rounded" />
-          <span className="text-sm text-gray-400">85-95%</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 bg-red-500 rounded" />
-          <span className="text-sm text-gray-400">&gt;95%</span>
-        </div>
-      </div>
-
-      {/* US Map */}
-      <NexusMap
-        states={data.states}
-        onStateClick={setSelectedState}
-        getStateColor={getStateColor}
-        formatCurrency={formatCurrency}
-      />
-
-      {/* Home Office Setup Modal */}
-      {showHomeSetup && (
-        <HomeOfficeSetupModal
-          onClose={() => setShowHomeSetup(false)}
-          onSuccess={() => {
-            setShowHomeSetup(false);
-            setIsHomeOfficeConfigured(true);
-            fetchNexusData();
-          }}
-        />
-      )}
-
-      {/* Modal for State Details */}
-      {selectedState && (
-        <StateDetailModal
-          state={selectedState}
-          onClose={() => setSelectedState(null)}
-          onRegisterToggle={handleRegisterToggle}
-          onNexusTypeChange={handleNexusTypeChange}
-          isUpdating={isUpdating}
-          formatCurrency={formatCurrency}
-        />
-      )}
-
-      {/* States Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-zinc-800">
-            <tr>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("stateName")}
-              >
-                State {sortField === "stateName" && (sortDirection === "asc" ? "↑" : "↓")}
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("threshold")}
-              >
-                Threshold{" "}
-                {sortField === "threshold" && (sortDirection === "asc" ? "↑" : "↓")}
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("relevantSales")}
-              >
-                Sales{" "}
-                {sortField === "relevantSales" && (sortDirection === "asc" ? "↑" : "↓")}
-              </th>
-              <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("percentageToThreshold")}
-              >
-                Progress{" "}
-                {sortField === "percentageToThreshold" &&
-                  (sortDirection === "asc" ? "↑" : "↓")}
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Type</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-800">
-            {filteredAndSortedStates.map((state) => (
-              <tr key={state.stateCode} className="hover:bg-zinc-800/50">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded"
-                      style={{ backgroundColor: getStateColor(state) }}
-                    />
-                    <span className="font-medium text-white">{state.stateName}</span>
-                    {state.isHomeState && (
-                      <span className="text-xs text-red-400">(Home)</span>
-                    )}
-                    {state.nexusType === "physical" && !state.stripeRegistered && (
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                    )}
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-300">
-                  {formatCurrency(state.threshold)}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-300">
-                  {formatCurrency(state.relevantSales)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+        {/* States Table */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-zinc-800">
+              <tr>
+                <th
+                  className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                  onClick={() => handleSort("stateName")}
+                >
+                  State {sortField === "stateName" && (sortDirection === "asc" ? "↑" : "↓")}
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                  onClick={() => handleSort("threshold")}
+                >
+                  Threshold{" "}
+                  {sortField === "threshold" && (sortDirection === "asc" ? "↑" : "↓")}
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                  onClick={() => handleSort("relevantSales")}
+                >
+                  Sales{" "}
+                  {sortField === "relevantSales" && (sortDirection === "asc" ? "↑" : "↓")}
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                  onClick={() => handleSort("percentageToThreshold")}
+                >
+                  Progress{" "}
+                  {sortField === "percentageToThreshold" &&
+                    (sortDirection === "asc" ? "↑" : "↓")}
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">Type</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800">
+              {filteredAndSortedStates.map((state) => (
+                <tr key={state.stateCode} className="hover:bg-zinc-800/50">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
                       <div
-                        className="h-full transition-all"
-                        style={{
-                          width: `${Math.min(state.percentageToThreshold, 100)}%`,
-                          backgroundColor: getStateColor(state),
-                        }}
+                        className="w-3 h-3 rounded"
+                        style={{ backgroundColor: getStateColor(state) }}
                       />
-                    </div>
-                    <span className="text-xs text-gray-400 w-12">
-                      {state.percentageToThreshold.toFixed(0)}%
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  <span className="px-2 py-1 bg-zinc-800 text-white rounded text-xs">
-                    {state.nexusType}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {state.isRegistered ? (
-                    <div className="flex flex-col gap-1">
-                      <span className="flex items-center gap-1 text-sm text-green-400">
-                        <CheckCircle className="w-4 h-4" />
-                        Registered
-                      </span>
-                      {state.stripeRegistered && (
-                        <span className="text-xs text-gray-500">With Stripe</span>
+                      <span className="font-medium text-white">{state.stateName}</span>
+                      {state.isHomeState && (
+                        <span className="text-xs text-red-400">(Home)</span>
+                      )}
+                      {state.nexusType === "physical" && !state.stripeRegistered && (
+                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
                       )}
                     </div>
-                  ) : (
-                    <span className="flex items-center gap-1 text-sm text-gray-400">
-                      <span className="w-4 h-4">○</span>
-                      Not Registered
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatCurrency(state.threshold)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-300">
+                    {formatCurrency(state.relevantSales)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="h-full transition-all"
+                          style={{
+                            width: `${Math.min(state.percentageToThreshold, 100)}%`,
+                            backgroundColor: getStateColor(state),
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400 w-12">
+                        {state.percentageToThreshold.toFixed(0)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className="px-2 py-1 bg-zinc-800 text-white rounded text-xs">
+                      {state.nexusType}
                     </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    onClick={() => setSelectedState(state)}
-                    className="text-sm text-red-400 hover:text-red-300"
-                  >
-                    More Details
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td className="px-4 py-3">
+                    {state.isRegistered ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="flex items-center gap-1 text-sm text-green-400">
+                          <CheckCircle className="w-4 h-4" />
+                          Registered
+                        </span>
+                        {state.stripeRegistered && (
+                          <span className="text-xs text-gray-500">With Stripe</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-1 text-sm text-gray-400">
+                        <span className="w-4 h-4">○</span>
+                        Not Registered
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => setSelectedState(state)}
+                      className="text-sm text-red-400 hover:text-red-300"
+                    >
+                      More Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
 
-        {filteredAndSortedStates.length === 0 && (
-          <div className="p-8 text-center text-gray-400">
-            No states match your filters
-          </div>
-        )}
+          {filteredAndSortedStates.length === 0 && (
+            <div className="p-8 text-center text-gray-400">
+              No states match your filters
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

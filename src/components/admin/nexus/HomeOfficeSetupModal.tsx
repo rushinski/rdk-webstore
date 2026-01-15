@@ -8,11 +8,13 @@ import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
 type HomeOfficeSetupModalProps = {
   onClose: () => void;
   onSuccess: () => void;
+  title?: string;
 };
 
 export default function HomeOfficeSetupModal({
   onClose,
   onSuccess,
+  title,
 }: HomeOfficeSetupModalProps) {
   const [formData, setFormData] = useState({
     stateCode: "",
@@ -71,7 +73,7 @@ export default function HomeOfficeSetupModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 w-screen h-screen bg-black/60 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
@@ -82,7 +84,7 @@ export default function HomeOfficeSetupModal({
           <div className="flex items-center gap-3">
             <Building className="w-6 h-6 text-blue-500" />
             <div>
-              <h2 className="text-2xl font-bold text-white">Setup Home Office</h2>
+              <h2 className="text-2xl font-bold text-white">{title ?? "Setup Home Office"}</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Configure your business address to enable tax registrations
               </p>
