@@ -1,3 +1,4 @@
+// src/components/admin/nexus/StateDetailModal.tsx
 "use client";
 
 import React, { useState } from "react";
@@ -28,24 +29,23 @@ type StateDetailModalProps = {
   isUpdating: boolean;
   formatCurrency: (val: number) => string;
 
-  // NEW: used to disable Stripe registration until Home Office exists
+  // Used to disable Stripe registration until Home Office exists
   isHomeOfficeConfigured: boolean;
 
-  // NEW: lets the modal open the Home Office setup
+  // lets the modal open the Home Office setup
   onOpenHomeOffice: () => void;
 };
 
-export default function StateDetailModal(props: StateDetailModalProps) {
-  const {
-    state,
-    onClose,
-    onRegisterToggle,
-    onNexusTypeChange,
-    isUpdating,
-    formatCurrency,
-    isHomeOfficeConfigured,
-    onOpenHomeOffice,
-  } = props;
+export default function StateDetailModal({
+  state,
+  onClose,
+  onRegisterToggle,
+  onNexusTypeChange,
+  isUpdating,
+  formatCurrency,
+  isHomeOfficeConfigured,
+  onOpenHomeOffice,
+}: StateDetailModalProps) {
   const [salesLog, setSalesLog] = useState<SalesLog[]>([]);
   const [salesLogTotal, setSalesLogTotal] = useState(0);
   const [salesLogPage, setSalesLogPage] = useState(0);
@@ -101,10 +101,10 @@ export default function StateDetailModal(props: StateDetailModalProps) {
   const needsStripeEnable =
     state.nexusType === "physical" && state.isRegistered && !state.stripeRegistered;
 
+  // If trying to enable Stripe collection (when currently NOT registered) and home office isn't configured
   const disableStripeAction = !isHomeOfficeConfigured && !state.isRegistered;
 
   const handleStripeAction = () => {
-    // If trying to enable and home office isn't configured, open modal instead.
     if (disableStripeAction) {
       onOpenHomeOffice();
       return;
@@ -118,6 +118,7 @@ export default function StateDetailModal(props: StateDetailModalProps) {
         className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-zinc-950 border border-zinc-800/70 rounded-sm shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Header */}
         <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800/70">
           <div>
             <h2 className="text-xl font-semibold text-white">
@@ -154,220 +155,242 @@ export default function StateDetailModal(props: StateDetailModalProps) {
             </div>
           </div>
 
-          <button onClick={onClose} className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm">
+          <button
+            onClick={onClose}
+            className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm"
+            aria-label="Close"
+          >
             <X className="w-4 h-4 text-zinc-300" />
           </button>
         </div>
 
-        {/* Banner for physical nexus needing Stripe activation */}
-        {needsStripeEnable && (
-          <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-800 rounded flex gap-2">
-            <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-            <div className="text-sm">
-              <div className="font-semibold text-yellow-500">
-                Stripe needs activation for this physical-nexus state
+        <div className="px-6 py-6">
+          {/* Banner for physical nexus needing Stripe activation */}
+          {needsStripeEnable && (
+            <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-sm flex gap-2">
+              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+              <div className="text-sm">
+                <div className="font-semibold text-yellow-300">
+                  Stripe needs activation for this physical-nexus state
+                </div>
+                <div className="text-zinc-300">
+                  You have nexus here. Enable tax collection in Stripe so checkout can collect taxes automatically.
+                </div>
               </div>
-              <div className="text-gray-300">
-                You have nexus here. Enable tax collection in Stripe so checkout can collect taxes automatically.
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Metrics */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          <div>
-            <div className="text-sm text-gray-400 mb-1">Nexus Threshold</div>
-            <div className="text-xl font-bold text-white">{formatCurrency(state.threshold)}</div>
-            <div className="text-xs text-gray-500">
-              {state.thresholdType} sales / {state.window}
-            </div>
-            {state.resetDate && <div className="text-xs text-gray-500 mt-1">Resets: {state.resetDate}</div>}
-          </div>
-
-          <div>
-            <div className="text-sm text-gray-400 mb-1">Current Sales</div>
-            <div className="text-xl font-bold text-white">{formatCurrency(state.relevantSales)}</div>
-            <div className="text-xs text-gray-500">
-              {state.percentageToThreshold.toFixed(1)}% to threshold
-            </div>
-          </div>
-
-          <div>
-            <div className="text-sm text-gray-400 mb-1">Total Sales</div>
-            <div className="text-lg text-white">{formatCurrency(state.totalSales)}</div>
-          </div>
-
-          <div>
-            <div className="text-sm text-gray-400 mb-1">Transactions</div>
-            <div className="text-lg text-white">{state.transactionCount}</div>
-          </div>
-        </div>
-
-        {/* Sales Log */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-bold text-white">Sales History</h3>
-
-            {salesLog.length === 0 && (
-              <button
-                onClick={handleViewSalesLog}
-                disabled={!hasSales || loadingSalesLog}
-                className={`px-4 py-2 rounded text-sm ${
-                  !hasSales
-                    ? "bg-zinc-800 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
-                } disabled:opacity-50`}
-                title={!hasSales ? "No sales in this state yet" : "View all sales"}
-              >
-                {loadingSalesLog ? "Loading..." : !hasSales ? "No Sales Yet" : "View All Sales"}
-              </button>
-            )}
-          </div>
-
-          {!hasSales && !hasCheckedSales && (
-            <div className="p-4 bg-zinc-800 rounded-lg text-center text-gray-400">
-              No sales recorded for this state yet
             </div>
           )}
 
-          {salesLog.length > 0 && (
-            <div className="space-y-4">
-              <div className="bg-zinc-800 rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-zinc-700">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-white">Date</th>
-                      <th className="px-4 py-2 text-left text-white">Order ID</th>
-                      <th className="px-4 py-2 text-right text-white">Total</th>
-                      <th className="px-4 py-2 text-right text-white">Tax</th>
-                      <th className="px-4 py-2 text-left text-white">Type</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-700">
-                    {salesLog.map((sale) => (
-                      <tr key={sale.order_id}>
-                        <td className="px-4 py-2 text-gray-300">{formatDate(sale.created_at)}</td>
-                        <td className="px-4 py-2 text-gray-300 font-mono text-xs">
-                          {sale.order_id.slice(0, 8)}...
-                        </td>
-                        <td className="px-4 py-2 text-right text-white">{formatCurrency(sale.total)}</td>
-                        <td className="px-4 py-2 text-right text-gray-300">{formatCurrency(sale.tax_amount)}</td>
-                        <td className="px-4 py-2 text-gray-300 capitalize">{sale.fulfillment}</td>
+          {/* Metrics */}
+          <div className="grid grid-cols-2 gap-6 mb-6">
+            <div>
+              <div className="text-sm text-zinc-400 mb-1">Nexus Threshold</div>
+              <div className="text-xl font-bold text-white">
+                {formatCurrency(state.threshold)}
+              </div>
+              <div className="text-xs text-zinc-500">
+                {state.thresholdType} sales / {state.window}
+              </div>
+              {state.resetDate && (
+                <div className="text-xs text-zinc-500 mt-1">Resets: {state.resetDate}</div>
+              )}
+            </div>
+
+            <div>
+              <div className="text-sm text-zinc-400 mb-1">Current Sales</div>
+              <div className="text-xl font-bold text-white">
+                {formatCurrency(state.relevantSales)}
+              </div>
+              <div className="text-xs text-zinc-500">
+                {state.percentageToThreshold.toFixed(1)}% to threshold
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm text-zinc-400 mb-1">Total Sales</div>
+              <div className="text-lg text-white">{formatCurrency(state.totalSales)}</div>
+            </div>
+
+            <div>
+              <div className="text-sm text-zinc-400 mb-1">Transactions</div>
+              <div className="text-lg text-white">{state.transactionCount}</div>
+            </div>
+          </div>
+
+          {/* Sales Log */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-white">Sales History</h3>
+
+              {salesLog.length === 0 && (
+                <button
+                  onClick={handleViewSalesLog}
+                  disabled={!hasSales || loadingSalesLog}
+                  className={[
+                    "px-4 py-2 rounded-sm text-sm border border-zinc-800/70",
+                    !hasSales
+                      ? "bg-zinc-900 text-zinc-600 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-500 text-white",
+                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                  ].join(" ")}
+                  title={!hasSales ? "No sales in this state yet" : "View all sales"}
+                >
+                  {loadingSalesLog ? "Loading..." : !hasSales ? "No Sales Yet" : "View All Sales"}
+                </button>
+              )}
+            </div>
+
+            {!hasSales && !hasCheckedSales && (
+              <div className="p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm text-center text-zinc-400">
+                No sales recorded for this state yet
+              </div>
+            )}
+
+            {salesLog.length > 0 && (
+              <div className="space-y-4">
+                <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-zinc-950">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-white">Date</th>
+                        <th className="px-4 py-2 text-left text-white">Order ID</th>
+                        <th className="px-4 py-2 text-right text-white">Total</th>
+                        <th className="px-4 py-2 text-right text-white">Tax</th>
+                        <th className="px-4 py-2 text-left text-white">Type</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <div className="text-sm text-gray-400">
-                  Showing {salesLogPage * 10 + 1} to{" "}
-                  {Math.min((salesLogPage + 1) * 10, salesLogTotal)} of {salesLogTotal} sales
+                    </thead>
+                    <tbody className="divide-y divide-zinc-800">
+                      {salesLog.map((sale) => (
+                        <tr key={sale.order_id} className="hover:bg-zinc-900/60">
+                          <td className="px-4 py-2 text-zinc-300">{formatDate(sale.created_at)}</td>
+                          <td className="px-4 py-2 text-zinc-300 font-mono text-xs">
+                            {sale.order_id.slice(0, 8)}...
+                          </td>
+                          <td className="px-4 py-2 text-right text-white">{formatCurrency(sale.total)}</td>
+                          <td className="px-4 py-2 text-right text-zinc-300">{formatCurrency(sale.tax_amount)}</td>
+                          <td className="px-4 py-2 text-zinc-300 capitalize">{sale.fulfillment}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleSalesLogPageChange(salesLogPage - 1)}
-                    disabled={salesLogPage === 0 || loadingSalesLog}
-                    className="px-4 py-2 bg-zinc-800 text-white rounded disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => handleSalesLogPageChange(salesLogPage + 1)}
-                    disabled={(salesLogPage + 1) * 10 >= salesLogTotal || loadingSalesLog}
-                    className="px-4 py-2 bg-zinc-800 text-white rounded disabled:opacity-50"
-                  >
-                    Next
-                  </button>
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-zinc-400">
+                    Showing {salesLogPage * 10 + 1} to{" "}
+                    {Math.min((salesLogPage + 1) * 10, salesLogTotal)} of {salesLogTotal} sales
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSalesLogPageChange(salesLogPage - 1)}
+                      disabled={salesLogPage === 0 || loadingSalesLog}
+                      className="px-4 py-2 bg-zinc-900 border border-zinc-800/70 text-white rounded-sm hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => handleSalesLogPageChange(salesLogPage + 1)}
+                      disabled={(salesLogPage + 1) * 10 >= salesLogTotal || loadingSalesLog}
+                      className="px-4 py-2 bg-zinc-900 border border-zinc-800/70 text-white rounded-sm hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Nexus type toggle (not allowed for home state) */}
-        {!state.isHomeState && (
-          <div className="flex gap-3 mb-6">
-            <button
-              onClick={() => onNexusTypeChange(state.stateCode, "physical")}
-              disabled={isUpdating}
-              className={`px-4 py-2 rounded text-sm ${
-                state.nexusType === "physical"
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-800 text-gray-300 hover:bg-zinc-700"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              Physical Nexus
-            </button>
-            <button
-              onClick={() => onNexusTypeChange(state.stateCode, "economic")}
-              disabled={isUpdating}
-              className={`px-4 py-2 rounded text-sm ${
-                state.nexusType === "economic"
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-800 text-gray-300 hover:bg-zinc-700"
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              Economic Nexus
-            </button>
+            )}
           </div>
-        )}
 
-        {/* Registration clarity box */}
-        <div className="mt-2 p-4 bg-zinc-800 rounded-lg border border-zinc-700">
-          <div className="text-sm text-gray-200 font-semibold mb-2">Registration steps (clear version)</div>
-          <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
-            <li>
-              <span className="font-medium text-white">State permit (legal requirement)</span>: register with the state.
-            </li>
-            <li>
-              <span className="font-medium text-white">Stripe collection (automation)</span>: enable tax collection in Stripe so checkout collects the tax.
-            </li>
-          </ol>
-
-          {!isHomeOfficeConfigured && !state.isRegistered && (
-            <div className="mt-3 text-xs text-yellow-300">
-              You must set a <span className="font-semibold">Home Office</span> first before enabling Stripe registrations.
+          {/* Nexus type toggle (not allowed for home state) */}
+          {!state.isHomeState && (
+            <div className="flex gap-3 mb-6">
+              <button
+                onClick={() => onNexusTypeChange(state.stateCode, "physical")}
+                disabled={isUpdating}
+                className={[
+                  "px-4 py-2 rounded-sm text-sm border border-zinc-800/70",
+                  state.nexusType === "physical"
+                    ? "bg-red-600 text-white"
+                    : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                ].join(" ")}
+              >
+                Physical Nexus
+              </button>
+              <button
+                onClick={() => onNexusTypeChange(state.stateCode, "economic")}
+                disabled={isUpdating}
+                className={[
+                  "px-4 py-2 rounded-sm text-sm border border-zinc-800/70",
+                  state.nexusType === "economic"
+                    ? "bg-red-600 text-white"
+                    : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                ].join(" ")}
+              >
+                Economic Nexus
+              </button>
             </div>
           )}
 
-          <div className="flex flex-wrap gap-3 mt-4">
-            {STATE_REGISTRATION_URLS[state.stateCode] && (
-              <a
-                href={STATE_REGISTRATION_URLS[state.stateCode]}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-700 text-white rounded font-medium flex items-center gap-2"
-              >
-                Step 1: State Permit Site
-                <ExternalLink className="w-4 h-4" />
-              </a>
+          {/* Registration clarity box */}
+          <div className="mt-2 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
+            <div className="text-sm text-zinc-200 font-semibold mb-2">
+              Registration steps (clear version)
+            </div>
+            <ol className="text-sm text-zinc-300 space-y-1 list-decimal list-inside">
+              <li>
+                <span className="font-medium text-white">State permit (legal requirement)</span>:{" "}
+                register with the state.
+              </li>
+              <li>
+                <span className="font-medium text-white">Stripe collection (automation)</span>:{" "}
+                enable tax collection in Stripe so checkout collects the tax.
+              </li>
+            </ol>
+
+            {!isHomeOfficeConfigured && !state.isRegistered && (
+              <div className="mt-3 text-xs text-yellow-300">
+                You must set a <span className="font-semibold">Home Office</span> first before enabling Stripe registrations.
+              </div>
             )}
 
-            <button
-              onClick={handleStripeAction}
-              disabled={isUpdating || disableStripeAction}
-              className={`px-4 py-2 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                state.isRegistered
-                  ? "bg-red-600 hover:bg-red-700 text-white"
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
-              title={
-                disableStripeAction
-                  ? "Set up your home office first to enable Stripe registrations"
-                  : state.isRegistered
-                    ? "Disable Stripe tax collection for this state"
-                    : "Enable Stripe tax collection for this state"
-              }
-            >
-              {state.isRegistered
-                ? "Disable Stripe Tax Collection"
-                : disableStripeAction
-                  ? "Set up Home Office to Enable Stripe"
-                  : "Step 2: Enable Stripe Tax Collection"}
-            </button>
+            <div className="flex flex-wrap gap-3 mt-4">
+              {STATE_REGISTRATION_URLS[state.stateCode] && (
+                <a
+                  href={STATE_REGISTRATION_URLS[state.stateCode]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-sm border border-zinc-800/70 font-medium flex items-center gap-2"
+                >
+                  Step 1: State Permit Site
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              )}
+
+              <button
+                onClick={handleStripeAction}
+                disabled={isUpdating || disableStripeAction}
+                className={[
+                  "px-4 py-2 rounded-sm font-medium border border-red-600/40",
+                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                  "bg-red-600 hover:bg-red-500 text-white",
+                ].join(" ")}
+                title={
+                  disableStripeAction
+                    ? "Set up your home office first to enable Stripe registrations"
+                    : state.isRegistered
+                      ? "Disable Stripe tax collection for this state"
+                      : "Enable Stripe tax collection for this state"
+                }
+              >
+                {state.isRegistered
+                  ? "Disable Stripe Tax Collection"
+                  : disableStripeAction
+                    ? "Set up Home Office to Enable Stripe"
+                    : "Step 2: Enable Stripe Tax Collection"}
+              </button>
+            </div>
           </div>
         </div>
       </div>

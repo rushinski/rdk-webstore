@@ -18,6 +18,7 @@ import {
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
 import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
+import { RdkSelect } from "@/components/ui/Select";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
 export default function NexusTrackerClient() {
@@ -72,6 +73,16 @@ export default function NexusTrackerClient() {
       console.error("Failed to check home office status:", err);
     }
   };
+
+  const filterRegisteredOptions = useMemo(
+    () => [
+      { value: "all", label: "All States" },
+      { value: "registered", label: "Registered Only" },
+      { value: "unregistered", label: "Unregistered Only" },
+    ],
+    [],
+  );
+
 
   const handleDownloadTaxDocs = async () => {
     window.open("https://dashboard.stripe.com/tax/reports", "_blank");
@@ -294,7 +305,7 @@ export default function NexusTrackerClient() {
         <div className="flex flex-wrap gap-3">
           <button
             onClick={handleDownloadTaxDocs}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-sm"
           >
             <Download className="w-4 h-4" />
             View Tax Reports in Stripe
@@ -368,21 +379,17 @@ export default function NexusTrackerClient() {
                 placeholder="Search states..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+                className="w-full pl-10 pr-4 py-2 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
           </div>
 
-          <select
+          <RdkSelect
             value={filterRegistered}
-            onChange={(e) => setFilterRegistered(e.target.value as any)}
-            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
-            title="Filter by registration status"
-          >
-            <option value="all">All States</option>
-            <option value="registered">Registered Only</option>
-            <option value="unregistered">Unregistered Only</option>
-          </select>
+            onChange={(v) => setFilterRegistered(v as any)}
+            options={filterRegisteredOptions}
+            className="min-w-[220px]"
+          />
 
           <label className="flex items-center gap-2 text-white">
             <input
