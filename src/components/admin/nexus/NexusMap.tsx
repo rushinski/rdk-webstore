@@ -91,9 +91,9 @@ export default function NexusMap({
     const rect = container.getBoundingClientRect();
     const padding = 12;
 
-    // default: right/top of anchor
+    // Prefer right side; clamp inside container
     let left = anchor.x + 18;
-    let top = anchor.y - 150;
+    let top = anchor.y - 140;
 
     if (left + tooltipWidth + padding > rect.width) {
       left = Math.max(padding, anchor.x - tooltipWidth - 18);
@@ -101,7 +101,7 @@ export default function NexusMap({
     if (left < padding) left = padding;
 
     if (top < padding) top = padding;
-    if (top > rect.height - 170) top = rect.height - 170;
+    if (top > rect.height - 190) top = rect.height - 190;
 
     return { left, top };
   }, [anchor]);
@@ -115,12 +115,10 @@ export default function NexusMap({
       <div
         ref={containerRef}
         className="relative"
-        // IMPORTANT: clears sticky tooltip when cursor is not on any state path
         onMouseMove={(e) => {
           if (!hoveredState) return;
           const t = e.target as Element | null;
-          const tag = t?.tagName?.toLowerCase();
-          if (tag !== "path") clearHover();
+          if (t?.tagName?.toLowerCase() !== "path") clearHover();
         }}
         onMouseLeave={clearHover}
       >
@@ -140,11 +138,8 @@ export default function NexusMap({
                 const stateCode = STATE_NAME_TO_CODE[stateName];
                 const stateData = stateCode ? stateMap.get(stateCode) : undefined;
 
-                const isHovered = hoveredState === stateCode;
-
                 return (
                   <Geography
-                    // FIX: guarantee unique keys (rsmKey sometimes collides under react19 fork)
                     key={`${geo.rsmKey}-${geo.id ?? stateName}`}
                     geography={geo}
                     fill={getStateColor(stateData)}
@@ -175,16 +170,10 @@ export default function NexusMap({
                       setHoveredState(stateCode);
                       setAnchorFromPath(e.currentTarget as unknown as SVGPathElement);
                     }}
-                    onMouseLeave={() => {
-                      // If we immediately enter another state, that state will set hoveredState right away.
-                      // If not, this clears the tooltip.
-                      clearHover();
-                    }}
+                    onMouseLeave={clearHover}
                     onClick={() => {
                       if (stateData) onStateClick(stateData);
                     }}
-                    // small usability: only show hover cursor if this state exists in our dataset
-                    opacity={isHovered ? 1 : 1}
                   />
                 );
               })
@@ -192,32 +181,32 @@ export default function NexusMap({
           </Geographies>
         </ComposableMap>
 
-        {/* Tooltip + arrow */}
+        {/* Tooltip + connector (Image-4 style) */}
         {hoveredData && anchor && tooltipPos && (
           <div className="pointer-events-none absolute inset-0 z-50">
             <svg className="absolute inset-0" aria-hidden="true">
-              <defs>
-                <marker
-                  id="tooltipArrow"
-                  markerWidth="10"
-                  markerHeight="10"
-                  refX="9"
-                  refY="5"
-                  orient="auto"
-                >
-                  <path d="M0,0 L10,5 L0,10 z" fill="rgba(255,255,255,0.35)" />
-                </marker>
-              </defs>
+              {/* endpoint dot at state */}
+              <circle cx={anchor.x} cy={anchor.y} r="5" fill="rgba(255,255,255,0.95)" />
+              <circle cx={anchor.x} cy={anchor.y} r="9" fill="rgba(255,255,255,0.18)" />
 
-              {/* Smooth curved connector */}
+              {/* double-stroke connector for contrast */}
               <path
                 d={`M ${anchor.x} ${anchor.y}
-                    Q ${anchor.x + 20} ${anchor.y - 30}
-                      ${tooltipPos.left + 16} ${tooltipPos.top + 32}`}
+                    Q ${anchor.x + 22} ${anchor.y - 26}
+                      ${tooltipPos.left + 16} ${tooltipPos.top + 28}`}
                 fill="none"
-                stroke="rgba(255,255,255,0.35)"
-                strokeWidth="2"
-                markerEnd="url(#tooltipArrow)"
+                stroke="rgba(0,0,0,0.65)"
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
+              <path
+                d={`M ${anchor.x} ${anchor.y}
+                    Q ${anchor.x + 22} ${anchor.y - 26}
+                      ${tooltipPos.left + 16} ${tooltipPos.top + 28}`}
+                fill="none"
+                stroke="rgba(255,255,255,0.92)"
+                strokeWidth="3"
+                strokeLinecap="round"
               />
             </svg>
 
@@ -225,7 +214,7 @@ export default function NexusMap({
               className="absolute transition-all duration-150 ease-out"
               style={{ left: tooltipPos.left, top: tooltipPos.top, width: tooltipWidth }}
             >
-              <div className="bg-zinc-800 border border-zinc-700 rounded-lg p-4 shadow-xl">
+              <div className="bg-zinc-900 border-2 border-white/80 rounded-lg p-4 shadow-xl">
                 <div className="font-bold mb-2 text-white text-lg">
                   {hoveredData.stateName} ({hoveredData.stateCode})
                 </div>
@@ -237,10 +226,6 @@ export default function NexusMap({
                     {hoveredData.percentageToThreshold.toFixed(1)}% to threshold
                   </div>
 
-                  {hoveredData.thresholdType === "none" && (
-                    <div className="text-xs text-gray-400 pt-1">Not exposed (no sales tax)</div>
-                  )}
-
                   {hoveredData.isRegistered && (
                     <div className="text-green-400 text-xs pt-1">✓ Registered</div>
                   )}
@@ -248,32 +233,20 @@ export default function NexusMap({
                     <div className="text-blue-400 text-xs pt-1">★ Home Office State</div>
                   )}
                 </div>
-
-                {/* Legend INSIDE the map box */}
-                <div className="mt-3 pt-3 border-t border-zinc-700 flex flex-wrap gap-3">
-                  {legendItems.map((it) => (
-                    <div key={it.label} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded" style={{ backgroundColor: it.color }} />
-                      <span className="text-xs text-gray-300">{it.label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* If no tooltip, still show legend at bottom of map card */}
-        {!hoveredData && (
-          <div className="mt-4 flex flex-wrap gap-4">
-            {legendItems.map((it) => (
-              <div key={it.label} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: it.color }} />
-                <span className="text-xs text-gray-400">{it.label}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Legend ALWAYS at bottom (never inside tooltip) */}
+        <div className="mt-4 flex flex-wrap gap-4">
+          {legendItems.map((it) => (
+            <div key={it.label} className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: it.color }} />
+              <span className="text-xs text-gray-400">{it.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

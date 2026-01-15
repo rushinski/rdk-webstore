@@ -78,7 +78,7 @@ export default function NexusTrackerClient() {
   };
 
   const getStateColor = (state: StateSummary | undefined) => {
-    // Grey: not exposed (no sales tax / threshold type none)
+    // Grey for unknown / non-tax states
     if (!state) return "#374151";
     if (state.thresholdType === "none" || state.threshold <= 0) return "#374151";
 
@@ -87,24 +87,26 @@ export default function NexusTrackerClient() {
 
     const pct = state.percentageToThreshold;
 
-    // Keep “getting bad” logic, but avoid greens for progress ranges
-    if (pct < 50) return "#38bdf8";   // sky
-    if (pct < 70) return "#facc15";   // amber
-    if (pct < 85) return "#f59e0b";   // orange/amber
-    if (pct < 95) return "#f97316";   // orange
-    return "#ef4444";                 // red
+    // NEW: <50% should be grey (same as old "Not exposed")
+    if (pct < 50) return "#374151";
+
+    if (pct < 70) return "#facc15";
+    if (pct < 85) return "#f59e0b";
+    if (pct < 95) return "#f97316";
+    return "#ef4444";
   };
 
-  const legendItems = useMemo(() => ([
-    { label: "Not exposed", color: "#374151" },
-    { label: "Registered", color: "#22c55e" },
-    { label: "< 50%", color: "#38bdf8" },
-    { label: "50–70%", color: "#facc15" },
-    { label: "70–85%", color: "#f59e0b" },
-    { label: "85–95%", color: "#f97316" },
-    { label: "> 95%", color: "#ef4444" },
-  ]), []);
-
+  const legendItems = useMemo(
+    () => [
+      { label: "Registered", color: "#22c55e" },
+      { label: "< 50%", color: "#374151" }, 
+      { label: "50–70%", color: "#facc15" },
+      { label: "70–85%", color: "#f59e0b" },
+      { label: "85–95%", color: "#f97316" },
+      { label: "> 95%", color: "#ef4444" },
+    ],
+    [],
+  );
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-US", {
@@ -283,7 +285,7 @@ export default function NexusTrackerClient() {
 
   return (
     <div className="p-6">
-      <div className="mx-auto max-w-6xl w-full space-y-6">
+      <div className="mx-auto w-full max-w-7xl space-y-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
