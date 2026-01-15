@@ -1,6 +1,6 @@
 // src/repositories/chats-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
+import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
 
 export type ChatRow = Tables<"chats">;
 export type ChatInsert = TablesInsert<"chats">;
@@ -100,11 +100,13 @@ export class ChatsRepository {
   async listAdminChats(params?: { status?: "open" | "closed" }) {
     let query = this.supabase
       .from("chats")
-      .select(`
+      .select(
+        `
         *,
         messages:chat_messages(id, body, sender_role, created_at),
         customer:profiles!chats_user_id_fkey(email)
-      `)
+      `,
+      )
       .order("updated_at", { ascending: false })
       .order("created_at", { foreignTable: "chat_messages", ascending: false })
       .limit(1, { foreignTable: "chat_messages" });

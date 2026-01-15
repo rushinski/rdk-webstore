@@ -1,34 +1,40 @@
-'use client';
+// app/admin/inventory/page.tsx
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import Link from 'next/link';
-import { Plus, Trash2, MoreVertical, Search } from 'lucide-react';
-import type { ProductWithDetails } from "@/types/views/product";
-import type { Category, Condition } from "@/types/views/product";
-import { logError } from '@/lib/log';
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { Toast } from '@/components/ui/Toast';
-import { RdkSelect } from '@/components/ui/Select';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useState, useEffect, useCallback, useRef } from "react";
+import Link from "next/link";
+import { Plus, Trash2, MoreVertical, Search } from "lucide-react";
+import type { ProductWithDetails, Category, Condition } from "@/types/domain/product";
+import { logError } from "@/lib/log";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Toast } from "@/components/ui/Toast";
+import { RdkSelect } from "@/components/ui/Select";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type StockStatus = 'in_stock' | 'out_of_stock';
+type StockStatus = "in_stock" | "out_of_stock";
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
-  const [conditionFilter, setConditionFilter] = useState<Condition | 'all'>('all');
-  const [stockStatusFilter, setStockStatusFilter] = useState<StockStatus>('in_stock');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
+  const [conditionFilter, setConditionFilter] = useState<Condition | "all">("all");
+  const [stockStatusFilter, setStockStatusFilter] = useState<StockStatus>("in_stock");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{ id: string; label: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [pendingMassDelete, setPendingMassDelete] = useState(false);
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error" | "info";
+  } | null>(null);
   const filtersRef = useRef<{
     q?: string;
-    category?: Category | 'all';
-    condition?: Condition | 'all';
+    category?: Category | "all";
+    condition?: Condition | "all";
     stockStatus?: StockStatus;
   }>({});
   const refreshTimerRef = useRef<number | null>(null);
@@ -37,20 +43,22 @@ export default function InventoryPage() {
     async (
       filters?: {
         q?: string;
-        category?: Category | 'all';
-        condition?: Condition | 'all';
+        category?: Category | "all";
+        condition?: Condition | "all";
         stockStatus?: StockStatus;
       },
-      showLoading = true
+      showLoading = true,
     ) => {
       if (showLoading) setIsLoading(true);
       try {
         // Admin list must include out-of-stock so the admin tabs can display them.
-        const params = new URLSearchParams({ limit: '100', includeOutOfStock: '1' });
+        const params = new URLSearchParams({ limit: "100", includeOutOfStock: "1" });
 
-        if (filters?.q) params.set('q', filters.q.trim());
-        if (filters?.category && filters.category !== 'all') params.append('category', filters.category);
-        if (filters?.condition && filters.condition !== 'all') params.append('condition', filters.condition);
+        if (filters?.q) params.set("q", filters.q.trim());
+        if (filters?.category && filters.category !== "all")
+          params.append("category", filters.category);
+        if (filters?.condition && filters.condition !== "all")
+          params.append("condition", filters.condition);
 
         const response = await fetch(`/api/admin/products?${params.toString()}`);
         const data = await response.json();
@@ -60,8 +68,11 @@ export default function InventoryPage() {
         // Client-side tab filter based on actual variant stock (authoritative for admin UI)
         const filtered = filters?.stockStatus
           ? loaded.filter((product: ProductWithDetails) => {
-              const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
-              if (filters.stockStatus === 'out_of_stock') return totalStock <= 0;
+              const totalStock = product.variants.reduce(
+                (sum, v) => sum + (v.stock ?? 0),
+                0,
+              );
+              if (filters.stockStatus === "out_of_stock") return totalStock <= 0;
               return totalStock > 0;
             })
           : loaded;
@@ -73,7 +84,7 @@ export default function InventoryPage() {
         if (showLoading) setIsLoading(false);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -95,12 +106,14 @@ export default function InventoryPage() {
     if (!openMenuId) return;
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      const activeMenus = Array.from(document.querySelectorAll(`[data-menu-id="${openMenuId}"]`));
+      const activeMenus = Array.from(
+        document.querySelectorAll(`[data-menu-id="${openMenuId}"]`),
+      );
       if (target && activeMenus.some((menu) => menu.contains(target))) return;
       setOpenMenuId(null);
     };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, [openMenuId]);
 
   useEffect(() => {
@@ -115,16 +128,16 @@ export default function InventoryPage() {
     };
 
     const channel = supabase
-      .channel('admin-inventory')
+      .channel("admin-inventory")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'product_variants' },
-        scheduleRefresh
+        "postgres_changes",
+        { event: "*", schema: "public", table: "product_variants" },
+        scheduleRefresh,
       )
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'products' },
-        scheduleRefresh
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        scheduleRefresh,
       )
       .subscribe();
 
@@ -136,14 +149,14 @@ export default function InventoryPage() {
     };
   }, [loadProducts]);
 
-  const showToast = (message: string, tone: 'success' | 'error' | 'info' = 'info') => {
+  const showToast = (message: string, tone: "success" | "error" | "info" = "info") => {
     setToast({ message, tone });
   };
 
   const requestDelete = (product: ProductWithDetails) => {
     setOpenMenuId(null);
     const label = product.title_display ?? `${product.brand} ${product.name}`.trim();
-    setPendingDelete({ id: product.id, label: label || 'this product' });
+    setPendingDelete({ id: product.id, label: label || "this product" });
   };
 
   const confirmDelete = async () => {
@@ -152,9 +165,9 @@ export default function InventoryPage() {
     setPendingDelete(null);
 
     try {
-      const response = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' });
+      const response = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
       if (response.ok) {
-        showToast(`Deleted ${label}.`, 'success');
+        showToast(`Deleted ${label}.`, "success");
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
@@ -162,10 +175,10 @@ export default function InventoryPage() {
           stockStatus: stockStatusFilter,
         });
       } else {
-        showToast('Failed to delete product.', 'error');
+        showToast("Failed to delete product.", "error");
       }
     } catch {
-      showToast('Error deleting product.', 'error');
+      showToast("Error deleting product.", "error");
     }
   };
 
@@ -175,12 +188,16 @@ export default function InventoryPage() {
 
     try {
       const results = await Promise.all(
-        selectedIds.map((id) => fetch(`/api/admin/products/${id}`, { method: 'DELETE' }))
+        selectedIds.map((id) => fetch(`/api/admin/products/${id}`, { method: "DELETE" })),
       );
       const failed = results.filter((res) => !res.ok).length;
 
-      if (failed > 0) showToast(`Deleted ${selectedIds.length - failed} items, ${failed} failed.`, 'error');
-      else showToast(`Deleted ${selectedIds.length} items.`, 'success');
+      if (failed > 0)
+        showToast(
+          `Deleted ${selectedIds.length - failed} items, ${failed} failed.`,
+          "error",
+        );
+      else showToast(`Deleted ${selectedIds.length} items.`, "success");
 
       setSelectedIds([]);
       await loadProducts({
@@ -190,16 +207,18 @@ export default function InventoryPage() {
         stockStatus: stockStatusFilter,
       });
     } catch {
-      showToast('Error deleting selected items.', 'error');
+      showToast("Error deleting selected items.", "error");
     }
   };
 
   const handleDuplicate = async (id: string) => {
     setOpenMenuId(null);
     try {
-      const response = await fetch(`/api/admin/products/${id}/duplicate`, { method: 'POST' });
+      const response = await fetch(`/api/admin/products/${id}/duplicate`, {
+        method: "POST",
+      });
       if (response.ok) {
-        showToast('Product duplicated.', 'success');
+        showToast("Product duplicated.", "success");
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
@@ -207,15 +226,17 @@ export default function InventoryPage() {
           stockStatus: stockStatusFilter,
         });
       } else {
-        showToast('Failed to duplicate product.', 'error');
+        showToast("Failed to duplicate product.", "error");
       }
     } catch {
-      showToast('Error duplicating product.', 'error');
+      showToast("Error duplicating product.", "error");
     }
   };
 
   const toggleSelection = (id: string) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
   };
 
   const handleMassDelete = () => {
@@ -243,22 +264,22 @@ export default function InventoryPage() {
 
       <div className="border-b border-zinc-800/70 flex space-x-6">
         <button
-          onClick={() => setStockStatusFilter('in_stock')}
+          onClick={() => setStockStatusFilter("in_stock")}
           className={`py-3 text-sm font-medium transition-colors ${
-            stockStatusFilter === 'in_stock'
-              ? 'text-white border-b-2 border-red-600'
-              : 'text-gray-400 hover:text-white'
+            stockStatusFilter === "in_stock"
+              ? "text-white border-b-2 border-red-600"
+              : "text-gray-400 hover:text-white"
           }`}
           data-testid="inventory-filter-in-stock"
         >
           In Stock
         </button>
         <button
-          onClick={() => setStockStatusFilter('out_of_stock')}
+          onClick={() => setStockStatusFilter("out_of_stock")}
           className={`py-3 text-sm font-medium transition-colors ${
-            stockStatusFilter === 'out_of_stock'
-              ? 'text-white border-b-2 border-red-600'
-              : 'text-gray-400 hover:text-white'
+            stockStatusFilter === "out_of_stock"
+              ? "text-white border-b-2 border-red-600"
+              : "text-gray-400 hover:text-white"
           }`}
           data-testid="inventory-filter-out-of-stock"
         >
@@ -267,8 +288,10 @@ export default function InventoryPage() {
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md rounded
-                        focus-within:border-zinc-700 focus-within:ring-2 focus-within:ring-zinc-700/40">
+        <div
+          className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md rounded
+                        focus-within:border-zinc-700 focus-within:ring-2 focus-within:ring-zinc-700/40"
+        >
           <Search className="w-4 h-4 text-gray-500" />
           <input
             type="text"
@@ -285,13 +308,13 @@ export default function InventoryPage() {
           <div className="w-full sm:w-56">
             <RdkSelect
               value={categoryFilter}
-              onChange={(v) => setCategoryFilter(v as Category | 'all')}
+              onChange={(v) => setCategoryFilter(v as Category | "all")}
               options={[
-                { value: 'all', label: 'All categories' },
-                { value: 'sneakers', label: 'Sneakers' },
-                { value: 'clothing', label: 'Clothing' },
-                { value: 'accessories', label: 'Accessories' },
-                { value: 'electronics', label: 'Electronics' },
+                { value: "all", label: "All categories" },
+                { value: "sneakers", label: "Sneakers" },
+                { value: "clothing", label: "Clothing" },
+                { value: "accessories", label: "Accessories" },
+                { value: "electronics", label: "Electronics" },
               ]}
             />
           </div>
@@ -299,11 +322,11 @@ export default function InventoryPage() {
           <div className="w-full sm:w-48">
             <RdkSelect
               value={conditionFilter}
-              onChange={(v) => setConditionFilter(v as Condition | 'all')}
+              onChange={(v) => setConditionFilter(v as Condition | "all")}
               options={[
-                { value: 'all', label: 'All conditions' },
-                { value: 'new', label: 'New' },
-                { value: 'used', label: 'Used' },
+                { value: "all", label: "All conditions" },
+                { value: "new", label: "New" },
+                { value: "used", label: "Used" },
               ]}
             />
           </div>
@@ -350,24 +373,46 @@ export default function InventoryPage() {
                         if (e.target.checked) setSelectedIds(products.map((p) => p.id));
                         else setSelectedIds([]);
                       }}
-                      checked={selectedIds.length === products.length && products.length > 0}
+                      checked={
+                        selectedIds.length === products.length && products.length > 0
+                      }
                     />
                   </th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Image</th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Product</th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Category</th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Price</th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">Stock</th>
-                  <th className="text-right text-gray-400 font-semibold px-4 py-3">Actions</th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                    Image
+                  </th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                    Product
+                  </th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                    Category
+                  </th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                    Price
+                  </th>
+                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                    Stock
+                  </th>
+                  <th className="text-right text-gray-400 font-semibold px-4 py-3">
+                    Actions
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {products.map((product) => {
-                  const minPrice = Math.min(...product.variants.map((v) => v.price_cents));
-                  const maxPrice = Math.max(...product.variants.map((v) => v.price_cents));
-                  const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
-                  const primaryImage = product.images.find((image) => image.is_primary) ?? product.images[0];
+                  const minPrice = Math.min(
+                    ...product.variants.map((v) => v.price_cents),
+                  );
+                  const maxPrice = Math.max(
+                    ...product.variants.map((v) => v.price_cents),
+                  );
+                  const totalStock = product.variants.reduce(
+                    (sum, v) => sum + (v.stock ?? 0),
+                    0,
+                  );
+                  const primaryImage =
+                    product.images.find((image) => image.is_primary) ?? product.images[0];
 
                   return (
                     <tr
@@ -402,11 +447,14 @@ export default function InventoryPage() {
 
                       <td className="px-4 py-3 min-w-0">
                         <div className="text-white font-semibold truncate">
-                          {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                          {product.title_display ??
+                            `${product.brand} ${product.name}`.trim()}
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 text-gray-400 capitalize truncate">{product.category}</td>
+                      <td className="px-4 py-3 text-gray-400 capitalize truncate">
+                        {product.category}
+                      </td>
 
                       <td className="px-4 py-3 text-white whitespace-nowrap">
                         {minPrice === maxPrice
@@ -414,14 +462,20 @@ export default function InventoryPage() {
                           : `$${(minPrice / 100).toFixed(2)} - $${(maxPrice / 100).toFixed(2)}`}
                       </td>
 
-                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">{totalStock}</td>
+                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
+                        {totalStock}
+                      </td>
 
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end">
                           <div className="relative" data-menu-id={product.id}>
                             <button
                               type="button"
-                              onClick={() => setOpenMenuId((prev) => (prev === product.id ? null : product.id))}
+                              onClick={() =>
+                                setOpenMenuId((prev) =>
+                                  prev === product.id ? null : product.id,
+                                )
+                              }
                               className="text-gray-400 hover:text-white p-2 rounded hover:bg-zinc-900 cursor-pointer"
                               aria-label="Open actions"
                             >
@@ -467,11 +521,18 @@ export default function InventoryPage() {
           {/* Mobile Cards (unchanged layout) */}
           <div className="md:hidden space-y-4">
             {products.map((product) => {
-              const primaryImage = product.images.find((image) => image.is_primary) ?? product.images[0];
-              const totalStock = product.variants.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+              const primaryImage =
+                product.images.find((image) => image.is_primary) ?? product.images[0];
+              const totalStock = product.variants.reduce(
+                (sum, v) => sum + (v.stock ?? 0),
+                0,
+              );
 
               return (
-                <div key={product.id} className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
+                <div
+                  key={product.id}
+                  className="bg-zinc-900 border border-zinc-800/70 rounded p-4"
+                >
                   <div className="flex items-start gap-3">
                     <div className="w-14 h-14 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
                       {primaryImage?.url ? (
@@ -488,10 +549,13 @@ export default function InventoryPage() {
 
                     <div className="flex-1">
                       <h3 className="text-white font-semibold">
-                        {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+                        {product.title_display ??
+                          `${product.brand} ${product.name}`.trim()}
                       </h3>
                       <div className="mt-1 flex items-center gap-2">
-                        <span className="text-gray-400 text-xs capitalize">{product.category}</span>
+                        <span className="text-gray-400 text-xs capitalize">
+                          {product.category}
+                        </span>
                         <span className="text-gray-500 text-xs">•</span>
                         <span className="text-gray-400 text-xs">Stock: {totalStock}</span>
                       </div>
@@ -508,7 +572,11 @@ export default function InventoryPage() {
                       <div className="relative" data-menu-id={product.id}>
                         <button
                           type="button"
-                          onClick={() => setOpenMenuId((prev) => (prev === product.id ? null : product.id))}
+                          onClick={() =>
+                            setOpenMenuId((prev) =>
+                              prev === product.id ? null : product.id,
+                            )
+                          }
                           className="text-gray-400 hover:text-white p-2 rounded hover:bg-zinc-800 cursor-pointer"
                           aria-label="Open actions"
                         >
@@ -575,8 +643,8 @@ export default function InventoryPage() {
 
       <Toast
         open={Boolean(toast)}
-        message={toast?.message ?? ''}
-        tone={toast?.tone ?? 'info'}
+        message={toast?.message ?? ""}
+        tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
       />
     </div>

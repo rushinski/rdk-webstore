@@ -1,6 +1,6 @@
 // src/repositories/site-pageviews-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { TablesInsert } from "@/types/database.types";
+import type { TablesInsert } from "@/types/db/database.types";
 
 type SitePageviewInsert = TablesInsert<"site_pageviews">;
 

@@ -1,7 +1,7 @@
 // src/services/cart-snapshot-service.ts
 "use client";
 
-import type { CartItem } from "@/types/views/cart";
+import type { CartItem } from "@/types/domain/cart";
 
 export class CartSnapshotService {
   async backupCart(items: CartItem[]) {

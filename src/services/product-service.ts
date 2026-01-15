@@ -2,8 +2,8 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { log } from "@/lib/log";
 import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";
-import type { TablesInsert } from "@/types/database.types";
-import type { Category, Condition } from "@/types/views/product";
+import type { TablesInsert } from "@/types/db/database.types";
+import type { Category, Condition } from "@/types/domain/product";
 import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
@@ -45,7 +45,12 @@ export class ProductService {
 
   async createProduct(
     input: ProductCreateInput,
-    ctx: { userId: string; tenantId: string; marketplaceId?: string | null; sellerId?: string | null }
+    ctx: {
+      userId: string;
+      tenantId: string;
+      marketplaceId?: string | null;
+      sellerId?: string | null;
+    },
   ) {
     if (!input.title_raw?.trim()) {
       throw new Error("Product title is required.");
@@ -120,7 +125,7 @@ export class ProductService {
   async updateProduct(
     productId: string,
     input: ProductCreateInput,
-    ctx: { userId: string; tenantId: string }
+    ctx: { userId: string; tenantId: string },
   ) {
     const existing = await this.repo.getById(productId);
     if (!existing) {
@@ -194,14 +199,20 @@ export class ProductService {
 
   async duplicateProduct(
     productId: string,
-    ctx: { userId: string; tenantId: string; marketplaceId?: string | null; sellerId?: string | null }
+    ctx: {
+      userId: string;
+      tenantId: string;
+      marketplaceId?: string | null;
+      sellerId?: string | null;
+    },
   ) {
     const original = await this.repo.getById(productId, { includeOutOfStock: true });
     if (!original) throw new Error("Product not found");
 
     const input: ProductCreateInput = {
       title_raw: `${
-        original.title_raw || `${original.brand} ${original.model ?? ""} ${original.name}`.trim()
+        original.title_raw ||
+        `${original.brand} ${original.model ?? ""} ${original.name}`.trim()
       } (Copy)`,
       category: original.category,
       condition: original.condition,
@@ -236,7 +247,9 @@ export class ProductService {
     if (!product) return;
 
     const sizeTags = buildSizeTags(product.variants);
-    const preservedTags = product.tags.filter((tag) => !tag.group_key.startsWith("size_"));
+    const preservedTags = product.tags.filter(
+      (tag) => !tag.group_key.startsWith("size_"),
+    );
 
     await this.repo.unlinkProductTags(productId);
     const tags = await upsertTags(this.supabase, {
@@ -279,10 +292,14 @@ export class ProductService {
     parsed: {
       candidates: {
         brand?: { rawText: string; normalizedText: string };
-        model?: { rawText: string; normalizedText: string; parentBrandId?: string | null };
+        model?: {
+          rawText: string;
+          normalizedText: string;
+          parentBrandId?: string | null;
+        };
       };
     },
-    ctx: { userId: string; tenantId: string }
+    ctx: { userId: string; tenantId: string },
   ) {
     const catalogRepo = new CatalogRepository(this.supabase);
 

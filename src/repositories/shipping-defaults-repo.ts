@@ -1,6 +1,6 @@
 // src/repositories/shipping-defaults-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type ShippingDefaultRow = Tables<"shipping_defaults">;
 type ShippingDefaultInsert = TablesInsert<"shipping_defaults">;
@@ -24,7 +24,7 @@ export class ShippingDefaultsRepository {
 
   async getByCategories(
     tenantId: string | null,
-    categories: string[]
+    categories: string[],
   ): Promise<ShippingDefaultRow[]> {
     if (categories.length === 0) return [];
 
@@ -56,7 +56,7 @@ export class ShippingDefaultsRepository {
         | "default_width_in"
         | "default_height_in"
       >
-    >
+    >,
   ): Promise<ShippingDefaultRow[]> {
     const rows: ShippingDefaultInsert[] = defaults.map((entry) => ({
       category: entry.category,

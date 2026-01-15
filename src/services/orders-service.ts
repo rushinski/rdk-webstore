@@ -5,7 +5,7 @@ import type { AdminSupabaseClient } from "@/lib/supabase/admin";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
-import type { OrderStatusResponse } from "@/types/views/checkout";
+import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { env } from "@/config/env";
 import { PICKUP_INSTRUCTIONS } from "@/config/pickup";
 
@@ -18,19 +18,23 @@ export class OrdersService {
 
   constructor(
     private readonly supabase: TypedSupabaseClient,
-    private readonly adminSupabase?: AdminSupabaseClient
+    private readonly adminSupabase?: AdminSupabaseClient,
   ) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.orderEventsRepo = new OrderEventsRepository(supabase);
     this.adminOrdersRepo = adminSupabase ? new OrdersRepository(adminSupabase) : null;
-    this.adminEventsRepo = adminSupabase ? new OrderEventsRepository(adminSupabase) : null;
-    this.orderAccessTokens = adminSupabase ? new OrderAccessTokenService(adminSupabase) : null;
+    this.adminEventsRepo = adminSupabase
+      ? new OrderEventsRepository(adminSupabase)
+      : null;
+    this.orderAccessTokens = adminSupabase
+      ? new OrderAccessTokenService(adminSupabase)
+      : null;
   }
 
   async getOrderStatus(
     orderId: string,
     userId: string | null,
-    accessToken: string | null
+    accessToken: string | null,
   ): Promise<OrderStatusResponse> {
     let order = null;
     let events = [];
@@ -38,7 +42,12 @@ export class OrdersService {
     if (userId) {
       order = await this.ordersRepo.getByIdAndUser(orderId, userId);
       events = await this.orderEventsRepo.listByOrderId(orderId);
-    } else if (accessToken && this.adminOrdersRepo && this.adminEventsRepo && this.orderAccessTokens) {
+    } else if (
+      accessToken &&
+      this.adminOrdersRepo &&
+      this.adminEventsRepo &&
+      this.orderAccessTokens
+    ) {
       const token = await this.orderAccessTokens.verifyToken({
         orderId,
         token: accessToken,
@@ -112,7 +121,7 @@ export class OrdersService {
 
   async markFulfilled(
     orderId: string,
-    input: { carrier?: string | null; trackingNumber?: string | null }
+    input: { carrier?: string | null; trackingNumber?: string | null },
   ) {
     return this.ordersRepo.markFulfilled(orderId, input);
   }

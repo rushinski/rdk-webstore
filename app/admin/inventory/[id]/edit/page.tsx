@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { ProductForm } from '@/components/inventory/ProductForm';
-import type { ProductCreateInput } from '@/services/product-service';
-import type { ProductWithDetails } from "@/types/views/product";
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { logError } from '@/lib/log';
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ProductForm } from "@/components/inventory/ProductForm";
+import type { ProductCreateInput } from "@/services/product-service";
+import type { ProductWithDetails } from "@/types/domain/product";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { logError } from "@/lib/log";
 
 export default function EditProductPage() {
   const params = useParams<{ id: string }>();
@@ -39,18 +39,18 @@ export default function EditProductPage() {
 
   const handleSubmit = async (data: ProductCreateInput) => {
     const response = await fetch(`/api/admin/products/${productId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
 
     if (response.ok) {
-      router.push('/admin/inventory');
+      router.push("/admin/inventory");
       return;
     }
 
     // Mirror create-page behavior: prefer server error payload if present
-    let message = 'Failed to update product';
+    let message = "Failed to update product";
     try {
       const payload = await response.json();
       if (payload?.error) message = payload.error;
@@ -61,7 +61,7 @@ export default function EditProductPage() {
   };
 
   const handleCancel = () => {
-    router.push('/admin/inventory');
+    router.push("/admin/inventory");
   };
 
   if (isLoading) {
@@ -69,7 +69,7 @@ export default function EditProductPage() {
   }
 
   if (!product) {
-    throw new Error('Product not found');
+    throw new Error("Product not found");
   }
 
   const initialData = {

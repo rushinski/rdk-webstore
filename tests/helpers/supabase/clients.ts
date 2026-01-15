@@ -1,6 +1,6 @@
 // tests/helpers/supabase/clients.ts
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database.types";
+import type { Database } from "@/types/db/database.types";
 import type { ProfileRole } from "@/config/constants/roles";
 import { testConfig } from "../config";
 

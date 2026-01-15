@@ -5,7 +5,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { TagInput, type TagChip } from "./TagInput";
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
-import type { Category, Condition, SizeType } from "@/types/views/product";
+import type { Category, Condition, SizeType } from "@/types/domain/product";
 import type { ProductCreateInput } from "@/services/product-service";
 import { logError } from "@/lib/log";
 import { Toast } from "@/components/ui/Toast";
@@ -1115,7 +1115,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             </div>
           )}
         </div>
-
 
         <div className="mt-3 text-xs text-gray-500">
           Add at least one image. Click any thumbnail to promote it to primary.

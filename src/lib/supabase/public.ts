@@ -1,7 +1,7 @@
 // src/lib/supabase/public.ts
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database.types";
+import type { Database } from "@/types/db/database.types";
 import { env } from "@/config/env";
 
 export type TypedSupabaseClient = SupabaseClient<Database>;
@@ -18,7 +18,7 @@ export function createSupabasePublicClient(): TypedSupabaseClient {
           persistSession: false,
           autoRefreshToken: false,
         },
-      }
+      },
     );
   }
 

@@ -1,6 +1,6 @@
 // src/repositories/chat-messages-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 export type ChatMessageRow = Tables<"chat_messages">;
 export type ChatMessageInsert = TablesInsert<"chat_messages">;

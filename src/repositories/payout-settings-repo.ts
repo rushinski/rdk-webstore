@@ -1,6 +1,6 @@
 // src/repositories/payout-settings-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 export type PayoutSettingsRow = Tables<"payout_settings">;
 export type PayoutSettingsInsert = TablesInsert<"payout_settings">;

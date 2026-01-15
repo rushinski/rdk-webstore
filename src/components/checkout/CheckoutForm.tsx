@@ -1,21 +1,26 @@
 // src/components/checkout/CheckoutForm.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { ExpressCheckoutElement, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { ShippingAddressForm } from './ShippingAddressForm';
-import { SavedAddresses } from './SavedAddresses';
-import { Loader2, Lock, Package, TruckIcon } from 'lucide-react';
-import Link from 'next/link';
-import type { CartItem } from '@/types/views/cart';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ExpressCheckoutElement,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { ShippingAddressForm } from "./ShippingAddressForm";
+import { SavedAddresses } from "./SavedAddresses";
+import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
+import Link from "next/link";
+import type { CartItem } from "@/types/domain/cart";
 
 interface CheckoutFormProps {
   orderId: string;
   items: CartItem[];
   total: number;
-  fulfillment: 'ship' | 'pickup';
-  onFulfillmentChange: (fulfillment: 'ship' | 'pickup') => void;
+  fulfillment: "ship" | "pickup";
+  onFulfillmentChange: (fulfillment: "ship" | "pickup") => void;
   isUpdatingFulfillment?: boolean;
   canUseChat?: boolean;
 }
@@ -49,57 +54,57 @@ export function CheckoutForm({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const canBypassStripe =
-    (process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test') &&
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).has('e2e_payment_status');
+    (process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test") &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).has("e2e_payment_status");
   const isStripeReady = Boolean(stripe) || canBypassStripe;
 
   const confirmBackendPayment = async (paymentIntentId: string) => {
-    const response = await fetch('/api/checkout/confirm-payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const response = await fetch("/api/checkout/confirm-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         orderId,
         paymentIntentId,
         fulfillment,
-        shippingAddress: fulfillment === 'ship' ? shippingAddress : null,
+        shippingAddress: fulfillment === "ship" ? shippingAddress : null,
       }),
     });
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok && !data?.processing) {
-      throw new Error(data.error || 'Failed to confirm payment');
+      throw new Error(data.error || "Failed to confirm payment");
     }
   };
 
   const handlePayment = async (withSubmit: boolean) => {
     const e2eStatus =
-      process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test'
-        ? new URLSearchParams(window.location.search).get('e2e_payment_status')
+      process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test"
+        ? new URLSearchParams(window.location.search).get("e2e_payment_status")
         : null;
     if (e2eStatus) {
       setIsProcessing(true);
       setError(null);
       const params = new URLSearchParams(window.location.search);
-      const intentId = params.get('e2e_payment_intent_id') ?? 'pi_test_e2e';
+      const intentId = params.get("e2e_payment_intent_id") ?? "pi_test_e2e";
       try {
-        if (e2eStatus === 'success') {
+        if (e2eStatus === "success") {
           await confirmBackendPayment(intentId);
           router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
           return { ok: true };
         }
-        if (e2eStatus === 'processing' || e2eStatus === 'requires_action') {
-          const statusParam = e2eStatus === 'processing' ? 'processing' : 'processing';
+        if (e2eStatus === "processing" || e2eStatus === "requires_action") {
+          const statusParam = e2eStatus === "processing" ? "processing" : "processing";
           router.push(
-            `/checkout/processing?orderId=${orderId}&e2e_status=${statusParam}&fulfillment=${fulfillment}`
+            `/checkout/processing?orderId=${orderId}&e2e_status=${statusParam}&fulfillment=${fulfillment}`,
           );
           return { ok: true };
         }
-        if (e2eStatus === 'canceled' || e2eStatus === 'requires_payment_method') {
-          throw new Error('Payment failed. Please try again.');
+        if (e2eStatus === "canceled" || e2eStatus === "requires_payment_method") {
+          throw new Error("Payment failed. Please try again.");
         }
       } catch (err: any) {
-        const message = err.message || 'Payment failed. Please try again.';
+        const message = err.message || "Payment failed. Please try again.";
         setError(message);
         return { ok: false, error: message };
       } finally {
@@ -108,12 +113,12 @@ export function CheckoutForm({
     }
 
     if (!stripe || !elements) {
-      setError('Stripe is still loading. Please wait a moment.');
-      return { ok: false, error: 'Stripe not ready' };
+      setError("Stripe is still loading. Please wait a moment.");
+      return { ok: false, error: "Stripe not ready" };
     }
 
-    if (fulfillment === 'ship' && !shippingAddress) {
-      const message = 'Please provide a shipping address';
+    if (fulfillment === "ship" && !shippingAddress) {
+      const message = "Please provide a shipping address";
       setError(message);
       return { ok: false, error: message };
     }
@@ -133,20 +138,23 @@ export function CheckoutForm({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/checkout/processing?orderId=${orderId}&fulfillment=${fulfillment}`,
-          shipping: fulfillment === 'ship' && shippingAddress ? {
-            name: shippingAddress.name,
-            phone: shippingAddress.phone,
-            address: {
-              line1: shippingAddress.line1,
-              line2: shippingAddress.line2 || '',
-              city: shippingAddress.city,
-              state: shippingAddress.state,
-              postal_code: shippingAddress.postalCode,
-              country: shippingAddress.country,
-            },
-          } : undefined,
+          shipping:
+            fulfillment === "ship" && shippingAddress
+              ? {
+                  name: shippingAddress.name,
+                  phone: shippingAddress.phone,
+                  address: {
+                    line1: shippingAddress.line1,
+                    line2: shippingAddress.line2 || "",
+                    city: shippingAddress.city,
+                    state: shippingAddress.state,
+                    postal_code: shippingAddress.postalCode,
+                    country: shippingAddress.country,
+                  },
+                }
+              : undefined,
         },
-        redirect: 'if_required',
+        redirect: "if_required",
       });
 
       if (confirmError) {
@@ -154,41 +162,41 @@ export function CheckoutForm({
       }
 
       if (!paymentIntent) {
-        throw new Error('Payment failed. Please try again.');
+        throw new Error("Payment failed. Please try again.");
       }
 
-      if (paymentIntent.status === 'succeeded') {
+      if (paymentIntent.status === "succeeded") {
         await confirmBackendPayment(paymentIntent.id);
         router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
         return { ok: true };
       }
 
-      if (paymentIntent.status === 'processing') {
+      if (paymentIntent.status === "processing") {
         const secretParam = paymentIntent.client_secret
           ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
-          : '';
-        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : '';
+          : "";
+        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : "";
         router.push(
-          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`
+          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`,
         );
         return { ok: true };
       }
 
-      if (paymentIntent.status === 'requires_action') {
+      if (paymentIntent.status === "requires_action") {
         const secretParam = paymentIntent.client_secret
           ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
-          : '';
-        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : '';
+          : "";
+        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : "";
         router.push(
-          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`
+          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`,
         );
         return { ok: true };
       }
 
-      throw new Error('Payment failed. Please try again.');
+      throw new Error("Payment failed. Please try again.");
     } catch (err: any) {
-      console.error('Payment error:', err);
-      const message = err.message || 'Payment failed. Please try again.';
+      console.error("Payment error:", err);
+      const message = err.message || "Payment failed. Please try again.";
       setError(message);
       return { ok: false, error: message };
     } finally {
@@ -203,12 +211,15 @@ export function CheckoutForm({
 
   const handleExpressConfirm = async (event: any) => {
     if (isUpdatingFulfillment || isProcessing) {
-      event.paymentFailed({ reason: 'fail', message: 'Please wait a moment and try again.' });
+      event.paymentFailed({
+        reason: "fail",
+        message: "Please wait a moment and try again.",
+      });
       return;
     }
     const result = await handlePayment(false);
     if (!result.ok) {
-      event.paymentFailed({ reason: 'fail', message: result.error });
+      event.paymentFailed({ reason: "fail", message: result.error });
     }
   };
 
@@ -222,8 +233,8 @@ export function CheckoutForm({
     const itemsTotalCents = lineItems.reduce((sum, item) => sum + item.amount, 0);
     const shippingCents = Math.max(totalCents - itemsTotalCents, 0);
 
-    if (fulfillment === 'ship' && shippingCents > 0) {
-      lineItems.push({ name: 'Shipping', amount: shippingCents });
+    if (fulfillment === "ship" && shippingCents > 0) {
+      lineItems.push({ name: "Shipping", amount: shippingCents });
     }
 
     event.resolve({ lineItems });
@@ -249,8 +260,8 @@ export function CheckoutForm({
               type="radio"
               name="fulfillment"
               value="ship"
-              checked={fulfillment === 'ship'}
-              onChange={() => onFulfillmentChange('ship')}
+              checked={fulfillment === "ship"}
+              onChange={() => onFulfillmentChange("ship")}
               className="rdk-radio mt-1"
               disabled={isUpdatingFulfillment || isProcessing}
               data-testid="fulfillment-ship"
@@ -271,8 +282,8 @@ export function CheckoutForm({
               type="radio"
               name="fulfillment"
               value="pickup"
-              checked={fulfillment === 'pickup'}
-              onChange={() => onFulfillmentChange('pickup')}
+              checked={fulfillment === "pickup"}
+              onChange={() => onFulfillmentChange("pickup")}
               className="rdk-radio mt-1"
               disabled={isUpdatingFulfillment || isProcessing}
               data-testid="fulfillment-pickup"
@@ -282,17 +293,16 @@ export function CheckoutForm({
                 <Package className="w-4 h-4 text-gray-400" />
                 <span className="text-white font-medium">Local pickup</span>
               </div>
-              <p className="text-sm text-gray-400 mt-1">
-                Free - Pick up at our location
-              </p>
+              <p className="text-sm text-gray-400 mt-1">Free - Pick up at our location</p>
             </div>
           </label>
         </div>
 
-        {fulfillment === 'pickup' && (
+        {fulfillment === "pickup" && (
           <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
             <p>
-              After purchase, you will receive a pickup email you can reply to for scheduling.
+              After purchase, you will receive a pickup email you can reply to for
+              scheduling.
             </p>
             <p>
               You can also DM us on{" "}
@@ -314,7 +324,7 @@ export function CheckoutForm({
       </div>
 
       {/* Shipping Address */}
-      {fulfillment === 'ship' && (
+      {fulfillment === "ship" && (
         <>
           {canUseChat && (
             <SavedAddresses
@@ -344,14 +354,14 @@ export function CheckoutForm({
             onClick={handleExpressClick}
             options={{
               layout: { maxColumns: 2 },
-              paymentMethodOrder: ['apple_pay', 'google_pay'],
+              paymentMethodOrder: ["apple_pay", "google_pay"],
               paymentMethods: {
-                applePay: 'auto',
-                googlePay: 'auto',
-                amazonPay: 'never',
-                klarna: 'never',
-                paypal: 'never',
-                link: 'auto',
+                applePay: "auto",
+                googlePay: "auto",
+                amazonPay: "never",
+                klarna: "never",
+                paypal: "never",
+                link: "auto",
               },
             }}
           />
@@ -364,7 +374,8 @@ export function CheckoutForm({
         <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
           <p className="flex items-center gap-2">
             <Lock className="w-4 h-4" />
-            All payment information is securely processed by Stripe. We never store your card details.
+            All payment information is securely processed by Stripe. We never store your
+            card details.
           </p>
         </div>
 
@@ -375,12 +386,18 @@ export function CheckoutForm({
       <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
         <div className="text-sm text-gray-400">
           <p>
-            By placing your order, you agree to our{' '}
-            <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
+            By placing your order, you agree to our{" "}
+            <Link
+              href="/legal/terms"
+              className="text-red-500 hover:text-red-400 underline"
+            >
               Terms of Service
             </Link>
-            {', '}
-            <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
+            {", "}
+            <Link
+              href="/legal/privacy"
+              className="text-red-500 hover:text-red-400 underline"
+            >
               Privacy Policy
             </Link>
             .
@@ -394,7 +411,10 @@ export function CheckoutForm({
           </summary>
           <div className="mt-3 space-y-2">
             <p>Refunds are reviewed per our policy for eligible items and timelines.</p>
-            <Link href="/refunds" className="text-red-500 hover:text-red-400 underline block">
+            <Link
+              href="/refunds"
+              className="text-red-500 hover:text-red-400 underline block"
+            >
               Read the full refund policy
             </Link>
           </div>
@@ -405,8 +425,13 @@ export function CheckoutForm({
             <span className="text-xs text-gray-500">View</span>
           </summary>
           <div className="mt-3 space-y-2">
-            <p>Shipping timelines and costs depend on your delivery option at checkout.</p>
-            <Link href="/shipping" className="text-red-500 hover:text-red-400 underline block">
+            <p>
+              Shipping timelines and costs depend on your delivery option at checkout.
+            </p>
+            <Link
+              href="/shipping"
+              className="text-red-500 hover:text-red-400 underline block"
+            >
               Read the full shipping policy
             </Link>
           </div>

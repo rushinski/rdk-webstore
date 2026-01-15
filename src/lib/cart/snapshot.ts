@@ -1,7 +1,7 @@
 // src/lib/cart/snapshot.ts
 
 import crypto from "crypto";
-import type { CartItem } from "@/types/views/cart";
+import type { CartItem } from "@/types/domain/cart";
 import { env } from "@/config/env";
 
 const SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;

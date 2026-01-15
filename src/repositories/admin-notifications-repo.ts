@@ -1,6 +1,6 @@
 // src/repositories/admin-notifications-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 export type AdminNotificationRow = Tables<"admin_notifications">;
 export type AdminNotificationInsert = TablesInsert<"admin_notifications">;
@@ -10,7 +10,7 @@ export class AdminNotificationsRepository {
 
   async listPageForAdmin(
     adminId: string,
-    params: { limit: number; page: number; unreadOnly?: boolean }
+    params: { limit: number; page: number; unreadOnly?: boolean },
   ) {
     const { limit, page, unreadOnly } = params;
     const safeLimit = Math.min(Math.max(limit, 1), 50);

@@ -7,7 +7,9 @@ import { requireUserApi } from "@/lib/auth/session";
 import { ShippingService } from "@/services/shipping-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
-import type { ShippingProfileUpsert } from "@/types/views/shipping";
+import type { TablesInsert } from "@/types/db/database.types";
+
+type ShippingProfileUpsert = TablesInsert<"shipping_profiles">;
 
 const optionalText = z.preprocess(
   (value) => {

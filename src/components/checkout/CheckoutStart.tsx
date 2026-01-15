@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
 import { CheckoutForm } from "@/components/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/checkout/OrderSummary";
-import type { CartItem } from "@/types/views/cart";
+import type { CartItem } from "@/types/domain/cart";
 import {
   clearIdempotencyKeyFromStorage,
   generateIdempotencyKey,
@@ -33,7 +33,7 @@ const buildCartSignature = (items: CartItem[]) => {
       productId: item.productId,
       variantId: item.variantId,
       quantity: item.quantity,
-    }))
+    })),
   );
 };
 
@@ -57,7 +57,7 @@ export function CheckoutStart() {
 
   const stripePromise = useMemo(
     () => loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!),
-    []
+    [],
   );
   const snapshotService = useMemo(() => new CartSnapshotService(), []);
 
@@ -190,7 +190,7 @@ export function CheckoutStart() {
           body: JSON.stringify({
             idempotencyKey,
             fulfillment,
-            guestEmail: isAuthenticated ? undefined : guestEmail ?? undefined,
+            guestEmail: isAuthenticated ? undefined : (guestEmail ?? undefined),
             items: items.map((item) => ({
               productId: item.productId,
               variantId: item.variantId,
@@ -201,10 +201,16 @@ export function CheckoutStart() {
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          if (data?.code === "IDEMPOTENCY_KEY_EXPIRED" || data?.code === "CART_MISMATCH") {
+          if (
+            data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
+            data?.code === "CART_MISMATCH"
+          ) {
             clearIdempotencyKeyFromStorage();
           }
-          if (data?.code === "GUEST_EMAIL_REQUIRED" || data?.code === "GUEST_CHECKOUT_DISABLED") {
+          if (
+            data?.code === "GUEST_EMAIL_REQUIRED" ||
+            data?.code === "GUEST_CHECKOUT_DISABLED"
+          ) {
             router.push("/checkout");
             return;
           }

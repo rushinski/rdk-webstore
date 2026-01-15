@@ -4,7 +4,7 @@ import { ProductRepository } from "@/repositories/product-repo";
 import { cartValidateSchema } from "@/lib/validation/cart";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
-import type { CartItem } from "@/types/views/cart";
+import type { CartItem } from "@/types/domain/cart";
 
 const PLACEHOLDER_IMAGE = "/placeholder.png";
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (items.length === 0) {
       return NextResponse.json(
         { items: [], removed: [] },
-        { headers: { "Cache-Control": "no-store" } }
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -42,12 +42,20 @@ export async function POST(request: NextRequest) {
     for (const item of items) {
       const variant = variantMap.get(item.variantId);
       if (!variant || variant.productId !== item.productId) {
-        removed.push({ productId: item.productId, variantId: item.variantId, reason: "not_found" });
+        removed.push({
+          productId: item.productId,
+          variantId: item.variantId,
+          reason: "not_found",
+        });
         continue;
       }
 
       if (!variant.isActive || variant.isOutOfStock || variant.stock <= 0) {
-        removed.push({ productId: item.productId, variantId: item.variantId, reason: "out_of_stock" });
+        removed.push({
+          productId: item.productId,
+          variantId: item.variantId,
+          reason: "out_of_stock",
+        });
         continue;
       }
 
@@ -55,7 +63,11 @@ export async function POST(request: NextRequest) {
       const quantity = Math.min(item.quantity, maxStock);
 
       if (quantity <= 0) {
-        removed.push({ productId: item.productId, variantId: item.variantId, reason: "insufficient_stock" });
+        removed.push({
+          productId: item.productId,
+          variantId: item.variantId,
+          reason: "insufficient_stock",
+        });
         continue;
       }
 
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { items: nextItems, removed },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -86,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to validate cart", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

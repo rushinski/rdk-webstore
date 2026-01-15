@@ -1,7 +1,7 @@
 // src/repositories/order-access-tokens-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables } from "@/types/database.types";
+import type { Tables } from "@/types/db/database.types";
 
 type OrderAccessTokenRow = Tables<"order_access_tokens">;
 

@@ -1,26 +1,30 @@
 // src/components/store/ProductCard.tsx
 
-import Link from 'next/link';
-import Image from 'next/image';
-import type { ProductWithDetails } from "@/types/views/product";
+import Link from "next/link";
+import Image from "next/image";
+import type { ProductWithDetails } from "@/types/domain/product";
 
 interface ProductCardProps {
   product: ProductWithDetails;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const primaryImage = product.images.find(img => img.is_primary) || product.images[0];
+  const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
   const variants = product.variants;
-  
-  const priceMin = Math.min(...variants.map(v => v.price_cents));
-  const priceMax = Math.max(...variants.map(v => v.price_cents));
-  const priceDisplay = priceMin === priceMax
-    ? `$${(priceMin / 100).toFixed(2)}`
-    : `$${(priceMin / 100).toFixed(2)} - $${(priceMax / 100).toFixed(2)}`;
 
-  const sizeDisplay = variants.length === 1
-    ? (variants[0].size_label === 'N/A' ? 'No size' : variants[0].size_label)
-    : 'Multiple sizes';
+  const priceMin = Math.min(...variants.map((v) => v.price_cents));
+  const priceMax = Math.max(...variants.map((v) => v.price_cents));
+  const priceDisplay =
+    priceMin === priceMax
+      ? `$${(priceMin / 100).toFixed(2)}`
+      : `$${(priceMin / 100).toFixed(2)} - $${(priceMax / 100).toFixed(2)}`;
+
+  const sizeDisplay =
+    variants.length === 1
+      ? variants[0].size_label === "N/A"
+        ? "No size"
+        : variants[0].size_label
+      : "Multiple sizes";
 
   return (
     <Link
@@ -67,4 +71,3 @@ export function ProductCard({ product }: ProductCardProps) {
     </Link>
   );
 }
-

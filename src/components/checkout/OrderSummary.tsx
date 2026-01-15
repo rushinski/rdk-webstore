@@ -1,9 +1,9 @@
 // src/components/checkout/OrderSummary.tsx
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { Loader2, ShoppingBag } from 'lucide-react';
-import type { CartItem } from '@/types/views/cart';
+import Image from "next/image";
+import { Loader2, ShoppingBag } from "lucide-react";
+import type { CartItem } from "@/types/domain/cart";
 
 interface OrderSummaryProps {
   items: CartItem[];
@@ -35,10 +35,7 @@ export function OrderSummary({
         {/* Items List */}
         <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
           {items.map((item) => (
-            <div
-              key={`${item.productId}-${item.variantId}`}
-              className="flex gap-3"
-            >
+            <div key={`${item.productId}-${item.variantId}`} className="flex gap-3">
               {item.imageUrl && (
                 <div className="relative w-16 h-16 flex-shrink-0 bg-zinc-800 rounded overflow-hidden">
                   <Image
@@ -69,7 +66,9 @@ export function OrderSummary({
         {/* Pricing Breakdown */}
         <div className="space-y-2 text-sm border-t border-zinc-800 pt-4">
           <div className="flex justify-between text-gray-400">
-            <span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
+            <span>
+              Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})
+            </span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-gray-400">
@@ -83,8 +82,8 @@ export function OrderSummary({
                   <Loader2 className="w-3 h-3 animate-spin" />
                   Updating...
                 </span>
-              ) : fulfillment === 'pickup' ? (
-                'Free (Pickup)'
+              ) : fulfillment === "pickup" ? (
+                "Free (Pickup)"
               ) : (
                 `$${shipping.toFixed(2)}`
               )}

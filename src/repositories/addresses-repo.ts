@@ -1,7 +1,7 @@
 // src/repositories/addresses-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type OrderShippingInsert = TablesInsert<"order_shipping">;
 type OrderShippingRow = Tables<"order_shipping">;
@@ -22,7 +22,10 @@ export interface AddressInput {
 export class AddressesRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
-  async insertOrderShippingSnapshot(orderId: string, address: AddressInput): Promise<void> {
+  async insertOrderShippingSnapshot(
+    orderId: string,
+    address: AddressInput,
+  ): Promise<void> {
     const insert: OrderShippingInsert = {
       order_id: orderId,
       name: address.name ?? null,

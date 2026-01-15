@@ -1,7 +1,7 @@
 // src/components/orders/OrderStatusView.tsx
 "use client";
 
-import type { OrderStatusResponse } from "@/types/views/checkout";
+import type { OrderStatusResponse } from "@/types/domain/checkout";
 
 const formatEventType = (type: string) =>
   type.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
@@ -37,7 +37,9 @@ export function OrderStatusView({ status }: { status: OrderStatusResponse }) {
             </div>
             <div className="mt-4 space-y-3">
               {status.events.length === 0 ? (
-                <p className="text-sm text-zinc-500">Timeline updates will appear here.</p>
+                <p className="text-sm text-zinc-500">
+                  Timeline updates will appear here.
+                </p>
               ) : (
                 status.events.map((event) => (
                   <div
@@ -48,7 +50,9 @@ export function OrderStatusView({ status }: { status: OrderStatusResponse }) {
                       <span className="text-sm font-semibold text-white">
                         {formatEventType(event.type)}
                       </span>
-                      <span className="text-xs text-zinc-500">{formatDate(event.createdAt)}</span>
+                      <span className="text-xs text-zinc-500">
+                        {formatDate(event.createdAt)}
+                      </span>
                     </div>
                     {event.message && (
                       <p className="text-sm text-zinc-400">{event.message}</p>
@@ -61,7 +65,9 @@ export function OrderStatusView({ status }: { status: OrderStatusResponse }) {
 
           {status.fulfillment === "pickup" && instructions.length > 0 && (
             <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-              <h2 className="text-xl font-semibold text-white mb-3">Pickup instructions</h2>
+              <h2 className="text-xl font-semibold text-white mb-3">
+                Pickup instructions
+              </h2>
               <ul className="space-y-2 text-sm text-zinc-400">
                 {instructions.map((line) => (
                   <li key={line}>{line}</li>
@@ -74,7 +80,10 @@ export function OrderStatusView({ status }: { status: OrderStatusResponse }) {
             <h2 className="text-xl font-semibold text-white mb-3">Need help?</h2>
             <p className="text-sm text-zinc-400 mb-3">
               Email us at{" "}
-              <a className="text-red-400 hover:text-red-300" href={`mailto:${status.supportEmail}`}>
+              <a
+                className="text-red-400 hover:text-red-300"
+                href={`mailto:${status.supportEmail}`}
+              >
                 {status.supportEmail}
               </a>{" "}
               for order questions or scheduling pickup.

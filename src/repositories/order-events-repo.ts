@@ -1,7 +1,7 @@
 // src/repositories/order-events-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables } from "@/types/database.types";
+import type { Tables } from "@/types/db/database.types";
 
 type OrderEventRow = Tables<"order_events">;
 

@@ -1,23 +1,23 @@
-// src/services/cart-service.ts 
-'use client';
+// src/services/cart-service.ts
+"use client";
 
-import type { CartItem } from "@/types/views/cart";
+import type { CartItem } from "@/types/domain/cart";
 
-const CART_KEY = 'rdk_cart';
+const CART_KEY = "rdk_cart";
 
 export class CartService {
   getCart(): CartItem[] {
-    if (typeof window === 'undefined') return [];
+    if (typeof window === "undefined") return [];
     const stored = localStorage.getItem(CART_KEY);
     return stored ? JSON.parse(stored) : [];
   }
 
-  addItem(item: Omit<CartItem, 'quantity'>) {
+  addItem(item: Omit<CartItem, "quantity">) {
     const cart = this.getCart();
     const existing = cart.find(
-      i => i.productId === item.productId && i.variantId === item.variantId
+      (i) => i.productId === item.productId && i.variantId === item.variantId,
     );
-    const incomingMax = typeof item.maxStock === 'number' ? item.maxStock : undefined;
+    const incomingMax = typeof item.maxStock === "number" ? item.maxStock : undefined;
 
     if (incomingMax !== undefined && incomingMax <= 0) {
       return cart;
@@ -28,7 +28,7 @@ export class CartService {
         existing.maxStock = incomingMax;
       }
       const maxStock = existing.maxStock ?? incomingMax;
-      if (typeof maxStock === 'number') {
+      if (typeof maxStock === "number") {
         existing.quantity = Math.min(existing.quantity + 1, maxStock);
       } else {
         existing.quantity += 1;
@@ -43,7 +43,7 @@ export class CartService {
 
   removeItem(productId: string, variantId: string) {
     const cart = this.getCart().filter(
-      i => !(i.productId === productId && i.variantId === variantId)
+      (i) => !(i.productId === productId && i.variantId === variantId),
     );
     this.saveCart(cart);
     return cart;
@@ -51,12 +51,10 @@ export class CartService {
 
   updateQuantity(productId: string, variantId: string, quantity: number) {
     const cart = this.getCart();
-    const item = cart.find(
-      i => i.productId === productId && i.variantId === variantId
-    );
+    const item = cart.find((i) => i.productId === productId && i.variantId === variantId);
 
     if (item) {
-      if (typeof item.maxStock === 'number') {
+      if (typeof item.maxStock === "number") {
         quantity = Math.min(quantity, item.maxStock);
       }
       if (quantity <= 0) {
@@ -84,19 +82,18 @@ export class CartService {
   }
 
   getTotal(): number {
-    return this.getCart().reduce(
-      (sum, item) => sum + (item.priceCents * item.quantity),
-      0
-    );
+    return this.getCart().reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
   }
 
   private saveCart(cart: CartItem[]) {
     localStorage.setItem(CART_KEY, JSON.stringify(cart));
-    
+
     // Dispatch custom event with count for navbar
     const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-    window.dispatchEvent(new CustomEvent('cartUpdated', { 
-      detail: { count, items: cart } 
-    }));
+    window.dispatchEvent(
+      new CustomEvent("cartUpdated", {
+        detail: { count, items: cart },
+      }),
+    );
   }
 }

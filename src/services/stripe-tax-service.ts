@@ -21,6 +21,104 @@ export class StripeTaxService {
   }
 
   /**
+   * Get the configured head office address
+   */
+  async getHeadOfficeAddress(): Promise<{
+    line1: string;
+    line2?: string | null;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  } | null> {
+    try {
+      const settings = await stripe.tax.settings.retrieve();
+      if (settings.head_office?.address) {
+        const addr = settings.head_office.address;
+        return {
+          line1: addr.line1 ?? '',
+          line2: addr.line2 ?? null,
+          city: addr.city ?? '',
+          state: addr.state ?? '',
+          postal_code: addr.postal_code ?? '',
+          country: addr.country ?? 'US',
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to retrieve head office address:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Set head office address with Stripe Tax Settings API
+   * This MUST be called before any tax registrations can be created
+   */
+  async setHeadOfficeAddress(params: {
+    tenantId: string;
+    stateCode: string;
+    businessName?: string;
+    address: {
+      line1: string;
+      line2?: string;
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+    };
+  }): Promise<void> {
+    try {
+      // Update Stripe Tax Settings with head office address
+      const taxSettings = await stripe.tax.settings.update({
+        defaults: {
+          tax_behavior: 'exclusive',
+        },
+        head_office: {
+          address: {
+            line1: params.address.line1,
+            line2: params.address.line2 || undefined,
+            city: params.address.city,
+            state: params.address.state,
+            postal_code: params.address.postalCode,
+            country: params.address.country,
+          },
+        },
+      });
+
+      // Store settings in database
+      await this.taxSettingsRepo.upsert({
+        tenantId: params.tenantId,
+        homeState: params.stateCode,
+        businessName: params.businessName ?? null,
+        stripeTaxSettingsId: taxSettings.status === 'active' ? 'configured' : null,
+      });
+
+      // Automatically register home state as physical nexus
+      await this.registerState({
+        tenantId: params.tenantId,
+        stateCode: params.stateCode,
+        registrationType: 'physical',
+      });
+    } catch (error: any) {
+      console.error('Stripe head office setup error:', error);
+      throw new Error(`Failed to set head office: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if head office is configured
+   */
+  async isHeadOfficeConfigured(): Promise<boolean> {
+    try {
+      const settings = await stripe.tax.settings.retrieve();
+      return settings.status === 'active' && !!settings.head_office;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Calculate tax for a checkout session
    */
   async calculateTax(params: {
@@ -129,12 +227,19 @@ export class StripeTaxService {
 
   /**
    * Register for tax collection with Stripe Tax
+   * Requires head office to be configured first
    */
   async registerState(params: {
     tenantId: string;
     stateCode: string;
     registrationType: 'physical' | 'economic';
   }): Promise<void> {
+    // Check if head office is configured
+    const isConfigured = await this.isHeadOfficeConfigured();
+    if (!isConfigured) {
+      throw new Error('Head office address must be set before registering states. Please configure your business address first.');
+    }
+
     try {
       // Create Stripe Tax registration
       const registration = await stripe.tax.registrations.create({
@@ -201,27 +306,6 @@ export class StripeTaxService {
   }
 
   /**
-   * Set or update home state with Stripe Tax
-   */
-  async setHomeState(params: {
-    tenantId: string;
-    stateCode: string;
-  }): Promise<void> {
-    // Update local settings
-    await this.taxSettingsRepo.upsert({
-      tenantId: params.tenantId,
-      homeState: params.stateCode,
-    });
-
-    // Register home state as physical nexus with Stripe
-    await this.registerState({
-      tenantId: params.tenantId,
-      stateCode: params.stateCode,
-      registrationType: 'physical',
-    });
-  }
-
-  /**
    * Get all Stripe Tax registrations
    */
   async getStripeRegistrations(): Promise<Map<string, { id: string; state: string; active: boolean }>> {
@@ -246,5 +330,18 @@ export class StripeTaxService {
       console.error('Failed to fetch Stripe registrations:', error);
       return new Map();
     }
+  }
+
+  /**
+   * Download tax documents for a specific period
+   */
+  async downloadTaxDocuments(params: {
+    year: number;
+    month?: number;
+  }): Promise<{ url: string; expiresAt: number } | null> {
+    // Stripe Tax automatically generates reports in the dashboard
+    // There is no direct API to download them programmatically
+    // Direct users to the Stripe Dashboard instead
+    return null;
   }
 }

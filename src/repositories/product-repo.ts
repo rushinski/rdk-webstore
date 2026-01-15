@@ -1,6 +1,6 @@
 //  src/repositories/product-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
+import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
 
 export interface ProductFilters {
   q?: string;
@@ -63,7 +63,9 @@ export class ProductRepository {
     const offset = (page - 1) * limit;
     const isPriceSort = sort === "price_asc" || sort === "price_desc";
 
-    const sizeProductIds = isPriceSort ? null : await this.listProductIdsForSizes(filters);
+    const sizeProductIds = isPriceSort
+      ? null
+      : await this.listProductIdsForSizes(filters);
     if (Array.isArray(sizeProductIds) && sizeProductIds.length === 0) {
       return { products: [], total: 0, page, limit };
     }
@@ -89,7 +91,8 @@ export class ProductRepository {
       // Tenant/seller/marketplace scoping
       if (filters.tenantId) query = query.eq("tenant_id", filters.tenantId);
       if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
-      if (filters.marketplaceId) query = query.eq("marketplace_id", filters.marketplaceId);
+      if (filters.marketplaceId)
+        query = query.eq("marketplace_id", filters.marketplaceId);
 
       if (filters.stockStatus === "out_of_stock") {
         query = query.eq("is_out_of_stock", true);
@@ -109,7 +112,7 @@ export class ProductRepository {
             `model.ilike.%${filters.q}%`,
             `title_raw.ilike.%${filters.q}%`,
             `title_display.ilike.%${filters.q}%`,
-          ].join(",")
+          ].join(","),
         );
       }
 
@@ -155,7 +158,7 @@ export class ProductRepository {
     let detailQuery = this.supabase
       .from("products")
       .select(
-        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))"
+        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
       )
       .in("id", ids)
       .eq("is_active", true);
@@ -170,14 +173,15 @@ export class ProductRepository {
 
     if (filters.tenantId) detailQuery = detailQuery.eq("tenant_id", filters.tenantId);
     if (filters.sellerId) detailQuery = detailQuery.eq("seller_id", filters.sellerId);
-    if (filters.marketplaceId) detailQuery = detailQuery.eq("marketplace_id", filters.marketplaceId);
+    if (filters.marketplaceId)
+      detailQuery = detailQuery.eq("marketplace_id", filters.marketplaceId);
 
     const { data: details, error: detailsError } = await detailQuery;
 
     if (detailsError) throw detailsError;
 
     const byId = new Map(
-      (details ?? []).map((raw) => [raw.id, this.transformProduct(raw)])
+      (details ?? []).map((raw) => [raw.id, this.transformProduct(raw)]),
     );
 
     return {
@@ -190,11 +194,16 @@ export class ProductRepository {
 
   async getById(
     id: string,
-    opts?: Pick<ProductFilters, "tenantId" | "sellerId" | "marketplaceId" | "includeOutOfStock">
+    opts?: Pick<
+      ProductFilters,
+      "tenantId" | "sellerId" | "marketplaceId" | "includeOutOfStock"
+    >,
   ): Promise<ProductWithDetails | null> {
     let query = this.supabase
       .from("products")
-      .select("*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))")
+      .select(
+        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
+      )
       .eq("id", id)
       .eq("is_active", true);
 
@@ -215,7 +224,7 @@ export class ProductRepository {
   async findByTitleAndCategory(
     titleRaw: string,
     category: string,
-    tenantId?: string
+    tenantId?: string,
   ): Promise<ProductRow | null> {
     let query = this.supabase
       .from("products")
@@ -351,7 +360,7 @@ export class ProductRepository {
       ...new Set(
         (data ?? [])
           .map((p) => p.brand)
-          .filter((brand): brand is string => Boolean(brand))
+          .filter((brand): brand is string => Boolean(brand)),
       ),
     ];
     return brands.sort();
@@ -393,7 +402,7 @@ export class ProductRepository {
       ...raw,
       variants: raw.variants ?? [],
       images: (raw.images ?? []).sort(
-        (a: ImageRow, b: ImageRow) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+        (a: ImageRow, b: ImageRow) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
       ),
       tags: (raw.tags ?? []).map((pt: any) => pt.tag).filter(Boolean),
     };
@@ -406,7 +415,7 @@ export class ProductRepository {
   private async listProductIdsByPrice(
     filters: ProductFilters,
     sort: "price_asc" | "price_desc",
-    includeOutOfStock: boolean
+    includeOutOfStock: boolean,
   ) {
     const { page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
@@ -421,12 +430,12 @@ export class ProductRepository {
       const sizeFilters: string[] = [];
       if (filters.sizeShoe?.length) {
         sizeFilters.push(
-          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`
+          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
         );
       }
       if (filters.sizeClothing?.length) {
         sizeFilters.push(
-          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`
+          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`,
         );
       }
       if (sizeFilters.length > 0) {
@@ -437,7 +446,8 @@ export class ProductRepository {
     // Tenant/seller/marketplace scoping
     if (filters.tenantId) query = query.eq("product.tenant_id", filters.tenantId);
     if (filters.sellerId) query = query.eq("product.seller_id", filters.sellerId);
-    if (filters.marketplaceId) query = query.eq("product.marketplace_id", filters.marketplaceId);
+    if (filters.marketplaceId)
+      query = query.eq("product.marketplace_id", filters.marketplaceId);
 
     if (filters.stockStatus === "out_of_stock") {
       query = query.eq("product.is_out_of_stock", true);
@@ -459,7 +469,7 @@ export class ProductRepository {
           `title_raw.ilike.%${filters.q}%`,
           `title_display.ilike.%${filters.q}%`,
         ].join(","),
-        { foreignTable: "product" }
+        { foreignTable: "product" },
       );
     }
 
@@ -467,7 +477,8 @@ export class ProductRepository {
     if (filters.category?.length) query = query.in("product.category", filters.category);
     if (filters.brand?.length) query = query.in("product.brand", filters.brand);
     if (filters.model?.length) query = query.in("product.model", filters.model);
-    if (filters.condition?.length) query = query.in("product.condition", filters.condition);
+    if (filters.condition?.length)
+      query = query.in("product.condition", filters.condition);
 
     query = query.order("min_price", { ascending: sort === "price_asc" });
     query = query.range(offset, offset + limit - 1);
@@ -486,12 +497,12 @@ export class ProductRepository {
     const sizeFilters: string[] = [];
     if (filters.sizeShoe?.length) {
       sizeFilters.push(
-        `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`
+        `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
       );
     }
     if (filters.sizeClothing?.length) {
       sizeFilters.push(
-        `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`
+        `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`,
       );
     }
 
@@ -508,14 +519,12 @@ export class ProductRepository {
       ...new Set(
         (data ?? [])
           .map((row: { product_id: string | null }) => row.product_id)
-          .filter((id): id is string => Boolean(id))
+          .filter((id): id is string => Boolean(id)),
       ),
     ];
   }
 
-  async getProductsForCheckout(
-    productIds: string[]
-  ): Promise<
+  async getProductsForCheckout(productIds: string[]): Promise<
     Array<{
       id: string;
       name: string;
@@ -538,7 +547,7 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("products")
       .select(
-        "id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)"
+        "id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)",
       )
       .in("id", productIds)
       .eq("is_active", true)
@@ -572,7 +581,7 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("product_variants")
       .select(
-        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_display, is_active, is_out_of_stock)"
+        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_display, is_active, is_out_of_stock)",
       )
       .in("id", variantIds);
 
@@ -583,7 +592,7 @@ export class ProductRepository {
       ...new Set(
         rows
           .map((row: any) => row.product?.id ?? row.product_id)
-          .filter((id: string | null): id is string => Boolean(id))
+          .filter((id: string | null): id is string => Boolean(id)),
       ),
     ];
 
@@ -641,7 +650,7 @@ export class ProductRepository {
       ...new Set(
         (data ?? [])
           .map((p) => p.model)
-          .filter((model): model is string => Boolean(model))
+          .filter((model): model is string => Boolean(model)),
       ),
     ];
     return models.sort();

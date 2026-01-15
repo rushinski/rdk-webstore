@@ -1,64 +1,34 @@
 // src/components/admin/NexusTrackerClient.tsx
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  AlertCircle,
+  CheckCircle,
+  TrendingUp,
+  AlertTriangle,
+  Search,
+  Download,
+} from "lucide-react";
+import {
+  STATE_NAMES,
+  STATE_REGISTRATION_URLS,
+} from "@/config/constants/nexus-thresholds";
+import NexusMap from "./NexusMap";
+import StateDetailModal from "./StateDetailModal";
+import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
-"use client";
-
-import { useState, useEffect } from "react";
-import { AlertCircle, ExternalLink, CheckCircle, XCircle, TrendingUp, X, AlertTriangle } from "lucide-react";
-import { USMap } from "./USMap";
-
-type StateSummary = {
-  stateCode: string;
-  stateName: string;
-  threshold: number;
-  thresholdType: string;
-  window: string;
-  totalSales: number;
-  taxableSales: number;
-  transactionCount: number;
-  relevantSales: number;
-  percentageToThreshold: number;
-  isRegistered: boolean;
-  nexusType: 'physical' | 'economic';
-  isHomeState: boolean;
-  taxable: boolean;
-  notes?: string;
-  exemption?: number;
-  marginal?: boolean;
-  allOrNothing?: boolean;
-  transactionThreshold?: number;
-  meetsTransactionThreshold?: boolean;
-  both?: boolean;
-  stripeRegistered?: boolean;
-  resetDate?: string;
-};
-
-type NexusData = {
-  homeState: string;
-  states: StateSummary[];
-};
-
-const STATE_REGISTRATION_URLS: Record<string, string> = {
-  AL: 'https://www.revenue.alabama.gov/sales-use/registration/',
-  AZ: 'https://azdor.gov/business/transaction-privilege-tax',
-  CA: 'https://onlineservices.cdtfa.ca.gov/_/',
-  FL: 'https://floridarevenue.com/taxes/taxesfees/Pages/sales_tax.aspx',
-  GA: 'https://dor.georgia.gov/sales-use-tax',
-  IL: 'https://tax.illinois.gov/businesses/registration.html',
-  NY: 'https://www.tax.ny.gov/bus/st/stidx.htm',
-  NC: 'https://www.ncdor.gov/taxes-forms/sales-and-use-tax',
-  OH: 'https://tax.ohio.gov/business/ohio-business-taxes/sales-and-use',
-  PA: 'https://www.revenue.pa.gov/TaxTypes/SUT/Pages/default.aspx',
-  SC: 'https://dor.sc.gov/tax/sales',
-  TX: 'https://comptroller.texas.gov/taxes/sales/',
-  VA: 'https://www.tax.virginia.gov/sales-and-use-tax',
-  WA: 'https://dor.wa.gov/taxes-rates/sales-use-tax',
-};
-
-export function NexusTrackerClient() {
+export default function NexusTrackerClient() {
   const [data, setData] = useState<NexusData | null>(null);
   const [selectedState, setSelectedState] = useState<StateSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<keyof StateSummary>("percentageToThreshold");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [filterRegistered, setFilterRegistered] = useState<
+    "all" | "registered" | "unregistered"
+  >("all");
+  const [filterNeedsAction, setFilterNeedsAction] = useState(false);
+  const [showHomeSetup, setShowHomeSetup] = useState(false);
 
   useEffect(() => {
     fetchNexusData();
@@ -80,6 +50,27 @@ export function NexusTrackerClient() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDownloadTaxDocs = async () => {
+    try {
+      const year = new Date().getFullYear();
+      const res = await fetch("/api/admin/nexus/tax-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ year }),
+      });
+
+      const result = await res.json();
+
+      if (result.message) {
+        alert(result.message);
+        window.open("https://dashboard.stripe.com/tax/reports", "_blank");
+      }
+    } catch (err) {
+      console.error("Failed to download tax documents:", err);
+      alert("Failed to download tax documents");
     }
   };
 
@@ -105,11 +96,11 @@ export function NexusTrackerClient() {
   const handleRegisterToggle = async (
     stateCode: string,
     currentRegistered: boolean,
-    nexusType: 'physical' | 'economic'
+    nexusType: "physical" | "economic",
   ) => {
     try {
       setIsUpdating(true);
-      await fetch("/api/admin/nexus/register", {
+      const res = await fetch("/api/admin/nexus/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -118,23 +109,40 @@ export function NexusTrackerClient() {
           isRegistered: !currentRegistered,
         }),
       });
-      
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        if (result.error && result.error.includes("head office")) {
+          setShowHomeSetup(true);
+          alert(
+            "Please set up your home office address first before registering states.",
+          );
+          return;
+        }
+        throw new Error(result.error);
+      }
+
       await fetchNexusData();
-      
+
       if (selectedState?.stateCode === stateCode) {
-        const updatedState = data?.states.find(s => s.stateCode === stateCode);
+        const updatedState = data?.states.find((s) => s.stateCode === stateCode);
         if (updatedState) {
           setSelectedState({ ...updatedState, isRegistered: !currentRegistered });
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to toggle registration:", err);
+      alert(err.message || "Failed to update registration");
     } finally {
       setIsUpdating(false);
     }
   };
 
-  const handleNexusTypeChange = async (stateCode: string, newType: 'physical' | 'economic') => {
+  const handleNexusTypeChange = async (
+    stateCode: string,
+    newType: "physical" | "economic",
+  ) => {
     try {
       setIsUpdating(true);
       await fetch("/api/admin/nexus/register", {
@@ -146,11 +154,11 @@ export function NexusTrackerClient() {
           isRegistered: true,
         }),
       });
-      
+
       await fetchNexusData();
-      
+
       if (selectedState?.stateCode === stateCode) {
-        const updatedState = data?.states.find(s => s.stateCode === stateCode);
+        const updatedState = data?.states.find((s) => s.stateCode === stateCode);
         if (updatedState) {
           setSelectedState({ ...updatedState, nexusType: newType });
         }
@@ -161,6 +169,62 @@ export function NexusTrackerClient() {
       setIsUpdating(false);
     }
   };
+
+  const handleSort = (field: keyof StateSummary) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("desc");
+    }
+  };
+
+  const filteredAndSortedStates = useMemo(() => {
+    if (!data) return [];
+
+    let filtered = data.states.filter((state) => {
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        if (
+          !state.stateName.toLowerCase().includes(query) &&
+          !state.stateCode.toLowerCase().includes(query)
+        ) {
+          return false;
+        }
+      }
+
+      if (filterRegistered === "registered" && !state.isRegistered) return false;
+      if (filterRegistered === "unregistered" && state.isRegistered) return false;
+
+      if (filterNeedsAction) {
+        const needsStripeReg =
+          state.nexusType === "physical" && state.isRegistered && !state.stripeRegistered;
+        const atRisk = !state.isRegistered && state.percentageToThreshold >= 85;
+        if (!needsStripeReg && !atRisk) return false;
+      }
+
+      return true;
+    });
+
+    filtered.sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      if (typeof aVal === "string" && typeof bVal === "string") {
+        return sortDirection === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      }
+
+      return 0;
+    });
+
+    return filtered;
+  }, [data, searchQuery, sortField, sortDirection, filterRegistered, filterNeedsAction]);
 
   if (loading) {
     return (
@@ -179,13 +243,13 @@ export function NexusTrackerClient() {
   }
 
   const atRiskStates = data.states.filter(
-    (s) => !s.isRegistered && s.percentageToThreshold >= 85
+    (s) => !s.isRegistered && s.percentageToThreshold >= 85,
   ).length;
 
   const registeredStates = data.states.filter((s) => s.isRegistered).length;
 
   const needsStripeRegistration = data.states.filter(
-    (s) => s.nexusType === 'physical' && s.isRegistered && !s.stripeRegistered
+    (s) => s.nexusType === "physical" && s.isRegistered && !s.stripeRegistered,
   ).length;
 
   return (
@@ -224,7 +288,9 @@ export function NexusTrackerClient() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400 mb-1">Needs Stripe Registration</p>
-                <p className="text-3xl font-bold text-yellow-500">{needsStripeRegistration}</p>
+                <p className="text-3xl font-bold text-yellow-500">
+                  {needsStripeRegistration}
+                </p>
               </div>
               <AlertTriangle className="w-12 h-12 text-yellow-500" />
             </div>
@@ -239,6 +305,55 @@ export function NexusTrackerClient() {
             </div>
             <TrendingUp className="w-12 h-12 text-blue-500" />
           </div>
+        </div>
+      </div>
+
+      {/* Tax Documents Download */}
+      <div className="flex gap-4">
+        <button
+          onClick={handleDownloadTaxDocs}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+        >
+          <Download className="w-4 h-4" />
+          View Tax Reports in Stripe
+        </button>
+      </div>
+
+      {/* Filters and Search */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search states..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <select
+            value={filterRegistered}
+            onChange={(e) => setFilterRegistered(e.target.value as any)}
+            className="px-4 py-2 bg-zinc-800 text-white rounded-lg border border-zinc-700 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="all">All States</option>
+            <option value="registered">Registered Only</option>
+            <option value="unregistered">Unregistered Only</option>
+          </select>
+
+          <label className="flex items-center gap-2 text-white">
+            <input
+              type="checkbox"
+              checked={filterNeedsAction}
+              onChange={(e) => setFilterNeedsAction(e.target.checked)}
+              className="w-4 h-4"
+            />
+            Needs Action Only
+          </label>
         </div>
       </div>
 
@@ -271,194 +386,23 @@ export function NexusTrackerClient() {
       </div>
 
       {/* US Map */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8">
-        <h2 className="text-xl font-bold text-white mb-6">United States Nexus Map</h2>
-        <USMap 
-          states={data.states}
-          onStateClick={setSelectedState}
-          getStateColor={getStateColor}
+      <NexusMap
+        states={data.states}
+        onStateClick={setSelectedState}
+        getStateColor={getStateColor}
+        formatCurrency={formatCurrency}
+      />
+
+      {/* Modal for State Details */}
+      {selectedState && (
+        <StateDetailModal
+          state={selectedState}
+          onClose={() => setSelectedState(null)}
+          onRegisterToggle={handleRegisterToggle}
+          onNexusTypeChange={handleNexusTypeChange}
+          isUpdating={isUpdating}
           formatCurrency={formatCurrency}
         />
-      </div>
-
-      {/* Modal Overlay for State Details */}
-      {selectedState && (
-        <div 
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedState(null)}
-        >
-          <div 
-            className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-white">{selectedState.stateName}</h2>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  {selectedState.isRegistered && (
-                    <span className="px-2 py-1 bg-gray-700 text-white text-xs rounded">
-                      Registered Locally
-                    </span>
-                  )}
-                  {selectedState.stripeRegistered && (
-                    <span className="px-2 py-1 bg-green-700 text-white text-xs rounded">
-                      Registered with Stripe
-                    </span>
-                  )}
-                  <span className="px-2 py-1 bg-zinc-800 text-white text-xs rounded">
-                    {selectedState.nexusType}
-                  </span>
-                  {selectedState.isHomeState && (
-                    <span className="px-2 py-1 bg-red-900/30 text-red-400 text-xs rounded">
-                      Home State
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedState(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {selectedState.nexusType === 'physical' && !selectedState.stripeRegistered && (
-              <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-800 rounded flex gap-2">
-                <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                <div className="text-sm">
-                  <div className="font-semibold text-yellow-500">Physical Nexus - Register with Stripe</div>
-                  <div className="text-gray-300">
-                    This state has physical nexus and must be registered with Stripe Tax to collect taxes automatically.
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-6 mb-6">
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Nexus Threshold</div>
-                <div className="text-xl font-bold text-white">
-                  {formatCurrency(selectedState.threshold)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {selectedState.thresholdType} sales / {selectedState.window}
-                </div>
-                {selectedState.resetDate && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Resets: {selectedState.resetDate}
-                  </div>
-                )}
-              </div>
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Current Sales</div>
-                <div className="text-xl font-bold text-white">
-                  {formatCurrency(selectedState.relevantSales)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {selectedState.percentageToThreshold.toFixed(1)}% to threshold
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Total Sales</div>
-                <div className="text-lg text-white">
-                  {formatCurrency(selectedState.totalSales)}
-                </div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-400 mb-1">Transactions</div>
-                <div className="text-lg text-white">{selectedState.transactionCount}</div>
-              </div>
-            </div>
-
-            {selectedState.transactionThreshold && (
-              <div className="mb-6 p-3 bg-zinc-800 rounded">
-                <div className="text-sm text-gray-400">Transaction Requirement</div>
-                <div className="text-sm text-white">
-                  {selectedState.transactionCount} / {selectedState.transactionThreshold} transactions
-                  {selectedState.both && " (BOTH thresholds required)"}
-                </div>
-              </div>
-            )}
-
-            {!selectedState.taxable && (
-              <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-800 rounded flex gap-2">
-                <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-                <div className="text-sm">
-                  <div className="font-semibold text-yellow-500">Product Tax Exemption</div>
-                  {selectedState.exemption && (
-                    <div className="text-gray-300">
-                      Sneakers/clothing exempt{" "}
-                      {selectedState.marginal
-                        ? `under $${selectedState.exemption} (marginal)`
-                        : selectedState.allOrNothing
-                          ? `under $${selectedState.exemption} (all or nothing)`
-                          : ""}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {!selectedState.isHomeState && (
-              <div className="flex gap-3 mb-4">
-                <button
-                  onClick={() => handleNexusTypeChange(selectedState.stateCode, "physical")}
-                  disabled={isUpdating}
-                  className={`px-4 py-2 rounded text-sm ${
-                    selectedState.nexusType === "physical"
-                      ? "bg-red-600 text-white"
-                      : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  Physical Nexus
-                </button>
-                <button
-                  onClick={() => handleNexusTypeChange(selectedState.stateCode, "economic")}
-                  disabled={isUpdating}
-                  className={`px-4 py-2 rounded text-sm ${
-                    selectedState.nexusType === "economic"
-                      ? "bg-red-600 text-white"
-                      : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  Economic Nexus
-                </button>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() =>
-                  handleRegisterToggle(
-                    selectedState.stateCode,
-                    selectedState.isRegistered,
-                    selectedState.nexusType
-                  )
-                }
-                disabled={isUpdating}
-                className={`px-4 py-2 rounded font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                  selectedState.isRegistered
-                    ? "bg-red-600 hover:bg-red-700 text-white"
-                    : "bg-green-600 hover:bg-green-700 text-white"
-                }`}
-              >
-                {selectedState.isRegistered ? "Unregister" : "Register with Stripe"}
-              </button>
-              {STATE_REGISTRATION_URLS[selectedState.stateCode] && (
-                <a
-                  href={STATE_REGISTRATION_URLS[selectedState.stateCode]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded font-medium flex items-center gap-2"
-                >
-                  Register in {selectedState.stateCode}
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
       )}
 
       {/* States Table */}
@@ -466,17 +410,45 @@ export function NexusTrackerClient() {
         <table className="w-full">
           <thead className="bg-zinc-800">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">State</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Threshold</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Sales</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Progress</th>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                onClick={() => handleSort("stateName")}
+              >
+                State {sortField === "stateName" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                onClick={() => handleSort("threshold")}
+              >
+                Threshold{" "}
+                {sortField === "threshold" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                onClick={() => handleSort("relevantSales")}
+              >
+                Sales{" "}
+                {sortField === "relevantSales" && (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
+              <th
+                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                onClick={() => handleSort("percentageToThreshold")}
+              >
+                Progress{" "}
+                {sortField === "percentageToThreshold" &&
+                  (sortDirection === "asc" ? "↑" : "↓")}
+              </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-white">Type</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Actions</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                Status
+              </th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-800">
-            {data.states.map((state) => (
+            {filteredAndSortedStates.map((state) => (
               <tr key={state.stateCode} className="hover:bg-zinc-800/50">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
@@ -488,7 +460,7 @@ export function NexusTrackerClient() {
                     {state.isHomeState && (
                       <span className="text-xs text-red-400">(Home)</span>
                     )}
-                    {state.nexusType === 'physical' && !state.stripeRegistered && (
+                    {state.nexusType === "physical" && !state.stripeRegistered && (
                       <AlertTriangle className="w-4 h-4 text-yellow-500" />
                     )}
                   </div>
@@ -533,7 +505,7 @@ export function NexusTrackerClient() {
                     </div>
                   ) : (
                     <span className="flex items-center gap-1 text-sm text-gray-400">
-                      <XCircle className="w-4 h-4" />
+                      <span className="w-4 h-4">○</span>
                       Not Registered
                     </span>
                   )}
@@ -550,6 +522,12 @@ export function NexusTrackerClient() {
             ))}
           </tbody>
         </table>
+
+        {filteredAndSortedStates.length === 0 && (
+          <div className="p-8 text-center text-gray-400">
+            No states match your filters
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 // src/services/product-title-parser.ts
-import type { Category } from "@/types/views/product";
+import type { Category } from "@/types/domain/product";
 
 export type CatalogBrandAlias = {
   brandId: string;
@@ -107,7 +107,10 @@ function tokenizeWithRaw(value: string): Token[] {
   }));
 }
 
-function findExactMatch(tokens: string[], aliases: CatalogBrandAlias[] | CatalogModelAlias[]) {
+function findExactMatch(
+  tokens: string[],
+  aliases: CatalogBrandAlias[] | CatalogModelAlias[],
+) {
   let best: { alias: any; start: number; length: number; score: number } | null = null;
 
   for (const alias of aliases) {
@@ -168,12 +171,7 @@ function damerauLevenshtein(a: string, b: string): number {
       const sub = matrix[i - 1][j - 1] + cost;
       let val = Math.min(del, ins, sub);
 
-      if (
-        i > 1 &&
-        j > 1 &&
-        a[i - 1] === b[j - 2] &&
-        a[i - 2] === b[j - 1]
-      ) {
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
         val = Math.min(val, matrix[i - 2][j - 2] + cost);
       }
       matrix[i][j] = val;
@@ -190,10 +188,12 @@ function computeSimilarity(a: string, b: string): number {
   return maxLen === 0 ? 1 : 1 - distance / maxLen;
 }
 
-function findFuzzyMatch(tokens: string[], aliases: CatalogBrandAlias[] | CatalogModelAlias[]) {
-  let best:
-    | { alias: any; start: number; length: number; similarity: number }
-    | null = null;
+function findFuzzyMatch(
+  tokens: string[],
+  aliases: CatalogBrandAlias[] | CatalogModelAlias[],
+) {
+  let best: { alias: any; start: number; length: number; similarity: number } | null =
+    null;
 
   for (const alias of aliases) {
     const aliasTokens = alias.aliasNormalized.split(" ").filter(Boolean);
@@ -222,7 +222,10 @@ function extractBrandCandidate(tokens: Token[]): string | null {
   return picked.length > 0 ? picked.join(" ") : tokens[0].raw;
 }
 
-function extractModelCandidate(tokens: Token[], brandMatch?: { start: number; length: number } | null): string | null {
+function extractModelCandidate(
+  tokens: Token[],
+  brandMatch?: { start: number; length: number } | null,
+): string | null {
   const filtered = tokens.filter((_, index) => {
     if (!brandMatch) return true;
     return index < brandMatch.start || index >= brandMatch.start + brandMatch.length;
@@ -239,7 +242,7 @@ export function parseTitleWithCatalog(
   catalog: {
     brandAliases: CatalogBrandAlias[];
     modelAliasesByBrand: Record<string, CatalogModelAlias[]>;
-  }
+  },
 ): TitleParseResult {
   const titleRaw = input.titleRaw?.trim() ?? "";
   const tokensWithRaw = tokenizeWithRaw(titleRaw);
@@ -248,9 +251,15 @@ export function parseTitleWithCatalog(
   const suggestions: TitleParseResult["suggestions"] = {};
   const candidates: TitleParseResult["candidates"] = {};
 
-  let brandMatch = null as null | { alias: CatalogBrandAlias; start: number; length: number; confidence: number; source: TitleParseResult["brand"]["source"] };
+  let brandMatch = null as null | {
+    alias: CatalogBrandAlias;
+    start: number;
+    length: number;
+    confidence: number;
+    source: TitleParseResult["brand"]["source"];
+  };
   const fallbackBrandAlias = catalog.brandAliases.find(
-    (alias) => alias.aliasNormalized === "other"
+    (alias) => alias.aliasNormalized === "other",
   );
 
   const brandOverrides = input.brandOverrideId
@@ -332,7 +341,13 @@ export function parseTitleWithCatalog(
     }
   }
 
-  let modelMatch = null as null | { alias: CatalogModelAlias; start: number; length: number; confidence: number; source: TitleParseResult["model"]["source"] };
+  let modelMatch = null as null | {
+    alias: CatalogModelAlias;
+    start: number;
+    length: number;
+    confidence: number;
+    source: TitleParseResult["model"]["source"];
+  };
   let modelLabel: string | null = null;
   let modelId: string | null = null;
   let modelConfidence = 0;
@@ -351,7 +366,7 @@ export function parseTitleWithCatalog(
     const modelAliases = catalog.modelAliasesByBrand[brandId] ?? [];
     if (input.modelOverrideId) {
       const overrideAliases = modelAliases.filter(
-        (alias) => alias.modelId === input.modelOverrideId
+        (alias) => alias.modelId === input.modelOverrideId,
       );
       if (overrideAliases.length > 0) {
         const exactOverride = findExactMatch(tokens, overrideAliases);
@@ -409,7 +424,7 @@ export function parseTitleWithCatalog(
     const modelAliases = catalog.modelAliasesByBrand[brandId] ?? [];
     const fallbackLabel = normalizeLabel(`other ${brandLabel} models`);
     const fallbackAlias = modelAliases.find(
-      (alias) => alias.aliasNormalized === fallbackLabel
+      (alias) => alias.aliasNormalized === fallbackLabel,
     );
 
     if (fallbackAlias) {
@@ -452,7 +467,10 @@ export function parseTitleWithCatalog(
   }
 
   const remainderTokens = tokensWithRaw.filter((_, index) => !removalSet.has(index));
-  let name = remainderTokens.map((token) => token.raw).join(" ").trim();
+  let name = remainderTokens
+    .map((token) => token.raw)
+    .join(" ")
+    .trim();
 
   if (!name) {
     name = titleRaw.trim();
@@ -499,8 +517,12 @@ export function parseTitleWithCatalog(
     suggestions,
     candidates,
     matchedTokens: {
-      brand: brandMatch ? { start: brandMatch.start, length: brandMatch.length } : undefined,
-      model: modelMatch ? { start: modelMatch.start, length: modelMatch.length } : undefined,
+      brand: brandMatch
+        ? { start: brandMatch.start, length: brandMatch.length }
+        : undefined,
+      model: modelMatch
+        ? { start: modelMatch.start, length: modelMatch.length }
+        : undefined,
     },
   };
 }

@@ -1,7 +1,7 @@
 // tests/helpers/db/assertions.ts
 import { expect } from "@jest/globals";
 import { createAdminClient } from "../supabase/clients";
-import type { Database } from "@/types/database.types";
+import type { Database } from "@/types/db/database.types";
 import { resetDatabase, seedBaseData, resetAndSeed } from "./lifecycle";
 
 export { resetDatabase, seedBaseData, resetAndSeed };
@@ -13,7 +13,7 @@ type Row<T extends TableName> = PublicTables[T]["Row"];
 
 export async function fetchRecords<T extends TableName>(
   tableName: T,
-  where?: Partial<Row<T>>
+  where?: Partial<Row<T>>,
 ): Promise<Row<T>[]> {
   const admin = createAdminClient();
   let query = admin.from(tableName).select("*");
@@ -32,7 +32,7 @@ export async function fetchRecords<T extends TableName>(
 
 export async function countRecords<T extends TableName>(
   tableName: T,
-  where?: Partial<Row<T>>
+  where?: Partial<Row<T>>,
 ): Promise<number> {
   const admin = createAdminClient();
   let query = admin.from(tableName).select("*", { count: "exact", head: true });
@@ -49,10 +49,9 @@ export async function countRecords<T extends TableName>(
   return count ?? 0;
 }
 
-
 export async function expectRecordExists<T extends TableName>(
   tableName: T,
-  where: Partial<Row<T>>
+  where: Partial<Row<T>>,
 ) {
   const rows = await fetchRecords(tableName, where);
   expect(rows.length).toBeGreaterThan(0);
@@ -61,7 +60,7 @@ export async function expectRecordExists<T extends TableName>(
 
 export async function expectRecordNotExists<T extends TableName>(
   tableName: T,
-  where: Partial<Row<T>>
+  where: Partial<Row<T>>,
 ) {
   const rows = await fetchRecords(tableName, where);
   expect(rows.length).toBe(0);
@@ -70,10 +69,7 @@ export async function expectRecordNotExists<T extends TableName>(
 export async function cleanupByEmailPattern(pattern: string) {
   const admin = createAdminClient();
 
-  const { error } = await admin
-    .from("profiles")
-    .delete()
-    .ilike("email", `%${pattern}%`);
+  const { error } = await admin.from("profiles").delete().ilike("email", `%${pattern}%`);
 
   if (error) throw error;
 }
@@ -81,11 +77,7 @@ export async function cleanupByEmailPattern(pattern: string) {
 export async function createTestTenant(name: string = "Test Tenant") {
   const admin = createAdminClient();
 
-  const { data, error } = await admin
-    .from("tenants")
-    .insert({ name })
-    .select()
-    .single();
+  const { data, error } = await admin.from("tenants").insert({ name }).select().single();
 
   if (error) throw error;
   return data;

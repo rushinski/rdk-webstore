@@ -1,6 +1,6 @@
 // src/repositories/admin-invites-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 export type AdminInviteRow = Tables<"admin_invites">;
 export type AdminInviteInsert = TablesInsert<"admin_invites">;

@@ -2,8 +2,8 @@
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProductRepository } from "@/repositories/product-repo";
-import type { Tables } from "@/types/database.types";
-import type { SizeType } from "@/types/views/product";
+import type { Tables } from "@/types/db/database.types";
+import type { SizeType } from "@/types/domain/product";
 
 type TagRow = Tables<"tags">;
 
@@ -19,7 +19,7 @@ interface UpsertTagsInput {
 
 export async function upsertTags(
   supabase: TypedSupabaseClient,
-  input: UpsertTagsInput
+  input: UpsertTagsInput,
 ): Promise<TagRow[]> {
   const repo = new ProductRepository(supabase);
   const tags: TagRow[] = [];
@@ -49,7 +49,7 @@ export async function upsertTags(
 }
 
 export function buildSizeTags(
-  variants: Array<{ size_type: SizeType; size_label: string; stock?: number | null }>
+  variants: Array<{ size_type: SizeType; size_label: string; stock?: number | null }>,
 ): TagInputItem[] {
   const tags: TagInputItem[] = [];
   const seen = new Set<string>();

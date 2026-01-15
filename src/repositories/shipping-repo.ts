@@ -1,7 +1,7 @@
 // src/repositories/shipping-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type ShippingProfileRow = Tables<"shipping_profiles">;
 type ShippingProfileUpsert = TablesInsert<"shipping_profiles">;

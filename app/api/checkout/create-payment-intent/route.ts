@@ -1,4 +1,4 @@
-// app/api/checkout/create-payment-intent/route.ts (UPDATED with Tax)
+// app/api/checkout/create-payment-intent/route.ts (UPDATED with proper pickup tax)
 
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -8,6 +8,7 @@ import { ProductRepository } from "@/repositories/product-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
+import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { createCartHash } from "@/lib/crypto";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
@@ -191,11 +192,53 @@ export async function POST(request: NextRequest) {
       shipping = Math.max(...shippingCosts, 0);
     }
 
+    // Get home state and office address for pickup tax calculation
+    const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
+    const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
+    const homeState = taxSettings?.home_state ?? 'SC';
+
     // Calculate tax using Stripe Tax
     const taxService = new StripeTaxService(adminSupabase);
+    
+    // For pickup, get the actual office address from Stripe Tax Settings
+    let customerAddress: {
+      line1: string;
+      line2?: string | null;
+      city: string;
+      state: string;
+      postal_code: string;
+      country: string;
+    } | null = null;
+
+    if (normalizedFulfillment === "ship" && shippingAddress) {
+      customerAddress = {
+        line1: shippingAddress.line1,
+        line2: shippingAddress.line2 ?? null,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        postal_code: shippingAddress.postal_code,
+        country: shippingAddress.country,
+      };
+    } else if (normalizedFulfillment === "pickup") {
+      // Get office address from Stripe Tax Settings
+      const officeAddress = await taxService.getHeadOfficeAddress();
+      if (officeAddress) {
+        customerAddress = officeAddress;
+      } else {
+        // Fallback if office address not configured
+        customerAddress = {
+          line1: '123 Main St',
+          city: 'Charleston',
+          state: homeState,
+          postal_code: '29401',
+          country: 'US',
+        };
+      }
+    }
+
     const taxCalc = await taxService.calculateTax({
       currency: "usd",
-      customerAddress: normalizedFulfillment === "ship" ? (shippingAddress ?? null) : null,
+      customerAddress,
       lineItems: lineItems.map(item => ({
         amount: Math.round(item.unitPrice * 100),
         quantity: item.quantity,
@@ -233,12 +276,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Update order with tax info
+    const customerState = normalizedFulfillment === "ship" ? shippingAddress?.state : homeState;
     await adminSupabase
       .from('orders')
       .update({
         tax_amount: tax,
         tax_calculation_id: taxCalc.taxCalculationId,
-        customer_state: normalizedFulfillment === "ship" ? shippingAddress?.state : 'SC',
+        customer_state: customerState,
       })
       .eq('id', order.id);
 
@@ -287,6 +331,7 @@ export async function POST(request: NextRequest) {
       orderId: order.id,
       paymentIntentId: paymentIntent.id,
       tax,
+      customerState,
     });
 
     if (!order.stripe_payment_intent_id) {

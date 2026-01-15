@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, Loader2, Mail } from "lucide-react";
 import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
-import type { OrderStatusResponse } from "@/types/views/checkout";
+import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { useCart } from "@/components/cart/CartProvider";
 
 function SuccessContent() {
@@ -68,7 +68,9 @@ function SuccessContent() {
     const pollOrderStatus = async () => {
       try {
         const tokenQuery = accessToken ? `?token=${encodeURIComponent(accessToken)}` : "";
-        const response = await fetch(`/api/orders/${orderId}${tokenQuery}`, { cache: "no-store" });
+        const response = await fetch(`/api/orders/${orderId}${tokenQuery}`, {
+          cache: "no-store",
+        });
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
@@ -136,8 +138,8 @@ function SuccessContent() {
         <Mail className="w-16 h-16 text-red-600 mx-auto mb-6" />
         <h1 className="text-3xl font-bold text-white mb-4">Order received</h1>
         <p className="text-gray-400 mb-6">
-          Thanks for your purchase. We are finalizing your order and will email a secure order
-          status link shortly.
+          Thanks for your purchase. We are finalizing your order and will email a secure
+          order status link shortly.
         </p>
         {isPickupParam && (
           <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
@@ -218,7 +220,9 @@ function SuccessContent() {
           <div className="flex justify-between">
             <span>Shipping:</span>
             <span className="text-white">
-              {status.fulfillment === "pickup" ? "Free (Pickup)" : `$${status.shipping.toFixed(2)}`}
+              {status.fulfillment === "pickup"
+                ? "Free (Pickup)"
+                : `$${status.shipping.toFixed(2)}`}
             </span>
           </div>
           <div className="border-t border-zinc-800/70 pt-2 mt-2">

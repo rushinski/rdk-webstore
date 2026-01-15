@@ -1,6 +1,6 @@
 // src/repositories/catalog-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert, TablesUpdate } from "@/types/database.types";
+import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
 
 type BrandGroupRow = Tables<"catalog_brand_groups">;
 type BrandRow = Tables<"catalog_brands">;
@@ -30,7 +30,7 @@ export class CatalogRepository {
 
   async listBrandGroups(
     tenantId?: string | null,
-    includeInactive = false
+    includeInactive = false,
   ): Promise<BrandGroupRow[]> {
     let query = this.supabase.from("catalog_brand_groups").select("*");
     if (!includeInactive) query = query.eq("is_active", true);
@@ -65,7 +65,7 @@ export class CatalogRepository {
   async listBrands(
     tenantId?: string | null,
     groupId?: string | null,
-    includeInactive = false
+    includeInactive = false,
   ): Promise<BrandRow[]> {
     let query = this.supabase.from("catalog_brands").select("*");
     if (!includeInactive) query = query.eq("is_active", true);
@@ -77,10 +77,7 @@ export class CatalogRepository {
     return data ?? [];
   }
 
-  async listBrandsWithGroups(
-    tenantId?: string | null,
-    includeInactive = false
-  ) {
+  async listBrandsWithGroups(tenantId?: string | null, includeInactive = false) {
     let query = this.supabase
       .from("catalog_brands")
       .select("*, group:catalog_brand_groups(id, key, label)");
@@ -126,7 +123,7 @@ export class CatalogRepository {
   async listModels(
     tenantId?: string | null,
     brandId?: string | null,
-    includeInactive = false
+    includeInactive = false,
   ): Promise<ModelRow[]> {
     let query = this.supabase.from("catalog_models").select("*");
     if (!includeInactive) query = query.eq("is_active", true);
@@ -141,7 +138,7 @@ export class CatalogRepository {
   async listModelsWithBrand(
     tenantId?: string | null,
     brandId?: string | null,
-    includeInactive = false
+    includeInactive = false,
   ) {
     let query = this.supabase
       .from("catalog_models")
@@ -189,7 +186,7 @@ export class CatalogRepository {
   async listAliases(
     tenantId?: string | null,
     entityType?: "brand" | "model",
-    includeInactive = false
+    includeInactive = false,
   ): Promise<AliasRow[]> {
     let query = this.supabase.from("catalog_aliases").select("*");
     if (!includeInactive) query = query.eq("is_active", true);
@@ -200,12 +197,12 @@ export class CatalogRepository {
     return data ?? [];
   }
 
-  async listBrandAliases(
-    tenantId?: string | null
-  ) {
+  async listBrandAliases(tenantId?: string | null) {
     let query = this.supabase
       .from("catalog_aliases")
-      .select("*, brand:catalog_brands(id, canonical_label, group:catalog_brand_groups(id, key, label))")
+      .select(
+        "*, brand:catalog_brands(id, canonical_label, group:catalog_brand_groups(id, key, label))",
+      )
       .eq("entity_type", "brand")
       .eq("is_active", true);
     query = this.withTenantScope(query, tenantId);
@@ -214,10 +211,7 @@ export class CatalogRepository {
     return data ?? [];
   }
 
-  async listModelAliases(
-    tenantId: string | null | undefined,
-    brandId: string
-  ) {
+  async listModelAliases(tenantId: string | null | undefined, brandId: string) {
     let query = this.supabase
       .from("catalog_aliases")
       .select("*, model:catalog_models(id, canonical_label, brand_id)")
@@ -263,10 +257,7 @@ export class CatalogRepository {
     return data;
   }
 
-  async listCandidates(
-    tenantId: string,
-    status?: string
-  ): Promise<CandidateRow[]> {
+  async listCandidates(tenantId: string, status?: string): Promise<CandidateRow[]> {
     let query = this.supabase
       .from("catalog_candidates")
       .select("*")

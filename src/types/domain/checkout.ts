@@ -1,6 +1,6 @@
 // src/types/views/checkout.ts (CORRECTED)
 
-import type { Tables } from "@/types/database.types";
+import type { Tables } from "@/types/db/database.types";
 
 export type FulfillmentMethod = "ship" | "pickup";
 export type OrderStatus = Tables<"orders">["status"];

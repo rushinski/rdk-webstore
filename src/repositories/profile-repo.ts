@@ -1,5 +1,5 @@
 // src/repositories/profile-repo.ts
-import type { Database } from "@/types/database.types";
+import type { Database } from "@/types/db/database.types";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { ProfileRole } from "@/config/constants/roles";
 
@@ -25,7 +25,7 @@ export class ProfileRepository {
 
     // If no tenantId provided, get the first tenant (your seeded "Real Deal Kickz")
     let assignedTenantId = tenantId;
-    
+
     if (!assignedTenantId) {
       // Use maybeSingle() instead of single() to avoid throwing on no results
       const { data: firstTenant, error } = await this.supabase

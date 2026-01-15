@@ -1,7 +1,7 @@
 // src/repositories/stripe-events-repo.ts (NEW)
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { TablesInsert } from "@/types/database.types";
+import type { TablesInsert } from "@/types/db/database.types";
 import { hashString } from "@/lib/crypto";
 
 type StripeEventInsert = TablesInsert<"stripe_events">;
@@ -25,7 +25,7 @@ export class StripeEventsRepository {
     type: string,
     created: number,
     payload: any,
-    orderId?: string
+    orderId?: string,
   ): Promise<void> {
     const payloadHash = hashString(JSON.stringify(payload));
 

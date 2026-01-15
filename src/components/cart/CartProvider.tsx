@@ -1,13 +1,21 @@
 // src/components/cart/CartProvider.tsx (FIXED - handles new event structure)
-'use client';
+"use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { CartService } from '@/services/cart-service';
-import type { CartItem } from "@/types/views/cart";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  ReactNode,
+} from "react";
+import { CartService } from "@/services/cart-service";
+import type { CartItem } from "@/types/domain/cart";
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: Omit<CartItem, 'quantity'>) => void;
+  addItem: (item: Omit<CartItem, "quantity">) => void;
   removeItem: (productId: string, variantId: string) => void;
   updateQuantity: (productId: string, variantId: string, quantity: number) => void;
   setCartItems: (items: CartItem[]) => void;
@@ -32,9 +40,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     isValidatingRef.current = true;
 
     try {
-      const response = await fetch('/api/cart/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/cart/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: current.map((item) => ({
             productId: item.productId,
@@ -61,7 +69,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setIsReady(true);
     try {
       const count = storedItems.reduce((sum, item) => sum + item.quantity, 0);
-      window.dispatchEvent(new CustomEvent('cartUpdated', { detail: { count, items: storedItems } }));
+      window.dispatchEvent(
+        new CustomEvent("cartUpdated", { detail: { count, items: storedItems } }),
+      );
     } catch {
       // ignore storage/event errors
     }
@@ -74,8 +84,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+    window.addEventListener("cartUpdated", handleCartUpdate);
+    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
   }, [cart]);
 
   useEffect(() => {
@@ -91,36 +101,48 @@ export function CartProvider({ children }: { children: ReactNode }) {
       refreshCart();
     };
 
-    window.addEventListener('openCart', handleOpenCart);
-    return () => window.removeEventListener('openCart', handleOpenCart);
+    window.addEventListener("openCart", handleOpenCart);
+    return () => window.removeEventListener("openCart", handleOpenCart);
   }, [refreshCart]);
 
   useEffect(() => {
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         refreshCart();
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [refreshCart]);
 
-  const addItem = useCallback((item: Omit<CartItem, 'quantity'>) => {
-    cart.addItem(item);
-  }, [cart]);
+  const addItem = useCallback(
+    (item: Omit<CartItem, "quantity">) => {
+      cart.addItem(item);
+    },
+    [cart],
+  );
 
-  const removeItem = useCallback((productId: string, variantId: string) => {
-    cart.removeItem(productId, variantId);
-  }, [cart]);
+  const removeItem = useCallback(
+    (productId: string, variantId: string) => {
+      cart.removeItem(productId, variantId);
+    },
+    [cart],
+  );
 
-  const updateQuantity = useCallback((productId: string, variantId: string, quantity: number) => {
-    cart.updateQuantity(productId, variantId, quantity);
-  }, [cart]);
+  const updateQuantity = useCallback(
+    (productId: string, variantId: string, quantity: number) => {
+      cart.updateQuantity(productId, variantId, quantity);
+    },
+    [cart],
+  );
 
-  const setCartItems = useCallback((nextItems: CartItem[]) => {
-    cart.setCart(nextItems);
-  }, [cart]);
+  const setCartItems = useCallback(
+    (nextItems: CartItem[]) => {
+      cart.setCart(nextItems);
+    },
+    [cart],
+  );
 
   const clearCart = useCallback(() => {
     cart.clearCart();
@@ -151,7 +173,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 export function useCart() {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within CartProvider');
+    throw new Error("useCart must be used within CartProvider");
   }
   return context;
 }

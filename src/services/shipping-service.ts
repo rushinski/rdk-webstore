@@ -1,7 +1,9 @@
 // src/services/shipping-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ShippingRepository } from "@/repositories/shipping-repo";
-import type { ShippingProfileUpsert } from "@/types/views/shipping";
+import type { TablesInsert } from "@/types/db/database.types";
+
+type ShippingProfileUpsert = TablesInsert<"shipping_profiles">;
 
 export class ShippingService {
   private repo: ShippingRepository;

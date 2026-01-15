@@ -27,6 +27,16 @@ export type StateSalesTracking = {
   updated_at: string;
 };
 
+export type StateSalesLog = {
+  order_id: string;
+  created_at: string | null;
+  total: number;
+  tax_amount: number;
+  customer_state: string;
+  fulfillment: string;
+  status: string;
+};
+
 export class NexusRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
@@ -97,10 +107,8 @@ export class NexusRepository {
       .eq('state_code', stateCode);
 
     if (windowType === 'calendar') {
-      // Calendar year only
       query = query.eq('year', currentYear);
     } else {
-      // Rolling 12 months
       const startDate = new Date(now);
       startDate.setMonth(startDate.getMonth() - 12);
       const startYear = startDate.getFullYear();
@@ -169,5 +177,61 @@ export class NexusRepository {
     });
 
     return salesMap;
+  }
+
+  /**
+   * Get sales log for a specific state
+   */
+  async getStateSalesLog(params: {
+    tenantId: string;
+    stateCode: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ sales: StateSalesLog[]; total: number }> {
+    const limit = params.limit ?? 10;
+    const offset = params.offset ?? 0;
+
+    const { data, error, count } = await this.supabase
+      .from('orders')
+      .select('id, created_at, total, tax_amount, customer_state, fulfillment, status', { count: 'exact' })
+      .eq('tenant_id', params.tenantId)
+      .eq('customer_state', params.stateCode)
+      .eq('status', 'paid')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    const sales: StateSalesLog[] = (data ?? []).map(order => ({
+      order_id: order.id,
+      created_at: order.created_at,
+      total: Number(order.total ?? 0),
+      tax_amount: Number(order.tax_amount ?? 0),
+      customer_state: order.customer_state ?? params.stateCode,
+      fulfillment: order.fulfillment ?? 'ship',
+      status: order.status ?? 'paid',
+    }));
+
+    return {
+      sales,
+      total: count ?? 0,
+    };
+  }
+
+  /**
+   * Get recent sales for a state (for preview in modal)
+   */
+  async getRecentStateSales(params: {
+    tenantId: string;
+    stateCode: string;
+    limit?: number;
+  }): Promise<StateSalesLog[]> {
+    const { sales } = await this.getStateSalesLog({
+      tenantId: params.tenantId,
+      stateCode: params.stateCode,
+      limit: params.limit ?? 3,
+    });
+
+    return sales;
   }
 }

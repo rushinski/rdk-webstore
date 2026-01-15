@@ -1,5 +1,5 @@
 // src/types/views/product.ts
-import type { Tables } from "@/types/database.types";
+import type { Tables } from "@/types/db/database.types";
 
 export type ProductRow = Tables<"products">;
 export type ProductVariantRow = Tables<"product_variants">;

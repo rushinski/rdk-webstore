@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import type { OrderStatusResponse } from "@/types/views/checkout";
+import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { OrderStatusView } from "@/components/orders/OrderStatusView";
 
 export default function OrderStatusPage() {
@@ -28,7 +28,7 @@ export default function OrderStatusPage() {
       try {
         const response = await fetch(
           `/api/orders/${orderId}?token=${encodeURIComponent(token)}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
         const data = await response.json().catch(() => null);
         if (!response.ok) {

@@ -9,7 +9,10 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { env } from "@/config/env";
 import { createCartHash } from "@/lib/crypto";
-import type { CheckoutSessionRequest, CheckoutSessionResponse } from "@/types/views/checkout";
+import type {
+  CheckoutSessionRequest,
+  CheckoutSessionResponse,
+} from "@/types/domain/checkout";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 import { log } from "@/lib/log";
 
@@ -28,7 +31,7 @@ export class CheckoutService {
 
   constructor(
     private readonly supabase: TypedSupabaseClient,
-    private readonly adminSupabase?: AdminSupabaseClient
+    private readonly adminSupabase?: AdminSupabaseClient,
   ) {
     this.ordersRepo = new OrdersRepository(supabase);
     this.productsRepo = new ProductRepository(supabase);
@@ -43,7 +46,7 @@ export class CheckoutService {
 
   async createCheckoutSession(
     request: CheckoutSessionRequest,
-    userId: string | null
+    userId: string | null,
   ): Promise<CheckoutSessionResponse> {
     // Validate input
     const validated = checkoutSessionSchema.parse(request);
@@ -57,9 +60,12 @@ export class CheckoutService {
       throw new Error("GUEST_CHECKOUT_DISABLED");
     }
 
-    const ordersRepo = userId ? this.ordersRepo : this.adminOrdersRepo ?? this.ordersRepo;
+    const ordersRepo = userId
+      ? this.ordersRepo
+      : (this.adminOrdersRepo ?? this.ordersRepo);
     const productsRepo = this.adminProductsRepo ?? this.productsRepo;
-    const shippingDefaultsRepo = this.adminShippingDefaultsRepo ?? this.shippingDefaultsRepo;
+    const shippingDefaultsRepo =
+      this.adminShippingDefaultsRepo ?? this.shippingDefaultsRepo;
 
     // Fetch product data
     const productIds = [...new Set(items.map((i) => i.productId))];
@@ -71,10 +77,12 @@ export class CheckoutService {
 
     // Build product map
     const productMap = new Map(products.map((p) => [p.id, p]));
-    
+
     // Validate single tenant
     const tenantIds = new Set(
-      products.map((product) => product.tenantId).filter((id): id is string => Boolean(id))
+      products
+        .map((product) => product.tenantId)
+        .filter((id): id is string => Boolean(id)),
     );
     if (tenantIds.size !== 1) {
       throw new Error("Checkout requires a single tenant");
@@ -83,9 +91,12 @@ export class CheckoutService {
 
     // Get categories and shipping defaults
     const categories = [...new Set(products.map((p) => p.category))];
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
+      tenantId,
+      categories,
+    );
     const shippingDefaultsMap = new Map(
-      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
+      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)]),
     );
 
     // Build line items
@@ -101,7 +112,9 @@ export class CheckoutService {
       }
 
       if (variant.stock < item.quantity) {
-        throw new Error(`INSUFFICIENT_STOCK: ${product.titleDisplay} (${variant.sizeLabel})`);
+        throw new Error(
+          `INSUFFICIENT_STOCK: ${product.titleDisplay} (${variant.sizeLabel})`,
+        );
       }
 
       const unitPrice = Number(variant.priceCents ?? 0) / 100;
@@ -170,27 +183,29 @@ export class CheckoutService {
     // Create pending order
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    const order = existingOrder ?? await ordersRepo.createPendingOrder({
-      userId,
-      guestEmail: guestEmail ?? null,
-      tenantId,
-      currency: "USD",
-      subtotal,
-      shipping,
-      total,
-      fulfillment,
-      idempotencyKey,
-      cartHash,
-      expiresAt,
-      items: lineItems.map((li) => ({
-        productId: li.productId,
-        variantId: li.variantId,
-        quantity: li.quantity,
-        unitPrice: li.unitPrice,
-        unitCost: li.unitCost,
-        lineTotal: li.lineTotal,
-      })),
-    });
+    const order =
+      existingOrder ??
+      (await ordersRepo.createPendingOrder({
+        userId,
+        guestEmail: guestEmail ?? null,
+        tenantId,
+        currency: "USD",
+        subtotal,
+        shipping,
+        total,
+        fulfillment,
+        idempotencyKey,
+        cartHash,
+        expiresAt,
+        items: lineItems.map((li) => ({
+          productId: li.productId,
+          variantId: li.variantId,
+          quantity: li.quantity,
+          unitPrice: li.unitPrice,
+          unitCost: li.unitCost,
+          lineTotal: li.lineTotal,
+        })),
+      }));
 
     if (existingOrder && !order.user_id && guestEmail && !order.guest_email) {
       await ordersRepo.updateGuestEmail(order.id, guestEmail);
@@ -227,8 +242,8 @@ export class CheckoutService {
     }
 
     // Build success/cancel URLs
-    const siteUrl = env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    
+    const siteUrl = env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
     const successUrl = `${siteUrl}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${siteUrl}/checkout/cancel`;
 

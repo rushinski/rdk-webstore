@@ -1,6 +1,6 @@
 // src/repositories/tenant-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type TenantRow = Tables<"tenants">;
 type TenantInsert = TablesInsert<"tenants">;
