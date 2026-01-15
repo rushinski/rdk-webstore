@@ -14,7 +14,7 @@ export default async function NexusPage() {
   return (
     <div className="min-h-screen bg-black">
       <AdminSidebar userEmail={session.user.email} role={session.role} />
-      <main className="md:ml-64">
+      <main className="flex-1 p-6">
         <NexusTrackerClient />
       </main>
     </div>
