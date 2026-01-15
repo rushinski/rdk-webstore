@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 import { security, startsWithAny, isCsrfUnsafeMethod } from "@/config/security";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { refreshSession } from "@/lib/supabase/proxy";
+import { refreshSession } from "@/lib/supabase/session-refresh";
 import { generateRequestId } from "@/lib/http/request-id";
 
 import { applyRateLimit } from "@/proxy/rate-limit";

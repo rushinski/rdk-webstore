@@ -2,7 +2,7 @@
 
 import Stripe from "stripe";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { AdminSupabaseClient } from "@/lib/supabase/admin";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";

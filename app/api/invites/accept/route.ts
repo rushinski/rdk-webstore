@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireUserApi } from "@/lib/auth/session";
 import { AdminInviteService } from "@/services/admin-invite-service";
 import { adminInviteAcceptSchema } from "@/lib/validation/admin";
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { ok: true, role: result.role },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: message, requestId },
-      { status, headers: { "Cache-Control": "no-store" } }
+      { status, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

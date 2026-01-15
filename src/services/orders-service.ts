@@ -1,7 +1,7 @@
 // src/services/orders-service.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { AdminSupabaseClient } from "@/lib/supabase/admin";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";

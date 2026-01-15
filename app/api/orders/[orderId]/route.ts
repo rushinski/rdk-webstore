@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { OrdersService } from "@/services/orders-service";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
@@ -20,7 +20,7 @@ const querySchema = z
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { orderId } = await params;
@@ -33,14 +33,14 @@ export async function GET(
   if (!paramsParsed.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: paramsParsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
   if (!queryParsed.success) {
     return NextResponse.json(
       { error: "Invalid query", issues: queryParsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -48,7 +48,9 @@ export async function GET(
     const supabase = await createSupabaseServerClient();
 
     // Get user (optional)
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
 
     // Get access token from query (for guest access)
@@ -60,7 +62,7 @@ export async function GET(
     const status = await ordersService.getOrderStatus(
       paramsParsed.data.orderId,
       userId,
-      accessToken
+      accessToken,
     );
 
     return NextResponse.json(status, {
@@ -76,13 +78,13 @@ export async function GET(
     if (error.message === "Unauthorized" || error.message === "Order not found") {
       return NextResponse.json(
         { error: error.message, requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to fetch order status", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

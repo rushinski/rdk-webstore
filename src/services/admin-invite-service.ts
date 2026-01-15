@@ -1,6 +1,6 @@
 // src/services/admin-invite-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { AdminSupabaseClient } from "@/lib/supabase/admin";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { AdminInvitesRepository } from "@/repositories/admin-invites-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import type { ProfileRole } from "@/config/constants/roles";

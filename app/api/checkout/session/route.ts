@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { CheckoutService } from "@/services/checkout-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
@@ -16,13 +16,15 @@ export async function POST(request: NextRequest) {
     const supabase = await createSupabaseServerClient();
 
     // Get user (optional)
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
 
     if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
       return NextResponse.json(
         { error: "GUEST_CHECKOUT_DISABLED", code: "GUEST_CHECKOUT_DISABLED", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -82,9 +84,14 @@ export async function POST(request: NextRequest) {
           requestId,
         },
         {
-          status: error.message === "GUEST_EMAIL_REQUIRED" ? 400 : error.message === "GUEST_CHECKOUT_DISABLED" ? 403 : 409,
+          status:
+            error.message === "GUEST_EMAIL_REQUIRED"
+              ? 400
+              : error.message === "GUEST_CHECKOUT_DISABLED"
+                ? 403
+                : 409,
           headers: { "Cache-Control": "no-store" },
-        }
+        },
       );
     }
 
@@ -94,7 +101,7 @@ export async function POST(request: NextRequest) {
         message: error.message,
         requestId,
       },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

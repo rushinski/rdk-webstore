@@ -2,7 +2,7 @@
 import Stripe from "stripe";
 import { revalidateTag } from "next/cache";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { AdminSupabaseClient } from "@/lib/supabase/admin";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
@@ -38,7 +38,7 @@ export class StripeOrderJob {
 
   constructor(
     private readonly supabase: TypedSupabaseClient,
-    private readonly adminSupabase?: AdminSupabaseClient
+    private readonly adminSupabase?: AdminSupabaseClient,
   ) {
     const primarySupabase = adminSupabase ?? supabase;
     this.ordersRepo = new OrdersRepository(primarySupabase);
@@ -48,15 +48,26 @@ export class StripeOrderJob {
     this.orderEventsRepo = new OrderEventsRepository(primarySupabase);
     this.productService = new ProductService(primarySupabase);
     this.orderEmailService = new OrderEmailService();
-    this.orderAccessTokens = adminSupabase ? new OrderAccessTokenService(adminSupabase) : null;
+    this.orderAccessTokens = adminSupabase
+      ? new OrderAccessTokenService(adminSupabase)
+      : null;
   }
 
-  async processCheckoutSessionCompleted(event: Stripe.Event, requestId: string): Promise<void> {
+  async processCheckoutSessionCompleted(
+    event: Stripe.Event,
+    requestId: string,
+  ): Promise<void> {
     const eventId = event.id;
 
     const alreadyProcessed = await this.eventsRepo.hasProcessed(eventId);
     if (alreadyProcessed) {
-      log({ level: "info", layer: "job", message: "stripe_event_already_processed", requestId, stripeEventId: eventId });
+      log({
+        level: "info",
+        layer: "job",
+        message: "stripe_event_already_processed",
+        requestId,
+        stripeEventId: eventId,
+      });
       return;
     }
 
@@ -64,15 +75,39 @@ export class StripeOrderJob {
     const orderId = session.metadata?.order_id;
 
     if (!orderId) {
-      log({ level: "warn", layer: "job", message: "stripe_event_missing_order_id", requestId, stripeEventId: eventId });
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object);
+      log({
+        level: "warn",
+        layer: "job",
+        message: "stripe_event_missing_order_id",
+        requestId,
+        stripeEventId: eventId,
+      });
+      await this.eventsRepo.recordProcessed(
+        eventId,
+        event.type,
+        event.created,
+        event.data.object,
+      );
       return;
     }
 
     const order = await this.ordersRepo.getById(orderId);
     if (!order) {
-      log({ level: "error", layer: "job", message: "stripe_event_order_not_found", requestId, stripeEventId: eventId, orderId });
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+      log({
+        level: "error",
+        layer: "job",
+        message: "stripe_event_order_not_found",
+        requestId,
+        stripeEventId: eventId,
+        orderId,
+      });
+      await this.eventsRepo.recordProcessed(
+        eventId,
+        event.type,
+        event.created,
+        event.data.object,
+        orderId,
+      );
       return;
     }
 
@@ -84,9 +119,20 @@ export class StripeOrderJob {
     }));
 
     const paymentIntentId = session.payment_intent as string;
-    const didMarkPaid = await this.ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+    const didMarkPaid = await this.ordersRepo.markPaidTransactionally(
+      orderId,
+      paymentIntentId,
+      itemsToDecrement,
+    );
     if (!didMarkPaid) {
-      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
+      log({
+        level: "info",
+        layer: "job",
+        message: "stripe_event_order_already_paid",
+        requestId,
+        stripeEventId: eventId,
+        orderId,
+      });
     }
 
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];
@@ -115,7 +161,9 @@ export class StripeOrderJob {
     }
 
     let sessionEmail = session.customer_details?.email ?? session.customer_email ?? null;
-    let shippingSnapshot = null as Awaited<ReturnType<AddressesRepository["getOrderShipping"]>> | null;
+    let shippingSnapshot = null as Awaited<
+      ReturnType<AddressesRepository["getOrderShipping"]>
+    > | null;
     const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
 
     const retrieved = await stripe.checkout.sessions.retrieve(session.id, {
@@ -171,7 +219,7 @@ export class StripeOrderJob {
         }
 
         // Set initial fulfillment status for the admin shipping queue
-        await this.ordersRepo.setFulfillmentStatus(orderId, 'unfulfilled');
+        await this.ordersRepo.setFulfillmentStatus(orderId, "unfulfilled");
       }
     }
 
@@ -179,7 +227,13 @@ export class StripeOrderJob {
       shippingSnapshot = await this.addressesRepo.getOrderShipping(orderId);
     }
 
-    await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+    await this.eventsRepo.recordProcessed(
+      eventId,
+      event.type,
+      event.created,
+      event.data.object,
+      orderId,
+    );
 
     if (this.adminSupabase) {
       try {
@@ -253,8 +307,14 @@ export class StripeOrderJob {
       });
 
       if (email) {
-        const hasConfirmationEvent = await this.orderEventsRepo.hasEvent(order.id, "confirmation_email_sent");
-        const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
+        const hasConfirmationEvent = await this.orderEventsRepo.hasEvent(
+          order.id,
+          "confirmation_email_sent",
+        );
+        const hasPickupEvent = await this.orderEventsRepo.hasEvent(
+          order.id,
+          "pickup_instructions_sent",
+        );
 
         if (!hasConfirmationEvent) {
           await this.orderEmailService.sendOrderConfirmation({
@@ -294,7 +354,8 @@ export class StripeOrderJob {
               message: "order_event_create_failed",
               requestId,
               orderId: order.id,
-              error: eventError instanceof Error ? eventError.message : String(eventError),
+              error:
+                eventError instanceof Error ? eventError.message : String(eventError),
             });
           }
         }
@@ -319,7 +380,8 @@ export class StripeOrderJob {
               message: "order_event_create_failed",
               requestId,
               orderId: order.id,
-              error: eventError instanceof Error ? eventError.message : String(eventError),
+              error:
+                eventError instanceof Error ? eventError.message : String(eventError),
             });
           }
         }
@@ -336,15 +398,31 @@ export class StripeOrderJob {
       });
     }
 
-    log({ level: "info", layer: "job", message: "stripe_order_completed", requestId, stripeEventId: eventId, orderId });
+    log({
+      level: "info",
+      layer: "job",
+      message: "stripe_order_completed",
+      requestId,
+      stripeEventId: eventId,
+      orderId,
+    });
   }
 
-  async processPaymentIntentSucceeded(event: Stripe.Event, requestId: string): Promise<void> {
+  async processPaymentIntentSucceeded(
+    event: Stripe.Event,
+    requestId: string,
+  ): Promise<void> {
     const eventId = event.id;
 
     const alreadyProcessed = await this.eventsRepo.hasProcessed(eventId);
     if (alreadyProcessed) {
-      log({ level: "info", layer: "job", message: "stripe_event_already_processed", requestId, stripeEventId: eventId });
+      log({
+        level: "info",
+        layer: "job",
+        message: "stripe_event_already_processed",
+        requestId,
+        stripeEventId: eventId,
+      });
       return;
     }
 
@@ -352,15 +430,39 @@ export class StripeOrderJob {
     const orderId = paymentIntent.metadata?.order_id;
 
     if (!orderId) {
-      log({ level: "warn", layer: "job", message: "stripe_event_missing_order_id", requestId, stripeEventId: eventId });
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object);
+      log({
+        level: "warn",
+        layer: "job",
+        message: "stripe_event_missing_order_id",
+        requestId,
+        stripeEventId: eventId,
+      });
+      await this.eventsRepo.recordProcessed(
+        eventId,
+        event.type,
+        event.created,
+        event.data.object,
+      );
       return;
     }
 
     const order = await this.ordersRepo.getById(orderId);
     if (!order) {
-      log({ level: "error", layer: "job", message: "stripe_event_order_not_found", requestId, stripeEventId: eventId, orderId });
-      await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+      log({
+        level: "error",
+        layer: "job",
+        message: "stripe_event_order_not_found",
+        requestId,
+        stripeEventId: eventId,
+        orderId,
+      });
+      await this.eventsRepo.recordProcessed(
+        eventId,
+        event.type,
+        event.created,
+        event.data.object,
+        orderId,
+      );
       return;
     }
 
@@ -371,9 +473,20 @@ export class StripeOrderJob {
       quantity: item.quantity,
     }));
 
-    const didMarkPaid = await this.ordersRepo.markPaidTransactionally(orderId, paymentIntent.id, itemsToDecrement);
+    const didMarkPaid = await this.ordersRepo.markPaidTransactionally(
+      orderId,
+      paymentIntent.id,
+      itemsToDecrement,
+    );
     if (!didMarkPaid) {
-      log({ level: "info", layer: "job", message: "stripe_event_order_already_paid", requestId, stripeEventId: eventId, orderId });
+      log({
+        level: "info",
+        layer: "job",
+        message: "stripe_event_order_already_paid",
+        requestId,
+        stripeEventId: eventId,
+        orderId,
+      });
     }
 
     const productIds = [...new Set(orderItems.map((item) => item.product_id))];
@@ -402,7 +515,9 @@ export class StripeOrderJob {
     }
 
     const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
-    let shippingSnapshot = null as Awaited<ReturnType<AddressesRepository["getOrderShipping"]>> | null;
+    let shippingSnapshot = null as Awaited<
+      ReturnType<AddressesRepository["getOrderShipping"]>
+    > | null;
 
     if (fulfillment === "ship") {
       const shipping = paymentIntent.shipping;
@@ -447,7 +562,13 @@ export class StripeOrderJob {
       }
     }
 
-    await this.eventsRepo.recordProcessed(eventId, event.type, event.created, event.data.object, orderId);
+    await this.eventsRepo.recordProcessed(
+      eventId,
+      event.type,
+      event.created,
+      event.data.object,
+      orderId,
+    );
 
     if (this.adminSupabase) {
       try {
@@ -520,8 +641,14 @@ export class StripeOrderJob {
       });
 
       if (email) {
-        const hasConfirmationEvent = await this.orderEventsRepo.hasEvent(order.id, "confirmation_email_sent");
-        const hasPickupEvent = await this.orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
+        const hasConfirmationEvent = await this.orderEventsRepo.hasEvent(
+          order.id,
+          "confirmation_email_sent",
+        );
+        const hasPickupEvent = await this.orderEventsRepo.hasEvent(
+          order.id,
+          "pickup_instructions_sent",
+        );
 
         if (!hasConfirmationEvent) {
           await this.orderEmailService.sendOrderConfirmation({
@@ -561,7 +688,8 @@ export class StripeOrderJob {
               message: "order_event_create_failed",
               requestId,
               orderId: order.id,
-              error: eventError instanceof Error ? eventError.message : String(eventError),
+              error:
+                eventError instanceof Error ? eventError.message : String(eventError),
             });
           }
         }
@@ -586,7 +714,8 @@ export class StripeOrderJob {
               message: "order_event_create_failed",
               requestId,
               orderId: order.id,
-              error: eventError instanceof Error ? eventError.message : String(eventError),
+              error:
+                eventError instanceof Error ? eventError.message : String(eventError),
             });
           }
         }
@@ -603,7 +732,13 @@ export class StripeOrderJob {
       });
     }
 
-    log({ level: "info", layer: "job", message: "stripe_order_completed", requestId, stripeEventId: eventId, orderId });
+    log({
+      level: "info",
+      layer: "job",
+      message: "stripe_order_completed",
+      requestId,
+      stripeEventId: eventId,
+      orderId,
+    });
   }
 }
-

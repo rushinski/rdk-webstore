@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { ProductRepository } from "@/repositories/product-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -25,14 +25,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const supabase = await createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
     const userEmail = user?.email ?? null;
 
     if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
       return NextResponse.json(
         { error: "GUEST_CHECKOUT_DISABLED", code: "GUEST_CHECKOUT_DISABLED", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -45,16 +47,17 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } = parsed.data;
+    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } =
+      parsed.data;
 
     if (!userId && !guestEmail) {
       return NextResponse.json(
         { error: "GUEST_EMAIL_REQUIRED", code: "GUEST_EMAIL_REQUIRED", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -64,25 +67,31 @@ export async function POST(request: NextRequest) {
 
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
-      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
+      const expiresAt = existingOrder.expires_at
+        ? new Date(existingOrder.expires_at)
+        : null;
       if (expiresAt && expiresAt < new Date()) {
         return NextResponse.json(
-          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId },
-          { status: 409, headers: { "Cache-Control": "no-store" } }
+          {
+            error: "IDEMPOTENCY_KEY_EXPIRED",
+            code: "IDEMPOTENCY_KEY_EXPIRED",
+            requestId,
+          },
+          { status: 409, headers: { "Cache-Control": "no-store" } },
         );
       }
 
       if (existingOrder.cart_hash !== cartHash) {
         return NextResponse.json(
           { error: "CART_MISMATCH", code: "CART_MISMATCH", requestId },
-          { status: 409, headers: { "Cache-Control": "no-store" } }
+          { status: 409, headers: { "Cache-Control": "no-store" } },
         );
       }
 
       if (existingOrder.status === "paid") {
         return NextResponse.json(
           { status: "paid", orderId: existingOrder.id, requestId },
-          { headers: { "Cache-Control": "no-store" } }
+          { headers: { "Cache-Control": "no-store" } },
         );
       }
 
@@ -92,20 +101,24 @@ export async function POST(request: NextRequest) {
 
       if (existingOrder.stripe_payment_intent_id) {
         const paymentIntent = await stripe.paymentIntents.retrieve(
-          existingOrder.stripe_payment_intent_id
+          existingOrder.stripe_payment_intent_id,
         );
 
         if (paymentIntent.status === "succeeded") {
           return NextResponse.json(
             { status: "paid", orderId: existingOrder.id, requestId },
-            { headers: { "Cache-Control": "no-store" } }
+            { headers: { "Cache-Control": "no-store" } },
           );
         }
 
         if (paymentIntent.status === "canceled") {
           return NextResponse.json(
-            { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
-            { status: 409, headers: { "Cache-Control": "no-store" } }
+            {
+              error: "PAYMENT_INTENT_CANCELED",
+              code: "PAYMENT_INTENT_CANCELED",
+              requestId,
+            },
+            { status: 409, headers: { "Cache-Control": "no-store" } },
           );
         }
 
@@ -121,7 +134,7 @@ export async function POST(request: NextRequest) {
             fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
             requestId,
           },
-          { headers: { "Cache-Control": "no-store" } }
+          { headers: { "Cache-Control": "no-store" } },
         );
       }
     }
@@ -134,28 +147,31 @@ export async function POST(request: NextRequest) {
     if (products.length === 0) {
       return NextResponse.json(
         { error: "No valid products found", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const productMap = new Map(products.map((p) => [p.id, p]));
 
     const tenantIds = new Set(
-      products.map((p) => p.tenantId).filter((id): id is string => Boolean(id))
+      products.map((p) => p.tenantId).filter((id): id is string => Boolean(id)),
     );
     if (tenantIds.size !== 1) {
       return NextResponse.json(
         { error: "Checkout requires a single tenant", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
     const [tenantId] = [...tenantIds];
 
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
+      tenantId,
+      categories,
+    );
     const shippingDefaultsMap = new Map(
-      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
+      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)]),
     );
 
     const lineItems = items.map((item: any) => {
@@ -195,11 +211,11 @@ export async function POST(request: NextRequest) {
     // Get home state and office address for pickup tax calculation
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
-    const homeState = taxSettings?.home_state ?? 'SC';
+    const homeState = taxSettings?.home_state ?? "SC";
 
     // Calculate tax using Stripe Tax
     const taxService = new StripeTaxService(adminSupabase);
-    
+
     // For pickup, get the actual office address from Stripe Tax Settings
     let customerAddress: {
       line1: string;
@@ -227,11 +243,11 @@ export async function POST(request: NextRequest) {
       } else {
         // Fallback if office address not configured
         customerAddress = {
-          line1: '123 Main St',
-          city: 'Charleston',
+          line1: "123 Main St",
+          city: "Charleston",
           state: homeState,
-          postal_code: '29401',
-          country: 'US',
+          postal_code: "29401",
+          country: "US",
         };
       }
     }
@@ -239,7 +255,7 @@ export async function POST(request: NextRequest) {
     const taxCalc = await taxService.calculateTax({
       currency: "usd",
       customerAddress,
-      lineItems: lineItems.map(item => ({
+      lineItems: lineItems.map((item) => ({
         amount: Math.round(item.unitPrice * 100),
         quantity: item.quantity,
         productId: item.productId,
@@ -253,38 +269,41 @@ export async function POST(request: NextRequest) {
 
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-    const order = existingOrder ?? await ordersRepo.createPendingOrder({
-      userId,
-      guestEmail: guestEmail ?? null,
-      tenantId,
-      currency: "USD",
-      subtotal,
-      shipping,
-      total,
-      fulfillment: normalizedFulfillment,
-      idempotencyKey,
-      cartHash,
-      expiresAt,
-      items: lineItems.map((li) => ({
-        productId: li.productId,
-        variantId: li.variantId,
-        quantity: li.quantity,
-        unitPrice: li.unitPrice,
-        unitCost: li.unitCost,
-        lineTotal: li.lineTotal,
-      })),
-    });
+    const order =
+      existingOrder ??
+      (await ordersRepo.createPendingOrder({
+        userId,
+        guestEmail: guestEmail ?? null,
+        tenantId,
+        currency: "USD",
+        subtotal,
+        shipping,
+        total,
+        fulfillment: normalizedFulfillment,
+        idempotencyKey,
+        cartHash,
+        expiresAt,
+        items: lineItems.map((li) => ({
+          productId: li.productId,
+          variantId: li.variantId,
+          quantity: li.quantity,
+          unitPrice: li.unitPrice,
+          unitCost: li.unitCost,
+          lineTotal: li.lineTotal,
+        })),
+      }));
 
     // Update order with tax info
-    const customerState = normalizedFulfillment === "ship" ? shippingAddress?.state : homeState;
+    const customerState =
+      normalizedFulfillment === "ship" ? shippingAddress?.state : homeState;
     await adminSupabase
-      .from('orders')
+      .from("orders")
       .update({
         tax_amount: tax,
         tax_calculation_id: taxCalc.taxCalculationId,
         customer_state: customerState,
       })
-      .eq('id', order.id);
+      .eq("id", order.id);
 
     let stripeCustomerId: string | undefined;
     let receiptEmail: string | undefined;
@@ -314,13 +333,13 @@ export async function POST(request: NextRequest) {
           order_id: order.id,
           cart_hash: cartHash,
           fulfillment: normalizedFulfillment,
-          tax_calculation_id: taxCalc.taxCalculationId ?? '',
+          tax_calculation_id: taxCalc.taxCalculationId ?? "",
         },
         automatic_payment_methods: {
           enabled: true,
         },
       },
-      { idempotencyKey }
+      { idempotencyKey },
     );
 
     log({
@@ -350,7 +369,7 @@ export async function POST(request: NextRequest) {
         fulfillment: normalizedFulfillment,
         requestId,
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -361,7 +380,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: error.message || "Failed to create payment intent", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

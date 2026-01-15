@@ -1,6 +1,6 @@
 // src/services/chat-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { AdminSupabaseClient } from "@/lib/supabase/admin";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { ChatsRepository } from "@/repositories/chats-repo";
 import { ChatMessagesRepository } from "@/repositories/chat-messages-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";

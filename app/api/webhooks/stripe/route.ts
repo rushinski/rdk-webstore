@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { StripeOrderJob } from "@/jobs/stripe-order-job";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         { error: "Missing signature", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       });
       return NextResponse.json(
         { error: "Invalid signature", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -69,12 +69,12 @@ export async function POST(request: NextRequest) {
 
       case "payment_intent.succeeded":
         await job.processPaymentIntentSucceeded(event, requestId);
-        
+
         // Record tax transaction if tax calculation ID exists
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const taxCalculationId = paymentIntent.metadata?.tax_calculation_id;
         const orderId = paymentIntent.metadata?.order_id;
-        
+
         if (taxCalculationId && orderId) {
           try {
             const taxService = new StripeTaxService(adminSupabase);
@@ -85,9 +85,9 @@ export async function POST(request: NextRequest) {
 
             if (taxTransactionId) {
               await adminSupabase
-                .from('orders')
+                .from("orders")
                 .update({ stripe_tax_transaction_id: taxTransactionId })
-                .eq('id', orderId);
+                .eq("id", orderId);
 
               log({
                 level: "info",
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { received: true },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Internal error", requestId },
-      { status: 200, headers: { "Cache-Control": "no-store" } }
+      { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -175,11 +175,11 @@ export async function POST(request: NextRequest) {
 async function handleRefundEvent(
   event: Stripe.Event,
   requestId: string,
-  adminSupabase: any
+  adminSupabase: any,
 ) {
   try {
     const refund = event.data.object as Stripe.Refund;
-    
+
     log({
       level: "info",
       layer: "stripe",
@@ -193,8 +193,9 @@ async function handleRefundEvent(
       reason: refund.reason,
     });
 
-    const chargeId = typeof refund.charge === 'string' ? refund.charge : refund.charge?.id;
-    
+    const chargeId =
+      typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+
     if (!chargeId) {
       log({
         level: "warn",
@@ -209,7 +210,9 @@ async function handleRefundEvent(
     const { data: orders, error: queryError } = await adminSupabase
       .from("orders")
       .select("id, status, refund_amount, refund_reason")
-      .or(`stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`)
+      .or(
+        `stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`,
+      )
       .limit(1);
 
     if (queryError) {
@@ -232,16 +235,16 @@ async function handleRefundEvent(
 
     const updateData: any = {
       refund_amount: refund.amount,
-      refund_reason: refund.reason || 'requested_by_customer',
+      refund_reason: refund.reason || "requested_by_customer",
       refunded_at: new Date(refund.created * 1000).toISOString(),
     };
 
-    if (refund.status === 'succeeded') {
-      updateData.status = 'refunded';
-    } else if (refund.status === 'pending') {
-      updateData.status = 'refund_pending';
-    } else if (refund.status === 'failed') {
-      updateData.status = 'refund_failed';
+    if (refund.status === "succeeded") {
+      updateData.status = "refunded";
+    } else if (refund.status === "pending") {
+      updateData.status = "refund_pending";
+    } else if (refund.status === "failed") {
+      updateData.status = "refund_failed";
     }
 
     const { error: updateError } = await adminSupabase
@@ -263,7 +266,6 @@ async function handleRefundEvent(
       amount: refund.amount,
       refund_status: refund.status,
     });
-
   } catch (error: any) {
     logError(error, {
       layer: "stripe",

@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/config/env";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
@@ -18,7 +18,10 @@ import {
 
 type EmailTrigger = "in_transit" | "delivered" | null;
 
-const getEmailTrigger = (currentStatus: string | null, newStatus: string): EmailTrigger => {
+const getEmailTrigger = (
+  currentStatus: string | null,
+  newStatus: string,
+): EmailTrigger => {
   if (currentStatus === newStatus) return null;
 
   if (newStatus === "shipped" && currentStatus !== "shipped") return "in_transit";
@@ -73,11 +76,11 @@ export async function POST(req: NextRequest) {
     }
 
     const data = trackingEvent.data.data ?? {};
-    
+
     // Shippo webhook sends tracking_number and tracking_status
-    const trackingNumber: string | undefined = 
+    const trackingNumber: string | undefined =
       data.tracking_number ?? data.trackingNumber;
-    
+
     const trackingStatus = data.tracking_status ?? data.trackingStatus;
     const statusRaw: string | undefined = trackingStatus?.status;
 
@@ -156,7 +159,9 @@ export async function POST(req: NextRequest) {
 
     if (emailTrigger && (order.user_id || order.guest_email)) {
       try {
-        const profile = order.user_id ? await profilesRepo.getByUserId(order.user_id) : null;
+        const profile = order.user_id
+          ? await profilesRepo.getByUserId(order.user_id)
+          : null;
         const email = profile?.email ?? order.guest_email ?? null;
         if (!email) return NextResponse.json({ ok: true });
 
@@ -164,9 +169,7 @@ export async function POST(req: NextRequest) {
 
         const carrier = order.shipping_carrier ?? data.carrier ?? null;
         const trackingUrl =
-          data.tracking_url_provider ??
-          data.trackingUrlProvider ??
-          null;
+          data.tracking_url_provider ?? data.trackingUrlProvider ?? null;
 
         let orderUrl: string | null = null;
         if (!order.user_id && order.guest_email) {

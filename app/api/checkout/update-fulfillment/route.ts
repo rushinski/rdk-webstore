@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -44,35 +44,35 @@ export async function POST(request: NextRequest) {
     if (!order) {
       return NextResponse.json(
         { error: "Order not found", requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!userId && order.user_id) {
       return NextResponse.json(
         { error: "Unauthorized", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (userId && order.user_id && order.user_id !== userId) {
       return NextResponse.json(
         { error: "Unauthorized", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (order.status !== "pending") {
       return NextResponse.json(
         { error: "ORDER_NOT_PENDING", code: "ORDER_NOT_PENDING", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!order.stripe_payment_intent_id) {
       return NextResponse.json(
         { error: "MISSING_PAYMENT_INTENT", code: "MISSING_PAYMENT_INTENT", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
     if (orderItems.length === 0) {
       return NextResponse.json(
         { error: "Order has no items", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -91,33 +91,38 @@ export async function POST(request: NextRequest) {
     if (products.length === 0) {
       return NextResponse.json(
         { error: "No valid products found", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const productMap = new Map(products.map((product) => [product.id, product]));
 
     const tenantIds = new Set(
-      products.map((product) => product.tenantId).filter((id): id is string => Boolean(id))
+      products
+        .map((product) => product.tenantId)
+        .filter((id): id is string => Boolean(id)),
     );
     if (tenantIds.size !== 1) {
       return NextResponse.json(
         { error: "Checkout requires a single tenant", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
     const [tenantId] = [...tenantIds];
 
     const categories = [...new Set(products.map((product) => product.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
+      tenantId,
+      categories,
+    );
     const shippingDefaultsMap = new Map(
-      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)])
+      shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)]),
     );
 
     const subtotal = orderItems.reduce(
       (sum, item) => sum + Number(item.unit_price ?? 0) * Number(item.quantity ?? 0),
-      0
+      0,
     );
 
     let shipping = 0;
@@ -138,22 +143,24 @@ export async function POST(request: NextRequest) {
         variantId: item.variant_id,
         quantity: item.quantity,
       })),
-      fulfillment
+      fulfillment,
     );
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(order.stripe_payment_intent_id);
+    const paymentIntent = await stripe.paymentIntents.retrieve(
+      order.stripe_payment_intent_id,
+    );
 
     if (paymentIntent.status === "succeeded") {
       return NextResponse.json(
         { error: "ORDER_ALREADY_PAID", code: "ORDER_ALREADY_PAID", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (paymentIntent.status === "canceled") {
       return NextResponse.json(
         { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -175,7 +182,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { subtotal, shipping, total, fulfillment, requestId },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -186,7 +193,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to update fulfillment", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

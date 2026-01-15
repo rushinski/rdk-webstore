@@ -1,7 +1,7 @@
 // app/api/chats/[chatId]/messages/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
 import { chatIdParamsSchema, sendChatMessageSchema } from "@/lib/validation/chat";
@@ -10,7 +10,7 @@ import { logError } from "@/lib/log";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ chatId: string }> }
+  { params }: { params: Promise<{ chatId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { chatId } = await params;
@@ -19,7 +19,7 @@ export async function GET(
   if (!parsedParams.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: parsedParams.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -30,10 +30,7 @@ export async function GET(
 
     const messages = await chatService.listMessages(parsedParams.data.chatId);
 
-    return NextResponse.json(
-      { messages },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ messages }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -43,14 +40,14 @@ export async function GET(
 
     return NextResponse.json(
       { error: "Failed to load messages", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ chatId: string }> }
+  { params }: { params: Promise<{ chatId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { chatId } = await params;
@@ -59,7 +56,7 @@ export async function POST(
   if (!parsedParams.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: parsedParams.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -69,7 +66,7 @@ export async function POST(
   if (!parsedBody.success) {
     return NextResponse.json(
       { error: "Invalid payload", issues: parsedBody.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -85,10 +82,7 @@ export async function POST(
       body: parsedBody.data.message,
     });
 
-    return NextResponse.json(
-      { message },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ message }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -101,7 +95,7 @@ export async function POST(
 
     return NextResponse.json(
       { error: message, requestId },
-      { status, headers: { "Cache-Control": "no-store" } }
+      { status, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

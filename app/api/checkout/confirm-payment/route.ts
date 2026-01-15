@@ -1,7 +1,7 @@
 // app/api/checkout/confirm-payment/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import Stripe from "stripe";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -54,21 +54,21 @@ export async function POST(request: NextRequest) {
     if (!order) {
       return NextResponse.json(
         { error: "Order not found", requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!userId && order.user_id) {
       return NextResponse.json(
         { error: "Unauthorized", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (userId && order.user_id && order.user_id !== userId) {
       return NextResponse.json(
         { error: "Unauthorized", requestId },
-        { status: 403, headers: { "Cache-Control": "no-store" } }
+        { status: 403, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -76,29 +76,40 @@ export async function POST(request: NextRequest) {
 
     if (paymentIntent.metadata?.order_id && paymentIntent.metadata.order_id !== orderId) {
       return NextResponse.json(
-        { error: "Payment intent does not match order", code: "PAYMENT_INTENT_MISMATCH", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Payment intent does not match order",
+          code: "PAYMENT_INTENT_MISMATCH",
+          requestId,
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    if (order.stripe_payment_intent_id && order.stripe_payment_intent_id !== paymentIntentId) {
+    if (
+      order.stripe_payment_intent_id &&
+      order.stripe_payment_intent_id !== paymentIntentId
+    ) {
       return NextResponse.json(
-        { error: "Payment intent already attached to order", code: "PAYMENT_INTENT_CONFLICT", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Payment intent already attached to order",
+          code: "PAYMENT_INTENT_CONFLICT",
+          requestId,
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (paymentIntent.status === "processing") {
       return NextResponse.json(
         { success: true, processing: true },
-        { status: 202, headers: { "Cache-Control": "no-store" } }
+        { status: 202, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (paymentIntent.status !== "succeeded") {
       return NextResponse.json(
         { error: "Payment not completed", code: "PAYMENT_NOT_SUCCEEDED", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -110,7 +121,7 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "Payment amount mismatch", code: "PAYMENT_AMOUNT_MISMATCH", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -122,8 +133,12 @@ export async function POST(request: NextRequest) {
 
     if (fulfillment && fulfillment !== expectedFulfillment) {
       return NextResponse.json(
-        { error: "Fulfillment mismatch. Please refresh checkout.", code: "FULFILLMENT_MISMATCH", requestId },
-        { status: 409, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Fulfillment mismatch. Please refresh checkout.",
+          code: "FULFILLMENT_MISMATCH",
+          requestId,
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -135,7 +150,11 @@ export async function POST(request: NextRequest) {
       quantity: item.quantity,
     }));
 
-    const didMarkPaid = await ordersRepo.markPaidTransactionally(orderId, paymentIntentId, itemsToDecrement);
+    const didMarkPaid = await ordersRepo.markPaidTransactionally(
+      orderId,
+      paymentIntentId,
+      itemsToDecrement,
+    );
     const alreadyPaid = order.status === "paid" || !didMarkPaid;
 
     if (didMarkPaid) {
@@ -263,8 +282,14 @@ export async function POST(request: NextRequest) {
         };
       });
 
-      const hasConfirmationEvent = await orderEventsRepo.hasEvent(order.id, "confirmation_email_sent");
-      const hasPickupEvent = await orderEventsRepo.hasEvent(order.id, "pickup_instructions_sent");
+      const hasConfirmationEvent = await orderEventsRepo.hasEvent(
+        order.id,
+        "confirmation_email_sent",
+      );
+      const hasPickupEvent = await orderEventsRepo.hasEvent(
+        order.id,
+        "pickup_instructions_sent",
+      );
       const shouldSendConfirmation = !hasConfirmationEvent;
       const shouldSendPickup = expectedFulfillment === "pickup" && !hasPickupEvent;
 
@@ -275,7 +300,9 @@ export async function POST(request: NextRequest) {
       }
 
       const shippingSnapshot =
-        expectedFulfillment === "ship" ? await addressesRepo.getOrderShipping(orderId) : null;
+        expectedFulfillment === "ship"
+          ? await addressesRepo.getOrderShipping(orderId)
+          : null;
       const fallbackShipping = shippingSnapshot
         ? null
         : resolvedShipping
@@ -369,7 +396,7 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json(
       { success: true, alreadyPaid },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -380,7 +407,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: error.message || "Failed to confirm payment", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

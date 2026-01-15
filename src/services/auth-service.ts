@@ -1,6 +1,6 @@
 // src/services/auth-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { EmailSubscriberRepository } from "@/repositories/email-subscriber-repo";
 
@@ -142,7 +142,7 @@ export class AuthService {
     // During signup, the user is being created, so RLS policies that check
     // auth.uid() will fail. Admin client bypasses RLS.
     const adminClient = createSupabaseAdminClient();
-    
+
     // Get the default tenant using admin client
     const { data: firstTenant, error: tenantError } = await adminClient
       .from("tenants")

@@ -1,4 +1,4 @@
-// src/lib/supabase/proxy.ts
+// src/lib/supabase/session-refresh.ts
 // used to refresh supabase session cookies
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -31,6 +31,8 @@ export async function refreshSession(request: NextRequest) {
     },
   );
 
+  // @ts-expect-error - suppressGetSessionWarning is not officially documented but is the correct way to suppress the misleading warning
+  supabase.auth.suppressGetSessionWarning = true;
   // IMPORTANT: This call refreshes the session
   // Do not run code between createServerClient and getClaims()
   await supabase.auth.getClaims();

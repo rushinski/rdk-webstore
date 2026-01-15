@@ -1,7 +1,7 @@
 // app/api/admin/shipping/rates/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingOriginsRepository } from "@/repositories/shipping-origins-repo";
 import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
@@ -38,7 +38,10 @@ const ratesSchema = z
   })
   .strict();
 
-const normalizeCarrier = (v: unknown) => String(v ?? "").trim().toUpperCase();
+const normalizeCarrier = (v: unknown) =>
+  String(v ?? "")
+    .trim()
+    .toUpperCase();
 
 const toShippoAddress = (address: {
   name?: string | null;
@@ -51,7 +54,14 @@ const toShippoAddress = (address: {
   postal_code?: string | null;
   country?: string | null;
 }) => {
-  if (!address.line1 || !address.city || !address.state || !address.postal_code || !address.country) return null;
+  if (
+    !address.line1 ||
+    !address.city ||
+    !address.state ||
+    !address.postal_code ||
+    !address.country
+  )
+    return null;
 
   return {
     name: address.name ?? undefined,
@@ -80,7 +90,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: noStoreHeaders }
+        { status: 400, headers: noStoreHeaders },
       );
     }
 
@@ -101,8 +111,11 @@ export async function POST(request: NextRequest) {
 
     if (enabledSet.size === 0) {
       return NextResponse.json(
-        { error: "No carriers enabled. Please enable carriers in shipping settings.", requestId },
-        { status: 400, headers: noStoreHeaders }
+        {
+          error: "No carriers enabled. Please enable carriers in shipping settings.",
+          requestId,
+        },
+        { status: 400, headers: noStoreHeaders },
       );
     }
 
@@ -111,7 +124,7 @@ export async function POST(request: NextRequest) {
     if (!recipientSource) {
       return NextResponse.json(
         { error: "Recipient address not found for this order.", requestId },
-        { status: 404, headers: noStoreHeaders }
+        { status: 404, headers: noStoreHeaders },
       );
     }
 
@@ -119,7 +132,7 @@ export async function POST(request: NextRequest) {
     if (!recipientAddress) {
       return NextResponse.json(
         { error: "Recipient address is incomplete.", requestId },
-        { status: 400, headers: noStoreHeaders }
+        { status: 400, headers: noStoreHeaders },
       );
     }
 
@@ -128,7 +141,7 @@ export async function POST(request: NextRequest) {
     if (!shipper) {
       return NextResponse.json(
         { error: "Shipping origin address not configured in settings.", requestId },
-        { status: 400, headers: noStoreHeaders }
+        { status: 400, headers: noStoreHeaders },
       );
     }
 
@@ -136,7 +149,7 @@ export async function POST(request: NextRequest) {
     if (!shipperAddress) {
       return NextResponse.json(
         { error: "Shipping origin address is incomplete.", requestId },
-        { status: 400, headers: noStoreHeaders }
+        { status: 400, headers: noStoreHeaders },
       );
     }
 
@@ -145,13 +158,13 @@ export async function POST(request: NextRequest) {
     const normalizedShipment = await shippoService.createShipment(
       shipperAddress,
       recipientAddress,
-      parcel
+      parcel,
     );
 
     if (!normalizedShipment.id) {
       return NextResponse.json(
         { error: "Shippo shipment creation failed: missing shipment ID", requestId },
-        { status: 502, headers: noStoreHeaders }
+        { status: 502, headers: noStoreHeaders },
       );
     }
 
@@ -164,10 +177,11 @@ export async function POST(request: NextRequest) {
     if (filteredRates.length === 0) {
       return NextResponse.json(
         {
-          error: "No rates available for enabled carriers. Check your carrier settings or try different package dimensions.",
+          error:
+            "No rates available for enabled carriers. Check your carrier settings or try different package dimensions.",
           requestId,
         },
-        { status: 400, headers: noStoreHeaders }
+        { status: 400, headers: noStoreHeaders },
       );
     }
 
@@ -189,14 +203,14 @@ export async function POST(request: NextRequest) {
           rates: uiRates,
         },
       },
-      { headers: noStoreHeaders }
+      { headers: noStoreHeaders },
     );
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/shipping/rates" });
 
     return NextResponse.json(
       { error: error.message || "Failed to fetch shipping rates.", requestId },
-      { status: 500, headers: noStoreHeaders }
+      { status: 500, headers: noStoreHeaders },
     );
   }
 }

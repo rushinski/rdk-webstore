@@ -1,7 +1,7 @@
 // app/api/email/subscribe/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmailSubscriptionService } from "@/services/email-subscription-service";
 import { emailSubscribeSchema } from "@/lib/validation/email";
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (signedInMatch) {
       const status = await service.subscribeDirect(
         normalizedEmail,
-        parsed.data.source ?? "website"
+        parsed.data.source ?? "website",
       );
 
       if (status === "subscribed") {
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         { ok: true },
-        { headers: { "Cache-Control": "no-store" } }
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       normalizedEmail,
       parsed.data.source ?? "website",
       token,
-      expiresAt
+      expiresAt,
     );
 
     if (status === "pending") {
@@ -101,15 +101,12 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json(
           { ok: false, error: "Failed to send confirmation email.", requestId },
-          { status: 500, headers: { "Cache-Control": "no-store" } }
+          { status: 500, headers: { "Cache-Control": "no-store" } },
         );
       }
     }
 
-    return NextResponse.json(
-      { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -118,7 +115,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(
       { ok: false, error: "Subscription failed", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

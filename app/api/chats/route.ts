@@ -1,7 +1,7 @@
 // app/api/chats/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi, requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
 import { createChatSchema, listChatsQuerySchema } from "@/lib/validation/chat";
@@ -23,16 +23,13 @@ export async function GET(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid query", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const chats = await chatService.listAdminChats(parsed.data);
 
-    return NextResponse.json(
-      { chats },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ chats }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -42,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to load chats", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -58,7 +55,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -73,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { chat: result.chat, created: result.created },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -87,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: message, requestId },
-      { status, headers: { "Cache-Control": "no-store" } }
+      { status, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

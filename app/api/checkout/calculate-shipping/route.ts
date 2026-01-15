@@ -1,7 +1,7 @@
 // src/app/api/checkout/calculate-shipping/route.ts (NEW)
 
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { calculateShippingSchema } from "@/lib/validation/checkout";
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -29,40 +29,43 @@ export async function POST(request: NextRequest) {
 
     // Fetch products to get categories
     const products = await productsRepo.getProductsForCheckout(productIds);
-    
+
     if (products.length === 0) {
       return NextResponse.json(
         { shippingCost: 0, requestId },
-        { headers: { "Cache-Control": "no-store" } }
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const categories = [...new Set(products.map(p => p.category))];
+    const categories = [...new Set(products.map((p) => p.category))];
     const tenantIds = new Set(
-      products.map(p => p.tenantId).filter((id): id is string => Boolean(id))
+      products.map((p) => p.tenantId).filter((id): id is string => Boolean(id)),
     );
-    
+
     if (tenantIds.size !== 1) {
       return NextResponse.json(
         { shippingCost: 0, requestId },
-        { headers: { "Cache-Control": "no-store" } }
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const [tenantId] = [...tenantIds];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
+      tenantId,
+      categories,
+    );
 
     // Calculate max shipping (flat rate approach)
     const maxShippingCents = Math.max(
-      ...shippingDefaults.map(d => Number(d.shipping_cost_cents ?? 0)),
-      0
+      ...shippingDefaults.map((d) => Number(d.shipping_cost_cents ?? 0)),
+      0,
     );
     const maxShipping = maxShippingCents / 100;
 
     return NextResponse.json(
       { shippingCost: maxShipping, requestId },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to calculate shipping", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
