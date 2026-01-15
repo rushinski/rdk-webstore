@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { X, AlertTriangle, ExternalLink, CheckCircle } from "lucide-react";
 import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type SalesLog = {
   order_id: string;
@@ -34,16 +35,17 @@ type StateDetailModalProps = {
   onOpenHomeOffice: () => void;
 };
 
-export default function StateDetailModal({
-  state,
-  onClose,
-  onRegisterToggle,
-  onNexusTypeChange,
-  isUpdating,
-  formatCurrency,
-  isHomeOfficeConfigured,
-  onOpenHomeOffice,
-}: StateDetailModalProps) {
+export default function StateDetailModal(props: StateDetailModalProps) {
+  const {
+    state,
+    onClose,
+    onRegisterToggle,
+    onNexusTypeChange,
+    isUpdating,
+    formatCurrency,
+    isHomeOfficeConfigured,
+    onOpenHomeOffice,
+  } = props;
   const [salesLog, setSalesLog] = useState<SalesLog[]>([]);
   const [salesLogTotal, setSalesLogTotal] = useState(0);
   const [salesLogPage, setSalesLogPage] = useState(0);
@@ -111,53 +113,49 @@ export default function StateDetailModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 w-screen h-screen bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto"
-      onClick={onClose}
-    >
+    <ModalPortal open={true} onClose={onClose}>
       <div
-        className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 max-w-4xl w-full my-8"
+        className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-zinc-950 border border-zinc-800/70 rounded-sm shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800/70">
           <div>
-            <h2 className="text-2xl font-bold text-white">
+            <h2 className="text-xl font-semibold text-white">
               {state.stateName} ({state.stateCode})
             </h2>
 
             <div className="flex gap-2 mt-2 flex-wrap">
               {state.isRegistered ? (
-                <span className="px-2 py-1 bg-zinc-800 text-white text-xs rounded flex items-center gap-1">
+                <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-white text-xs rounded-sm flex items-center gap-1">
                   <CheckCircle className="w-3 h-3 text-green-500" />
                   Stripe collection enabled
                 </span>
               ) : (
-                <span className="px-2 py-1 bg-zinc-800 text-gray-300 text-xs rounded">
+                <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-zinc-300 text-xs rounded-sm">
                   Stripe collection not enabled
                 </span>
               )}
 
               {state.stripeRegistered && (
-                <span className="px-2 py-1 bg-green-700 text-white text-xs rounded">
+                <span className="px-2 py-1 bg-green-600/15 border border-green-600/25 text-green-300 text-xs rounded-sm">
                   Active in Stripe
                 </span>
               )}
 
-              <span className="px-2 py-1 bg-zinc-800 text-white text-xs rounded">
+              <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-white text-xs rounded-sm">
                 {state.nexusType === "physical" ? "Physical nexus" : "Economic nexus"}
               </span>
 
               {state.isHomeState && (
-                <span className="px-2 py-1 bg-blue-900/30 text-blue-300 text-xs rounded">
+                <span className="px-2 py-1 bg-red-600/10 border border-red-600/25 text-red-300 text-xs rounded-sm">
                   Home Office State
                 </span>
               )}
             </div>
           </div>
 
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm">
+            <X className="w-4 h-4 text-zinc-300" />
           </button>
         </div>
 
@@ -373,6 +371,6 @@ export default function StateDetailModal({
           </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
