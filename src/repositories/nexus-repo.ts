@@ -12,6 +12,7 @@ export type NexusRegistration = {
   stripe_registration_id: string | null;
   created_at: string;
   updated_at: string;
+  tracking_started_at: string | null;
 };
 
 export type StateSalesTracking = {
@@ -41,6 +42,22 @@ export type StateSalesLog = {
 export class NexusRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
+  private buildLast12MonthsOr(now: Date): string {
+    // Build 12 exact (year, month) clauses inclusive of current month.
+    // Example: and(year.eq.2026,month.eq.1),and(year.eq.2025,month.eq.12),...
+    const clauses: string[] = [];
+
+    const cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+    for (let i = 0; i < 12; i++) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth() + 1;
+      clauses.push(`and(year.eq.${y},month.eq.${m})`);
+      cursor.setMonth(cursor.getMonth() - 1);
+    }
+
+    return clauses.join(",");
+  }
+
   async getRegistrationsByTenant(tenantId: string): Promise<NexusRegistration[]> {
     const { data, error } = await this.supabase
       .from('nexus_registrations')
@@ -67,24 +84,34 @@ export class NexusRepository {
   async upsertRegistration(registration: {
     tenantId: string;
     stateCode: string;
-    registrationType: 'physical' | 'economic';
+    registrationType: "physical" | "economic";
     isRegistered: boolean;
     registeredAt?: string | null;
     stripeRegistrationId?: string | null;
   }): Promise<NexusRegistration> {
+    // Read existing so we can preserve tracking_started_at once it exists
+    const existing = await this.getRegistration(registration.tenantId, registration.stateCode);
+
+    const tracking_started_at =
+      existing?.tracking_started_at ?? new Date().toISOString(); // set once (first time row is created)
+
     const { data, error } = await this.supabase
-      .from('nexus_registrations')
-      .upsert({
-        tenant_id: registration.tenantId,
-        state_code: registration.stateCode,
-        registration_type: registration.registrationType,
-        is_registered: registration.isRegistered,
-        registered_at: registration.registeredAt ?? null,
-        stripe_registration_id: registration.stripeRegistrationId ?? null,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'tenant_id,state_code'
-      })
+      .from("nexus_registrations")
+      .upsert(
+        {
+          tenant_id: registration.tenantId,
+          state_code: registration.stateCode,
+          registration_type: registration.registrationType,
+          is_registered: registration.isRegistered,
+          registered_at: registration.registeredAt ?? null,
+          stripe_registration_id: registration.stripeRegistrationId ?? null,
+          tracking_started_at, // ✅ always present after first write
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "tenant_id,state_code",
+        },
+      )
       .select()
       .single();
 
@@ -94,38 +121,44 @@ export class NexusRepository {
 
   async getAllStateSales(
     tenantId: string,
-    windowType: 'calendar' | 'rolling'
-  ): Promise<Map<string, { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }>> {
+    windowType: "calendar" | "rolling",
+  ): Promise<
+    Map<
+      string,
+      { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }
+    >
+  > {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
 
     let query = this.supabase
-      .from('state_sales_tracking')
-      .select('state_code, total_sales, taxable_sales, transaction_count, tax_collected')
-      .eq('tenant_id', tenantId);
+      .from("state_sales_tracking")
+      .select("state_code, total_sales, taxable_sales, transaction_count, tax_collected, year, month")
+      .eq("tenant_id", tenantId);
 
-    if (windowType === 'calendar') {
-      query = query.eq('year', currentYear);
+    if (windowType === "calendar") {
+      query = query.eq("year", currentYear);
     } else {
-      const startDate = new Date(now);
-      startDate.setMonth(startDate.getMonth() - 12);
-      const startYear = startDate.getFullYear();
-      const startMonth = startDate.getMonth() + 1;
-
-      query = query.or(
-        `and(year.eq.${currentYear},month.gte.${currentMonth}),and(year.eq.${startYear},month.gte.${startMonth})`
-      );
+      // Correct rolling 12 months: exactly last 12 (year, month) buckets
+      query = query.or(this.buildLast12MonthsOr(now));
     }
 
     const { data, error } = await query;
-
     if (error) throw error;
 
-    const salesMap = new Map<string, { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }>();
+    const salesMap = new Map<
+      string,
+      { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }
+    >();
 
-    (data ?? []).forEach(row => {
-      const existing = salesMap.get(row.state_code) ?? { totalSales: 0, taxableSales: 0, transactionCount: 0, taxCollected: 0 };
+    (data ?? []).forEach((row) => {
+      const existing = salesMap.get(row.state_code) ?? {
+        totalSales: 0,
+        taxableSales: 0,
+        transactionCount: 0,
+        taxCollected: 0,
+      };
+
       salesMap.set(row.state_code, {
         totalSales: existing.totalSales + Number(row.total_sales ?? 0),
         taxableSales: existing.taxableSales + Number(row.taxable_sales ?? 0),
@@ -135,6 +168,29 @@ export class NexusRepository {
     });
 
     return salesMap;
+  }
+
+  // NEW: earliest tracking month per state (used to compute rolling “period start”)
+  async getTrackingStartByState(
+    tenantId: string,
+  ): Promise<Map<string, { year: number; month: number }>> {
+    const { data, error } = await this.supabase
+      .from("state_sales_tracking")
+      .select("state_code, year, month")
+      .eq("tenant_id", tenantId)
+      .order("year", { ascending: true })
+      .order("month", { ascending: true });
+
+    if (error) throw error;
+
+    const map = new Map<string, { year: number; month: number }>();
+    (data ?? []).forEach((row) => {
+      if (!map.has(row.state_code)) {
+        map.set(row.state_code, { year: Number(row.year), month: Number(row.month) });
+      }
+    });
+
+    return map;
   }
 
   async getStateSalesLog(params: {

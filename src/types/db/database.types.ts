@@ -648,6 +648,7 @@ export type Database = {
           state_code: string
           stripe_registration_id: string | null
           tenant_id: string
+          tracking_started_at: string | null
           updated_at: string
         }
         Insert: {
@@ -659,6 +660,7 @@ export type Database = {
           state_code: string
           stripe_registration_id?: string | null
           tenant_id: string
+          tracking_started_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -670,6 +672,7 @@ export type Database = {
           state_code?: string
           stripe_registration_id?: string | null
           tenant_id?: string
+          tracking_started_at?: string | null
           updated_at?: string
         }
         Relationships: [

@@ -16,7 +16,7 @@ export type StateSummary = {
   relevantSales: number;
   percentageToThreshold: number;
 
-  isRegistered: boolean;
+  isRegistered: boolean;        // <-- interpret as "State permit registered" (manual)
   nexusType: NexusType;
   isHomeState: boolean;
 
@@ -31,8 +31,12 @@ export type StateSummary = {
   meetsTransactionThreshold?: boolean;
   both?: boolean;
 
-  stripeRegistered?: boolean;
+  stripeRegistered?: boolean;   // <-- "Active in Stripe"
   resetDate?: string;
+
+  // NEW: better calendar vs rolling display
+  trackingStartDate?: string | null;
+  trackingEndDate?: string | null;
 };
 
 export type NexusData = {
