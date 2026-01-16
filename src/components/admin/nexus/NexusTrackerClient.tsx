@@ -295,6 +295,8 @@ export default function NexusTrackerClient() {
     (s) => s.nexusType === "physical" && !s.isRegistered && !s.stripeRegistered,
   ).length;
 
+  const homeStateLabel = data.homeState; // e.g. "SC"
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -303,7 +305,7 @@ export default function NexusTrackerClient() {
           <p className="text-gray-400">Monitor your sales tax obligations across all US states</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleDownloadTaxDocs}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-sm"
@@ -312,106 +314,33 @@ export default function NexusTrackerClient() {
             View Tax Reports in Stripe
           </button>
 
-          <button
-            onClick={() => setShowHomeSetup(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-white ${
-              isHomeOfficeConfigured ? "bg-zinc-800 hover:bg-zinc-700" : "bg-red-600 hover:bg-red-700"
-            }`}
-          >
-            <Home className="w-4 h-4" />
-            {isHomeOfficeConfigured ? "Change Home Office" : "Setup Home Office"}
-          </button>
-        </div>
-      </div>
+          {/* Home state badge next to the home office button */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHomeSetup(true)}
+              className={`flex items-center gap-2 h-10 px-4 rounded-lg text-white ${
+                isHomeOfficeConfigured
+                  ? "bg-zinc-800 hover:bg-zinc-700"
+                  : "bg-red-600 hover:bg-red-700"
+              }`}
+            >
+              <Home className="w-4 h-4" />
+              {isHomeOfficeConfigured ? "Change Home Office" : "Setup Home Office"}
+            </button>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Registered States</p>
-              <p className="text-2xl font-bold text-white">{registeredStates}</p>
+            {/* Home state pill to the RIGHT of the button */}
+            <div
+              className="flex items-center gap-2 h-10 px-3 rounded-lg border border-zinc-800 bg-zinc-900 text-white shadow-sm"
+              title="Registered home state"
+            >
+              <span className="text-[10px] uppercase tracking-wide text-gray-400">
+                Home
+              </span>
+              <span className="text-sm font-bold text-white">{homeStateLabel}</span>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">At Risk States</p>
-              <p className="text-2xl font-bold text-white">{atRiskStates}</p>
-            </div>
-            <AlertCircle className="w-8 h-8 text-red-500" />
-          </div>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Needs Registration</p>
-              <p className="text-2xl font-bold text-white">{needsStripeRegistration}</p>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-yellow-500" />
-          </div>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-400 mb-1">Home Office State</p>
-              <p className="text-lg font-bold text-white">
-                {STATE_NAMES[data.homeState] ? `${STATE_NAMES[data.homeState]} (${data.homeState})` : data.homeState}
-              </p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-blue-500" />
           </div>
         </div>
       </div>
-
-      {/* Filters and Search */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-        <div className="flex flex-wrap gap-4 items-center">
-          <div className="flex-1 min-w-[220px]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search states..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-          </div>
-
-          <RdkSelect
-            value={filterRegistered}
-            onChange={(v) => setFilterRegistered(v as any)}
-            options={filterRegisteredOptions}
-            className="min-w-[220px]"
-          />
-
-          <label className="flex items-center gap-2 text-white">
-            <input
-              type="checkbox"
-              checked={filterNeedsAction}
-              onChange={(e) => setFilterNeedsAction(e.target.checked)}
-              className="rdk-checkbox"
-            />
-            Needs Action Only
-          </label>
-        </div>
-      </div>
-
-      {/* US Map */}
-      <NexusMap
-        states={data.states}
-        onStateClick={setSelectedState}
-        getStateColor={getStateColor}
-        formatCurrency={formatCurrency}
-        legendItems={legendItems}
-      />
 
       {/* Home Office Setup Modal */}
       {showHomeSetup && (
@@ -426,19 +355,85 @@ export default function NexusTrackerClient() {
         />
       )}
 
-      {/* Modal for State Details */}
-      {selectedState && (
-        <StateDetailModal
-          state={selectedState}
-          onClose={() => setSelectedState(null)}
-          onRegisterToggle={handleRegisterToggle}
-          onNexusTypeChange={handleNexusTypeChange}
-          isUpdating={isUpdating}
-          formatCurrency={formatCurrency}
-          isHomeOfficeConfigured={isHomeOfficeConfigured}
-          onOpenHomeOffice={() => setShowHomeSetup(true)}
-        />
-      )}
+      {/* US Map */}
+      <NexusMap
+        states={data.states}
+        onStateClick={setSelectedState}
+        getStateColor={getStateColor}
+        formatCurrency={formatCurrency}
+        legendItems={legendItems}
+      />
+
+      {/* Stats + Filters UNDER the map */}
+      <div className="space-y-4">
+        {/* Stats Cards (3 only, per request) */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Registered States</p>
+                <p className="text-2xl font-bold text-white">{registeredStates}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">At Risk States</p>
+                <p className="text-2xl font-bold text-white">{atRiskStates}</p>
+              </div>
+              <AlertCircle className="w-8 h-8 text-red-500" />
+            </div>
+          </div>
+
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Needs Registration</p>
+                <p className="text-2xl font-bold text-white">{needsStripeRegistration}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+            </div>
+          </div>
+        </div>
+
+        {/* Filters and Search */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <div className="flex-1 min-w-[220px]">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search states..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+              </div>
+            </div>
+
+            <RdkSelect
+              value={filterRegistered}
+              onChange={(v) => setFilterRegistered(v as any)}
+              options={filterRegisteredOptions}
+              className="min-w-[220px]"
+            />
+
+            <label className="flex items-center gap-2 text-white">
+              <input
+                type="checkbox"
+                checked={filterNeedsAction}
+                onChange={(e) => setFilterNeedsAction(e.target.checked)}
+                className="rdk-checkbox"
+              />
+              Needs Action Only
+            </label>
+          </div>
+        </div>
+      </div>
 
       {/* States Table */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
@@ -496,7 +491,9 @@ export default function NexusTrackerClient() {
                       <span className="text-xs text-red-400">(Home)</span>
                     )}
                     {state.nexusType === "physical" && !state.isRegistered && (
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" title="Physical nexus - needs registration" />
+                      <span title="Physical nexus - needs registration" className="inline-flex">
+                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                      </span>
                     )}
                   </div>
                 </td>
