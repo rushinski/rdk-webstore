@@ -19,7 +19,7 @@ export async function refreshSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
           supabaseResponse = NextResponse.next({
             request,
           });
@@ -31,11 +31,8 @@ export async function refreshSession(request: NextRequest) {
     },
   );
 
-  // @ts-expect-error - suppressGetSessionWarning is not officially documented but is the correct way to suppress the misleading warning
-  supabase.auth.suppressGetSessionWarning = true;
   // IMPORTANT: This call refreshes the session
-  // Do not run code between createServerClient and getClaims()
-  await supabase.auth.getClaims();
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }

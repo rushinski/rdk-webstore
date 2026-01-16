@@ -1,3 +1,4 @@
+// src/lib/email/orders/label-created.ts
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
 import type { OrderLabelCreatedEmailInput } from "@/lib/email/orders/types";

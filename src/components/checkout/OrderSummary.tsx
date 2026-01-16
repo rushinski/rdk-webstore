@@ -9,6 +9,7 @@ interface OrderSummaryProps {
   items: CartItem[];
   subtotal: number;
   shipping: number;
+  tax: number; // NEW: Add tax prop
   total: number;
   fulfillment: "ship" | "pickup";
   isUpdatingShipping?: boolean;
@@ -18,6 +19,7 @@ export function OrderSummary({
   items,
   subtotal,
   shipping,
+  tax,
   total,
   fulfillment,
   isUpdatingShipping = false,
@@ -71,6 +73,7 @@ export function OrderSummary({
             </span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
+          
           <div className="flex justify-between text-gray-400">
             <span>Shipping</span>
             <span className="text-xs">
@@ -89,6 +92,27 @@ export function OrderSummary({
               )}
             </span>
           </div>
+
+          {/* NEW: Tax line item */}
+          <div className="flex justify-between text-gray-400">
+            <span>Tax</span>
+            <span>
+              {isUpdatingShipping ? (
+                <span
+                  className="inline-flex items-center gap-2 text-xs text-gray-400"
+                  data-testid="tax-loading"
+                >
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Calculating...
+                </span>
+              ) : tax > 0 ? (
+                `$${tax.toFixed(2)}`
+              ) : (
+                "Calculated at checkout"
+              )}
+            </span>
+          </div>
+          
           <div className="border-t border-zinc-800 pt-2 mt-2">
             <div className="flex justify-between text-lg font-bold text-white">
               <span>Total</span>

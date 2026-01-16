@@ -1,11 +1,11 @@
 // app/api/admin/nexus/setup-home/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { StripeTaxService } from "@/services/stripe-tax-service";
+import { NexusRepository } from "@/repositories/nexus-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { z } from "zod";
 
@@ -20,6 +20,11 @@ const setupHomeSchema = z.object({
     postalCode: z.string().min(5),
     country: z.string().length(2),
   }),
+  oldHomeState: z.string().length(2).optional(),
+  oldHomeAction: z.object({
+    hasPhysicalNexus: z.boolean(),
+    continueCollecting: z.boolean(),
+  }).optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -50,12 +55,41 @@ export async function POST(request: NextRequest) {
     }
 
     const taxService = new StripeTaxService(supabase);
+    const nexusRepo = new NexusRepository(supabase);
+
+    // Update head office address
     await taxService.setHeadOfficeAddress({
       tenantId: profile.tenant_id,
       stateCode: parsed.data.stateCode,
       businessName: parsed.data.businessName,
       address: parsed.data.address,
+      skipAutoRegister: true,
     });
+
+    // Handle old home state if provided
+    if (parsed.data.oldHomeState && parsed.data.oldHomeAction) {
+      const { oldHomeState, oldHomeAction } = parsed.data;
+
+      const registrationType = oldHomeAction.hasPhysicalNexus ? "physical" : "economic";
+
+      if (!oldHomeAction.continueCollecting) {
+        // STOP collecting: must expire Stripe registration (and then clear DB)
+        // Do NOT pre-clear DB here.
+        await taxService.unregisterState({
+          tenantId: profile.tenant_id,
+          stateCode: oldHomeState,
+          registrationType,
+        });
+      } else {
+        // KEEP collecting: ensure Stripe registration is active.
+        // registerState already writes the DB (isRegistered + stripeRegistrationId).
+        await taxService.registerState({
+          tenantId: profile.tenant_id,
+          stateCode: oldHomeState,
+          registrationType,
+        });
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

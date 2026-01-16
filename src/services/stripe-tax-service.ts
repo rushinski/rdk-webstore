@@ -1,4 +1,4 @@
-// src/services/stripe-tax-service.ts
+// src/services/stripe-tax-service.ts (UPDATED)
 
 import Stripe from "stripe";
 import { env } from "@/config/env";
@@ -54,6 +54,9 @@ export class StripeTaxService {
   /**
    * Set head office address with Stripe Tax Settings API
    * This MUST be called before any tax registrations can be created
+   * 
+   * UPDATED: No longer auto-registers for tax collection.
+   * Just sets the address and marks physical nexus alert.
    */
   async setHeadOfficeAddress(params: {
     tenantId: string;
@@ -67,10 +70,11 @@ export class StripeTaxService {
       postalCode: string;
       country: string;
     };
+    skipAutoRegister?: boolean;
   }): Promise<void> {
     try {
       // Update Stripe Tax Settings with head office address
-      const taxSettings = await stripe.tax.settings.update({
+      await stripe.tax.settings.update({
         defaults: {
           tax_behavior: 'exclusive',
         },
@@ -91,14 +95,18 @@ export class StripeTaxService {
         tenantId: params.tenantId,
         homeState: params.stateCode,
         businessName: params.businessName ?? null,
-        stripeTaxSettingsId: taxSettings.status === 'active' ? 'configured' : null,
+        stripeTaxSettingsId: 'configured',
       });
 
-      // Automatically register home state as physical nexus
-      await this.registerState({
+      // CHANGED: Mark home state as having physical nexus but DON'T auto-register
+      // This creates an alert that they need to register
+      await this.nexusRepo.upsertRegistration({
         tenantId: params.tenantId,
         stateCode: params.stateCode,
         registrationType: 'physical',
+        isRegistered: false, // NOT auto-registered
+        registeredAt: null,
+        stripeRegistrationId: null,
       });
     } catch (error: any) {
       console.error('Stripe head office setup error:', error);
@@ -265,58 +273,95 @@ export class StripeTaxService {
       throw new Error('Head office address must be set before registering states. Please configure your business address first.');
     }
 
-    try {
-      // Create Stripe Tax registration
-      const registration = await stripe.tax.registrations.create({
-        country: 'US',
-        country_options: {
-          us: {
-            type: 'state_sales_tax',
-            state: params.stateCode,
-          },
-        },
-        active_from: 'now',
-      });
+    // Check if already registered in Stripe
+    const existingRegistrations = await this.getStripeRegistrations();
+    const existingReg = existingRegistrations.get(params.stateCode);
+    
+    let stripeRegistrationId: string | null = null;
 
-      // Store registration in database
-      await this.nexusRepo.upsertRegistration({
-        tenantId: params.tenantId,
-        stateCode: params.stateCode,
-        registrationType: params.registrationType,
-        isRegistered: true,
-        registeredAt: new Date().toISOString(),
-        stripeRegistrationId: registration.id,
-      });
-    } catch (error: any) {
-      console.error('Stripe tax registration error:', error);
-      throw error;
+    if (existingReg?.active) {
+      // Already registered in Stripe, just use existing ID
+      stripeRegistrationId = existingReg.id;
+    } else {
+      try {
+        // Create new Stripe Tax registration
+        const registration = await stripe.tax.registrations.create({
+          country: 'US',
+          country_options: {
+            us: {
+              type: 'state_sales_tax',
+              state: params.stateCode,
+            },
+          },
+          active_from: 'now',
+        });
+        stripeRegistrationId = registration.id;
+      } catch (error: any) {
+        // If already registered error, fetch and use existing
+        if (error.message?.includes('already added a registration')) {
+          const regs = await stripe.tax.registrations.list({ limit: 100 });
+          const existing = regs.data.find(
+            r => r.country === 'US' && r.country_options?.us?.state === params.stateCode
+          );
+          if (existing) {
+            stripeRegistrationId = existing.id;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
+
+    // Store registration in database
+    await this.nexusRepo.upsertRegistration({
+      tenantId: params.tenantId,
+      stateCode: params.stateCode,
+      registrationType: params.registrationType,
+      isRegistered: true,
+      registeredAt: new Date().toISOString(),
+      stripeRegistrationId,
+    });
   }
 
   /**
    * Unregister from tax collection with Stripe Tax
    */
-  async unregisterState(params: { tenantId: string; stateCode: string; }): Promise<void> {
-    const registration = await this.nexusRepo.getRegistration(params.tenantId, params.stateCode);
+  async unregisterState(params: {
+    tenantId: string;
+    stateCode: string;
+    registrationType?: "physical" | "economic";
+  }): Promise<void> {
+    const existing = await this.nexusRepo.getRegistration(params.tenantId, params.stateCode);
 
-    if (registration?.stripe_registration_id) {
+    // Prefer DB id, but fall back to Stripe lookup (fixes the bug when DB was cleared).
+    let stripeRegistrationId: string | null =
+      existing?.stripe_registration_id ?? null;
+
+    if (!stripeRegistrationId) {
+      const regs = await this.getStripeRegistrations();
+      stripeRegistrationId = regs.get(params.stateCode)?.id ?? null;
+    }
+
+    if (stripeRegistrationId) {
       try {
-        await stripe.tax.registrations.update(registration.stripe_registration_id, {
+        await stripe.tax.registrations.update(stripeRegistrationId, {
           expires_at: "now",
         });
       } catch (error: any) {
-        // If Stripe says it's missing, proceed to clear local state; otherwise surface error.
         const msg = String(error?.message ?? "");
         if (!msg.toLowerCase().includes("no such") && !msg.toLowerCase().includes("resource")) {
           throw new Error(`Failed to unregister on Stripe: ${msg}`);
         }
+        // If Stripe says missing, continue to clear local state.
       }
     }
 
     await this.nexusRepo.upsertRegistration({
       tenantId: params.tenantId,
       stateCode: params.stateCode,
-      registrationType: "economic",
+      registrationType: params.registrationType ?? existing?.registration_type ?? "economic",
       isRegistered: false,
       registeredAt: null,
       stripeRegistrationId: null,
@@ -358,12 +403,6 @@ export class StripeTaxService {
     month?: number;
   }): Promise<{ url: string; expiresAt: number } | null> {
     try {
-      // Create a report run for the specified period
-      const startDate = new Date(params.year, params.month ? params.month - 1 : 0, 1);
-      const endDate = params.month 
-        ? new Date(params.year, params.month, 0)
-        : new Date(params.year, 11, 31);
-
       // Stripe doesn't have direct tax report download API
       // Return null to indicate manual download needed
       return null;

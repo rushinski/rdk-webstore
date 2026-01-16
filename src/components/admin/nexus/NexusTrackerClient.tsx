@@ -1,4 +1,4 @@
-// src/components/admin/nexus/NexusTrackerClient.tsx
+// src/components/admin/nexus/NexusTrackerClient.tsx (UPDATED)
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -83,24 +83,19 @@ export default function NexusTrackerClient() {
     [],
   );
 
-
   const handleDownloadTaxDocs = async () => {
     window.open("https://dashboard.stripe.com/tax/reports", "_blank");
   };
 
   const getStateColor = (state: StateSummary | undefined) => {
-    // Grey for unknown / non-tax states
     if (!state) return "#374151";
     if (state.thresholdType === "none" || state.threshold <= 0) return "#374151";
 
-    // Green: registered (exclusive)
     if (state.isRegistered) return "#22c55e";
 
     const pct = state.percentageToThreshold;
 
-    // NEW: <50% should be grey (same as old "Not exposed")
     if (pct < 50) return "#374151";
-
     if (pct < 70) return "#facc15";
     if (pct < 85) return "#f59e0b";
     if (pct < 95) return "#f97316";
@@ -181,15 +176,21 @@ export default function NexusTrackerClient() {
   ) => {
     try {
       setIsUpdating(true);
-      await fetch("/api/admin/nexus/register", {
+      
+      // Just update the nexus type, don't auto-register
+      const res = await fetch("/api/admin/nexus/nexus-type", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           stateCode,
-          registrationType: newType,
-          isRegistered: true,
+          nexusType: newType,
         }),
       });
+
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.error || "Failed to update nexus type");
+      }
 
       await fetchNexusData();
 
@@ -240,7 +241,7 @@ export default function NexusTrackerClient() {
 
       if (filterNeedsAction) {
         const needsStripeReg =
-          state.nexusType === "physical" && state.isRegistered && !state.stripeRegistered;
+          state.nexusType === "physical" && !state.isRegistered && !state.stripeRegistered;
         const atRisk = !state.isRegistered && state.percentageToThreshold >= 85;
         if (!needsStripeReg && !atRisk) return false;
       }
@@ -291,7 +292,7 @@ export default function NexusTrackerClient() {
   const registeredStates = data.states.filter((s) => s.isRegistered).length;
 
   const needsStripeRegistration = data.states.filter(
-    (s) => s.nexusType === "physical" && s.isRegistered && !s.stripeRegistered,
+    (s) => s.nexusType === "physical" && !s.isRegistered && !s.stripeRegistered,
   ).length;
 
   return (
@@ -323,7 +324,7 @@ export default function NexusTrackerClient() {
         </div>
       </div>
 
-      {/* Stats Cards - smaller */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
           <div className="flex items-center justify-between">
@@ -348,7 +349,7 @@ export default function NexusTrackerClient() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-400 mb-1">Needs Stripe Setup</p>
+              <p className="text-xs text-gray-400 mb-1">Needs Registration</p>
               <p className="text-2xl font-bold text-white">{needsStripeRegistration}</p>
             </div>
             <AlertTriangle className="w-8 h-8 text-yellow-500" />
@@ -421,6 +422,7 @@ export default function NexusTrackerClient() {
             setIsHomeOfficeConfigured(true);
             fetchNexusData();
           }}
+          isConfigured={isHomeOfficeConfigured}
         />
       )}
 
@@ -493,8 +495,8 @@ export default function NexusTrackerClient() {
                     {state.isHomeState && (
                       <span className="text-xs text-red-400">(Home)</span>
                     )}
-                    {state.nexusType === "physical" && !state.stripeRegistered && (
-                      <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                    {state.nexusType === "physical" && !state.isRegistered && (
+                      <AlertTriangle className="w-4 h-4 text-yellow-500" title="Physical nexus - needs registration" />
                     )}
                   </div>
                 </td>

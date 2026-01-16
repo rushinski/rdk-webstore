@@ -66,6 +66,7 @@ export function CheckoutStart() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [subtotal, setSubtotal] = useState(0);
   const [shipping, setShipping] = useState(0);
+  const [tax, setTax] = useState(0); // NEW: Tax state
   const [total, setTotal] = useState(0);
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
@@ -232,6 +233,7 @@ export function CheckoutStart() {
         setClientSecret(data.clientSecret);
         setSubtotal(Number(data.subtotal ?? 0));
         setShipping(Number(data.shipping ?? 0));
+        setTax(Number(data.tax ?? 0)); // NEW: Set tax from response
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
       } catch (err: any) {
@@ -287,6 +289,7 @@ export function CheckoutStart() {
       setFulfillment(data.fulfillment ?? nextFulfillment);
       setSubtotal(Number(data.subtotal ?? subtotal));
       setShipping(Number(data.shipping ?? shipping));
+      setTax(Number(data.tax ?? tax)); // NEW: Update tax on fulfillment change
       setTotal(Number(data.total ?? total));
     } catch (err: any) {
       setError(err?.message ?? "Failed to update fulfillment.");
@@ -378,6 +381,7 @@ export function CheckoutStart() {
             items={items}
             subtotal={subtotal}
             shipping={shipping}
+            tax={tax}
             total={total}
             fulfillment={fulfillment}
             isUpdatingShipping={isUpdatingFulfillment}

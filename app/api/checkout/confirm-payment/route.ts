@@ -7,6 +7,7 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { NexusRepository } from "@/repositories/nexus-repo";
 import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest) {
     const productService = new ProductService(adminSupabase);
     const orderEmailService = new OrderEmailService();
     const orderAccessTokens = new OrderAccessTokenService(adminSupabase);
+    const nexusRepo = new NexusRepository(adminSupabase); // NEW: For tax tracking
+    
     const order = await ordersRepo.getById(orderId);
 
     if (!order) {
@@ -162,6 +165,43 @@ export async function POST(request: NextRequest) {
       for (const productId of productIds) {
         await productService.syncSizeTags(productId);
       }
+
+      // NEW: Record sale for nexus tracking
+      if (order.customer_state && order.tenant_id) {
+        try {
+          const taxAmount = Number(order.tax_amount ?? 0);
+          const orderTotal = Number(order.total ?? 0);
+          const isTaxable = taxAmount > 0;
+
+          await nexusRepo.recordSale({
+            tenantId: order.tenant_id,
+            stateCode: order.customer_state,
+            orderTotal,
+            taxAmount,
+            isTaxable,
+          });
+
+          log({
+            level: "info",
+            layer: "api",
+            message: "nexus_sale_recorded",
+            requestId,
+            orderId: order.id,
+            state: order.customer_state,
+            taxAmount,
+            isTaxable,
+          });
+        } catch (nexusError) {
+          log({
+            level: "warn",
+            layer: "api",
+            message: "nexus_tracking_failed",
+            requestId,
+            orderId: order.id,
+            error: nexusError instanceof Error ? nexusError.message : String(nexusError),
+          });
+        }
+      }
     }
 
     try {
@@ -192,7 +232,7 @@ export async function POST(request: NextRequest) {
           line2: paymentIntent.shipping.address?.line2 ?? null,
           city: paymentIntent.shipping.address?.city ?? null,
           state: paymentIntent.shipping.address?.state ?? null,
-          postal_code: paymentIntent.shipping.address?.postal_code ?? null, // Changed from postalCode
+          postal_code: paymentIntent.shipping.address?.postal_code ?? null,
           country: paymentIntent.shipping.address?.country ?? null,
         }
       : null;
@@ -204,7 +244,7 @@ export async function POST(request: NextRequest) {
       resolvedShipping?.line1 &&
       resolvedShipping.city &&
       resolvedShipping.state &&
-      resolvedShipping.postal_code && // Changed from postalCode
+      resolvedShipping.postal_code &&
       resolvedShipping.country
     ) {
       await addressesRepo.insertOrderShippingSnapshot(orderId, {
@@ -214,7 +254,7 @@ export async function POST(request: NextRequest) {
         line2: resolvedShipping.line2 ?? null,
         city: resolvedShipping.city,
         state: resolvedShipping.state,
-        postalCode: resolvedShipping.postal_code, // Convert back to camelCase for repository
+        postalCode: resolvedShipping.postal_code,
         country: resolvedShipping.country,
       });
 
@@ -226,7 +266,7 @@ export async function POST(request: NextRequest) {
           line2: resolvedShipping.line2 ?? null,
           city: resolvedShipping.city,
           state: resolvedShipping.state,
-          postalCode: resolvedShipping.postal_code, // Convert back to camelCase for repository
+          postalCode: resolvedShipping.postal_code,
           country: resolvedShipping.country,
         });
       }
@@ -312,7 +352,7 @@ export async function POST(request: NextRequest) {
               line2: resolvedShipping.line2 ?? null,
               city: resolvedShipping.city ?? null,
               state: resolvedShipping.state ?? null,
-              postalCode: resolvedShipping.postal_code ?? null, // Changed from postalCode
+              postalCode: resolvedShipping.postal_code ?? null,
               country: resolvedShipping.country ?? null,
             }
           : null;
@@ -326,6 +366,7 @@ export async function POST(request: NextRequest) {
           currency: order.currency ?? "USD",
           subtotal: Number(order.subtotal ?? 0),
           shipping: Number(order.shipping ?? 0),
+          tax: Number(order.tax_amount ?? 0), // NEW: Include tax in email
           total: Number(order.total ?? 0),
           items,
           orderUrl,

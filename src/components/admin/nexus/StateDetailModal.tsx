@@ -2,7 +2,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, AlertTriangle, ExternalLink, CheckCircle } from "lucide-react";
+import {
+  X,
+  AlertTriangle,
+  ExternalLink,
+  CheckCircle,
+  DollarSign,
+} from "lucide-react";
 import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -28,11 +34,7 @@ type StateDetailModalProps = {
   onNexusTypeChange: (stateCode: string, newType: "physical" | "economic") => void;
   isUpdating: boolean;
   formatCurrency: (val: number) => string;
-
-  // Used to disable Stripe registration until Home Office exists
   isHomeOfficeConfigured: boolean;
-
-  // lets the modal open the Home Office setup
   onOpenHomeOffice: () => void;
 };
 
@@ -98,10 +100,16 @@ export default function StateDetailModal({
       minute: "2-digit",
     });
 
+  // Show warning if physical nexus but NOT registered with Stripe
   const needsStripeEnable =
-    state.nexusType === "physical" && state.isRegistered && !state.stripeRegistered;
+    state.nexusType === "physical" && !state.isRegistered && !state.stripeRegistered;
 
-  // If trying to enable Stripe collection (when currently NOT registered) and home office isn't configured
+  // Show warning if economic nexus threshold exceeded (>= 95%)
+  const exceedsEconomicThreshold =
+    state.nexusType === "economic" &&
+    !state.isRegistered &&
+    state.percentageToThreshold >= 95;
+
   const disableStripeAction = !isHomeOfficeConfigured && !state.isRegistered;
 
   const handleStripeAction = () => {
@@ -129,11 +137,11 @@ export default function StateDetailModal({
               {state.isRegistered ? (
                 <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-white text-xs rounded-sm flex items-center gap-1">
                   <CheckCircle className="w-3 h-3 text-green-500" />
-                  Stripe collection enabled
+                  Collecting Tax via Stripe
                 </span>
               ) : (
                 <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-zinc-300 text-xs rounded-sm">
-                  Stripe collection not enabled
+                  Not collecting tax
                 </span>
               )}
 
@@ -165,23 +173,41 @@ export default function StateDetailModal({
         </div>
 
         <div className="px-6 py-6">
-          {/* Banner for physical nexus needing Stripe activation */}
+          {/* Warning banners */}
           {needsStripeEnable && (
             <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-sm flex gap-2">
               <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
               <div className="text-sm">
                 <div className="font-semibold text-yellow-300">
-                  Stripe needs activation for this physical-nexus state
+                  Physical Nexus - Stripe Registration Required
                 </div>
                 <div className="text-zinc-300">
-                  You have nexus here. Enable tax collection in Stripe so checkout can collect taxes automatically.
+                  You have physical nexus in this state but haven&apos;t enabled Stripe tax
+                  collection. Enable it below to automatically collect taxes at checkout.
                 </div>
               </div>
             </div>
           )}
 
-          {/* Metrics */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          {exceedsEconomicThreshold && (
+            <div className="mb-6 p-3 bg-red-900/20 border border-red-500/30 rounded-sm flex gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <div className="text-sm">
+                <div className="font-semibold text-red-300">
+                  Economic Nexus Threshold Exceeded
+                </div>
+                <div className="text-zinc-300">
+                  You&apos;ve reached {state.percentageToThreshold.toFixed(1)}% of the nexus
+                  threshold ({formatCurrency(state.relevantSales)} of{" "}
+                  {formatCurrency(state.threshold)}). You should register with the state and
+                  enable Stripe tax collection.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Metrics Grid - Updated with Tax Collected */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
             <div>
               <div className="text-sm text-zinc-400 mb-1">Nexus Threshold</div>
               <div className="text-xl font-bold text-white">
@@ -191,7 +217,9 @@ export default function StateDetailModal({
                 {state.thresholdType} sales / {state.window}
               </div>
               {state.resetDate && (
-                <div className="text-xs text-zinc-500 mt-1">Resets: {state.resetDate}</div>
+                <div className="text-xs text-zinc-500 mt-1">
+                  Resets: {state.resetDate}
+                </div>
               )}
             </div>
 
@@ -205,9 +233,28 @@ export default function StateDetailModal({
               </div>
             </div>
 
+            {/* NEW: Tax Collected - Only show if registered */}
+            {state.isRegistered && (
+              <div className="col-span-2 md:col-span-1">
+                <div className="text-sm text-zinc-400 mb-1 flex items-center gap-1">
+                  <DollarSign className="w-4 h-4" />
+                  Tax Collected
+                </div>
+                <div className="text-xl font-bold text-green-400">
+                  {formatCurrency(state.taxCollected || 0)}
+                </div>
+                <div className="text-xs text-zinc-500">Tax owed to {state.stateCode}</div>
+              </div>
+            )}
+
             <div>
               <div className="text-sm text-zinc-400 mb-1">Total Sales</div>
               <div className="text-lg text-white">{formatCurrency(state.totalSales)}</div>
+            </div>
+
+            <div>
+              <div className="text-sm text-zinc-400 mb-1">Taxable Sales</div>
+              <div className="text-lg text-white">{formatCurrency(state.taxableSales)}</div>
             </div>
 
             <div>
@@ -261,13 +308,21 @@ export default function StateDetailModal({
                     <tbody className="divide-y divide-zinc-800">
                       {salesLog.map((sale) => (
                         <tr key={sale.order_id} className="hover:bg-zinc-900/60">
-                          <td className="px-4 py-2 text-zinc-300">{formatDate(sale.created_at)}</td>
+                          <td className="px-4 py-2 text-zinc-300">
+                            {formatDate(sale.created_at)}
+                          </td>
                           <td className="px-4 py-2 text-zinc-300 font-mono text-xs">
                             {sale.order_id.slice(0, 8)}...
                           </td>
-                          <td className="px-4 py-2 text-right text-white">{formatCurrency(sale.total)}</td>
-                          <td className="px-4 py-2 text-right text-zinc-300">{formatCurrency(sale.tax_amount)}</td>
-                          <td className="px-4 py-2 text-zinc-300 capitalize">{sale.fulfillment}</td>
+                          <td className="px-4 py-2 text-right text-white">
+                            {formatCurrency(sale.total)}
+                          </td>
+                          <td className="px-4 py-2 text-right text-green-400 font-medium">
+                            {formatCurrency(sale.tax_amount)}
+                          </td>
+                          <td className="px-4 py-2 text-zinc-300 capitalize">
+                            {sale.fulfillment}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -333,25 +388,26 @@ export default function StateDetailModal({
             </div>
           )}
 
-          {/* Registration clarity box */}
+          {/* Registration Info */}
           <div className="mt-2 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
             <div className="text-sm text-zinc-200 font-semibold mb-2">
-              Registration steps (clear version)
+              Tax Registration Process
             </div>
             <ol className="text-sm text-zinc-300 space-y-1 list-decimal list-inside">
               <li>
-                <span className="font-medium text-white">State permit (legal requirement)</span>:{" "}
-                register with the state.
+                <span className="font-medium text-white">Get state permit</span>: Register with
+                the state to legally collect tax
               </li>
               <li>
-                <span className="font-medium text-white">Stripe collection (automation)</span>:{" "}
-                enable tax collection in Stripe so checkout collects the tax.
+                <span className="font-medium text-white">Enable Stripe collection</span>:
+                Activate tax collection in Stripe for automatic calculation
               </li>
             </ol>
 
             {!isHomeOfficeConfigured && !state.isRegistered && (
               <div className="mt-3 text-xs text-yellow-300">
-                You must set a <span className="font-semibold">Home Office</span> first before enabling Stripe registrations.
+                You must set a <span className="font-semibold">Home Office</span> first before
+                enabling Stripe registrations.
               </div>
             )}
 

@@ -12,7 +12,7 @@ export type StateSummary = {
   totalSales: number;
   taxableSales: number;
   transactionCount: number;
-
+  taxCollected: number;
   relevantSales: number;
   percentageToThreshold: number;
 

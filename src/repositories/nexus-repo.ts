@@ -23,6 +23,7 @@ export type StateSalesTracking = {
   total_sales: number;
   taxable_sales: number;
   transaction_count: number;
+  tax_collected: number; // NEW: Track tax collected
   created_at: string;
   updated_at: string;
 };
@@ -91,61 +92,17 @@ export class NexusRepository {
     return data as NexusRegistration;
   }
 
-  async getStateSales(
-    tenantId: string,
-    stateCode: string,
-    windowType: 'calendar' | 'rolling'
-  ): Promise<{ totalSales: number; taxableSales: number; transactionCount: number }> {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-
-    let query = this.supabase
-      .from('state_sales_tracking')
-      .select('total_sales, taxable_sales, transaction_count')
-      .eq('tenant_id', tenantId)
-      .eq('state_code', stateCode);
-
-    if (windowType === 'calendar') {
-      query = query.eq('year', currentYear);
-    } else {
-      const startDate = new Date(now);
-      startDate.setMonth(startDate.getMonth() - 12);
-      const startYear = startDate.getFullYear();
-      const startMonth = startDate.getMonth() + 1;
-
-      query = query.or(
-        `and(year.eq.${currentYear},month.gte.${currentMonth}),and(year.eq.${startYear},month.gte.${startMonth})`
-      );
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    const totals = (data ?? []).reduce(
-      (acc, row) => ({
-        totalSales: acc.totalSales + Number(row.total_sales ?? 0),
-        taxableSales: acc.taxableSales + Number(row.taxable_sales ?? 0),
-        transactionCount: acc.transactionCount + Number(row.transaction_count ?? 0)
-      }),
-      { totalSales: 0, taxableSales: 0, transactionCount: 0 }
-    );
-
-    return totals;
-  }
-
   async getAllStateSales(
     tenantId: string,
     windowType: 'calendar' | 'rolling'
-  ): Promise<Map<string, { totalSales: number; taxableSales: number; transactionCount: number }>> {
+  ): Promise<Map<string, { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }>> {
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth() + 1;
 
     let query = this.supabase
       .from('state_sales_tracking')
-      .select('state_code, total_sales, taxable_sales, transaction_count')
+      .select('state_code, total_sales, taxable_sales, transaction_count, tax_collected')
       .eq('tenant_id', tenantId);
 
     if (windowType === 'calendar') {
@@ -165,23 +122,21 @@ export class NexusRepository {
 
     if (error) throw error;
 
-    const salesMap = new Map<string, { totalSales: number; taxableSales: number; transactionCount: number }>();
+    const salesMap = new Map<string, { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }>();
 
     (data ?? []).forEach(row => {
-      const existing = salesMap.get(row.state_code) ?? { totalSales: 0, taxableSales: 0, transactionCount: 0 };
+      const existing = salesMap.get(row.state_code) ?? { totalSales: 0, taxableSales: 0, transactionCount: 0, taxCollected: 0 };
       salesMap.set(row.state_code, {
         totalSales: existing.totalSales + Number(row.total_sales ?? 0),
         taxableSales: existing.taxableSales + Number(row.taxable_sales ?? 0),
-        transactionCount: existing.transactionCount + Number(row.transaction_count ?? 0)
+        transactionCount: existing.transactionCount + Number(row.transaction_count ?? 0),
+        taxCollected: existing.taxCollected + Number(row.tax_collected ?? 0),
       });
     });
 
     return salesMap;
   }
 
-  /**
-   * Get sales log for a specific state
-   */
   async getStateSalesLog(params: {
     tenantId: string;
     stateCode: string;
@@ -219,19 +174,39 @@ export class NexusRepository {
   }
 
   /**
-   * Get recent sales for a state (for preview in modal)
+   * Record a sale for nexus tracking
+   * This should be called when an order is marked as paid
    */
-  async getRecentStateSales(params: {
+  async recordSale(params: {
     tenantId: string;
     stateCode: string;
-    limit?: number;
-  }): Promise<StateSalesLog[]> {
-    const { sales } = await this.getStateSalesLog({
-      tenantId: params.tenantId,
-      stateCode: params.stateCode,
-      limit: params.limit ?? 3,
-    });
+    orderTotal: number;
+    taxAmount: number;
+    isTaxable: boolean;
+  }): Promise<void> {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
 
-    return sales;
+    // Upsert the tracking record
+    const { error } = await this.supabase
+      .from('state_sales_tracking')
+      .upsert({
+        tenant_id: params.tenantId,
+        state_code: params.stateCode,
+        year,
+        month,
+        total_sales: params.orderTotal,
+        taxable_sales: params.isTaxable ? params.orderTotal : 0,
+        transaction_count: 1,
+        tax_collected: params.taxAmount,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'tenant_id,state_code,year,month',
+        // Increment existing values
+        ignoreDuplicates: false
+      });
+
+    if (error) throw error;
   }
 }

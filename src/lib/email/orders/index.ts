@@ -1,3 +1,4 @@
+// src/lib/email/orders/index.ts
 export { buildOrderConfirmationEmail } from "@/lib/email/orders/confirmation";
 export { buildPickupInstructionsEmail } from "@/lib/email/orders/pickup-instructions";
 export { buildOrderLabelCreatedEmail } from "@/lib/email/orders/label-created";

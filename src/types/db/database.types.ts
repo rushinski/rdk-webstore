@@ -1571,6 +1571,7 @@ export type Database = {
           id: string
           month: number
           state_code: string
+          tax_collected: number
           taxable_sales: number
           tenant_id: string
           total_sales: number
@@ -1583,6 +1584,7 @@ export type Database = {
           id?: string
           month: number
           state_code: string
+          tax_collected?: number
           taxable_sales?: number
           tenant_id: string
           total_sales?: number
@@ -1595,6 +1597,7 @@ export type Database = {
           id?: string
           month?: number
           state_code?: string
+          tax_collected?: number
           taxable_sales?: number
           tenant_id?: string
           total_sales?: number

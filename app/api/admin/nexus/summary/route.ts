@@ -59,9 +59,10 @@ export async function GET(request: NextRequest) {
     const stateSummaries = Object.keys(NEXUS_THRESHOLDS).map(stateCode => {
       const threshold = NEXUS_THRESHOLDS[stateCode as keyof typeof NEXUS_THRESHOLDS];
       const registration = registrations.find(r => r.state_code === stateCode);
-      const sales = allSales.get(stateCode) ?? { totalSales: 0, taxableSales: 0, transactionCount: 0 };
+      const sales = allSales.get(stateCode) ?? { totalSales: 0, taxableSales: 0, transactionCount: 0, taxCollected: 0 };
       const stripeReg = stripeRegistrations.get(stateCode);
 
+      // Determine relevant sales based on threshold type
       const relevantSales = threshold.type === 'taxable' ? sales.taxableSales : sales.totalSales;
       const thresholdAmount = threshold.threshold;
       
@@ -88,16 +89,13 @@ export async function GET(request: NextRequest) {
         totalSales: sales.totalSales,
         taxableSales: sales.taxableSales,
         transactionCount: sales.transactionCount,
+        taxCollected: sales.taxCollected, // NEW: Show tax collected for registered states
         relevantSales,
         percentageToThreshold: Math.min(percentageToThreshold, 100),
         isRegistered,
         nexusType,
         isHomeState,
         taxable: threshold.taxable,
-        notes: threshold.notes ?? null,
-        exemption: threshold.exemption ?? null,
-        marginal: threshold.marginal ?? false,
-        allOrNothing: threshold.allOrNothing ?? false,
         transactionThreshold: threshold.transactions ?? null,
         meetsTransactionThreshold,
         both: threshold.both ?? false,

@@ -1,3 +1,4 @@
+// src/lib/email/orders/confirmation.ts (UPDATED with Tax)
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
 import type { OrderConfirmationEmailInput } from "@/lib/email/orders/types";
@@ -111,6 +112,12 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
               </td>
             </tr>
             <tr>
+              <td style="padding:0 0 4px;font-size:13px;color:${EMAIL_COLORS.muted};">Tax</td>
+              <td align="right" style="padding:0 0 4px;font-size:13px;color:${EMAIL_COLORS.text};">
+                $${formatMoney(input.tax)}
+              </td>
+            </tr>
+            <tr>
               <td style="padding:0 0 12px;font-size:14px;color:#ffffff;font-weight:700;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};">
                 Total
               </td>
@@ -154,6 +161,7 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
     "",
     `Subtotal: $${formatMoney(input.subtotal)}`,
     `Shipping: $${formatMoney(input.shipping)}`,
+    `Tax: $${formatMoney(input.tax)}`,
     `Total: $${formatMoney(input.total)}`,
   ];
 

@@ -24,6 +24,7 @@ export type OrderConfirmationEmailInput = {
   fulfillment: "ship" | "pickup";
   currency: string;
   subtotal: number;
+  tax: number;
   shipping: number;
   total: number;
   items: OrderItemEmail[];

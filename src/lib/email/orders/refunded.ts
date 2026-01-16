@@ -1,3 +1,4 @@
+// src/lib/email/orders/refunded.ts
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
 import type { OrderRefundedEmailInput } from "@/lib/email/orders/types";
