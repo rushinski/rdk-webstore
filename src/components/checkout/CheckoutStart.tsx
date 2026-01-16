@@ -44,7 +44,7 @@ const stripeAppearance: StripeElementsOptions["appearance"] = {
     colorPrimary: "#dc2626",
     colorBackground: "#09090b",
     colorText: "#ffffff",
-    colorSecondaryText: "#a1a1aa",
+    colorTextSecondary: "#a1a1aa",
     colorDanger: "#dc2626",
     borderRadius: "2px",
   },
