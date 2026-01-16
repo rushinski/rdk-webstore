@@ -355,6 +355,20 @@ export default function NexusTrackerClient() {
         />
       )}
 
+      {/* Modal for State Details */}
+      {selectedState && (
+        <StateDetailModal
+          state={selectedState}
+          onClose={() => setSelectedState(null)}
+          onRegisterToggle={handleRegisterToggle}
+          onNexusTypeChange={handleNexusTypeChange}
+          isUpdating={isUpdating}
+          formatCurrency={formatCurrency}
+          isHomeOfficeConfigured={isHomeOfficeConfigured}
+          onOpenHomeOffice={() => setShowHomeSetup(true)}
+        />
+      )}
+
       {/* US Map */}
       <NexusMap
         states={data.states}

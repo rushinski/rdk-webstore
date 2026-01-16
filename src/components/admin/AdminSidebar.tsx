@@ -71,7 +71,7 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     ],
   },
   { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
-  { type: "link", href: "/admin/nexus", label: "Tax Nexus", icon: Receipt }, // Add this line
+  { type: "link", href: "/admin/nexus", label: "Tax & Nexus", icon: Receipt }, // Add this line
   { type: "link", href: "/admin/catalog", label: "Tags", icon: Package },
   {
     type: "group",
