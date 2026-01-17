@@ -15,7 +15,7 @@ const trackingStatusSchema = z
 export const shippoWebhookEventSchema = z
   .object({
     event: z.string(),
-    data: z.record(z.any()).optional(),
+    data: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
 

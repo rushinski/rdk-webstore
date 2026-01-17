@@ -23,13 +23,18 @@ const STATUS_CONTENT: Record<string, { title: string; message: string }> = {
   },
 };
 
+type SearchParams = { status?: string | string[] };
+
 export default async function EmailConfirmPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ status?: string }> | { status?: string };
+  // Next's generated types in your build are expecting Promise-ish here
+  searchParams?: Promise<SearchParams>;
 }) {
   const resolved = searchParams ? await searchParams : undefined;
-  const status = resolved?.status ?? "success";
+
+  const raw = resolved?.status;
+  const status = Array.isArray(raw) ? raw[0] : raw ?? "success";
   const content = STATUS_CONTENT[status] ?? STATUS_CONTENT.success;
 
   return (

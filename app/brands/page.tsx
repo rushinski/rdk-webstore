@@ -4,7 +4,7 @@ import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { StorefrontService } from "@/services/storefront-service";
 
 const BRANDS_REVALIDATE_SECONDS = 300;
-export const revalidate = BRANDS_REVALIDATE_SECONDS;
+export const revalidate = 300;
 
 const listBrandLabelsCached = unstable_cache(
   async () => {

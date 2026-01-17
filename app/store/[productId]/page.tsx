@@ -9,7 +9,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 const PRODUCT_REVALIDATE_SECONDS = 60;
-export const revalidate = PRODUCT_REVALIDATE_SECONDS;
+export const revalidate = 60;
 
 const getCachedProduct = (productId: string) =>
   unstable_cache(

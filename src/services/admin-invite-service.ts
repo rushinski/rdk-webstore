@@ -11,6 +11,7 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const ROLE_PRIORITY: Record<ProfileRole, number> = {
   customer: 0,
+  seller: 0,
   admin: 1,
   super_admin: 2,
   dev: 3,
