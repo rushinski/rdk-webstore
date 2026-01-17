@@ -19,14 +19,17 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession();
   const isAuthenticated = Boolean(session);
-  const isAdmin = session?.role ? isAdminRole(session.role) : false;
+
+  const role = session?.role ?? null;
+  const isAdmin = role ? isAdminRole(role) : false;
+
   const userEmail = session?.user.email ?? session?.profile?.email;
 
   return (
     <html lang="en">
       <body className="bg-black text-white">
         <CartProvider>
-          <ClientShell isAdmin={isAdmin} userEmail={userEmail}>
+          <ClientShell isAdmin={isAdmin} userEmail={userEmail} role={role}>
             <ScrollHeader isAuthenticated={isAuthenticated} userEmail={userEmail} />
             <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
           </ClientShell>

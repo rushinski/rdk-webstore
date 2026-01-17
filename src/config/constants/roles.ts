@@ -1,14 +1,18 @@
 // src/config/constants/roles.ts
+
 export const PROFILE_ROLES = ["customer", "seller", "admin", "super_admin", "dev"] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
 
-export const ADMIN_ROLES = ["admin", "super_admin", "dev"] as const satisfies readonly ProfileRole[];
+export const ADMIN_ROLES = ["admin", "super_admin", "dev"] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 
-export const SUPER_ADMIN_ROLES = ["super_admin", "dev"] as const satisfies readonly ProfileRole[];
+export const SUPER_ADMIN_ROLES = ["super_admin", "dev"] as const;
 export type SuperAdminRole = (typeof SUPER_ADMIN_ROLES)[number];
 
-export const ADMIN_PERMISSIONS: Record<ProfileRole, { canInvite: boolean; canViewBank: boolean }> = {
+export const ADMIN_PERMISSIONS: Record<
+  ProfileRole,
+  { canInvite: boolean; canViewBank: boolean }
+> = {
   customer: { canInvite: false, canViewBank: false },
   seller: { canInvite: false, canViewBank: false },
   admin: { canInvite: false, canViewBank: false },
@@ -16,16 +20,24 @@ export const ADMIN_PERMISSIONS: Record<ProfileRole, { canInvite: boolean; canVie
   dev: { canInvite: true, canViewBank: true },
 } as const;
 
+// Typed includes helper (fixes TS2345 + gives type guards)
+function includesConst<T extends readonly string[]>(
+  arr: T,
+  value: string
+): value is T[number] {
+  return (arr as readonly string[]).includes(value);
+}
+
 export function isProfileRole(value: unknown): value is ProfileRole {
-  return PROFILE_ROLES.includes(value as ProfileRole);
+  return typeof value === "string" && includesConst(PROFILE_ROLES, value);
 }
 
 export function isAdminRole(role: ProfileRole): role is AdminRole {
-  return ADMIN_ROLES.includes(role);
+  return includesConst(ADMIN_ROLES, role);
 }
 
 export function isSuperAdminRole(role: ProfileRole): role is SuperAdminRole {
-  return SUPER_ADMIN_ROLES.includes(role);
+  return includesConst(SUPER_ADMIN_ROLES, role);
 }
 
 export function isDevRole(role: ProfileRole): boolean {
