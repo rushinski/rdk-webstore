@@ -37,6 +37,8 @@ const schema = z.object({
 
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
   NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("true"),
+
+  NODE_ENV: z.enum(["development", "test", "production"]).optional().default("development"),
 });
 
 export const env = schema.parse(process.env);

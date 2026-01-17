@@ -26,6 +26,22 @@ function unwrapStripe<T>(value: unknown): T {
   return (v && typeof v === "object" && "data" in v ? v.data : v) as T;
 }
 
+// Helper: normalize tax from order record (supports a few common column names)
+function getOrderTax(
+  order:
+    | {
+        tax?: unknown;
+        tax_total?: unknown;
+        tax_amount?: unknown;
+      }
+    | null
+    | undefined,
+): number {
+  const raw = order?.tax ?? order?.tax_total ?? order?.tax_amount ?? 0;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export class StripeOrderJob {
   private ordersRepo: OrdersRepository;
   private eventsRepo: StripeEventsRepository;
@@ -317,6 +333,8 @@ export class StripeOrderJob {
         );
 
         if (!hasConfirmationEvent) {
+          const tax = getOrderTax(order);
+
           await this.orderEmailService.sendOrderConfirmation({
             to: email,
             orderId: order.id,
@@ -325,6 +343,7 @@ export class StripeOrderJob {
             currency: order.currency ?? "USD",
             subtotal: Number(order.subtotal ?? 0),
             shipping: Number(order.shipping ?? 0),
+            tax,
             total: Number(order.total ?? 0),
             items,
             orderUrl,
@@ -651,6 +670,8 @@ export class StripeOrderJob {
         );
 
         if (!hasConfirmationEvent) {
+          const tax = getOrderTax(order);
+
           await this.orderEmailService.sendOrderConfirmation({
             to: email,
             orderId: order.id,
@@ -659,6 +680,7 @@ export class StripeOrderJob {
             currency: order.currency ?? "USD",
             subtotal: Number(order.subtotal ?? 0),
             shipping: Number(order.shipping ?? 0),
+            tax,
             total: Number(order.total ?? 0),
             items,
             orderUrl,
