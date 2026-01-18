@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     const orderEmailService = new OrderEmailService();
     const orderAccessTokens = new OrderAccessTokenService(adminSupabase);
     const nexusRepo = new NexusRepository(adminSupabase); // NEW: For tax tracking
-    
+
     const order = await ordersRepo.getById(orderId);
 
     if (!order) {

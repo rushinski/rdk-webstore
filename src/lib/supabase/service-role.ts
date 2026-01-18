@@ -1,4 +1,4 @@
-// src/lib/supabase/admin.ts
+// src/lib/supabase/service-role.ts
 import { createClient } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db/database.types";
