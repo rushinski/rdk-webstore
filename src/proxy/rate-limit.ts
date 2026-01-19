@@ -325,7 +325,8 @@ export async function applyRateLimit(
   if (isBrowserNavigation) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = rateLimit.tooManyRequestsPath;
-    redirectUrl.searchParams.set("from", pathname);
+    const original = request.nextUrl.pathname + request.nextUrl.search; // includes ?q= etc.
+    redirectUrl.searchParams.set("from", original);
     redirectUrl.searchParams.set("bucket", chosen.which);
 
     return NextResponse.redirect(redirectUrl, rateLimit.redirectStatus);

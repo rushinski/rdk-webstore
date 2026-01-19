@@ -2,11 +2,18 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function TooManyRequestsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const fromParam = searchParams.get("from");
+  // Prevent open redirect: only allow same-origin paths
+  const safeFrom = fromParam && fromParam.startsWith("/") ? fromParam : "/";
+
   return (
     <div className="min-h-screen bg-black text-white">
-      {/* Hero */}
       <div className="relative w-full h-[240px] overflow-hidden">
         <Image
           src="/images/errors/429.webp"
@@ -20,19 +27,15 @@ export default function TooManyRequestsPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/70" />
       </div>
 
-      {/* Content */}
       <main className="mx-auto w-full max-w-3xl px-6 pb-16">
-        <div className="relative -mt-10 sm:-mt-14 rounded-2xl border border-zinc-800 bg-black/80 backdrop-blur px-6 py-8 sm:px-10 sm:py-10 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+        <div className="relative -mt-10 sm:-mt-14 rounded-2xl border border-zinc-800 bg-black/80 backdrop-blur px-6 py-8 sm:px-10 sm:py-10">
           <p className="text-[11px] uppercase tracking-[0.18em] text-red-400 text-center sm:text-left">
             Realdealkickzsc
           </p>
 
-          {/* Plain meta (no boxes) */}
           <div className="mt-4 flex items-center justify-center sm:justify-start text-[11px] uppercase tracking-[0.22em] text-zinc-400">
             <span>429</span>
-            <span aria-hidden className="mx-3 text-zinc-600">
-              •
-            </span>
+            <span aria-hidden className="mx-3 text-zinc-600">•</span>
             <span>Cool down</span>
           </div>
 
@@ -47,15 +50,15 @@ export default function TooManyRequestsPage() {
           <div className="mt-7 flex flex-wrap items-center justify-center sm:justify-start gap-3">
             <a
               href="/"
-              className="inline-flex items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-zinc-200 transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
+              className="inline-flex items-center justify-center rounded-lg bg-white px-5 py-3 text-sm font-semibold text-black hover:bg-zinc-200 transition-colors"
             >
               Back to home
             </a>
 
             <button
               type="button"
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-100 hover:bg-zinc-900 transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
+              onClick={() => router.push(safeFrom)}
+              className="inline-flex items-center justify-center rounded-lg border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-100 hover:bg-zinc-900 transition-colors"
             >
               Retry
             </button>
