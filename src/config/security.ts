@@ -47,7 +47,8 @@ export const security = {
         "go-http-client",
         "libwww-perl",
         "scrapy",
-      ],
+        "aiohttp",       
+      ]
     },
 
     csrf: {
@@ -190,7 +191,7 @@ export const security = {
           "default-src 'self'",
           "img-src 'self' data: https: blob: https://*.stripe.com",
           "style-src 'self' 'unsafe-inline'",
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
+          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
           [
             "connect-src",
             "'self'",
