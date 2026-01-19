@@ -1,3 +1,4 @@
+// app/api/admin/products/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";

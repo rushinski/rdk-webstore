@@ -16,7 +16,14 @@ const variantSchema = z
 
 const imageSchema = z
   .object({
-    url: z.string().trim().min(1),
+    url: z
+      .string()
+      .trim()
+      .url()
+      .refine((v) => !v.toLowerCase().startsWith("data:"), {
+        message:
+          "Image URL must be a real URL (no data: base64). Upload images to Storage first.",
+      }),
     sort_order: z.number().int().nonnegative(),
     is_primary: z.boolean(),
   })
@@ -72,3 +79,4 @@ export const adminProductsQuerySchema = z
     includeOutOfStock: includeOutOfStockSchema,
   })
   .strict();
+

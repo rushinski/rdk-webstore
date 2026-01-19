@@ -456,26 +456,40 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+
     const uploads = Array.from(files).filter((file) => file.type.startsWith("image/"));
     if (uploads.length === 0) return;
 
-    const reads = uploads.map(
-      (file) =>
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result || ""));
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(file);
-        }),
-    );
-
     try {
-      const results = await Promise.all(reads);
-      results.forEach((url) => addImageEntry(url));
+      // Upload sequentially (simpler, avoids overwhelming local stack)
+      for (const file of uploads) {
+        const fd = new FormData();
+        fd.append("file", file);
+
+        // If editing an existing product, you can pass productId for folder placement:
+        if (initialData?.id) fd.append("productId", initialData.id);
+
+        const res = await fetch("/api/admin/uploads/product-image", {
+          method: "POST",
+          body: fd,
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(json?.error || "Image upload failed");
+        }
+
+        // IMPORTANT: store the returned Storage URL, not base64
+        addImageEntry(String(json.url || ""));
+      }
     } catch (error) {
       logError(error, { layer: "frontend", event: "inventory_image_upload" });
+      const message = error instanceof Error ? error.message : "Failed to upload image";
+      setToast({ message, tone: "error" });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setIsDragging(false);
     }
   };
 
