@@ -19,12 +19,22 @@ export class StorageRepository {
     });
 
     if (error) throw error;
-    return data; // { path, ... }
+    return data;
   }
 
   getPublicUrl(params: { bucket: string; path: string }) {
     const { bucket, path } = params;
     const { data } = this.supabase.storage.from(bucket).getPublicUrl(path);
     return data.publicUrl;
+  }
+
+  async createSignedUrl(params: { bucket: string; path: string; expiresInSeconds: number }) {
+    const { bucket, path, expiresInSeconds } = params;
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, expiresInSeconds);
+
+    if (error) throw error;
+    return data.signedUrl;
   }
 }

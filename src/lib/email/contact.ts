@@ -38,19 +38,12 @@ export const buildContactSubmissionEmail = (input: ContactEmailInput) => {
     input.source === "bug_report"
       ? "New Bug Report Submission"
       : "New Contact Form Submission";
-  const attachmentsText =
-    input.attachments.length > 0
-      ? input.attachments.map((file) => file.filename).join(", ")
-      : "None";
   const attachmentsHtml =
     input.attachments.length > 0
       ? `
         <tr>
           <td style="padding:0 24px 24px;">
             <div style="${emailStyles.labelAccent}">Attachments</div>
-            <div style="margin-top:10px;${emailStyles.panel}padding:14px;font-size:13px;line-height:1.7;color:${EMAIL_COLORS.muted};">
-              ${input.attachments.map((file) => escapeHtml(file.filename)).join("<br />")}
-            </div>
             <div style="margin-top:14px;">
               ${input.attachments
                 .map((file) =>
@@ -58,7 +51,7 @@ export const buildContactSubmissionEmail = (input: ContactEmailInput) => {
                     ? `<div style="margin-top:12px;">
                         <img
                           src="cid:${file.cid}"
-                          alt="${escapeHtml(file.filename)}"
+                          alt=""
                           style="display:block;width:100%;max-width:420px;border:1px solid ${EMAIL_COLORS.panelBorder};background:${EMAIL_COLORS.surface};"
                         />
                       </div>`
@@ -122,7 +115,6 @@ export const buildContactSubmissionEmail = (input: ContactEmailInput) => {
 Name: ${input.name}
 Email: ${input.email}
 Subject: ${input.subject}
-Attachments: ${attachmentsText}
 Message:
 ${input.message}
 ${emailFooterText()}

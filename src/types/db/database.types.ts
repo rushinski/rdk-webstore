@@ -522,6 +522,7 @@ export type Database = {
       }
       contact_messages: {
         Row: {
+          attachments: Json | null
           created_at: string
           email: string
           id: string
@@ -532,6 +533,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          attachments?: Json | null
           created_at?: string
           email: string
           id?: string
@@ -542,6 +544,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          attachments?: Json | null
           created_at?: string
           email?: string
           id?: string
