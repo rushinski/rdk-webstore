@@ -349,10 +349,10 @@ export default function AdminChatsPage() {
               messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`max-w-[80%] px-4 py-3 border border-zinc-800/70 ${
+                  className={`max-w-[80%] w-fit rounded-2xl px-4 py-3 border border-zinc-800/70 ${
                     message.sender_role === 'admin'
                       ? 'bg-zinc-950 text-white ml-auto'
-                      : 'bg-zinc-800 text-zinc-100'
+                      : 'bg-zinc-800 text-zinc-100 mr-auto'
                   }`}
                   data-testid="chat-message"
                 >

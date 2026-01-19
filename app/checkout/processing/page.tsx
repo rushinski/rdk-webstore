@@ -11,6 +11,12 @@ const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 export default function CheckoutProcessingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const orderId = searchParams.get('orderId');
+  const fulfillment = searchParams.get('fulfillment');
+  const fulfillmentParam = fulfillment ? `&fulfillment=${encodeURIComponent(fulfillment)}` : '';
+  const successUrl = orderId
+    ? `/checkout/success?orderId=${orderId}${fulfillmentParam}`
+    : '/checkout/success';
 
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your payment...');
@@ -18,11 +24,8 @@ export default function CheckoutProcessingPage() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const orderId = searchParams.get('orderId');
     const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret');
     const paymentIntentId = searchParams.get('payment_intent');
-    const fulfillment = searchParams.get('fulfillment');
-    const fulfillmentParam = fulfillment ? `&fulfillment=${encodeURIComponent(fulfillment)}` : '';
     const e2eStatus =
       process.env.NEXT_PUBLIC_E2E_TEST_MODE === '1' || process.env.NODE_ENV === 'test'
         ? searchParams.get('e2e_status')
@@ -68,7 +71,7 @@ export default function CheckoutProcessingPage() {
 
         if (paymentIntent?.status === 'succeeded') {
           setStatus('success');
-          setMessage('Payment successful! Redirecting...');
+          setMessage('Payment successful! Your order is confirmed.');
           clearTimers();
 
           try {
@@ -87,10 +90,6 @@ export default function CheckoutProcessingPage() {
           } catch {
             // ignore confirmation errors; webhook will reconcile
           }
-
-          setTimeout(() => {
-            router.push(`/checkout/success?orderId=${orderId}${fulfillmentParam}`);
-          }, 1200);
           return;
         }
 
@@ -122,11 +121,8 @@ export default function CheckoutProcessingPage() {
         const data = await response.json();
         if (data?.status === 'paid') {
           setStatus('success');
-          setMessage('Payment confirmed! Redirecting...');
+          setMessage('Payment confirmed! Your order is confirmed.');
           clearTimers();
-          setTimeout(() => {
-            router.push(`/checkout/success?orderId=${orderId}${fulfillmentParam}`);
-          }, 1200);
         }
       } catch {
         // ignore polling errors
@@ -167,6 +163,20 @@ export default function CheckoutProcessingPage() {
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
           <h1 className="text-3xl font-bold text-white mb-4">Payment Successful!</h1>
           <p className="text-gray-400" data-testid="success-message">{message}</p>
+          <div className="mt-8 space-y-3">
+            <button
+              onClick={() => router.push(successUrl)}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+            >
+              View Order Confirmation
+            </button>
+            <button
+              onClick={() => router.push('/store')}
+              className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
+            >
+              Continue Shopping
+            </button>
+          </div>
         </>
       )}
 

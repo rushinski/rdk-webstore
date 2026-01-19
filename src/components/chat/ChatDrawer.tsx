@@ -350,10 +350,10 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`max-w-[80%] px-4 py-3 border border-zinc-800/70 ${
+                      className={`max-w-[80%] w-fit rounded-2xl px-4 py-3 border border-zinc-800/70 ${
                         message.sender_role === 'customer'
                           ? 'bg-red-900/20 text-white ml-auto'
-                          : 'bg-zinc-900 text-zinc-200'
+                          : 'bg-zinc-900 text-zinc-200 mr-auto'
                       }`}
                     >
                       <div className="text-xs text-zinc-500 mb-1">

@@ -9,6 +9,7 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type { StripePaymentElementChangeEvent } from "@stripe/stripe-js";
 import { ShippingAddressForm } from "./ShippingAddressForm";
 import { SavedAddresses } from "./SavedAddresses";
 import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
@@ -53,6 +54,8 @@ export function CheckoutForm({
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  const [paymentElementError, setPaymentElementError] = useState<string | null>(null);
   const canBypassStripe =
     (process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test") &&
     typeof window !== "undefined" &&
@@ -119,6 +122,12 @@ export function CheckoutForm({
 
     if (fulfillment === "ship" && !shippingAddress) {
       const message = "Please provide a shipping address";
+      setError(message);
+      return { ok: false, error: message };
+    }
+
+    if (withSubmit && !paymentComplete) {
+      const message = paymentElementError ?? "Please enter your card details to continue.";
       setError(message);
       return { ok: false, error: message };
     }
@@ -379,7 +388,15 @@ export function CheckoutForm({
           </p>
         </div>
 
-        <PaymentElement />
+        <PaymentElement
+          onChange={(event: StripePaymentElementChangeEvent) => {
+            setPaymentComplete(event.complete);
+            setPaymentElementError(event.error?.message ?? null);
+          }}
+        />
+        {paymentElementError && (
+          <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>
+        )}
       </div>
 
       {/* Legal Agreements */}
