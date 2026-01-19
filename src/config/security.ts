@@ -1,6 +1,4 @@
 // src/config/security.ts
-const isProdEnv = process.env.NODE_ENV === "production";
-
 export const security = {
   contact: {
     rateLimit: {
@@ -35,20 +33,20 @@ export const security = {
       blockStatus: 403,
       minUserAgentLength: 8,
       maxLoggedUserAgentLength: 200,
-      
+
       allowedUserAgents: [
-        "Googlebot",    // Google search
-        "Applebot",     // Apple search & Siri
-        "Bingbot",      // Microsoft Bing
+        "Googlebot",
+        "Applebot",
+        "Bingbot",
       ],
-      
+
       disallowedUserAgentSubstrings: [
-        "curl/",              // CLI tool
-        "wget/",              // CLI downloader
-        "python-requests",    // Python HTTP library
-        "go-http-client",     // Go default client
-        "libwww-perl",        // Perl HTTP library
-        "scrapy",             // Python scraping framework
+        "curl/",
+        "wget/",
+        "python-requests",
+        "go-http-client",
+        "libwww-perl",
+        "scrapy",
       ],
     },
 
@@ -56,30 +54,122 @@ export const security = {
       blockStatus: 403,
       unsafeMethods: ["POST", "PUT", "PATCH", "DELETE"] as const,
       maxOriginLength: 512,
-      
+
       bypassPrefixes: [
-        "/api/stripe/webhook",           // Stripe signature verification
-        "/api/auth/2fa/challenge/verify", // Time-based code verification
+        "/api/stripe/webhook",
+        "/api/auth/2fa/challenge/verify",
       ],
     },
 
     rateLimit: {
-      store: isProdEnv ? "upstash" : "memory",
+      store: "upstash",
+      enabled: true,
+      ignorePrefetch: true,
       applyInLocalDev: true,
-      maxRequests: 30,
+      
+      // Default window for all limits
       window: "1 m",
+      
+      // Global per-IP limit (applies across all routes)
+      maxRequestsGlobal: 300,
+      
+      // Default per-path limit (fallback for routes not specified below)
+      maxRequests: 60,
+      
       blockStatus: 429,
       tooManyRequestsPath: "/too-many-requests",
       redirectStatus: 302,
-      bypassPrefixes: ["/api/webhooks/stripe", "/api/webhooks/shippo"],
+
+      // Per-route rate limit configurations
+      routeLimits: [
+        // Storefront routes - very permissive since they have heavy prefetching
+        {
+          pathPrefix: "/store",
+          maxRequests: 200,  // Much higher limit for store browsing
+          window: "1 m",
+        },
+        {
+          pathPrefix: "/brands",
+          maxRequests: 100,
+          window: "1 m",
+        },
+        
+        // API routes - moderate limits
+        {
+          pathPrefix: "/api/store",
+          maxRequests: 100,
+          window: "1 m",
+        },
+        {
+          pathPrefix: "/api/account",
+          maxRequests: 60,
+          window: "1 m",
+        },
+        
+        // Auth routes - stricter limits
+        {
+          pathPrefix: "/api/auth/login",
+          maxRequests: 10,
+          window: "5 m",
+        },
+        {
+          pathPrefix: "/api/auth/register",
+          maxRequests: 5,
+          window: "5 m",
+        },
+        {
+          pathPrefix: "/api/auth/forgot-password",
+          maxRequests: 3,
+          window: "15 m",
+        },
+        
+        // Checkout - moderate limits
+        {
+          pathPrefix: "/api/checkout",
+          maxRequests: 30,
+          window: "1 m",
+        },
+        {
+          pathPrefix: "/checkout",
+          maxRequests: 50,
+          window: "1 m",
+        },
+        
+        // Admin routes - strict limits
+        {
+          pathPrefix: "/admin",
+          maxRequests: 100,
+          window: "1 m",
+        },
+        {
+          pathPrefix: "/api/admin",
+          maxRequests: 60,
+          window: "1 m",
+        },
+        
+        // Contact form - very strict
+        {
+          pathPrefix: "/api/contact",
+          maxRequests: 5,
+          window: "10 m",
+        },
+      ],
+
+      // Routes that bypass rate limiting entirely
+      bypassPrefixes: [
+        "/api/webhooks/stripe",
+        "/api/webhooks/shippo",
+        "/_next/",
+        "/favicon.ico",
+        "/robots.txt",
+        "/sitemap.xml",
+      ],
     },
 
     admin: {
       loginPath: "/auth/login",
       homePath: "/",
       mfaChallengePath: "/auth/2fa/challenge",
-
-      // Status codes for API requests
       unauthorizedStatus: 401,
       forbiddenStatus: 403,
       errorStatus: 500,
@@ -87,59 +177,45 @@ export const security = {
 
     adminSession: {
       cookieName: "admin_session",
-      ttlSeconds: 60 * 60 * 24, // 24 hours (86,400 seconds)
+      ttlSeconds: 60 * 60 * 24,
     },
 
     securityHeaders: {
       hsts: {
         value: "max-age=63072000; includeSubDomains; preload",
       },
-      
+
       csp: {
-        /**
-         * Development CSP - Relaxed for local development.
-         * (Updated for Stripe Connect embedded components)
-         */
         dev: [
           "default-src 'self'",
-          // Allow Stripe-hosted images that may be used by embedded components
           "img-src 'self' data: https: blob: https://*.stripe.com",
           "style-src 'self' 'unsafe-inline'",
-          // Allow Stripe Connect JS loaders
           "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
           [
             "connect-src",
             "'self'",
-            "ws://localhost:*",      // Next.js HMR WebSocket
-            "http://localhost:*",    // Local API calls
-            "http://127.0.0.1:*",  
-            "https:",                // All HTTPS (Supabase, Stripe, etc.)
+            "ws://localhost:*",
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "https:",
           ].join(" "),
           "object-src 'none'",
           "base-uri 'self'",
           "frame-ancestors 'none'",
-          // Allow Stripe Connect embedded iframes + your existing map frames
           "font-src 'self' https://*.stripe.com data:",
           "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
           "form-action 'self' https://*.stripe.com",
         ],
 
-        /**
-         * Production CSP - Strict with specific allowlists.
-         * (Updated for Stripe Connect embedded components)
-         */
         prod: [
           "default-src 'self'",
           "img-src 'self' https: data: blob: https://*.stripe.com",
-          "style-src 'self' 'unsafe-inline'", // TODO: Use nonces to remove unsafe-inline
-          // Include connect-js.stripe.com explicitly
+          "style-src 'self' 'unsafe-inline'",
           "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
           "object-src 'none'",
           "base-uri 'self'",
-          // Keep HTTPS wildcard, it covers Stripe API calls; fine for MVP, tighten later if desired
           "connect-src 'self' https:",
           "frame-ancestors 'none'",
-          // Allow Connect embedded frames + Checkout frames + your existing map frames
           "font-src 'self' https://*.stripe.com data:",
           "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
           "form-action 'self' https://*.stripe.com",
@@ -161,4 +237,23 @@ export type CsrfUnsafeMethod = (typeof security.proxy.csrf.unsafeMethods)[number
 export function isCsrfUnsafeMethod(method: string): method is CsrfUnsafeMethod {
   const methodUpper = method.toUpperCase();
   return (security.proxy.csrf.unsafeMethods as readonly string[]).includes(methodUpper);
+}
+
+// Helper to get the appropriate rate limit config for a path
+export function getRateLimitConfigForPath(pathname: string) {
+  const { routeLimits, maxRequests, window } = security.proxy.rateLimit;
+  
+  // Find the most specific matching route (longest prefix match)
+  let matchedConfig = null;
+  let longestMatch = 0;
+  
+  for (const config of routeLimits) {
+    if (pathname.startsWith(config.pathPrefix) && config.pathPrefix.length > longestMatch) {
+      matchedConfig = config;
+      longestMatch = config.pathPrefix.length;
+    }
+  }
+  
+  // Return matched config or default
+  return matchedConfig || { maxRequests, window, pathPrefix: pathname };
 }

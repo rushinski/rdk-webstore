@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ContactForm } from '@/components/contact/ContactForm';
 
 export default function BugReportPage() {

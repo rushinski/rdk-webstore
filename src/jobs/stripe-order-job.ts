@@ -2,7 +2,7 @@
 import Stripe from "stripe";
 import { revalidateTag } from "next/cache";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { AdminSupabaseClient } from "@/lib/supabase/session-refresh";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
