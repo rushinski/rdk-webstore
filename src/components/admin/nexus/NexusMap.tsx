@@ -1,10 +1,9 @@
 // src/components/admin/nexus/NexusMap.tsx
 "use client";
 
-import React, { useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ComposableMap, Geographies, Geography } from "@vnedyalk0v/react19-simple-maps";
 import type { StateSummary } from "@/types/domain/nexus";
-import { clientEnv } from "@/config/client-env";
 
 type NexusMapProps = {
   states: StateSummary[];
@@ -14,8 +13,6 @@ type NexusMapProps = {
   // NEW: provide legend items so the key can live inside this card
   legendItems: Array<{ label: string; color: string }>;
 };
-
-const geoUrl = `${clientEnv.NEXT_PUBLIC_SITE_URL}/api/maps/us-states`;
 
 const STATE_NAME_TO_CODE: Record<string, string> = {
   Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
@@ -62,6 +59,27 @@ export default function NexusMap({
 
   const stateMap = useMemo(() => new Map(states.map((s) => [s.stateCode, s])), [states]);
   const hoveredData = hoveredState ? stateMap.get(hoveredState) : null;
+  const [topology, setTopology] = useState<any>(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    fetch("/api/maps/us-states", { cache: "force-cache" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Map fetch failed: ${r.status}`);
+        return r.json();
+      })
+      .then((json) => {
+        if (alive) setTopology(json);
+      })
+      .catch((err) => {
+        console.error("Failed to load map topology:", err);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const clearHover = useCallback(() => {
     setHoveredState(null);
@@ -131,7 +149,7 @@ export default function NexusMap({
             svgRef.current = node as SVGSVGElement | null;
           }}
         >
-          <Geographies geography={geoUrl}>
+          <Geographies geography={topology}>
             {({ geographies }) =>
               geographies.map((geo) => {
                 const stateName = geo.properties.name as string;

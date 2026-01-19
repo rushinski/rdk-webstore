@@ -1,6 +1,4 @@
 // app/api/maps/us-states/route.ts
-export const runtime = "nodejs";
-
 export async function GET() {
   const upstream =
     "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
