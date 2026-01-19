@@ -1,3 +1,4 @@
+// app/brands/page.tsx
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
@@ -11,7 +12,7 @@ const listBrandLabelsCached = unstable_cache(
     const supabase = createSupabasePublicClient();
     const service = new StorefrontService(supabase);
     const { brands } = await service.listFilters();
-    return Array.from(new Set(brands.map((brand) => brand.label).filter(Boolean)));
+    return Array.from(new Set(brands.map((b) => b.label).filter(Boolean)));
   },
   ["storefront", "brands"],
   { revalidate: BRANDS_REVALIDATE_SECONDS, tags: ["products:list"] }
@@ -23,88 +24,219 @@ function buildStoreHref(brand: string) {
   return `/store?${params.toString()}`;
 }
 
-const indexLinkClass =
-  "rounded-full border border-zinc-800/70 px-3 py-1 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors";
+function normalizeLetter(label: string) {
+  const first = label?.trim()?.[0] ?? "";
+  return /[a-z]/i.test(first) ? first.toUpperCase() : "#";
+}
 
-export default async function BrandsPage() {
-  const uniqueLabels = await listBrandLabelsCached();
-  uniqueLabels.sort((a, b) => {
+function sortLabels(labels: string[]) {
+  return [...labels].sort((a, b) => {
     const aLower = a.toLowerCase();
     const bLower = b.toLowerCase();
     if (aLower === "other") return 1;
     if (bLower === "other") return -1;
     return a.localeCompare(b);
   });
+}
 
-  const grouped = uniqueLabels.reduce<Record<string, string[]>>((acc, label) => {
-    const letter = /[a-z]/i.test(label[0]) ? label[0].toUpperCase() : "#";
-    if (!acc[letter]) acc[letter] = [];
-    acc[letter].push(label);
+const allLetters = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""), "#"];
+
+// Original vibe button class (kept)
+const pillLink =
+  "rounded-full border border-zinc-800/70 px-3 py-1 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors";
+
+export default async function BrandsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const qRaw = (sp.q ?? "").trim();
+  const q = qRaw.toLowerCase();
+
+  const uniqueLabels = sortLabels(await listBrandLabelsCached());
+  const filtered = q
+    ? uniqueLabels.filter((label) => label.toLowerCase().includes(q))
+    : uniqueLabels;
+
+  const grouped = filtered.reduce<Record<string, string[]>>((acc, label) => {
+    const letter = normalizeLetter(label);
+    (acc[letter] ??= []).push(label);
     return acc;
   }, {});
-  const letters = Object.keys(grouped).sort((a, b) => {
+
+  const lettersWithResults = Object.keys(grouped).sort((a, b) => {
     if (a === "#") return 1;
     if (b === "#") return -1;
     return a.localeCompare(b);
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-12">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-[0.4em] text-zinc-500">Brand Index</p>
-          <h1 className="text-4xl font-bold text-white mt-3">All Brands</h1>
-          <p className="text-zinc-400 text-sm mt-3">
-            Browse by letter or jump straight to a favorite.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.2em] text-zinc-500">
-          <span className="px-3 py-2 border border-zinc-800/70">
-            {uniqueLabels.length} brands
+    <div className="min-h-screen bg-black">
+      <div className="max-w-6xl mx-auto px-4 py-12">
+        {/* Breadcrumb (dark) */}
+        <nav className="text-sm text-zinc-500 mb-5">
+          <span className="hover:text-zinc-200 transition-colors">
+            <Link href="/">Home</Link>
           </span>
-          <span className="px-3 py-2 border border-zinc-800/70">A-Z index</span>
-        </div>
-      </div>
+          <span className="mx-2">›</span>
+          <span className="text-zinc-300 font-medium">Brands</span>
+        </nav>
 
-      <div className="mt-8 flex flex-wrap gap-2 text-xs text-zinc-400">
-        {letters.map((letter) => (
-          <a
-            key={letter}
-            href={`#brand-${letter}`}
-            className={indexLinkClass}
-          >
-            {letter}
-          </a>
-        ))}
-      </div>
+        {/* Panel (dark) */}
+        <div className="border border-zinc-800/70 bg-zinc-950/40 rounded-md overflow-hidden">
+          {/* Header */}
+          <div className="px-5 py-5 border-b border-zinc-800/70 flex items-start justify-between gap-5 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-[0.4em] text-zinc-500">
+                Brand Index
+              </p>
+              <h1 className="text-4xl font-bold text-white mt-3">All Brands</h1>
+              <p className="text-zinc-400 text-sm mt-3">
+                Browse by letter or search for a favorite.
+              </p>
+            </div>
 
-      <div className="mt-10 divide-y divide-zinc-800/70">
-        {letters.map((letter) => (
-          <section key={letter} id={`brand-${letter}`} className="py-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full border border-zinc-700/70 text-zinc-200 flex items-center justify-center text-lg font-semibold">
-                  {letter}
+            {/* Search (server GET, dark) */}
+            <form action="/brands" method="get" className="w-full sm:w-auto">
+              <div className="flex items-center gap-2">
+                <div className="relative w-full sm:w-[360px]">
+                  <input
+                    name="q"
+                    defaultValue={qRaw}
+                    placeholder="Search brands..."
+                    className="w-full rounded-md border border-zinc-800/70 bg-black px-3 py-2 pr-10 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600/30"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                  >
+                    ⌕
+                  </span>
                 </div>
-                <h2 className="text-lg font-semibold text-white">Brands</h2>
-              </div>
-              <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-                {grouped[letter].length} total
-              </span>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {grouped[letter].map((label) => (
-                <Link
-                  key={label}
-                  href={buildStoreHref(label)}
-                  className={indexLinkClass}
+
+                <button
+                  type="submit"
+                  className="rounded-md border border-zinc-800/70 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-200 hover:text-white hover:border-red-600/40 transition-colors"
                 >
-                  {label}
-                </Link>
-              ))}
+                  Search
+                </button>
+
+                {qRaw ? (
+                  <Link
+                    href="/brands"
+                    className="rounded-md border border-zinc-800/70 bg-transparent px-3 py-2 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors"
+                  >
+                    Clear
+                  </Link>
+                ) : null}
+              </div>
+
+              <div className="mt-2 text-xs text-zinc-500">
+                Showing <span className="text-zinc-200 font-medium">{filtered.length}</span>{" "}
+                of <span className="text-zinc-200 font-medium">{uniqueLabels.length}</span>{" "}
+                brands
+              </div>
+            </form>
+          </div>
+
+          {/* Go To strip (dark) */}
+          <div className="px-5 py-4 border-b border-zinc-800/70 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-zinc-400">Go To:</span>
+
+              <div className="flex items-center gap-2 flex-nowrap overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {allLetters.map((letter) => {
+                  const has = Boolean(grouped[letter]?.length);
+
+                  const baseBox =
+                    "shrink-0 inline-flex w-9 h-9 items-center justify-center rounded-md border text-sm font-medium transition-colors";
+
+                  return has ? (
+                    <a
+                      key={letter}
+                      href={`#brand-${letter}`}
+                      className={`${baseBox} border-zinc-800/70 bg-transparent text-zinc-300 hover:text-white hover:border-red-600/40`}
+                    >
+                      {letter}
+                    </a>
+                  ) : (
+                    <span
+                      key={letter}
+                      aria-disabled="true"
+                      className={`${baseBox} border-zinc-900/70 bg-zinc-950/40 text-zinc-600 cursor-not-allowed`}
+                    >
+                      {letter}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
-          </section>
-        ))}
+
+            <div className="text-xs text-zinc-500">
+              {lettersWithResults.length ? (
+                <span>
+                  Sections:{" "}
+                  <span className="text-zinc-200 font-medium">
+                    {lettersWithResults.length}
+                  </span>
+                </span>
+              ) : (
+                <span>No results</span>
+              )}
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div className="divide-y divide-zinc-800/70">
+            {lettersWithResults.length === 0 ? (
+              <div className="px-5 py-10">
+                <div className="text-white font-semibold">No brands found.</div>
+                <div className="text-sm text-zinc-400 mt-1">
+                  Try a different search term.
+                </div>
+              </div>
+            ) : (
+              lettersWithResults.map((letter) => (
+                <section key={letter} id={`brand-${letter}`} className="scroll-mt-24">
+                  {/* Section header (dark, original palette) */}
+                  <div className="px-5 py-4 flex items-center justify-between bg-zinc-950/30 border-b border-zinc-800/70">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full border border-zinc-800/70 text-zinc-200 flex items-center justify-center text-lg font-semibold">
+                        {letter}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-white">
+                          {letter === "#" ? "Other" : `Brands`}
+                        </h2>
+                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mt-0.5">
+                          Section {letter}
+                        </p>
+                      </div>
+                    </div>
+
+                    <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                      {grouped[letter].length} total
+                    </span>
+                  </div>
+
+                  {/* 3-column list but using your original pill styling */}
+                  <div className="px-5 py-5">
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-3">
+                      {grouped[letter].map((label) => (
+                        <li key={label} className="min-w-0">
+                          <Link href={buildStoreHref(label)} className={pillLink} title={`Shop ${label}`}>
+                            {label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </section>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
