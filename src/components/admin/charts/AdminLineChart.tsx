@@ -14,12 +14,12 @@ import {
 
 type AdminLineChartProps<T extends Record<string, unknown>> = {
   data: T[];
-  xKey: keyof T; // typically "date"
-  yKey: keyof T; // "revenue" | "visits"
-  height?: number; // default 320
+  xKey: keyof T;
+  yKey: keyof T;
+  height?: number;
   yLabel?: string;
-  seriesName?: string; // what shows in tooltip
-  stroke?: string; // line color
+  seriesName?: string;
+  stroke?: string;
   valueFormatter?: (value: number) => string;
   emptyLabel?: string;
 };
@@ -40,6 +40,44 @@ function formatDateShort(input: unknown) {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(d);
 }
 
+function niceStep(raw: number): number {
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  const exp = Math.floor(Math.log10(raw));
+  const f = raw / Math.pow(10, exp);
+
+  let nf = 1;
+  if (f <= 1) nf = 1;
+  else if (f <= 2) nf = 2;
+  else if (f <= 5) nf = 5;
+  else nf = 10;
+
+  return nf * Math.pow(10, exp);
+}
+
+function genTicks(min: number, max: number, step: number) {
+  const out: number[] = [];
+  if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step) || step <= 0) return out;
+
+  const start = Math.floor(min / step) * step;
+  const end = Math.ceil(max / step) * step;
+
+  const MAX_TICKS = 12_000;
+  let count = 0;
+
+  for (let v = start; v <= end + step / 2; v += step) {
+    out.push(Number(v.toFixed(12)));
+    count++;
+    if (count > MAX_TICKS) break;
+  }
+
+  return Array.from(new Set(out)).sort((a, b) => a - b);
+}
+
+function hasDuplicateLabels(values: number[], fmt: (n: number) => string) {
+  const labels = values.map((v) => fmt(v));
+  return new Set(labels).size !== labels.length;
+}
+
 export function AdminLineChart<T extends Record<string, unknown>>({
   data,
   xKey,
@@ -47,7 +85,7 @@ export function AdminLineChart<T extends Record<string, unknown>>({
   height = 320,
   yLabel,
   seriesName,
-  stroke = "#ef4444", // red-500
+  stroke = "#ef4444",
   valueFormatter,
   emptyLabel = "No data for this range yet.",
 }: AdminLineChartProps<T>) {
@@ -59,14 +97,76 @@ export function AdminLineChart<T extends Record<string, unknown>>({
         __y: toNumber(row[yKey]),
       }))
       .sort((a, b) => {
-        const da = new Date(String(a.__x)).getTime();
-        const db = new Date(String(b.__x)).getTime();
+        const da = new Date(String((a as any).__x)).getTime();
+        const db = new Date(String((b as any).__x)).getTime();
         if (Number.isNaN(da) || Number.isNaN(db)) return 0;
         return da - db;
       });
   }, [data, xKey, yKey]);
 
-  // Only empty-state when there are literally zero points.
+  const fmt = valueFormatter ?? ((v: number) => String(v));
+  const displayName = seriesName ?? yLabel ?? "Value";
+
+  // IMPORTANT: This hook must run on every render (even when empty)
+  const yAxis = useMemo(() => {
+    // Default axis so hook is safe even when there's no data
+    if (normalized.length === 0) {
+      return {
+        domain: [0, 1] as [number, number],
+        ticks: [0, 1] as number[],
+        allowDecimals: false,
+      };
+    }
+
+    const yVals = normalized.map((r) => toNumber((r as any).__y));
+    const yMinData = yVals.length ? Math.min(...yVals) : 0;
+    const yMaxData = yVals.length ? Math.max(...yVals) : 0;
+
+    const min = Math.min(0, yMinData);
+    const max = Math.max(0, yMaxData);
+
+    // Keep chart readable if all zeros
+    const domainMax = max === 0 ? 1 : max;
+
+    const isIntegerSeries = yVals.every((v) => Number.isInteger(v));
+    const wantIntegers = isIntegerSeries;
+
+    let step: number;
+
+    if (wantIntegers) {
+      if (domainMax <= 12) step = 1;
+      else step = Math.max(1, niceStep((domainMax - min) / 5));
+    } else {
+      step = niceStep((domainMax - min) / 5);
+    }
+
+    let ticks = genTicks(min, domainMax, step);
+
+    // If formatter collapses values into duplicate labels (ex: 0.2 and 0.4 both show "0"),
+    // increase step until labels are unique.
+    let attempts = 0;
+    while (ticks.length > 2 && hasDuplicateLabels(ticks, fmt) && attempts < 8) {
+      step *= 2;
+      ticks = genTicks(min, domainMax, step);
+      attempts++;
+    }
+
+    // Cap tick count for readability
+    const MAX_TICKS_SHOWN = 12;
+    if (ticks.length > MAX_TICKS_SHOWN) {
+      const stride = Math.ceil(ticks.length / MAX_TICKS_SHOWN);
+      ticks = ticks.filter((_, idx) => idx % stride === 0);
+      if (ticks[ticks.length - 1] !== domainMax) ticks.push(domainMax);
+    }
+
+    return {
+      domain: [min, domainMax] as [number, number],
+      ticks,
+      allowDecimals: !wantIntegers,
+    };
+  }, [normalized, fmt]);
+
+  // Now it's safe to return early (hooks already ran)
   if (normalized.length === 0) {
     return (
       <div
@@ -80,9 +180,6 @@ export function AdminLineChart<T extends Record<string, unknown>>({
       </div>
     );
   }
-
-  const fmt = valueFormatter ?? ((v: number) => String(v));
-  const displayName = seriesName ?? yLabel ?? "Value";
 
   return (
     <div className="w-full">
@@ -98,6 +195,9 @@ export function AdminLineChart<T extends Record<string, unknown>>({
               minTickGap={18}
             />
             <YAxis
+              domain={yAxis.domain}
+              ticks={yAxis.ticks}
+              allowDecimals={yAxis.allowDecimals}
               tickFormatter={(v) => fmt(toNumber(v))}
               axisLine={false}
               tickLine={false}
@@ -122,10 +222,10 @@ export function AdminLineChart<T extends Record<string, unknown>>({
             <Line
               type="monotone"
               dataKey="__y"
-              name={displayName} // prevents "y" label
-              stroke={stroke}    // red line
+              name={displayName}
+              stroke={stroke}
               strokeWidth={2}
-              dot={normalized.length === 1} // today: single dot
+              dot={normalized.length === 1}
               activeDot={{ r: 4, stroke }}
             />
           </LineChart>
