@@ -1,4 +1,26 @@
 // src/config/security.ts
+
+const allowLocalSupabaseInProd = true
+const prodConnectSrc = [
+  "'self'",
+  "https://*.supabase.co",
+  "wss://*.supabase.co",
+  "https://api.goshippo.com",
+  "https://api.stripe.com",
+  "https://connect-js.stripe.com",
+  "https://*.stripe.com",
+
+  // ✅ only when explicitly enabled (for local prod-mode testing)
+  ...(allowLocalSupabaseInProd
+    ? [
+        "https://localhost:*",
+        "wss://localhost:*",
+        "https://127.0.0.1:*",
+        "wss://127.0.0.1:*",
+      ]
+    : []),
+].join(" ");
+
 export const security = {
   contact: {
     rateLimit: {
@@ -210,12 +232,15 @@ export const security = {
 
         prod: [
           "default-src 'self'",
-          "img-src 'self' https: data: blob: https://*.stripe.com",
+          "img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com https://*.openstreetmap.org",
           "style-src 'self' 'unsafe-inline'",
           "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
           "object-src 'none'",
           "base-uri 'self'",
-          "connect-src 'self' https:",
+
+          // ✅ use computed connect-src
+          `connect-src ${prodConnectSrc}`,
+
           "frame-ancestors 'none'",
           "font-src 'self' https://*.stripe.com data:",
           "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
