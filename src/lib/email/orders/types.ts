@@ -5,6 +5,13 @@ export type OrderItemEmail = {
   quantity: number;
   unitPrice: number;
   lineTotal: number;
+
+  // NEW (optional): rich product details for emails
+  imageUrl?: string | null; // primary image (absolute https URL recommended)
+  brand?: string | null;
+  model?: string | null;
+  category?: string | null;
+  sku?: string | null;
 };
 
 export type ShippingAddress = {

@@ -1,4 +1,4 @@
-// src/lib/email/orders/confirmation.ts (UPDATED with Tax)
+// src/lib/email/orders/confirmation.ts (UPDATED with images + details)
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
 import type { OrderConfirmationEmailInput } from "@/lib/email/orders/types";
@@ -10,6 +10,27 @@ import {
   formatMoney,
 } from "@/lib/email/orders/utils";
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const safeText = (value?: string | null) => (value ? escapeHtml(value.trim()) : "");
+
+const safeHttpsUrl = (value?: string | null) => {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+};
+
 export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();
   const orderDate = new Date(input.createdAt).toLocaleDateString("en-US", {
@@ -17,19 +38,61 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
     day: "numeric",
     year: "numeric",
   });
+
   const addressLines = buildAddressLines(input.shippingAddress);
   const orderUrl = buildOrderUrl(input.orderUrl);
+  const orderUrlSafe = safeHttpsUrl(orderUrl) ?? orderUrl;
 
   const itemsHtml = input.items
     .map((item) => {
-      const size = item.sizeLabel ? ` (${item.sizeLabel})` : "";
+      const title = safeText(item.title) || "Item";
+      const size = item.sizeLabel ? ` (${safeText(item.sizeLabel)})` : "";
+      const imageUrl = safeHttpsUrl(item.imageUrl);
+
+      const detailParts = [
+        safeText(item.brand),
+        safeText(item.model),
+        safeText(item.category),
+        safeText(item.sku),
+      ].filter(Boolean);
+
+      const detailsLine = detailParts.length
+        ? `<div style="font-size:12px;color:${EMAIL_COLORS.muted};margin-top:4px;">${detailParts.join(
+            " • ",
+          )}</div>`
+        : "";
+
+      const thumb = imageUrl
+        ? `<img
+            src="${imageUrl}"
+            width="64"
+            height="64"
+            alt="${title}"
+            style="display:block;width:64px;height:64px;object-fit:cover;border-radius:12px;border:1px solid ${EMAIL_COLORS.panelBorder};"
+          />`
+        : `<div style="width:64px;height:64px;border-radius:12px;border:1px solid ${EMAIL_COLORS.panelBorder};background:${EMAIL_COLORS.panelBorder};"></div>`;
+
       return `
         <tr>
           <td style="padding:12px 0;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};">
-            <div style="font-size:14px;color:${EMAIL_COLORS.text};font-weight:600;">${item.title}${size}</div>
-            <div style="font-size:12px;color:${EMAIL_COLORS.muted};">Qty ${item.quantity}</div>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+              <tr>
+                <td width="76" valign="top" style="padding-right:12px;">
+                  ${thumb}
+                </td>
+                <td valign="top" style="padding:0;">
+                  <div style="font-size:14px;color:${EMAIL_COLORS.text};font-weight:600;">
+                    ${title}${size}
+                  </div>
+                  ${detailsLine}
+                  <div style="font-size:12px;color:${EMAIL_COLORS.muted};margin-top:6px;">Qty ${
+                    item.quantity
+                  }</div>
+                </td>
+              </tr>
+            </table>
           </td>
-          <td align="right" style="padding:12px 0;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};font-size:14px;color:${EMAIL_COLORS.text};">
+          <td align="right" style="padding:12px 0;border-bottom:1px solid ${EMAIL_COLORS.panelBorder};font-size:14px;color:${EMAIL_COLORS.text};vertical-align:top;">
             $${formatMoney(item.lineTotal)}
           </td>
         </tr>
@@ -44,7 +107,7 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
           <td style="padding:16px 0 0;">
             <div style="${emailStyles.labelAccent}">Shipping Address</div>
             <div style="margin-top:8px;font-size:13px;line-height:1.6;color:${EMAIL_COLORS.muted};">
-              ${addressLines.map((line) => `<div>${line}</div>`).join("")}
+              ${addressLines.map((line) => `<div>${safeText(line)}</div>`).join("")}
             </div>
           </td>
         </tr>
@@ -77,13 +140,13 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
               <td style="padding:12px;">
                 <div style="${emailStyles.label}">Order</div>
                 <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
-                  #${orderShort}
+                  #${safeText(orderShort)}
                 </div>
               </td>
               <td style="padding:12px;text-align:right;">
                 <div style="${emailStyles.label}">Placed</div>
                 <div style="font-size:14px;color:#ffffff;margin-top:4px;">
-                  ${orderDate}
+                  ${safeText(orderDate)}
                 </div>
               </td>
             </tr>
@@ -131,7 +194,7 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
       </tr>
       <tr>
         <td style="padding:20px 24px;text-align:left;">
-          <a href="${orderUrl}" style="${emailStyles.button}">View your order</a>
+          <a href="${orderUrlSafe}" style="${emailStyles.button}">View your order</a>
         </td>
       </tr>
       <tr>
@@ -156,7 +219,12 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
     "Items:",
     ...input.items.map((item) => {
       const size = item.sizeLabel ? ` (${item.sizeLabel})` : "";
-      return `- ${item.title}${size} x${item.quantity} - $${formatMoney(item.lineTotal)}`;
+      const detailsParts = [item.brand, item.model, item.category, item.sku].filter(Boolean);
+      const details = detailsParts.length ? ` [${detailsParts.join(" • ")}]` : "";
+      const img = item.imageUrl ? ` (img: ${item.imageUrl})` : "";
+      return `- ${item.title}${size}${details}${img} x${item.quantity} - $${formatMoney(
+        item.lineTotal,
+      )}`;
     }),
     "",
     `Subtotal: $${formatMoney(input.subtotal)}`,
