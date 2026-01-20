@@ -389,9 +389,19 @@ export function CheckoutForm({
         </div>
 
         <PaymentElement
-          onChange={(event: StripePaymentElementChangeEvent) => {
+          onChange={(event) => {
             setPaymentComplete(event.complete);
-            setPaymentElementError(event.error?.message ?? null);
+
+            // PaymentElement change events don't expose `error`.
+            // Keep the UI clean: only show a generic message when user tries to submit,
+            // OR if you want live feedback, use empty/complete.
+            if (event.complete) {
+              setPaymentElementError(null);
+            } else if (event.empty) {
+              setPaymentElementError(null); // or "Please enter your payment details."
+            } else {
+              setPaymentElementError(null);
+            }
           }}
         />
         {paymentElementError && (

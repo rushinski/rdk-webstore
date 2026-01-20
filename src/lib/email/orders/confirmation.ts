@@ -117,7 +117,7 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
           <td style="padding:16px 0 0;">
             <div style="${emailStyles.labelAccent}">Fulfillment</div>
             <div style="margin-top:8px;font-size:13px;line-height:1.6;color:${EMAIL_COLORS.muted};">
-              ${input.fulfillment === "pickup" ? "Store pickup" : "Shipping details pending"}
+              ${input.fulfillment === "pickup" ? "Local pickup" : "Shipping details pending"}
             </div>
           </td>
         </tr>
@@ -236,7 +236,7 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
   if (input.fulfillment === "ship") {
     lines.push("", "Shipping Address:", ...addressLines);
   } else {
-    lines.push("", "Fulfillment: Store pickup");
+    lines.push("", "Fulfillment: Local pickup");
   }
 
   lines.push("", `View your order: ${orderUrl}`);
