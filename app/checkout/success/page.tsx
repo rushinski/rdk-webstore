@@ -148,16 +148,16 @@ function SuccessContent() {
               Check your email for pickup instructions and scheduling.
             </p>
             <p className="text-sm text-gray-400">
-              You can also DM us on{" "}
+              You can also DM us on Instagram {" "}
               <a
                 href="https://instagram.com/realdealkickzllc"
                 className="text-red-400 hover:text-red-300"
                 target="_blank"
                 rel="noreferrer"
               >
-                Instagram @realdealkickzllc
+                @realdealkickzllc
               </a>
-              .
+              {" "} to schedule pickup.
             </p>
           </div>
         )}

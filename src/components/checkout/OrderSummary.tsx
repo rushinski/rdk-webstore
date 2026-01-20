@@ -1,16 +1,16 @@
-// src/components/checkout/OrderSummary.tsx
 "use client";
 
 import Image from "next/image";
 import { Loader2, ShoppingBag } from "lucide-react";
+import { useMemo } from "react";
 import type { CartItem } from "@/types/domain/cart";
 
 interface OrderSummaryProps {
   items: CartItem[];
   subtotal: number;
   shipping: number;
-  tax: number; // NEW: Add tax prop
-  total: number;
+  tax: number;
+  total: number; // can keep, but we will not trust it for display
   fulfillment: "ship" | "pickup";
   isUpdatingShipping?: boolean;
 }
@@ -25,6 +25,18 @@ export function OrderSummary({
   isUpdatingShipping = false,
 }: OrderSummaryProps) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const effectiveShipping = fulfillment === "pickup" ? 0 : shipping;
+
+  const displayTotal = useMemo(() => {
+    // Defensive rounding to cents to avoid float drift (e.g., 0.1 + 0.2 issues)
+    const cents =
+      Math.round(subtotal * 100) +
+      Math.round(effectiveShipping * 100) +
+      Math.round(tax * 100);
+
+    return cents / 100;
+  }, [subtotal, effectiveShipping, tax]);
 
   return (
     <div className="sticky top-8">
@@ -73,7 +85,7 @@ export function OrderSummary({
             </span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
-          
+
           <div className="flex justify-between text-gray-400">
             <span>Shipping</span>
             <span className="text-xs">
@@ -93,7 +105,6 @@ export function OrderSummary({
             </span>
           </div>
 
-          {/* NEW: Tax line item */}
           <div className="flex justify-between text-gray-400">
             <span>Tax</span>
             <span>
@@ -112,7 +123,7 @@ export function OrderSummary({
               )}
             </span>
           </div>
-          
+
           <div className="border-t border-zinc-800 pt-2 mt-2">
             <div className="flex justify-between text-lg font-bold text-white">
               <span>Total</span>
@@ -126,10 +137,18 @@ export function OrderSummary({
                     Updating...
                   </span>
                 ) : (
-                  `$${total.toFixed(2)}`
+                  // Prefer computed displayTotal so Tax is reflected.
+                  `$${displayTotal.toFixed(2)}`
                 )}
               </span>
             </div>
+
+            {/* Optional: debugging guard (remove later) */}
+            {/* {!isUpdatingShipping && Math.abs(displayTotal - total) >= 0.01 && (
+              <p className="mt-1 text-xs text-amber-400">
+                Note: received total ${total.toFixed(2)} but computed ${displayTotal.toFixed(2)}
+              </p>
+            )} */}
           </div>
         </div>
 

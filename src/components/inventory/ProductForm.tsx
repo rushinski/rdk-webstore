@@ -938,7 +938,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Price ($) <RequiredMark />
+                    Selling for Price ($) <RequiredMark />
                   </label>
                   <input
                     type="text"
@@ -952,7 +952,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Cost ($) <RequiredMark />
+                    Bought for Price ($) <RequiredMark />
                   </label>
                   <input
                     type="text"
