@@ -1,7 +1,7 @@
 // src/components/checkout/ShippingAddressForm.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapPin } from 'lucide-react';
 import type { ShippingAddress } from './CheckoutForm';
 
@@ -11,58 +11,91 @@ interface ShippingAddressFormProps {
 }
 
 export function ShippingAddressForm({ onAddressChange, initialAddress }: ShippingAddressFormProps) {
+  const initialSignatureRef = useRef<string>('null');
+  const savedSignatureRef = useRef<string>('null');
+  const [isEditing, setIsEditing] = useState(!initialAddress);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [address, setAddress] = useState<ShippingAddress>(
-    initialAddress || {
-      name: '',
-      phone: '',
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: 'US',
-    }
+    initialAddress || createEmptyAddress()
   );
 
   useEffect(() => {
+    const signature = buildAddressSignature(initialAddress);
+    if (signature === initialSignatureRef.current) return;
+
+    initialSignatureRef.current = signature;
+    savedSignatureRef.current = signature;
+
     if (initialAddress) {
-      setAddress(initialAddress);
+      setAddress(normalizeAddress(initialAddress));
+      setIsEditing(false);
+      setSaveError(null);
       return;
     }
-    setAddress({
-      name: '',
-      phone: '',
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      postalCode: '',
-      country: 'US',
-    });
+
+    setAddress(createEmptyAddress());
+    setIsEditing(true);
+    setSaveError(null);
   }, [initialAddress]);
-
-  useEffect(() => {
-    // Validate and notify parent
-    const isValid =
-      address.name.trim() !== '' &&
-      address.line1.trim() !== '' &&
-      address.city.trim() !== '' &&
-      address.state.trim() !== '' &&
-      address.postalCode.trim() !== '';
-
-    onAddressChange(isValid ? address : null);
-  }, [address, onAddressChange]);
 
   const handleChange = (field: keyof ShippingAddress, value: string) => {
     setAddress((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleSave = () => {
+    const normalized = normalizeAddress(address);
+    if (!isValidAddress(normalized)) {
+      setSaveError('Please complete all required fields.');
+      return;
+    }
+
+    const signature = buildAddressSignature(normalized);
+    if (signature !== savedSignatureRef.current) {
+      onAddressChange(normalized);
+      savedSignatureRef.current = signature;
+    }
+
+    setAddress(normalized);
+    setIsEditing(false);
+    setSaveError(null);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setSaveError(null);
+  };
+
+  const handleCancel = () => {
+    if (initialAddress) {
+      setAddress(normalizeAddress(initialAddress));
+      setIsEditing(false);
+      setSaveError(null);
+      return;
+    }
+
+    setAddress(createEmptyAddress());
+    setSaveError(null);
+  };
+
+  const inputDisabled = !isEditing;
+
   return (
     <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
-      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <MapPin className="w-5 h-5" />
-        Shipping Address
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+          <MapPin className="w-5 h-5" />
+          Shipping Address
+        </h2>
+        {!isEditing && initialAddress && (
+          <button
+            type="button"
+            onClick={handleEdit}
+            className="text-xs text-red-400 hover:text-red-300"
+          >
+            Edit address
+          </button>
+        )}
+      </div>
 
       <div className="space-y-4">
         {/* Full Name */}
@@ -75,7 +108,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
             id="name"
             value={address.name}
             onChange={(e) => handleChange('name', e.target.value)}
-            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+            disabled={inputDisabled}
+            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-70 disabled:cursor-not-allowed"
             required
           />
         </div>
@@ -90,7 +124,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
             id="phone"
             value={address.phone}
             onChange={(e) => handleChange('phone', e.target.value)}
-            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+            disabled={inputDisabled}
+            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-70 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -105,7 +140,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
             value={address.line1}
             onChange={(e) => handleChange('line1', e.target.value)}
             placeholder="123 Main St"
-            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+            disabled={inputDisabled}
+            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-70 disabled:cursor-not-allowed"
             required
           />
         </div>
@@ -121,7 +157,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
             value={address.line2}
             onChange={(e) => handleChange('line2', e.target.value)}
             placeholder="Apt 4B"
-            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+            disabled={inputDisabled}
+            className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-70 disabled:cursor-not-allowed"
           />
         </div>
 
@@ -136,7 +173,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
               id="city"
               value={address.city}
               onChange={(e) => handleChange('city', e.target.value)}
-              className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+              disabled={inputDisabled}
+              className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-70 disabled:cursor-not-allowed"
               required
             />
           </div>
@@ -152,7 +190,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
               onChange={(e) => handleChange('state', e.target.value)}
               placeholder="CA"
               maxLength={2}
-              className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase"
+              disabled={inputDisabled}
+              className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase disabled:opacity-70 disabled:cursor-not-allowed"
               required
             />
           </div>
@@ -167,7 +206,8 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
               value={address.postalCode}
               onChange={(e) => handleChange('postalCode', e.target.value)}
               placeholder="12345"
-              className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+              disabled={inputDisabled}
+              className="w-full px-4 py-2 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-70 disabled:cursor-not-allowed"
               required
             />
           </div>
@@ -187,6 +227,82 @@ export function ShippingAddressForm({ onAddressChange, initialAddress }: Shippin
           />
         </div>
       </div>
+
+      {saveError && (
+        <div className="mt-4 text-sm text-red-400">
+          {saveError}
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSave}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded transition"
+          >
+            Save address
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-4 py-2 border border-zinc-700 text-zinc-300 text-sm rounded hover:border-zinc-500 hover:text-white transition"
+          >
+            {initialAddress ? 'Cancel' : 'Reset'}
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+function createEmptyAddress(): ShippingAddress {
+  return {
+    name: '',
+    phone: '',
+    line1: '',
+    line2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: 'US',
+  };
+}
+
+function normalizeAddress(address: ShippingAddress): ShippingAddress {
+  return {
+    name: address.name.trim(),
+    phone: address.phone.trim(),
+    line1: address.line1.trim(),
+    line2: address.line2?.trim() ?? '',
+    city: address.city.trim(),
+    state: address.state.trim().toUpperCase(),
+    postalCode: address.postalCode.trim(),
+    country: address.country.trim().toUpperCase(),
+  };
+}
+
+function isValidAddress(address: ShippingAddress): boolean {
+  return (
+    address.name.trim() !== '' &&
+    address.line1.trim() !== '' &&
+    address.city.trim() !== '' &&
+    address.state.trim() !== '' &&
+    address.postalCode.trim() !== ''
+  );
+}
+
+function buildAddressSignature(address: ShippingAddress | null): string {
+  if (!address) return 'null';
+  const normalized = normalizeAddress(address);
+  return [
+    normalized.name,
+    normalized.phone,
+    normalized.line1,
+    normalized.line2 ?? '',
+    normalized.city,
+    normalized.state,
+    normalized.postalCode,
+    normalized.country,
+  ].join('|');
 }

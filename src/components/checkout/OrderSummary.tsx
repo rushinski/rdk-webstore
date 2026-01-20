@@ -116,10 +116,8 @@ export function OrderSummary({
                   <Loader2 className="w-3 h-3 animate-spin" />
                   Calculating...
                 </span>
-              ) : tax > 0 ? (
-                `$${tax.toFixed(2)}`
               ) : (
-                "Calculated at checkout"
+                `$${tax.toFixed(2)}`
               )}
             </span>
           </div>

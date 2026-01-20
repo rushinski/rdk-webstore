@@ -1,14 +1,14 @@
 // src/components/checkout/CheckoutStart.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
-import { CheckoutForm } from "@/components/checkout/CheckoutForm";
+import { CheckoutForm, type ShippingAddress } from "@/components/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/checkout/OrderSummary";
 import type { CartItem } from "@/types/domain/cart";
 import {
@@ -69,6 +69,7 @@ export function CheckoutStart() {
   const [tax, setTax] = useState(0); // NEW: Tax state
   const [total, setTotal] = useState(0);
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [guestEmailChecked, setGuestEmailChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -76,6 +77,7 @@ export function CheckoutStart() {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastShippingSignatureRef = useRef<string>("null");
 
   const isGuestFlow = searchParams.get("guest") === "1";
 
@@ -169,6 +171,25 @@ export function CheckoutStart() {
     }
   }, [isReady, items]);
 
+  const buildShippingPayload = (address: ShippingAddress | null) =>
+    address
+      ? {
+          name: address.name,
+          phone: address.phone,
+          line1: address.line1,
+          line2: address.line2 ?? null,
+          city: address.city,
+          state: address.state.trim().toUpperCase(),
+          postal_code: address.postalCode.trim(),
+          country: address.country.trim().toUpperCase(),
+        }
+      : null;
+
+  const shippingPayload = useMemo(
+    () => buildShippingPayload(shippingAddress),
+    [shippingAddress],
+  );
+
   useEffect(() => {
     if (!isReady || items.length === 0) return;
     if (!idempotencyKey) return;
@@ -192,6 +213,7 @@ export function CheckoutStart() {
             idempotencyKey,
             fulfillment,
             guestEmail: isAuthenticated ? undefined : (guestEmail ?? undefined),
+            shippingAddress: fulfillment === "ship" ? shippingPayload : null,
             items: items.map((item) => ({
               productId: item.productId,
               variantId: item.variantId,
@@ -264,38 +286,75 @@ export function CheckoutStart() {
     router,
   ]);
 
+  useEffect(() => {
+    if (!orderId) {
+      lastShippingSignatureRef.current = "null";
+    }
+  }, [orderId]);
+
+  const updatePricing = useCallback(
+    async (
+      nextFulfillment: "ship" | "pickup",
+      nextShippingAddress: ReturnType<typeof buildShippingPayload>,
+    ) => {
+      if (!orderId) return;
+
+      setIsUpdatingFulfillment(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/checkout/update-fulfillment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            fulfillment: nextFulfillment,
+            shippingAddress: nextShippingAddress,
+          }),
+        });
+
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to update fulfillment.");
+        }
+
+        setFulfillment(data.fulfillment ?? nextFulfillment);
+        setSubtotal(Number(data.subtotal ?? subtotal));
+        setShipping(Number(data.shipping ?? shipping));
+        setTax(Number(data.tax ?? tax));
+        setTotal(Number(data.total ?? total));
+
+        lastShippingSignatureRef.current = JSON.stringify(nextShippingAddress);
+      } catch (err: any) {
+        setError(err?.message ?? "Failed to update fulfillment.");
+      } finally {
+        setIsUpdatingFulfillment(false);
+      }
+    },
+    [orderId, shipping, subtotal, tax, total],
+  );
+
+  useEffect(() => {
+    if (fulfillment !== "ship") return;
+    if (!orderId || !clientSecret) return;
+    if (isUpdatingFulfillment) return;
+
+    const signature = JSON.stringify(shippingPayload);
+    if (signature === lastShippingSignatureRef.current) return;
+
+    updatePricing("ship", shippingPayload);
+  }, [clientSecret, fulfillment, isUpdatingFulfillment, orderId, shippingPayload, updatePricing]);
+
   const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
     if (nextFulfillment === fulfillment) return;
     if (!orderId) {
       setFulfillment(nextFulfillment);
       return;
     }
-
-    setIsUpdatingFulfillment(true);
-    setError(null);
-
-    try {
-      const response = await fetch("/api/checkout/update-fulfillment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, fulfillment: nextFulfillment }),
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to update fulfillment.");
-      }
-
-      setFulfillment(data.fulfillment ?? nextFulfillment);
-      setSubtotal(Number(data.subtotal ?? subtotal));
-      setShipping(Number(data.shipping ?? shipping));
-      setTax(Number(data.tax ?? tax)); // NEW: Update tax on fulfillment change
-      setTotal(Number(data.total ?? total));
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to update fulfillment.");
-    } finally {
-      setIsUpdatingFulfillment(false);
-    }
+    await updatePricing(
+      nextFulfillment,
+      nextFulfillment === "ship" ? shippingPayload : null,
+    );
   };
 
   if (!isReady || isRestoring || items.length === 0) {
@@ -370,6 +429,8 @@ export function CheckoutStart() {
               items={items}
               total={total}
               fulfillment={fulfillment}
+              shippingAddress={shippingAddress}
+              onShippingAddressChange={setShippingAddress}
               onFulfillmentChange={handleFulfillmentChange}
               isUpdatingFulfillment={isUpdatingFulfillment}
               canUseChat={isAuthenticated === true}

@@ -6,6 +6,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
+import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
+import { StripeTaxService } from "@/services/stripe-tax-service";
 import { createCartHash } from "@/lib/crypto";
 import { updateFulfillmentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { orderId, fulfillment } = parsed.data;
+    const { orderId, fulfillment, shippingAddress } = parsed.data;
 
     const ordersRepo = new OrdersRepository(adminSupabase);
     const order = await ordersRepo.getById(orderId);
@@ -136,7 +138,81 @@ export async function POST(request: NextRequest) {
       shipping = Math.max(...shippingCosts, 0);
     }
 
-    const total = subtotal + shipping;
+    const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
+    const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
+    const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
+
+    const taxService = new StripeTaxService(adminSupabase);
+    const destinationState =
+      fulfillment === "pickup"
+        ? homeState
+        : shippingAddress?.state?.trim().toUpperCase() ?? null;
+    const stripeRegistrations = destinationState
+      ? await taxService.getStripeRegistrations()
+      : new Map<string, { id: string; state: string; active: boolean }>();
+
+    let customerAddress: {
+      line1: string;
+      line2?: string | null;
+      city: string;
+      state: string;
+      postal_code: string;
+      country: string;
+    } | null = null;
+
+    if (fulfillment === "ship" && shippingAddress) {
+      customerAddress = {
+        line1: shippingAddress.line1,
+        line2: shippingAddress.line2 ?? null,
+        city: shippingAddress.city,
+        state: shippingAddress.state.trim().toUpperCase(),
+        postal_code: shippingAddress.postal_code,
+        country: shippingAddress.country,
+      };
+    } else if (fulfillment === "pickup") {
+      const officeAddress = await taxService.getHeadOfficeAddress();
+      if (officeAddress) {
+        customerAddress = officeAddress;
+      } else {
+        customerAddress = {
+          line1: "123 Main St",
+          city: "Charleston",
+          state: homeState,
+          postal_code: "29401",
+          country: "US",
+        };
+      }
+    }
+
+    const taxLineItems = orderItems.map((item) => {
+      const product = productMap.get(item.product_id);
+      return {
+        amount: Math.round(Number(item.unit_price ?? 0) * 100),
+        quantity: Number(item.quantity ?? 0),
+        productId: item.product_id,
+        category: product?.category ?? "other",
+      };
+    });
+
+    const hasStripeRegistration = destinationState
+      ? stripeRegistrations.get(destinationState)?.active ?? false
+      : false;
+
+    const taxCalc = hasStripeRegistration && customerAddress
+      ? await taxService.calculateTax({
+          currency: "usd",
+          customerAddress,
+          lineItems: taxLineItems,
+          shippingCost: Math.round(shipping * 100),
+        })
+      : {
+          taxAmount: 0,
+          totalAmount: Math.round((subtotal + shipping) * 100),
+          taxCalculationId: null,
+        };
+
+    const tax = taxCalc.taxAmount / 100;
+    const total = subtotal + shipping + tax;
     const cartHash = createCartHash(
       orderItems.map((item) => ({
         productId: item.product_id,
@@ -169,19 +245,26 @@ export async function POST(request: NextRequest) {
       metadata: {
         fulfillment,
         cart_hash: cartHash,
+        tax_calculation_id: taxCalc.taxCalculationId ?? "",
       },
     });
 
-    await ordersRepo.updatePricingAndFulfillment(orderId, {
-      subtotal,
-      shipping,
-      total,
-      fulfillment,
-      cartHash,
-    });
+    await adminSupabase
+      .from("orders")
+      .update({
+        subtotal,
+        shipping,
+        tax_amount: tax,
+        tax_calculation_id: taxCalc.taxCalculationId,
+        total,
+        fulfillment,
+        cart_hash: cartHash,
+        customer_state: destinationState,
+      })
+      .eq("id", orderId);
 
     return NextResponse.json(
-      { subtotal, shipping, total, fulfillment, requestId },
+      { subtotal, shipping, tax, total, fulfillment, requestId },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {

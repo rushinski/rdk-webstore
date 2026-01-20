@@ -1,7 +1,7 @@
 // src/components/checkout/CheckoutForm.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ExpressCheckoutElement,
@@ -9,7 +9,6 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import type { StripePaymentElementChangeEvent } from "@stripe/stripe-js";
 import { ShippingAddressForm } from "./ShippingAddressForm";
 import { SavedAddresses } from "./SavedAddresses";
 import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
@@ -21,6 +20,8 @@ interface CheckoutFormProps {
   items: CartItem[];
   total: number;
   fulfillment: "ship" | "pickup";
+  shippingAddress: ShippingAddress | null;
+  onShippingAddressChange: (address: ShippingAddress | null) => void;
   onFulfillmentChange: (fulfillment: "ship" | "pickup") => void;
   isUpdatingFulfillment?: boolean;
   canUseChat?: boolean;
@@ -42,6 +43,8 @@ export function CheckoutForm({
   items,
   total,
   fulfillment,
+  shippingAddress,
+  onShippingAddressChange,
   onFulfillmentChange,
   isUpdatingFulfillment = false,
   canUseChat = false,
@@ -50,7 +53,6 @@ export function CheckoutForm({
   const stripe = useStripe();
   const elements = useElements();
 
-  const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +64,20 @@ export function CheckoutForm({
     new URLSearchParams(window.location.search).has("e2e_payment_status");
   const isStripeReady = Boolean(stripe) || canBypassStripe;
 
+  const toApiShippingAddress = (address: ShippingAddress | null) =>
+    address
+      ? {
+          name: address.name,
+          phone: address.phone,
+          line1: address.line1,
+          line2: address.line2 ?? null,
+          city: address.city,
+          state: address.state.trim().toUpperCase(),
+          postal_code: address.postalCode.trim(),
+          country: address.country.trim().toUpperCase(),
+        }
+      : null;
+
   const confirmBackendPayment = async (paymentIntentId: string) => {
     const response = await fetch("/api/checkout/confirm-payment", {
       method: "POST",
@@ -70,7 +86,7 @@ export function CheckoutForm({
         orderId,
         paymentIntentId,
         fulfillment,
-        shippingAddress: fulfillment === "ship" ? shippingAddress : null,
+        shippingAddress: fulfillment === "ship" ? toApiShippingAddress(shippingAddress) : null,
       }),
     });
 
@@ -121,7 +137,7 @@ export function CheckoutForm({
     }
 
     if (fulfillment === "ship" && !shippingAddress) {
-      const message = "Please provide a shipping address";
+      const message = "Please save your shipping address";
       setError(message);
       return { ok: false, error: message };
     }
@@ -156,9 +172,9 @@ export function CheckoutForm({
                     line1: shippingAddress.line1,
                     line2: shippingAddress.line2 || "",
                     city: shippingAddress.city,
-                    state: shippingAddress.state,
-                    postal_code: shippingAddress.postalCode,
-                    country: shippingAddress.country,
+                    state: shippingAddress.state.trim().toUpperCase(),
+                    postal_code: shippingAddress.postalCode.trim(),
+                    country: shippingAddress.country.trim().toUpperCase(),
                   },
                 }
               : undefined,
@@ -337,14 +353,14 @@ export function CheckoutForm({
         <>
           {canUseChat && (
             <SavedAddresses
-              onSelectAddress={setShippingAddress}
+              onSelectAddress={onShippingAddressChange}
               selectedAddressId={selectedAddressId}
               onSelectAddressId={setSelectedAddressId}
             />
           )}
 
           <ShippingAddressForm
-            onAddressChange={setShippingAddress}
+            onAddressChange={onShippingAddressChange}
             initialAddress={shippingAddress}
           />
         </>

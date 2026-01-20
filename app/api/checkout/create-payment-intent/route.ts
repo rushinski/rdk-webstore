@@ -211,10 +211,17 @@ export async function POST(request: NextRequest) {
     // Get home state and office address for pickup tax calculation
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
-    const homeState = taxSettings?.home_state ?? "SC";
+    const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
 
-    // Calculate tax using Stripe Tax
+    // Calculate tax using Stripe Tax (only if registered in the destination state)
     const taxService = new StripeTaxService(adminSupabase);
+    const destinationState =
+      normalizedFulfillment === "pickup"
+        ? homeState
+        : shippingAddress?.state?.trim().toUpperCase() ?? null;
+    const stripeRegistrations = destinationState
+      ? await taxService.getStripeRegistrations()
+      : new Map<string, { id: string; state: string; active: boolean }>();
 
     // For pickup, get the actual office address from Stripe Tax Settings
     let customerAddress: {
@@ -231,7 +238,7 @@ export async function POST(request: NextRequest) {
         line1: shippingAddress.line1,
         line2: shippingAddress.line2 ?? null,
         city: shippingAddress.city,
-        state: shippingAddress.state,
+        state: shippingAddress.state.trim().toUpperCase(),
         postal_code: shippingAddress.postal_code,
         country: shippingAddress.country,
       };
@@ -252,17 +259,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const taxCalc = await taxService.calculateTax({
-      currency: "usd",
-      customerAddress,
-      lineItems: lineItems.map((item) => ({
-        amount: Math.round(item.unitPrice * 100),
-        quantity: item.quantity,
-        productId: item.productId,
-        category: item.category,
-      })),
-      shippingCost: Math.round(shipping * 100),
-    });
+    const hasStripeRegistration = destinationState
+      ? stripeRegistrations.get(destinationState)?.active ?? false
+      : false;
+
+    const taxCalc = hasStripeRegistration && customerAddress
+      ? await taxService.calculateTax({
+          currency: "usd",
+          customerAddress,
+          lineItems: lineItems.map((item) => ({
+            amount: Math.round(item.unitPrice * 100),
+            quantity: item.quantity,
+            productId: item.productId,
+            category: item.category,
+          })),
+          shippingCost: Math.round(shipping * 100),
+        })
+      : {
+          taxAmount: 0,
+          totalAmount: Math.round((subtotal + shipping) * 100),
+          taxCalculationId: null,
+        };
 
     const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;
@@ -294,8 +311,7 @@ export async function POST(request: NextRequest) {
       }));
 
     // Update order with tax info
-    const customerState =
-      normalizedFulfillment === "ship" ? shippingAddress?.state : homeState;
+    const customerState = destinationState ?? null;
     await adminSupabase
       .from("orders")
       .update({

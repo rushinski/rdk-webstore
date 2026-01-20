@@ -176,8 +176,6 @@ export class StripeTaxService {
     totalAmount: number;
     taxCalculationId: string | null;
   }> {
-    const state = params.customerAddress?.state ?? 'SC';
-    
     const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map(item => ({
       amount: item.amount,
       quantity: item.quantity ?? 1,
@@ -194,24 +192,27 @@ export class StripeTaxService {
       });
     }
 
+    if (!params.customerAddress) {
+      const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
+      return {
+        taxAmount: 0,
+        totalAmount: subtotal,
+        taxCalculationId: null,
+      };
+    }
+
     try {
       const calculation = await stripe.tax.calculations.create({
         currency: params.currency.toLowerCase(),
         line_items: lineItems,
         customer_details: {
-          address: params.customerAddress ? {
+          address: {
             line1: params.customerAddress.line1,
             line2: params.customerAddress.line2 ?? undefined,
             city: params.customerAddress.city,
             state: params.customerAddress.state,
             postal_code: params.customerAddress.postal_code,
             country: params.customerAddress.country,
-          } : {
-            line1: '123 Main St',
-            city: 'Charleston',
-            state: 'SC',
-            postal_code: '29401',
-            country: 'US',
           },
           address_source: 'shipping',
         },
