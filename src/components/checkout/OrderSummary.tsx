@@ -154,15 +154,11 @@ export function OrderSummary({
         <div className="mt-6 pt-6 border-t border-zinc-800 space-y-3 text-xs text-gray-400">
           <div className="flex items-center gap-2">
             <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-            <span>Secure checkout with 256-bit encryption</span>
+            <span>Stripe secure payment processing</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1 h-1 bg-green-500 rounded-full"></div>
             <span>100% authentic products guaranteed</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-            <span>Free returns within 30 days</span>
           </div>
         </div>
       </div>

@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
-    const taxEnabled = taxSettings?.tax_enabled ?? true;
+    const taxEnabled = taxSettings?.tax_enabled ?? false;
     const taxCodeOverrides =
       taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
         ? (taxSettings.tax_code_overrides as Record<string, string>)

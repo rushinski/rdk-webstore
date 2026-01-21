@@ -22,11 +22,6 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     router.push('/checkout');
   };
 
-  const handleViewCart = () => {
-    onClose();
-    router.push('/cart');
-  };
-
   if (!isOpen) return null;
 
   return (
@@ -132,17 +127,20 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
               <div className="grid grid-cols-1 gap-3">
                 <button
-                  onClick={handleViewCart}
-                  className="w-full border border-zinc-700 hover:border-zinc-500 text-white font-semibold py-3 rounded transition"
-                >
-                  Expand cart
-                </button>
-                <button
                   onClick={handleCheckout}
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
                 >
                   Checkout
                 </button>
+                <div className="text-center">
+                  <Link
+                    href="/cart"
+                    onClick={onClose}
+                    className="text-sm text-gray-300 hover:text-white underline underline-offset-4"
+                  >
+                    Expand cart
+                  </Link>
+                </div>
               </div>
             </>
           )}

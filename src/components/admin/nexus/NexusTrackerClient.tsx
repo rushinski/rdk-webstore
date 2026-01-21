@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import {
   AlertCircle,
   CheckCircle,
@@ -13,7 +14,6 @@ import {
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
 import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
-import { TaxSettingsPanel } from "./TaxSettingsPanel";
 import { RdkSelect } from "@/components/ui/Select";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
@@ -301,6 +301,7 @@ export default function NexusTrackerClient() {
   ).length;
 
   const homeStateLabel = data.homeState; // e.g. "SC"
+  const taxEnabled = data.taxEnabled;
 
   return (
     <div className="space-y-8">
@@ -313,7 +314,13 @@ export default function NexusTrackerClient() {
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleDownloadTaxDocs}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-sm"
+            disabled={!taxEnabled}
+            className={[
+              "flex items-center gap-2 px-4 py-2 rounded-sm text-white",
+              taxEnabled
+                ? "bg-red-600 hover:bg-red-500"
+                : "bg-zinc-800 text-zinc-500 cursor-not-allowed",
+            ].join(" ")}
           >
             <Download className="w-4 h-4" />
             View Tax Reports in Stripe
@@ -347,6 +354,22 @@ export default function NexusTrackerClient() {
         </div>
       </div>
 
+      {!taxEnabled && (
+        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-sm p-4 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
+          <div className="text-sm text-yellow-100">
+            Taxes are turned off. Go to{" "}
+            <Link
+              href="/admin/settings/taxes"
+              className="underline underline-offset-2 text-yellow-200 hover:text-yellow-100"
+            >
+              Settings &gt; Taxes
+            </Link>{" "}
+            to enable tax collection before using the nexus tracker.
+          </div>
+        </div>
+      )}
+
       {/* Home Office Setup Modal */}
       {showHomeSetup && (
         <HomeOfficeSetupModal
@@ -373,8 +396,6 @@ export default function NexusTrackerClient() {
           onOpenHomeOffice={() => setShowHomeSetup(true)}
         />
       )}
-
-      <TaxSettingsPanel />
 
       {/* US Map */}
       <NexusMap

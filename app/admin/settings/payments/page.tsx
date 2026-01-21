@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { logError } from "@/lib/log";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import {
   DEFAULT_EXPRESS_CHECKOUT_METHODS,
   EXPRESS_CHECKOUT_METHODS,
@@ -153,13 +154,7 @@ export default function PaymentSettingsPage() {
             </p>
           </div>
 
-          <label className="flex items-start gap-3 p-3 border border-zinc-800/70 rounded">
-            <input
-              type="checkbox"
-              checked={useAutomatic}
-              onChange={(e) => setUseAutomatic(e.target.checked)}
-              className="mt-1 rdk-checkbox"
-            />
+          <div className="flex items-start justify-between gap-3 p-3 border border-zinc-800/70 rounded">
             <div>
               <div className="text-sm text-white font-medium">
                 Use Stripe automatic payment methods
@@ -168,24 +163,23 @@ export default function PaymentSettingsPage() {
                 Stripe will automatically display all enabled methods for your account.
               </div>
             </div>
-          </label>
+            <ToggleSwitch
+              checked={useAutomatic}
+              onChange={setUseAutomatic}
+              ariaLabel="Toggle automatic payment methods"
+              disabled={isSaving}
+            />
+          </div>
 
           <div className="space-y-2">
             {PAYMENT_METHOD_TYPES.map((method) => {
               const isCard = method.key === "card";
               const checked = paymentMethodSet.has(method.key);
               return (
-                <label
+                <div
                   key={method.key}
-                  className="flex items-start gap-3 p-3 border border-zinc-800/70 rounded"
+                  className="flex items-start justify-between gap-3 p-3 border border-zinc-800/70 rounded"
                 >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    disabled={useAutomatic || isCard}
-                    onChange={() => togglePaymentMethod(method.key)}
-                    className="mt-1 rdk-checkbox"
-                  />
                   <div>
                     <div className="text-sm text-white font-medium">{method.label}</div>
                     <div className="text-xs text-gray-500 mt-1">{method.description}</div>
@@ -195,7 +189,13 @@ export default function PaymentSettingsPage() {
                       </div>
                     )}
                   </div>
-                </label>
+                  <ToggleSwitch
+                    checked={checked}
+                    onChange={() => togglePaymentMethod(method.key)}
+                    ariaLabel={`Toggle ${method.label}`}
+                    disabled={useAutomatic || isCard || isSaving}
+                  />
+                </div>
               );
             })}
           </div>
@@ -213,18 +213,18 @@ export default function PaymentSettingsPage() {
             {EXPRESS_CHECKOUT_METHODS.map((method) => {
               const checked = expressMethodSet.has(method.key);
               return (
-                <label
+                <div
                   key={method.key}
-                  className="flex items-start gap-3 p-3 border border-zinc-800/70 rounded"
+                  className="flex items-center justify-between gap-3 p-3 border border-zinc-800/70 rounded"
                 >
-                  <input
-                    type="checkbox"
+                  <div className="text-sm text-white font-medium">{method.label}</div>
+                  <ToggleSwitch
                     checked={checked}
                     onChange={() => toggleExpressMethod(method.key)}
-                    className="mt-1 rdk-checkbox"
+                    ariaLabel={`Toggle ${method.label}`}
+                    disabled={isSaving}
                   />
-                  <div className="text-sm text-white font-medium">{method.label}</div>
-                </label>
+                </div>
               );
             })}
           </div>

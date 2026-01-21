@@ -98,7 +98,7 @@ export class StripeTaxService {
         homeState: params.stateCode,
         businessName: params.businessName ?? existingSettings?.business_name ?? null,
         stripeTaxSettingsId: 'configured',
-        taxEnabled: existingSettings?.tax_enabled ?? true,
+        taxEnabled: existingSettings?.tax_enabled ?? false,
         taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
 
@@ -136,7 +136,7 @@ export class StripeTaxService {
         homeState: params.stateCode,
         businessName: existingSettings?.business_name ?? null,
         stripeTaxSettingsId: existingSettings?.stripe_tax_settings_id ?? null,
-        taxEnabled: existingSettings?.tax_enabled ?? true,
+        taxEnabled: existingSettings?.tax_enabled ?? false,
         taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
     } catch (error: any) {
@@ -184,15 +184,28 @@ export class StripeTaxService {
     totalAmount: number;
     taxCalculationId: string | null;
   }> {
-    const taxCodes = params.taxCodes ?? {};
-    const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map(item => ({
-      amount: item.amount,
-      quantity: item.quantity ?? 1,
-      reference: item.productId,
-      tax_code: taxCodes[item.category] ??
-        PRODUCT_TAX_CODES[item.category as keyof typeof PRODUCT_TAX_CODES] ??
-        'txcd_99999999',
-    }));
+    const normalizedTaxCodes: Record<string, string> = {};
+    for (const [key, value] of Object.entries(params.taxCodes ?? {})) {
+      const normalizedKey = key.trim().toLowerCase();
+      const cleaned = String(value ?? "").trim();
+      if (!normalizedKey || !cleaned) continue;
+      normalizedTaxCodes[normalizedKey] = cleaned;
+    }
+
+    const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map((item) => {
+      const categoryKey = item.category?.trim().toLowerCase();
+      const defaultCode =
+        (categoryKey && PRODUCT_TAX_CODES[categoryKey as keyof typeof PRODUCT_TAX_CODES]) ??
+        "txcd_99999999";
+      const taxCode = (categoryKey && normalizedTaxCodes[categoryKey]) ?? defaultCode;
+
+      return {
+        amount: item.amount,
+        quantity: item.quantity ?? 1,
+        reference: item.productId,
+        tax_code: taxCode,
+      };
+    });
 
     if (params.shippingCost && params.shippingCost > 0) {
       lineItems.push({
@@ -411,6 +424,41 @@ export class StripeTaxService {
     } catch (error) {
       console.error('Failed to fetch Stripe registrations:', error);
       return new Map();
+    }
+  }
+
+  /**
+   * Deactivate all Stripe Tax registrations.
+   * Stripe doesn't provide a global "off" switch, so we expire active/scheduled registrations.
+   */
+  async deactivateStripeTaxRegistrations(): Promise<number> {
+    try {
+      let deactivated = 0;
+      let startingAfter: string | undefined;
+
+      while (true) {
+        const regs = await stripe.tax.registrations.list({
+          limit: 100,
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+
+        for (const reg of regs.data) {
+          if (reg.status === "active" || reg.status === "scheduled") {
+            await stripe.tax.registrations.update(reg.id, { expires_at: "now" });
+            deactivated += 1;
+          }
+        }
+
+        if (!regs.has_more) break;
+        const last = regs.data[regs.data.length - 1];
+        if (!last) break;
+        startingAfter = last.id;
+      }
+
+      return deactivated;
+    } catch (error: any) {
+      console.error("Failed to deactivate Stripe Tax registrations:", error);
+      throw new Error(error?.message ?? "Failed to deactivate Stripe Tax registrations");
     }
   }
 

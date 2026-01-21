@@ -42,4 +42,5 @@ export type StateSummary = {
 export type NexusData = {
   homeState: string;
   states: StateSummary[];
+  taxEnabled: boolean;
 };

@@ -45,7 +45,7 @@ export class TaxSettingsRepository {
         business_name: settings.businessName ?? null,
         tax_id_number: settings.taxIdNumber ?? null,
         stripe_tax_settings_id: settings.stripeTaxSettingsId ?? null,
-        tax_enabled: settings.taxEnabled ?? true,
+        tax_enabled: settings.taxEnabled ?? false,
         tax_code_overrides: settings.taxCodeOverrides ?? {},
         updated_at: new Date().toISOString()
       }, {

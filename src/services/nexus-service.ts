@@ -49,24 +49,24 @@ export class NexusSummaryService {
     private readonly stripeTax: StripeTaxService,
   ) {}
 
-  async buildSummary(tenantId: string): Promise<{ homeState: string; states: any[] }> {
+  async buildSummary(
+    tenantId: string,
+  ): Promise<{ homeState: string; states: any[]; taxEnabled: boolean }> {
     // NOTE:
     // - calendarSales: sums current year (calendar year window)
     // - rollingSales: sums last 12 months by month buckets (your repo implementation)
     // Display reset dates for rolling uses tracking_started_at anniversary.
-    const [
-      taxSettings,
-      registrations,
-      stripeRegs,
-      calendarSales,
-      rollingSales,
-    ] = await Promise.all([
+    const [taxSettings, registrations, calendarSales, rollingSales] = await Promise.all([
       this.taxSettingsRepo.getByTenant(tenantId),
       this.nexusRepo.getRegistrationsByTenant(tenantId),
-      this.stripeTax.getStripeRegistrations(),
       this.nexusRepo.getAllStateSales(tenantId, "calendar"),
       this.nexusRepo.getAllStateSales(tenantId, "rolling"),
     ]);
+
+    const taxEnabled = taxSettings?.tax_enabled ?? false;
+    const stripeRegs = taxEnabled
+      ? await this.stripeTax.getStripeRegistrations()
+      : new Map<string, { id: string; state: string; active: boolean }>();
 
     const homeState = taxSettings?.home_state ?? "SC";
     const now = new Date();
@@ -174,6 +174,6 @@ export class NexusSummaryService {
       };
     });
 
-    return { homeState, states };
+    return { homeState, states, taxEnabled };
   }
 }

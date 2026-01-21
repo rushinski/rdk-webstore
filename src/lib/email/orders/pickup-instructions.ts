@@ -50,9 +50,8 @@ export const buildPickupInstructionsEmail = (input: PickupInstructionsEmailInput
 
   // Clear, non-redundant bullets
   const actionItemsHtml = [
-    `<li style="margin:0 0 8px;"><strong>Pickup location:</strong> ${locationSummary}</li>`,
     `<li style="margin:0 0 8px;"><strong>Reply to this email</strong> or DM us on Instagram ${instagramLinkHtml} to schedule a pickup. Include your order number (<strong>${orderNumber}</strong>) and 2–3 times that work for you.</li>`,
-    `<li style="margin:0 0 8px;">We’ll reply to confirm if one of your requested times works. If not, we’ll предложe an available time and coordinate from there.</li>`,
+    `<li style="margin:0 0 8px;">We’ll reply to confirm if one of your requested times works. If not, we’ll propose an available time and coordinate from there. Once a time is agreed upon a pickup location will be shared.</li>`,
     `<li style="margin:0 0 8px;">Please have your <strong>order confirmation email</strong> available to show at pickup.</li>`,
   ].join("");
 

@@ -7,6 +7,7 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
+import { StripeTaxService } from "@/services/stripe-tax-service";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
 
 const taxSettingsSchema = z
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         settings: {
-          taxEnabled: settings?.tax_enabled ?? true,
+          taxEnabled: settings?.tax_enabled ?? false,
           taxCodeOverrides: settings?.tax_code_overrides ?? {},
         },
       },
@@ -86,6 +87,11 @@ export async function POST(request: NextRequest) {
 
     const repo = new TaxSettingsRepository(supabase);
     const existing = await repo.getByTenant(profile.tenant_id);
+
+    if (parsed.data.taxEnabled === false) {
+      const stripeTax = new StripeTaxService(supabase);
+      await stripeTax.deactivateStripeTaxRegistrations();
+    }
 
     const updated = await repo.upsert({
       tenantId: profile.tenant_id,
