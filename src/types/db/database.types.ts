@@ -1702,6 +1702,8 @@ export type Database = {
           home_state: string
           id: string
           stripe_tax_settings_id: string | null
+          tax_code_overrides: Json
+          tax_enabled: boolean
           tax_id_number: string | null
           tenant_id: string
           updated_at: string
@@ -1712,6 +1714,8 @@ export type Database = {
           home_state: string
           id?: string
           stripe_tax_settings_id?: string | null
+          tax_code_overrides?: Json
+          tax_enabled?: boolean
           tax_id_number?: string | null
           tenant_id: string
           updated_at?: string
@@ -1722,6 +1726,8 @@ export type Database = {
           home_state?: string
           id?: string
           stripe_tax_settings_id?: string | null
+          tax_code_overrides?: Json
+          tax_enabled?: boolean
           tax_id_number?: string | null
           tenant_id?: string
           updated_at?: string
@@ -1729,6 +1735,45 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tenant_tax_settings_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+
+      tenant_payment_settings: {
+        Row: {
+          created_at: string
+          express_checkout_methods: string[]
+          id: string
+          payment_method_types: string[]
+          tenant_id: string
+          updated_at: string
+          use_automatic_payment_methods: boolean
+        }
+        Insert: {
+          created_at?: string
+          express_checkout_methods?: string[]
+          id?: string
+          payment_method_types?: string[]
+          tenant_id: string
+          updated_at?: string
+          use_automatic_payment_methods?: boolean
+        }
+        Update: {
+          created_at?: string
+          express_checkout_methods?: string[]
+          id?: string
+          payment_method_types?: string[]
+          tenant_id?: string
+          updated_at?: string
+          use_automatic_payment_methods?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_payment_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
             referencedRelation: "tenants"

@@ -14,6 +14,11 @@ import { SavedAddresses } from "./SavedAddresses";
 import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
 import Link from "next/link";
 import type { CartItem } from "@/types/domain/cart";
+import {
+  DEFAULT_EXPRESS_CHECKOUT_METHODS,
+  EXPRESS_CHECKOUT_METHODS,
+  type ExpressCheckoutMethod,
+} from "@/config/constants/payment-options";
 
 interface CheckoutFormProps {
   orderId: string;
@@ -24,6 +29,7 @@ interface CheckoutFormProps {
   onShippingAddressChange: (address: ShippingAddress | null) => void;
   onFulfillmentChange: (fulfillment: "ship" | "pickup") => void;
   isUpdatingFulfillment?: boolean;
+  expressCheckoutMethods?: string[];
   canUseChat?: boolean;
 }
 
@@ -47,6 +53,7 @@ export function CheckoutForm({
   onShippingAddressChange,
   onFulfillmentChange,
   isUpdatingFulfillment = false,
+  expressCheckoutMethods,
   canUseChat = false,
 }: CheckoutFormProps) {
   const router = useRouter();
@@ -63,6 +70,12 @@ export function CheckoutForm({
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("e2e_payment_status");
   const isStripeReady = Boolean(stripe) || canBypassStripe;
+  const expressMethodKeys = EXPRESS_CHECKOUT_METHODS.map((method) => method.key);
+  const normalizedExpressMethods = (expressCheckoutMethods?.length
+    ? expressCheckoutMethods
+    : DEFAULT_EXPRESS_CHECKOUT_METHODS
+  ).filter((method): method is ExpressCheckoutMethod => expressMethodKeys.includes(method));
+  const showExpressCheckout = normalizedExpressMethods.length > 0;
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>
     address
@@ -373,28 +386,32 @@ export function CheckoutForm({
           Payment Information
         </h2>
 
-        <div className="mb-4">
-          <ExpressCheckoutElement
-            onConfirm={handleExpressConfirm}
-            onClick={handleExpressClick}
-            options={{
-              layout: { maxColumns: 2 },
-              paymentMethodOrder: ["apple_pay", "google_pay"],
-              paymentMethods: {
-                applePay: "auto",
-                googlePay: "auto",
-                amazonPay: "never",
-                klarna: "never",
-                paypal: "never",
-                link: "auto",
-              },
-            }}
-          />
-        </div>
+        {showExpressCheckout && (
+          <div className="mb-4">
+            <ExpressCheckoutElement
+              onConfirm={handleExpressConfirm}
+              onClick={handleExpressClick}
+              options={{
+                layout: { maxColumns: 2 },
+                paymentMethodOrder: normalizedExpressMethods,
+                paymentMethods: {
+                  applePay: normalizedExpressMethods.includes("apple_pay") ? "auto" : "never",
+                  googlePay: normalizedExpressMethods.includes("google_pay") ? "auto" : "never",
+                  amazonPay: normalizedExpressMethods.includes("amazon_pay") ? "auto" : "never",
+                  klarna: normalizedExpressMethods.includes("klarna") ? "auto" : "never",
+                  paypal: normalizedExpressMethods.includes("paypal") ? "auto" : "never",
+                  link: normalizedExpressMethods.includes("link") ? "auto" : "never",
+                },
+              }}
+            />
+          </div>
+        )}
 
-        <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
-          Or pay with card
-        </div>
+        {showExpressCheckout && (
+          <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
+            Or pay with card
+          </div>
+        )}
 
         <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
           <p className="flex items-center gap-2">

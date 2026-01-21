@@ -81,6 +81,7 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     isActive: (pathname: string) => pathname.startsWith("/admin/settings"),
     children: [
       { href: "/admin/settings/shipping", label: "Shipping" },
+      { href: "/admin/settings/payments", label: "Payments" },
       { href: "/admin/settings/transfers", label: "Transfers" },
     ],
   },
@@ -268,7 +269,7 @@ export function AdminSidebar({
         ? "9+"
         : String(notifBadgeCount ?? 0);
 
-    // ✅ Match notifications style: red text only, no box
+    // Match notifications style: red text only, no box.
     const chatLabel = chatBadgeCount > 9 ? "9+" : String(chatBadgeCount);
 
     return (

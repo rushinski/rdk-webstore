@@ -73,6 +73,8 @@ export class StripeTaxService {
     skipAutoRegister?: boolean;
   }): Promise<void> {
     try {
+      const existingSettings = await this.taxSettingsRepo.getByTenant(params.tenantId);
+
       // Update Stripe Tax Settings with head office address
       await stripe.tax.settings.update({
         defaults: {
@@ -94,8 +96,10 @@ export class StripeTaxService {
       await this.taxSettingsRepo.upsert({
         tenantId: params.tenantId,
         homeState: params.stateCode,
-        businessName: params.businessName ?? null,
+        businessName: params.businessName ?? existingSettings?.business_name ?? null,
         stripeTaxSettingsId: 'configured',
+        taxEnabled: existingSettings?.tax_enabled ?? true,
+        taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
 
       // CHANGED: Mark home state as having physical nexus but DON'T auto-register
@@ -132,6 +136,8 @@ export class StripeTaxService {
         homeState: params.stateCode,
         businessName: existingSettings?.business_name ?? null,
         stripeTaxSettingsId: existingSettings?.stripe_tax_settings_id ?? null,
+        taxEnabled: existingSettings?.tax_enabled ?? true,
+        taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
     } catch (error: any) {
       console.error('Failed to set home state:', error);
@@ -171,16 +177,21 @@ export class StripeTaxService {
       category: string;
     }>;
     shippingCost?: number;
+    taxCodes?: Record<string, string>;
+    taxEnabled?: boolean;
   }): Promise<{
     taxAmount: number;
     totalAmount: number;
     taxCalculationId: string | null;
   }> {
+    const taxCodes = params.taxCodes ?? {};
     const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map(item => ({
       amount: item.amount,
       quantity: item.quantity ?? 1,
       reference: item.productId,
-      tax_code: PRODUCT_TAX_CODES[item.category as keyof typeof PRODUCT_TAX_CODES] ?? 'txcd_99999999',
+      tax_code: taxCodes[item.category] ??
+        PRODUCT_TAX_CODES[item.category as keyof typeof PRODUCT_TAX_CODES] ??
+        'txcd_99999999',
     }));
 
     if (params.shippingCost && params.shippingCost > 0) {
@@ -192,8 +203,17 @@ export class StripeTaxService {
       });
     }
 
+    const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
+
+    if (params.taxEnabled === false) {
+      return {
+        taxAmount: 0,
+        totalAmount: subtotal,
+        taxCalculationId: null,
+      };
+    }
+
     if (!params.customerAddress) {
-      const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
       return {
         taxAmount: 0,
         totalAmount: subtotal,
@@ -219,7 +239,6 @@ export class StripeTaxService {
         expand: ['line_items'],
       });
 
-      const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
       const taxAmount = calculation.tax_amount_exclusive ?? 0;
       const totalAmount = subtotal + taxAmount;
 
@@ -230,7 +249,6 @@ export class StripeTaxService {
       };
     } catch (error) {
       console.error('Stripe tax calculation error:', error);
-      const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
       return {
         taxAmount: 0,
         totalAmount: subtotal,

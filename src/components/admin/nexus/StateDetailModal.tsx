@@ -3,10 +3,7 @@
 
 import React, { useState } from "react";
 import { X, AlertTriangle, ExternalLink, CheckCircle, DollarSign } from "lucide-react";
-import {
-  STATE_REGISTRATION_URLS,
-  STRIPE_REGISTRATION_GUIDES,
-} from "@/config/constants/nexus-thresholds";
+import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
@@ -104,9 +101,6 @@ export default function StateDetailModal({
   // - State permit missing
   const needsStatePermit = state.nexusType === "physical" && !state.isRegistered;
 
-  // - State permit exists but Stripe not active (guide link helps)
-  const needsStripeSetup = state.isRegistered && !state.stripeRegistered;
-
   // Economic approaching threshold (only if not registered)
   const approachingEconomicThreshold =
     state.nexusType === "economic" && !state.isRegistered && state.percentageToThreshold >= 95;
@@ -140,13 +134,9 @@ export default function StateDetailModal({
                 </span>
               )}
 
-              {state.stripeRegistered ? (
+              {state.stripeRegistered && (
                 <span className="px-2 py-1 bg-green-600/15 border border-green-600/25 text-green-300 text-xs rounded-sm">
                   Stripe Tax: Active
-                </span>
-              ) : (
-                <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-zinc-300 text-xs rounded-sm">
-                  Stripe Tax: Not active
                 </span>
               )}
 
@@ -178,7 +168,7 @@ export default function StateDetailModal({
               <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
               <div className="text-sm">
                 <div className="font-semibold text-yellow-300">
-                  Physical nexus — state registration required
+                  Physical nexus - state registration required
                 </div>
                 <div className="text-zinc-300">
                   You have physical nexus in this state. Register for a state permit before collecting sales tax.
@@ -201,19 +191,6 @@ export default function StateDetailModal({
             </div>
           )}
 
-          {needsStripeSetup && (
-            <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-sm flex gap-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-              <div className="text-sm">
-                <div className="font-semibold text-yellow-300">Stripe Tax not active</div>
-                <div className="text-zinc-300">
-                  You marked the state permit as registered, but Stripe Tax is not active for this state yet.
-                  Use the Stripe walkthrough link below to finish setup in Stripe.
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
             <div>
@@ -227,8 +204,7 @@ export default function StateDetailModal({
               {(state.trackingStartDate || state.trackingEndDate) && (
                 <div className="text-xs text-zinc-500 mt-1">
                   Tracking:{" "}
-                  {state.trackingStartDate ?? "—"}{" "}
-                  {state.trackingEndDate ? `→ ${state.trackingEndDate}` : ""}
+                  {state.trackingStartDate ?? "N/A"} {state.trackingEndDate ? `- ${state.trackingEndDate}` : ""}
                 </div>
               )}
 
@@ -403,13 +379,12 @@ export default function StateDetailModal({
 
             <div className="text-sm text-zinc-300">
               Mark your <span className="text-white font-medium">state permit</span> status here, and
-              use the resources to complete state + Stripe setup.
+              use the resources to complete state registration.
             </div>
 
             {!isHomeOfficeConfigured && (
               <div className="mt-3 text-xs text-yellow-300">
-                Stripe Tax setup is easier if your <span className="font-semibold">Home Office</span>{" "}
-                is configured (Settings → Home Office).
+                Home Office is required for tax registrations (Settings &gt Home Office).
                 <button
                   onClick={onOpenHomeOffice}
                   className="ml-2 underline underline-offset-2 hover:text-yellow-200"
@@ -436,7 +411,7 @@ export default function StateDetailModal({
                 {state.isRegistered ? "Mark permit as not registered" : "Mark permit as registered"}
               </button>
 
-              {/* Resource links: small, not “steps” */}
+              {/* Resource links */}
               {STATE_REGISTRATION_URLS[state.stateCode] && (
                 <a
                   href={STATE_REGISTRATION_URLS[state.stateCode]}
@@ -445,17 +420,6 @@ export default function StateDetailModal({
                   className="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 text-zinc-200 rounded-sm border border-zinc-800/70 text-sm flex items-center gap-2"
                 >
                   State registration site <ExternalLink className="w-4 h-4" />
-                </a>
-              )}
-
-              {STRIPE_REGISTRATION_GUIDES[state.stateCode] && (
-                <a
-                  href={STRIPE_REGISTRATION_GUIDES[state.stateCode]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 text-zinc-200 rounded-sm border border-zinc-800/70 text-sm flex items-center gap-2"
-                >
-                  Stripe walkthrough <ExternalLink className="w-4 h-4" />
                 </a>
               )}
             </div>

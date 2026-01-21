@@ -8,6 +8,8 @@ export type TenantTaxSettings = {
   business_name: string | null;
   tax_id_number: string | null;
   stripe_tax_settings_id: string | null;
+  tax_enabled: boolean;
+  tax_code_overrides: Record<string, string> | null;
   created_at: string;
   updated_at: string;
 };
@@ -32,6 +34,8 @@ export class TaxSettingsRepository {
     businessName?: string | null;
     taxIdNumber?: string | null;
     stripeTaxSettingsId?: string | null;
+    taxEnabled?: boolean;
+    taxCodeOverrides?: Record<string, string> | null;
   }): Promise<TenantTaxSettings> {
     const { data, error } = await this.supabase
       .from('tenant_tax_settings')
@@ -41,6 +45,8 @@ export class TaxSettingsRepository {
         business_name: settings.businessName ?? null,
         tax_id_number: settings.taxIdNumber ?? null,
         stripe_tax_settings_id: settings.stripeTaxSettingsId ?? null,
+        tax_enabled: settings.taxEnabled ?? true,
+        tax_code_overrides: settings.taxCodeOverrides ?? {},
         updated_at: new Date().toISOString()
       }, {
         onConflict: 'tenant_id'

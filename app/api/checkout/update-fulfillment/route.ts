@@ -141,15 +141,21 @@ export async function POST(request: NextRequest) {
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
+    const taxEnabled = taxSettings?.tax_enabled ?? true;
+    const taxCodeOverrides =
+      taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
+        ? (taxSettings.tax_code_overrides as Record<string, string>)
+        : {};
 
     const taxService = new StripeTaxService(adminSupabase);
     const destinationState =
       fulfillment === "pickup"
         ? homeState
         : shippingAddress?.state?.trim().toUpperCase() ?? null;
-    const stripeRegistrations = destinationState
-      ? await taxService.getStripeRegistrations()
-      : new Map<string, { id: string; state: string; active: boolean }>();
+    const stripeRegistrations =
+      taxEnabled && destinationState
+        ? await taxService.getStripeRegistrations()
+        : new Map<string, { id: string; state: string; active: boolean }>();
 
     let customerAddress: {
       line1: string;
@@ -194,7 +200,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const hasStripeRegistration = destinationState
+    const hasStripeRegistration = taxEnabled && destinationState
       ? stripeRegistrations.get(destinationState)?.active ?? false
       : false;
 
@@ -204,6 +210,8 @@ export async function POST(request: NextRequest) {
           customerAddress,
           lineItems: taxLineItems,
           shippingCost: Math.round(shipping * 100),
+          taxCodes: taxCodeOverrides,
+          taxEnabled,
         })
       : {
           taxAmount: 0,

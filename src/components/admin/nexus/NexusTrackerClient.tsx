@@ -5,19 +5,15 @@ import React, { useState, useEffect, useMemo } from "react";
 import {
   AlertCircle,
   CheckCircle,
-  TrendingUp,
   AlertTriangle,
   Search,
   Download,
   Home,
 } from "lucide-react";
-import {
-  STATE_NAMES,
-  STATE_REGISTRATION_URLS,
-} from "@/config/constants/nexus-thresholds";
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
 import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
+import { TaxSettingsPanel } from "./TaxSettingsPanel";
 import { RdkSelect } from "@/components/ui/Select";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
@@ -105,14 +101,15 @@ export default function NexusTrackerClient() {
   const legendItems = useMemo(
     () => [
       { label: "Registered", color: "#22c55e" },
-      { label: "< 50%", color: "#374151" }, 
-      { label: "50–70%", color: "#facc15" },
-      { label: "70–85%", color: "#f59e0b" },
-      { label: "85–95%", color: "#f97316" },
+      { label: "< 50%", color: "#374151" },
+      { label: "50-70%", color: "#facc15" },
+      { label: "70-85%", color: "#f59e0b" },
+      { label: "85-95%", color: "#f97316" },
       { label: "> 95%", color: "#ef4444" },
     ],
     [],
   );
+
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-US", {
@@ -216,6 +213,9 @@ export default function NexusTrackerClient() {
     }
   };
 
+  const sortIndicator = (field: keyof StateSummary) =>
+    sortField === field ? (sortDirection === "asc" ? "^" : "v") : "";
+
   const filteredAndSortedStates = useMemo(() => {
     if (!data) return [];
 
@@ -240,10 +240,12 @@ export default function NexusTrackerClient() {
       if (filterWindow === "rolling" && state.window !== "rolling 12 months") return false;
 
       if (filterNeedsAction) {
-        const needsStripeReg =
-          state.nexusType === "physical" && !state.isRegistered && !state.stripeRegistered;
-        const atRisk = !state.isRegistered && state.percentageToThreshold >= 85;
-        if (!needsStripeReg && !atRisk) return false;
+        const needsRegistration = state.nexusType === "physical" && !state.isRegistered;
+        const atRisk =
+          state.nexusType === "economic" &&
+          !state.isRegistered &&
+          state.percentageToThreshold >= 85;
+        if (!needsRegistration && !atRisk) return false;
       }
 
       return true;
@@ -286,13 +288,16 @@ export default function NexusTrackerClient() {
   }
 
   const atRiskStates = data.states.filter(
-    (s) => !s.isRegistered && s.percentageToThreshold >= 85,
+    (s) =>
+      s.nexusType === "economic" &&
+      !s.isRegistered &&
+      s.percentageToThreshold >= 85,
   ).length;
 
   const registeredStates = data.states.filter((s) => s.isRegistered).length;
 
-  const needsStripeRegistration = data.states.filter(
-    (s) => s.nexusType === "physical" && !s.isRegistered && !s.stripeRegistered,
+  const needsRegistrationCount = data.states.filter(
+    (s) => s.nexusType === "physical" && !s.isRegistered,
   ).length;
 
   const homeStateLabel = data.homeState; // e.g. "SC"
@@ -369,6 +374,8 @@ export default function NexusTrackerClient() {
         />
       )}
 
+      <TaxSettingsPanel />
+
       {/* US Map */}
       <NexusMap
         states={data.states}
@@ -406,7 +413,7 @@ export default function NexusTrackerClient() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400 mb-1">Needs Registration</p>
-                <p className="text-2xl font-bold text-white">{needsStripeRegistration}</p>
+                <p className="text-2xl font-bold text-white">{needsRegistrationCount}</p>
               </div>
               <AlertTriangle className="w-8 h-8 text-yellow-500" />
             </div>
@@ -458,39 +465,32 @@ export default function NexusTrackerClient() {
                 className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("stateName")}
               >
-                State {sortField === "stateName" && (sortDirection === "asc" ? "↑" : "↓")}
+                State {sortIndicator("stateName")}
               </th>
               <th
                 className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("threshold")}
               >
-                Threshold{" "}
-                {sortField === "threshold" && (sortDirection === "asc" ? "↑" : "↓")}
+                Threshold {sortIndicator("threshold")}
               </th>
               <th
                 className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("relevantSales")}
               >
-                Sales{" "}
-                {sortField === "relevantSales" && (sortDirection === "asc" ? "↑" : "↓")}
+                Sales {sortIndicator("relevantSales")}
               </th>
               <th
                 className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("percentageToThreshold")}
               >
-                Progress{" "}
-                {sortField === "percentageToThreshold" &&
-                  (sortDirection === "asc" ? "↑" : "↓")}
+                Progress {sortIndicator("percentageToThreshold")}
               </th>
               <th className="px-4 py-3 text-left text-sm font-medium text-white">Type</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Status
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">
-                Actions
-              </th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-white">Actions</th>
             </tr>
           </thead>
+
           <tbody className="divide-y divide-zinc-800">
             {filteredAndSortedStates.map((state) => (
               <tr key={state.stateCode} className="hover:bg-zinc-800/50">
@@ -551,7 +551,7 @@ export default function NexusTrackerClient() {
                     </div>
                   ) : (
                     <span className="flex items-center gap-1 text-sm text-gray-400">
-                      <span className="w-4 h-4">○</span>
+                      <AlertCircle className="w-4 h-4 text-zinc-500" />
                       Not Registered
                     </span>
                   )}

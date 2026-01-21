@@ -11,6 +11,7 @@ import { useCart } from "@/components/cart/CartProvider";
 import { CheckoutForm, type ShippingAddress } from "@/components/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/checkout/OrderSummary";
 import type { CartItem } from "@/types/domain/cart";
+import { DEFAULT_EXPRESS_CHECKOUT_METHODS } from "@/config/constants/payment-options";
 import {
   clearIdempotencyKeyFromStorage,
   generateIdempotencyKey,
@@ -70,6 +71,9 @@ export function CheckoutStart() {
   const [total, setTotal] = useState(0);
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
+  const [expressCheckoutMethods, setExpressCheckoutMethods] = useState<string[]>(
+    DEFAULT_EXPRESS_CHECKOUT_METHODS,
+  );
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [guestEmailChecked, setGuestEmailChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -258,6 +262,11 @@ export function CheckoutStart() {
         setTax(Number(data.tax ?? 0)); // NEW: Set tax from response
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
+        setExpressCheckoutMethods(
+          data?.expressCheckoutMethods?.length
+            ? data.expressCheckoutMethods
+            : DEFAULT_EXPRESS_CHECKOUT_METHODS,
+        );
       } catch (err: any) {
         if (!isActive) return;
         setError(err?.message ?? "Failed to start checkout.");
@@ -433,6 +442,7 @@ export function CheckoutStart() {
               onShippingAddressChange={setShippingAddress}
               onFulfillmentChange={handleFulfillmentChange}
               isUpdatingFulfillment={isUpdatingFulfillment}
+              expressCheckoutMethods={expressCheckoutMethods}
               canUseChat={isAuthenticated === true}
             />
           </Elements>

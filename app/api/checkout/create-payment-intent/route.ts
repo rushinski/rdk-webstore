@@ -9,16 +9,28 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
+import { PaymentSettingsRepository } from "@/repositories/payment-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { createCartHash } from "@/lib/crypto";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
+import {
+  DEFAULT_EXPRESS_CHECKOUT_METHODS,
+  EXPRESS_CHECKOUT_METHODS,
+  PAYMENT_METHOD_TYPES,
+} from "@/config/constants/payment-options";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
 });
+
+const paymentMethodTypeKeys = new Set(PAYMENT_METHOD_TYPES.map((method) => method.key));
+const expressMethodKeys = new Set(EXPRESS_CHECKOUT_METHODS.map((method) => method.key));
+
+const normalizeMethods = (input: string[] | null | undefined, allowed: Set<string>) =>
+  (input ?? []).filter((method) => allowed.has(method));
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -64,6 +76,17 @@ export async function POST(request: NextRequest) {
     const normalizedFulfillment = fulfillment === "pickup" ? "pickup" : "ship";
     const cartHash = createCartHash(items, normalizedFulfillment);
     const ordersRepo = new OrdersRepository(ordersSupabase);
+    const paymentSettingsRepo = new PaymentSettingsRepository(adminSupabase);
+    const resolveExpressCheckoutMethods = async (tenantId: string) => {
+      const settings = await paymentSettingsRepo.getByTenant(tenantId);
+      const expressMethods = normalizeMethods(
+        settings?.express_checkout_methods,
+        expressMethodKeys,
+      );
+      return expressMethods.length > 0
+        ? expressMethods
+        : DEFAULT_EXPRESS_CHECKOUT_METHODS;
+    };
 
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
@@ -122,6 +145,10 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        const expressCheckoutMethods = existingOrder.tenant_id
+          ? await resolveExpressCheckoutMethods(existingOrder.tenant_id)
+          : DEFAULT_EXPRESS_CHECKOUT_METHODS;
+
         return NextResponse.json(
           {
             clientSecret: paymentIntent.client_secret,
@@ -132,6 +159,7 @@ export async function POST(request: NextRequest) {
             tax: Number(existingOrder.tax_amount ?? 0),
             total: Number(existingOrder.total ?? 0),
             fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
+            expressCheckoutMethods,
             requestId,
           },
           { headers: { "Cache-Control": "no-store" } },
@@ -163,6 +191,21 @@ export async function POST(request: NextRequest) {
       );
     }
     const [tenantId] = [...tenantIds];
+
+    const paymentSettings = await paymentSettingsRepo.getByTenant(tenantId);
+    const useAutomaticPaymentMethods =
+      paymentSettings?.use_automatic_payment_methods ?? true;
+    const paymentMethodTypes = normalizeMethods(
+      paymentSettings?.payment_method_types,
+      paymentMethodTypeKeys,
+    );
+    if (!useAutomaticPaymentMethods && !paymentMethodTypes.includes("card")) {
+      paymentMethodTypes.unshift("card");
+    }
+    const expressCheckoutMethods = normalizeMethods(
+      paymentSettings?.express_checkout_methods,
+      expressMethodKeys,
+    );
 
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
@@ -212,6 +255,11 @@ export async function POST(request: NextRequest) {
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
+    const taxEnabled = taxSettings?.tax_enabled ?? true;
+    const taxCodeOverrides =
+      taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
+        ? (taxSettings.tax_code_overrides as Record<string, string>)
+        : {};
 
     // Calculate tax using Stripe Tax (only if registered in the destination state)
     const taxService = new StripeTaxService(adminSupabase);
@@ -219,9 +267,10 @@ export async function POST(request: NextRequest) {
       normalizedFulfillment === "pickup"
         ? homeState
         : shippingAddress?.state?.trim().toUpperCase() ?? null;
-    const stripeRegistrations = destinationState
-      ? await taxService.getStripeRegistrations()
-      : new Map<string, { id: string; state: string; active: boolean }>();
+    const stripeRegistrations =
+      taxEnabled && destinationState
+        ? await taxService.getStripeRegistrations()
+        : new Map<string, { id: string; state: string; active: boolean }>();
 
     // For pickup, get the actual office address from Stripe Tax Settings
     let customerAddress: {
@@ -259,7 +308,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const hasStripeRegistration = destinationState
+    const hasStripeRegistration = taxEnabled && destinationState
       ? stripeRegistrations.get(destinationState)?.active ?? false
       : false;
 
@@ -274,6 +323,8 @@ export async function POST(request: NextRequest) {
             category: item.category,
           })),
           shippingCost: Math.round(shipping * 100),
+          taxCodes: taxCodeOverrides,
+          taxEnabled,
         })
       : {
           taxAmount: 0,
@@ -339,24 +390,28 @@ export async function POST(request: NextRequest) {
       receiptEmail = userEmail ?? profile?.email ?? undefined;
     }
 
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        amount: Math.round(total * 100),
-        currency: "usd",
-        customer: stripeCustomerId,
-        receipt_email: receiptEmail ?? guestEmail ?? undefined,
-        metadata: {
-          order_id: order.id,
-          cart_hash: cartHash,
-          fulfillment: normalizedFulfillment,
-          tax_calculation_id: taxCalc.taxCalculationId ?? "",
-        },
-        automatic_payment_methods: {
-          enabled: true,
-        },
+    const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
+      amount: Math.round(total * 100),
+      currency: "usd",
+      customer: stripeCustomerId,
+      receipt_email: receiptEmail ?? guestEmail ?? undefined,
+      metadata: {
+        order_id: order.id,
+        cart_hash: cartHash,
+        fulfillment: normalizedFulfillment,
+        tax_calculation_id: taxCalc.taxCalculationId ?? "",
       },
-      { idempotencyKey },
-    );
+    };
+
+    if (useAutomaticPaymentMethods || paymentMethodTypes.length === 0) {
+      paymentIntentParams.automatic_payment_methods = { enabled: true };
+    } else {
+      paymentIntentParams.payment_method_types = paymentMethodTypes;
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams, {
+      idempotencyKey,
+    });
 
     log({
       level: "info",
@@ -383,6 +438,10 @@ export async function POST(request: NextRequest) {
         tax,
         total,
         fulfillment: normalizedFulfillment,
+        expressCheckoutMethods:
+          expressCheckoutMethods.length > 0
+            ? expressCheckoutMethods
+            : DEFAULT_EXPRESS_CHECKOUT_METHODS,
         requestId,
       },
       { headers: { "Cache-Control": "no-store" } },

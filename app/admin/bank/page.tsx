@@ -120,6 +120,7 @@ export default function BankPage() {
   const [balance, setBalance] = useState<StripeBalance | null>(null);
   const [payoutSchedule, setPayoutSchedule] = useState<PayoutSchedule | null>(null);
   const [upcomingPayouts, setUpcomingPayouts] = useState<StripePayout[]>([]);
+  const [payoutsScope, setPayoutsScope] = useState<"upcoming" | "recent">("upcoming");
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
@@ -155,9 +156,17 @@ export default function BankPage() {
       const response = await fetch('/api/admin/stripe/payouts?limit=3', { cache: 'no-store' });
       if (!response.ok) return;
       const data = await response.json();
-      const pending =
-        data.payouts?.filter((p: StripePayout) => p.status === 'pending' || p.status === 'in_transit') || [];
-      setUpcomingPayouts(pending.slice(0, 3));
+      const payouts = data.payouts ?? [];
+      const pending = payouts.filter(
+        (p: StripePayout) => p.status === 'pending' || p.status === 'in_transit'
+      );
+      if (pending.length > 0) {
+        setUpcomingPayouts(pending.slice(0, 3));
+        setPayoutsScope('upcoming');
+      } else {
+        setUpcomingPayouts(payouts.slice(0, 3));
+        setPayoutsScope('recent');
+      }
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'fetch_upcoming_payouts' });
     }
@@ -322,7 +331,7 @@ export default function BankPage() {
                     </p>
                     <div className="mt-3">
                       <Link href="/admin/settings/transfers" className="text-sm text-red-500 hover:text-red-400">
-                        Go to Transfer Settings →
+                        Go to Transfer Settings
                       </Link>
                     </div>
                   </div>
@@ -339,7 +348,7 @@ export default function BankPage() {
                               : formatCurrency(0, availableCurrency)}
                           </p>
                           <p className="text-xs text-zinc-500 mt-2">
-                            You can’t payout more than your available balance.
+                            You can't payout more than your available balance.
                           </p>
                         </div>
                         {!account?.payouts_enabled && (
@@ -385,14 +394,14 @@ export default function BankPage() {
                           onChange={(e) => setPayoutMethod(e.target.value === 'instant' ? 'instant' : 'standard')}
                           className="w-full bg-zinc-950 text-white px-4 py-2.5 border border-zinc-800/70 rounded-sm focus:outline-none focus:border-zinc-700"
                         >
-                          <option value="standard">Standard (2–3 business days)</option>
+                          <option value="standard">Standard (2-3 business days)</option>
                           <option value="instant">Instant (if eligible)</option>
                         </select>
 
                         {/* Fees disclaimer placed directly under the method */}
                         <div className="mt-2 rounded-sm bg-zinc-950 border border-zinc-800/70 p-3">
                           <p className="text-xs text-zinc-500">
-                            <strong className="text-zinc-400">Fees & timing:</strong> Standard payouts usually arrive in 2–3
+                            <strong className="text-zinc-400">Fees & timing:</strong> Standard payouts usually arrive in 2-3
                             business days and are typically free. Instant payouts (if available) generally arrive within ~30 minutes
                             but may include additional Stripe fees. Eligibility and timing can vary by account and bank.
                           </p>
@@ -436,8 +445,8 @@ export default function BankPage() {
                       {/* Bottom note (reinforces fees + bank variance) */}
                       <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-3">
                         <p className="text-xs text-zinc-500">
-                          <strong className="text-zinc-400">Note:</strong> Some banks may post funds later than Stripe’s estimate.
-                          If instant payouts aren’t eligible, Stripe may reject the payout and you can retry using Standard.
+                          <strong className="text-zinc-400">Note:</strong> Some banks may post funds later than Stripe's estimate.
+                          If instant payouts aren't eligible, Stripe may reject the payout and you can retry using Standard.
                         </p>
                       </div>
                     </div>
@@ -528,7 +537,7 @@ export default function BankPage() {
           <div className="mt-4 rounded-sm bg-zinc-950 border border-zinc-800/70 p-3">
             <p className="text-xs text-zinc-500">
               <strong className="text-zinc-400">Manual mode:</strong> You control when payouts are sent.
-              Use “Create manual payout” to send funds to your bank.
+              Use "Create manual payout" to send funds to your bank.
             </p>
           </div>
         ) : null}
@@ -538,9 +547,15 @@ export default function BankPage() {
       <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Upcoming Transfers</h2>
+            <h2 className="text-lg font-semibold text-white">
+              {payoutsScope === 'recent' ? 'Recent Transfers' : 'Upcoming Transfers'}
+            </h2>
             <p className="text-sm text-zinc-400 mt-1">
-              {manualMode ? 'Manual payouts only' : `Next automatic payout: ${nextPayoutDate}`}
+              {manualMode
+                ? 'Manual payouts only'
+                : payoutsScope === 'recent'
+                  ? 'Latest payout activity from Stripe'
+                  : `Next automatic payout: ${nextPayoutDate}`}
             </p>
           </div>
           <Link
@@ -571,9 +586,11 @@ export default function BankPage() {
           </div>
         ) : (
           <div className="text-center py-8">
-            <p className="text-zinc-500 text-sm">No upcoming transfers</p>
+            <p className="text-zinc-500 text-sm">No transfers yet</p>
             <p className="text-zinc-600 text-xs mt-1">
-              {manualMode ? 'Create a manual payout from your available balance.' : 'Transfers will appear here when scheduled'}
+              {manualMode
+                ? 'Create a manual payout from your available balance.'
+                : 'Transfers will appear here when scheduled'}
             </p>
           </div>
         )}
@@ -611,7 +628,7 @@ export default function BankPage() {
       {/* Global fees disclaimer */}
       <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-4">
         <p className="text-xs text-zinc-500">
-          <strong className="text-zinc-400">Note:</strong> Standard payouts typically arrive in 2–3 business days and are
+          <strong className="text-zinc-400">Note:</strong> Standard payouts typically arrive in 2-3 business days and are
           usually free. Instant payouts (if available) generally arrive within ~30 minutes but may include additional fees
           charged by Stripe. Actual timing and eligibility can vary by account and bank.
         </p>

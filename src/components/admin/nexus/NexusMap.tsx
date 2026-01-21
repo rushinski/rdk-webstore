@@ -199,40 +199,19 @@ export default function NexusMap({
           </Geographies>
         </ComposableMap>
 
-        {/* Tooltip + connector (Image-4 style) */}
+        {/* Tooltip */}
         {hoveredData && anchor && tooltipPos && (
           <div className="pointer-events-none absolute inset-0 z-50">
-            <svg className="absolute inset-0" aria-hidden="true">
-              {/* endpoint dot at state */}
-              <circle cx={anchor.x} cy={anchor.y} r="5" fill="rgba(255,255,255,0.95)" />
-              <circle cx={anchor.x} cy={anchor.y} r="9" fill="rgba(255,255,255,0.18)" />
-
-              {/* double-stroke connector for contrast */}
-              <path
-                d={`M ${anchor.x} ${anchor.y}
-                    Q ${anchor.x + 22} ${anchor.y - 26}
-                      ${tooltipPos.left + 16} ${tooltipPos.top + 28}`}
-                fill="none"
-                stroke="rgba(0,0,0,0.65)"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-              <path
-                d={`M ${anchor.x} ${anchor.y}
-                    Q ${anchor.x + 22} ${anchor.y - 26}
-                      ${tooltipPos.left + 16} ${tooltipPos.top + 28}`}
-                fill="none"
-                stroke="rgba(255,255,255,0.92)"
-                strokeWidth="3"
-                strokeLinecap="round"
-              />
-            </svg>
+            <div
+              className="absolute rounded-full border border-white/70 bg-white/20 shadow-sm"
+              style={{ left: anchor.x - 4, top: anchor.y - 4, width: 8, height: 8 }}
+            />
 
             <div
               className="absolute transition-all duration-150 ease-out"
               style={{ left: tooltipPos.left, top: tooltipPos.top, width: tooltipWidth }}
             >
-              <div className="bg-zinc-900 border-2 border-white/80 rounded-lg p-4 shadow-xl">
+              <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 shadow-xl">
                 <div className="font-bold mb-2 text-white text-lg">
                   {hoveredData.stateName} ({hoveredData.stateCode})
                 </div>
@@ -245,10 +224,10 @@ export default function NexusMap({
                   </div>
 
                   {hoveredData.isRegistered && (
-                    <div className="text-green-400 text-xs pt-1">✓ Registered</div>
+                    <div className="text-green-400 text-xs pt-1">Registered</div>
                   )}
                   {hoveredData.isHomeState && (
-                    <div className="text-blue-400 text-xs pt-1">★ Home Office State</div>
+                    <div className="text-blue-400 text-xs pt-1">Home Office State</div>
                   )}
                 </div>
               </div>
