@@ -12,6 +12,7 @@ import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import { ChatService } from "@/services/chat-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
+import { AdminOrderEmailService } from "@/services/admin-order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { log } from "@/lib/log";
 import { env } from "@/config/env";
@@ -67,6 +68,62 @@ export class StripeOrderJob {
     this.orderAccessTokens = adminSupabase
       ? new OrderAccessTokenService(adminSupabase)
       : null;
+  }
+
+  private async sendAdminOrderEmails(params: {
+    order: {
+      id: string;
+      fulfillment?: string | null;
+      subtotal?: number | null;
+      shipping?: number | null;
+      total?: number | null;
+      tax?: number | null;
+      tax_total?: number | null;
+      tax_amount?: number | null;
+      guest_email?: string | null;
+      user_id?: string | null;
+    };
+    orderItems: Array<{ quantity?: number | null }>;
+    customerEmail?: string | null;
+  }) {
+    if (!this.adminSupabase) return;
+
+    const staff = await this.profilesRepo.listStaffProfiles();
+    const recipients = staff.filter(
+      (admin) => admin.admin_order_notifications_enabled !== false && admin.email,
+    );
+    if (recipients.length === 0) return;
+
+    const itemCount = params.orderItems.reduce(
+      (sum, item) => sum + Number(item.quantity ?? 0),
+      0,
+    );
+    const fulfillment = params.order.fulfillment === "pickup" ? "pickup" : "ship";
+    const subtotal = Number(params.order.subtotal ?? 0);
+    const shipping = Number(params.order.shipping ?? 0);
+    const tax = getOrderTax(params.order);
+    const total = Number(params.order.total ?? 0);
+
+    const emailService = new AdminOrderEmailService();
+    const basePayload = {
+      orderId: params.order.id,
+      fulfillment,
+      subtotal,
+      tax,
+      shipping,
+      total,
+      itemCount,
+      customerEmail: params.customerEmail ?? params.order.guest_email ?? null,
+    };
+
+    await Promise.all(
+      recipients.map((admin) =>
+        emailService.sendOrderPlaced({
+          ...basePayload,
+          to: admin.email ?? "",
+        }),
+      ),
+    );
   }
 
   async processCheckoutSessionCompleted(
@@ -263,6 +320,43 @@ export class StripeOrderJob {
           requestId,
           orderId,
           error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+        });
+      }
+
+      try {
+        const hasAdminEmailEvent = await this.orderEventsRepo.hasEvent(
+          orderId,
+          "admin_order_email_sent",
+        );
+        if (!hasAdminEmailEvent) {
+          let customerEmail = sessionEmail ?? null;
+          if (!customerEmail && order.user_id) {
+            const profile = await this.profilesRepo.getByUserId(order.user_id);
+            customerEmail = profile?.email ?? null;
+          }
+          if (!customerEmail) {
+            customerEmail = order.guest_email ?? null;
+          }
+
+          await this.sendAdminOrderEmails({
+            order,
+            orderItems,
+            customerEmail,
+          });
+          await this.orderEventsRepo.insertEvent({
+            orderId,
+            type: "admin_order_email_sent",
+            message: "Admin order email sent.",
+          });
+        }
+      } catch (emailError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "order_admin_email_failed",
+          requestId,
+          orderId,
+          error: emailError instanceof Error ? emailError.message : String(emailError),
         });
       }
     }
@@ -601,6 +695,43 @@ export class StripeOrderJob {
           requestId,
           orderId,
           error: notifyError instanceof Error ? notifyError.message : String(notifyError),
+        });
+      }
+
+      try {
+        const hasAdminEmailEvent = await this.orderEventsRepo.hasEvent(
+          orderId,
+          "admin_order_email_sent",
+        );
+        if (!hasAdminEmailEvent) {
+          let customerEmail: string | null = null;
+          if (order.user_id) {
+            const profile = await this.profilesRepo.getByUserId(order.user_id);
+            customerEmail = profile?.email ?? null;
+          }
+          if (!customerEmail) {
+            customerEmail = order.guest_email ?? null;
+          }
+
+          await this.sendAdminOrderEmails({
+            order,
+            orderItems,
+            customerEmail,
+          });
+          await this.orderEventsRepo.insertEvent({
+            orderId,
+            type: "admin_order_email_sent",
+            message: "Admin order email sent.",
+          });
+        }
+      } catch (emailError) {
+        log({
+          level: "warn",
+          layer: "job",
+          message: "order_admin_email_failed",
+          requestId,
+          orderId,
+          error: emailError instanceof Error ? emailError.message : String(emailError),
         });
       }
     }

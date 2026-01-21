@@ -75,6 +75,7 @@ export class OrdersService {
       status: order.status ?? "pending",
       subtotal: parseFloat(order.subtotal?.toString() ?? "0"),
       shipping: parseFloat(order.shipping?.toString() ?? "0"),
+      tax: parseFloat(order.tax_amount?.toString() ?? "0"),
       total: parseFloat(order.total?.toString() ?? "0"),
       fulfillment: order.fulfillment as "ship" | "pickup",
       updatedAt: order.updated_at?.toString() ?? order.created_at?.toString() ?? "",

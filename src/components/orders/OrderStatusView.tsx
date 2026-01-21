@@ -118,6 +118,10 @@ export function OrderStatusView({ status }: { status: OrderStatusResponse }) {
                   : `$${status.shipping.toFixed(2)}`}
               </span>
             </div>
+            <div className="flex justify-between">
+              <span>Tax</span>
+              <span>${status.tax.toFixed(2)}</span>
+            </div>
             <div className="border-t border-zinc-800/70 pt-2 mt-2">
               <div className="flex justify-between text-white font-semibold">
                 <span>Total</span>

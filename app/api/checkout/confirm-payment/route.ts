@@ -10,6 +10,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
+import { AdminOrderEmailService } from "@/services/admin-order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { ChatService } from "@/services/chat-service";
 import { confirmPaymentSchema } from "@/lib/validation/checkout";
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     const profilesRepo = new ProfileRepository(adminSupabase);
     const productService = new ProductService(adminSupabase);
     const orderEmailService = new OrderEmailService();
+    const adminOrderEmailService = new AdminOrderEmailService();
     const orderAccessTokens = new OrderAccessTokenService(adminSupabase);
     const nexusRepo = new NexusRepository(adminSupabase); // NEW: For tax tracking
 
@@ -288,6 +290,69 @@ export async function POST(request: NextRequest) {
           error: chatError instanceof Error ? chatError.message : String(chatError),
         });
       }
+    }
+
+    try {
+      const hasAdminEmailEvent = await orderEventsRepo.hasEvent(
+        order.id,
+        "admin_order_email_sent",
+      );
+      if (!hasAdminEmailEvent) {
+        const staff = await profilesRepo.listStaffProfiles();
+        const recipients = staff.filter(
+          (admin) => admin.admin_order_notifications_enabled !== false && admin.email,
+        );
+
+        if (recipients.length > 0) {
+          let adminCustomerEmail = paymentIntent.receipt_email ?? null;
+          if (!adminCustomerEmail && order.user_id) {
+            const profile = await profilesRepo.getByUserId(order.user_id);
+            adminCustomerEmail = profile?.email ?? null;
+          }
+          if (!adminCustomerEmail) {
+            adminCustomerEmail = order.guest_email ?? null;
+          }
+
+          const itemCount = orderItems.reduce(
+            (sum, item) => sum + Number(item.quantity ?? 0),
+            0,
+          );
+
+          await Promise.all(
+            recipients.map((admin) =>
+              adminOrderEmailService.sendOrderPlaced({
+                to: admin.email ?? "",
+                orderId: order.id,
+                fulfillment: expectedFulfillment,
+                subtotal: Number(order.subtotal ?? 0),
+                shipping: Number(order.shipping ?? 0),
+                tax: Number(order.tax_amount ?? 0),
+                total: Number(order.total ?? 0),
+                itemCount,
+                customerEmail: adminCustomerEmail,
+              }),
+            ),
+          );
+
+          await orderEventsRepo.insertEvent({
+            orderId: order.id,
+            type: "admin_order_email_sent",
+            message: "Admin order email sent.",
+          });
+        }
+      }
+    } catch (adminEmailError) {
+      log({
+        level: "warn",
+        layer: "api",
+        message: "order_admin_email_failed",
+        requestId,
+        orderId,
+        error:
+          adminEmailError instanceof Error
+            ? adminEmailError.message
+            : String(adminEmailError),
+      });
     }
 
     try {

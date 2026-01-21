@@ -27,6 +27,7 @@ export interface OrderStatusResponse {
   status: string;
   subtotal: number;
   shipping: number;
+  tax: number;
   total: number;
   fulfillment: FulfillmentMethod;
   updatedAt: string;

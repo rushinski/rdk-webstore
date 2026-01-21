@@ -66,3 +66,16 @@ export type PickupInstructionsEmailInput = {
   instructions?: string[];
   locationSummary?: string | null;
 };
+
+export type AdminOrderPlacedEmailInput = {
+  to: string;
+  orderId: string;
+  fulfillment: "ship" | "pickup";
+  subtotal: number;
+  tax: number;
+  shipping: number;
+  total: number;
+  itemCount: number;
+  customerEmail?: string | null;
+  orderUrl?: string | null;
+};
