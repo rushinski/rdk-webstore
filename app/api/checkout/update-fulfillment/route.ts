@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
@@ -111,6 +112,9 @@ export async function POST(request: NextRequest) {
       );
     }
     const [tenantId] = [...tenantIds];
+    const tenantProfileRepo = new ProfileRepository(adminSupabase);
+    const tenantStripeAccountId =
+      await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
 
     const categories = [...new Set(products.map((product) => product.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
@@ -147,13 +151,15 @@ export async function POST(request: NextRequest) {
         ? (taxSettings.tax_code_overrides as Record<string, string>)
         : {};
 
-    const taxService = new StripeTaxService(adminSupabase);
+    const taxService = tenantStripeAccountId
+      ? new StripeTaxService(adminSupabase, tenantStripeAccountId)
+      : null;
     const destinationState =
       fulfillment === "pickup"
         ? homeState
         : shippingAddress?.state?.trim().toUpperCase() ?? null;
     const stripeRegistrations =
-      taxEnabled && destinationState
+      taxEnabled && destinationState && taxService
         ? await taxService.getStripeRegistrations()
         : new Map<string, { id: string; state: string; active: boolean }>();
 
@@ -175,7 +181,7 @@ export async function POST(request: NextRequest) {
         postal_code: shippingAddress.postal_code,
         country: shippingAddress.country,
       };
-    } else if (fulfillment === "pickup") {
+    } else if (fulfillment === "pickup" && taxService) {
       const officeAddress = await taxService.getHeadOfficeAddress();
       if (officeAddress) {
         customerAddress = officeAddress;
@@ -204,7 +210,7 @@ export async function POST(request: NextRequest) {
       ? stripeRegistrations.get(destinationState)?.active ?? false
       : false;
 
-    const taxCalc = hasStripeRegistration && customerAddress
+    const taxCalc = hasStripeRegistration && customerAddress && taxService
       ? await taxService.calculateTax({
           currency: "usd",
           customerAddress,

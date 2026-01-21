@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
-import { ProfileRepository } from "@/repositories/profile-repo";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
@@ -25,15 +25,12 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    const profileRepo = new ProfileRepository(supabase);
-    const profile = await profileRepo.getByUserId(session.user.id);
-
-    if (!profile?.tenant_id) {
-      return NextResponse.json({ error: "Tenant not found", requestId }, { status: 404 });
-    }
+    
+    const contextService = new TenantContextService(supabase);
+    const tenantId = await contextService.getTenantId(session.user.id);
 
     const repo = new TaxSettingsRepository(supabase);
-    const settings = await repo.getByTenant(profile.tenant_id);
+    const settings = await repo.getByTenant(tenantId);
 
     return NextResponse.json(
       {
@@ -47,8 +44,8 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/tax-settings" });
     return NextResponse.json(
-      { error: "Failed to load tax settings", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+      { error: error.message || "Failed to load tax settings", requestId },
+      { status: error.message?.includes("not found") ? 404 : 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -59,12 +56,9 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    const profileRepo = new ProfileRepository(supabase);
-    const profile = await profileRepo.getByUserId(session.user.id);
-
-    if (!profile?.tenant_id) {
-      return NextResponse.json({ error: "Tenant not found", requestId }, { status: 404 });
-    }
+    
+    const contextService = new TenantContextService(supabase);
+    const context = await contextService.getAdminContext(session.user.id);
 
     const body = await request.json().catch(() => null);
     const parsed = taxSettingsSchema.safeParse(body ?? {});
@@ -76,6 +70,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Filter tax code overrides to only allowed categories
     const incomingOverrides = parsed.data.taxCodeOverrides ?? {};
     const filteredOverrides: Record<string, string> = {};
     for (const [category, code] of Object.entries(incomingOverrides)) {
@@ -86,15 +81,16 @@ export async function POST(request: NextRequest) {
     }
 
     const repo = new TaxSettingsRepository(supabase);
-    const existing = await repo.getByTenant(profile.tenant_id);
+    const existing = await repo.getByTenant(context.tenantId);
 
+    // If disabling tax, deactivate all Stripe Tax registrations for this tenant's Connect account
     if (parsed.data.taxEnabled === false) {
-      const stripeTax = new StripeTaxService(supabase);
+      const stripeTax = new StripeTaxService(supabase, context.stripeAccountId);
       await stripeTax.deactivateStripeTaxRegistrations();
     }
 
     const updated = await repo.upsert({
-      tenantId: profile.tenant_id,
+      tenantId: context.tenantId,
       homeState: existing?.home_state ?? "SC",
       businessName: existing?.business_name ?? null,
       taxIdNumber: existing?.tax_id_number ?? null,
@@ -115,8 +111,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/tax-settings" });
     return NextResponse.json(
-      { error: "Failed to save tax settings", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+      { error: error.message || "Failed to save tax settings", requestId },
+      { status: error.message?.includes("not configured") ? 400 : 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

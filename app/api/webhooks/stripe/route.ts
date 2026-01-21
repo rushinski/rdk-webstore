@@ -1,10 +1,10 @@
-// app/api/webhooks/stripe/route.ts (UPDATED with tax transaction)
-
+// app/api/webhooks/stripe/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { StripeOrderJob } from "@/jobs/stripe-order-job";
+import { OrdersRepository } from "@/repositories/orders-repo";
+import { ProfileRepository } from "@/repositories/profile-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
@@ -58,9 +58,8 @@ export async function POST(request: NextRequest) {
       eventId: event.id,
     });
 
-    const supabase = await createSupabaseServerClient();
     const adminSupabase = createSupabaseAdminClient();
-    const job = new StripeOrderJob(supabase, adminSupabase);
+    const job = new StripeOrderJob(adminSupabase, adminSupabase);
 
     switch (event.type) {
       case "checkout.session.completed":
@@ -70,33 +69,63 @@ export async function POST(request: NextRequest) {
       case "payment_intent.succeeded":
         await job.processPaymentIntentSucceeded(event, requestId);
 
-        // Record tax transaction if tax calculation ID exists
+        // Record tax transaction using tenant's Stripe Connect account
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         const taxCalculationId = paymentIntent.metadata?.tax_calculation_id;
         const orderId = paymentIntent.metadata?.order_id;
 
         if (taxCalculationId && orderId) {
           try {
-            const taxService = new StripeTaxService(adminSupabase);
-            const taxTransactionId = await taxService.createTaxTransaction({
-              taxCalculationId,
-              reference: orderId,
-            });
+            const ordersRepo = new OrdersRepository(adminSupabase);
+            const order = await ordersRepo.getById(orderId);
+            const tenantId = order?.tenant_id ?? null;
 
-            if (taxTransactionId) {
-              await adminSupabase
-                .from("orders")
-                .update({ stripe_tax_transaction_id: taxTransactionId })
-                .eq("id", orderId);
-
+            if (!tenantId) {
               log({
-                level: "info",
+                level: "warn",
                 layer: "stripe",
-                message: "tax_transaction_created",
+                message: "tax_transaction_missing_tenant",
                 requestId,
                 orderId,
-                taxTransactionId,
               });
+            } else {
+              // Get the tenant's Stripe Connect account ID
+              const profileRepo = new ProfileRepository(adminSupabase);
+              const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(tenantId);
+
+              if (!stripeAccountId) {
+                log({
+                  level: "warn",
+                  layer: "stripe",
+                  message: "tax_transaction_missing_connect_account",
+                  requestId,
+                  orderId,
+                });
+              } else {
+                // Create tax transaction on the tenant's Stripe Connect account
+                const taxService = new StripeTaxService(adminSupabase, stripeAccountId);
+                const taxTransactionId = await taxService.createTaxTransaction({
+                  taxCalculationId,
+                  reference: orderId,
+                });
+
+                if (taxTransactionId) {
+                  await adminSupabase
+                    .from("orders")
+                    .update({ stripe_tax_transaction_id: taxTransactionId })
+                    .eq("id", orderId);
+
+                  log({
+                    level: "info",
+                    layer: "stripe",
+                    message: "tax_transaction_created",
+                    requestId,
+                    orderId,
+                    taxTransactionId,
+                    stripeAccountId, // Log which account it was created on
+                  });
+                }
+              }
             }
           } catch (taxError) {
             logError(taxError, {
@@ -193,8 +222,7 @@ async function handleRefundEvent(
       reason: refund.reason,
     });
 
-    const chargeId =
-      typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+    const chargeId = typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
 
     if (!chargeId) {
       log({

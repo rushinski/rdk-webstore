@@ -100,6 +100,20 @@ export class ProfileRepository {
     return data ?? [];
   }
 
+  async getStripeAccountIdForTenant(tenantId: string): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("profiles")
+      .select("stripe_account_id, is_primary_admin")
+      .eq("tenant_id", tenantId)
+      .not("stripe_account_id", "is", null)
+      .order("is_primary_admin", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.stripe_account_id ?? null;
+  }
+
   async setStripeCustomerId(userId: string, stripeCustomerId: string) {
     const { error } = await this.supabase
       .from("profiles")

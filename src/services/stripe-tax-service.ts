@@ -14,10 +14,20 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
 export class StripeTaxService {
   private nexusRepo: NexusRepository;
   private taxSettingsRepo: TaxSettingsRepository;
+  private stripeClient: Stripe;
 
-  constructor(private readonly supabase: TypedSupabaseClient) {
+  constructor(
+    private readonly supabase: TypedSupabaseClient,
+    stripeAccountId?: string | null,
+  ) {
     this.nexusRepo = new NexusRepository(supabase);
     this.taxSettingsRepo = new TaxSettingsRepository(supabase);
+    this.stripeClient = stripeAccountId
+      ? new Stripe(env.STRIPE_SECRET_KEY, {
+          apiVersion: "2025-10-29.clover",
+          stripeAccount: stripeAccountId,
+        })
+      : stripe;
   }
 
   /**
@@ -32,7 +42,7 @@ export class StripeTaxService {
     country: string;
   } | null> {
     try {
-      const settings = await stripe.tax.settings.retrieve();
+      const settings = await this.stripeClient.tax.settings.retrieve();
       if (settings.head_office?.address) {
         const addr = settings.head_office.address;
         return {
@@ -76,7 +86,7 @@ export class StripeTaxService {
       const existingSettings = await this.taxSettingsRepo.getByTenant(params.tenantId);
 
       // Update Stripe Tax Settings with head office address
-      await stripe.tax.settings.update({
+      await this.stripeClient.tax.settings.update({
         defaults: {
           tax_behavior: 'exclusive',
         },
@@ -150,7 +160,7 @@ export class StripeTaxService {
    */
   async isHeadOfficeConfigured(): Promise<boolean> {
     try {
-      const settings = await stripe.tax.settings.retrieve();
+      const settings = await this.stripeClient.tax.settings.retrieve();
       return settings.status === 'active' && !!settings.head_office;
     } catch (error) {
       return false;
@@ -235,7 +245,7 @@ export class StripeTaxService {
     }
 
     try {
-      const calculation = await stripe.tax.calculations.create({
+      const calculation = await this.stripeClient.tax.calculations.create({
         currency: params.currency.toLowerCase(),
         line_items: lineItems,
         customer_details: {
@@ -278,7 +288,7 @@ export class StripeTaxService {
     reference: string;
   }): Promise<string | null> {
     try {
-      const transaction = await stripe.tax.transactions.createFromCalculation({
+      const transaction = await this.stripeClient.tax.transactions.createFromCalculation({
         calculation: params.taxCalculationId,
         reference: params.reference,
       });
@@ -317,7 +327,7 @@ export class StripeTaxService {
     } else {
       try {
         // Create new Stripe Tax registration
-        const registration = await stripe.tax.registrations.create({
+        const registration = await this.stripeClient.tax.registrations.create({
           country: 'US',
           country_options: {
             us: {
@@ -331,7 +341,7 @@ export class StripeTaxService {
       } catch (error: any) {
         // If already registered error, fetch and use existing
         if (error.message?.includes('already added a registration')) {
-          const regs = await stripe.tax.registrations.list({ limit: 100 });
+          const regs = await this.stripeClient.tax.registrations.list({ limit: 100 });
           const existing = regs.data.find(
             r => r.country === 'US' && r.country_options?.us?.state === params.stateCode
           );
@@ -378,7 +388,7 @@ export class StripeTaxService {
 
     if (stripeRegistrationId) {
       try {
-        await stripe.tax.registrations.update(stripeRegistrationId, {
+        await this.stripeClient.tax.registrations.update(stripeRegistrationId, {
           expires_at: "now",
         });
       } catch (error: any) {
@@ -405,7 +415,7 @@ export class StripeTaxService {
    */
   async getStripeRegistrations(): Promise<Map<string, { id: string; state: string; active: boolean }>> {
     try {
-      const registrations = await stripe.tax.registrations.list({ limit: 100 });
+      const registrations = await this.stripeClient.tax.registrations.list({ limit: 100 });
       
       const map = new Map<string, { id: string; state: string; active: boolean }>();
       
@@ -437,14 +447,14 @@ export class StripeTaxService {
       let startingAfter: string | undefined;
 
       while (true) {
-        const regs = await stripe.tax.registrations.list({
+        const regs = await this.stripeClient.tax.registrations.list({
           limit: 100,
           ...(startingAfter ? { starting_after: startingAfter } : {}),
         });
 
         for (const reg of regs.data) {
           if (reg.status === "active" || reg.status === "scheduled") {
-            await stripe.tax.registrations.update(reg.id, { expires_at: "now" });
+            await this.stripeClient.tax.registrations.update(reg.id, { expires_at: "now" });
             deactivated += 1;
           }
         }

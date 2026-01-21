@@ -1,12 +1,11 @@
 // app/api/admin/nexus/register/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeTaxService } from "@/services/stripe-tax-service";
-import { ProfileRepository } from "@/repositories/profile-repo";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -21,16 +20,9 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-
-    const profileRepo = new ProfileRepository(supabase);
-    const profile = await profileRepo.getByUserId(session.user.id);
-
-    if (!profile?.tenant_id) {
-      return NextResponse.json(
-        { error: "Tenant not found", requestId },
-        { status: 404 }
-      );
-    }
+    
+    const contextService = new TenantContextService(supabase);
+    const context = await contextService.getAdminContext(session.user.id);
 
     const body = await request.json().catch(() => null);
     const parsed = registerSchema.safeParse(body);
@@ -42,33 +34,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { stateCode, registrationType, isRegistered } = parsed.data;
+    const taxService = new StripeTaxService(supabase, context.stripeAccountId);
 
-    const taxService = new StripeTaxService(supabase);
-
-    if (isRegistered) {
+    if (parsed.data.isRegistered) {
       await taxService.registerState({
-        tenantId: profile.tenant_id,
-        stateCode,
-        registrationType,
+        tenantId: context.tenantId,
+        stateCode: parsed.data.stateCode,
+        registrationType: parsed.data.registrationType,
       });
     } else {
       await taxService.unregisterState({
-        tenantId: profile.tenant_id,
-        stateCode,
+        tenantId: context.tenantId,
+        stateCode: parsed.data.stateCode,
       });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    logError(error, {
-      layer: "api",
-      requestId,
-      route: "/api/admin/nexus/register",
-    });
-
+    logError(error, { layer: "api", requestId, route: "/api/admin/nexus/register" });
     return NextResponse.json(
-      { error: "Failed to update registration", requestId },
+      { error: error.message || "Failed to update registration", requestId },
       { status: 500 }
     );
   }

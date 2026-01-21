@@ -191,6 +191,9 @@ export async function POST(request: NextRequest) {
       );
     }
     const [tenantId] = [...tenantIds];
+    const tenantProfileRepo = new ProfileRepository(adminSupabase);
+    const tenantStripeAccountId =
+      await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
 
     const paymentSettings = await paymentSettingsRepo.getByTenant(tenantId);
     const useAutomaticPaymentMethods =
@@ -262,13 +265,15 @@ export async function POST(request: NextRequest) {
         : {};
 
     // Calculate tax using Stripe Tax (only if registered in the destination state)
-    const taxService = new StripeTaxService(adminSupabase);
+    const taxService = tenantStripeAccountId
+      ? new StripeTaxService(adminSupabase, tenantStripeAccountId)
+      : null;
     const destinationState =
       normalizedFulfillment === "pickup"
         ? homeState
         : shippingAddress?.state?.trim().toUpperCase() ?? null;
     const stripeRegistrations =
-      taxEnabled && destinationState
+      taxEnabled && destinationState && taxService
         ? await taxService.getStripeRegistrations()
         : new Map<string, { id: string; state: string; active: boolean }>();
 
@@ -291,7 +296,7 @@ export async function POST(request: NextRequest) {
         postal_code: shippingAddress.postal_code,
         country: shippingAddress.country,
       };
-    } else if (normalizedFulfillment === "pickup") {
+    } else if (normalizedFulfillment === "pickup" && taxService) {
       // Get office address from Stripe Tax Settings
       const officeAddress = await taxService.getHeadOfficeAddress();
       if (officeAddress) {
@@ -312,7 +317,7 @@ export async function POST(request: NextRequest) {
       ? stripeRegistrations.get(destinationState)?.active ?? false
       : false;
 
-    const taxCalc = hasStripeRegistration && customerAddress
+    const taxCalc = hasStripeRegistration && customerAddress && taxService
       ? await taxService.calculateTax({
           currency: "usd",
           customerAddress,

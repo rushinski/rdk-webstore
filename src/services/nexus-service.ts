@@ -46,7 +46,7 @@ export class NexusSummaryService {
   constructor(
     private readonly nexusRepo: NexusRepository,
     private readonly taxSettingsRepo: TaxSettingsRepository,
-    private readonly stripeTax: StripeTaxService,
+    private readonly stripeTax: StripeTaxService | null,
   ) {}
 
   async buildSummary(
@@ -64,9 +64,10 @@ export class NexusSummaryService {
     ]);
 
     const taxEnabled = taxSettings?.tax_enabled ?? false;
-    const stripeRegs = taxEnabled
-      ? await this.stripeTax.getStripeRegistrations()
-      : new Map<string, { id: string; state: string; active: boolean }>();
+    const stripeRegs =
+      taxEnabled && this.stripeTax
+        ? await this.stripeTax.getStripeRegistrations()
+        : new Map<string, { id: string; state: string; active: boolean }>();
 
     const homeState = taxSettings?.home_state ?? "SC";
     const now = new Date();

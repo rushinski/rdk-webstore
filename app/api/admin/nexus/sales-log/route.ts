@@ -1,12 +1,11 @@
 // app/api/admin/nexus/sales-log/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { NexusRepository } from "@/repositories/nexus-repo";
-import { ProfileRepository } from "@/repositories/profile-repo";
 import { z } from "zod";
 
 const salesLogSchema = z.object({
@@ -21,16 +20,9 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-
-    const profileRepo = new ProfileRepository(supabase);
-    const profile = await profileRepo.getByUserId(session.user.id);
-
-    if (!profile?.tenant_id) {
-      return NextResponse.json(
-        { error: "Tenant not found", requestId },
-        { status: 404 }
-      );
-    }
+    
+    const contextService = new TenantContextService(supabase);
+    const tenantId = await contextService.getTenantId(session.user.id);
 
     const searchParams = request.nextUrl.searchParams;
     const parsed = salesLogSchema.safeParse({
@@ -48,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const nexusRepo = new NexusRepository(supabase);
     const result = await nexusRepo.getStateSalesLog({
-      tenantId: profile.tenant_id,
+      tenantId,
       stateCode: parsed.data.stateCode,
       limit: parsed.data.limit,
       offset: parsed.data.offset,
@@ -56,14 +48,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    logError(error, {
-      layer: "api",
-      requestId,
-      route: "/api/admin/nexus/sales-log",
-    });
-
+    logError(error, { layer: "api", requestId, route: "/api/admin/nexus/sales-log" });
     return NextResponse.json(
-      { error: "Failed to fetch sales log", requestId },
+      { error: error.message || "Failed to fetch sales log", requestId },
       { status: 500 }
     );
   }
