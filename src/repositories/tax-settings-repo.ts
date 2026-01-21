@@ -1,5 +1,6 @@
 // src/repositories/tax-settings-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/db/database.types";
 
 export type TenantTaxSettings = {
   id: string;
@@ -14,6 +15,30 @@ export type TenantTaxSettings = {
   updated_at: string;
 };
 
+type TenantTaxSettingsRow = Database["public"]["Tables"]["tenant_tax_settings"]["Row"];
+
+const normalizeTaxCodeOverrides = (
+  value: TenantTaxSettingsRow["tax_code_overrides"],
+): Record<string, string> | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const result: Record<string, string> = {};
+  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof entry === "string") {
+      result[key] = entry;
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+};
+
+const mapTenantTaxSettings = (row: TenantTaxSettingsRow): TenantTaxSettings => ({
+  ...row,
+  tax_code_overrides: normalizeTaxCodeOverrides(row.tax_code_overrides),
+});
+
 export class TaxSettingsRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
@@ -25,7 +50,8 @@ export class TaxSettingsRepository {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    return data;
+    if (!data) return null;
+    return mapTenantTaxSettings(data);
   }
 
   async upsert(settings: {
@@ -55,6 +81,7 @@ export class TaxSettingsRepository {
       .single();
 
     if (error) throw error;
-    return data;
+    if (!data) throw new Error("Failed to upsert tenant tax settings.");
+    return mapTenantTaxSettings(data);
   }
 }

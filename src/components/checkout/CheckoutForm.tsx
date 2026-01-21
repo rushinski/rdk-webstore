@@ -70,11 +70,13 @@ export function CheckoutForm({
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("e2e_payment_status");
   const isStripeReady = Boolean(stripe) || canBypassStripe;
-  const expressMethodKeys = EXPRESS_CHECKOUT_METHODS.map((method) => method.key);
+  const expressMethodKeySet = new Set<string>(
+    EXPRESS_CHECKOUT_METHODS.map((method) => method.key)
+  );
   const normalizedExpressMethods = (expressCheckoutMethods?.length
     ? expressCheckoutMethods
     : DEFAULT_EXPRESS_CHECKOUT_METHODS
-  ).filter((method): method is ExpressCheckoutMethod => expressMethodKeys.includes(method));
+  ).filter((method): method is ExpressCheckoutMethod => expressMethodKeySet.has(method));
   const showExpressCheckout = normalizedExpressMethods.length > 0;
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>

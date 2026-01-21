@@ -114,6 +114,7 @@ export class StripeAdminService {
         email: profile.email ?? undefined,
         country: 'US',
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
         },
         settings: {

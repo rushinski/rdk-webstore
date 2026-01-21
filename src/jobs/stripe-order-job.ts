@@ -98,7 +98,8 @@ export class StripeOrderJob {
       (sum, item) => sum + Number(item.quantity ?? 0),
       0,
     );
-    const fulfillment = params.order.fulfillment === "pickup" ? "pickup" : "ship";
+    const fulfillment: "ship" | "pickup" =
+      params.order.fulfillment === "pickup" ? "pickup" : "ship";
     const subtotal = Number(params.order.subtotal ?? 0);
     const shipping = Number(params.order.shipping ?? 0);
     const tax = getOrderTax(params.order);
