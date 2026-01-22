@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { logError } from '@/lib/log';
+import { ModalPortal } from '@/components/ui/ModalPortal';
 
 const SHIPPING_CATEGORIES = [
   { key: 'sneakers', label: 'Sneakers' },
@@ -346,40 +347,44 @@ export default function ShippingSettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Shipping Settings</h1>
-        <p className="text-gray-400">Shipping defaults, origin address, and carrier options</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Shipping Settings</h1>
+        <p className="text-sm sm:text-base text-gray-400">
+          Shipping defaults, origin address, and carrier options
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-white">Origin address</h2>
-              <p className="text-sm text-gray-400">Used for labels and rate estimates.</p>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Origin address</h2>
+              <p className="text-xs sm:text-sm text-gray-400">Used for labels and rate estimates.</p>
             </div>
             <button
               type="button"
               onClick={openOriginModal}
-              className="px-4 py-2 bg-zinc-900 text-white text-sm border border-zinc-800/70 hover:border-zinc-700"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-zinc-900 text-white text-[12px] sm:text-sm border border-zinc-800/70 hover:border-zinc-700"
             >
               Edit origin
             </button>
           </div>
-          <div className="text-sm text-gray-400">
+          <div className="text-[12px] sm:text-sm text-gray-400">
             {originLine ? originLine : 'No origin address saved yet.'}
           </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
           <div>
-            <h2 className="text-lg font-semibold text-white mb-2">Enabled Carriers</h2>
-            <p className="text-sm text-gray-400 mb-4">Select which carriers to offer for label creation.</p>
+            <h2 className="text-base sm:text-lg font-semibold text-white mb-2">Enabled Carriers</h2>
+            <p className="text-xs sm:text-sm text-gray-400 mb-4">
+              Select which carriers to offer for label creation.
+            </p>
           </div>
           <div className="space-y-2">
             {AVAILABLE_CARRIERS.map((carrier) => (
               <label
                 key={carrier.key}
-                className="flex items-start gap-3 p-3 border border-zinc-800/70 rounded cursor-pointer hover:border-zinc-700"
+                className="flex items-start gap-3 p-2.5 sm:p-3 border border-zinc-800/70 rounded cursor-pointer hover:border-zinc-700"
               >
                 <input
                   type="checkbox"
@@ -388,8 +393,12 @@ export default function ShippingSettingsPage() {
                   className="mt-1 rdk-checkbox"
                 />
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-white">{carrier.label}</div>
-                  <div className="text-xs text-gray-500">{carrier.description}</div>
+                  <div className="text-[12px] sm:text-sm font-medium text-white">
+                    {carrier.label}
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-gray-500">
+                    {carrier.description}
+                  </div>
                 </div>
               </label>
             ))}
@@ -399,21 +408,27 @@ export default function ShippingSettingsPage() {
               type="button"
               onClick={saveCarriers}
               disabled={isSavingCarriers}
-              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm rounded disabled:bg-gray-600"
+              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
             >
               {isSavingCarriers ? 'Saving...' : 'Save carriers'}
             </button>
-            {carriersMessage && <div className="mt-2 text-sm text-gray-400">{carriersMessage}</div>}
+            {carriersMessage && (
+              <div className="mt-2 text-[12px] sm:text-sm text-gray-400">
+                {carriersMessage}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-4 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-white">Default packages</h2>
-              <p className="text-sm text-gray-400">Configure default cost, weight, and dimensions per category.</p>
+              <h2 className="text-base sm:text-lg font-semibold text-white">Default packages</h2>
+              <p className="text-xs sm:text-sm text-gray-400">
+                Configure default cost, weight, and dimensions per category.
+              </p>
             </div>
-            {message && <span className="text-sm text-gray-400">{message}</span>}
+            {message && <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>}
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -423,16 +438,20 @@ export default function ShippingSettingsPage() {
                 <div key={category.key} className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs uppercase tracking-wide text-gray-500">{category.label}</div>
-                      <div className="text-white font-semibold mt-1">${summary.cost} shipping</div>
-                      <div className="text-xs text-gray-400 mt-2">
+                      <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
+                        {category.label}
+                      </div>
+                      <div className="text-[12px] sm:text-base text-white font-semibold mt-1">
+                        ${summary.cost} shipping
+                      </div>
+                      <div className="text-[11px] sm:text-xs text-gray-400 mt-2">
                         {summary.length} x {summary.width} x {summary.height} in · {summary.weight} oz
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => openDefaultsModal(category.key)}
-                      className="px-3 py-2 text-xs font-semibold bg-zinc-900 text-white border border-zinc-800/70 hover:border-zinc-700"
+                      className="px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold bg-zinc-900 text-white border border-zinc-800/70 hover:border-zinc-700"
                     >
                       Edit
                     </button>
@@ -548,134 +567,131 @@ export default function ShippingSettingsPage() {
       )}
 
       {isOriginModalOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => setIsOriginModalOpen(false)}
-        >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-2xl p-6 space-y-5"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
+        <ModalPortal open={isOriginModalOpen} onClose={() => setIsOriginModalOpen(false)}>
+          <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-3 mb-2 sm:mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-white">Edit origin</h3>
-                <p className="text-xs text-gray-500">Shipping origin address</p>
+                <h2 className="text-sm sm:text-lg font-semibold text-white">Edit origin</h2>
+                <p className="hidden sm:block text-[12px] sm:text-sm text-zinc-400">
+                  Shipping origin address
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsOriginModalOpen(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-zinc-400 hover:text-white text-[11px] sm:text-sm"
               >
                 Close
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 text-[11px] sm:text-sm">
               <div>
-                <label className="block text-gray-400 text-xs mb-1">Contact name</label>
+                <label className="block text-gray-400 mb-0.5">Contact name</label>
                 <input
                   type="text"
                   value={originDraft.name}
                   onChange={(e) => handleOriginDraftChange('name', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
               <div>
-                <label className="block text-gray-400 text-xs mb-1">Company</label>
+                <label className="block text-gray-400 mb-0.5">Company</label>
                 <input
                   type="text"
                   value={originDraft.company ?? ''}
                   onChange={(e) => handleOriginDraftChange('company', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-gray-400 text-xs mb-1">Phone number</label>
+              <div>
+                <label className="block text-gray-400 mb-0.5">Phone number</label>
                 <input
                   type="text"
                   value={originDraft.phone}
                   onChange={(e) => handleOriginDraftChange('phone', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-gray-400 text-xs mb-1">Street address</label>
+              <div>
+                <label className="block text-gray-400 mb-0.5">Street address</label>
                 <input
                   type="text"
                   value={originDraft.line1}
                   onChange={(e) => handleOriginDraftChange('line1', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-gray-400 text-xs mb-1">Apartment, suite, etc.</label>
+              <div>
+                <label className="block text-gray-400 mb-0.5">Apartment, suite, etc.</label>
                 <input
                   type="text"
                   value={originDraft.line2 ?? ''}
                   onChange={(e) => handleOriginDraftChange('line2', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
               <div>
-                <label className="block text-gray-400 text-xs mb-1">City</label>
+                <label className="block text-gray-400 mb-0.5">City</label>
                 <input
                   type="text"
                   value={originDraft.city}
                   onChange={(e) => handleOriginDraftChange('city', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
               <div>
-                <label className="block text-gray-400 text-xs mb-1">State</label>
+                <label className="block text-gray-400 mb-0.5">State</label>
                 <input
                   type="text"
                   value={originDraft.state}
                   onChange={(e) => handleOriginDraftChange('state', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
               <div>
-                <label className="block text-gray-400 text-xs mb-1">ZIP / Postal code</label>
+                <label className="block text-gray-400 mb-0.5">ZIP / Postal code</label>
                 <input
                   type="text"
                   value={originDraft.postal_code}
                   onChange={(e) => handleOriginDraftChange('postal_code', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
               <div>
-                <label className="block text-gray-400 text-xs mb-1">Country</label>
+                <label className="block text-gray-400 mb-0.5">Country</label>
                 <input
                   type="text"
                   value={originDraft.country}
                   onChange={(e) => handleOriginDraftChange('country', e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-3 pt-2">
-              {originMessage && <span className="text-sm text-gray-400">{originMessage}</span>}
-              <div className="flex items-center gap-3 ml-auto">
-                <button
-                  type="button"
-                  onClick={() => setIsOriginModalOpen(false)}
-                  className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={saveOrigin}
-                  disabled={isSavingOrigin}
-                  className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
-                >
-                  {isSavingOrigin ? 'Saving...' : 'Save'}
-                </button>
-              </div>
+            {originMessage && (
+              <div className="mt-4 text-sm text-gray-400">{originMessage}</div>
+            )}
+
+            <div className="mt-3 sm:mt-6 flex items-center justify-end gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => setIsOriginModalOpen(false)}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 border border-zinc-800/70 text-[11px] sm:text-sm text-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveOrigin}
+                disabled={isSavingOrigin}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white text-[11px] sm:text-sm hover:bg-red-500 disabled:bg-zinc-700"
+              >
+                {isSavingOrigin ? 'Saving...' : 'Save origin'}
+              </button>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -128,10 +128,10 @@ export default function PaymentSettingsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Payment Settings</h1>
-          <p className="text-gray-400">Manage checkout payment options</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Payment Settings</h1>
+          <p className="text-sm sm:text-base text-gray-400">Manage checkout payment options</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 text-gray-400">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 text-[12px] sm:text-sm text-gray-400">
           Loading payment settings...
         </div>
       </div>
@@ -141,25 +141,27 @@ export default function PaymentSettingsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Payment Settings</h1>
-        <p className="text-gray-400">Manage checkout payment options</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Payment Settings</h1>
+        <p className="text-sm sm:text-base text-gray-400">Manage checkout payment options</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 space-y-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Payment method availability</h2>
-            <p className="text-sm text-gray-400">
+            <h2 className="text-base sm:text-lg font-semibold text-white">
+              Payment method availability
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-400">
               Control which payment methods appear in the checkout flow.
             </p>
           </div>
 
-          <div className="flex items-start justify-between gap-3 p-3 border border-zinc-800/70 rounded">
-            <div>
-              <div className="text-sm text-white font-medium">
+          <div className="flex items-center justify-between gap-3 p-2.5 sm:p-3 border border-zinc-800/70 rounded">
+            <div className="min-w-0">
+              <div className="text-[12px] sm:text-sm text-white font-medium">
                 Use Stripe automatic payment methods
               </div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="text-[11px] sm:text-xs text-gray-500 mt-1">
                 Stripe will automatically display all enabled methods for your account.
               </div>
             </div>
@@ -178,11 +180,15 @@ export default function PaymentSettingsPage() {
               return (
                 <div
                   key={method.key}
-                  className="flex items-start justify-between gap-3 p-3 border border-zinc-800/70 rounded"
+                  className="flex items-center justify-between gap-3 p-2.5 sm:p-3 border border-zinc-800/70 rounded"
                 >
-                  <div>
-                    <div className="text-sm text-white font-medium">{method.label}</div>
-                    <div className="text-xs text-gray-500 mt-1">{method.description}</div>
+                  <div className="min-w-0">
+                    <div className="text-[12px] sm:text-sm text-white font-medium">
+                      {method.label}
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-gray-500 mt-1">
+                      {method.description}
+                    </div>
                     {isCard && (
                       <div className="text-[11px] text-gray-500 mt-1">
                         Card payments stay enabled for checkout.
@@ -201,10 +207,10 @@ export default function PaymentSettingsPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 space-y-4">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 space-y-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Express checkout buttons</h2>
-            <p className="text-sm text-gray-400">
+            <h2 className="text-base sm:text-lg font-semibold text-white">Express checkout buttons</h2>
+            <p className="text-xs sm:text-sm text-gray-400">
               Choose which express buttons appear above the payment form.
             </p>
           </div>
@@ -215,9 +221,9 @@ export default function PaymentSettingsPage() {
               return (
                 <div
                   key={method.key}
-                  className="flex items-center justify-between gap-3 p-3 border border-zinc-800/70 rounded"
+                  className="flex items-center justify-between gap-3 p-2.5 sm:p-3 border border-zinc-800/70 rounded"
                 >
-                  <div className="text-sm text-white font-medium">{method.label}</div>
+                  <div className="text-[12px] sm:text-sm text-white font-medium">{method.label}</div>
                   <ToggleSwitch
                     checked={checked}
                     onChange={() => toggleExpressMethod(method.key)}
@@ -229,7 +235,7 @@ export default function PaymentSettingsPage() {
             })}
           </div>
 
-          <div className="text-xs text-gray-500">
+          <div className="text-[11px] sm:text-xs text-gray-500">
             Express buttons only render when the payment method is available for your Stripe
             account.
           </div>
@@ -241,11 +247,11 @@ export default function PaymentSettingsPage() {
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded disabled:bg-gray-600"
+          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
         >
           {isSaving ? "Saving..." : "Save payment settings"}
         </button>
-        {message && <span className="text-sm text-gray-400">{message}</span>}
+        {message && <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>}
       </div>
     </div>
   );

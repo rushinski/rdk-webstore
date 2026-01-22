@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Loader2, Save } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { Toast } from '@/components/ui/Toast';
+import { RdkSelect } from '@/components/ui/Select';
 import { BankAccountManagementModal } from '@/components/admin/stripe/BankAccountManagementModal';
 
 type PayoutSchedule = {
@@ -31,6 +32,13 @@ const WEEKLY_ANCHORS = [
   { value: 'friday', label: 'Friday' },
   { value: 'saturday', label: 'Saturday' },
 ] as const;
+
+const PAYOUT_INTERVAL_OPTIONS = [
+  { value: 'manual', label: 'Manual - Payout when I choose' },
+  { value: 'daily', label: 'Automatic - Every day' },
+  { value: 'weekly', label: 'Automatic - Once per week' },
+  { value: 'monthly', label: 'Automatic - Once per month' },
+];
 
 export default function TransferSettingsPage() {
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
@@ -114,13 +122,24 @@ export default function TransferSettingsPage() {
     return bankAccounts.find(b => b.default_for_currency) ?? bankAccounts[0] ?? null;
   }, [bankAccounts]);
 
+  const monthlyOptions = useMemo(
+    () =>
+      Array.from({ length: 31 }, (_, i) => ({
+        value: String(i + 1),
+        label: `Day ${i + 1}`,
+      })),
+    [],
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">Bank Settings</h1>
-            <p className="text-zinc-400 text-sm mt-1">Configure your payout preferences</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Bank Settings</h1>
+            <p className="text-zinc-400 text-sm sm:text-base mt-1">
+              Configure your payout preferences
+            </p>
           </div>
         </div>
         <div className="flex items-center justify-center py-20">
@@ -135,13 +154,13 @@ export default function TransferSettingsPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">Bank Settings</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">Bank Settings</h1>
           </div>
         </div>
         <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
           <div className="flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-500" />
-            <p className="text-red-400 text-sm">{errorMessage}</p>
+            <p className="text-red-400 text-[12px] sm:text-sm">{errorMessage}</p>
           </div>
         </div>
       </div>
@@ -153,84 +172,81 @@ export default function TransferSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-white">Bank Settings</h1>
-          <p className="text-zinc-400 text-sm mt-1">Configure your payout preferences</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Bank Settings</h1>
+          <p className="text-zinc-400 text-sm sm:text-base mt-1">
+            Configure your payout preferences
+          </p>
         </div>
       </div>
 
       {/* Payout Mode */}
-      <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Payout Mode</h2>
-        <p className="text-sm text-zinc-400 mb-6">
+      <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Payout Mode</h2>
+        <p className="text-xs sm:text-sm text-zinc-400 mb-6">
           Choose between automatic scheduled payouts or manual payouts when you need them.
         </p>
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm text-zinc-300 mb-2">Mode</label>
-            <select
+            <label className="block text-[12px] sm:text-sm text-zinc-300 mb-2">Mode</label>
+            <RdkSelect
               value={scheduleForm.interval}
-              onChange={(e) =>
+              onChange={(value) =>
                 setScheduleForm(prev => ({
                   ...prev,
-                  interval: e.target.value as any,
+                  interval: value as any,
                 }))
               }
-              className="w-full max-w-md bg-zinc-950 text-white px-4 py-2.5 border border-zinc-800/70 rounded-sm focus:outline-none focus:border-zinc-700"
-            >
-              <option value="manual">Manual - Payout when I choose</option>
-              <option value="daily">Automatic - Every day</option>
-              <option value="weekly">Automatic - Once per week</option>
-              <option value="monthly">Automatic - Once per month</option>
-            </select>
+              options={PAYOUT_INTERVAL_OPTIONS}
+              className="w-full max-w-md"
+              buttonClassName="px-3 py-1.5 text-[12px] sm:text-sm"
+              menuClassName="text-[12px] sm:text-sm"
+            />
           </div>
 
           {scheduleForm.interval === 'weekly' && (
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">Day of week</label>
-              <select
+              <label className="block text-[12px] sm:text-sm text-zinc-300 mb-2">Day of week</label>
+              <RdkSelect
                 value={scheduleForm.weekly_anchor}
-                onChange={(e) =>
+                onChange={(value) =>
                   setScheduleForm(prev => ({
                     ...prev,
-                    weekly_anchor: e.target.value as any,
+                    weekly_anchor: value as any,
                   }))
                 }
-                className="w-full max-w-md bg-zinc-950 text-white px-4 py-2.5 border border-zinc-800/70 rounded-sm focus:outline-none focus:border-zinc-700"
-              >
-                {WEEKLY_ANCHORS.map(anchor => (
-                  <option key={anchor.value} value={anchor.value}>
-                    {anchor.label}
-                  </option>
-                ))}
-              </select>
+                options={WEEKLY_ANCHORS.map(anchor => ({
+                  value: anchor.value,
+                  label: anchor.label,
+                }))}
+                className="w-full max-w-md"
+                buttonClassName="px-3 py-1.5 text-[12px] sm:text-sm"
+                menuClassName="text-[12px] sm:text-sm"
+              />
             </div>
           )}
 
           {scheduleForm.interval === 'monthly' && (
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">Day of month</label>
-              <select
-                value={scheduleForm.monthly_anchor}
-                onChange={(e) =>
+              <label className="block text-[12px] sm:text-sm text-zinc-300 mb-2">Day of month</label>
+              <RdkSelect
+                value={String(scheduleForm.monthly_anchor)}
+                onChange={(value) =>
                   setScheduleForm(prev => ({
                     ...prev,
-                    monthly_anchor: Number(e.target.value),
+                    monthly_anchor: Number(value),
                   }))
                 }
-                className="w-full max-w-md bg-zinc-950 text-white px-4 py-2.5 border border-zinc-800/70 rounded-sm focus:outline-none focus:border-zinc-700"
-              >
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                  <option key={day} value={day}>
-                    Day {day}
-                  </option>
-                ))}
-              </select>
+                options={monthlyOptions}
+                className="w-full max-w-md"
+                buttonClassName="px-3 py-1.5 text-[12px] sm:text-sm"
+                menuClassName="text-[12px] sm:text-sm"
+              />
             </div>
           )}
 
           {scheduleForm.interval === 'manual' ? (
-            <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-4 text-sm text-zinc-400">
+            <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-3 sm:p-4 text-[12px] sm:text-sm text-zinc-400">
               Manual mode is enabled. Create payouts from the <span className="text-zinc-200">Bank</span> page.
             </div>
           ) : null}
@@ -240,7 +256,7 @@ export default function TransferSettingsPage() {
               type="button"
               onClick={handleSaveSchedule}
               disabled={isSaving}
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white text-sm hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white text-[12px] sm:text-sm hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
                 <>
@@ -259,11 +275,13 @@ export default function TransferSettingsPage() {
       </section>
 
       {/* Linked Bank Account */}
-      <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
+      <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-4 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-white mb-2">Linked Bank Account</h2>
-            <p className="text-sm text-zinc-400">Your payouts will be sent to this bank account.</p>
+            <h2 className="text-base sm:text-lg font-semibold text-white mb-2">Linked Bank Account</h2>
+            <p className="text-xs sm:text-sm text-zinc-400">
+              Your payouts will be sent to this bank account.
+            </p>
           </div>
 
           <button
@@ -278,7 +296,7 @@ export default function TransferSettingsPage() {
               }
               setBankModalOpen(true);
             }}
-            className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500 whitespace-nowrap"
+            className="px-3 py-1.5 sm:px-4 sm:py-2 bg-red-600 text-white text-[12px] sm:text-sm hover:bg-red-500 whitespace-nowrap"
           >
             Manage bank accounts
           </button>
@@ -286,11 +304,11 @@ export default function TransferSettingsPage() {
 
         <div className="mt-6">
           {primaryBank ? (
-            <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-5">
+            <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-4 sm:p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <div>
-                    <p className="text-white font-medium text-lg">
+                    <p className="text-white font-medium text-base sm:text-lg">
                       {primaryBank.bank_name ?? 'Bank Account'}
                     </p>
                     <span className="inline-block mt-1 px-2 py-0.5 text-[10px] uppercase tracking-wider bg-green-500/10 text-green-400 border border-green-500/20 rounded-sm">
@@ -298,7 +316,7 @@ export default function TransferSettingsPage() {
                     </span>
                   </div>
 
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-1 text-[12px] sm:text-sm">
                     {primaryBank.account_holder_name && (
                       <p className="text-zinc-400">
                         <span className="text-zinc-500">Account holder:</span> {primaryBank.account_holder_name}
@@ -320,13 +338,13 @@ export default function TransferSettingsPage() {
             </div>
           ) : (
             <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-6 text-center">
-              <p className="text-zinc-400 text-sm mb-2">No bank account connected yet.</p>
-              <p className="text-zinc-600 text-xs">Click “Manage bank accounts” to add one.</p>
+              <p className="text-zinc-400 text-[12px] sm:text-sm mb-2">No bank account connected yet.</p>
+              <p className="text-zinc-600 text-[11px] sm:text-xs">Click “Manage bank accounts” to add one.</p>
             </div>
           )}
 
-          <div className="mt-4 p-4 rounded-sm bg-zinc-950 border border-zinc-800/70">
-            <p className="text-xs text-zinc-500">
+          <div className="mt-4 p-3 sm:p-4 rounded-sm bg-zinc-950 border border-zinc-800/70">
+            <p className="text-[11px] sm:text-xs text-zinc-500">
               <strong className="text-zinc-400">Note:</strong> Bank account management is handled through embedded Stripe tools.
               Your app never receives bank account numbers.
             </p>

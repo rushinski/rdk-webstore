@@ -114,6 +114,15 @@ export function AdminSidebar({
 
   const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
+
   const refreshNotifCount = async () => {
     try {
       const res = await fetch("/api/admin/notifications/unread-count", {
@@ -263,7 +272,7 @@ export function AdminSidebar({
 
     const statusBase =
       "flex w-full items-center gap-2 px-3 py-2 rounded-sm select-none " +
-      "text-[13px] leading-none bg-zinc-950 text-white";
+      "text-[12px] sm:text-[13px] leading-none bg-zinc-950 text-white";
 
     const notifLabel =
       typeof notifBadgeCount === "number" && notifBadgeCount > 9
@@ -275,7 +284,7 @@ export function AdminSidebar({
 
     return (
       <div className="flex flex-col h-full min-h-0 w-full">
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 admin-sidebar-scroll">
           {/* Workspace Indicator (visual only) */}
           <div className="mb-4">
             <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">
@@ -318,7 +327,7 @@ export function AdminSidebar({
                     data-testid={item.href === "/admin/bank" ? "admin-nav-bank" : undefined}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="text-[15px]">{item.label}</span>
+                    <span className="text-[13px] sm:text-[15px]">{item.label}</span>
                   </Link>
                 );
               }
@@ -354,7 +363,7 @@ export function AdminSidebar({
                   >
                     <span className="flex items-center gap-3">
                       <Icon className="w-5 h-5" />
-                      <span className="text-[15px]">{item.label}</span>
+                      <span className="text-[13px] sm:text-[15px]">{item.label}</span>
                     </span>
                     <Chevron className="w-4 h-4 opacity-80" />
                   </button>
@@ -378,7 +387,7 @@ export function AdminSidebar({
                                 : "text-gray-400 hover:bg-zinc-950 hover:border-zinc-800/70 hover:text-white"
                             }`}
                           >
-                            <span className="text-[14px]">{child.label}</span>
+                            <span className="text-[12px] sm:text-[14px]">{child.label}</span>
                           </Link>
                         );
                       })}
@@ -477,8 +486,8 @@ export function AdminSidebar({
       </button>
 
       {isOpen && (
-        <div className="md:hidden fixed inset-0 bg-black z-50">
-          <div className="p-6">
+        <div className="md:hidden fixed inset-0 bg-black z-50 overscroll-contain">
+          <div className="px-6 pt-6 pb-0 h-full flex flex-col">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-white">Admin Menu</h2>
               <button
@@ -489,7 +498,9 @@ export function AdminSidebar({
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <SidebarContent />
+            <div className="flex-1 min-h-0">
+              <SidebarContent />
+            </div>
           </div>
         </div>
       )}

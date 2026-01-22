@@ -118,23 +118,23 @@ export function TaxSettingsPanel() {
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded p-6 text-gray-400">
+      <div className="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-6 text-[12px] sm:text-sm text-gray-400">
         Loading tax settings...
       </div>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded p-6 space-y-6">
+    <div className="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-white">Tax collection</h2>
-          <p className="text-sm text-gray-400">
+          <h2 className="text-base sm:text-lg font-semibold text-white">Tax collection</h2>
+          <p className="text-xs sm:text-sm text-gray-400">
             Toggle Stripe Tax calculations and assign category tax codes.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-400">
+          <span className="text-[12px] sm:text-sm text-gray-400">
             {taxEnabled ? "Enabled" : "Disabled"}
           </span>
           <ToggleSwitch
@@ -147,18 +147,18 @@ export function TaxSettingsPanel() {
       </div>
 
       {!taxEnabled && (
-        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-sm p-4 text-sm text-yellow-100">
+        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-sm p-3 sm:p-4 text-[12px] sm:text-sm text-yellow-100">
           Taxes are turned off. Enable taxes to collect and track nexus activity.
         </div>
       )}
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-base font-semibold text-white">Category tax codes</h3>
-          <p className="text-sm text-gray-400">
+          <h3 className="text-sm sm:text-base font-semibold text-white">Category tax codes</h3>
+          <p className="text-xs sm:text-sm text-gray-400">
             Stripe Tax uses these codes to determine the correct tax rules per category.
           </p>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-[11px] sm:text-xs text-gray-500">
             Tax codes are Stripe identifiers (ex: txcd_30011000) that map to product taxability.
             {" "}
             <a
@@ -181,14 +181,14 @@ export function TaxSettingsPanel() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-semibold text-white">
+                  <div className="text-[12px] sm:text-sm font-semibold text-white">
                     {category.label}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-[11px] sm:text-xs text-gray-500">
                     Default: {category.defaultCode}
                   </div>
                 </div>
-                <div className="text-xs text-gray-400">
+                <div className="text-[11px] sm:text-xs text-gray-400">
                   Effective:{" "}
                   <span className="text-gray-200">{category.effectiveCode}</span>
                 </div>
@@ -201,19 +201,19 @@ export function TaxSettingsPanel() {
                   onChange={(e) => handleCodeChange(category.key, e.target.value)}
                   disabled={!taxEnabled || isSaving}
                   placeholder={category.defaultCode}
-                  className="w-full bg-zinc-950 text-white px-3 py-2 border border-zinc-800/70 rounded disabled:opacity-60"
+                  className="w-full bg-zinc-950 text-white px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm border border-zinc-800/70 rounded disabled:opacity-60"
                 />
                 <button
                   type="button"
                   onClick={() => resetToDefault(category.key)}
                   disabled={!taxEnabled || isSaving || !category.override}
-                  className="px-3 py-2 text-xs border border-zinc-800/70 text-gray-300 hover:border-zinc-700 disabled:opacity-50"
+                  className="px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs border border-zinc-800/70 text-gray-300 hover:border-zinc-700 disabled:opacity-50"
                 >
                   Use default
                 </button>
               </div>
 
-              <div className="text-xs text-gray-500">
+              <div className="text-[11px] sm:text-xs text-gray-500">
                 Leave blank to use the default Stripe tax code for this category.
               </div>
             </div>
@@ -226,11 +226,11 @@ export function TaxSettingsPanel() {
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded disabled:bg-gray-600"
+          className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
         >
           {isSaving ? "Saving..." : "Save tax settings"}
         </button>
-        {message && <span className="text-sm text-gray-400">{message}</span>}
+        {message && <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>}
       </div>
     </div>
   );
