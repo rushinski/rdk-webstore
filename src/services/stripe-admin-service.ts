@@ -26,6 +26,18 @@ export type StripeAccountSummary = {
     default_for_currency: boolean;
     account_holder_name: string | null;
   }>;
+  requirements: {
+    currently_due: string[];
+    eventually_due: string[];
+    past_due: string[];
+    pending_verification: string[];
+    disabled_reason: string | null;
+    errors: Array<{
+      code: string;
+      reason: string;
+      requirement: string;
+    }>;
+  };
 };
 
 export type StripePayoutDTO = {
@@ -47,7 +59,6 @@ export class StripeAdminService {
   }
 
   async getStripeAccountSummary(params: { userId: string, tenantId: string }): Promise<StripeAccountSummary> {
-    // ✅ Get the Stripe account for the TENANT, not the user
     const stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(params.tenantId);
 
     if (!stripeAccountId) {
@@ -56,6 +67,14 @@ export class StripeAdminService {
         balance: null,
         payout_schedule: null,
         bank_accounts: [],
+        requirements: {
+          currently_due: [],
+          eventually_due: [],
+          past_due: [],
+          pending_verification: [],
+          disabled_reason: null,
+          errors: [],
+        },
       };
     }
 
@@ -97,6 +116,18 @@ export class StripeAdminService {
       },
       payout_schedule: account.settings?.payouts?.schedule ?? null,
       bank_accounts: bankAccounts,
+      requirements: {
+        currently_due: account.requirements?.currently_due || [],
+        eventually_due: account.requirements?.eventually_due || [],
+        past_due: account.requirements?.past_due || [],
+        pending_verification: account.requirements?.pending_verification || [],
+        disabled_reason: account.requirements?.disabled_reason || null,
+        errors: account.requirements?.errors?.map(err => ({
+          code: err.code,
+          reason: err.reason,
+          requirement: err.requirement,
+        })) || [],
+      },
     };
   }
 
@@ -155,6 +186,12 @@ export class StripeAdminService {
             external_account_collection: true,
           },
         },
+        notification_banner: {
+          enabled: true,
+          features: {
+            external_account_collection: true,
+          },
+        },
         balances: {
           enabled: true,
           features: {
@@ -171,6 +208,14 @@ export class StripeAdminService {
             edit_payout_schedule: true,
             instant_payouts: true,
             standard_payouts: true,
+          },
+        },
+        payments: {
+          enabled: true,
+          features: {
+            refund_management: true,
+            dispute_management: true,
+            capture_payments: true,
           },
         },
       },
@@ -232,5 +277,18 @@ export class StripeAdminService {
       },
       { stripeAccount: params.accountId }
     );
+  }
+
+  async getAccountRequirements(params: { accountId: string }) {
+    const account = await stripe.accounts.retrieve(params.accountId);
+    
+    return {
+      currently_due: account.requirements?.currently_due || [],
+      eventually_due: account.requirements?.eventually_due || [],
+      past_due: account.requirements?.past_due || [],
+      pending_verification: account.requirements?.pending_verification || [],
+      disabled_reason: account.requirements?.disabled_reason || null,
+      errors: account.requirements?.errors || [],
+    };
   }
 }

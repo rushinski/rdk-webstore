@@ -75,7 +75,7 @@ export default function TransferSettingsPage() {
       setErrorMessage('');
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'fetch_transfer_settings' });
-      setErrorMessage('Could not load transfer settings.');
+      setErrorMessage('Could not load bank settings.');
     } finally {
       setIsLoading(false);
     }
@@ -101,10 +101,10 @@ export default function TransferSettingsPage() {
 
       const data = await response.json();
       setPayoutSchedule(data.schedule ?? scheduleForm);
-      setToast({ message: 'Transfer settings saved successfully', tone: 'success' });
+      setToast({ message: 'Bank settings saved successfully', tone: 'success' });
     } catch (error) {
       logError(error, { layer: 'frontend', event: 'save_payout_schedule' });
-      setToast({ message: 'Failed to save transfer settings', tone: 'error' });
+      setToast({ message: 'Failed to save bank settings', tone: 'error' });
     } finally {
       setIsSaving(false);
     }
@@ -119,7 +119,7 @@ export default function TransferSettingsPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">Transfer Settings</h1>
+            <h1 className="text-3xl font-bold text-white">Bank Settings</h1>
             <p className="text-zinc-400 text-sm mt-1">Configure your payout preferences</p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export default function TransferSettingsPage() {
       <div className="space-y-6">
         <div className="flex items-center gap-3 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">Transfer Settings</h1>
+            <h1 className="text-3xl font-bold text-white">Bank Settings</h1>
           </div>
         </div>
         <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
@@ -153,7 +153,7 @@ export default function TransferSettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-white">Transfer Settings</h1>
+          <h1 className="text-3xl font-bold text-white">Bank Settings</h1>
           <p className="text-zinc-400 text-sm mt-1">Configure your payout preferences</p>
         </div>
       </div>

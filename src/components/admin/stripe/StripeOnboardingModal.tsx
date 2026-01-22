@@ -6,7 +6,11 @@ import { Loader2, X } from 'lucide-react';
 import { initStripeConnect } from '@/lib/stripe/connect-client';
 import { connectAppearance } from '@/lib/stripe/connect-appearance';
 import { logError } from '@/lib/log';
-import { ConnectComponentsProvider, ConnectAccountOnboarding } from '@stripe/react-connect-js';
+import { 
+  ConnectComponentsProvider, 
+  ConnectAccountOnboarding,
+  ConnectNotificationBanner 
+} from '@stripe/react-connect-js';
 
 interface StripeOnboardingModalProps {
   open: boolean;
@@ -77,9 +81,9 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
             <div>
-              <h2 className="text-xl font-semibold text-white">Enable Payouts</h2>
+              <h2 className="text-xl font-semibold text-white">Complete Verification</h2>
               <p className="text-sm text-zinc-400 mt-1">
-                Complete verification to start receiving payouts
+                Complete all requirements to enable payouts
               </p>
             </div>
             <button
@@ -117,7 +121,7 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-red-500 mt-0.5">•</span>
-                      <span>Identity verification</span>
+                      <span>Identity verification documents</span>
                     </li>
                   </ul>
                 </div>
@@ -140,17 +144,37 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
               </div>
             ) : (
               <ConnectComponentsProvider connectInstance={connectInstance}>
-                <div className="rounded-sm border border-zinc-800 bg-zinc-900 p-4">
-                  <ConnectAccountOnboarding onExit={() => {}} />
+                <div className="space-y-4">
+                  {/* Notification Banner - Shows outstanding requirements automatically */}
+                  <div className="rounded-sm border border-zinc-800 bg-zinc-900 overflow-hidden">
+                    <ConnectNotificationBanner />
+                  </div>
+
+                  {/* Account Onboarding Component */}
+                  <div className="rounded-sm border border-zinc-800 bg-zinc-900 p-4">
+                    <ConnectAccountOnboarding 
+                      onExit={() => {
+                        // User clicked a "Done" or similar button in the embedded component
+                        done();
+                      }} 
+                    />
+                  </div>
                 </div>
 
-                <div className="mt-6 flex justify-end">
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-6 py-2.5 bg-zinc-800 text-white text-sm font-medium hover:bg-zinc-700 rounded-sm border border-zinc-700"
+                  >
+                    Close
+                  </button>
                   <button
                     type="button"
                     onClick={done}
                     className="px-6 py-2.5 bg-green-600 text-white text-sm font-medium hover:bg-green-500 rounded-sm"
                   >
-                    Complete Setup
+                    Save & Continue
                   </button>
                 </div>
               </ConnectComponentsProvider>

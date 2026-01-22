@@ -1,8 +1,8 @@
-// app/admin/bank/page.tsx (UPDATED)
+// app/admin/bank/page.tsx (UPDATED WITH REQUIREMENTS HANDLING)
 'use client';
 
 import { useEffect, useState } from 'react';
-import { DollarSign, CreditCard, TrendingUp, Calendar, ExternalLink } from 'lucide-react';
+import { DollarSign, CreditCard, TrendingUp, Calendar, ExternalLink, AlertTriangle } from 'lucide-react';
 import { logError } from '@/lib/log';
 import { StripeOnboardingModal } from '@/components/admin/stripe/StripeOnboardingModal';
 import { BankAccountManagementModal } from '@/components/admin/stripe/BankAccountManagementModal';
@@ -39,6 +39,19 @@ type AccountSummary = {
     amount: number;
     currency: string;
     arrival_date: number | null;
+  } | null;
+
+  requirements?: {
+    currently_due?: string[];
+    eventually_due?: string[];
+    past_due?: string[];
+    pending_verification?: string[];
+    disabled_reason?: string | null;
+    errors?: Array<{
+      code: string;
+      reason: string;
+      requirement: string;
+    }>;
   } | null;
 };
 
@@ -85,10 +98,22 @@ export default function BankPage() {
     setToast({ message: 'Bank accounts updated', tone: 'success' });
   };
 
+  const requirements = summary?.requirements ?? null;
+  const currentlyDue = requirements?.currently_due ?? [];
+  const pastDue = requirements?.past_due ?? [];
+  const pendingVerification = requirements?.pending_verification ?? [];
+  const disabledReason = requirements?.disabled_reason ?? null;
+
   const hasAccount = Boolean(summary?.account?.id);
   const needsOnboarding = hasAccount && !summary?.account?.details_submitted;
   const payoutsEnabled = summary?.account?.payouts_enabled ?? false;
-  const defaultBank = summary?.bank_accounts?.find((b) => b.default_for_currency) ?? summary?.bank_accounts?.[0];
+  const defaultBank =
+    summary?.bank_accounts?.find((b) => b.default_for_currency) ?? summary?.bank_accounts?.[0];
+
+  const hasCurrentlyDue = currentlyDue.length > 0;
+  const hasPastDue = pastDue.length > 0;
+  const hasPendingVerification = pendingVerification.length > 0;
+  const hasAnyRequirements = hasCurrentlyDue || hasPastDue || hasPendingVerification;
 
   const availableBalance = summary?.balance?.available?.find((b) => b.currency === 'usd')?.amount ?? 0;
   const pendingBalance = summary?.balance?.pending?.find((b) => b.currency === 'usd')?.amount ?? 0;
@@ -114,6 +139,15 @@ export default function BankPage() {
     return interval;
   };
 
+  // Format requirement names for display
+  const formatRequirement = (req: string) => {
+    return req
+      .split('.')
+      .pop()
+      ?.replace(/_/g, ' ')
+      .replace(/\b\w/g, (l) => l.toUpperCase()) || req;
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -132,13 +166,14 @@ export default function BankPage() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {needsOnboarding ? (
+          {/* Show "Complete Verification" if there are requirements OR initial onboarding needed */}
+          {(needsOnboarding || hasAnyRequirements) ? (
             <button
               type="button"
               onClick={() => setShowOnboarding(true)}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-sm text-sm transition"
             >
-              Complete verification
+              {hasPastDue ? 'Complete urgent verification' : 'Complete verification'}
             </button>
           ) : payoutsEnabled ? (
             <button
@@ -162,16 +197,90 @@ export default function BankPage() {
         </div>
       </div>
 
-      {/* Status Alert */}
-      {needsOnboarding && (
-        <div className="bg-yellow-950/20 border border-yellow-900/70 rounded p-4">
-          <p className="text-sm text-yellow-400">
-            Complete verification to enable automatic payouts to your bank account.
-          </p>
+       {/* Critical Requirements Alert (Past Due) */}
+      {hasPastDue && (
+        <div className="bg-red-950/30 border border-red-900/70 rounded p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-400 mb-2">Urgent: Action Required</h3>
+              <p className="text-sm text-red-300 mb-3">
+                Your account has overdue verification requirements. Complete these immediately to restore full functionality.
+              </p>
+              <ul className="space-y-1">
+                {pastDue.map((req) => (
+                  <li key={req} className="text-sm text-red-200">
+                    • {formatRequirement(req)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
-      {!payoutsEnabled && hasAccount && !needsOnboarding && (
+      {/* Pending Verification Alert */}
+      {hasPendingVerification && !hasPastDue && (
+        <div className="bg-blue-950/20 border border-blue-900/70 rounded p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-blue-400 mb-2">Verification In Progress</h3>
+              <p className="text-sm text-blue-300">
+                We're reviewing your submitted information. This typically takes 1-2 business days.
+              </p>
+
+              {pendingVerification.length > 0 && (
+                <ul className="space-y-1 mt-2">
+                  {pendingVerification.map((req) => (
+                    <li key={req} className="text-sm text-blue-200">
+                      • {formatRequirement(req)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Currently Due Requirements Alert */}
+      {hasCurrentlyDue && !hasPastDue && (
+        <div className="bg-yellow-950/20 border border-yellow-900/70 rounded p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-yellow-400 mb-2">Verification Required</h3>
+              <p className="text-sm text-yellow-300 mb-3">
+                Complete the following to enable full payout functionality:
+              </p>
+              <ul className="space-y-1">
+                {currentlyDue.map((req) => (
+                  <li key={req} className="text-sm text-yellow-200">
+                    • {formatRequirement(req)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Disabled Reason Alert */}
+      {disabledReason && (
+        <div className="bg-red-950/30 border border-red-900/70 rounded p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-red-400 mb-2">Account Restricted</h3>
+              <p className="text-sm text-red-300">Reason: {disabledReason.replace(/_/g, ' ')}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Generic Payouts Disabled Alert (when no specific requirements shown) */}
+      {!payoutsEnabled && hasAccount && !needsOnboarding && !hasAnyRequirements && (
         <div className="bg-yellow-950/20 border border-yellow-900/70 rounded p-4">
           <p className="text-sm text-yellow-400">
             Payouts are currently disabled. Please contact support or complete additional verification.
@@ -270,7 +379,6 @@ export default function BankPage() {
         onUpdated={handleBankUpdated}
       />
 
-      {/* Payouts Modal */}
       <PayoutsModal 
         open={showPayoutsModal} 
         onClose={() => setShowPayoutsModal(false)} 
