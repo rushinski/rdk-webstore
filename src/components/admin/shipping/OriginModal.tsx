@@ -1,4 +1,4 @@
-import type { ShippingOrigin } from "../types";
+import type { ShippingOrigin } from "../../../types/domain/shipping";
 
 type OriginModalProps = {
   open: boolean;
@@ -131,7 +131,9 @@ export function OriginModal({
         </div>
 
         {(originError || originMessage) && (
-          <div className={`mt-4 text-sm ${originError ? "text-red-400" : "text-green-400"}`}>
+          <div
+            className={`mt-4 text-sm ${originError ? "text-red-400" : "text-green-400"}`}
+          >
             {originError || originMessage}
           </div>
         )}
