@@ -304,7 +304,7 @@ export default function NexusTrackerClient() {
   const taxEnabled = data.taxEnabled;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
@@ -409,50 +409,58 @@ export default function NexusTrackerClient() {
       {/* Stats + Filters UNDER the map */}
       <div className="space-y-4">
         {/* Stats Cards (3 only, per request) */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400 mb-1">Registered States</p>
-                <p className="text-2xl font-bold text-white">{registeredStates}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
+        <div className="grid grid-cols-3 md:grid-cols-3 gap-2 sm:gap-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
+            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">
+              Registered States
+            </p>
+            <div className="mt-auto flex items-center justify-between">
+              <p className="text-base sm:text-2xl font-bold text-white">
+                {registeredStates}
+              </p>
+              <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500/10">
+                <CheckCircle className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-green-500" />
+              </span>
             </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400 mb-1">At Risk States</p>
-                <p className="text-2xl font-bold text-white">{atRiskStates}</p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-red-500" />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
+            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">At Risk States</p>
+            <div className="mt-auto flex items-center justify-between">
+              <p className="text-base sm:text-2xl font-bold text-white">{atRiskStates}</p>
+              <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-500/10">
+                <AlertCircle className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-500" />
+              </span>
             </div>
           </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-400 mb-1">Needs Registration</p>
-                <p className="text-2xl font-bold text-white">{needsRegistrationCount}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-yellow-500" />
+          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
+            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">
+              Needs Registration
+            </p>
+            <div className="mt-auto flex items-center justify-between">
+              <p className="text-base sm:text-2xl font-bold text-white">
+                {needsRegistrationCount}
+              </p>
+              <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-yellow-500/10">
+                <AlertTriangle className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-yellow-500" />
+              </span>
             </div>
           </div>
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-[220px]">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex-1 min-w-[160px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search states..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                  className="w-full h-8 pl-8 pr-2.5 py-1 text-[11px] sm:text-sm bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                 />
               </div>
             </div>
@@ -461,15 +469,17 @@ export default function NexusTrackerClient() {
               value={filterRegistered}
               onChange={(v) => setFilterRegistered(v as any)}
               options={filterRegisteredOptions}
-              className="min-w-[220px]"
+              className="min-w-[160px]"
+              buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
+              menuClassName="text-[11px] sm:text-sm"
             />
 
-            <label className="flex items-center gap-2 text-white">
+            <label className="flex items-center gap-1.5 text-[11px] sm:text-sm text-white leading-none">
               <input
                 type="checkbox"
                 checked={filterNeedsAction}
                 onChange={(e) => setFilterNeedsAction(e.target.checked)}
-                className="rdk-checkbox"
+                className="rdk-checkbox scale-90"
               />
               Needs Action Only
             </label>
@@ -479,43 +489,50 @@ export default function NexusTrackerClient() {
 
       {/* States Table */}
       <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <table className="w-full">
+        <table className="w-full text-[12px] sm:text-sm">
           <thead className="bg-zinc-800">
             <tr>
               <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                className="px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("stateName")}
               >
                 State {sortIndicator("stateName")}
               </th>
               <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                className="hidden md:table-cell px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("threshold")}
               >
                 Threshold {sortIndicator("threshold")}
               </th>
               <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                className="hidden md:table-cell px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("relevantSales")}
               >
                 Sales {sortIndicator("relevantSales")}
               </th>
               <th
-                className="px-4 py-3 text-left text-sm font-medium text-white cursor-pointer hover:bg-zinc-700"
+                className="hidden md:table-cell px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
                 onClick={() => handleSort("percentageToThreshold")}
               >
                 Progress {sortIndicator("percentageToThreshold")}
               </th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Type</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-white">Actions</th>
+              <th className="hidden md:table-cell px-3 py-3 text-left font-medium text-white">
+                Type
+              </th>
+              <th className="hidden md:table-cell px-3 py-3 text-left font-medium text-white">
+                Status
+              </th>
+              <th className="px-3 py-3 text-left font-medium text-white">
+                <span className="hidden md:inline">Actions</span>
+                <span className="md:hidden">Details</span>
+              </th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-zinc-800">
             {filteredAndSortedStates.map((state) => (
               <tr key={state.stateCode} className="hover:bg-zinc-800/50">
-                <td className="px-4 py-3">
+                <td className="px-3 py-3">
                   <div className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded"
@@ -532,13 +549,13 @@ export default function NexusTrackerClient() {
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-300">
+                <td className="hidden md:table-cell px-3 py-3 text-gray-300">
                   {formatCurrency(state.threshold)}
                 </td>
-                <td className="px-4 py-3 text-sm text-gray-300">
+                <td className="hidden md:table-cell px-3 py-3 text-gray-300">
                   {formatCurrency(state.relevantSales)}
                 </td>
-                <td className="px-4 py-3">
+                <td className="hidden md:table-cell px-3 py-3">
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
                       <div
@@ -554,12 +571,12 @@ export default function NexusTrackerClient() {
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-sm">
+                <td className="hidden md:table-cell px-3 py-3">
                   <span className="px-2 py-1 bg-zinc-800 text-white rounded text-xs">
                     {state.nexusType}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td className="hidden md:table-cell px-3 py-3">
                   {state.isRegistered ? (
                     <div className="flex flex-col gap-1">
                       <span className="flex items-center gap-1 text-sm text-green-400">
@@ -577,12 +594,12 @@ export default function NexusTrackerClient() {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-3">
+                <td className="px-3 py-3">
                   <button
                     onClick={() => setSelectedState(state)}
-                    className="text-sm text-red-400 hover:text-red-300"
+                    className="text-[12px] sm:text-sm text-red-400 hover:text-red-300"
                   >
-                    More Details
+                    Details
                   </button>
                 </td>
               </tr>

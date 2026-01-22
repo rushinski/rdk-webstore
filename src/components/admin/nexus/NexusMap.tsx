@@ -236,11 +236,13 @@ export default function NexusMap({
         )}
 
         {/* Legend ALWAYS at bottom (never inside tooltip) */}
-        <div className="mt-4 flex flex-wrap gap-4">
+        <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 sm:flex sm:flex-nowrap sm:items-center sm:gap-2">
           {legendItems.map((it) => (
-            <div key={it.label} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: it.color }} />
-              <span className="text-xs text-gray-400">{it.label}</span>
+            <div key={it.label} className="flex items-center gap-1.5 min-w-0">
+              <div className="w-2 h-2 rounded shrink-0" style={{ backgroundColor: it.color }} />
+              <span className="text-[9px] leading-none tracking-tight text-gray-400 whitespace-nowrap">
+                {it.label}
+              </span>
             </div>
           ))}
         </div>
