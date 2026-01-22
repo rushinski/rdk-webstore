@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { logError } from "@/lib/log";
 import { TrafficChart } from "@/components/admin/charts/TrafficChart";
+import { RdkSelect } from "@/components/ui/Select";
 import { Users, Eye } from "lucide-react";
 
 type Range = "today" | "7d" | "30d" | "90d";
@@ -124,16 +125,18 @@ export default function AnalyticsTrafficPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <select
-          value={range}
-          onChange={(e) => setRange(e.target.value as Range)}
-          className="bg-zinc-900 text-white px-4 py-2 border border-zinc-800/70 rounded-sm"
-        >
-          <option value="today">Today</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-        </select>
+        <div className="w-48">
+          <RdkSelect
+            value={range}
+            onChange={(value) => setRange(value as Range)}
+            options={[
+              { value: "today", label: "Today" },
+              { value: "7d", label: "Last 7 days" },
+              { value: "30d", label: "Last 30 days" },
+              { value: "90d", label: "Last 90 days" },
+            ]}
+          />
+        </div>
       </div>
 
       <div>
