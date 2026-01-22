@@ -15,4 +15,4 @@ export type {
   OrderTrackingEmailBase,
   PickupInstructionsEmailInput,
   ShippingAddress,
-} from "@/lib/email/orders/types";
+} from "@/types/domain/email";

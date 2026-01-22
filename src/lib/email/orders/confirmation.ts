@@ -1,7 +1,7 @@
 // src/lib/email/orders/confirmation.ts (UPDATED with images + details)
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
-import type { OrderConfirmationEmailInput } from "@/lib/email/orders/types";
+import type { OrderConfirmationEmailInput } from "@/types/domain/email";
 import {
   buildAddressLines,
   buildEmailFooterText,
@@ -219,7 +219,9 @@ export const buildOrderConfirmationEmail = (input: OrderConfirmationEmailInput) 
     "Items:",
     ...input.items.map((item) => {
       const size = item.sizeLabel ? ` (${item.sizeLabel})` : "";
-      const detailsParts = [item.brand, item.model, item.category, item.sku].filter(Boolean);
+      const detailsParts = [item.brand, item.model, item.category, item.sku].filter(
+        Boolean,
+      );
       const details = detailsParts.length ? ` [${detailsParts.join(" • ")}]` : "";
       const img = item.imageUrl ? ` (img: ${item.imageUrl})` : "";
       return `- ${item.title}${size}${details}${img} x${item.quantity} - $${formatMoney(

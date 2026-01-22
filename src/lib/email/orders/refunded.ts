@@ -1,8 +1,13 @@
 // src/lib/email/orders/refunded.ts
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
-import type { OrderRefundedEmailInput } from "@/lib/email/orders/types";
-import { buildEmailFooterText, buildOrderUrl, brandLine, formatMoney } from "@/lib/email/orders/utils";
+import type { OrderRefundedEmailInput } from "@/types/domain/email";
+import {
+  buildEmailFooterText,
+  buildOrderUrl,
+  brandLine,
+  formatMoney,
+} from "@/lib/email/orders/utils";
 
 export const buildOrderRefundedEmail = (input: OrderRefundedEmailInput) => {
   const orderShort = input.orderId.slice(0, 8).toUpperCase();

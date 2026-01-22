@@ -1,7 +1,7 @@
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
 import { PICKUP_INSTRUCTIONS, PICKUP_LOCATION_SUMMARY } from "@/config/pickup";
-import type { PickupInstructionsEmailInput } from "@/lib/email/orders/types";
+import type { PickupInstructionsEmailInput } from "@/types/domain/email";
 import { buildEmailFooterText, buildOrderUrl, brandLine } from "@/lib/email/orders/utils";
 
 export const buildPickupInstructionsEmail = (input: PickupInstructionsEmailInput) => {
@@ -19,13 +19,14 @@ export const buildPickupInstructionsEmail = (input: PickupInstructionsEmailInput
   const rawInstructions = input.instructions ?? PICKUP_INSTRUCTIONS;
 
   // Remove scheduling-type lines from the config instructions to avoid duplicates
-  const schedulingDupes = /(appointment|reply to this email|schedule|pickup time|time windows|dm|instagram)/i;
+  const schedulingDupes =
+    /(appointment|reply to this email|schedule|pickup time|time windows|dm|instagram)/i;
 
   // Remove the specific line you want gone (and close variants of it)
   const removeLine = /(government-?issued id|bring a government|bring your id)/i;
 
   const baseInstructions = rawInstructions.filter(
-    (line) => !schedulingDupes.test(line) && !removeLine.test(line)
+    (line) => !schedulingDupes.test(line) && !removeLine.test(line),
   );
 
   // (Optional) If any remaining instruction says "bring your order number", make it explicit.
@@ -34,7 +35,10 @@ export const buildPickupInstructionsEmail = (input: PickupInstructionsEmailInput
     const normalized = line.toLowerCase();
 
     if (normalized.includes("bring your order number")) {
-      return line.replace(/bring your order number/gi, `Bring your order number (${orderNumber})`);
+      return line.replace(
+        /bring your order number/gi,
+        `Bring your order number (${orderNumber})`,
+      );
     }
 
     if (normalized.includes("order number") && !line.includes(orderShort)) {
@@ -117,7 +121,9 @@ export const buildPickupInstructionsEmail = (input: PickupInstructionsEmailInput
     `- We’ll reply to confirm if one of your requested times works. If not, we’ll suggest an available time and coordinate from there.`,
     `- Please have your order confirmation email available to show at pickup.`,
     "",
-    ...(instructions.length ? ["Pickup notes:", ...instructions.map((line) => `- ${line}`), ""] : []),
+    ...(instructions.length
+      ? ["Pickup notes:", ...instructions.map((line) => `- ${line}`), ""]
+      : []),
     `View your order: ${orderUrl}`,
     "",
     buildEmailFooterText(),

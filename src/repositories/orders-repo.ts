@@ -289,6 +289,12 @@ export class OrdersRepository {
     if (params?.status?.length) {
       query = query.in("status", params.status);
     }
+    // ✅ NEW: Exclude refunded orders from all queries
+    else {
+      // If no specific status filter, exclude refunded by default
+      query = query.neq("status", "refunded");
+    }
+
     if (params?.fulfillment) {
       query = query.eq("fulfillment", params.fulfillment);
     }
@@ -394,19 +400,15 @@ export class OrdersRepository {
       shipped_at: null,
     };
 
-    // Store label URL if provided (for reprinting)
     if (input.labelUrl) {
       updateData.label_url = input.labelUrl;
-      // Auto-set label creation timestamp (can also be done via DB trigger)
       updateData.label_created_at = new Date().toISOString();
     }
 
-    // Store who created the label (for audit trail)
     if (input.labelCreatedBy) {
       updateData.label_created_by = input.labelCreatedBy;
     }
 
-    // Store actual shipping cost (for profit tracking)
     if (input.actualShippingCost !== null && input.actualShippingCost !== undefined) {
       updateData.actual_shipping_cost_cents = input.actualShippingCost;
     }

@@ -2,7 +2,7 @@
 import { env } from "@/config/env";
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
-import type { AdminOrderPlacedEmailInput } from "@/lib/email/orders/types";
+import type { AdminOrderPlacedEmailInput } from "@/types/domain/email";
 import { brandLine, buildEmailFooterText, formatMoney } from "@/lib/email/orders/utils";
 
 const buildAdminOrderUrl = (input: AdminOrderPlacedEmailInput) =>

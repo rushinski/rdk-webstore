@@ -1,7 +1,7 @@
 // src/lib/email/orders/delivered.ts
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
-import type { OrderDeliveredEmailInput } from "@/lib/email/orders/types";
+import type { OrderDeliveredEmailInput } from "@/types/domain/email";
 import {
   buildEmailFooterText,
   buildOrderUrl,

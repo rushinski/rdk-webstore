@@ -1,10 +1,8 @@
 // src/services/admin-order-email-service.ts
 import { sendEmail } from "@/lib/email/mailer";
 import { emailSubjects } from "@/config/constants/email";
-import {
-  buildAdminOrderPlacedEmail,
-} from "@/lib/email/orders/admin-order-placed";
-import type { AdminOrderPlacedEmailInput } from "@/lib/email/orders/types";
+import { buildAdminOrderPlacedEmail } from "@/lib/email/orders/admin-order-placed";
+import type { AdminOrderPlacedEmailInput } from "@/types/domain/email";
 
 export class AdminOrderEmailService {
   async sendOrderPlaced(input: AdminOrderPlacedEmailInput) {

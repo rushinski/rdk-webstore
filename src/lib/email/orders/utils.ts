@@ -2,7 +2,7 @@ import { env } from "@/config/env";
 import { BRAND_NAME } from "@/config/constants/brand";
 import { emailFooterText } from "@/lib/email/footer";
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
-import type { OrderTrackingEmailBase, ShippingAddress } from "@/lib/email/orders/types";
+import type { OrderTrackingEmailBase, ShippingAddress } from "@/types/domain/email";
 
 export const formatMoney = (value: number) => value.toFixed(2);
 
