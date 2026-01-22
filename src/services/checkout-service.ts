@@ -1,4 +1,4 @@
-// src/services/checkout-service.ts
+// src/services/checkout-service.ts (FIXED)
 
 import Stripe from "stripe";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
@@ -7,6 +7,8 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
+import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
+import { StripeTaxService } from "@/services/stripe-tax-service";
 import { env } from "@/config/env";
 import { createCartHash } from "@/lib/crypto";
 import type {
@@ -89,6 +91,15 @@ export class CheckoutService {
     }
     const [tenantId] = [...tenantIds];
 
+    // ✅ Get tenant's Stripe Connect account
+    const adminSupabase = this.adminSupabase ?? this.supabase;
+    const tenantProfileRepo = new ProfileRepository(adminSupabase);
+    const tenantStripeAccountId = await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
+
+    if (!tenantStripeAccountId) {
+      throw new Error("Seller payment account not configured");
+    }
+
     // Get categories and shipping defaults
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaults = await shippingDefaultsRepo.getByCategories(
@@ -147,7 +158,76 @@ export class CheckoutService {
       shipping = Math.max(...shippingCosts, 0);
     }
 
-    const total = subtotal + shipping;
+    // ✅ Calculate tax using tenant's Stripe Connect account
+    const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
+    const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
+    const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
+    const taxEnabled = taxSettings?.tax_enabled ?? false;
+    const taxCodeOverrides =
+      taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
+        ? (taxSettings.tax_code_overrides as Record<string, string>)
+        : {};
+
+    const taxService = new StripeTaxService(adminSupabase, tenantStripeAccountId);
+    
+    // For Stripe Checkout, we'll use pickup address (head office) initially
+    // Actual address will be collected during checkout
+    let customerAddress: {
+      line1: string;
+      line2?: string | null;
+      city: string;
+      state: string;
+      postal_code: string;
+      country: string;
+    } | null = null;
+
+    if (fulfillment === "pickup") {
+      const officeAddress = await taxService.getHeadOfficeAddress();
+      if (officeAddress) {
+        customerAddress = officeAddress;
+      } else {
+        customerAddress = {
+          line1: "123 Main St",
+          city: "Charleston",
+          state: homeState,
+          postal_code: "29401",
+          country: "US",
+        };
+      }
+    }
+
+    const destinationState = fulfillment === "pickup" ? homeState : null;
+    const stripeRegistrations = taxEnabled && destinationState
+      ? await taxService.getStripeRegistrations()
+      : new Map<string, { id: string; state: string; active: boolean }>();
+
+    const hasStripeRegistration = taxEnabled && destinationState
+      ? stripeRegistrations.get(destinationState)?.active ?? false
+      : false;
+
+    // For shipping, we can't calculate exact tax yet, but we can estimate
+    const taxCalc = hasStripeRegistration && customerAddress
+      ? await taxService.calculateTax({
+          currency: "usd",
+          customerAddress,
+          lineItems: lineItems.map((item) => ({
+            amount: Math.round(item.unitPrice * 100),
+            quantity: item.quantity,
+            productId: item.productId,
+            category: item.category,
+          })),
+          shippingCost: Math.round(shipping * 100),
+          taxCodes: taxCodeOverrides,
+          taxEnabled,
+        })
+      : {
+          taxAmount: 0,
+          totalAmount: Math.round((subtotal + shipping) * 100),
+          taxCalculationId: null,
+        };
+
+    const tax = taxCalc.taxAmount / 100;
+    const total = subtotal + shipping + tax;
 
     // Create cart hash for idempotency
     const cartHash = createCartHash(items, fulfillment);
@@ -211,6 +291,16 @@ export class CheckoutService {
       await ordersRepo.updateGuestEmail(order.id, guestEmail);
     }
 
+    // ✅ Update order with tax information
+    await adminSupabase
+      .from("orders")
+      .update({
+        tax_amount: tax,
+        tax_calculation_id: taxCalc.taxCalculationId,
+        customer_state: destinationState,
+      })
+      .eq("id", order.id);
+
     log({
       level: "info",
       layer: "service",
@@ -218,8 +308,10 @@ export class CheckoutService {
       orderId: order.id,
       subtotal,
       shipping,
+      tax,
       total,
       fulfillment,
+      taxCalculationId: taxCalc.taxCalculationId,
     });
 
     // Get or create Stripe customer for signed-in users
@@ -247,7 +339,7 @@ export class CheckoutService {
     const successUrl = `${siteUrl}/checkout/success?orderId=${order.id}&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${siteUrl}/checkout/cancel`;
 
-    // Create Stripe Checkout Session
+    // ✅ Create Stripe Checkout Session on tenant's Connect account
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       line_items: lineItems.map((li) => ({
@@ -266,6 +358,19 @@ export class CheckoutService {
         order_id: order.id,
         fulfillment,
         cart_hash: cartHash,
+        tenant_id: tenantId,
+        tax_calculation_id: taxCalc.taxCalculationId ?? "", // ✅ Include tax ID
+      },
+      // ✅ Use tenant's Connect account
+      payment_intent_data: {
+        transfer_data: {
+          destination: tenantStripeAccountId,
+        },
+        metadata: {
+          order_id: order.id,
+          tenant_id: tenantId,
+          tax_calculation_id: taxCalc.taxCalculationId ?? "",
+        },
       },
     };
 
@@ -297,6 +402,13 @@ export class CheckoutService {
           },
         },
       ];
+      
+      // ✅ Enable automatic tax for shipping checkouts
+      if (taxEnabled) {
+        sessionParams.automatic_tax = {
+          enabled: true,
+        };
+      }
     }
 
     // Create Stripe session with idempotency
@@ -313,6 +425,9 @@ export class CheckoutService {
       message: "stripe_session_created",
       orderId: order.id,
       stripeSessionId: session.id,
+      tenantId,
+      stripeAccountId: tenantStripeAccountId,
+      automaticTax: fulfillment === "ship" && taxEnabled,
     });
 
     return {

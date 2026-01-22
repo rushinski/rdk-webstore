@@ -1,4 +1,4 @@
-// app/api/admin/stripe/payout-schedule/route.ts
+// app/api/admin/stripe/payout-schedule/route.ts (FIXED)
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -6,6 +6,7 @@ import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeAdminService } from "@/services/stripe-admin-service";
 import { STRIPE_PAYOUT_INTERVALS, STRIPE_PAYOUT_WEEKLY_ANCHORS } from "@/config/constants/stripe";
 import { stripePayoutScheduleSchema } from "@/lib/validation/stripe";
@@ -27,6 +28,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    
+    // ✅ Get tenant context
+    const contextService = new TenantContextService(supabase);
+    const context = await contextService.getAdminContext(session.user.id);
+
     const service = new StripeAdminService(supabase);
     const body = await request.json().catch(() => null);
     const parsed = stripePayoutScheduleSchema.safeParse(body ?? {});
@@ -40,8 +46,11 @@ export async function POST(request: NextRequest) {
 
     const interval = parsed.data.interval as Interval;
 
-    // Need the stripe account id (via summary lookup)
-    const summary = await service.getStripeAccountSummary({ userId: session.user.id });
+    const summary = await service.getStripeAccountSummary({ 
+      userId: session.user.id,
+      tenantId: context.tenantId,
+    });
+    
     if (!summary.account?.id) {
       return NextResponse.json(
         { error: "Stripe account not found", requestId },

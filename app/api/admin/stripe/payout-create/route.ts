@@ -1,10 +1,11 @@
-// app/api/admin/stripe/payout-create/route.ts
+// app/api/admin/stripe/payout-create/route.ts (FIXED)
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeAdminService } from "@/services/stripe-admin-service";
 import { stripePayoutCreateSchema } from "@/lib/validation/stripe";
 
@@ -22,6 +23,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    
+    // ✅ Get tenant context
+    const contextService = new TenantContextService(supabase);
+    const context = await contextService.getAdminContext(session.user.id);
+
     const service = new StripeAdminService(supabase);
     const body = await request.json().catch(() => null);
     const parsed = stripePayoutCreateSchema.safeParse(body ?? {});
@@ -35,7 +41,11 @@ export async function POST(request: NextRequest) {
 
     const { amount, currency, method } = parsed.data;
 
-    const summary = await service.getStripeAccountSummary({ userId: session.user.id });
+    const summary = await service.getStripeAccountSummary({ 
+      userId: session.user.id,
+      tenantId: context.tenantId,
+    });
+    
     if (!summary.account?.id) {
       return NextResponse.json(
         { error: "Stripe account not found", requestId },
@@ -59,7 +69,6 @@ export async function POST(request: NextRequest) {
       message: "Failed to create payout",
     });
 
-    // If instant payout isn't eligible, Stripe will throw a message; frontend shows it.
     const message = error?.raw?.message || error?.message || "Failed to create payout.";
     return NextResponse.json({ error: message, requestId }, { status: 500 });
   }

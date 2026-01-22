@@ -46,10 +46,11 @@ export class StripeAdminService {
     this.profileRepo = new ProfileRepository(supabase);
   }
 
-  async getStripeAccountSummary(params: { userId: string }): Promise<StripeAccountSummary> {
-    const profile = await this.profileRepo.getByUserId(params.userId);
+  async getStripeAccountSummary(params: { userId: string, tenantId: string }): Promise<StripeAccountSummary> {
+    // ✅ Get the Stripe account for the TENANT, not the user
+    const stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(params.tenantId);
 
-    if (!profile?.stripe_account_id) {
+    if (!stripeAccountId) {
       return {
         account: null,
         balance: null,
@@ -57,8 +58,6 @@ export class StripeAdminService {
         bank_accounts: [],
       };
     }
-
-    const stripeAccountId = profile.stripe_account_id;
 
     const [account, balance, externalAccounts] = await Promise.all([
       stripe.accounts.retrieve(stripeAccountId),
@@ -101,14 +100,16 @@ export class StripeAdminService {
     };
   }
 
-  async ensureExpressAccount(params: { userId: string }): Promise<{ accountId: string }> {
-    const profile = await this.profileRepo.getByUserId(params.userId);
-
-    if (!profile) throw new Error('Admin profile not found.');
-
-    let stripeAccountId = profile.stripe_account_id;
+  async ensureExpressAccount(params: { userId: string, tenantId: string}): Promise<{ accountId: string }> {
+    // ✅ Check if tenant already has a Stripe account
+    let stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(params.tenantId);
 
     if (!stripeAccountId) {
+      // Get the user's profile to use their email for account creation
+      const profile = await this.profileRepo.getByUserId(params.userId);
+      
+      if (!profile) throw new Error('Admin profile not found.');
+
       const account = await stripe.accounts.create({
         type: 'express',
         email: profile.email ?? undefined,
@@ -127,6 +128,11 @@ export class StripeAdminService {
       });
 
       stripeAccountId = account.id;
+      
+      // ✅ Store the account ID on the user's profile
+      // Since all admins in a tenant share the same account, storing it on 
+      // the primary admin's profile is fine (and your getStripeAccountIdForTenant 
+      // will find it for other admins)
       await this.profileRepo.setStripeAccountId(params.userId, stripeAccountId);
     }
 

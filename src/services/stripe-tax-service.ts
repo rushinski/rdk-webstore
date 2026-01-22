@@ -1,4 +1,4 @@
-// src/services/stripe-tax-service.ts (UPDATED)
+// src/services/stripe-tax-service.ts (ADD DEBUGGING)
 
 import Stripe from "stripe";
 import { env } from "@/config/env";
@@ -6,6 +6,7 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
+import { log } from "@/lib/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
@@ -28,11 +29,17 @@ export class StripeTaxService {
           stripeAccount: stripeAccountId,
         })
       : stripe;
+    
+    // 🔍 DEBUG: Log which Stripe account we're using
+    log({
+      level: "info",
+      layer: "service",
+      message: "stripe_tax_service_initialized",
+      stripeAccountId: stripeAccountId || "platform",
+      hasStripeAccount: !!stripeAccountId,
+    });
   }
 
-  /**
-   * Get the configured head office address
-   */
   async getHeadOfficeAddress(): Promise<{
     line1: string;
     line2?: string | null;
@@ -43,6 +50,16 @@ export class StripeTaxService {
   } | null> {
     try {
       const settings = await this.stripeClient.tax.settings.retrieve();
+      
+      log({
+        level: "info",
+        layer: "service",
+        message: "head_office_address_retrieved",
+        hasHeadOffice: !!settings.head_office,
+        hasAddress: !!settings.head_office?.address,
+        statuss: settings.status,
+      });
+      
       if (settings.head_office?.address) {
         const addr = settings.head_office.address;
         return {
@@ -57,17 +74,16 @@ export class StripeTaxService {
       return null;
     } catch (error) {
       console.error('Failed to retrieve head office address:', error);
+      log({
+        level: "error",
+        layer: "service",
+        message: "head_office_address_error",
+        error: String(error),
+      });
       return null;
     }
   }
 
-  /**
-   * Set head office address with Stripe Tax Settings API
-   * This MUST be called before any tax registrations can be created
-   * 
-   * UPDATED: No longer auto-registers for tax collection.
-   * Just sets the address and marks physical nexus alert.
-   */
   async setHeadOfficeAddress(params: {
     tenantId: string;
     stateCode: string;
@@ -85,7 +101,6 @@ export class StripeTaxService {
     try {
       const existingSettings = await this.taxSettingsRepo.getByTenant(params.tenantId);
 
-      // Update Stripe Tax Settings with head office address
       await this.stripeClient.tax.settings.update({
         defaults: {
           tax_behavior: 'exclusive',
@@ -102,7 +117,6 @@ export class StripeTaxService {
         },
       });
 
-      // Store settings in database
       await this.taxSettingsRepo.upsert({
         tenantId: params.tenantId,
         homeState: params.stateCode,
@@ -112,13 +126,11 @@ export class StripeTaxService {
         taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
 
-      // CHANGED: Mark home state as having physical nexus but DON'T auto-register
-      // This creates an alert that they need to register
       await this.nexusRepo.upsertRegistration({
         tenantId: params.tenantId,
         stateCode: params.stateCode,
         registrationType: 'physical',
-        isRegistered: false, // NOT auto-registered
+        isRegistered: false,
         registeredAt: null,
         stripeRegistrationId: null,
       });
@@ -128,19 +140,13 @@ export class StripeTaxService {
     }
   }
 
-  /**
-   * Set home state only (without address setup)
-   * Used when just updating the home state designation
-   */
   async setHomeState(params: {
     tenantId: string;
     stateCode: string;
   }): Promise<void> {
     try {
-      // Get existing settings
       const existingSettings = await this.taxSettingsRepo.getByTenant(params.tenantId);
       
-      // Update just the home state
       await this.taxSettingsRepo.upsert({
         tenantId: params.tenantId,
         homeState: params.stateCode,
@@ -155,14 +161,28 @@ export class StripeTaxService {
     }
   }
 
-  /**
-   * Check if head office is configured
-   */
   async isHeadOfficeConfigured(): Promise<boolean> {
     try {
       const settings = await this.stripeClient.tax.settings.retrieve();
-      return settings.status === 'active' && !!settings.head_office;
+      const isConfigured = settings.status === 'active' && !!settings.head_office;
+      
+      log({
+        level: "info",
+        layer: "service",
+        message: "head_office_configured_check",
+        statuss: settings.status,
+        hasHeadOffice: !!settings.head_office,
+        isConfigured,
+      });
+      
+      return isConfigured;
     } catch (error) {
+      log({
+        level: "error",
+        layer: "service",
+        message: "head_office_configured_check_error",
+        error: String(error),
+      });
       return false;
     }
   }
@@ -194,6 +214,19 @@ export class StripeTaxService {
     totalAmount: number;
     taxCalculationId: string | null;
   }> {
+    // 🔍 DEBUG: Log what we're trying to calculate
+    log({
+      level: "info",
+      layer: "service",
+      message: "tax_calculation_start",
+      taxEnabled: params.taxEnabled,
+      hasCustomerAddress: !!params.customerAddress,
+      customerState: params.customerAddress?.state,
+      currency: params.currency,
+      lineItemCount: params.lineItems.length,
+      shippingCost: params.shippingCost,
+    });
+
     const normalizedTaxCodes: Record<string, string> = {};
     for (const [key, value] of Object.entries(params.taxCodes ?? {})) {
       const normalizedKey = key.trim().toLowerCase();
@@ -217,18 +250,19 @@ export class StripeTaxService {
       };
     });
 
-    if (params.shippingCost && params.shippingCost > 0) {
-      lineItems.push({
-        amount: params.shippingCost,
-        quantity: 1,
-        reference: 'shipping',
-        tax_code: 'txcd_92010001',
-      });
-    }
-
+    // ✅ Don't add shipping as a line item - use shipping_cost param instead
     const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
 
+    // 🔍 DEBUG: Check early exit conditions
     if (params.taxEnabled === false) {
+      log({
+        level: "info",
+        layer: "service",
+        message: "tax_calculation_skipped",
+        reason: "tax_disabled",
+        taxEnabled: params.taxEnabled,
+      });
+      
       return {
         taxAmount: 0,
         totalAmount: subtotal,
@@ -237,6 +271,13 @@ export class StripeTaxService {
     }
 
     if (!params.customerAddress) {
+      log({
+        level: "info",
+        layer: "service",
+        message: "tax_calculation_skipped",
+        reason: "no_customer_address",
+      });
+      
       return {
         taxAmount: 0,
         totalAmount: subtotal,
@@ -245,7 +286,20 @@ export class StripeTaxService {
     }
 
     try {
-      const calculation = await this.stripeClient.tax.calculations.create({
+      // 🔍 DEBUG: Log what we're sending to Stripe
+      log({
+        level: "info",
+        layer: "service",
+        message: "calling_stripe_tax_api",
+        currency: params.currency.toLowerCase(),
+        customerAddress: params.customerAddress,
+        lineItemCount: lineItems.length,
+        subtotal,
+        shippingCost: params.shippingCost || 0,
+      });
+
+      // ✅ Build calculation params with shipping_cost at top level
+      const calculationParams: Stripe.Tax.CalculationCreateParams = {
         currency: params.currency.toLowerCase(),
         line_items: lineItems,
         customer_details: {
@@ -260,18 +314,52 @@ export class StripeTaxService {
           address_source: 'shipping',
         },
         expand: ['line_items'],
-      });
+      };
+
+      // ✅ Add shipping cost if present (Stripe will tax it automatically)
+      if (params.shippingCost && params.shippingCost > 0) {
+        calculationParams.shipping_cost = {
+          amount: params.shippingCost,
+        };
+      }
+
+      const calculation = await this.stripeClient.tax.calculations.create(calculationParams);
 
       const taxAmount = calculation.tax_amount_exclusive ?? 0;
       const totalAmount = subtotal + taxAmount;
+
+      // 🔍 DEBUG: Log successful calculation
+      log({
+        level: "info",
+        layer: "service",
+        message: "tax_calculation_success",
+        calculationId: calculation.id,
+        taxAmount,
+        taxAmountCents: taxAmount,
+        taxAmountDollars: taxAmount / 100,
+        subtotal,
+        totalAmount,
+        taxBreakdown: calculation.tax_breakdown,
+      });
 
       return {
         taxAmount,
         totalAmount,
         taxCalculationId: calculation.id,
       };
-    } catch (error) {
+    } catch (error: any) {
+      // 🔍 DEBUG: Log detailed error
       console.error('Stripe tax calculation error:', error);
+      log({
+        level: "error",
+        layer: "service",
+        message: "tax_calculation_error",
+        error: error.message,
+        errorType: error.type,
+        errorCode: error.code,
+        rawError: String(error),
+      });
+      
       return {
         taxAmount: 0,
         totalAmount: subtotal,
@@ -280,53 +368,65 @@ export class StripeTaxService {
     }
   }
 
-  /**
-   * Register a tax calculation as a transaction
-   */
   async createTaxTransaction(params: {
     taxCalculationId: string;
     reference: string;
   }): Promise<string | null> {
     try {
+      log({
+        level: "info",
+        layer: "service",
+        message: "creating_tax_transaction",
+        calculationId: params.taxCalculationId,
+        reference: params.reference,
+      });
+
       const transaction = await this.stripeClient.tax.transactions.createFromCalculation({
         calculation: params.taxCalculationId,
         reference: params.reference,
       });
 
+      log({
+        level: "info",
+        layer: "service",
+        message: "tax_transaction_created",
+        transactionId: transaction.id,
+        calculationId: params.taxCalculationId,
+      });
+
       return transaction.id;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Stripe tax transaction error:', error);
+      log({
+        level: "error",
+        layer: "service",
+        message: "tax_transaction_error",
+        error: error.message,
+        calculationId: params.taxCalculationId,
+      });
       return null;
     }
   }
 
-  /**
-   * Register for tax collection with Stripe Tax
-   * Requires head office to be configured first
-   */
   async registerState(params: {
     tenantId: string;
     stateCode: string;
     registrationType: 'physical' | 'economic';
   }): Promise<void> {
-    // Check if head office is configured
     const isConfigured = await this.isHeadOfficeConfigured();
     if (!isConfigured) {
       throw new Error('Head office address must be set before registering states. Please configure your business address first.');
     }
 
-    // Check if already registered in Stripe
     const existingRegistrations = await this.getStripeRegistrations();
     const existingReg = existingRegistrations.get(params.stateCode);
     
     let stripeRegistrationId: string | null = null;
 
     if (existingReg?.active) {
-      // Already registered in Stripe, just use existing ID
       stripeRegistrationId = existingReg.id;
     } else {
       try {
-        // Create new Stripe Tax registration
         const registration = await this.stripeClient.tax.registrations.create({
           country: 'US',
           country_options: {
@@ -339,7 +439,6 @@ export class StripeTaxService {
         });
         stripeRegistrationId = registration.id;
       } catch (error: any) {
-        // If already registered error, fetch and use existing
         if (error.message?.includes('already added a registration')) {
           const regs = await this.stripeClient.tax.registrations.list({ limit: 100 });
           const existing = regs.data.find(
@@ -356,7 +455,6 @@ export class StripeTaxService {
       }
     }
 
-    // Store registration in database
     await this.nexusRepo.upsertRegistration({
       tenantId: params.tenantId,
       stateCode: params.stateCode,
@@ -367,9 +465,6 @@ export class StripeTaxService {
     });
   }
 
-  /**
-   * Unregister from tax collection with Stripe Tax
-   */
   async unregisterState(params: {
     tenantId: string;
     stateCode: string;
@@ -377,7 +472,6 @@ export class StripeTaxService {
   }): Promise<void> {
     const existing = await this.nexusRepo.getRegistration(params.tenantId, params.stateCode);
 
-    // Prefer DB id, but fall back to Stripe lookup (fixes the bug when DB was cleared).
     let stripeRegistrationId: string | null =
       existing?.stripe_registration_id ?? null;
 
@@ -396,7 +490,6 @@ export class StripeTaxService {
         if (!msg.toLowerCase().includes("no such") && !msg.toLowerCase().includes("resource")) {
           throw new Error(`Failed to unregister on Stripe: ${msg}`);
         }
-        // If Stripe says missing, continue to clear local state.
       }
     }
 
@@ -410,9 +503,6 @@ export class StripeTaxService {
     });
   }
 
-  /**
-   * Get all Stripe Tax registrations
-   */
   async getStripeRegistrations(): Promise<Map<string, { id: string; state: string; active: boolean }>> {
     try {
       const registrations = await this.stripeClient.tax.registrations.list({ limit: 100 });
@@ -430,17 +520,31 @@ export class StripeTaxService {
         }
       }
       
+      // 🔍 DEBUG: Log registrations found
+      log({
+        level: "info",
+        layer: "service",
+        message: "stripe_registrations_retrieved",
+        count: map.size,
+        states: Array.from(map.keys()),
+        activeStates: Array.from(map.entries())
+          .filter(([_, v]) => v.active)
+          .map(([k, _]) => k),
+      });
+      
       return map;
     } catch (error) {
       console.error('Failed to fetch Stripe registrations:', error);
+      log({
+        level: "error",
+        layer: "service",
+        message: "stripe_registrations_error",
+        error: String(error),
+      });
       return new Map();
     }
   }
 
-  /**
-   * Deactivate all Stripe Tax registrations.
-   * Stripe doesn't provide a global "off" switch, so we expire active/scheduled registrations.
-   */
   async deactivateStripeTaxRegistrations(): Promise<number> {
     try {
       let deactivated = 0;
@@ -472,16 +576,11 @@ export class StripeTaxService {
     }
   }
 
-  /**
-   * Download tax documents for a specific period
-   */
   async downloadTaxDocuments(params: {
     year: number;
     month?: number;
   }): Promise<{ url: string; expiresAt: number } | null> {
     try {
-      // Stripe doesn't have direct tax report download API
-      // Return null to indicate manual download needed
       return null;
     } catch (error) {
       console.error('Failed to download tax documents:', error);

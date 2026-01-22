@@ -1,5 +1,4 @@
-// app/api/checkout/create-payment-intent/route.ts (UPDATED with proper pickup tax)
-
+// app/api/checkout/create-payment-intent/route.ts (FIXED)
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -63,8 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } =
-      parsed.data;
+    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } = parsed.data;
 
     if (!userId && !guestEmail) {
       return NextResponse.json(
@@ -77,29 +75,22 @@ export async function POST(request: NextRequest) {
     const cartHash = createCartHash(items, normalizedFulfillment);
     const ordersRepo = new OrdersRepository(ordersSupabase);
     const paymentSettingsRepo = new PaymentSettingsRepository(adminSupabase);
+    
     const resolveExpressCheckoutMethods = async (tenantId: string) => {
       const settings = await paymentSettingsRepo.getByTenant(tenantId);
       const expressMethods = normalizeMethods(
         settings?.express_checkout_methods,
         expressMethodKeys,
       );
-      return expressMethods.length > 0
-        ? expressMethods
-        : DEFAULT_EXPRESS_CHECKOUT_METHODS;
+      return expressMethods.length > 0 ? expressMethods : DEFAULT_EXPRESS_CHECKOUT_METHODS;
     };
 
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
-      const expiresAt = existingOrder.expires_at
-        ? new Date(existingOrder.expires_at)
-        : null;
+      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
       if (expiresAt && expiresAt < new Date()) {
         return NextResponse.json(
-          {
-            error: "IDEMPOTENCY_KEY_EXPIRED",
-            code: "IDEMPOTENCY_KEY_EXPIRED",
-            requestId,
-          },
+          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId },
           { status: 409, headers: { "Cache-Control": "no-store" } },
         );
       }
@@ -136,11 +127,7 @@ export async function POST(request: NextRequest) {
 
         if (paymentIntent.status === "canceled") {
           return NextResponse.json(
-            {
-              error: "PAYMENT_INTENT_CANCELED",
-              code: "PAYMENT_INTENT_CANCELED",
-              requestId,
-            },
+            { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
             { status: 409, headers: { "Cache-Control": "no-store" } },
           );
         }
@@ -181,23 +168,44 @@ export async function POST(request: NextRequest) {
 
     const productMap = new Map(products.map((p) => [p.id, p]));
 
+    // ✅ CRITICAL: Validate single tenant
     const tenantIds = new Set(
       products.map((p) => p.tenantId).filter((id): id is string => Boolean(id)),
     );
+    if (tenantIds.size === 0) {
+      return NextResponse.json(
+        { error: "Products must belong to a tenant", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     if (tenantIds.size !== 1) {
       return NextResponse.json(
-        { error: "Checkout requires a single tenant", requestId },
+        { error: "All items must be from the same seller", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
     const [tenantId] = [...tenantIds];
+
+    // ✅ CRITICAL: Get tenant's Stripe Connect account (REQUIRED)
     const tenantProfileRepo = new ProfileRepository(adminSupabase);
-    const tenantStripeAccountId =
-      await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
+    const tenantStripeAccountId = await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
+
+    if (!tenantStripeAccountId) {
+      log({
+        level: "error",
+        layer: "api",
+        message: "tenant_missing_stripe_account",
+        requestId,
+        tenantId,
+      });
+      return NextResponse.json(
+        { error: "Seller payment account not configured", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     const paymentSettings = await paymentSettingsRepo.getByTenant(tenantId);
-    const useAutomaticPaymentMethods =
-      paymentSettings?.use_automatic_payment_methods ?? true;
+    const useAutomaticPaymentMethods = paymentSettings?.use_automatic_payment_methods ?? true;
     const paymentMethodTypes = normalizeMethods(
       paymentSettings?.payment_method_types,
       paymentMethodTypeKeys,
@@ -212,10 +220,7 @@ export async function POST(request: NextRequest) {
 
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
-      tenantId,
-      categories,
-    );
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
     const shippingDefaultsMap = new Map(
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)]),
     );
@@ -254,7 +259,7 @@ export async function POST(request: NextRequest) {
       shipping = Math.max(...shippingCosts, 0);
     }
 
-    // Get home state and office address for pickup tax calculation
+    // ✅ Get tax settings for tenant's Connect account
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
@@ -264,20 +269,17 @@ export async function POST(request: NextRequest) {
         ? (taxSettings.tax_code_overrides as Record<string, string>)
         : {};
 
-    // Calculate tax using Stripe Tax (only if registered in the destination state)
-    const taxService = tenantStripeAccountId
-      ? new StripeTaxService(adminSupabase, tenantStripeAccountId)
-      : null;
+    // ✅ Calculate tax using tenant's Stripe Connect account
+    const taxService = new StripeTaxService(adminSupabase, tenantStripeAccountId);
     const destinationState =
       normalizedFulfillment === "pickup"
         ? homeState
         : shippingAddress?.state?.trim().toUpperCase() ?? null;
-    const stripeRegistrations =
-      taxEnabled && destinationState && taxService
-        ? await taxService.getStripeRegistrations()
-        : new Map<string, { id: string; state: string; active: boolean }>();
+    
+    const stripeRegistrations = taxEnabled && destinationState
+      ? await taxService.getStripeRegistrations()
+      : new Map<string, { id: string; state: string; active: boolean }>();
 
-    // For pickup, get the actual office address from Stripe Tax Settings
     let customerAddress: {
       line1: string;
       line2?: string | null;
@@ -296,13 +298,11 @@ export async function POST(request: NextRequest) {
         postal_code: shippingAddress.postal_code,
         country: shippingAddress.country,
       };
-    } else if (normalizedFulfillment === "pickup" && taxService) {
-      // Get office address from Stripe Tax Settings
+    } else if (normalizedFulfillment === "pickup") {
       const officeAddress = await taxService.getHeadOfficeAddress();
       if (officeAddress) {
         customerAddress = officeAddress;
       } else {
-        // Fallback if office address not configured
         customerAddress = {
           line1: "123 Main St",
           city: "Charleston",
@@ -317,7 +317,20 @@ export async function POST(request: NextRequest) {
       ? stripeRegistrations.get(destinationState)?.active ?? false
       : false;
 
-    const taxCalc = hasStripeRegistration && customerAddress && taxService
+    log({
+      level: "info",
+      layer: "api",
+      message: "tax_calculation_setup",
+      requestId,
+      tenantId,
+      stripeAccountId: tenantStripeAccountId,
+      taxEnabled,
+      destinationState,
+      hasStripeRegistration,
+      customerAddress: customerAddress ? "provided" : "null",
+    });
+
+    const taxCalc = hasStripeRegistration && customerAddress
       ? await taxService.calculateTax({
           currency: "usd",
           customerAddress,
@@ -339,6 +352,18 @@ export async function POST(request: NextRequest) {
 
     const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;
+
+    log({
+      level: "info",
+      layer: "api",
+      message: "tax_calculated",
+      requestId,
+      taxAmount: tax,
+      taxCalculationId: taxCalc.taxCalculationId,
+      subtotal,
+      shipping,
+      total,
+    });
 
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
@@ -366,8 +391,9 @@ export async function POST(request: NextRequest) {
         })),
       }));
 
-    // Update order with tax info
     const customerState = destinationState ?? null;
+    
+    // ✅ Update order with tax information
     await adminSupabase
       .from("orders")
       .update({
@@ -395,6 +421,7 @@ export async function POST(request: NextRequest) {
       receiptEmail = userEmail ?? profile?.email ?? undefined;
     }
 
+    // ✅ CRITICAL: Create payment intent on CONNECT account with tax metadata
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(total * 100),
       currency: "usd",
@@ -404,7 +431,11 @@ export async function POST(request: NextRequest) {
         order_id: order.id,
         cart_hash: cartHash,
         fulfillment: normalizedFulfillment,
-        tax_calculation_id: taxCalc.taxCalculationId ?? "",
+        tax_calculation_id: taxCalc.taxCalculationId ?? "", // ✅ CRITICAL: Include tax calculation ID
+        tenant_id: tenantId,
+      },
+      transfer_data: {
+        destination: tenantStripeAccountId,
       },
     };
 
@@ -425,7 +456,10 @@ export async function POST(request: NextRequest) {
       requestId,
       orderId: order.id,
       paymentIntentId: paymentIntent.id,
+      tenantId,
+      stripeAccountId: tenantStripeAccountId,
       tax,
+      taxCalculationId: taxCalc.taxCalculationId,
       customerState,
     });
 

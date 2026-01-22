@@ -1,10 +1,11 @@
-// app/api/admin/stripe/bank-account-delete/route.ts
+// app/api/admin/stripe/bank-account-delete/route.ts (FIXED)
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeAdminService } from "@/services/stripe-admin-service";
 import { stripeBankAccountSchema } from "@/lib/validation/stripe";
 
@@ -22,6 +23,11 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    
+    // ✅ Get tenant context
+    const contextService = new TenantContextService(supabase);
+    const context = await contextService.getAdminContext(session.user.id);
+
     const service = new StripeAdminService(supabase);
     const body = await request.json().catch(() => null);
     const parsed = stripeBankAccountSchema.safeParse(body ?? {});
@@ -35,7 +41,11 @@ export async function POST(request: NextRequest) {
 
     const bankAccountId = parsed.data.bank_account_id;
 
-    const summary = await service.getStripeAccountSummary({ userId: session.user.id });
+    const summary = await service.getStripeAccountSummary({ 
+      userId: session.user.id,
+      tenantId: context.tenantId,
+    });
+    
     if (!summary.account?.id) {
       return NextResponse.json(
         { error: "Stripe account not found", requestId },
@@ -43,7 +53,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Client should prevent deleting the default unless another exists.
     await service.deleteBankAccount({ accountId: summary.account.id, bankAccountId });
 
     return NextResponse.json(

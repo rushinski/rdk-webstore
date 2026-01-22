@@ -1,10 +1,11 @@
-// app/api/admin/stripe/payouts/route.ts
+// app/api/admin/stripe/payouts/route.ts (FIXED)
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
+import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeAdminService } from "@/services/stripe-admin-service";
 import { stripePayoutsQuerySchema } from "@/lib/validation/stripe";
 
@@ -22,8 +23,16 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
+    
+    // ✅ Get tenant context
+    const contextService = new TenantContextService(supabase);
+    const context = await contextService.getAdminContext(session.user.id);
+
     const service = new StripeAdminService(supabase);
-    const summary = await service.getStripeAccountSummary({ userId: session.user.id });
+    const summary = await service.getStripeAccountSummary({ 
+      userId: session.user.id,
+      tenantId: context.tenantId,
+    });
 
     if (!summary.account?.id) {
       return NextResponse.json(
