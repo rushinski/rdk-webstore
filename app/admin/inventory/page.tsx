@@ -246,20 +246,20 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Inventory</h1>
-          <p className="text-gray-400">{products.length} products</p>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory</h1>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/inventory/create"
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded"
+            >
+              <Plus className="w-3 h-3 sm:w-5 sm:h-5" />
+              Create Product
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/inventory/create"
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 transition cursor-pointer rounded"
-          >
-            <Plus className="w-5 h-5" />
-            Create Product
-          </Link>
-        </div>
+        <p className="text-gray-400">{products.length} products</p>
       </div>
 
       <div className="border-b border-zinc-800/70 flex space-x-6">
@@ -561,7 +561,7 @@ export default function InventoryPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-2 self-center">
                       <input
                         type="checkbox"
                         className="rdk-checkbox"
