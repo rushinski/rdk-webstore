@@ -1,9 +1,8 @@
 // src/components/admin/charts/AdminLineChart.tsx
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ResponsiveContainer,
   LineChart,
   Line,
   CartesianGrid,
@@ -89,6 +88,74 @@ export function AdminLineChart<T extends Record<string, unknown>>({
   valueFormatter,
   emptyLabel = "No data for this range yet.",
 }: AdminLineChartProps<T>) {
+  const [isCompact, setIsCompact] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 1, height: 1 });
+  const chartHeight = isCompact ? Math.max(220, Math.round(height * 0.8)) : height;
+  const yAxisWidth = isCompact ? 60 : 84;
+  const tickFontSize = isCompact ? 10 : 12;
+  const chartMargin = isCompact
+    ? { top: 8, right: 12, bottom: 6, left: 4 }
+    : { top: 8, right: 18, bottom: 8, left: 12 };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 640px)");
+    const handleChange = () => setIsCompact(media.matches);
+    handleChange();
+
+    if (media.addEventListener) {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+
+    media.addListener(handleChange);
+    return () => media.removeListener(handleChange);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let raf = 0;
+    const update = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const parentWidth = el.parentElement?.clientWidth ?? 0;
+        const width = Math.max(
+          1,
+          Math.floor(el.clientWidth || rect.width || parentWidth),
+        );
+        const height = Math.max(
+          1,
+          Math.floor(el.clientHeight || rect.height || chartHeight),
+        );
+        const next = { width, height };
+        setContainerSize((prev) =>
+          prev.width === next.width && prev.height === next.height ? prev : next,
+        );
+      });
+    };
+
+    update();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(update);
+      observer.observe(el);
+      return () => {
+        observer.disconnect();
+        if (raf) cancelAnimationFrame(raf);
+      };
+    }
+
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [chartHeight, data.length]);
+
   const normalized = useMemo(() => {
     return (data || [])
       .map((row) => ({
@@ -171,7 +238,7 @@ export function AdminLineChart<T extends Record<string, unknown>>({
     return (
       <div
         className="flex items-center justify-center border border-zinc-800/70 rounded-lg bg-zinc-950/40"
-        style={{ height }}
+        style={{ height: chartHeight }}
       >
         <div className="text-center space-y-2">
           <div className="text-white/90 font-medium">Nothing to chart</div>
@@ -182,54 +249,63 @@ export function AdminLineChart<T extends Record<string, unknown>>({
   }
 
   return (
-    <div className="w-full">
-      <div style={{ height }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={normalized} margin={{ top: 8, right: 18, bottom: 8, left: 12 }}>
-            <CartesianGrid strokeDasharray="3 6" opacity={0.25} />
-            <XAxis
-              dataKey="__x"
-              tickFormatter={formatDateShort}
-              axisLine={false}
-              tickLine={false}
-              minTickGap={18}
-            />
-            <YAxis
-              domain={yAxis.domain}
-              ticks={yAxis.ticks}
-              allowDecimals={yAxis.allowDecimals}
-              tickFormatter={(v) => fmt(toNumber(v))}
-              axisLine={false}
-              tickLine={false}
-              width={84}
-              label={
-                yLabel
-                  ? { value: yLabel, angle: -90, position: "insideLeft", offset: 6 }
-                  : undefined
-              }
-            />
-            <Tooltip
-              formatter={(v) => [fmt(toNumber(v)), displayName]}
-              labelFormatter={(l) => `Date: ${formatDateShort(l)}`}
-              contentStyle={{
-                background: "rgba(9, 9, 11, 0.92)",
-                border: "1px solid rgba(39, 39, 42, 0.7)",
-                borderRadius: 10,
-              }}
-              itemStyle={{ color: "rgba(244, 244, 245, 0.9)" }}
-              labelStyle={{ color: "rgba(244, 244, 245, 0.9)" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="__y"
-              name={displayName}
-              stroke={stroke}
-              strokeWidth={2}
-              dot={normalized.length === 1}
-              activeDot={{ r: 4, stroke }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+    <div className="w-full min-w-0">
+      <div
+        ref={containerRef}
+        style={{ height: chartHeight, minHeight: chartHeight }}
+        className="w-full min-w-0"
+      >
+        <LineChart
+          width={Math.max(1, containerSize.width)}
+          height={Math.max(1, containerSize.height)}
+          data={normalized}
+          margin={chartMargin}
+        >
+          <CartesianGrid strokeDasharray="3 6" opacity={0.25} />
+          <XAxis
+            dataKey="__x"
+            tickFormatter={formatDateShort}
+            axisLine={false}
+            tickLine={false}
+            minTickGap={18}
+            tick={{ fontSize: tickFontSize }}
+          />
+          <YAxis
+            domain={yAxis.domain}
+            ticks={yAxis.ticks}
+            allowDecimals={yAxis.allowDecimals}
+            tickFormatter={(v) => fmt(toNumber(v))}
+            axisLine={false}
+            tickLine={false}
+            width={yAxisWidth}
+            tick={{ fontSize: tickFontSize }}
+            label={
+              yLabel && !isCompact
+                ? { value: yLabel, angle: -90, position: "insideLeft", offset: 6 }
+                : undefined
+            }
+          />
+          <Tooltip
+            formatter={(v) => [fmt(toNumber(v)), displayName]}
+            labelFormatter={(l) => `Date: ${formatDateShort(l)}`}
+            contentStyle={{
+              background: "rgba(9, 9, 11, 0.92)",
+              border: "1px solid rgba(39, 39, 42, 0.7)",
+              borderRadius: 10,
+            }}
+            itemStyle={{ color: "rgba(244, 244, 245, 0.9)" }}
+            labelStyle={{ color: "rgba(244, 244, 245, 0.9)" }}
+          />
+          <Line
+            type="monotone"
+            dataKey="__y"
+            name={displayName}
+            stroke={stroke}
+            strokeWidth={2}
+            dot={normalized.length === 1}
+            activeDot={{ r: 4, stroke }}
+          />
+        </LineChart>
       </div>
     </div>
   );

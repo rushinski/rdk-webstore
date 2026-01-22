@@ -129,7 +129,7 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">Financials</h2>
             <span className="text-sm text-gray-400">7d</span>
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           <SalesChart data={salesTrend} />
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-white">Traffic</h2>
             <span className="text-sm text-gray-400">7d</span>
@@ -159,18 +159,24 @@ export default function DashboardPage() {
             <thead>
               <tr className="border-b border-zinc-800/70">
                 <th className="text-left text-gray-400 font-semibold py-3">Order</th>
-                <th className="text-left text-gray-400 font-semibold py-3">Customer</th>
+                <th className="hidden sm:table-cell text-left text-gray-400 font-semibold py-3">
+                  Customer
+                </th>
                 <th className="text-right text-gray-400 font-semibold py-3">Amount</th>
-                <th className="text-right text-gray-400 font-semibold py-3">Subtotal</th>
+                <th className="hidden sm:table-cell text-right text-gray-400 font-semibold py-3">
+                  Subtotal
+                </th>
               </tr>
             </thead>
             <tbody>
               {recentOrders.map((order) => (
                 <tr key={order.id} className="border-b border-zinc-800/70">
                   <td className="py-3 text-white">#{order.id.slice(0, 8)}</td>
-                  <td className="py-3 text-gray-400">{order.user_id ? order.user_id.slice(0, 6) : 'Guest'}</td>
+                  <td className="hidden sm:table-cell py-3 text-gray-400">
+                    {order.user_id ? order.user_id.slice(0, 6) : 'Guest'}
+                  </td>
                   <td className="py-3 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
-                  <td className="py-3 text-right text-green-400">
+                  <td className="hidden sm:table-cell py-3 text-right text-green-400">
                     +${Number(order.subtotal ?? 0).toFixed(2)}
                   </td>
                 </tr>
