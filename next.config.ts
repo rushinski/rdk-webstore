@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
+import { env } from "@/config/env";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseUrl = env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseHostname = supabaseUrl ? new URL(supabaseUrl).hostname : undefined;
 
 const supabaseRemotePattern = supabaseHostname
@@ -14,6 +15,8 @@ const supabaseRemotePattern = supabaseHostname
 const nextConfig = {
   reactStrictMode: true,
   images: {
+    // Disable image optimization in development when using local Supabase
+    unoptimized: env.NODE_ENV === 'development',
     qualities: [75, 90],
     remotePatterns: [
       ...(supabaseRemotePattern ? [supabaseRemotePattern] : []),
