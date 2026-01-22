@@ -63,7 +63,7 @@ export class ProductImageService {
       path,
       file: input.file,
       contentType: input.file.type,
-      upsert: false,
+      upsert: true, // Changed to true to allow re-uploading same file
     });
 
     const url = this.storageRepo.getPublicUrl({ bucket, path });

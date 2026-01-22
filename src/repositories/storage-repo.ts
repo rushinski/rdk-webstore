@@ -11,7 +11,7 @@ export class StorageRepository {
     contentType: string;
     upsert?: boolean;
   }) {
-    const { bucket, path, file, contentType, upsert = false } = params;
+    const { bucket, path, file, contentType, upsert = true } = params; // Changed default to true
 
     const { data, error } = await this.supabase.storage.from(bucket).upload(path, file, {
       contentType,

@@ -64,10 +64,10 @@ export class ContactAttachmentService {
       path,
       file: input.file,
       contentType: input.file.type,
-      upsert: false,
+      upsert: true, // Changed to true to allow re-uploading same file
     });
 
-    // Optional: store a “clickable link” for admin viewing (temporary)
+    // Optional: store a "clickable link" for admin viewing (temporary)
     // Choose an expiry that works for you; 7 days shown here.
     const signedUrl = await this.storageRepo.createSignedUrl({
       bucket,
