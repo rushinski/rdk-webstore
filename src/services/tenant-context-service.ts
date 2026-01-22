@@ -8,6 +8,11 @@ export type TenantContext = {
   userId: string;
 };
 
+export type TenantContextPartial = {
+  tenantId: string;
+  userId: string;
+};
+
 export class TenantContextService {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
@@ -23,13 +28,34 @@ export class TenantContextService {
       throw new Error("Tenant not found");
     }
 
-    if (!profile.stripe_account_id) {
+    // Get the Stripe account for the tenant (not just the user's profile)
+    const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(profile.tenant_id);
+
+    if (!stripeAccountId) {
       throw new Error("Stripe Connect account not configured");
     }
 
     return {
       tenantId: profile.tenant_id,
-      stripeAccountId: profile.stripe_account_id,
+      stripeAccountId,
+      userId,
+    };
+  }
+
+  /**
+   * Get tenant context for onboarding (no Stripe account required yet)
+   * Use this when creating/setting up the Stripe account
+   */
+  async getAdminContextForOnboarding(userId: string): Promise<TenantContextPartial> {
+    const profileRepo = new ProfileRepository(this.supabase);
+    const profile = await profileRepo.getByUserId(userId);
+
+    if (!profile?.tenant_id) {
+      throw new Error("Tenant not found");
+    }
+
+    return {
+      tenantId: profile.tenant_id,
       userId,
     };
   }

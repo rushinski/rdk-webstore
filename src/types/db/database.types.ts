@@ -142,13 +142,6 @@ export type Database = {
             foreignKeyName: "admin_notifications_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "admin_notifications_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -501,13 +494,6 @@ export type Database = {
             foreignKeyName: "chats_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "chats_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -718,13 +704,6 @@ export type Database = {
             foreignKeyName: "order_access_tokens_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "order_access_tokens_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -762,13 +741,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_events_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "order_events_order_id_fkey"
@@ -814,13 +786,6 @@ export type Database = {
           variant_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
-          },
           {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
@@ -885,13 +850,6 @@ export type Database = {
           state?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "order_shipping_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: true
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
-          },
           {
             foreignKeyName: "order_shipping_order_id_fkey"
             columns: ["order_id"]
@@ -1654,13 +1612,6 @@ export type Database = {
             foreignKeyName: "stripe_events_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
-            referencedRelation: "order_labels"
-            referencedColumns: ["order_id"]
-          },
-          {
-            foreignKeyName: "stripe_events_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1688,6 +1639,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tags_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_payment_settings: {
+        Row: {
+          created_at: string
+          express_checkout_methods: string[]
+          id: string
+          payment_method_types: string[]
+          tenant_id: string
+          updated_at: string
+          use_automatic_payment_methods: boolean
+        }
+        Insert: {
+          created_at?: string
+          express_checkout_methods?: string[]
+          id?: string
+          payment_method_types?: string[]
+          tenant_id: string
+          updated_at?: string
+          use_automatic_payment_methods?: boolean
+        }
+        Update: {
+          created_at?: string
+          express_checkout_methods?: string[]
+          id?: string
+          payment_method_types?: string[]
+          tenant_id?: string
+          updated_at?: string
+          use_automatic_payment_methods?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_payment_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1735,45 +1724,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tenant_tax_settings_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: true
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-
-      tenant_payment_settings: {
-        Row: {
-          created_at: string
-          express_checkout_methods: string[]
-          id: string
-          payment_method_types: string[]
-          tenant_id: string
-          updated_at: string
-          use_automatic_payment_methods: boolean
-        }
-        Insert: {
-          created_at?: string
-          express_checkout_methods?: string[]
-          id?: string
-          payment_method_types?: string[]
-          tenant_id: string
-          updated_at?: string
-          use_automatic_payment_methods?: boolean
-        }
-        Update: {
-          created_at?: string
-          express_checkout_methods?: string[]
-          id?: string
-          payment_method_types?: string[]
-          tenant_id?: string
-          updated_at?: string
-          use_automatic_payment_methods?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tenant_payment_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: true
             referencedRelation: "tenants"
@@ -1849,28 +1799,7 @@ export type Database = {
       }
     }
     Views: {
-      order_labels: {
-        Row: {
-          created_by_email: string | null
-          created_by_name: string | null
-          fulfillment_status: string | null
-          label_created_at: string | null
-          label_created_by: string | null
-          label_url: string | null
-          order_id: string | null
-          shipping_carrier: string | null
-          tracking_number: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orders_label_created_by_fkey"
-            columns: ["label_created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       decrement_variant_stock: {
