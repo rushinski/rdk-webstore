@@ -433,4 +433,38 @@ export class OrdersRepository {
 
     if (error) throw error;
   }
+
+  async getOrderWithTenant(orderId: string) {
+    const { data, error } = await this.supabase
+      .from("orders")
+      .select(`
+        *,
+        items:order_items(*),
+        tenant_id
+      `)
+      .eq("id", orderId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async updateRefundStatus(
+    orderId: string,
+    status: string,
+    refundAmount: number,
+    stripeRefundId?: string
+  ) {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({
+        status,
+        refund_amount: refundAmount,
+        stripe_refund_id: stripeRefundId ?? null,
+        refunded_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (error) throw error;
+  }
 }

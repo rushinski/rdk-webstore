@@ -1,638 +1,280 @@
-// app/admin/bank/page.tsx
+// app/admin/bank/page.tsx (UPDATED)
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowRight, Loader2, X } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { DollarSign, CreditCard, TrendingUp, Calendar, ExternalLink } from 'lucide-react';
 import { logError } from '@/lib/log';
-import { Toast } from '@/components/ui/Toast';
 import { StripeOnboardingModal } from '@/components/admin/stripe/StripeOnboardingModal';
+import { BankAccountManagementModal } from '@/components/admin/stripe/BankAccountManagementModal';
+import { PayoutsModal } from '@/components/admin/stripe/PayoutsModal';
+import { Toast } from '@/components/ui/Toast';
 
-type StripeAccount = {
-  id: string;
-  charges_enabled: boolean;
-  payouts_enabled: boolean;
-  details_submitted: boolean;
-  email: string | null;
+type AccountSummary = {
+  account: {
+    id: string;
+    charges_enabled: boolean;
+    payouts_enabled: boolean;
+    details_submitted: boolean;
+    email: string | null;
+  } | null;
+  balance: {
+    available: { amount: number; currency: string }[];
+    pending: { amount: number; currency: string }[];
+  } | null;
+  payout_schedule: {
+    interval: string;
+    weekly_anchor?: string;
+    monthly_anchor?: number;
+  } | null;
+  bank_accounts: Array<{
+    id: string;
+    bank_name: string | null;
+    last4: string | null;
+    currency: string | null;
+    status: string | null;
+    default_for_currency: boolean;
+    account_holder_name: string | null;
+  }>;
+  upcoming_payout: {
+    amount: number;
+    currency: string;
+    arrival_date: number | null;
+  } | null;
 };
-
-type StripeBalance = {
-  available: { amount: number; currency: string }[];
-  pending: { amount: number; currency: string }[];
-};
-
-type StripePayout = {
-  id: string;
-  amount: number;
-  currency: string;
-  arrival_date: number | null;
-  status: string;
-  created: number;
-};
-
-type PayoutSchedule = {
-  interval?: string | null;
-  weekly_anchor?: string | null;
-  monthly_anchor?: number | null;
-};
-
-function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100);
-}
-
-function formatDate(timestamp?: number | null) {
-  if (!timestamp) return '-';
-  return new Date(timestamp * 1000).toLocaleDateString();
-}
-
-function getNextPayoutEstimate(schedule: PayoutSchedule | null): string {
-  const interval = schedule?.interval ?? null;
-  if (!interval || interval === 'manual') return 'Manual payouts only';
-
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-  if (interval === 'daily') {
-    const next = new Date(startOfToday);
-    next.setDate(next.getDate() + 1);
-    return next.toLocaleDateString();
-  }
-
-  if (interval === 'weekly') {
-    const anchor = (schedule?.weekly_anchor ?? 'monday').toLowerCase();
-    const order = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const targetIdx = order.indexOf(anchor);
-    const todayIdx = startOfToday.getDay();
-    let delta = targetIdx - todayIdx;
-    if (delta <= 0) delta += 7;
-    const next = new Date(startOfToday);
-    next.setDate(next.getDate() + delta);
-    return next.toLocaleDateString();
-  }
-
-  if (interval === 'monthly') {
-    const anchorDay = schedule?.monthly_anchor ?? 1;
-    const y = startOfToday.getFullYear();
-    const m = startOfToday.getMonth();
-    const d = startOfToday.getDate();
-    const daysInMonth = new Date(y, m + 1, 0).getDate();
-    const thisMonthDay = Math.min(anchorDay, daysInMonth);
-    let next = new Date(y, m, thisMonthDay);
-    if (d >= thisMonthDay) {
-      const daysInNextMonth = new Date(y, m + 2, 0).getDate();
-      const nextMonthDay = Math.min(anchorDay, daysInNextMonth);
-      next = new Date(y, m + 1, nextMonthDay);
-    }
-    return next.toLocaleDateString();
-  }
-
-  return '-';
-}
-
-function normalizeMoneyInput(value: string) {
-  // Keep digits + single dot. No negative.
-  const cleaned = value.replace(/[^\d.]/g, '');
-  const parts = cleaned.split('.');
-  if (parts.length <= 1) return cleaned;
-  return `${parts[0]}.${parts.slice(1).join('')}`; // collapse extra dots
-}
-
-function dollarsToCentsSafe(value: string) {
-  const normalized = normalizeMoneyInput(value).trim();
-  if (!normalized) return null;
-
-  const num = Number(normalized);
-  if (!Number.isFinite(num) || num <= 0) return null;
-
-  const cents = Math.round(num * 100);
-  if (!Number.isInteger(cents) || cents <= 0) return null;
-
-  return cents;
-}
 
 export default function BankPage() {
+  const [summary, setSummary] = useState<AccountSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [account, setAccount] = useState<StripeAccount | null>(null);
-  const [balance, setBalance] = useState<StripeBalance | null>(null);
-  const [payoutSchedule, setPayoutSchedule] = useState<PayoutSchedule | null>(null);
-  const [upcomingPayouts, setUpcomingPayouts] = useState<StripePayout[]>([]);
-  const [payoutsScope, setPayoutsScope] = useState<"upcoming" | "recent">("upcoming");
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [showPayoutsModal, setShowPayoutsModal] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Manual payout modal state
-  const [manualPayoutOpen, setManualPayoutOpen] = useState(false);
-  const [isCreatingPayout, setIsCreatingPayout] = useState(false);
-  const [payoutAmount, setPayoutAmount] = useState<string>(''); // dollars input
-  const [payoutMethod, setPayoutMethod] = useState<'standard' | 'instant'>('standard');
+  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
 
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+  useEffect(() => {
+    loadSummary();
+  }, [refreshKey]);
 
-  const fetchAccountStatus = async () => {
+  const loadSummary = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/stripe/account', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Failed to fetch account status');
+      const response = await fetch('/api/admin/stripe/account');
       const data = await response.json();
-
-      setAccount(data.account ?? null);
-      setBalance(data.balance ?? null);
-      setPayoutSchedule(data.payout_schedule ?? null);
-      setErrorMessage('');
+      setSummary(data);
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'fetch_stripe_account_status' });
-      setErrorMessage('Could not load banking information.');
+      logError(error, { layer: 'frontend', event: 'bank_load_summary' });
+      setToast({ message: 'Failed to load account details', tone: 'error' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchUpcomingPayouts = async () => {
-    try {
-      const response = await fetch('/api/admin/stripe/payouts?limit=3', { cache: 'no-store' });
-      if (!response.ok) return;
-      const data = await response.json();
-      const payouts = data.payouts ?? [];
-      const pending = payouts.filter(
-        (p: StripePayout) => p.status === 'pending' || p.status === 'in_transit'
-      );
-      if (pending.length > 0) {
-        setUpcomingPayouts(pending.slice(0, 3));
-        setPayoutsScope('upcoming');
-      } else {
-        setUpcomingPayouts(payouts.slice(0, 3));
-        setPayoutsScope('recent');
-      }
-    } catch (error) {
-      logError(error, { layer: 'frontend', event: 'fetch_upcoming_payouts' });
-    }
+  const refresh = async () => {
+    setRefreshKey((prev) => prev + 1);
   };
 
-  useEffect(() => {
-    fetchAccountStatus();
-    fetchUpcomingPayouts();
-  }, []);
-
-  const isSetupComplete = !!account?.details_submitted && !!account?.payouts_enabled;
-  const manualMode = payoutSchedule?.interval === 'manual';
-
-  const availableBalance = balance?.available?.[0];
-  const pendingBalance = balance?.pending?.[0];
-
-  const availableCurrency = useMemo(() => {
-    return (availableBalance?.currency ?? 'usd').toLowerCase();
-  }, [availableBalance?.currency]);
-
-  const availableCents = useMemo(() => {
-    const amt = availableBalance?.amount;
-    return typeof amt === 'number' && Number.isFinite(amt) && amt >= 0 ? amt : 0;
-  }, [availableBalance?.amount]);
-
-  const nextPayoutDate = getNextPayoutEstimate(payoutSchedule);
-
-  const payoutCents = useMemo(() => dollarsToCentsSafe(payoutAmount), [payoutAmount]);
-  const exceedsAvailable = (payoutCents ?? 0) > availableCents;
-
-  const closeManualPayout = () => {
-    setManualPayoutOpen(false);
-    setIsCreatingPayout(false);
-    setPayoutAmount('');
-    setPayoutMethod('standard');
+  const handleOnboardingComplete = async () => {
+    await refresh();
+    setToast({ message: 'Verification completed', tone: 'success' });
   };
 
-  const createManualPayout = async () => {
-    if (!manualMode) {
-      setToast({ message: 'Manual payouts are only available when payout mode is set to Manual.', tone: 'error' });
-      return;
-    }
+  const handleBankUpdated = async () => {
+    await refresh();
+    setToast({ message: 'Bank accounts updated', tone: 'success' });
+  };
 
-    if (!account?.payouts_enabled) {
-      setToast({ message: 'Payouts are not enabled yet. Complete setup first.', tone: 'error' });
-      return;
-    }
+  const hasAccount = Boolean(summary?.account?.id);
+  const needsOnboarding = hasAccount && !summary?.account?.details_submitted;
+  const payoutsEnabled = summary?.account?.payouts_enabled ?? false;
+  const defaultBank = summary?.bank_accounts?.find((b) => b.default_for_currency) ?? summary?.bank_accounts?.[0];
 
-    if (availableCents <= 0) {
-      setToast({ message: 'No available balance to payout.', tone: 'error' });
-      return;
-    }
+  const availableBalance = summary?.balance?.available?.find((b) => b.currency === 'usd')?.amount ?? 0;
+  const pendingBalance = summary?.balance?.pending?.find((b) => b.currency === 'usd')?.amount ?? 0;
+  const upcomingPayout = summary?.upcoming_payout;
 
-    if (payoutCents == null) {
-      setToast({ message: 'Enter a valid payout amount.', tone: 'error' });
-      return;
-    }
+  const formatAmount = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  
+  const formatDate = (timestamp: number | null) => {
+    if (!timestamp) return 'TBD';
+    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
 
-    if (payoutCents > availableCents) {
-      setToast({ message: 'Amount exceeds your available balance.', tone: 'error' });
-      return;
-    }
-
-    setIsCreatingPayout(true);
-    try {
-      const res = await fetch('/api/admin/stripe/payout-create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: payoutCents,
-          currency: availableCurrency,
-          method: payoutMethod,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? 'Failed to create payout');
-
-      setToast({ message: 'Payout created.', tone: 'success' });
-      closeManualPayout();
-      await fetchAccountStatus();
-      await fetchUpcomingPayouts();
-    } catch (err: any) {
-      logError(err, { layer: 'frontend', event: 'create_manual_payout' });
-      setToast({ message: err?.message ?? 'Failed to create payout.', tone: 'error' });
-      setIsCreatingPayout(false);
-    }
+  const getScheduleText = () => {
+    if (!summary?.payout_schedule) return 'Not configured';
+    const { interval, weekly_anchor, monthly_anchor } = summary.payout_schedule;
+    if (interval === 'daily') return 'Daily';
+    if (interval === 'weekly') return `Weekly on ${weekly_anchor ?? 'Monday'}`;
+    if (interval === 'monthly') return `Monthly on day ${monthly_anchor ?? 1}`;
+    return interval;
   };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Bank</h1>
-          <p className="text-zinc-400 text-sm">Manage your payouts and transfers</p>
-        </div>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-red-500" />
-          <span className="ml-3 text-zinc-400 text-sm">Loading account details...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <div className="space-y-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Bank</h1>
-          <p className="text-zinc-400 text-sm">Manage your payouts and transfers</p>
-        </div>
-        <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-6">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
-            <p className="text-red-400 text-sm">{errorMessage}</p>
-          </div>
-        </div>
+        <div className="text-center py-12 text-gray-400">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <StripeOnboardingModal
-        open={onboardingOpen}
-        onClose={() => setOnboardingOpen(false)}
-        publishableKey={publishableKey}
-        onCompleted={() => {
-          fetchAccountStatus();
-          fetchUpcomingPayouts();
-        }}
-      />
-
-      {/* Manual payout modal */}
-      {manualPayoutOpen && (
-        <div className="fixed inset-0 z-[9999]">
-          <div className="absolute inset-0 bg-black/80" onClick={closeManualPayout} aria-hidden="true" />
-          <div className="absolute inset-0 flex items-center justify-center p-4">
-            <div className="w-full max-w-2xl max-h-[92vh] bg-zinc-950 border border-zinc-800 rounded-sm shadow-xl flex flex-col">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-                <div>
-                  <h2 className="text-xl font-semibold text-white">Create manual payout</h2>
-                  <p className="text-sm text-zinc-400 mt-1">
-                    Send funds from your available balance to your linked bank account.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeManualPayout}
-                  className="p-2 border border-zinc-800 hover:border-zinc-600 rounded-sm"
-                  aria-label="Close"
-                >
-                  <X className="w-4 h-4 text-zinc-300" />
-                </button>
-              </div>
-
-              <div className="px-6 py-6 overflow-y-auto">
-                {!manualMode ? (
-                  <div className="rounded-sm bg-zinc-900 border border-red-900/70 p-4">
-                    <p className="text-sm text-red-400">
-                      Manual payouts are only available when your payout mode is set to <strong>Manual</strong> in Transfer Settings.
-                    </p>
-                    <div className="mt-3">
-                      <Link href="/admin/settings/transfers" className="text-sm text-red-500 hover:text-red-400">
-                        Go to Transfer Settings
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* Top context / availability */}
-                    <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-xs text-zinc-400 uppercase tracking-wider">Available to payout</p>
-                          <p className="text-2xl font-bold text-white mt-1">
-                            {availableBalance
-                              ? formatCurrency(availableBalance.amount, availableBalance.currency)
-                              : formatCurrency(0, availableCurrency)}
-                          </p>
-                          <p className="text-xs text-zinc-500 mt-2">
-                            You can't payout more than your available balance.
-                          </p>
-                        </div>
-                        {!account?.payouts_enabled && (
-                          <span className="px-2 py-1 text-xs rounded-sm bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
-                            Setup required
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Form */}
-                    <div className="mt-5 grid grid-cols-1 gap-4">
-                      <div>
-                        <label className="block text-sm text-zinc-300 mb-2">
-                          Amount ({availableCurrency.toUpperCase()})
-                        </label>
-                        <input
-                          value={payoutAmount}
-                          onChange={(e) => setPayoutAmount(normalizeMoneyInput(e.target.value))}
-                          inputMode="decimal"
-                          placeholder="e.g. 25.00"
-                          className="w-full bg-zinc-950 text-white px-4 py-2.5 border border-zinc-800/70 rounded-sm focus:outline-none focus:border-zinc-700"
-                        />
-                        {exceedsAvailable ? (
-                          <p className="text-xs text-red-400 mt-2">
-                            Amount exceeds available balance.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-zinc-600 mt-2">
-                            Enter a value up to{' '}
-                            {availableBalance
-                              ? formatCurrency(availableBalance.amount, availableBalance.currency)
-                              : formatCurrency(0, availableCurrency)}
-                            .
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-zinc-300 mb-2">Method</label>
-                        <select
-                          value={payoutMethod}
-                          onChange={(e) => setPayoutMethod(e.target.value === 'instant' ? 'instant' : 'standard')}
-                          className="w-full bg-zinc-950 text-white px-4 py-2.5 border border-zinc-800/70 rounded-sm focus:outline-none focus:border-zinc-700"
-                        >
-                          <option value="standard">Standard (2-3 business days)</option>
-                          <option value="instant">Instant (if eligible)</option>
-                        </select>
-
-                        {/* Fees disclaimer placed directly under the method */}
-                        <div className="mt-2 rounded-sm bg-zinc-950 border border-zinc-800/70 p-3">
-                          <p className="text-xs text-zinc-500">
-                            <strong className="text-zinc-400">Fees & timing:</strong> Standard payouts usually arrive in 2-3
-                            business days and are typically free. Instant payouts (if available) generally arrive within ~30 minutes
-                            but may include additional Stripe fees. Eligibility and timing can vary by account and bank.
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Action */}
-                      <div className="flex items-center justify-end gap-3 pt-2">
-                        <button
-                          type="button"
-                          onClick={closeManualPayout}
-                          className="px-4 py-2 border border-zinc-800/70 text-sm text-zinc-300 hover:border-zinc-700"
-                          disabled={isCreatingPayout}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={createManualPayout}
-                          disabled={
-                            isCreatingPayout ||
-                            !account?.payouts_enabled ||
-                            availableCents <= 0 ||
-                            payoutCents == null ||
-                            payoutCents <= 0 ||
-                            payoutCents > availableCents
-                          }
-                          className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white text-sm hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {isCreatingPayout ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Creating...
-                            </>
-                          ) : (
-                            'Create payout'
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Bottom note (reinforces fees + bank variance) */}
-                      <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-3">
-                        <p className="text-xs text-zinc-500">
-                          <strong className="text-zinc-400">Note:</strong> Some banks may post funds later than Stripe's estimate.
-                          If instant payouts aren't eligible, Stripe may reject the payout and you can retry using Standard.
-                        </p>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-1">Bank</h1>
-          <p className="text-zinc-400 text-sm">Manage your payouts and transfers</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Bank</h1>
+          <p className="text-gray-400">Manage payouts and bank accounts</p>
         </div>
-        {!isSetupComplete && (
-          <button
-            type="button"
-            onClick={() => setOnboardingOpen(true)}
-            className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500"
-          >
-            {!account ? 'Setup payouts' : 'Continue setup'}
-          </button>
-        )}
-      </div>
 
-      {/* Setup Warning */}
-      {!isSetupComplete && (
-        <div className="rounded-sm bg-yellow-900/20 border border-yellow-500/30 p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="text-yellow-200 text-sm font-medium">Setup Required</p>
-              <p className="text-yellow-200/80 text-sm mt-1">
-                Complete your Stripe verification to enable payouts.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Current Balance */}
-      <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <h2 className="text-lg font-semibold text-white">Current Balance</h2>
-
-          {/* Manual payout button (top-right of Current Balance) */}
-          {manualMode ? (
+        <div className="flex flex-wrap gap-3">
+          {needsOnboarding ? (
             <button
               type="button"
-              onClick={() => setManualPayoutOpen(true)}
-              disabled={!account?.payouts_enabled || availableCents <= 0}
-              className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                !account?.payouts_enabled
-                  ? 'Payouts are not enabled yet'
-                  : availableCents <= 0
-                    ? 'No available balance to payout'
-                    : 'Create a manual payout'
-              }
+              onClick={() => setShowOnboarding(true)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-sm text-sm transition"
             >
-              Create manual payout
+              Complete verification
+            </button>
+          ) : payoutsEnabled ? (
+            <button
+              type="button"
+              onClick={() => setShowBankModal(true)}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-sm text-sm border border-zinc-800/70 transition"
+            >
+              Manage bank accounts
             </button>
           ) : null}
+
+          {!hasAccount && (
+            <button
+              type="button"
+              onClick={() => setShowOnboarding(true)}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-sm text-sm transition"
+            >
+              Enable payouts
+            </button>
+          )}
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider mb-1">Available</p>
-            <p className="text-3xl font-bold text-white">
-              {availableBalance ? formatCurrency(availableBalance.amount, availableBalance.currency) : '$0.00'}
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">Ready to payout</p>
-          </div>
-          <div>
-            <p className="text-xs text-zinc-400 uppercase tracking-wider mb-1">Pending</p>
-            <p className="text-3xl font-bold text-white">
-              {pendingBalance ? formatCurrency(pendingBalance.amount, pendingBalance.currency) : '$0.00'}
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">Processing</p>
-          </div>
-        </div>
-
-        {/* Small inline hint under balances when manual is enabled */}
-        {manualMode ? (
-          <div className="mt-4 rounded-sm bg-zinc-950 border border-zinc-800/70 p-3">
-            <p className="text-xs text-zinc-500">
-              <strong className="text-zinc-400">Manual mode:</strong> You control when payouts are sent.
-              Use "Create manual payout" to send funds to your bank.
-            </p>
-          </div>
-        ) : null}
-      </section>
-
-      {/* Upcoming Transfers */}
-      <section className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white">
-              {payoutsScope === 'recent' ? 'Recent Transfers' : 'Upcoming Transfers'}
-            </h2>
-            <p className="text-sm text-zinc-400 mt-1">
-              {manualMode
-                ? 'Manual payouts only'
-                : payoutsScope === 'recent'
-                  ? 'Latest payout activity from Stripe'
-                  : `Next automatic payout: ${nextPayoutDate}`}
-            </p>
-          </div>
-          <Link
-            href="/admin/bank/transfers"
-            className="inline-flex items-center gap-2 text-sm text-zinc-300 hover:text-white"
-          >
-            View all
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {upcomingPayouts.length > 0 ? (
-          <div className="space-y-3">
-            {upcomingPayouts.map((payout) => (
-              <div
-                key={payout.id}
-                className="flex items-center justify-between p-4 rounded-sm bg-zinc-950 border border-zinc-800/70"
-              >
-                <div>
-                  <p className="text-white font-medium">{formatCurrency(payout.amount, payout.currency)}</p>
-                  <p className="text-xs text-zinc-500 mt-1">Arriving {formatDate(payout.arrival_date)}</p>
-                </div>
-                <span className="px-2 py-1 text-xs rounded-sm bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
-                  {payout.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-zinc-500 text-sm">No transfers yet</p>
-            <p className="text-zinc-600 text-xs mt-1">
-              {manualMode
-                ? 'Create a manual payout from your available balance.'
-                : 'Transfers will appear here when scheduled'}
-            </p>
-          </div>
-        )}
-      </section>
-
-      {/* Quick Links */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Link
-          href="/admin/settings/transfers"
-          className="block rounded-sm bg-zinc-900 border border-zinc-800/70 p-6 hover:border-zinc-700 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-white mb-2">Transfer Settings</h3>
-          <p className="text-sm text-zinc-400 mb-4">
-            Configure automatic or manual payouts, set frequency, and manage your bank account
-          </p>
-          <div className="inline-flex items-center gap-2 text-sm text-red-500">
-            Manage settings
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-
-        <Link
-          href="/admin/bank/transfers"
-          className="block rounded-sm bg-zinc-900 border border-zinc-800/70 p-6 hover:border-zinc-700 transition-colors"
-        >
-          <h3 className="text-lg font-semibold text-white mb-2">View All Transfers</h3>
-          <p className="text-sm text-zinc-400 mb-4">See complete history of all payouts and transfer details</p>
-          <div className="inline-flex items-center gap-2 text-sm text-red-500">
-            View history
-            <ArrowRight className="w-4 h-4" />
-          </div>
-        </Link>
-      </section>
-
-      {/* Global fees disclaimer */}
-      <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-4">
-        <p className="text-xs text-zinc-500">
-          <strong className="text-zinc-400">Note:</strong> Standard payouts typically arrive in 2-3 business days and are
-          usually free. Instant payouts (if available) generally arrive within ~30 minutes but may include additional fees
-          charged by Stripe. Actual timing and eligibility can vary by account and bank.
-        </p>
       </div>
+
+      {/* Status Alert */}
+      {needsOnboarding && (
+        <div className="bg-yellow-950/20 border border-yellow-900/70 rounded p-4">
+          <p className="text-sm text-yellow-400">
+            Complete verification to enable automatic payouts to your bank account.
+          </p>
+        </div>
+      )}
+
+      {!payoutsEnabled && hasAccount && !needsOnboarding && (
+        <div className="bg-yellow-950/20 border border-yellow-900/70 rounded p-4">
+          <p className="text-sm text-yellow-400">
+            Payouts are currently disabled. Please contact support or complete additional verification.
+          </p>
+        </div>
+      )}
+
+      {/* Balance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <DollarSign className="w-5 h-5 text-green-400" />
+            <span className="text-gray-400 text-sm">Available Balance</span>
+          </div>
+          <div className="text-3xl font-bold text-white">{formatAmount(availableBalance)}</div>
+          <p className="text-xs text-gray-500 mt-2">Ready for payout</p>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <TrendingUp className="w-5 h-5 text-blue-400" />
+            <span className="text-gray-400 text-sm">Pending Balance</span>
+          </div>
+          <div className="text-3xl font-bold text-white">{formatAmount(pendingBalance)}</div>
+          <p className="text-xs text-gray-500 mt-2">Processing</p>
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <Calendar className="w-5 h-5 text-purple-400" />
+            <span className="text-gray-400 text-sm">Upcoming Payout</span>
+          </div>
+          {upcomingPayout ? (
+            <>
+              <div className="text-3xl font-bold text-white">{formatAmount(upcomingPayout.amount)}</div>
+              <p className="text-xs text-gray-500 mt-2">{formatDate(upcomingPayout.arrival_date)}</p>
+            </>
+          ) : (
+            <>
+              <div className="text-3xl font-bold text-gray-600">$0.00</div>
+              <p className="text-xs text-gray-500 mt-2">No upcoming payout</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Payout Schedule */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-white">Payout Schedule</h2>
+          <button
+            type="button"
+            onClick={() => setShowPayoutsModal(true)}
+            className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-1"
+          >
+            View all payouts
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-gray-400" />
+          <span className="text-gray-300">{getScheduleText()}</span>
+        </div>
+      </div>
+
+      {/* Bank Account */}
+      {defaultBank && (
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Default Payout Account</h2>
+          <div className="flex items-center gap-4">
+            <CreditCard className="w-5 h-5 text-gray-400" />
+            <div>
+              <div className="text-white font-medium">
+                {defaultBank.bank_name ?? 'Bank Account'} ••••{defaultBank.last4}
+              </div>
+              {defaultBank.account_holder_name && (
+                <div className="text-sm text-gray-400">{defaultBank.account_holder_name}</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modals */}
+      <StripeOnboardingModal
+        open={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        publishableKey={STRIPE_PUBLISHABLE_KEY}
+        onCompleted={handleOnboardingComplete}
+      />
+
+      <BankAccountManagementModal
+        open={showBankModal}
+        onClose={() => setShowBankModal(false)}
+        publishableKey={STRIPE_PUBLISHABLE_KEY}
+        onUpdated={handleBankUpdated}
+      />
+
+      {/* Payouts Modal */}
+      <PayoutsModal 
+        open={showPayoutsModal} 
+        onClose={() => setShowPayoutsModal(false)} 
+      />
 
       <Toast
         open={Boolean(toast)}
