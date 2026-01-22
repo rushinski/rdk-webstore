@@ -1,4 +1,4 @@
-// app/api/admin/orders/[orderId]/refund/route.ts (DEBUG VERSION - FIXED)
+// app/api/admin/orders/[orderId]/refund/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -18,7 +18,7 @@ function toExpandedCharge(
   latestCharge: Stripe.PaymentIntent["latest_charge"]
 ): Stripe.Charge | null {
   if (!latestCharge) return null;
-  if (typeof latestCharge === "string") return null; // not expanded
+  if (typeof latestCharge === "string") return null;
   return latestCharge;
 }
 
@@ -66,23 +66,19 @@ export async function POST(
       );
     }
 
-    const stripeAccountId = await profilesRepo.getStripeAccountIdForTenant(
-      tenantId
-    );
+    const stripeAccountId = await profilesRepo.getStripeAccountIdForTenant(tenantId);
 
     log({
       level: "info",
       layer: "api",
-      message: "DEBUG: Starting refund process",
+      message: "refund_initiated",
       orderId,
       tenantId,
       stripeAccountId: stripeAccountId ?? "not_configured",
       paymentIntentId: order.stripe_payment_intent_id,
     });
 
-    // ========================================
-    // STEP 1: Retrieve payment intent
-    // ========================================
+    // Retrieve payment intent with expanded charge and transfer data
     let paymentIntent: Stripe.PaymentIntent;
     let retrievedOnAccount: "platform" | "connect" = "platform";
 
@@ -91,62 +87,20 @@ export async function POST(
         order.stripe_payment_intent_id,
         { expand: ["latest_charge", "latest_charge.transfer"] }
       );
-
       retrievedOnAccount = "platform";
-
-      log({
-        level: "info",
-        layer: "api",
-        message: "DEBUG: Payment intent found on PLATFORM account",
-        orderId,
-        paymentIntentId: paymentIntent.id,
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency,
-        paymentIntentStatus: paymentIntent.status,
-        hasLatestCharge: !!paymentIntent.latest_charge,
-        latestChargeId:
-          typeof paymentIntent.latest_charge === "string"
-            ? paymentIntent.latest_charge
-            : paymentIntent.latest_charge?.id ?? null,
-        hasTransferData: !!paymentIntent.transfer_data,
-        transferDestination: paymentIntent.transfer_data?.destination ?? null,
-        onBehalfOf: paymentIntent.on_behalf_of ?? null,
-        application: paymentIntent.application ?? null,
-      });
     } catch (platformError: any) {
-      log({
-        level: "warn",
-        layer: "api",
-        message: "DEBUG: Payment intent NOT found on platform account",
-        orderId,
-        error: platformError.message,
-      });
-
       if (stripeAccountId) {
         try {
           paymentIntent = await stripe.paymentIntents.retrieve(
             order.stripe_payment_intent_id,
             { expand: ["latest_charge", "latest_charge.transfer"] },
-            { stripeAccount: stripeAccountId } // ✅ correct placement (3rd arg)
+            { stripeAccount: stripeAccountId }
           );
-
           retrievedOnAccount = "connect";
-
-          log({
-            level: "info",
-            layer: "api",
-            message: "DEBUG: Payment intent found on CONNECT account",
-            orderId,
-            stripeAccountId,
-            paymentIntentId: paymentIntent.id,
-            amount: paymentIntent.amount,
-            paymentIntentStatus: paymentIntent.status,
-          });
         } catch (connectError: any) {
-          log({
-            level: "error",
+          logError(new Error("Payment intent not found on either account"), {
             layer: "api",
-            message: "DEBUG: Payment intent not found on EITHER account",
+            requestId,
             orderId,
             platformError: platformError.message,
             connectError: connectError.message,
@@ -154,11 +108,7 @@ export async function POST(
 
           return NextResponse.json(
             {
-              error: "Payment intent not found on platform or Connect account",
-              details: {
-                platformError: platformError.message,
-                connectError: connectError.message,
-              },
+              error: "Payment intent not found",
               requestId,
             },
             { status: 400, headers: { "Cache-Control": "no-store" } }
@@ -169,12 +119,8 @@ export async function POST(
       }
     }
 
-    // ========================================
-    // STEP 1.5: Ensure we have a Charge (fallback to charges.list)
-    // ========================================
-    let charge: Stripe.Charge | null = toExpandedCharge(
-      paymentIntent.latest_charge
-    );
+    // Get charge (fallback to charges.list if not expanded)
+    let charge: Stripe.Charge | null = toExpandedCharge(paymentIntent.latest_charge);
 
     if (!charge) {
       const chargesResp = await stripe.charges.list(
@@ -187,194 +133,58 @@ export async function POST(
           ? { stripeAccount: stripeAccountId }
           : undefined
       );
-
       charge = chargesResp.data[0] ?? null;
-
-      log({
-        level: "info",
-        layer: "api",
-        message: "DEBUG: Loaded charge via charges.list fallback",
-        orderId,
-        retrievedOnAccount,
-        foundCharge: !!charge,
-        chargeId: charge?.id ?? null,
-      });
     }
 
-    // Optional charge-level debug (no destination usage)
-    if (charge) {
-      let transferDetails: null | {
-        id: string;
-        amount: number;
-        destination: Stripe.Transfer["destination"];
-        reversed: boolean;
-        reversals: number;
-      } = null;
-
-      if (charge.transfer) {
-        try {
-          const transfer =
-            typeof charge.transfer === "string"
-              ? await stripe.transfers.retrieve(charge.transfer)
-              : charge.transfer;
-
-          transferDetails = {
-            id: transfer.id,
-            amount: transfer.amount,
-            destination: transfer.destination,
-            reversed: transfer.reversed,
-            reversals: transfer.reversals?.data?.length ?? 0,
-          };
-        } catch (transferError: any) {
-          log({
-            level: "warn",
-            layer: "api",
-            message: "DEBUG: Could not fetch transfer details",
-            orderId,
-            transferId: charge.transfer,
-            error: transferError.message,
-          });
-        }
-      }
-
-      log({
-        level: "info",
-        layer: "api",
-        message: "DEBUG: Charge details",
-        orderId,
-        chargeId: charge.id,
-        chargeAmount: charge.amount,
-        chargeStatus: charge.status,
-        paid: charge.paid,
-        refunded: charge.refunded,
-        amountRefunded: charge.amount_refunded,
-        hasTransfer: !!charge.transfer,
-        transferId: charge.transfer ?? null,
-        transferDetails,
-        hasApplicationFee: !!charge.application_fee,
-        applicationFeeAmount: charge.application_fee_amount ?? null,
-      });
-    }
-
-    // ========================================
-    // STEP 2: Determine refund strategy (NO charge.destination)
-    // ========================================
-    // Stripe TS typings may not include `charge.destination`, so we infer using PI fields:
-    // - Destination charge: on_behalf_of is typically set
-    // - Separate charges & transfers: transfer_data.destination is set
+    // Determine payment structure and refund strategy
     const isDestinationCharge = !!paymentIntent.on_behalf_of;
     const isSeparateCharge = !!paymentIntent.transfer_data?.destination;
-    const isDirectCharge = !isDestinationCharge && !isSeparateCharge;
-
-    log({
-      level: "info",
-      layer: "api",
-      message: "DEBUG: Payment structure analysis",
-      orderId,
-      isDirectCharge,
-      isDestinationCharge,
-      isSeparateCharge,
-      hasOnBehalfOf: !!paymentIntent.on_behalf_of,
-      hasTransferDataDestination: !!paymentIntent.transfer_data?.destination,
-    });
-
-    // ========================================
-    // STEP 3: Create refund based on payment type
-    // ========================================
-    let refund: Stripe.Refund;
-
     const hasActualTransfer = !!charge?.transfer;
 
-    // If you configured transfer_data but no transfer exists, reverse_transfer will fail
+    // Validate transfer exists if configured
     if (!hasActualTransfer && paymentIntent.transfer_data) {
-      log({
-        level: "error",
-        layer: "api",
-        message:
-          "DEBUG: Transfer was configured but not created - cannot reverse transfer that doesn't exist",
-        orderId,
-        paymentIntentId: paymentIntent.id,
-        transferData: paymentIntent.transfer_data,
-        chargeExists: !!charge,
-        chargeTransfer: charge?.transfer ?? null,
-      });
+      logError(
+        new Error("Transfer configured but not created"),
+        {
+          layer: "api",
+          requestId,
+          orderId,
+          paymentIntentId: paymentIntent.id,
+        }
+      );
 
       return NextResponse.json(
         {
-          error:
-            "Cannot refund: Transfer to seller account was not completed. This order may need manual review.",
-          details: {
-            reason: "transfer_not_created",
-            suggestion:
-              "Check Stripe dashboard for transfer status or contact support",
-          },
+          error: "Cannot refund: Transfer to seller account was not completed",
           requestId,
         },
         { status: 400, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    if (isDestinationCharge) {
-      // For destination charges, refunding the PI is usually enough.
-      // (You can also refund by charge id, but we keep it consistent.)
-      log({
-        level: "info",
-        layer: "api",
-        message: "DEBUG: Using DESTINATION CHARGE refund strategy",
-        orderId,
-        paymentIntentId: paymentIntent.id,
-      });
+    // Create refund with appropriate strategy
+    let refund: Stripe.Refund;
 
+    if (isDestinationCharge) {
       refund = await stripe.refunds.create({
         payment_intent: paymentIntent.id,
         reason: "requested_by_customer",
       });
     } else if (isSeparateCharge && hasActualTransfer) {
-      log({
-        level: "info",
-        layer: "api",
-        message:
-          "DEBUG: Using SEPARATE CHARGE refund strategy with transfer reversal",
-        orderId,
-        paymentIntentId: paymentIntent.id,
-        transferId: charge?.transfer ?? null,
-      });
-
       refund = await stripe.refunds.create({
         payment_intent: paymentIntent.id,
         reason: "requested_by_customer",
         reverse_transfer: true,
       });
     } else {
-      log({
-        level: "warn",
-        layer: "api",
-        message:
-          "DEBUG: Using DIRECT CHARGE refund strategy (no transfer to reverse)",
-        orderId,
-      });
-
       refund = await stripe.refunds.create({
         payment_intent: paymentIntent.id,
         reason: "requested_by_customer",
       });
     }
 
-    log({
-      level: "info",
-      layer: "api",
-      message: "DEBUG: Refund created successfully",
-      orderId,
-      refundId: refund.id,
-      amount: refund.amount,
-      refundStatus: refund.status,
-      sourceTransferReversal: refund.source_transfer_reversal ?? null,
-    });
-
     if (refund.status === "failed") {
-      throw new Error(
-        `Stripe refund failed with reason: ${refund.failure_reason}`
-      );
+      throw new Error(`Stripe refund failed: ${refund.failure_reason}`);
     }
 
     await ordersRepo.markRefunded(orderId, refund.amount);
@@ -382,10 +192,11 @@ export async function POST(
     log({
       level: "info",
       layer: "api",
-      message: "Refund completed successfully",
+      message: "refund_completed",
       orderId,
       refundId: refund.id,
       amount: refund.amount,
+      reversedTransfer: isSeparateCharge && hasActualTransfer,
     });
 
     // Send refund confirmation email
@@ -412,7 +223,8 @@ export async function POST(
       logError(emailError, {
         layer: "api",
         requestId,
-        message: "Failed to send refund confirmation email",
+        message: "refund_email_failed",
+        orderId,
       });
     }
 
@@ -425,11 +237,11 @@ export async function POST(
       layer: "api",
       requestId,
       route: `/api/admin/orders/${orderId}/refund`,
-      message: "Failed to refund order",
+      message: "refund_failed",
     });
 
     const errorMessage =
-      error.raw?.message || error.message || "Failed to process refund.";
+      error.raw?.message || error.message || "Failed to process refund";
 
     return NextResponse.json(
       { error: errorMessage, requestId },
