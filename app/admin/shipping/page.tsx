@@ -126,6 +126,7 @@ export default function ShippingPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const [shippingDefaults, setShippingDefaults] = useState<
     Record<string, ShippingDefault>
   >({});
@@ -270,6 +271,10 @@ export default function ShippingPage() {
 
   const toggleItems = (orderId: string) => {
     setExpandedItems((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const toggleDetails = (orderId: string) => {
+    setExpandedDetails((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
   const getPackageProfile = (order: any) => {
@@ -469,13 +474,14 @@ export default function ShippingPage() {
     const placedAt = formatPlacedAt(order.created_at);
     const customerHandle = getCustomerHandle(order);
     const itemsExpanded = expandedItems[order.id] ?? false;
+    const detailsExpanded = expandedDetails[order.id] ?? false;
     const colSpan = 8; // FIX: table has 8 columns
     const labelUrl = order.label_url ?? null; // Add this field to your order model
 
     return (
       <Fragment key={order.id}>
         <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
-          <td className="p-4 text-gray-400">
+          <td className="p-3 sm:p-4 text-gray-400">
             {placedAt.date !== "-" ? (
               <div className="space-y-1">
                 <div>{placedAt.date}</div>
@@ -487,9 +493,11 @@ export default function ShippingPage() {
               "-"
             )}
           </td>
-          <td className="p-4 text-white">#{order.id.slice(0, 8)}</td>
-          <td className="p-4 text-gray-400">{customerHandle}</td>
-          <td className="p-4 text-gray-400 max-w-[320px] truncate">
+          <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
+          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
+            {customerHandle}
+          </td>
+          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400 max-w-[320px] truncate">
             {addressLine ? (
               addressLine
             ) : (
@@ -498,7 +506,7 @@ export default function ShippingPage() {
           </td>
 
           {/* SWAPPED: Tracking column now comes before Label */}
-          <td className="p-4 text-gray-400">
+          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
             {order.tracking_number ? (
               <div className="space-y-1">
                 {trackingUrl ? (
@@ -520,7 +528,7 @@ export default function ShippingPage() {
             )}
           </td>
 
-          <td className="p-4 text-gray-400">
+          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
             {labelUrl ? (
               <button
                 onClick={() => viewLabel(order)}
@@ -533,19 +541,29 @@ export default function ShippingPage() {
             )}
           </td>
 
-          <td className="p-4 text-right">
+          <td className="p-3 sm:p-4 text-left md:text-right">
             <button
               type="button"
               onClick={() => toggleItems(order.id)}
-              className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-2"
+              className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
             >
               {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${itemsExpanded ? "rotate-180" : ""}`}
               />
             </button>
+            <button
+              type="button"
+              onClick={() => toggleDetails(order.id)}
+              className="md:hidden w-full text-[12px] text-red-400 hover:text-red-300 inline-flex items-center justify-start gap-1 leading-none whitespace-nowrap"
+            >
+              {detailsExpanded ? "Hide details" : "View details"}
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${detailsExpanded ? "rotate-180" : ""}`}
+              />
+            </button>
           </td>
-          <td className="p-4 text-right">
+          <td className="p-3 sm:p-4 text-right">
             {activeTab === "label" ? (
               <button
                 type="button"
@@ -570,8 +588,8 @@ export default function ShippingPage() {
         </tr>
 
         {itemsExpanded && (
-          <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
-            <td colSpan={colSpan} className="px-4 pb-4 pt-2">
+          <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
+            <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 {(order.items ?? []).map((item: any) => {
                   const imageUrl = getPrimaryImage(item);
@@ -595,6 +613,92 @@ export default function ShippingPage() {
                     </div>
                   );
                 })}
+              </div>
+            </td>
+          </tr>
+        )}
+
+        {detailsExpanded && (
+          <tr className="md:hidden border-b border-zinc-800/70 bg-zinc-900/40">
+            <td colSpan={colSpan} className="px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500">Customer</span>
+                  <span className="text-white">{customerHandle}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500">Destination</span>
+                  <span className="text-white truncate">
+                    {addressLine ? addressLine : "Missing address"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500">Tracking</span>
+                  <span className="text-white">
+                    {order.tracking_number ? (
+                      trackingUrl ? (
+                        <a
+                          href={trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-red-400 hover:text-red-300 inline-flex items-center gap-1"
+                        >
+                          {order.tracking_number}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        order.tracking_number
+                      )
+                    ) : (
+                      <span className="text-zinc-500">No tracking yet</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500">Label</span>
+                  <span className="text-white">
+                    {labelUrl ? (
+                      <button
+                        onClick={() => viewLabel(order)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        Print label
+                      </button>
+                    ) : (
+                      <span className="text-zinc-500">No label yet</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 border-t border-zinc-800/70 pt-4">
+                <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">
+                  Items
+                </div>
+                <div className="space-y-2">
+                  {(order.items ?? []).map((item: any) => {
+                    const imageUrl = getPrimaryImage(item);
+                    const title =
+                      (item.product?.title_display ??
+                        `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
+                      "Item";
+                    return (
+                      <div key={item.id} className="flex items-center gap-3">
+                        <img
+                          src={imageUrl}
+                          alt={title}
+                          className="h-10 w-10 object-cover border border-zinc-800/70 bg-black"
+                        />
+                        <div className="min-w-0">
+                          <div className="text-white truncate">{title}</div>
+                          <div className="text-xs text-zinc-500">
+                            Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </td>
           </tr>
@@ -674,34 +778,35 @@ export default function ShippingPage() {
         </div>
       ) : (
         <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 overflow-x-auto overflow-y-visible">
-          <table className="w-full">
+          <table className="w-full text-[12px] sm:text-sm">
             <thead>
               <tr className="bg-zinc-800">
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Placed At
                 </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Order
                 </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Customer
                 </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Destination
                 </th>
 
                 {/* SWAPPED: Tracking header now before Label */}
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Tracking
                 </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-4">
+                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Label
                 </th>
 
-                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
-                  Items
+                <th className="sticky top-0 z-10 bg-zinc-800 text-left md:text-right text-gray-400 font-semibold p-3 sm:p-4">
+                  <span className="hidden md:inline">Items</span>
+                  <span className="md:hidden">Details</span>
                 </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-4">
+                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-3 sm:p-4">
                   Action
                 </th>
               </tr>

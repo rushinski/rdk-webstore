@@ -27,6 +27,7 @@ export default function SalesPage() {
   const [pendingRefundId, setPendingRefundId] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
 
   const PAGE_SIZE = 20;
@@ -195,6 +196,10 @@ export default function SalesPage() {
 
   const toggleOrderItems = (orderId: string) => {
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const toggleOrderDetails = (orderId: string) => {
+    setExpandedDetails((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
   const cancelRefundMode = () => {
@@ -366,22 +371,33 @@ export default function SalesPage() {
         {isLoading ? (
           <div className="text-center py-12 text-gray-400">Loading...</div>
         ) : (
-          <table className="w-full">
+          <table className="w-full text-[12px] sm:text-sm">
             <thead>
               <tr className="border-b border-zinc-800/70 bg-zinc-800">
                 {isRefundMode && (
-                  <th className="text-left text-gray-400 font-semibold p-4">
+                  <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
                     <span className="sr-only">Select</span>
                   </th>
                 )}
-                <th className="text-left text-gray-400 font-semibold p-4">Placed At</th>
-                <th className="text-left text-gray-400 font-semibold p-4">Order</th>
-                <th className="text-left text-gray-400 font-semibold p-4">Customer</th>
-                <th className="text-left text-gray-400 font-semibold p-4">Email</th>
-                <th className="text-left text-gray-400 font-semibold p-4">Fulfillment</th>
-                <th className="text-right text-gray-400 font-semibold p-4">Amount</th>
-                <th className="text-right text-gray-400 font-semibold p-4">Profit</th>
-                <th className="text-right text-gray-400 font-semibold p-4">Items</th>
+                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Placed At</th>
+                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Order</th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Customer
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Email
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Fulfillment
+                </th>
+                <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">Amount</th>
+                <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">
+                  Profit
+                </th>
+                <th className="text-left md:text-right text-gray-400 font-semibold p-3 sm:p-4">
+                  <span className="hidden md:inline">Items</span>
+                  <span className="md:hidden">Details</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -399,13 +415,14 @@ export default function SalesPage() {
                 const customerEmail = getCustomerEmail(order);
                 const fulfillmentLabel = order.fulfillment === 'pickup' ? 'Pickup' : 'Ship';
                 const itemsExpanded = expandedOrders[order.id] ?? false;
+                const detailsExpanded = expandedDetails[order.id] ?? false;
                 const colSpan = isRefundMode ? 9 : 8;
 
                 return (
                   <Fragment key={order.id}>
                     <tr className="border-b border-zinc-800/70 hover:bg-zinc-800">
                       {isRefundMode && (
-                        <td className="p-4">
+                        <td className="p-3 sm:p-4">
                           <input
                             type="checkbox"
                             name="refundOrder"
@@ -419,7 +436,7 @@ export default function SalesPage() {
                           />
                         </td>
                       )}
-                      <td className="p-4 text-gray-400">
+                      <td className="p-3 sm:p-4 text-gray-400">
                         {createdAt ? (
                           <div className="space-y-1">
                             <div>{createdAt.toLocaleDateString()}</div>
@@ -431,26 +448,36 @@ export default function SalesPage() {
                           '-'
                         )}
                       </td>
-                      <td className="p-4 text-white">#{order.id.slice(0, 8)}</td>
-                      <td className="p-4 text-gray-400">{customerHandle}</td>
-                      <td className="p-4 text-gray-400">{customerEmail}</td>
-                      <td className="p-4 text-gray-400">{fulfillmentLabel}</td>
-                      <td className="p-4 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
-                      <td className="p-4 text-right text-green-400">+${profit.toFixed(2)}</td>
-                      <td className="p-4 text-right">
+                      <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
+                      <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">{customerHandle}</td>
+                      <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">{customerEmail}</td>
+                      <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">{fulfillmentLabel}</td>
+                      <td className="p-3 sm:p-4 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
+                      <td className="hidden md:table-cell p-3 sm:p-4 text-right text-green-400">
+                        +${profit.toFixed(2)}
+                      </td>
+                      <td className="p-3 sm:p-4 text-left md:text-right">
                         <button
                           type="button"
                           onClick={() => toggleOrderItems(order.id)}
-                          className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-2"
+                          className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
                         >
                           {itemsExpanded ? 'Hide items' : 'View items'}
                           <ChevronDown className={`w-4 h-4 transition-transform ${itemsExpanded ? 'rotate-180' : ''}`} />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleOrderDetails(order.id)}
+                          className="md:hidden w-full text-[12px] text-red-400 hover:text-red-300 inline-flex items-center justify-start gap-1 leading-none whitespace-nowrap"
+                        >
+                          {detailsExpanded ? 'Hide details' : 'View details'}
+                          <ChevronDown className={`w-4 h-4 transition-transform ${detailsExpanded ? 'rotate-180' : ''}`} />
+                        </button>
                       </td>
                     </tr>
                     {itemsExpanded && (
-                      <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
-                        <td colSpan={colSpan} className="px-4 pb-4 pt-2">
+                      <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
+                        <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
                           <div className="grid gap-3 sm:grid-cols-2">
                             {(order.items ?? []).map((item: any) => (
                               <div key={item.id} className="flex items-center justify-between text-sm text-gray-400">
@@ -463,6 +490,57 @@ export default function SalesPage() {
                                 <div className="text-white">${Number(item.line_total ?? 0).toFixed(2)}</div>
                               </div>
                             ))}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {detailsExpanded && (
+                      <tr className="md:hidden border-b border-zinc-800/70 bg-zinc-900/40">
+                        <td colSpan={colSpan} className="px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
+                          <div className="space-y-3 text-sm">
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-gray-500">Placed</span>
+                              <span className="text-white">
+                                {createdAt
+                                  ? `${createdAt.toLocaleDateString()} ${createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                  : '-'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-gray-500">Customer</span>
+                              <span className="text-white">{customerHandle}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-gray-500">Email</span>
+                              <span className="text-white truncate">{customerEmail}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-gray-500">Fulfillment</span>
+                              <span className="text-white">{fulfillmentLabel}</span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
+                              <span className="text-gray-500">Profit</span>
+                              <span className="text-green-400">+${profit.toFixed(2)}</span>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 border-t border-zinc-800/70 pt-4">
+                            <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">
+                              Items
+                            </div>
+                            <div className="space-y-2">
+                              {(order.items ?? []).map((item: any) => (
+                                <div key={item.id} className="flex items-start justify-between gap-3 text-sm">
+                                  <div className="min-w-0">
+                                    <div className="text-white truncate">{getOrderTitle(item)}</div>
+                                    <div className="text-xs text-gray-500">
+                                      Size {item.variant?.size_label ?? 'N/A'} - Qty {item.quantity}
+                                    </div>
+                                  </div>
+                                  <div className="text-white">${Number(item.line_total ?? 0).toFixed(2)}</div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </td>
                       </tr>
