@@ -5,6 +5,7 @@ import { ChevronDown, MoreVertical, Search } from 'lucide-react';
 import { logError } from '@/lib/log';
 import type { ActiveTab, Alias, Brand, BrandGroup, Candidate, EditTarget, Model } from './types';
 import { TagModals } from './components/TagModals';
+import { RdkSelect } from '@/components/ui/Select';
 
 const tabs: Array<{ key: ActiveTab; label: string }> = [
   { key: 'brands', label: 'Tags' },
@@ -37,7 +38,7 @@ const normalizeLabel = (value: string) => normalizeWhitespace(value).toLowerCase
 function StatusPill({ active }: { active: boolean }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs whitespace-nowrap ${
         active ? 'bg-emerald-500/10 text-emerald-200' : 'bg-zinc-800 text-gray-400'
       }`}
     >
@@ -49,7 +50,7 @@ function StatusPill({ active }: { active: boolean }) {
 function VerifiedPill({ verified }: { verified: boolean }) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs whitespace-nowrap ${
         verified ? 'bg-blue-500/10 text-blue-200' : 'bg-zinc-800 text-gray-400'
       }`}
     >
@@ -582,8 +583,8 @@ export default function TagsPage() {
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Tags Manager</h1>
-          <p className="text-gray-400">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Tags Manager</h1>
+          <p className="text-sm sm:text-base text-gray-400">
             Verified means the brand or model is confirmed and trusted for storefront filters. Unverified entries are
             allowed but treated as provisional.
           </p>
@@ -592,44 +593,44 @@ export default function TagsPage() {
 
       {message && <div className="text-sm text-gray-400">{message}</div>}
 
-      <div className="bg-zinc-900 border border-zinc-800/70 p-5">
+      <div className="bg-zinc-900 border border-zinc-800/70 p-4 sm:p-5">
         <details className="group">
-          <summary className="cursor-pointer list-none text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-4 py-3">
+          <summary className="cursor-pointer list-none text-xs sm:text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-3 sm:px-4 py-2.5 sm:py-3">
             <span>Info key: how the tags system works</span>
             <span className="text-xs text-gray-500 group-open:hidden">Show</span>
             <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
           </summary>
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-sm text-gray-300">
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Brands</div>
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-[12px] sm:text-sm text-gray-300">
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Brands</div>
               <div>Canonical brand labels used for products, filters, and parsing.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Models</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Models</div>
               <div>Canonical sneaker model labels tied to a brand. Only used when category is sneakers.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Aliases</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Aliases</div>
               <div>Alternate spellings or shorthand that map to brands/models. Used by the parser.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Alias Priority</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Alias Priority</div>
               <div>When multiple aliases match, higher priority wins over shorter or lower-priority matches.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Candidates</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Candidates</div>
               <div>Unknown brands/models created during product entry. Review and accept to add them.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Verified</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Verified</div>
               <div>Trusted entries that appear cleanly in storefront filters. Unverified is provisional.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Active</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Active</div>
               <div>Active entries are used by the parser and UI. Inactive hides them without deleting.</div>
             </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-3">
-              <div className="text-xs uppercase tracking-wide text-gray-500">Title Parsing</div>
+            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
+              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">Title Parsing</div>
               <div>
                 Full titles are parsed into brand, model, and name. Brand is found first, then model
                 (sneakers only), and the remainder becomes the name.
@@ -641,29 +642,29 @@ export default function TagsPage() {
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 w-full lg:max-w-md">
-            <Search className="w-4 h-4 text-gray-500" />
+          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-2.5 sm:px-3 py-1.5 sm:py-2 w-full lg:max-w-md">
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search tags..."
-              className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+              className="w-full bg-transparent text-[12px] sm:text-sm text-white placeholder:text-gray-500 outline-none"
             />
           </div>
-          <div className="flex flex-wrap gap-3 text-sm text-gray-300">
-            <label className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-3 text-[12px] sm:text-sm text-gray-300">
+            <label className="flex items-center gap-1.5">
               <input
                 type="checkbox"
-                className="rdk-checkbox"
+                className="rdk-checkbox scale-90"
                 checked={showInactive}
                 onChange={(e) => setShowInactive(e.target.checked)}
               />
               Show inactive
             </label>
-            <label className="flex items-center gap-2">
+            <label className="flex items-center gap-1.5">
               <input
                 type="checkbox"
-                className="rdk-checkbox"
+                className="rdk-checkbox scale-90"
                 checked={showUnverified}
                 onChange={(e) => setShowUnverified(e.target.checked)}
               />
@@ -672,12 +673,12 @@ export default function TagsPage() {
           </div>
         </div>
 
-        <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
+        <div className="border-b border-zinc-800/70 flex flex-wrap gap-4 sm:gap-6">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`py-3 text-sm font-medium transition-colors border-b-2 ${
+              className={`py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 ${
                 activeTab === tab.key
                   ? 'text-white border-red-600'
                   : 'text-gray-400 hover:text-white border-transparent'
@@ -692,13 +693,13 @@ export default function TagsPage() {
       {activeTab === 'brands' && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-xl font-semibold text-white">Tags</h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Tags</h2>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500">{filteredBrands.length} brands</span>
+              <span className="text-[11px] sm:text-xs text-gray-500">{filteredBrands.length} brands</span>
               <button
                 type="button"
                 onClick={openAddBrandModal}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded text-sm"
+                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded text-[12px] sm:text-sm"
               >
                 Add Brands
               </button>
@@ -711,11 +712,11 @@ export default function TagsPage() {
             ) : filteredBrands.length === 0 ? (
               <div className="text-center py-12 text-gray-500">No tags found.</div>
             ) : (
-              <table className="w-full">
+              <table className="w-full text-[12px] sm:text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                    <th className="text-left text-gray-400 font-semibold p-4">Brand</th>
-                    <th className="p-4">
+                    <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Brand</th>
+                    <th className="hidden sm:table-cell p-3 sm:p-4">
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
@@ -727,8 +728,8 @@ export default function TagsPage() {
                     return (
                       <Fragment key={brand.id}>
                         <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
+                          <td className="p-3 sm:p-4">
+                            <div className="flex items-start sm:items-center gap-2">
                               <button
                                 type="button"
                                 onClick={() => toggleBrandExpansion(brand.id)}
@@ -736,29 +737,55 @@ export default function TagsPage() {
                                 aria-label={`Toggle ${brand.canonical_label} models`}
                               >
                                 <ChevronDown
-                                  className={`w-4 h-4 transition-transform ${
+                                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${
                                     isExpanded ? 'rotate-180' : ''
                                   }`}
                                 />
                               </button>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <div className="text-white font-semibold">{brand.canonical_label}</div>
-                                  <StatusPill active={brand.is_active} />
-                                  <VerifiedPill verified={brand.is_verified} />
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <div className="text-white font-semibold truncate min-w-0">
+                                        {brand.canonical_label}
+                                      </div>
+                                      <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+                                        <StatusPill active={brand.is_active} />
+                                        <VerifiedPill verified={brand.is_verified} />
+                                      </div>
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-1.5 sm:hidden">
+                                      <StatusPill active={brand.is_active} />
+                                      <VerifiedPill verified={brand.is_verified} />
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {visibleModels.length} model{visibleModels.length === 1 ? '' : 's'}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 sm:hidden shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={() => openAddModelModal(brand)}
+                                      className="bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded whitespace-nowrap"
+                                    >
+                                      Add Model
+                                    </button>
+                                    {renderMenu(
+                                      `brand-mobile-${brand.id}`,
+                                      () => setEditTarget({ type: 'brand', item: brand }),
+                                      () => setConfirmTarget({ type: 'brand', item: brand })
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </td>
-                          <td className="p-4">
+                          <td className="hidden sm:table-cell p-3 sm:p-4">
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 type="button"
                                 onClick={() => openAddModelModal(brand)}
-                                className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-semibold px-3 py-2 rounded"
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] sm:text-xs font-semibold px-2.5 py-1.5 sm:px-3 sm:py-2 rounded whitespace-nowrap"
                               >
                                 Add Model
                               </button>
@@ -772,7 +799,7 @@ export default function TagsPage() {
                         </tr>
                         {isExpanded && (
                           <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
-                            <td className="p-4" colSpan={2}>
+                            <td className="p-3 sm:p-4" colSpan={2}>
                               <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
                                 Models
                               </div>
@@ -783,10 +810,12 @@ export default function TagsPage() {
                                   {visibleModels.map((model) => (
                                     <div
                                       key={model.id}
-                                      className="flex items-center justify-between gap-3 border border-zinc-800/70 rounded px-3 py-2 bg-zinc-900/60"
+                                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-zinc-800/70 rounded px-3 py-2 bg-zinc-900/60"
                                     >
-                                      <div className="text-white text-sm">{model.canonical_label}</div>
-                                      <div className="flex items-center gap-2">
+                                      <div className="text-white text-[12px] sm:text-sm">
+                                        {model.canonical_label}
+                                      </div>
+                                      <div className="flex items-center justify-end gap-2 flex-wrap">
                                         <StatusPill active={model.is_active} />
                                         <VerifiedPill verified={model.is_verified} />
                                         {renderMenu(
@@ -815,59 +844,66 @@ export default function TagsPage() {
       {activeTab === 'aliases' && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Aliases</h2>
-            <span className="text-xs text-gray-500">{filteredAliases.length} aliases</span>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Aliases</h2>
+            <span className="text-[11px] sm:text-xs text-gray-500">{filteredAliases.length} aliases</span>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <select
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 sm:gap-3">
+              <RdkSelect
                 value={newAlias.entityType}
-                onChange={(e) =>
+                onChange={(value) =>
                   setNewAlias((prev) => ({
                     ...prev,
-                    entityType: e.target.value as 'brand' | 'model',
+                    entityType: value as 'brand' | 'model',
                     entityId: '',
                   }))
                 }
-                className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-              >
-                <option value="brand">Brand</option>
-                <option value="model">Model</option>
-              </select>
-              <select
+                options={[
+                  { value: 'brand', label: 'Brand' },
+                  { value: 'model', label: 'Model' },
+                ]}
+                buttonClassName="px-2.5 py-1.5 text-[12px] sm:text-sm"
+                menuClassName="text-[12px] sm:text-sm"
+              />
+              <RdkSelect
                 value={newAlias.entityId}
-                onChange={(e) => setNewAlias((prev) => ({ ...prev, entityId: e.target.value }))}
-                className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-              >
-                <option value="">Select {newAlias.entityType}</option>
-                {newAlias.entityType === 'brand'
-                  ? brands.map((brand) => (
-                      <option key={brand.id} value={brand.id}>
-                        {brand.canonical_label}
-                      </option>
-                    ))
-                  : models.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.canonical_label}
-                      </option>
-                    ))}
-              </select>
+                onChange={(value) => setNewAlias((prev) => ({ ...prev, entityId: value }))}
+                options={[
+                  {
+                    value: '',
+                    label: `Select ${newAlias.entityType}`,
+                    disabled: true,
+                  },
+                  ...(newAlias.entityType === 'brand'
+                    ? brands.map((brand) => ({
+                        value: brand.id,
+                        label: brand.canonical_label,
+                      }))
+                    : models.map((model) => ({
+                        value: model.id,
+                        label: model.canonical_label,
+                      }))),
+                ]}
+                buttonClassName="px-2.5 py-1.5 text-[12px] sm:text-sm"
+                menuClassName="text-[12px] sm:text-sm"
+                placeholder={`Select ${newAlias.entityType}`}
+              />
               <input
                 value={newAlias.label}
                 onChange={(e) => setNewAlias((prev) => ({ ...prev, label: e.target.value }))}
                 placeholder="Alias"
-                className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                className="bg-zinc-900 border border-zinc-800/70 text-white px-2.5 py-1.5 text-[12px] sm:text-sm"
               />
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   value={newAlias.priority}
                   onChange={(e) => setNewAlias((prev) => ({ ...prev, priority: e.target.value }))}
                   placeholder="Priority (higher wins)"
-                  className="bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 w-28"
+                  className="bg-zinc-900 border border-zinc-800/70 text-white px-2.5 py-1.5 text-[12px] sm:text-sm w-full sm:w-28"
                 />
                 <button
                   onClick={handleCreateAlias}
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded"
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded text-[12px] sm:text-sm"
                 >
                   Add Alias
                 </button>
@@ -880,13 +916,13 @@ export default function TagsPage() {
             ) : filteredAliases.length === 0 ? (
               <div className="text-center py-12 text-gray-500">No aliases found.</div>
             ) : (
-              <table className="w-full">
+              <table className="w-full text-[12px] sm:text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                    <th className="text-left text-gray-400 font-semibold p-4">Alias</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Type</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Priority</th>
-                    <th className="p-4">
+                    <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Alias</th>
+                    <th className="hidden sm:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Type</th>
+                    <th className="hidden sm:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Priority</th>
+                    <th className="p-3 sm:p-4">
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
@@ -894,7 +930,7 @@ export default function TagsPage() {
                 <tbody>
                   {filteredAliases.map((alias) => (
                     <tr key={alias.id} className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
-                      <td className="p-4">
+                      <td className="p-3 sm:p-4">
                         <div className="flex items-center gap-2">
                           <div className="text-white font-semibold">{alias.alias_label}</div>
                           <StatusPill active={alias.is_active} />
@@ -904,10 +940,17 @@ export default function TagsPage() {
                             ? resolveBrandLabel(alias.brand_id)
                             : resolveModelLabel(alias.model_id)}
                         </div>
+                        <div className="text-[11px] text-gray-500 sm:hidden">
+                          {alias.entity_type} · Priority {alias.priority ?? 0}
+                        </div>
                       </td>
-                      <td className="p-4 text-xs uppercase text-gray-400">{alias.entity_type}</td>
-                      <td className="p-4 text-gray-400">{alias.priority ?? 0}</td>
-                      <td className="p-4">
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-xs uppercase text-gray-400">
+                        {alias.entity_type}
+                      </td>
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-gray-400">
+                        {alias.priority ?? 0}
+                      </td>
+                      <td className="p-3 sm:p-4">
                         <div className="flex items-center justify-end">
                           {renderMenu(
                             `alias-${alias.id}`,
@@ -928,8 +971,8 @@ export default function TagsPage() {
       {activeTab === 'candidates' && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-white">Candidates</h2>
-            <span className="text-xs text-gray-500">{filteredCandidates.length} pending</span>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Candidates</h2>
+            <span className="text-[11px] sm:text-xs text-gray-500">{filteredCandidates.length} pending</span>
           </div>
           <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
             {isLoading ? (
@@ -937,12 +980,12 @@ export default function TagsPage() {
             ) : filteredCandidates.length === 0 ? (
               <div className="text-center py-12 text-gray-500">No pending candidates.</div>
             ) : (
-              <table className="w-full">
+              <table className="w-full text-[12px] sm:text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                    <th className="text-left text-gray-400 font-semibold p-4">Candidate</th>
-                    <th className="text-left text-gray-400 font-semibold p-4">Brand</th>
-                    <th className="p-4">
+                    <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Candidate</th>
+                    <th className="hidden sm:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Brand</th>
+                    <th className="p-3 sm:p-4">
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
@@ -953,30 +996,35 @@ export default function TagsPage() {
                       key={candidate.id}
                       className="border-b border-zinc-800/70 hover:bg-zinc-800/60"
                     >
-                      <td className="p-4">
+                      <td className="p-3 sm:p-4">
                         <div className="flex items-center gap-2">
                           <div className="text-white font-semibold">{candidate.raw_text}</div>
                           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-zinc-800 text-gray-400 uppercase">
                             {candidate.entity_type}
                           </span>
                         </div>
+                        {candidate.entity_type === 'model' && (
+                          <div className="text-[11px] text-gray-500 sm:hidden">
+                            {resolveBrandLabel(candidate.parent_brand_id)}
+                          </div>
+                        )}
                       </td>
-                      <td className="p-4 text-gray-400">
+                      <td className="hidden sm:table-cell p-3 sm:p-4 text-gray-400">
                         {candidate.entity_type === 'model'
                           ? resolveBrandLabel(candidate.parent_brand_id)
                           : '-'}
                       </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
                           <button
                             onClick={() => handleAcceptCandidate(candidate)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-2 text-xs font-semibold"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-semibold"
                           >
                             Accept
                           </button>
                           <button
                             onClick={() => handleRejectCandidate(candidate)}
-                            className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-2 text-xs font-semibold"
+                            className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-semibold"
                           >
                             Reject
                           </button>
