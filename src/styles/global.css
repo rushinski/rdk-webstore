@@ -240,19 +240,26 @@ body[data-route='admin'] main {
   overflow-x: hidden;
 }
 
+@media (max-width: 640px) {
+  .stripe-connect-embed {
+    min-height: calc(100dvh - 160px);
+  }
+}
+
 .stripe-connect-embed stripe-connect-account-management,
 .stripe-connect-embed stripe-connect-account-onboarding,
 .stripe-connect-embed stripe-connect-balances,
 .stripe-connect-embed stripe-connect-payouts {
-  scrollbar-width: none;
+  min-height: inherit;
+  height: 100%;
 }
 
-.stripe-connect-embed stripe-connect-account-management::-webkit-scrollbar,
-.stripe-connect-embed stripe-connect-account-onboarding::-webkit-scrollbar,
-.stripe-connect-embed stripe-connect-balances::-webkit-scrollbar,
-.stripe-connect-embed stripe-connect-payouts::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+.stripe-connect-embed stripe-connect-account-management iframe,
+.stripe-connect-embed stripe-connect-account-onboarding iframe,
+.stripe-connect-embed stripe-connect-balances iframe,
+.stripe-connect-embed stripe-connect-payouts iframe {
+  height: 100% !important;
+  min-height: inherit;
 }
 
 .stripe-connect-embed stripe-connect-account-management iframe,

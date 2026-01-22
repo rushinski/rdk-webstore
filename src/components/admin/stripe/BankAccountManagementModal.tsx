@@ -25,11 +25,11 @@ export function BankAccountManagementModal({ open, onClose, publishableKey, onUp
 
   return (
     <ModalPortal open={open} onClose={onClose} zIndexClassName="z-[9999]">
-      <div className="w-[100vw] max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[92dvh] sm:max-w-4xl bg-zinc-950 border border-zinc-800 sm:rounded-sm shadow-xl flex flex-col overflow-y-auto overflow-x-hidden modal-scroll">
+      <div className="w-[100vw] max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[92dvh] sm:max-w-4xl bg-zinc-950 border border-zinc-800 sm:rounded-sm shadow-xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-800">
           <div>
             <h2 className="text-lg sm:text-xl font-semibold text-white">Manage bank accounts</h2>
-            <p className="text-[12px] sm:text-sm text-zinc-400 mt-1">
+            <p className="hidden sm:block text-[12px] sm:text-sm text-zinc-400 mt-1">
               Add, remove, or set your default payout account (powered by Stripe).
             </p>
           </div>
@@ -43,8 +43,8 @@ export function BankAccountManagementModal({ open, onClose, publishableKey, onUp
           </button>
         </div>
 
-        <div className="pl-2 pr-4 sm:px-6 py-3 sm:py-6">
-          <div className="stripe-connect-embed">
+        <div className="pl-2 pr-4 sm:px-6 py-3 sm:py-6 overflow-y-auto overflow-x-hidden flex-1 modal-scroll">
+          <div className="stripe-connect-embed min-h-[calc(100dvh-160px)] sm:min-h-0">
             <EmbeddedAccount
               publishableKey={publishableKey}
               showOnboarding={false}
@@ -66,7 +66,7 @@ export function BankAccountManagementModal({ open, onClose, publishableKey, onUp
             </button>
           </div>
 
-          <div className="mt-3 sm:mt-4 text-[11px] sm:text-xs text-zinc-500">
+          <div className="mt-3 sm:mt-4 text-[11px] sm:text-xs text-zinc-500 hidden sm:block">
             Bank details are collected and stored by Stripe. Your app never receives account numbers.
           </div>
         </div>
