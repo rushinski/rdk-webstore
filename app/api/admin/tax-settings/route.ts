@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     const updated = await repo.upsert({
       tenantId: context.tenantId,
-      homeState: existing?.home_state ?? "SC",
+      homeState: existing?.home_state ?? "N/A",
       businessName: existing?.business_name ?? null,
       taxIdNumber: existing?.tax_id_number ?? null,
       stripeTaxSettingsId: existing?.stripe_tax_settings_id ?? null,
