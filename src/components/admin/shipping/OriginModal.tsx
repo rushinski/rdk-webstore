@@ -1,4 +1,7 @@
+"use client";
+
 import type { ShippingOrigin } from "../../../types/domain/shipping";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type OriginModalProps = {
   open: boolean;
@@ -23,109 +26,109 @@ export function OriginModal({
   onChange,
   onSave,
 }: OriginModalProps) {
-  if (!open) return null;
-
   const value = originAddress ?? emptyOrigin;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-6">
-        <div className="flex items-center justify-between gap-4 mb-4">
+    <ModalPortal open={open} onClose={onClose}>
+      <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-3 sm:p-6">
+        <div className="flex items-center justify-between gap-3 mb-2 sm:mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-white">Change origin address</h2>
-            <p className="text-sm text-zinc-400">
+            <h2 className="text-sm sm:text-lg font-semibold text-white">
+              Change origin address
+            </h2>
+            <p className="hidden sm:block text-[12px] sm:text-sm text-zinc-400">
               Update the address used to create shipping labels.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white text-sm"
+            className="text-zinc-400 hover:text-white text-[11px] sm:text-sm"
           >
             Close
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 text-[11px] sm:text-sm">
           <div>
-            <label className="block text-gray-400 mb-1">Name</label>
+            <label className="block text-gray-400 mb-0.5">Name</label>
             <input
               type="text"
               value={value.name}
               onChange={(e) => onChange("name", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">Company</label>
+            <label className="block text-gray-400 mb-0.5">Company</label>
             <input
               type="text"
               value={value.company ?? ""}
               onChange={(e) => onChange("company", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">Phone</label>
+            <label className="block text-gray-400 mb-0.5">Phone</label>
             <input
               type="text"
               value={value.phone}
               onChange={(e) => onChange("phone", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">Line 1</label>
+            <label className="block text-gray-400 mb-0.5">Line 1</label>
             <input
               type="text"
               value={value.line1}
               onChange={(e) => onChange("line1", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">Line 2</label>
+            <label className="block text-gray-400 mb-0.5">Line 2</label>
             <input
               type="text"
               value={value.line2 ?? ""}
               onChange={(e) => onChange("line2", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">City</label>
+            <label className="block text-gray-400 mb-0.5">City</label>
             <input
               type="text"
               value={value.city}
               onChange={(e) => onChange("city", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">State</label>
+            <label className="block text-gray-400 mb-0.5">State</label>
             <input
               type="text"
               value={value.state}
               onChange={(e) => onChange("state", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">Postal Code</label>
+            <label className="block text-gray-400 mb-0.5">Postal Code</label>
             <input
               type="text"
               value={value.postal_code}
               onChange={(e) => onChange("postal_code", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
           <div>
-            <label className="block text-gray-400 mb-1">Country</label>
+            <label className="block text-gray-400 mb-0.5">Country</label>
             <input
               type="text"
               value={value.country}
               onChange={(e) => onChange("country", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-3 py-2 border border-zinc-800/70"
+              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
             />
           </div>
         </div>
@@ -138,11 +141,11 @@ export function OriginModal({
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-end gap-3">
+        <div className="mt-3 sm:mt-6 flex items-center justify-end gap-2 sm:gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 border border-zinc-800/70 text-sm text-gray-300"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 border border-zinc-800/70 text-[11px] sm:text-sm text-gray-300"
           >
             Cancel
           </button>
@@ -150,12 +153,12 @@ export function OriginModal({
             type="button"
             onClick={onSave}
             disabled={savingOrigin}
-            className="px-4 py-2 bg-red-600 text-white text-sm hover:bg-red-500 disabled:bg-zinc-700"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white text-[11px] sm:text-sm hover:bg-red-500 disabled:bg-zinc-700"
           >
             {savingOrigin ? "Saving..." : "Save origin"}
           </button>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

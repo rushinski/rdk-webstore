@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { ModalPortal } from '@/components/ui/ModalPortal';
 
 type ShippingAddressDraft = {
   name: string;
@@ -363,7 +364,7 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
   const hasAddressErrors = Object.keys(addressErrors).length > 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={onClose}>
+    <ModalPortal open={open} onClose={onClose}>
       <div
         className="w-full max-w-6xl rounded-lg border border-zinc-800/70 bg-zinc-950 max-h-[90vh] overflow-y-auto"
         onMouseDown={(e) => e.stopPropagation()}
@@ -404,33 +405,33 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 text-[11px] sm:text-sm">
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Name</label>
+                  <label className="block text-gray-400 mb-0.5">Name</label>
                   <input
                     type="text"
                     value={recipient.name}
                     onChange={(e) => setRecipientField('name', e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-2 py-1.5 text-[12px] sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Phone</label>
+                  <label className="block text-gray-400 mb-0.5">Phone</label>
                   <input
                     type="text"
                     value={recipient.phone}
                     onChange={(e) => setRecipientField('phone', e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-2 py-1.5 text-[12px] sm:text-sm"
                   />
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-zinc-400 mb-1">Address line 1 *</label>
+                  <label className="block text-gray-400 mb-0.5">Address line 1 *</label>
                   <input
                     type="text"
                     value={recipient.line1}
                     onChange={(e) => setRecipientField('line1', e.target.value)}
-                    className={`w-full bg-zinc-900 border text-white px-3 py-2 text-sm ${
+                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
                       addressErrors.line1 ? 'border-red-500' : 'border-zinc-800/70'
                     }`}
                   />
@@ -439,22 +440,22 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                   )}
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-zinc-400 mb-1">Address line 2</label>
+                  <label className="block text-gray-400 mb-0.5">Address line 2</label>
                   <input
                     type="text"
                     value={recipient.line2}
                     onChange={(e) => setRecipientField('line2', e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-2 py-1.5 text-[12px] sm:text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">City *</label>
+                  <label className="block text-gray-400 mb-0.5">City *</label>
                   <input
                     type="text"
                     value={recipient.city}
                     onChange={(e) => setRecipientField('city', e.target.value)}
-                    className={`w-full bg-zinc-900 border text-white px-3 py-2 text-sm ${
+                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
                       addressErrors.city ? 'border-red-500' : 'border-zinc-800/70'
                     }`}
                   />
@@ -463,14 +464,14 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">State *</label>
+                  <label className="block text-gray-400 mb-0.5">State *</label>
                   <input
                     type="text"
                     value={recipient.state}
                     onChange={(e) => setRecipientField('state', e.target.value.toUpperCase())}
                     maxLength={2}
                     placeholder="CA"
-                    className={`w-full bg-zinc-900 border text-white px-3 py-2 text-sm ${
+                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
                       addressErrors.state ? 'border-red-500' : 'border-zinc-800/70'
                     }`}
                   />
@@ -479,13 +480,13 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">ZIP Code *</label>
+                  <label className="block text-gray-400 mb-0.5">ZIP Code *</label>
                   <input
                     type="text"
                     value={recipient.postal_code}
                     onChange={(e) => setRecipientField('postal_code', e.target.value)}
                     placeholder="12345"
-                    className={`w-full bg-zinc-900 border text-white px-3 py-2 text-sm ${
+                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
                       addressErrors.postal_code ? 'border-red-500' : 'border-zinc-800/70'
                     }`}
                   />
@@ -494,14 +495,14 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Country *</label>
+                  <label className="block text-gray-400 mb-0.5">Country *</label>
                   <input
                     type="text"
                     value={recipient.country}
                     onChange={(e) => setRecipientField('country', e.target.value.toUpperCase())}
                     maxLength={2}
                     placeholder="US"
-                    className={`w-full bg-zinc-900 border text-white px-3 py-2 text-sm ${
+                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
                       addressErrors.country ? 'border-red-500' : 'border-zinc-800/70'
                     }`}
                   />
@@ -649,6 +650,6 @@ export function CreateLabelForm({ open, order, originLine, initialPackage, onClo
           </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

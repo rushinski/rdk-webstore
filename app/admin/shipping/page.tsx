@@ -478,6 +478,28 @@ export default function ShippingPage() {
     const colSpan = 8; // FIX: table has 8 columns
     const labelUrl = order.label_url ?? null; // Add this field to your order model
 
+    const actionNode =
+      activeTab === "label" ? (
+        <button
+          type="button"
+          onClick={() => setLabelOrder(order)}
+          className="text-sm text-red-400 hover:text-red-300"
+        >
+          Create label
+        </button>
+      ) : activeTab === "ready" ? (
+        <button
+          type="button"
+          onClick={() => setConfirmMarkShipped(order)}
+          disabled={markingShippedId === order.id}
+          className="text-sm text-zinc-400 hover:text-zinc-300 disabled:text-zinc-600"
+        >
+          {markingShippedId === order.id ? "Marking..." : "Mark shipped"}
+        </button>
+      ) : (
+        <span className="text-zinc-500">-</span>
+      );
+
     return (
       <Fragment key={order.id}>
         <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
@@ -557,34 +579,13 @@ export default function ShippingPage() {
               onClick={() => toggleDetails(order.id)}
               className="md:hidden w-full text-[12px] text-red-400 hover:text-red-300 inline-flex items-center justify-start gap-1 leading-none whitespace-nowrap"
             >
-              {detailsExpanded ? "Hide details" : "View details"}
+              {detailsExpanded ? "Hide label info" : "Label info"}
               <ChevronDown
                 className={`h-4 w-4 transition-transform ${detailsExpanded ? "rotate-180" : ""}`}
               />
             </button>
           </td>
-          <td className="p-3 sm:p-4 text-right">
-            {activeTab === "label" ? (
-              <button
-                type="button"
-                onClick={() => setLabelOrder(order)}
-                className="text-sm text-red-400 hover:text-red-300"
-              >
-                Create label
-              </button>
-            ) : activeTab === "ready" ? (
-              <button
-                type="button"
-                onClick={() => setConfirmMarkShipped(order)}
-                disabled={markingShippedId === order.id}
-                className="text-sm text-zinc-400 hover:text-zinc-300 disabled:text-zinc-600"
-              >
-                {markingShippedId === order.id ? "Marking..." : "Mark shipped"}
-              </button>
-            ) : (
-              <span className="text-zinc-500">-</span>
-            )}
-          </td>
+          <td className="hidden md:table-cell p-3 sm:p-4 text-right">{actionNode}</td>
         </tr>
 
         {itemsExpanded && (
@@ -626,9 +627,9 @@ export default function ShippingPage() {
                   <span className="text-gray-500">Customer</span>
                   <span className="text-white">{customerHandle}</span>
                 </div>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-1">
                   <span className="text-gray-500">Destination</span>
-                  <span className="text-white truncate">
+                  <span className="text-white break-words">
                     {addressLine ? addressLine : "Missing address"}
                   </span>
                 </div>
@@ -668,6 +669,10 @@ export default function ShippingPage() {
                       <span className="text-zinc-500">No label yet</span>
                     )}
                   </span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-gray-500">Action</span>
+                  <span className="text-white">{actionNode}</span>
                 </div>
               </div>
 
@@ -724,10 +729,10 @@ export default function ShippingPage() {
       </div>
 
       {activeTab === "ready" && (
-        <div className="rounded-sm border border-blue-400/20 bg-blue-400/10 p-4">
+        <div className="rounded-sm border border-blue-400/20 bg-blue-400/10 p-3 sm:p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-300">
+            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-[12px] sm:text-sm text-blue-300">
               <strong>Automatic tracking:</strong> Once you ship packages, Shippo will
               automatically update tracking status and send customer emails. The "Mark
               shipped" button should only be used if the carrier hasn't scanned the
@@ -737,19 +742,19 @@ export default function ShippingPage() {
         </div>
       )}
 
-      <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
+      <div className="border-b border-zinc-800/70 flex flex-nowrap gap-2 sm:gap-6">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
+            className={`py-2.5 text-[10px] sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap ${
               activeTab === tab.key
                 ? "text-white border-b-2 border-red-600"
                 : "text-gray-400 hover:text-white border-b-2 border-transparent"
             }`}
           >
             {tab.label}
-            <span className="text-[11px] px-2 py-0.5 rounded-sm bg-zinc-900 border border-zinc-800/70 text-gray-300">
+            <span className="text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 rounded-sm bg-zinc-900 border border-zinc-800/70 text-gray-300">
               {tabBadge(counts[tab.key] ?? 0)}
             </span>
           </button>
@@ -777,7 +782,7 @@ export default function ShippingPage() {
           No orders in this queue.
         </div>
       ) : (
-        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 overflow-x-auto overflow-y-visible">
+        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 overflow-x-hidden md:overflow-x-auto overflow-y-visible">
           <table className="w-full text-[12px] sm:text-sm">
             <thead>
               <tr className="bg-zinc-800">
@@ -804,9 +809,9 @@ export default function ShippingPage() {
 
                 <th className="sticky top-0 z-10 bg-zinc-800 text-left md:text-right text-gray-400 font-semibold p-3 sm:p-4">
                   <span className="hidden md:inline">Items</span>
-                  <span className="md:hidden">Details</span>
+                  <span className="md:hidden">Actions</span>
                 </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-3 sm:p-4">
+                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-3 sm:p-4">
                   Action
                 </th>
               </tr>
