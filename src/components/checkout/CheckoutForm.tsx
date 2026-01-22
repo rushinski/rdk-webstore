@@ -11,7 +11,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { ShippingAddressForm } from "./ShippingAddressForm";
 import { SavedAddresses } from "./SavedAddresses";
-import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
+import { Loader2, Lock, Package, TruckIcon, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import type { CartItem } from "@/types/domain/cart";
 import {
@@ -78,6 +78,7 @@ export function CheckoutForm({
     : DEFAULT_EXPRESS_CHECKOUT_METHODS
   ).filter((method): method is ExpressCheckoutMethod => expressMethodKeySet.has(method));
   const showExpressCheckout = normalizedExpressMethods.length > 0;
+  const expressMaxRows = Math.max(1, Math.ceil(normalizedExpressMethods.length / 2));
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>
     address
@@ -394,7 +395,7 @@ export function CheckoutForm({
               onConfirm={handleExpressConfirm}
               onClick={handleExpressClick}
               options={{
-                layout: { maxColumns: 2 },
+                layout: { maxColumns: 2, maxRows: expressMaxRows }, // <- key change
                 paymentMethodOrder: normalizedExpressMethods,
                 paymentMethods: {
                   applePay: normalizedExpressMethods.includes("apple_pay") ? "auto" : "never",
@@ -449,56 +450,42 @@ export function CheckoutForm({
         <div className="text-sm text-gray-400">
           <p>
             By placing your order, you agree to our{" "}
-            <Link
-              href="/legal/terms"
-              className="text-red-500 hover:text-red-400 underline"
-            >
+            <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
               Terms of Service
             </Link>
             {", "}
-            <Link
-              href="/legal/privacy"
-              className="text-red-500 hover:text-red-400 underline"
-            >
+            <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
               Privacy Policy
             </Link>
             .
           </p>
         </div>
 
-        <details className="mt-4 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
-          <summary className="cursor-pointer list-none text-white font-semibold flex items-center justify-between">
-            Refund Policy
-            <span className="text-xs text-gray-500">View</span>
+        <details className="group mt-4 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
+          <summary className="cursor-pointer list-none flex items-center justify-between">
+            <span className="text-white font-semibold">Shipping &amp; Returns</span>
+            <ChevronDown className="w-4 h-4 text-gray-400 transition group-open:rotate-180" />
           </summary>
-          <div className="mt-3 space-y-2">
-            <p>Refunds are reviewed per our policy for eligible items and timelines.</p>
-            <Link
-              href="/refunds"
-              className="text-red-500 hover:text-red-400 underline block"
-            >
-              Read the full refund policy
-            </Link>
-          </div>
-        </details>
-        <details className="mt-3 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
-          <summary className="cursor-pointer list-none text-white font-semibold flex items-center justify-between">
-            Shipping Policy
-            <span className="text-xs text-gray-500">View</span>
-          </summary>
-          <div className="mt-3 space-y-2">
+
+          <div className="mt-3 space-y-3">
             <p>
-              Shipping timelines and costs depend on your delivery option at checkout.
+              We aim to ship within 24 hours (processing time, not delivery time). Shipping
+              options and rates are shown at checkout.
             </p>
-            <Link
-              href="/shipping"
-              className="text-red-500 hover:text-red-400 underline block"
-            >
-              Read the full shipping policy
-            </Link>
+            <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
+
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
+                Shipping Policy
+              </Link>
+              <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                Returns &amp; Refunds
+              </Link>
+            </div>
           </div>
         </details>
       </div>
+
 
       {/* Submit Button */}
       <button
