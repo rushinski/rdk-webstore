@@ -120,6 +120,10 @@ export default function BankPage() {
   const upcomingPayout = summary?.upcoming_payout;
 
   const formatAmount = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const compactNumber = useState(
+    () => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }),
+  )[0];
+  const formatCompactAmount = (cents: number) => `$${compactNumber.format(cents / 100)}`;
   
   const formatDate = (timestamp: number | null) => {
     if (!timestamp) return 'TBD';
@@ -289,80 +293,106 @@ export default function BankPage() {
       )}
 
       {/* Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <DollarSign className="w-5 h-5 text-green-400" />
-            <span className="text-gray-400 text-sm">Available Balance</span>
+      <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+            <span className="text-gray-400 text-[11px] sm:text-sm">Available</span>
           </div>
-          <div className="text-3xl font-bold text-white">{formatAmount(availableBalance)}</div>
-          <p className="text-xs text-gray-500 mt-2">Ready for payout</p>
+          <div className="text-base sm:text-3xl font-bold text-white">
+            <span className="sm:hidden">{formatCompactAmount(availableBalance)}</span>
+            <span className="hidden sm:inline">{formatAmount(availableBalance)}</span>
+          </div>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">Ready for payout</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <TrendingUp className="w-5 h-5 text-blue-400" />
-            <span className="text-gray-400 text-sm">Pending Balance</span>
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+            <span className="text-gray-400 text-[11px] sm:text-sm">Pending</span>
           </div>
-          <div className="text-3xl font-bold text-white">{formatAmount(pendingBalance)}</div>
-          <p className="text-xs text-gray-500 mt-2">Processing</p>
+          <div className="text-base sm:text-3xl font-bold text-white">
+            <span className="sm:hidden">{formatCompactAmount(pendingBalance)}</span>
+            <span className="hidden sm:inline">{formatAmount(pendingBalance)}</span>
+          </div>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">Processing</p>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <Calendar className="w-5 h-5 text-purple-400" />
-            <span className="text-gray-400 text-sm">Upcoming Payout</span>
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
+            <span className="text-gray-400 text-[11px] sm:text-sm">Upcoming</span>
           </div>
           {upcomingPayout ? (
             <>
-              <div className="text-3xl font-bold text-white">{formatAmount(upcomingPayout.amount)}</div>
-              <p className="text-xs text-gray-500 mt-2">{formatDate(upcomingPayout.arrival_date)}</p>
+              <div className="text-base sm:text-3xl font-bold text-white">
+                <span className="sm:hidden">{formatCompactAmount(upcomingPayout.amount)}</span>
+                <span className="hidden sm:inline">{formatAmount(upcomingPayout.amount)}</span>
+              </div>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
+                {formatDate(upcomingPayout.arrival_date)}
+              </p>
             </>
           ) : (
             <>
-              <div className="text-3xl font-bold text-gray-600">$0.00</div>
-              <p className="text-xs text-gray-500 mt-2">No upcoming payout</p>
+              <div className="text-base sm:text-3xl font-bold text-gray-600">
+                <span className="sm:hidden">$0</span>
+                <span className="hidden sm:inline">$0.00</span>
+              </div>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">No payout</p>
             </>
           )}
         </div>
       </div>
 
-      {/* Payout Schedule */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Payout Schedule</h2>
+      <div className="grid grid-cols-2 gap-3 sm:gap-6">
+        {/* Payout Schedule */}
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-lg font-semibold text-white">Payout Schedule</h2>
+          </div>
+          <div className="flex items-center gap-2 text-[12px] sm:text-base">
+            <Calendar className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-300 whitespace-nowrap">{getScheduleText()}</span>
+          </div>
+        </div>
+
+        {/* Bank Account */}
+        {defaultBank && (
+          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+            <h2 className="text-[12px] sm:text-lg font-semibold text-white mb-3 sm:mb-4">
+              Default Payout Account
+            </h2>
+            <div className="flex items-center gap-3 sm:gap-4">
+              <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+              <div className="min-w-0">
+                <div className="text-[12px] sm:text-base text-white font-medium break-words">
+                  {defaultBank.bank_name ?? 'Bank Account'} ••••{defaultBank.last4}
+                </div>
+                {defaultBank.account_holder_name && (
+                  <div className="text-[11px] sm:text-sm text-gray-400 break-words">
+                    {defaultBank.account_holder_name}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-semibold text-white">Payout History</h2>
           <button
             type="button"
             onClick={() => setShowPayoutsModal(true)}
-            className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-1"
+            className="text-[11px] sm:text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-1 whitespace-nowrap"
           >
-            View all payouts
+            View payout history
             <ExternalLink className="w-3 h-3" />
           </button>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <span className="text-gray-300">{getScheduleText()}</span>
-        </div>
       </div>
-
-      {/* Bank Account */}
-      {defaultBank && (
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Default Payout Account</h2>
-          <div className="flex items-center gap-4">
-            <CreditCard className="w-5 h-5 text-gray-400" />
-            <div>
-              <div className="text-white font-medium">
-                {defaultBank.bank_name ?? 'Bank Account'} ••••{defaultBank.last4}
-              </div>
-              {defaultBank.account_holder_name && (
-                <div className="text-sm text-gray-400">{defaultBank.account_holder_name}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modals */}
       <StripeOnboardingModal

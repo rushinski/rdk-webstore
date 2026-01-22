@@ -98,7 +98,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -108,7 +108,7 @@ export default function DashboardPage() {
                 <Icon className="w-5 h-5 text-gray-400" />
               </div>
               <div className="flex items-end justify-between">
-                <span className="text-3xl font-bold text-white">{stat.value}</span>
+                <span className="text-xl sm:text-3xl font-bold text-white">{stat.value}</span>
                 <span
                   className={`flex items-center gap-1 text-sm font-semibold ${
                     stat.trend === 'up' ? 'text-green-400' : 'text-red-400'
@@ -125,25 +125,6 @@ export default function DashboardPage() {
             </div>
           );
         })}
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Financials</h2>
-            <span className="text-sm text-gray-400">7d</span>
-          </div>
-          <SalesChart data={salesTrend} />
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Traffic</h2>
-            <span className="text-sm text-gray-400">7d</span>
-          </div>
-          <TrafficChart data={trafficTrend} />
-        </div>
       </div>
 
       {/* Recent Sales */}
@@ -183,6 +164,25 @@ export default function DashboardPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">Financials</h2>
+            <span className="text-sm text-gray-400">7d</span>
+          </div>
+          <SalesChart data={salesTrend} />
+        </div>
+
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-white">Traffic</h2>
+            <span className="text-sm text-gray-400">7d</span>
+          </div>
+          <TrafficChart data={trafficTrend} />
         </div>
       </div>
     </div>

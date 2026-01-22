@@ -1,7 +1,7 @@
 // src/components/admin/stripe/EmbeddedAccount.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { loadConnectAndInitialize } from "@stripe/connect-js";
 import {
@@ -21,6 +21,7 @@ interface EmbeddedAccountProps {
   showBalances?: boolean;
   showPayouts?: boolean;
   showAccountId?: boolean;
+  variant?: "card" | "plain";
 }
 
 export function EmbeddedAccount({
@@ -30,9 +31,38 @@ export function EmbeddedAccount({
   showBalances = true,
   showPayouts = true,
   showAccountId = true,
+  variant = "card",
 }: EmbeddedAccountProps) {
   const [stripeConnectInstance, setStripeConnectInstance] = useState<any>(null);
   const [accountId, setAccountId] = useState<string>("");
+  const [isCompact, setIsCompact] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(max-width: 640px)");
+    const handleChange = () => setIsCompact(media.matches);
+    handleChange();
+
+    if (media.addEventListener) {
+      media.addEventListener("change", handleChange);
+      return () => media.removeEventListener("change", handleChange);
+    }
+
+    media.addListener(handleChange);
+    return () => media.removeListener(handleChange);
+  }, []);
+
+  const appearance = useMemo(() => {
+    const base = connectAppearance as any;
+    const variables = { ...(base?.variables ?? {}) };
+
+    if (isCompact) {
+      variables.fontSizeBase = "11px";
+      variables.spacingUnit = "8px";
+    }
+
+    return { ...base, variables };
+  }, [isCompact]);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +85,7 @@ export function EmbeddedAccount({
         const instance = loadConnectAndInitialize({
           publishableKey,
           fetchClientSecret,
-          appearance: connectAppearance,
+          appearance,
         });
 
         if (!cancelled) setStripeConnectInstance(instance);
@@ -69,7 +99,7 @@ export function EmbeddedAccount({
     return () => {
       cancelled = true;
     };
-  }, [publishableKey]);
+  }, [publishableKey, appearance]);
 
   if (!stripeConnectInstance) {
     return (
@@ -82,42 +112,72 @@ export function EmbeddedAccount({
     );
   }
 
+  const isPlain = variant === "plain";
+
   return (
     <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
-      <div className="space-y-6">
+      <div className={isPlain ? "space-y-4" : "space-y-6"}>
         {showOnboarding ? (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
-            <h2 className="text-lg font-semibold text-white mb-2">Verification</h2>
-            <p className="text-sm text-zinc-400 mb-4">
-              Stripe collects required details securely to enable payouts.
-            </p>
-            <ConnectAccountOnboarding onExit={() => {}} />
-          </div>
+          isPlain ? (
+            <div className="min-w-0">
+              <ConnectAccountOnboarding onExit={() => {}} />
+            </div>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
+              <h2 className="text-lg font-semibold text-white mb-2">Verification</h2>
+              <p className="text-sm text-zinc-400 mb-4">
+                Stripe collects required details securely to enable payouts.
+              </p>
+              <ConnectAccountOnboarding onExit={() => {}} />
+            </div>
+          )
         ) : null}
 
         {showAccountManagement ? (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
-            <h2 className="text-lg font-semibold text-white mb-2">Bank accounts</h2>
-            <p className="text-sm text-zinc-400 mb-4">Add/edit bank accounts for payouts.</p>
-            <ConnectAccountManagement
-              collectionOptions={{ fields: "eventually_due", futureRequirements: "include" }}
-            />
-          </div>
+          isPlain ? (
+            <div className="min-w-0">
+              <ConnectAccountManagement
+                collectionOptions={{ fields: "eventually_due", futureRequirements: "include" }}
+              />
+            </div>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
+              <h2 className="text-lg font-semibold text-white mb-2">Bank accounts</h2>
+              <p className="text-sm text-zinc-400 mb-4">Add/edit bank accounts for payouts.</p>
+              <ConnectAccountManagement
+                collectionOptions={{ fields: "eventually_due", futureRequirements: "include" }}
+              />
+            </div>
+          )
         ) : null}
 
         {showBalances ? (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
-            <h2 className="text-lg font-semibold text-white mb-2">Balances & upcoming payout</h2>
-            <p className="text-sm text-zinc-400 mb-4">Pending, available, and upcoming payout details.</p>
-            <ConnectBalances />
-          </div>
+          isPlain ? (
+            <div className="min-w-0">
+              <ConnectBalances />
+            </div>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
+              <h2 className="text-lg font-semibold text-white mb-2">Balances & upcoming payout</h2>
+              <p className="text-sm text-zinc-400 mb-4">
+                Pending, available, and upcoming payout details.
+              </p>
+              <ConnectBalances />
+            </div>
+          )
         ) : null}
 
         {showPayouts ? (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
-            <h2 className="text-lg font-semibold text-white mb-2">Payouts</h2>
-            <ConnectPayouts />
-          </div>
+          isPlain ? (
+            <div className="min-w-0">
+              <ConnectPayouts />
+            </div>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
+              <h2 className="text-lg font-semibold text-white mb-2">Payouts</h2>
+              <ConnectPayouts />
+            </div>
+          )
         ) : null}
 
         {showAccountId && accountId ? (

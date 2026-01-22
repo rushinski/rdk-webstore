@@ -3,6 +3,7 @@
 
 import { X } from 'lucide-react';
 import { EmbeddedAccount } from '@/components/admin/stripe/EmbeddedAccount';
+import { ModalPortal } from '@/components/ui/ModalPortal';
 
 type Props = {
   open: boolean;
@@ -23,55 +24,53 @@ export function BankAccountManagementModal({ open, onClose, publishableKey, onUp
   };
 
   return (
-    <div className="fixed inset-0 z-[9999]">
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} aria-hidden="true" />
-      <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div className="w-full max-w-4xl max-h-[92vh] bg-zinc-950 border border-zinc-800 rounded-sm shadow-xl flex flex-col">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
-            <div>
-              <h2 className="text-xl font-semibold text-white">Manage bank accounts</h2>
-              <p className="text-sm text-zinc-400 mt-1">
-                Add, remove, or set your default payout account (powered by Stripe).
-              </p>
-            </div>
+    <ModalPortal open={open} onClose={onClose} zIndexClassName="z-[9999]">
+      <div className="w-[100vw] max-w-[100vw] h-[100dvh] sm:h-auto sm:max-h-[92dvh] sm:max-w-4xl bg-zinc-950 border border-zinc-800 sm:rounded-sm shadow-xl flex flex-col overflow-y-auto overflow-x-hidden modal-scroll">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-zinc-800">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold text-white">Manage bank accounts</h2>
+            <p className="text-[12px] sm:text-sm text-zinc-400 mt-1">
+              Add, remove, or set your default payout account (powered by Stripe).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 border border-zinc-800 hover:border-zinc-600 rounded-sm"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4 text-zinc-300" />
+          </button>
+        </div>
+
+        <div className="pl-2 pr-4 sm:px-6 py-3 sm:py-6">
+          <div className="stripe-connect-embed">
+            <EmbeddedAccount
+              publishableKey={publishableKey}
+              showOnboarding={false}
+              showAccountManagement={true}
+              showBalances={false}
+              showPayouts={false}
+              showAccountId={false}
+              variant="plain"
+            />
+          </div>
+
+          <div className="mt-4 sm:mt-6 flex justify-end">
             <button
               type="button"
-              onClick={onClose}
-              className="p-2 border border-zinc-800 hover:border-zinc-600 rounded-sm"
-              aria-label="Close"
+              onClick={done}
+              className="px-4 sm:px-6 py-2 bg-green-600 text-white text-[12px] sm:text-sm font-medium hover:bg-green-500 rounded-sm"
             >
-              <X className="w-4 h-4 text-zinc-300" />
+              Done
             </button>
           </div>
 
-          <div className="px-6 py-6 overflow-y-auto">
-            <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
-              <EmbeddedAccount
-                publishableKey={publishableKey}
-                showOnboarding={false}
-                showAccountManagement={true}
-                showBalances={false}
-                showPayouts={false}
-                showAccountId={false}
-              />
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={done}
-                className="px-6 py-2.5 bg-green-600 text-white text-sm font-medium hover:bg-green-500 rounded-sm"
-              >
-                Done
-              </button>
-            </div>
-
-            <div className="mt-4 text-xs text-zinc-500">
-              Bank details are collected and stored by Stripe. Your app never receives account numbers.
-            </div>
+          <div className="mt-3 sm:mt-4 text-[11px] sm:text-xs text-zinc-500">
+            Bank details are collected and stored by Stripe. Your app never receives account numbers.
           </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }

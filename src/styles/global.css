@@ -212,3 +212,53 @@ body[data-route='admin'] main {
   outline: 2px solid #dc2626;
   outline-offset: 2px;
 }
+
+/* Stripe Connect embeds - keep within modal width on mobile */
+.stripe-connect-embed {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.stripe-connect-embed,
+.stripe-connect-embed * {
+  box-sizing: border-box;
+}
+
+.modal-scroll {
+  scrollbar-gutter: stable;
+}
+
+.stripe-connect-embed stripe-connect-account-management,
+.stripe-connect-embed stripe-connect-account-onboarding,
+.stripe-connect-embed stripe-connect-balances,
+.stripe-connect-embed stripe-connect-payouts {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  overflow-x: hidden;
+}
+
+.stripe-connect-embed stripe-connect-account-management,
+.stripe-connect-embed stripe-connect-account-onboarding,
+.stripe-connect-embed stripe-connect-balances,
+.stripe-connect-embed stripe-connect-payouts {
+  scrollbar-width: none;
+}
+
+.stripe-connect-embed stripe-connect-account-management::-webkit-scrollbar,
+.stripe-connect-embed stripe-connect-account-onboarding::-webkit-scrollbar,
+.stripe-connect-embed stripe-connect-balances::-webkit-scrollbar,
+.stripe-connect-embed stripe-connect-payouts::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.stripe-connect-embed stripe-connect-account-management iframe,
+.stripe-connect-embed stripe-connect-account-onboarding iframe,
+.stripe-connect-embed stripe-connect-balances iframe,
+.stripe-connect-embed stripe-connect-payouts iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+}

@@ -7,7 +7,7 @@ export const connectAppearance = {
     fontFamily:
       'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans"',
     fontSizeBase: '14px',
-    spacingUnit: '6px',
+    spacingUnit: '8px',
 
     // match your rounded-sm
     borderRadius: '2px',

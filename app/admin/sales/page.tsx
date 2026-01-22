@@ -138,6 +138,13 @@ export default function SalesPage() {
     return { revenue, profit, totalSales };
   }, [orders]);
 
+  const compactNumber = useMemo(
+    () => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }),
+    [],
+  );
+
+  const compactMoney = (value: number) => `$${compactNumber.format(value)}`;
+
   const filteredOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return orders;
@@ -321,18 +328,27 @@ export default function SalesPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <span className="text-gray-400 text-sm">Total Sales</span>
-          <div className="text-3xl font-bold text-white mt-2">{summary.totalSales}</div>
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-2 sm:gap-6">
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
+          <span className="text-gray-400 text-[11px] sm:text-sm">Total Sales</span>
+          <div className="text-lg sm:text-3xl font-bold text-white mt-1 sm:mt-2">
+            <span className="sm:hidden">{compactNumber.format(summary.totalSales)}</span>
+            <span className="hidden sm:inline">{summary.totalSales}</span>
+          </div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <span className="text-gray-400 text-sm">Revenue</span>
-          <div className="text-3xl font-bold text-white mt-2">${summary.revenue.toFixed(2)}</div>
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
+          <span className="text-gray-400 text-[11px] sm:text-sm">Revenue</span>
+          <div className="text-lg sm:text-3xl font-bold text-white mt-1 sm:mt-2">
+            <span className="sm:hidden">{compactMoney(summary.revenue)}</span>
+            <span className="hidden sm:inline">${summary.revenue.toFixed(2)}</span>
+          </div>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-          <span className="text-gray-400 text-sm">Profit</span>
-          <div className="text-3xl font-bold text-green-400 mt-2">${summary.profit.toFixed(2)}</div>
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
+          <span className="text-gray-400 text-[11px] sm:text-sm">Profit</span>
+          <div className="text-lg sm:text-3xl font-bold text-green-400 mt-1 sm:mt-2">
+            <span className="sm:hidden">{compactMoney(summary.profit)}</span>
+            <span className="hidden sm:inline">${summary.profit.toFixed(2)}</span>
+          </div>
         </div>
       </div>
 
