@@ -52,8 +52,12 @@ export class AdminInviteService {
     const inviteRepo = new AdminInvitesRepository(this.adminSupabase);
     const invite = await inviteRepo.getByTokenHash(tokenHash);
 
-    if (!invite) throw new Error("Invite not found");
-    if (invite.used_at) throw new Error("Invite already used");
+    if (!invite) {
+      throw new Error("Invite not found");
+    }
+    if (invite.used_at) {
+      throw new Error("Invite already used");
+    }
 
     const expiresAt = new Date(invite.expires_at);
     if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {

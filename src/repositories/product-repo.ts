@@ -89,10 +89,15 @@ export class ProductRepository {
         .eq("is_active", true);
 
       // Tenant/seller/marketplace scoping
-      if (filters.tenantId) query = query.eq("tenant_id", filters.tenantId);
-      if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
-      if (filters.marketplaceId)
+      if (filters.tenantId) {
+        query = query.eq("tenant_id", filters.tenantId);
+      }
+      if (filters.sellerId) {
+        query = query.eq("seller_id", filters.sellerId);
+      }
+      if (filters.marketplaceId) {
         query = query.eq("marketplace_id", filters.marketplaceId);
+      }
 
       if (filters.stockStatus === "out_of_stock") {
         query = query.eq("is_out_of_stock", true);
@@ -117,10 +122,18 @@ export class ProductRepository {
       }
 
       // Category / brand / condition filters
-      if (filters.category?.length) query = query.in("category", filters.category);
-      if (filters.brand?.length) query = query.in("brand", filters.brand);
-      if (filters.model?.length) query = query.in("model", filters.model);
-      if (filters.condition?.length) query = query.in("condition", filters.condition);
+      if (filters.category?.length) {
+        query = query.in("category", filters.category);
+      }
+      if (filters.brand?.length) {
+        query = query.in("brand", filters.brand);
+      }
+      if (filters.model?.length) {
+        query = query.in("model", filters.model);
+      }
+      if (filters.condition?.length) {
+        query = query.in("condition", filters.condition);
+      }
 
       if (Array.isArray(sizeProductIds)) {
         query = query.in("id", sizeProductIds);
@@ -146,7 +159,9 @@ export class ProductRepository {
       query = query.range(offset, offset + limit - 1);
 
       const { data, error, count } = await query;
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       ids = (data ?? []).map((row: { id: string }) => row.id);
       total = count ?? 0;
@@ -171,14 +186,21 @@ export class ProductRepository {
       detailQuery = detailQuery.eq("is_out_of_stock", false);
     }
 
-    if (filters.tenantId) detailQuery = detailQuery.eq("tenant_id", filters.tenantId);
-    if (filters.sellerId) detailQuery = detailQuery.eq("seller_id", filters.sellerId);
-    if (filters.marketplaceId)
+    if (filters.tenantId) {
+      detailQuery = detailQuery.eq("tenant_id", filters.tenantId);
+    }
+    if (filters.sellerId) {
+      detailQuery = detailQuery.eq("seller_id", filters.sellerId);
+    }
+    if (filters.marketplaceId) {
       detailQuery = detailQuery.eq("marketplace_id", filters.marketplaceId);
+    }
 
     const { data: details, error: detailsError } = await detailQuery;
 
-    if (detailsError) throw detailsError;
+    if (detailsError) {
+      throw detailsError;
+    }
 
     const byId = new Map(
       (details ?? []).map((raw) => [raw.id, this.transformProduct(raw)]),
@@ -210,13 +232,23 @@ export class ProductRepository {
     if (!opts?.includeOutOfStock) {
       query = query.eq("is_out_of_stock", false);
     }
-    if (opts?.tenantId) query = query.eq("tenant_id", opts.tenantId);
-    if (opts?.sellerId) query = query.eq("seller_id", opts.sellerId);
-    if (opts?.marketplaceId) query = query.eq("marketplace_id", opts.marketplaceId);
+    if (opts?.tenantId) {
+      query = query.eq("tenant_id", opts.tenantId);
+    }
+    if (opts?.sellerId) {
+      query = query.eq("seller_id", opts.sellerId);
+    }
+    if (opts?.marketplaceId) {
+      query = query.eq("marketplace_id", opts.marketplaceId);
+    }
 
     const { data, error } = await query.maybeSingle();
-    if (error) throw error;
-    if (!data) return null;
+    if (error) {
+      throw error;
+    }
+    if (!data) {
+      return null;
+    }
 
     return this.transformProduct(data);
   }
@@ -233,10 +265,14 @@ export class ProductRepository {
       .eq("category", category)
       .eq("is_active", true);
 
-    if (tenantId) query = query.eq("tenant_id", tenantId);
+    if (tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
 
     const { data, error } = await query.limit(1).maybeSingle();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 
@@ -247,7 +283,9 @@ export class ProductRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ProductRow;
   }
 
@@ -259,13 +297,17 @@ export class ProductRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ProductRow;
   }
 
   async delete(id: string) {
     const { error } = await this.supabase.from("products").delete().eq("id", id);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async createVariant(variant: VariantInsert) {
@@ -275,7 +317,9 @@ export class ProductRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as VariantRow;
   }
 
@@ -287,7 +331,9 @@ export class ProductRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as VariantRow;
   }
 
@@ -297,7 +343,9 @@ export class ProductRepository {
       .delete()
       .eq("product_id", productId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async createImage(image: ImageInsert) {
@@ -307,7 +355,9 @@ export class ProductRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ImageRow;
   }
 
@@ -317,7 +367,9 @@ export class ProductRepository {
       .delete()
       .eq("product_id", productId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async upsertTag(tag: TagInsert) {
@@ -327,7 +379,9 @@ export class ProductRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as TagRow;
   }
 
@@ -336,7 +390,9 @@ export class ProductRepository {
       .from("product_tags")
       .insert({ product_id: productId, tag_id: tagId });
 
-    if (error && (error as any).code !== "23505") throw error;
+    if (error && (error as any).code !== "23505") {
+      throw error;
+    }
   }
 
   async unlinkProductTags(productId: string) {
@@ -345,7 +401,9 @@ export class ProductRepository {
       .delete()
       .eq("product_id", productId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async getBrands(): Promise<string[]> {
@@ -355,7 +413,9 @@ export class ProductRepository {
       .eq("is_active", true)
       .eq("is_out_of_stock", false);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     const brands = [
       ...new Set(
         (data ?? [])
@@ -387,7 +447,9 @@ export class ProductRepository {
 
     const { data, error } = await query.limit(2000);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return (data ?? []).map((row: any) => ({
       brand: row.brand ?? null,
       model: row.model ?? null,
@@ -419,7 +481,9 @@ export class ProductRepository {
   ) {
     const { page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
-    const hasSizeFilters = Boolean(filters.sizeShoe?.length || filters.sizeClothing?.length);
+    const hasSizeFilters = Boolean(
+      filters.sizeShoe?.length || filters.sizeClothing?.length,
+    );
 
     let sizeProductIds: string[] | null = null;
     if (hasSizeFilters) {
@@ -435,10 +499,15 @@ export class ProductRepository {
       .eq("is_active", true);
 
     // Tenant/seller/marketplace scoping
-    if (filters.tenantId) countQuery = countQuery.eq("tenant_id", filters.tenantId);
-    if (filters.sellerId) countQuery = countQuery.eq("seller_id", filters.sellerId);
-    if (filters.marketplaceId)
+    if (filters.tenantId) {
+      countQuery = countQuery.eq("tenant_id", filters.tenantId);
+    }
+    if (filters.sellerId) {
+      countQuery = countQuery.eq("seller_id", filters.sellerId);
+    }
+    if (filters.marketplaceId) {
       countQuery = countQuery.eq("marketplace_id", filters.marketplaceId);
+    }
 
     if (filters.stockStatus === "out_of_stock") {
       countQuery = countQuery.eq("is_out_of_stock", true);
@@ -462,14 +531,26 @@ export class ProductRepository {
     }
 
     // Category / brand / condition filters
-    if (filters.category?.length) countQuery = countQuery.in("category", filters.category);
-    if (filters.brand?.length) countQuery = countQuery.in("brand", filters.brand);
-    if (filters.model?.length) countQuery = countQuery.in("model", filters.model);
-    if (filters.condition?.length) countQuery = countQuery.in("condition", filters.condition);
-    if (Array.isArray(sizeProductIds)) countQuery = countQuery.in("id", sizeProductIds);
+    if (filters.category?.length) {
+      countQuery = countQuery.in("category", filters.category);
+    }
+    if (filters.brand?.length) {
+      countQuery = countQuery.in("brand", filters.brand);
+    }
+    if (filters.model?.length) {
+      countQuery = countQuery.in("model", filters.model);
+    }
+    if (filters.condition?.length) {
+      countQuery = countQuery.in("condition", filters.condition);
+    }
+    if (Array.isArray(sizeProductIds)) {
+      countQuery = countQuery.in("id", sizeProductIds);
+    }
 
     const { count: total, error: countError } = await countQuery;
-    if (countError) throw countError;
+    if (countError) {
+      throw countError;
+    }
     if (!total) {
       return { ids: [], total: 0 };
     }
@@ -506,10 +587,15 @@ export class ProductRepository {
       }
 
       // Tenant/seller/marketplace scoping
-      if (filters.tenantId) query = query.eq("product.tenant_id", filters.tenantId);
-      if (filters.sellerId) query = query.eq("product.seller_id", filters.sellerId);
-      if (filters.marketplaceId)
+      if (filters.tenantId) {
+        query = query.eq("product.tenant_id", filters.tenantId);
+      }
+      if (filters.sellerId) {
+        query = query.eq("product.seller_id", filters.sellerId);
+      }
+      if (filters.marketplaceId) {
         query = query.eq("product.marketplace_id", filters.marketplaceId);
+      }
 
       if (filters.stockStatus === "out_of_stock") {
         query = query.eq("product.is_out_of_stock", true);
@@ -536,25 +622,42 @@ export class ProductRepository {
       }
 
       // Category / brand / condition filters
-      if (filters.category?.length) query = query.in("product.category", filters.category);
-      if (filters.brand?.length) query = query.in("product.brand", filters.brand);
-      if (filters.model?.length) query = query.in("product.model", filters.model);
-      if (filters.condition?.length)
+      if (filters.category?.length) {
+        query = query.in("product.category", filters.category);
+      }
+      if (filters.brand?.length) {
+        query = query.in("product.brand", filters.brand);
+      }
+      if (filters.model?.length) {
+        query = query.in("product.model", filters.model);
+      }
+      if (filters.condition?.length) {
         query = query.in("product.condition", filters.condition);
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      if (!data || data.length === 0) break;
-
-      for (const row of data as Array<{ product_id: string | null }>) {
-        if (!row.product_id || seen.has(row.product_id)) continue;
-        seen.add(row.product_id);
-        orderedIds.push(row.product_id);
-        if (orderedIds.length >= targetCount) break;
       }
 
-      if (data.length < batchSize) break;
+      const { data, error } = await query;
+      if (error) {
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        break;
+      }
+
+      for (const row of data as Array<{ product_id: string | null }>) {
+        if (!row.product_id || seen.has(row.product_id)) {
+          continue;
+        }
+        seen.add(row.product_id);
+        orderedIds.push(row.product_id);
+        if (orderedIds.length >= targetCount) {
+          break;
+        }
+      }
+
+      if (data.length < batchSize) {
+        break;
+      }
       rangeStart += batchSize;
     }
 
@@ -574,14 +677,18 @@ export class ProductRepository {
       );
     }
 
-    if (sizeFilters.length === 0) return null;
+    if (sizeFilters.length === 0) {
+      return null;
+    }
 
     const { data, error } = await this.supabase
       .from("product_variants")
       .select("product_id")
       .or(sizeFilters.join(","));
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return [
       ...new Set(
@@ -621,7 +728,9 @@ export class ProductRepository {
       .eq("is_active", true)
       .eq("is_out_of_stock", false);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return (data ?? []).map((p: any) => ({
       id: p.id,
@@ -644,7 +753,9 @@ export class ProductRepository {
   }
 
   async getVariantsForCart(variantIds: string[]): Promise<CartVariantDetails[]> {
-    if (variantIds.length === 0) return [];
+    if (variantIds.length === 0) {
+      return [];
+    }
 
     const { data, error } = await this.supabase
       .from("product_variants")
@@ -653,7 +764,9 @@ export class ProductRepository {
       )
       .in("id", variantIds);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     const rows = data ?? [];
     const productIds = [
@@ -673,7 +786,9 @@ export class ProductRepository {
         .order("is_primary", { ascending: false })
         .order("sort_order", { ascending: true });
 
-      if (imagesError) throw imagesError;
+      if (imagesError) {
+        throw imagesError;
+      }
 
       for (const image of images ?? []) {
         if (!imageMap.has(image.product_id)) {
@@ -713,7 +828,9 @@ export class ProductRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     const models = [
       ...new Set(
         (data ?? [])

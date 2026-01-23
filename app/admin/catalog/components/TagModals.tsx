@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+
 import type { Brand, EditTarget } from "../types";
 
 type TagModalsProps = {
@@ -227,7 +228,9 @@ export function TagModals({
               <div className="space-y-3">
                 <select
                   value={editDraft.brand_id}
-                  onChange={(e) => setEditDraft({ ...editDraft, brand_id: e.target.value })}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, brand_id: e.target.value })
+                  }
                   className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
                 >
                   {brands.map((brand) => (
@@ -275,7 +278,9 @@ export function TagModals({
               <div className="space-y-3">
                 <input
                   value={editDraft.alias_label}
-                  onChange={(e) => setEditDraft({ ...editDraft, alias_label: e.target.value })}
+                  onChange={(e) =>
+                    setEditDraft({ ...editDraft, alias_label: e.target.value })
+                  }
                   placeholder="Alias"
                   className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
                 />
@@ -292,7 +297,9 @@ export function TagModals({
                     type="checkbox"
                     className="rdk-checkbox"
                     checked={editDraft.is_active}
-                    onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
+                    onChange={(e) =>
+                      setEditDraft({ ...editDraft, is_active: e.target.checked })
+                    }
                   />
                   Active
                 </label>
@@ -324,9 +331,12 @@ export function TagModals({
             className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-md p-6 space-y-4"
             onClick={(event) => event.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-white">Delete {confirmTarget.type}</h3>
+            <h3 className="text-lg font-semibold text-white">
+              Delete {confirmTarget.type}
+            </h3>
             <p className="text-sm text-gray-400">
-              This will disable the item (soft delete). You can re-enable it later by editing the record.
+              This will disable the item (soft delete). You can re-enable it later by
+              editing the record.
             </p>
             <div className="flex items-center justify-end gap-3">
               <button

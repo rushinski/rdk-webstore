@@ -1,13 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { MoreVertical, Trash2, X } from 'lucide-react';
-import { logError } from '@/lib/log';
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { MoreVertical, Trash2, X } from "lucide-react";
+
+import { logError } from "@/lib/log";
 
 type AdminNotification = {
   id: string;
-  type: 'order_placed' | 'chat_message';
+  type: "order_placed" | "chat_message";
   message: string;
   created_at: string;
   read_at: string | null;
@@ -17,20 +18,28 @@ type AdminNotification = {
 
 const formatTime = (value: string) => {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 
 const getNotificationHref = (n: AdminNotification) => {
-  if (n.type === 'order_placed' && n.order_id) return '/admin/sales';
-  if (n.chat_id) return `/admin/chats?chatId=${n.chat_id}`;
-  return '/admin/dashboard';
+  if (n.type === "order_placed" && n.order_id) {
+    return "/admin/sales";
+  }
+  if (n.chat_id) {
+    return `/admin/chats?chatId=${n.chat_id}`;
+  }
+  return "/admin/dashboard";
 };
 
-const cap9 = (n: number) => (n > 9 ? '9+' : String(n));
+const cap9 = (n: number) => (n > 9 ? "9+" : String(n));
 
 function emitUnreadCountUpdated(count: number) {
-  window.dispatchEvent(new CustomEvent('adminNotificationsUpdated', { detail: { unreadCount: count } }));
+  window.dispatchEvent(
+    new CustomEvent("adminNotificationsUpdated", { detail: { unreadCount: count } }),
+  );
 }
 
 type ListResponse = {
@@ -73,10 +82,15 @@ export default function AdminNotificationsPage() {
   const load = async (nextPage = page) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/admin/notifications?limit=${limit}&page=${nextPage}`, {
-        cache: 'no-store',
-      });
-      if (!res.ok) return;
+      const res = await fetch(
+        `/api/admin/notifications?limit=${limit}&page=${nextPage}`,
+        {
+          cache: "no-store",
+        },
+      );
+      if (!res.ok) {
+        return;
+      }
 
       const json = (await res.json()) as ListResponse;
       setData(json);
@@ -84,7 +98,7 @@ export default function AdminNotificationsPage() {
 
       emitUnreadCountUpdated(json.unreadCount);
     } catch (e) {
-      logError(e, { layer: 'frontend', event: 'admin_notifications_center_load' });
+      logError(e, { layer: "frontend", event: "admin_notifications_center_load" });
     } finally {
       setIsLoading(false);
     }
@@ -99,9 +113,15 @@ export default function AdminNotificationsPage() {
   useEffect(() => {
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node | null;
-      if (!target) return;
+      if (!target) {
+        return;
+      }
 
-      if (deleteMenuOpen && headerDeleteRef.current && !headerDeleteRef.current.contains(target)) {
+      if (
+        deleteMenuOpen &&
+        headerDeleteRef.current &&
+        !headerDeleteRef.current.contains(target)
+      ) {
         setDeleteMenuOpen(false);
       }
 
@@ -111,26 +131,29 @@ export default function AdminNotificationsPage() {
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setDeleteMenuOpen(false);
         setMenuOpenFor(null);
       }
     };
 
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [deleteMenuOpen, menuOpenFor]);
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
       return next;
     });
   };
@@ -151,24 +174,30 @@ export default function AdminNotificationsPage() {
 
   const deleteSelected = async () => {
     const ids = Array.from(selectedIds);
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      return;
+    }
 
     try {
-      const res = await fetch('/api/admin/notifications', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/admin/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
       });
 
-      const json = await res.json().catch(() => ({} as any));
-      if (!res.ok) return;
+      const json = await res.json().catch(() => ({}) as any);
+      if (!res.ok) {
+        return;
+      }
 
-      if (typeof json?.deletedCount === 'number' && json.deletedCount === 0) {
+      if (typeof json?.deletedCount === "number" && json.deletedCount === 0) {
         // No-op: nothing deleted (already gone / none matched). This is NOT an error.
         cancelSelectMode();
         await load(page);
         const afterCount = data?.notifications?.length ?? 0;
-        if (afterCount === 0 && page > 1) await load(page - 1);
+        if (afterCount === 0 && page > 1) {
+          await load(page - 1);
+        }
         return;
       }
 
@@ -176,25 +205,29 @@ export default function AdminNotificationsPage() {
 
       await load(page);
       const afterCount = data?.notifications?.length ?? 0;
-      if (afterCount === 0 && page > 1) await load(page - 1);
+      if (afterCount === 0 && page > 1) {
+        await load(page - 1);
+      }
     } catch (e) {
-      logError(e, { layer: 'frontend', event: 'admin_notifications_center_delete' });
+      logError(e, { layer: "frontend", event: "admin_notifications_center_delete" });
     }
   };
 
   const confirmDeleteAll = async () => {
     setIsDeletingAll(true);
     try {
-      const res = await fetch('/api/admin/notifications', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/admin/notifications", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ delete_all: true }),
       });
 
-      const json = await res.json().catch(() => ({} as any));
-      if (!res.ok) return;
+      const json = await res.json().catch(() => ({}) as any);
+      if (!res.ok) {
+        return;
+      }
 
-      if (typeof json?.deletedCount === 'number' && json.deletedCount === 0) {
+      if (typeof json?.deletedCount === "number" && json.deletedCount === 0) {
         // No-op: nothing to delete. Not an error.
         setConfirmDeleteAllOpen(false);
         cancelSelectMode();
@@ -206,7 +239,7 @@ export default function AdminNotificationsPage() {
       cancelSelectMode();
       await load(1);
     } catch (e) {
-      logError(e, { layer: 'frontend', event: 'admin_notifications_center_delete_all' });
+      logError(e, { layer: "frontend", event: "admin_notifications_center_delete_all" });
     } finally {
       setIsDeletingAll(false);
     }
@@ -214,9 +247,9 @@ export default function AdminNotificationsPage() {
 
   const markRead = async (id: string) => {
     try {
-      await fetch('/api/admin/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: [id] }),
       });
 
@@ -226,23 +259,23 @@ export default function AdminNotificationsPage() {
               ...prev,
               unreadCount: Math.max(0, prev.unreadCount - 1),
               notifications: prev.notifications.map((n) =>
-                n.id === id ? { ...n, read_at: new Date().toISOString() } : n
+                n.id === id ? { ...n, read_at: new Date().toISOString() } : n,
               ),
             }
-          : prev
+          : prev,
       );
 
       emitUnreadCountUpdated(Math.max(0, unreadCount - 1));
     } catch (e) {
-      logError(e, { layer: 'frontend', event: 'admin_notifications_center_mark_read' });
+      logError(e, { layer: "frontend", event: "admin_notifications_center_mark_read" });
     }
   };
 
   const markAllRead = async () => {
     try {
-      await fetch('/api/admin/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mark_all: true }),
       });
 
@@ -256,11 +289,11 @@ export default function AdminNotificationsPage() {
                 read_at: n.read_at ?? new Date().toISOString(),
               })),
             }
-          : prev
+          : prev,
       );
       emitUnreadCountUpdated(0);
     } catch (e) {
-      logError(e, { layer: 'frontend', event: 'admin_notifications_center_mark_all' });
+      logError(e, { layer: "frontend", event: "admin_notifications_center_mark_all" });
     }
   };
 
@@ -272,7 +305,9 @@ export default function AdminNotificationsPage() {
           <div
             className="absolute inset-0 bg-black/70"
             onClick={() => {
-              if (!isDeletingAll) setConfirmDeleteAllOpen(false);
+              if (!isDeletingAll) {
+                setConfirmDeleteAllOpen(false);
+              }
             }}
           />
           <div className="absolute inset-0 flex items-center justify-center p-4">
@@ -289,7 +324,9 @@ export default function AdminNotificationsPage() {
                 <button
                   className="text-zinc-400 hover:text-white"
                   onClick={() => {
-                    if (!isDeletingAll) setConfirmDeleteAllOpen(false);
+                    if (!isDeletingAll) {
+                      setConfirmDeleteAllOpen(false);
+                    }
                   }}
                   aria-label="Close"
                 >
@@ -310,7 +347,7 @@ export default function AdminNotificationsPage() {
                   onClick={confirmDeleteAll}
                   disabled={isDeletingAll}
                 >
-                  {isDeletingAll ? 'Deleting...' : 'Delete all'}
+                  {isDeletingAll ? "Deleting..." : "Delete all"}
                 </button>
               </div>
             </div>
@@ -321,9 +358,11 @@ export default function AdminNotificationsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Notification Center</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">
+            Notification Center
+          </h1>
           <p className="text-[11px] sm:text-xs text-zinc-500 mt-1">
-            Unread: {unreadCount > 0 ? cap9(unreadCount) : '0'}
+            Unread: {unreadCount > 0 ? cap9(unreadCount) : "0"}
           </p>
         </div>
 
@@ -408,7 +447,9 @@ export default function AdminNotificationsPage() {
 
       {/* Body */}
       {isLoading ? (
-        <div className="text-[12px] sm:text-sm text-zinc-500 py-10 text-center">Loading...</div>
+        <div className="text-[12px] sm:text-sm text-zinc-500 py-10 text-center">
+          Loading...
+        </div>
       ) : notifications.length === 0 ? (
         <div className="text-[12px] sm:text-sm text-zinc-500 py-10 text-center">
           No notifications yet.
@@ -419,7 +460,10 @@ export default function AdminNotificationsPage() {
             const isSelected = selectedIds.has(n.id);
 
             return (
-              <div key={n.id} className="relative border border-zinc-800/70 bg-zinc-950 rounded-sm">
+              <div
+                key={n.id}
+                className="relative border border-zinc-800/70 bg-zinc-950 rounded-sm"
+              >
                 {/* group hover makes entire row change bg (including 3-dot area) */}
                 <div className="group flex items-stretch">
                   {selectMode && (
@@ -446,10 +490,12 @@ export default function AdminNotificationsPage() {
                         toggleSelected(n.id);
                         return;
                       }
-                      if (!n.read_at) markRead(n.id);
+                      if (!n.read_at) {
+                        markRead(n.id);
+                      }
                     }}
                     className={`block flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-3 transition group-hover:bg-zinc-900 ${
-                      n.read_at ? 'text-zinc-400' : 'text-white'
+                      n.read_at ? "text-zinc-400" : "text-white"
                     }`}
                   >
                     <div className="text-[12px] sm:text-sm font-medium break-words whitespace-pre-wrap">
@@ -470,7 +516,9 @@ export default function AdminNotificationsPage() {
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (selectMode) return;
+                        if (selectMode) {
+                          return;
+                        }
                         setDeleteMenuOpen(false);
                         setMenuOpenFor((prev) => (prev === n.id ? null : n.id));
                       }}

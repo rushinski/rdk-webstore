@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Users, Eye } from "lucide-react";
+
 import { logError } from "@/lib/log";
 import { TrafficChart } from "@/components/admin/charts/TrafficChart";
 import { RdkSelect } from "@/components/ui/Select";
-import { Users, Eye } from "lucide-react";
 
 type Range = "today" | "7d" | "30d" | "90d";
 const DEFAULT_RANGE: Range = "30d";
 const POLL_MS = 30_000;
 
 function rangeToDays(range: Range): number {
-  if (range === "today") return 1;
+  if (range === "today") {
+    return 1;
+  }
   return Number(range.replace("d", "")) || 30;
 }
 
@@ -24,7 +27,7 @@ type DailySeriesPoint<K extends string> = { date: string } & Record<K, number>;
 function normalizeDailySeries<K extends string>(
   range: Range,
   raw: Array<{ date: string } & Partial<Record<K, number>>>,
-  valueKey: K
+  valueKey: K,
 ): DailySeriesPoint<K>[] {
   const days = rangeToDays(range);
 
@@ -33,7 +36,9 @@ function normalizeDailySeries<K extends string>(
   for (const row of raw || []) {
     const date = typeof row.date === "string" ? row.date.slice(0, 10) : "";
     const v = Number(row[valueKey] ?? 0);
-    if (!date) continue;
+    if (!date) {
+      continue;
+    }
     map.set(date, (map.get(date) ?? 0) + (Number.isFinite(v) ? v : 0));
   }
 
@@ -57,7 +62,6 @@ function normalizeDailySeries<K extends string>(
   return out;
 }
 
-
 export default function AnalyticsTrafficPage() {
   const [range, setRange] = useState<Range>(DEFAULT_RANGE);
   const [trafficSummary, setTrafficSummary] = useState({
@@ -65,9 +69,9 @@ export default function AnalyticsTrafficPage() {
     uniqueVisitors: 0,
     pageViews: 0,
   });
-  const [trafficTrendRaw, setTrafficTrendRaw] = useState<Array<{ date: string; visits: number }>>(
-    []
-  );
+  const [trafficTrendRaw, setTrafficTrendRaw] = useState<
+    Array<{ date: string; visits: number }>
+  >([]);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -84,11 +88,15 @@ export default function AnalyticsTrafficPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setTrafficSummary(data.trafficSummary || { visits: 0, uniqueVisitors: 0, pageViews: 0 });
+        setTrafficSummary(
+          data.trafficSummary || { visits: 0, uniqueVisitors: 0, pageViews: 0 },
+        );
         setTrafficTrendRaw(data.trafficTrend || []);
       }
     } catch (error: any) {
-      if (error?.name === "AbortError") return;
+      if (error?.name === "AbortError") {
+        return;
+      }
       logError(error, { layer: "frontend", event: "admin_load_analytics_traffic" });
     }
   };
@@ -97,11 +105,15 @@ export default function AnalyticsTrafficPage() {
     load();
 
     const interval = setInterval(() => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") {
+        load();
+      }
     }, POLL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") {
+        load();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -160,7 +172,9 @@ export default function AnalyticsTrafficPage() {
 
           <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-3 sm:p-6 flex flex-col h-full">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-[10px] sm:text-sm">Unique Visitors</span>
+              <span className="text-gray-400 text-[10px] sm:text-sm">
+                Unique Visitors
+              </span>
               <Eye className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             </div>
             <div className="mt-auto space-y-1">

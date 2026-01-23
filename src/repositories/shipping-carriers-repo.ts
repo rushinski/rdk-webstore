@@ -16,7 +16,9 @@ export class ShippingCarriersRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 
@@ -35,7 +37,9 @@ export class ShippingCarriersRepository {
       .select("*")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 }

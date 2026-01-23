@@ -1,5 +1,7 @@
 // app/api/auth/verify-email/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -14,7 +16,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -29,18 +31,15 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { ok: false, error: "Invalid or expired code.", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const nextPath =
-      flow === "signup"
-        ? "/"
-        : "/";
+    const nextPath = flow === "signup" ? "/" : "/";
 
     return NextResponse.json(
       { ok: true, nextPath },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (err: any) {
     logError(err, {
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { ok: false, error: err?.message ?? "Could not verify code.", requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

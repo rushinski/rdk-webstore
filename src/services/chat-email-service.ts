@@ -8,7 +8,9 @@ import {
 
 export class ChatEmailService {
   async sendChatNotification(input: ChatEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildChatNotificationEmail(input);
 
     await sendEmail({

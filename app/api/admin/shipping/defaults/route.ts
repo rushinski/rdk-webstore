@@ -1,6 +1,8 @@
 // app/api/admin/shipping/defaults/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingDefaultsService } from "@/services/shipping-defaults-service";
@@ -20,7 +22,7 @@ const defaultsSchema = z
             default_width_in: z.number().positive(),
             default_height_in: z.number().positive(),
           })
-          .strict()
+          .strict(),
       )
       .default([]),
   })
@@ -35,10 +37,7 @@ export async function GET(request: NextRequest) {
     const service = new ShippingDefaultsService(supabase);
 
     const defaults = await service.list(session.profile?.tenant_id ?? null);
-    return NextResponse.json(
-      { defaults },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ defaults }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     logError(error, {
       layer: "api",
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to fetch shipping defaults", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -65,17 +64,17 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const saved = await service.upsertDefaults(
       session.profile?.tenant_id ?? null,
-      parsed.data.defaults
+      parsed.data.defaults,
     );
     return NextResponse.json(
       { defaults: saved },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     logError(error, {
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to save shipping defaults", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

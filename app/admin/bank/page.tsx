@@ -1,13 +1,21 @@
 // app/admin/bank/page.tsx (UPDATED WITH REQUIREMENTS HANDLING)
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { DollarSign, CreditCard, TrendingUp, Calendar, ExternalLink, AlertTriangle } from 'lucide-react';
-import { logError } from '@/lib/log';
-import { StripeOnboardingModal } from '@/components/admin/stripe/StripeOnboardingModal';
-import { BankAccountManagementModal } from '@/components/admin/stripe/BankAccountManagementModal';
-import { PayoutsModal } from '@/components/admin/stripe/PayoutsModal';
-import { Toast } from '@/components/ui/Toast';
+import { useEffect, useState } from "react";
+import {
+  DollarSign,
+  CreditCard,
+  TrendingUp,
+  Calendar,
+  ExternalLink,
+  AlertTriangle,
+} from "lucide-react";
+
+import { logError } from "@/lib/log";
+import { StripeOnboardingModal } from "@/components/admin/stripe/StripeOnboardingModal";
+import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";
+import { PayoutsModal } from "@/components/admin/stripe/PayoutsModal";
+import { Toast } from "@/components/ui/Toast";
 
 type AccountSummary = {
   account: {
@@ -61,10 +69,13 @@ export default function BankPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showBankModal, setShowBankModal] = useState(false);
   const [showPayoutsModal, setShowPayoutsModal] = useState(false);
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error" | "info";
+  } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
 
   useEffect(() => {
     loadSummary();
@@ -73,12 +84,12 @@ export default function BankPage() {
   const loadSummary = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/admin/stripe/account');
+      const response = await fetch("/api/admin/stripe/account");
       const data = await response.json();
       setSummary(data);
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'bank_load_summary' });
-      setToast({ message: 'Failed to load account details', tone: 'error' });
+      logError(error, { layer: "frontend", event: "bank_load_summary" });
+      setToast({ message: "Failed to load account details", tone: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -90,12 +101,12 @@ export default function BankPage() {
 
   const handleOnboardingComplete = async () => {
     await refresh();
-    setToast({ message: 'Verification completed', tone: 'success' });
+    setToast({ message: "Verification completed", tone: "success" });
   };
 
   const handleBankUpdated = async () => {
     await refresh();
-    setToast({ message: 'Bank accounts updated', tone: 'success' });
+    setToast({ message: "Bank accounts updated", tone: "success" });
   };
 
   const requirements = summary?.requirements ?? null;
@@ -108,48 +119,64 @@ export default function BankPage() {
   const needsOnboarding = hasAccount && !summary?.account?.details_submitted;
   const payoutsEnabled = summary?.account?.payouts_enabled ?? false;
   const defaultBank =
-    summary?.bank_accounts?.find((b) => b.default_for_currency) ?? summary?.bank_accounts?.[0];
+    summary?.bank_accounts?.find((b) => b.default_for_currency) ??
+    summary?.bank_accounts?.[0];
 
   const hasCurrentlyDue = currentlyDue.length > 0;
   const hasPastDue = pastDue.length > 0;
   const hasPendingVerification = pendingVerification.length > 0;
   const hasAnyRequirements = hasCurrentlyDue || hasPastDue || hasPendingVerification;
 
-  const availableBalance = summary?.balance?.available?.find((b) => b.currency === 'usd')?.amount ?? 0;
-  const pendingBalance = summary?.balance?.pending?.find((b) => b.currency === 'usd')?.amount ?? 0;
+  const availableBalance =
+    summary?.balance?.available?.find((b) => b.currency === "usd")?.amount ?? 0;
+  const pendingBalance =
+    summary?.balance?.pending?.find((b) => b.currency === "usd")?.amount ?? 0;
   const upcomingPayout = summary?.upcoming_payout;
 
   const formatAmount = (cents: number) => `$${(cents / 100).toFixed(2)}`;
   const compactNumber = useState(
-    () => new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }),
+    () =>
+      new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }),
   )[0];
   const formatCompactAmount = (cents: number) => `$${compactNumber.format(cents / 100)}`;
-  
+
   const formatDate = (timestamp: number | null) => {
-    if (!timestamp) return 'TBD';
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
+    if (!timestamp) {
+      return "TBD";
+    }
+    return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
   const getScheduleText = () => {
-    if (!summary?.payout_schedule) return 'Not configured';
+    if (!summary?.payout_schedule) {
+      return "Not configured";
+    }
     const { interval, weekly_anchor, monthly_anchor } = summary.payout_schedule;
-    if (interval === 'daily') return 'Daily';
-    if (interval === 'weekly') return `Weekly on ${weekly_anchor ?? 'Monday'}`;
-    if (interval === 'monthly') return `Monthly on day ${monthly_anchor ?? 1}`;
+    if (interval === "daily") {
+      return "Daily";
+    }
+    if (interval === "weekly") {
+      return `Weekly on ${weekly_anchor ?? "Monday"}`;
+    }
+    if (interval === "monthly") {
+      return `Monthly on day ${monthly_anchor ?? 1}`;
+    }
     return interval;
   };
 
   // Format requirement names for display
   const formatRequirement = (req: string) => {
-    return req
-      .split('.')
-      .pop()
-      ?.replace(/_/g, ' ')
-      .replace(/\b\w/g, (l) => l.toUpperCase()) || req;
+    return (
+      req
+        .split(".")
+        .pop()
+        ?.replace(/_/g, " ")
+        .replace(/\b\w/g, (l) => l.toUpperCase()) || req
+    );
   };
 
   if (isLoading) {
@@ -171,13 +198,13 @@ export default function BankPage() {
 
         <div className="flex flex-wrap gap-3">
           {/* Show "Complete Verification" if there are requirements OR initial onboarding needed */}
-          {(needsOnboarding || hasAnyRequirements) ? (
+          {needsOnboarding || hasAnyRequirements ? (
             <button
               type="button"
               onClick={() => setShowOnboarding(true)}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-sm text-sm transition"
             >
-              {hasPastDue ? 'Complete urgent verification' : 'Complete verification'}
+              {hasPastDue ? "Complete urgent verification" : "Complete verification"}
             </button>
           ) : payoutsEnabled ? (
             <button
@@ -201,15 +228,18 @@ export default function BankPage() {
         </div>
       </div>
 
-       {/* Critical Requirements Alert (Past Due) */}
+      {/* Critical Requirements Alert (Past Due) */}
       {hasPastDue && (
         <div className="bg-red-950/30 border border-red-900/70 rounded p-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-red-400 mb-2">Urgent: Action Required</h3>
+              <h3 className="text-sm font-semibold text-red-400 mb-2">
+                Urgent: Action Required
+              </h3>
               <p className="text-sm text-red-300 mb-3">
-                Your account has overdue verification requirements. Complete these immediately to restore full functionality.
+                Your account has overdue verification requirements. Complete these
+                immediately to restore full functionality.
               </p>
               <ul className="space-y-1">
                 {pastDue.map((req) => (
@@ -229,9 +259,12 @@ export default function BankPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-blue-400 mb-2">Verification In Progress</h3>
+              <h3 className="text-sm font-semibold text-blue-400 mb-2">
+                Verification In Progress
+              </h3>
               <p className="text-sm text-blue-300">
-                We're reviewing your submitted information. This typically takes 1-2 business days.
+                We're reviewing your submitted information. This typically takes 1-2
+                business days.
               </p>
 
               {pendingVerification.length > 0 && (
@@ -254,7 +287,9 @@ export default function BankPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-yellow-400 mb-2">Verification Required</h3>
+              <h3 className="text-sm font-semibold text-yellow-400 mb-2">
+                Verification Required
+              </h3>
               <p className="text-sm text-yellow-300 mb-3">
                 Complete the following to enable full payout functionality:
               </p>
@@ -276,18 +311,23 @@ export default function BankPage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h3 className="text-sm font-semibold text-red-400 mb-2">Account Restricted</h3>
-              <p className="text-sm text-red-300">Reason: {disabledReason.replace(/_/g, ' ')}</p>
+              <h3 className="text-sm font-semibold text-red-400 mb-2">
+                Account Restricted
+              </h3>
+              <p className="text-sm text-red-300">
+                Reason: {disabledReason.replace(/_/g, " ")}
+              </p>
             </div>
           </div>
         </div>
       )}
-      
+
       {/* Generic Payouts Disabled Alert (when no specific requirements shown) */}
       {!payoutsEnabled && hasAccount && !needsOnboarding && !hasAnyRequirements && (
         <div className="bg-yellow-950/20 border border-yellow-900/70 rounded p-4">
           <p className="text-sm text-yellow-400">
-            Payouts are currently disabled. Please contact support or complete additional verification.
+            Payouts are currently disabled. Please contact support or complete additional
+            verification.
           </p>
         </div>
       )}
@@ -303,7 +343,9 @@ export default function BankPage() {
             <span className="sm:hidden">{formatCompactAmount(availableBalance)}</span>
             <span className="hidden sm:inline">{formatAmount(availableBalance)}</span>
           </div>
-          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">Ready for payout</p>
+          <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
+            Ready for payout
+          </p>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
@@ -326,8 +368,12 @@ export default function BankPage() {
           {upcomingPayout ? (
             <>
               <div className="text-base sm:text-3xl font-bold text-white">
-                <span className="sm:hidden">{formatCompactAmount(upcomingPayout.amount)}</span>
-                <span className="hidden sm:inline">{formatAmount(upcomingPayout.amount)}</span>
+                <span className="sm:hidden">
+                  {formatCompactAmount(upcomingPayout.amount)}
+                </span>
+                <span className="hidden sm:inline">
+                  {formatAmount(upcomingPayout.amount)}
+                </span>
               </div>
               <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
                 {formatDate(upcomingPayout.arrival_date)}
@@ -339,7 +385,9 @@ export default function BankPage() {
                 <span className="sm:hidden">$0</span>
                 <span className="hidden sm:inline">$0.00</span>
               </div>
-              <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">No payout</p>
+              <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
+                No payout
+              </p>
             </>
           )}
         </div>
@@ -349,7 +397,9 @@ export default function BankPage() {
         {/* Payout Schedule */}
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
-            <h2 className="text-base sm:text-lg font-semibold text-white">Payout Schedule</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-white">
+              Payout Schedule
+            </h2>
           </div>
           <div className="flex items-center gap-2 text-[12px] sm:text-base">
             <Calendar className="w-4 h-4 text-gray-400" />
@@ -367,7 +417,7 @@ export default function BankPage() {
               <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
               <div className="min-w-0">
                 <div className="text-[12px] sm:text-base text-white font-medium break-words">
-                  {defaultBank.bank_name ?? 'Bank Account'} ••••{defaultBank.last4}
+                  {defaultBank.bank_name ?? "Bank Account"} ••••{defaultBank.last4}
                 </div>
                 {defaultBank.account_holder_name && (
                   <div className="text-[11px] sm:text-sm text-gray-400 break-words">
@@ -382,7 +432,9 @@ export default function BankPage() {
 
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-semibold text-white">Payout History</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-white">
+            Payout History
+          </h2>
           <button
             type="button"
             onClick={() => setShowPayoutsModal(true)}
@@ -409,15 +461,12 @@ export default function BankPage() {
         onUpdated={handleBankUpdated}
       />
 
-      <PayoutsModal 
-        open={showPayoutsModal} 
-        onClose={() => setShowPayoutsModal(false)} 
-      />
+      <PayoutsModal open={showPayoutsModal} onClose={() => setShowPayoutsModal(false)} />
 
       <Toast
         open={Boolean(toast)}
-        message={toast?.message ?? ''}
-        tone={toast?.tone ?? 'info'}
+        message={toast?.message ?? ""}
+        tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
       />
     </div>

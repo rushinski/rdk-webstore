@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+
 import { CartProvider } from "@/components/cart/CartProvider";
 import { ScrollHeader } from "@/components/shell/ScrollHeader";
 import { ClientShell } from "@/components/shell/ClientShell";

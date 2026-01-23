@@ -70,7 +70,9 @@ export class AddressesRepository {
         })
         .eq("id", existing.id);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     } else {
       // Insert new address
       const insert: UserAddressInsert = {
@@ -87,7 +89,9 @@ export class AddressesRepository {
 
       const { error } = await this.supabase.from("user_addresses").insert(insert);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     }
   }
 
@@ -98,7 +102,9 @@ export class AddressesRepository {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -109,7 +115,9 @@ export class AddressesRepository {
       .eq("user_id", userId)
       .eq("id", addressId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async getOrderShipping(orderId: string): Promise<OrderShippingRow | null> {
@@ -119,7 +127,9 @@ export class AddressesRepository {
       .eq("order_id", orderId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 }

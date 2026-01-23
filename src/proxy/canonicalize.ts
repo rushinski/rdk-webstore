@@ -4,10 +4,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { log } from "@/lib/log";
 import { security } from "@/config/security";
 
-
 export function canonicalizePath(
   request: NextRequest,
-  requestId: string
+  requestId: string,
 ): NextResponse | null {
   const url = request.nextUrl;
   const rawPathname = url.pathname;
@@ -56,8 +55,5 @@ export function canonicalizePath(
   const redirectUrl = new URL(url.toString());
   redirectUrl.pathname = canonicalPathname;
 
-  return NextResponse.redirect(
-    redirectUrl.toString(),
-    canonicalize.redirectStatus
-  );
+  return NextResponse.redirect(redirectUrl.toString(), canonicalize.redirectStatus);
 }

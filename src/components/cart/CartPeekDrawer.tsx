@@ -1,9 +1,10 @@
 // src/components/cart/CartPeekDrawer.tsx
-'use client';
+"use client";
 
-import { X, Maximize2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useCart } from './CartProvider';
+import { X, Maximize2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import { useCart } from "./CartProvider";
 
 interface CartPeekDrawerProps {
   isOpen: boolean;
@@ -14,17 +15,19 @@ export function CartPeekDrawer({ isOpen, onClose }: CartPeekDrawerProps) {
   const router = useRouter();
   const { items, total } = useCart();
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   const handleExpand = () => {
-    router.push('/cart');
+    router.push("/cart");
     onClose();
   };
 
   return (
     <div className="md:hidden fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      
+
       <div className="absolute bottom-0 left-0 right-0 bg-black border-t border-zinc-800/70 rounded-t-2xl max-h-[70vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex items-center justify-between mb-4">

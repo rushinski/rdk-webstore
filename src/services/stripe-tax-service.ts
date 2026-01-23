@@ -1,6 +1,7 @@
 // src/services/stripe-tax-service.ts
 
 import Stripe from "stripe";
+
 import { env } from "@/config/env";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { NexusRepository } from "@/repositories/nexus-repo";
@@ -41,16 +42,16 @@ export class StripeTaxService {
   } | null> {
     try {
       const settings = await this.stripeClient.tax.settings.retrieve();
-      
+
       if (settings.head_office?.address) {
         const addr = settings.head_office.address;
         return {
-          line1: addr.line1 ?? '',
+          line1: addr.line1 ?? "",
           line2: addr.line2 ?? null,
-          city: addr.city ?? '',
-          state: addr.state ?? '',
-          postal_code: addr.postal_code ?? '',
-          country: addr.country ?? 'US',
+          city: addr.city ?? "",
+          state: addr.state ?? "",
+          postal_code: addr.postal_code ?? "",
+          country: addr.country ?? "US",
         };
       }
       return null;
@@ -82,7 +83,7 @@ export class StripeTaxService {
 
       await this.stripeClient.tax.settings.update({
         defaults: {
-          tax_behavior: 'exclusive',
+          tax_behavior: "exclusive",
         },
         head_office: {
           address: {
@@ -100,15 +101,16 @@ export class StripeTaxService {
         tenantId: params.tenantId,
         homeState: params.stateCode,
         businessName: params.businessName ?? existingSettings?.business_name ?? null,
-        stripeTaxSettingsId: 'configured',
+        stripeTaxSettingsId: "configured",
         taxEnabled: existingSettings?.tax_enabled ?? false,
-        taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
+        taxCodeOverrides:
+          (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
 
       await this.nexusRepo.upsertRegistration({
         tenantId: params.tenantId,
         stateCode: params.stateCode,
-        registrationType: 'physical',
+        registrationType: "physical",
         isRegistered: false,
         registeredAt: null,
         stripeRegistrationId: null,
@@ -130,20 +132,18 @@ export class StripeTaxService {
     }
   }
 
-  async setHomeState(params: {
-    tenantId: string;
-    stateCode: string;
-  }): Promise<void> {
+  async setHomeState(params: { tenantId: string; stateCode: string }): Promise<void> {
     try {
       const existingSettings = await this.taxSettingsRepo.getByTenant(params.tenantId);
-      
+
       await this.taxSettingsRepo.upsert({
         tenantId: params.tenantId,
         homeState: params.stateCode,
         businessName: existingSettings?.business_name ?? null,
         stripeTaxSettingsId: existingSettings?.stripe_tax_settings_id ?? null,
         taxEnabled: existingSettings?.tax_enabled ?? false,
-        taxCodeOverrides: (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
+        taxCodeOverrides:
+          (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
     } catch (error: any) {
       logError(error, {
@@ -157,7 +157,7 @@ export class StripeTaxService {
   async isHeadOfficeConfigured(): Promise<boolean> {
     try {
       const settings = await this.stripeClient.tax.settings.retrieve();
-      return settings.status === 'active' && !!settings.head_office;
+      return settings.status === "active" && !!settings.head_office;
     } catch (error) {
       logError(error, {
         layer: "service",
@@ -198,26 +198,34 @@ export class StripeTaxService {
     for (const [key, value] of Object.entries(params.taxCodes ?? {})) {
       const normalizedKey = key.trim().toLowerCase();
       const cleaned = String(value ?? "").trim();
-      if (!normalizedKey || !cleaned) continue;
+      if (!normalizedKey || !cleaned) {
+        continue;
+      }
       normalizedTaxCodes[normalizedKey] = cleaned;
     }
 
-    const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map((item) => {
-      const categoryKey = item.category?.trim().toLowerCase();
-      const defaultCode =
-        (categoryKey && PRODUCT_TAX_CODES[categoryKey as keyof typeof PRODUCT_TAX_CODES]) ??
-        "txcd_99999999";
-      const taxCode = (categoryKey && normalizedTaxCodes[categoryKey]) ?? defaultCode;
+    const lineItems: Stripe.Tax.CalculationCreateParams.LineItem[] = params.lineItems.map(
+      (item) => {
+        const categoryKey = item.category?.trim().toLowerCase();
+        const defaultCode =
+          (categoryKey &&
+            PRODUCT_TAX_CODES[categoryKey as keyof typeof PRODUCT_TAX_CODES]) ??
+          "txcd_99999999";
+        const taxCode = (categoryKey && normalizedTaxCodes[categoryKey]) ?? defaultCode;
 
-      return {
-        amount: item.amount,
-        quantity: item.quantity ?? 1,
-        reference: item.productId,
-        tax_code: taxCode,
-      };
-    });
+        return {
+          amount: item.amount,
+          quantity: item.quantity ?? 1,
+          reference: item.productId,
+          tax_code: taxCode,
+        };
+      },
+    );
 
-    const subtotal = lineItems.reduce((sum, item) => sum + (item.amount * (item.quantity ?? 1)), 0);
+    const subtotal = lineItems.reduce(
+      (sum, item) => sum + item.amount * (item.quantity ?? 1),
+      0,
+    );
 
     // Early exit if tax is disabled
     if (params.taxEnabled === false) {
@@ -250,9 +258,9 @@ export class StripeTaxService {
             postal_code: params.customerAddress.postal_code,
             country: params.customerAddress.country,
           },
-          address_source: 'shipping',
+          address_source: "shipping",
         },
-        expand: ['line_items'],
+        expand: ["line_items"],
       };
 
       if (params.shippingCost && params.shippingCost > 0) {
@@ -261,7 +269,8 @@ export class StripeTaxService {
         };
       }
 
-      const calculation = await this.stripeClient.tax.calculations.create(calculationParams);
+      const calculation =
+        await this.stripeClient.tax.calculations.create(calculationParams);
 
       const taxAmount = calculation.tax_amount_exclusive ?? 0;
       const totalAmount = subtotal + taxAmount;
@@ -286,7 +295,7 @@ export class StripeTaxService {
         message: "tax_calculation_failed",
         state: params.customerAddress?.state,
       });
-      
+
       return {
         taxAmount: 0,
         totalAmount: subtotal,
@@ -327,16 +336,18 @@ export class StripeTaxService {
   async registerState(params: {
     tenantId: string;
     stateCode: string;
-    registrationType: 'physical' | 'economic';
+    registrationType: "physical" | "economic";
   }): Promise<void> {
     const isConfigured = await this.isHeadOfficeConfigured();
     if (!isConfigured) {
-      throw new Error('Head office address must be set before registering states. Please configure your business address first.');
+      throw new Error(
+        "Head office address must be set before registering states. Please configure your business address first.",
+      );
     }
 
     const existingRegistrations = await this.getStripeRegistrations();
     const existingReg = existingRegistrations.get(params.stateCode);
-    
+
     let stripeRegistrationId: string | null = null;
 
     if (existingReg?.active) {
@@ -344,21 +355,22 @@ export class StripeTaxService {
     } else {
       try {
         const registration = await this.stripeClient.tax.registrations.create({
-          country: 'US',
+          country: "US",
           country_options: {
             us: {
-              type: 'state_sales_tax',
+              type: "state_sales_tax",
               state: params.stateCode,
             },
           },
-          active_from: 'now',
+          active_from: "now",
         });
         stripeRegistrationId = registration.id;
       } catch (error: any) {
-        if (error.message?.includes('already added a registration')) {
+        if (error.message?.includes("already added a registration")) {
           const regs = await this.stripeClient.tax.registrations.list({ limit: 100 });
           const existing = regs.data.find(
-            r => r.country === 'US' && r.country_options?.us?.state === params.stateCode
+            (r) =>
+              r.country === "US" && r.country_options?.us?.state === params.stateCode,
           );
           if (existing) {
             stripeRegistrationId = existing.id;
@@ -394,10 +406,12 @@ export class StripeTaxService {
     stateCode: string;
     registrationType?: "physical" | "economic";
   }): Promise<void> {
-    const existing = await this.nexusRepo.getRegistration(params.tenantId, params.stateCode);
+    const existing = await this.nexusRepo.getRegistration(
+      params.tenantId,
+      params.stateCode,
+    );
 
-    let stripeRegistrationId: string | null =
-      existing?.stripe_registration_id ?? null;
+    let stripeRegistrationId: string | null = existing?.stripe_registration_id ?? null;
 
     if (!stripeRegistrationId) {
       const regs = await this.getStripeRegistrations();
@@ -411,7 +425,10 @@ export class StripeTaxService {
         });
       } catch (error: any) {
         const msg = String(error?.message ?? "");
-        if (!msg.toLowerCase().includes("no such") && !msg.toLowerCase().includes("resource")) {
+        if (
+          !msg.toLowerCase().includes("no such") &&
+          !msg.toLowerCase().includes("resource")
+        ) {
           throw new Error(`Failed to unregister on Stripe: ${msg}`);
         }
       }
@@ -420,7 +437,8 @@ export class StripeTaxService {
     await this.nexusRepo.upsertRegistration({
       tenantId: params.tenantId,
       stateCode: params.stateCode,
-      registrationType: params.registrationType ?? existing?.registration_type ?? "economic",
+      registrationType:
+        params.registrationType ?? existing?.registration_type ?? "economic",
       isRegistered: false,
       registeredAt: null,
       stripeRegistrationId: null,
@@ -434,23 +452,27 @@ export class StripeTaxService {
     });
   }
 
-  async getStripeRegistrations(): Promise<Map<string, { id: string; state: string; active: boolean }>> {
+  async getStripeRegistrations(): Promise<
+    Map<string, { id: string; state: string; active: boolean }>
+  > {
     try {
-      const registrations = await this.stripeClient.tax.registrations.list({ limit: 100 });
-      
+      const registrations = await this.stripeClient.tax.registrations.list({
+        limit: 100,
+      });
+
       const map = new Map<string, { id: string; state: string; active: boolean }>();
-      
+
       for (const reg of registrations.data) {
-        if (reg.country === 'US' && reg.country_options?.us?.state) {
+        if (reg.country === "US" && reg.country_options?.us?.state) {
           const state = reg.country_options.us.state;
           map.set(state, {
             id: reg.id,
             state,
-            active: reg.status === 'active',
+            active: reg.status === "active",
           });
         }
       }
-      
+
       return map;
     } catch (error) {
       logError(error, {
@@ -474,14 +496,20 @@ export class StripeTaxService {
 
         for (const reg of regs.data) {
           if (reg.status === "active" || reg.status === "scheduled") {
-            await this.stripeClient.tax.registrations.update(reg.id, { expires_at: "now" });
+            await this.stripeClient.tax.registrations.update(reg.id, {
+              expires_at: "now",
+            });
             deactivated += 1;
           }
         }
 
-        if (!regs.has_more) break;
+        if (!regs.has_more) {
+          break;
+        }
         const last = regs.data[regs.data.length - 1];
-        if (!last) break;
+        if (!last) {
+          break;
+        }
         startingAfter = last.id;
       }
 

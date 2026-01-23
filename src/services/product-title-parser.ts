@@ -99,7 +99,9 @@ function tokenizeWithRaw(value: string): Token[] {
     .replace(/[^A-Za-z0-9]+/g, " ")
     .trim();
 
-  if (!cleaned) return [];
+  if (!cleaned) {
+    return [];
+  }
 
   return cleaned.split(/\s+/).map((raw) => ({
     raw,
@@ -115,7 +117,9 @@ function findExactMatch(
 
   for (const alias of aliases) {
     const aliasTokens = alias.aliasNormalized.split(" ").filter(Boolean);
-    if (aliasTokens.length === 0) continue;
+    if (aliasTokens.length === 0) {
+      continue;
+    }
 
     for (let i = 0; i <= tokens.length - aliasTokens.length; i += 1) {
       let match = true;
@@ -125,7 +129,9 @@ function findExactMatch(
           break;
         }
       }
-      if (!match) continue;
+      if (!match) {
+        continue;
+      }
 
       const score =
         aliasTokens.length * 100 +
@@ -182,7 +188,9 @@ function damerauLevenshtein(a: string, b: string): number {
 }
 
 function computeSimilarity(a: string, b: string): number {
-  if (!a || !b) return 0;
+  if (!a || !b) {
+    return 0;
+  }
   const distance = damerauLevenshtein(a, b);
   const maxLen = Math.max(a.length, b.length);
   return maxLen === 0 ? 1 : 1 - distance / maxLen;
@@ -197,7 +205,9 @@ function findFuzzyMatch(
 
   for (const alias of aliases) {
     const aliasTokens = alias.aliasNormalized.split(" ").filter(Boolean);
-    if (aliasTokens.length === 0) continue;
+    if (aliasTokens.length === 0) {
+      continue;
+    }
 
     for (let i = 0; i <= tokens.length - aliasTokens.length; i += 1) {
       const window = tokens.slice(i, i + aliasTokens.length).join(" ");
@@ -212,12 +222,18 @@ function findFuzzyMatch(
 }
 
 function extractBrandCandidate(tokens: Token[]): string | null {
-  if (tokens.length === 0) return null;
+  if (tokens.length === 0) {
+    return null;
+  }
   const picked: string[] = [];
   for (const token of tokens) {
-    if (/\d/.test(token.normalized)) break;
+    if (/\d/.test(token.normalized)) {
+      break;
+    }
     picked.push(token.raw);
-    if (picked.length >= 3) break;
+    if (picked.length >= 3) {
+      break;
+    }
   }
   return picked.length > 0 ? picked.join(" ") : tokens[0].raw;
 }
@@ -227,12 +243,16 @@ function extractModelCandidate(
   brandMatch?: { start: number; length: number } | null,
 ): string | null {
   const filtered = tokens.filter((_, index) => {
-    if (!brandMatch) return true;
+    if (!brandMatch) {
+      return true;
+    }
     return index < brandMatch.start || index >= brandMatch.start + brandMatch.length;
   });
 
   const withDigits = filtered.find((token) => /\d/.test(token.normalized));
-  if (withDigits) return withDigits.raw;
+  if (withDigits) {
+    return withDigits.raw;
+  }
 
   return filtered[0]?.raw ?? null;
 }

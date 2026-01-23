@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { logError } from "@/lib/log";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { RdkSelect } from "@/components/ui/Select";
@@ -46,11 +47,15 @@ export default function AdminProfilePage() {
   const canInviteSuper = isDevRole(role);
 
   useEffect(() => {
-    if (!canInviteSuper) setInviteRole("admin");
+    if (!canInviteSuper) {
+      setInviteRole("admin");
+    }
   }, [canInviteSuper]);
 
   const handleSavePreferences = async () => {
-    if (!profile) return;
+    if (!profile) {
+      return;
+    }
     setIsSaving(true);
     setMessage("");
 
@@ -102,7 +107,9 @@ export default function AdminProfilePage() {
   };
 
   const handleCopyInvite = async () => {
-    if (!inviteUrl) return;
+    if (!inviteUrl) {
+      return;
+    }
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setMessage("Invite link copied.");
@@ -114,7 +121,9 @@ export default function AdminProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Your Admin Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          Your Admin Settings
+        </h1>
         <p className="text-sm sm:text-base text-gray-400">
           Personal preferences for this admin account.
         </p>
@@ -189,7 +198,9 @@ export default function AdminProfilePage() {
               onChange={(value) => setInviteRole(value as "admin" | "super_admin")}
               options={[
                 { value: "admin", label: "Admin" },
-                ...(canInviteSuper ? [{ value: "super_admin", label: "Super Admin" }] : []),
+                ...(canInviteSuper
+                  ? [{ value: "super_admin", label: "Super Admin" }]
+                  : []),
               ]}
               className="min-w-[160px]"
               buttonClassName="px-3 py-1.5 text-[12px] sm:text-sm"

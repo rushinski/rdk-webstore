@@ -1,6 +1,8 @@
 // app/api/webhooks/shippo/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { env } from "@/config/env";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -22,10 +24,16 @@ const getEmailTrigger = (
   currentStatus: string | null,
   newStatus: string,
 ): EmailTrigger => {
-  if (currentStatus === newStatus) return null;
+  if (currentStatus === newStatus) {
+    return null;
+  }
 
-  if (newStatus === "shipped" && currentStatus !== "shipped") return "in_transit";
-  if (newStatus === "delivered" && currentStatus !== "delivered") return "delivered";
+  if (newStatus === "shipped" && currentStatus !== "shipped") {
+    return "in_transit";
+  }
+  if (newStatus === "delivered" && currentStatus !== "delivered") {
+    return "delivered";
+  }
 
   return null;
 };
@@ -163,7 +171,9 @@ export async function POST(req: NextRequest) {
           ? await profilesRepo.getByUserId(order.user_id)
           : null;
         const email = profile?.email ?? order.guest_email ?? null;
-        if (!email) return NextResponse.json({ ok: true });
+        if (!email) {
+          return NextResponse.json({ ok: true });
+        }
 
         const emailService = new OrderEmailService();
 

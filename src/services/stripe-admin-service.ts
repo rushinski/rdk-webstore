@@ -1,6 +1,7 @@
 // src/services/stripe-admin-service.ts
 
-import Stripe from "stripe";
+import type Stripe from "stripe";
+
 import { stripe } from "@/lib/stripe/stripe-server";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -72,31 +73,45 @@ export class StripeAdminService {
    * 3) Sort by earliest arrival_date (nulls last), then created as tiebreaker
    */
   private pickNextPayout(payouts: Stripe.Payout[]): Stripe.Payout | null {
-    if (!payouts.length) return null;
+    if (!payouts.length) {
+      return null;
+    }
 
     const statusRank = (s: Stripe.Payout["status"]) => {
-      if (s === "pending") return 0;
-      if (s === "in_transit") return 1;
+      if (s === "pending") {
+        return 0;
+      }
+      if (s === "in_transit") {
+        return 1;
+      }
       return 99;
     };
 
     const sorted = [...payouts].sort((a, b) => {
       const aRank = statusRank(a.status);
       const bRank = statusRank(b.status);
-      if (aRank !== bRank) return aRank - bRank;
+      if (aRank !== bRank) {
+        return aRank - bRank;
+      }
 
       const aArr = a.arrival_date ?? Number.MAX_SAFE_INTEGER;
       const bArr = b.arrival_date ?? Number.MAX_SAFE_INTEGER;
-      if (aArr !== bArr) return aArr - bArr;
+      if (aArr !== bArr) {
+        return aArr - bArr;
+      }
 
       return a.created - b.created;
     });
 
     const next = sorted[0];
-    if (!next) return null;
+    if (!next) {
+      return null;
+    }
 
     // Only treat these as "upcoming"
-    if (next.status !== "pending" && next.status !== "in_transit") return null;
+    if (next.status !== "pending" && next.status !== "in_transit") {
+      return null;
+    }
 
     return next;
   }
@@ -105,9 +120,11 @@ export class StripeAdminService {
    * Calculate the next scheduled payout date based on the payout schedule
    */
   private calculateNextPayoutDate(
-    schedule: Stripe.Account.Settings.Payouts.Schedule | null
+    schedule: Stripe.Account.Settings.Payouts.Schedule | null,
   ): number | null {
-    if (!schedule) return null;
+    if (!schedule) {
+      return null;
+    }
 
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -122,18 +139,23 @@ export class StripeAdminService {
     if (schedule.interval === "weekly") {
       const weeklyAnchor = schedule.weekly_anchor || "monday";
       const dayMap: Record<string, number> = {
-        sunday: 0, monday: 1, tuesday: 2, wednesday: 3,
-        thursday: 4, friday: 5, saturday: 6
+        sunday: 0,
+        monday: 1,
+        tuesday: 2,
+        wednesday: 3,
+        thursday: 4,
+        friday: 5,
+        saturday: 6,
       };
-      
+
       const targetDay = dayMap[weeklyAnchor.toLowerCase()] ?? 1;
       const currentDay = today.getDay();
-      
+
       let daysUntilNext = targetDay - currentDay;
       if (daysUntilNext <= 0) {
         daysUntilNext += 7; // Next week
       }
-      
+
       const nextDate = new Date(today);
       nextDate.setDate(nextDate.getDate() + daysUntilNext);
       return Math.floor(nextDate.getTime() / 1000);
@@ -142,12 +164,12 @@ export class StripeAdminService {
     if (schedule.interval === "monthly") {
       const anchor = schedule.monthly_anchor || 1;
       const nextDate = new Date(today);
-      
+
       // If we're past this month's anchor, go to next month
       if (today.getDate() >= anchor) {
         nextDate.setMonth(nextDate.getMonth() + 1);
       }
-      
+
       nextDate.setDate(anchor);
       return Math.floor(nextDate.getTime() / 1000);
     }
@@ -167,18 +189,16 @@ export class StripeAdminService {
   private async getUpcomingPayoutForAccount(
     stripeAccountId: string,
     balance: Stripe.Balance,
-    schedule: Stripe.Account.Settings.Payouts.Schedule | null
+    schedule: Stripe.Account.Settings.Payouts.Schedule | null,
   ): Promise<StripeAccountSummary["upcoming_payout"]> {
     // First, try to find actual scheduled payouts
     const [pendingList, inTransitList] = await Promise.all([
-      stripe.payouts.list(
-        { limit: 20, status: "pending" } as any,
-        { stripeAccount: stripeAccountId }
-      ),
-      stripe.payouts.list(
-        { limit: 20, status: "in_transit" } as any,
-        { stripeAccount: stripeAccountId }
-      ),
+      stripe.payouts.list({ limit: 20, status: "pending" } as any, {
+        stripeAccount: stripeAccountId,
+      }),
+      stripe.payouts.list({ limit: 20, status: "in_transit" } as any, {
+        stripeAccount: stripeAccountId,
+      }),
     ]);
 
     const combined: Stripe.Payout[] = [
@@ -187,7 +207,7 @@ export class StripeAdminService {
     ];
 
     const next = this.pickNextPayout(combined);
-    
+
     // If we found an actual payout, return it
     if (next) {
       return {
@@ -206,8 +226,8 @@ export class StripeAdminService {
     }
 
     // Get pending balance for USD (or adapt for multi-currency if needed)
-    const pendingBalance = balance.pending.find(b => b.currency === "usd");
-    
+    const pendingBalance = balance.pending.find((b) => b.currency === "usd");
+
     if (!pendingBalance || pendingBalance.amount === 0) {
       // No pending balance, no upcoming payout to show
       return null;
@@ -227,7 +247,9 @@ export class StripeAdminService {
     userId: string;
     tenantId: string;
   }): Promise<StripeAccountSummary> {
-    const stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(params.tenantId);
+    const stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(
+      params.tenantId,
+    );
 
     if (!stripeAccountId) {
       return {
@@ -260,7 +282,7 @@ export class StripeAdminService {
     const upcomingPayout = await this.getUpcomingPayoutForAccount(
       stripeAccountId,
       balance,
-      account.settings?.payouts?.schedule ?? null
+      account.settings?.payouts?.schedule ?? null,
     );
 
     const bankAccounts = externalAccounts.data
@@ -313,11 +335,15 @@ export class StripeAdminService {
     userId: string;
     tenantId: string;
   }): Promise<{ accountId: string }> {
-    let stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(params.tenantId);
+    let stripeAccountId = await this.profileRepo.getStripeAccountIdForTenant(
+      params.tenantId,
+    );
 
     if (!stripeAccountId) {
       const profile = await this.profileRepo.getByUserId(params.userId);
-      if (!profile) throw new Error("Admin profile not found.");
+      if (!profile) {
+        throw new Error("Admin profile not found.");
+      }
 
       const account = await stripe.accounts.create({
         type: "express",
@@ -343,13 +369,24 @@ export class StripeAdminService {
     return { accountId: stripeAccountId };
   }
 
-  async createAccountSession(params: { accountId: string }): Promise<{ clientSecret: string }> {
+  async createAccountSession(params: {
+    accountId: string;
+  }): Promise<{ clientSecret: string }> {
     const accountSession = await stripe.accountSessions.create({
       account: params.accountId,
       components: {
-        account_onboarding: { enabled: true, features: { external_account_collection: true } },
-        account_management: { enabled: true, features: { external_account_collection: true } },
-        notification_banner: { enabled: true, features: { external_account_collection: true } },
+        account_onboarding: {
+          enabled: true,
+          features: { external_account_collection: true },
+        },
+        account_management: {
+          enabled: true,
+          features: { external_account_collection: true },
+        },
+        notification_banner: {
+          enabled: true,
+          features: { external_account_collection: true },
+        },
         balances: {
           enabled: true,
           features: {
@@ -403,10 +440,13 @@ export class StripeAdminService {
     });
   }
 
-  async listPayouts(params: { accountId: string; limit?: number }): Promise<StripePayoutDTO[]> {
+  async listPayouts(params: {
+    accountId: string;
+    limit?: number;
+  }): Promise<StripePayoutDTO[]> {
     const payouts = await stripe.payouts.list(
       { limit: params.limit ?? 50 },
-      { stripeAccount: params.accountId }
+      { stripeAccount: params.accountId },
     );
 
     return payouts.data.map((p) => ({
@@ -433,7 +473,7 @@ export class StripeAdminService {
         currency: params.currency,
         method: params.method,
       },
-      { stripeAccount: params.accountId }
+      { stripeAccount: params.accountId },
     );
   }
 

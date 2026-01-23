@@ -44,12 +44,20 @@ export class ContactAttachmentService {
     const bucket = "images"; // private
     const maxBytes = bytesFromEnv(process.env.CONTACT_IMAGE_MAX_BYTES, DEFAULT_MAX_BYTES);
 
-    if (!input.file) throw new Error("Missing file");
-    if (input.file.size <= 0) throw new Error("Empty file");
-    if (input.file.size > maxBytes) throw new Error(`File too large. Max ${maxBytes} bytes`);
+    if (!input.file) {
+      throw new Error("Missing file");
+    }
+    if (input.file.size <= 0) {
+      throw new Error("Empty file");
+    }
+    if (input.file.size > maxBytes) {
+      throw new Error(`File too large. Max ${maxBytes} bytes`);
+    }
 
     const meta = ALLOWED_MIME[input.file.type];
-    if (!meta) throw new Error(`Unsupported mime type: ${input.file.type}`);
+    if (!meta) {
+      throw new Error(`Unsupported mime type: ${input.file.type}`);
+    }
 
     const hash = await sha256Hex(input.file);
 

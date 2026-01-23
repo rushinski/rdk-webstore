@@ -60,16 +60,28 @@ export function buildSizeTags(
     }
 
     const label = variant.size_label?.trim();
-    if (!label) continue;
+    if (!label) {
+      continue;
+    }
 
     let groupKey: string | null = null;
-    if (variant.size_type === "shoe") groupKey = "size_shoe";
-    if (variant.size_type === "clothing") groupKey = "size_clothing";
-    if (variant.size_type === "custom") groupKey = "size_custom";
-    if (!groupKey) continue;
+    if (variant.size_type === "shoe") {
+      groupKey = "size_shoe";
+    }
+    if (variant.size_type === "clothing") {
+      groupKey = "size_clothing";
+    }
+    if (variant.size_type === "custom") {
+      groupKey = "size_custom";
+    }
+    if (!groupKey) {
+      continue;
+    }
 
     const key = `${groupKey}:${label}`;
-    if (seen.has(key)) continue;
+    if (seen.has(key)) {
+      continue;
+    }
     seen.add(key);
     tags.push({ label, group_key: groupKey });
   }

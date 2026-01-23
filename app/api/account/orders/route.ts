@@ -1,5 +1,7 @@
 // app/api/account/orders/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
@@ -15,10 +17,7 @@ export async function GET(request: NextRequest) {
     const service = new OrdersService(supabase);
 
     const orders = await service.listOrdersForUser(session.user.id);
-    return NextResponse.json(
-      { orders },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ orders }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     logError(error, {
       layer: "api",
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to load orders", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

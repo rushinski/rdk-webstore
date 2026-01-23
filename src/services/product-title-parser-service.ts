@@ -18,7 +18,7 @@ export class ProductTitleParserService {
   }
 
   async parseTitle(
-    input: TitleParseInput & { tenantId?: string | null }
+    input: TitleParseInput & { tenantId?: string | null },
   ): Promise<TitleParseResult> {
     const tenantId = input.tenantId ?? null;
 
@@ -49,9 +49,13 @@ export class ProductTitleParserService {
     }
 
     for (const alias of brandAliases) {
-      if (!alias.brand) continue;
+      if (!alias.brand) {
+        continue;
+      }
       const key = `${alias.brand.id}:${alias.alias_normalized}`;
-      if (brandAliasKeys.has(key)) continue;
+      if (brandAliasKeys.has(key)) {
+        continue;
+      }
       brandAliasKeys.add(key);
       brandAliasEntries.push({
         brandId: alias.brand.id,
@@ -83,9 +87,13 @@ export class ProductTitleParserService {
     }
 
     for (const alias of modelAliases) {
-      if (!alias.model) continue;
+      if (!alias.model) {
+        continue;
+      }
       const key = `${alias.model.id}:${alias.alias_normalized}`;
-      if (modelAliasKeys.has(key)) continue;
+      if (modelAliasKeys.has(key)) {
+        continue;
+      }
       modelAliasKeys.add(key);
       modelAliasEntries.push({
         modelId: alias.model.id,

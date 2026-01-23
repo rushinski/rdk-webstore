@@ -15,7 +15,9 @@ export class AdminService {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) throw new Error("Unauthorized");
+    if (!user) {
+      throw new Error("Unauthorized");
+    }
 
     const repo = new ProfileRepository(supabase);
 

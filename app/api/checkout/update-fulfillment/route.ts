@@ -1,6 +1,8 @@
 // src/app/api/checkout/update-fulfillment/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -135,7 +137,9 @@ export async function POST(request: NextRequest) {
     if (fulfillment === "ship") {
       const shippingCosts = orderItems.map((item) => {
         const product = productMap.get(item.product_id);
-        if (!product) return 0;
+        if (!product) {
+          return 0;
+        }
         const costInCents = shippingDefaultsMap.get(product.category) ?? 0;
         return costInCents / 100;
       });
@@ -147,7 +151,8 @@ export async function POST(request: NextRequest) {
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
     const taxEnabled = taxSettings?.tax_enabled ?? false;
     const taxCodeOverrides =
-      taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
+      taxSettings?.tax_code_overrides &&
+      typeof taxSettings.tax_code_overrides === "object"
         ? (taxSettings.tax_code_overrides as Record<string, string>)
         : {};
 
@@ -157,7 +162,7 @@ export async function POST(request: NextRequest) {
     const destinationState =
       fulfillment === "pickup"
         ? homeState
-        : shippingAddress?.state?.trim().toUpperCase() ?? null;
+        : (shippingAddress?.state?.trim().toUpperCase() ?? null);
     const stripeRegistrations =
       taxEnabled && destinationState && taxService
         ? await taxService.getStripeRegistrations()
@@ -206,24 +211,26 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const hasStripeRegistration = taxEnabled && destinationState
-      ? stripeRegistrations.get(destinationState)?.active ?? false
-      : false;
+    const hasStripeRegistration =
+      taxEnabled && destinationState
+        ? (stripeRegistrations.get(destinationState)?.active ?? false)
+        : false;
 
-    const taxCalc = hasStripeRegistration && customerAddress && taxService
-      ? await taxService.calculateTax({
-          currency: "usd",
-          customerAddress,
-          lineItems: taxLineItems,
-          shippingCost: Math.round(shipping * 100),
-          taxCodes: taxCodeOverrides,
-          taxEnabled,
-        })
-      : {
-          taxAmount: 0,
-          totalAmount: Math.round((subtotal + shipping) * 100),
-          taxCalculationId: null,
-        };
+    const taxCalc =
+      hasStripeRegistration && customerAddress && taxService
+        ? await taxService.calculateTax({
+            currency: "usd",
+            customerAddress,
+            lineItems: taxLineItems,
+            shippingCost: Math.round(shipping * 100),
+            taxCodes: taxCodeOverrides,
+            taxEnabled,
+          })
+        : {
+            taxAmount: 0,
+            totalAmount: Math.round((subtotal + shipping) * 100),
+            taxCalculationId: null,
+          };
 
     const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;

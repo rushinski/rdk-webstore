@@ -19,7 +19,9 @@ export class EmailSubscriptionTokenRepository {
       .delete()
       .eq("email", email);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async createToken(input: {
@@ -35,7 +37,9 @@ export class EmailSubscriptionTokenRepository {
       expires_at: input.expiresAt,
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async getByToken(token: string): Promise<EmailSubscriptionToken | null> {
@@ -45,7 +49,9 @@ export class EmailSubscriptionTokenRepository {
       .eq("token", token)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 
@@ -55,6 +61,8 @@ export class EmailSubscriptionTokenRepository {
       .delete()
       .eq("token", token);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

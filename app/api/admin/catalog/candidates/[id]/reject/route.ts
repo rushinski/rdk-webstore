@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { CatalogService } from "@/services/catalog-service";
@@ -12,7 +14,7 @@ const paramsSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -24,7 +26,7 @@ export async function POST(
     if (!paramsParsed.success) {
       return NextResponse.json(
         { error: "Invalid params", issues: paramsParsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -42,7 +44,7 @@ export async function POST(
     });
     return NextResponse.json(
       { error: "Failed to reject candidate", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

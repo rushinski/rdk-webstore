@@ -11,9 +11,13 @@ const RANGE_DAYS: Record<string, number> = {
 };
 
 const toDateKey = (value: string | null) => {
-  if (!value) return "Unknown";
+  if (!value) {
+    return "Unknown";
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
   return date.toISOString().slice(0, 10);
 };
 
@@ -28,9 +32,13 @@ const buildDateRange = (startDate: Date, days: number) => {
 };
 
 const computeTraffic = (
-  rows: Array<{ created_at: string | null; visitor_id: string | null; session_id: string | null }>,
+  rows: Array<{
+    created_at: string | null;
+    visitor_id: string | null;
+    session_id: string | null;
+  }>,
   startDate: Date,
-  days: number
+  days: number,
 ) => {
   const visitors = new Set<string>();
   const sessions = new Set<string>();
@@ -40,15 +48,16 @@ const computeTraffic = (
 
   for (const row of rows) {
     const dateKey = toDateKey(row.created_at);
-    if (dateKey === "Unknown") continue;
+    if (dateKey === "Unknown") {
+      continue;
+    }
     pageViews += 1;
 
     if (row.visitor_id) {
       visitors.add(row.visitor_id);
     }
 
-    const sessionId =
-      row.session_id || row.visitor_id || `anon-${anonymousCounter++}`;
+    const sessionId = row.session_id || row.visitor_id || `anon-${anonymousCounter++}`;
     sessions.add(sessionId);
 
     const bucket = dailySessions.get(dateKey) ?? new Set<string>();
@@ -107,12 +116,12 @@ export class AnalyticsService {
       since: startDate.toISOString(),
     });
 
-    const pageviewRows = await this.pageviewsRepo.listSince(
-      startDate.toISOString()
-    );
+    const pageviewRows = await this.pageviewsRepo.listSince(startDate.toISOString());
 
     const filtered = orders.filter((order: any) => {
-      if (!order.created_at) return false;
+      if (!order.created_at) {
+        return false;
+      }
       return new Date(order.created_at) >= startDate;
     });
 
@@ -149,7 +158,7 @@ export class AnalyticsService {
         session_id: string | null;
       }>,
       startDate,
-      days
+      days,
     );
 
     return {

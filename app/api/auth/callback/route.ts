@@ -1,6 +1,8 @@
 // app/api/auth/callback/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
 import { clientEnv } from "@/config/client-env";
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
   const siteUrl = clientEnv.NEXT_PUBLIC_SITE_URL;
 
   // Allow ?next=/some/path, but never external URLs
-  let next = parsed.success ? parsed.data.next ?? "/" : "/";
+  let next = parsed.success ? (parsed.data.next ?? "/") : "/";
   if (!next.startsWith("/")) {
     next = "/";
   }
@@ -54,9 +56,7 @@ export async function GET(request: NextRequest) {
       requestId,
       route: "/api/auth/callback",
     });
-    return NextResponse.redirect(
-      `${siteUrl}/auth/login?error=oauth_exchange_failed`,
-    );
+    return NextResponse.redirect(`${siteUrl}/auth/login?error=oauth_exchange_failed`);
   }
 
   // 2) Ensure profile exists for this (now authenticated) user.

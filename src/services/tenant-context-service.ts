@@ -29,7 +29,9 @@ export class TenantContextService {
     }
 
     // Get the Stripe account for the tenant (not just the user's profile)
-    const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(profile.tenant_id);
+    const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(
+      profile.tenant_id,
+    );
 
     if (!stripeAccountId) {
       throw new Error("Stripe Connect account not configured");

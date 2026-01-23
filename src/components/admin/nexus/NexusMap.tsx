@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { ComposableMap, Geographies, Geography } from "@vnedyalk0v/react19-simple-maps";
+
 import type { StateSummary } from "@/types/domain/nexus";
 
 type NexusMapProps = {
@@ -15,28 +16,75 @@ type NexusMapProps = {
 };
 
 const STATE_NAME_TO_CODE: Record<string, string> = {
-  Alabama: "AL", Alaska: "AK", Arizona: "AZ", Arkansas: "AR", California: "CA",
-  Colorado: "CO", Connecticut: "CT", Delaware: "DE", Florida: "FL", Georgia: "GA",
-  Hawaii: "HI", Idaho: "ID", Illinois: "IL", Indiana: "IN", Iowa: "IA",
-  Kansas: "KS", Kentucky: "KY", Louisiana: "LA", Maine: "ME", Maryland: "MD",
-  Massachusetts: "MA", Michigan: "MI", Minnesota: "MN", Mississippi: "MS", Missouri: "MO",
-  Montana: "MT", Nebraska: "NE", Nevada: "NV", "New Hampshire": "NH", "New Jersey": "NJ",
-  "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND",
-  Ohio: "OH", Oklahoma: "OK", Oregon: "OR", Pennsylvania: "PA", "Rhode Island": "RI",
-  "South Carolina": "SC", "South Dakota": "SD", Tennessee: "TN", Texas: "TX", Utah: "UT",
-  Vermont: "VT", Virginia: "VA", Washington: "WA", "West Virginia": "WV", Wisconsin: "WI",
-  Wyoming: "WY", "District of Columbia": "DC",
+  Alabama: "AL",
+  Alaska: "AK",
+  Arizona: "AZ",
+  Arkansas: "AR",
+  California: "CA",
+  Colorado: "CO",
+  Connecticut: "CT",
+  Delaware: "DE",
+  Florida: "FL",
+  Georgia: "GA",
+  Hawaii: "HI",
+  Idaho: "ID",
+  Illinois: "IL",
+  Indiana: "IN",
+  Iowa: "IA",
+  Kansas: "KS",
+  Kentucky: "KY",
+  Louisiana: "LA",
+  Maine: "ME",
+  Maryland: "MD",
+  Massachusetts: "MA",
+  Michigan: "MI",
+  Minnesota: "MN",
+  Mississippi: "MS",
+  Missouri: "MO",
+  Montana: "MT",
+  Nebraska: "NE",
+  Nevada: "NV",
+  "New Hampshire": "NH",
+  "New Jersey": "NJ",
+  "New Mexico": "NM",
+  "New York": "NY",
+  "North Carolina": "NC",
+  "North Dakota": "ND",
+  Ohio: "OH",
+  Oklahoma: "OK",
+  Oregon: "OR",
+  Pennsylvania: "PA",
+  "Rhode Island": "RI",
+  "South Carolina": "SC",
+  "South Dakota": "SD",
+  Tennessee: "TN",
+  Texas: "TX",
+  Utah: "UT",
+  Vermont: "VT",
+  Virginia: "VA",
+  Washington: "WA",
+  "West Virginia": "WV",
+  Wisconsin: "WI",
+  Wyoming: "WY",
+  "District of Columbia": "DC",
 };
 
 type Point = { x: number; y: number };
 
-function svgPointToContainer(svgEl: SVGSVGElement, containerEl: HTMLElement, svgX: number, svgY: number): Point {
+function svgPointToContainer(
+  svgEl: SVGSVGElement,
+  containerEl: HTMLElement,
+  svgX: number,
+  svgY: number,
+): Point {
   const pt = svgEl.createSVGPoint();
   pt.x = svgX;
   pt.y = svgY;
 
   const ctm = svgEl.getScreenCTM();
-  if (!ctm) return { x: 0, y: 0 };
+  if (!ctm) {
+    return { x: 0, y: 0 };
+  }
 
   const screen = pt.matrixTransform(ctm);
   const containerRect = containerEl.getBoundingClientRect();
@@ -66,11 +114,15 @@ export default function NexusMap({
 
     fetch("/api/maps/us-states", { cache: "force-cache" })
       .then((r) => {
-        if (!r.ok) throw new Error(`Map fetch failed: ${r.status}`);
+        if (!r.ok) {
+          throw new Error(`Map fetch failed: ${r.status}`);
+        }
         return r.json();
       })
       .then((json) => {
-        if (alive) setTopology(json);
+        if (alive) {
+          setTopology(json);
+        }
       })
       .catch((err) => {
         console.error("Failed to load map topology:", err);
@@ -89,7 +141,9 @@ export default function NexusMap({
   const setAnchorFromPath = useCallback((pathEl: SVGPathElement | null) => {
     const container = containerRef.current;
     const svg = svgRef.current;
-    if (!container || !svg || !pathEl) return;
+    if (!container || !svg || !pathEl) {
+      return;
+    }
 
     const bbox = pathEl.getBBox();
     const cx = bbox.x + bbox.width / 2;
@@ -102,9 +156,13 @@ export default function NexusMap({
   const tooltipWidth = 280;
 
   const tooltipPos = useMemo(() => {
-    if (!anchor) return null;
+    if (!anchor) {
+      return null;
+    }
     const container = containerRef.current;
-    if (!container) return null;
+    if (!container) {
+      return null;
+    }
 
     const rect = container.getBoundingClientRect();
     const padding = 12;
@@ -116,10 +174,16 @@ export default function NexusMap({
     if (left + tooltipWidth + padding > rect.width) {
       left = Math.max(padding, anchor.x - tooltipWidth - 18);
     }
-    if (left < padding) left = padding;
+    if (left < padding) {
+      left = padding;
+    }
 
-    if (top < padding) top = padding;
-    if (top > rect.height - 190) top = rect.height - 190;
+    if (top < padding) {
+      top = padding;
+    }
+    if (top > rect.height - 190) {
+      top = rect.height - 190;
+    }
 
     return { left, top };
   }, [anchor]);
@@ -134,9 +198,13 @@ export default function NexusMap({
         ref={containerRef}
         className="relative"
         onMouseMove={(e) => {
-          if (!hoveredState) return;
+          if (!hoveredState) {
+            return;
+          }
           const t = e.target as Element | null;
-          if (t?.tagName?.toLowerCase() !== "path") clearHover();
+          if (t?.tagName?.toLowerCase() !== "path") {
+            clearHover();
+          }
         }}
         onMouseLeave={clearHover}
       >
@@ -166,7 +234,8 @@ export default function NexusMap({
                     style={{
                       default: {
                         outline: "none",
-                        transition: "transform 160ms ease, filter 160ms ease, opacity 160ms ease",
+                        transition:
+                          "transform 160ms ease, filter 160ms ease, opacity 160ms ease",
                         transformBox: "fill-box",
                         transformOrigin: "center",
                         transform: "scale(1)",
@@ -184,13 +253,17 @@ export default function NexusMap({
                       pressed: { outline: "none" },
                     }}
                     onMouseEnter={(e) => {
-                      if (!stateCode) return;
+                      if (!stateCode) {
+                        return;
+                      }
                       setHoveredState(stateCode);
                       setAnchorFromPath(e.currentTarget as unknown as SVGPathElement);
                     }}
                     onMouseLeave={clearHover}
                     onClick={() => {
-                      if (stateData) onStateClick(stateData);
+                      if (stateData) {
+                        onStateClick(stateData);
+                      }
                     }}
                   />
                 );
@@ -239,7 +312,10 @@ export default function NexusMap({
         <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 sm:flex sm:flex-nowrap sm:items-center sm:gap-2">
           {legendItems.map((it) => (
             <div key={it.label} className="flex items-center gap-1.5 min-w-0">
-              <div className="w-2 h-2 rounded shrink-0" style={{ backgroundColor: it.color }} />
+              <div
+                className="w-2 h-2 rounded shrink-0"
+                style={{ backgroundColor: it.color }}
+              />
               <span className="text-[9px] leading-none tracking-tight text-gray-400 whitespace-nowrap">
                 {it.label}
               </span>
@@ -250,4 +326,3 @@ export default function NexusMap({
     </div>
   );
 }
-

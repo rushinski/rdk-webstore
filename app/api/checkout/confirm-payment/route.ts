@@ -1,8 +1,10 @@
 // app/api/checkout/confirm-payment/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import Stripe from "stripe";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
-import Stripe from "stripe";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";

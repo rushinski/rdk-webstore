@@ -16,7 +16,9 @@ export class StripeEventsRepository {
       .eq("stripe_event_id", stripeEventId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return !!data;
   }
 

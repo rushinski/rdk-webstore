@@ -1,6 +1,7 @@
 // src/services/checkout-service.ts (FIXED)
 
 import Stripe from "stripe";
+
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -94,7 +95,8 @@ export class CheckoutService {
     // ✅ Get tenant's Stripe Connect account
     const adminSupabase = this.adminSupabase ?? this.supabase;
     const tenantProfileRepo = new ProfileRepository(adminSupabase);
-    const tenantStripeAccountId = await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
+    const tenantStripeAccountId =
+      await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
 
     if (!tenantStripeAccountId) {
       throw new Error("Seller payment account not configured");
@@ -164,12 +166,13 @@ export class CheckoutService {
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
     const taxEnabled = taxSettings?.tax_enabled ?? false;
     const taxCodeOverrides =
-      taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
+      taxSettings?.tax_code_overrides &&
+      typeof taxSettings.tax_code_overrides === "object"
         ? (taxSettings.tax_code_overrides as Record<string, string>)
         : {};
 
     const taxService = new StripeTaxService(adminSupabase, tenantStripeAccountId);
-    
+
     // For Stripe Checkout, we'll use pickup address (head office) initially
     // Actual address will be collected during checkout
     let customerAddress: {
@@ -197,34 +200,37 @@ export class CheckoutService {
     }
 
     const destinationState = fulfillment === "pickup" ? homeState : null;
-    const stripeRegistrations = taxEnabled && destinationState
-      ? await taxService.getStripeRegistrations()
-      : new Map<string, { id: string; state: string; active: boolean }>();
+    const stripeRegistrations =
+      taxEnabled && destinationState
+        ? await taxService.getStripeRegistrations()
+        : new Map<string, { id: string; state: string; active: boolean }>();
 
-    const hasStripeRegistration = taxEnabled && destinationState
-      ? stripeRegistrations.get(destinationState)?.active ?? false
-      : false;
+    const hasStripeRegistration =
+      taxEnabled && destinationState
+        ? (stripeRegistrations.get(destinationState)?.active ?? false)
+        : false;
 
     // For shipping, we can't calculate exact tax yet, but we can estimate
-    const taxCalc = hasStripeRegistration && customerAddress
-      ? await taxService.calculateTax({
-          currency: "usd",
-          customerAddress,
-          lineItems: lineItems.map((item) => ({
-            amount: Math.round(item.unitPrice * 100),
-            quantity: item.quantity,
-            productId: item.productId,
-            category: item.category,
-          })),
-          shippingCost: Math.round(shipping * 100),
-          taxCodes: taxCodeOverrides,
-          taxEnabled,
-        })
-      : {
-          taxAmount: 0,
-          totalAmount: Math.round((subtotal + shipping) * 100),
-          taxCalculationId: null,
-        };
+    const taxCalc =
+      hasStripeRegistration && customerAddress
+        ? await taxService.calculateTax({
+            currency: "usd",
+            customerAddress,
+            lineItems: lineItems.map((item) => ({
+              amount: Math.round(item.unitPrice * 100),
+              quantity: item.quantity,
+              productId: item.productId,
+              category: item.category,
+            })),
+            shippingCost: Math.round(shipping * 100),
+            taxCodes: taxCodeOverrides,
+            taxEnabled,
+          })
+        : {
+            taxAmount: 0,
+            totalAmount: Math.round((subtotal + shipping) * 100),
+            taxCalculationId: null,
+          };
 
     const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;
@@ -402,7 +408,7 @@ export class CheckoutService {
           },
         },
       ];
-      
+
       // ✅ Enable automatic tax for shipping checkouts
       if (taxEnabled) {
         sessionParams.automatic_tax = {

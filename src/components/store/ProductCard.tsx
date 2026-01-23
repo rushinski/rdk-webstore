@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+
 import type { ProductWithDetails } from "@/types/domain/product";
 
 interface ProductCardProps {

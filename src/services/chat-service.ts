@@ -33,7 +33,9 @@ export class ChatService {
   }
 
   private formatEmailPrefix(email?: string | null) {
-    if (!email) return null;
+    if (!email) {
+      return null;
+    }
     const [prefix] = email.split("@");
     return prefix?.trim() || null;
   }
@@ -51,16 +53,24 @@ export class ChatService {
 
   async createChatForUser(input: { userId: string; orderId?: string | null }) {
     const existing = await this.chatsRepo.getOpenChatForUser(input.userId);
-    if (existing) return { chat: existing, created: false };
+    if (existing) {
+      return { chat: existing, created: false };
+    }
 
     let source: "manual" | "order" = "manual";
     let orderId: string | null = null;
 
     if (input.orderId) {
       const order = await this.ordersRepo.getByIdAndUser(input.orderId, input.userId);
-      if (!order) throw new Error("Order not found");
-      if (order.fulfillment !== "pickup") throw new Error("Invalid fulfillment");
-      if (order.status !== "paid") throw new Error("Order not ready");
+      if (!order) {
+        throw new Error("Order not found");
+      }
+      if (order.fulfillment !== "pickup") {
+        throw new Error("Invalid fulfillment");
+      }
+      if (order.status !== "paid") {
+        throw new Error("Order not ready");
+      }
       source = "order";
       orderId = order.id;
     }
@@ -93,9 +103,15 @@ export class ChatService {
     const adminSupabase = this.ensureAdminSupabase();
     const chatsRepo = new ChatsRepository(adminSupabase);
     const existing = await chatsRepo.getByOrderId(orderId);
-    if (!existing) return null;
-    if (!guestEmail) return existing;
-    if (existing.guest_email === guestEmail) return existing;
+    if (!existing) {
+      return null;
+    }
+    if (!guestEmail) {
+      return existing;
+    }
+    if (existing.guest_email === guestEmail) {
+      return existing;
+    }
     return chatsRepo.updateGuestEmail(existing.id, guestEmail);
   }
 
@@ -117,8 +133,12 @@ export class ChatService {
 
   async sendMessage(input: { chatId: string; senderId: string; body: string }) {
     const chat = await this.chatsRepo.getById(input.chatId);
-    if (!chat) throw new Error("Chat not found");
-    if (chat.status === "closed") throw new Error("Chat closed");
+    if (!chat) {
+      throw new Error("Chat not found");
+    }
+    if (chat.status === "closed") {
+      throw new Error("Chat closed");
+    }
 
     const profile = await this.profilesRepo.getByUserId(input.senderId);
     const profileRole = isProfileRole(profile?.role) ? profile!.role : "customer";
@@ -126,7 +146,9 @@ export class ChatService {
     const isCustomer = chat.user_id === input.senderId;
     const isAdmin = isAdminRole(profileRole);
 
-    if (!isCustomer && !isAdmin) throw new Error("Forbidden");
+    if (!isCustomer && !isAdmin) {
+      throw new Error("Forbidden");
+    }
 
     const senderRole: "customer" | "admin" = isCustomer ? "customer" : "admin";
 
@@ -145,7 +167,9 @@ export class ChatService {
       body: input.body,
     });
 
-    if (!this.adminSupabase) return message;
+    if (!this.adminSupabase) {
+      return message;
+    }
 
     try {
       if (senderRole === "customer") {

@@ -1,5 +1,7 @@
 // app/api/cart/snapshot/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { cartSnapshotSchema } from "@/lib/validation/cart";
 import { serializeCartSnapshot } from "@/lib/cart/snapshot";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -15,14 +17,14 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid payload", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
   const snapshot = serializeCartSnapshot(parsed.data.items);
   const response = NextResponse.json(
     { ok: true, requestId },
-    { headers: { "Cache-Control": "no-store" } }
+    { headers: { "Cache-Control": "no-store" } },
   );
 
   response.cookies.set({

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
+
 import { useCart } from "@/components/cart/CartProvider";
 import { CheckoutForm, type ShippingAddress } from "@/components/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/checkout/OrderSummary";
@@ -102,12 +103,18 @@ export function CheckoutStart() {
   const isGuestFlow = searchParams.get("guest") === "1";
 
   useEffect(() => {
-    if (!isGuestFlow) return;
+    if (!isGuestFlow) {
+      return;
+    }
 
     const isReload = () => {
       try {
-        const nav = performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
-        if (nav) return nav.type === "reload";
+        const nav = performance.getEntriesByType?.("navigation")?.[0] as
+          | PerformanceNavigationTiming
+          | undefined;
+        if (nav) {
+          return nav.type === "reload";
+        }
         return performance.navigation?.type === 1;
       } catch {
         return false;
@@ -115,7 +122,9 @@ export function CheckoutStart() {
     };
 
     const handleBeforeUnload = () => {
-      if (isReload()) return;
+      if (isReload()) {
+        return;
+      }
       clearGuestShippingAddress();
     };
 
@@ -142,7 +151,9 @@ export function CheckoutStart() {
   }, []);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady) {
+      return;
+    }
 
     if (items.length === 0) {
       setIsRestoring(true);
@@ -160,7 +171,9 @@ export function CheckoutStart() {
   }, [isReady, items.length, router, setCartItems, snapshotService]);
 
   useEffect(() => {
-    if (!isReady || !isGuestFlow) return;
+    if (!isReady || !isGuestFlow) {
+      return;
+    }
 
     try {
       const stored = localStorage.getItem("rdk_guest_email");
@@ -173,8 +186,12 @@ export function CheckoutStart() {
   }, [isReady, isGuestFlow]);
 
   useEffect(() => {
-    if (isAuthenticated === null) return;
-    if (isAuthenticated) return;
+    if (isAuthenticated === null) {
+      return;
+    }
+    if (isAuthenticated) {
+      return;
+    }
 
     if (!isGuestFlow || !guestEnabled) {
       router.push("/checkout");
@@ -182,17 +199,27 @@ export function CheckoutStart() {
   }, [isAuthenticated, isGuestFlow, router]);
 
   useEffect(() => {
-    if (!isReady) return;
-    if (isAuthenticated !== false) return;
-    if (!isGuestFlow || !guestEnabled) return;
-    if (!guestEmailChecked) return;
+    if (!isReady) {
+      return;
+    }
+    if (isAuthenticated !== false) {
+      return;
+    }
+    if (!isGuestFlow || !guestEnabled) {
+      return;
+    }
+    if (!guestEmailChecked) {
+      return;
+    }
     if (!guestEmail) {
       router.push("/checkout");
     }
   }, [guestEmail, guestEmailChecked, isAuthenticated, isGuestFlow, isReady, router]);
 
   useEffect(() => {
-    if (!isReady || items.length === 0) return;
+    if (!isReady || items.length === 0) {
+      return;
+    }
 
     const signature = buildCartSignature(items);
     try {
@@ -247,7 +274,9 @@ export function CheckoutStart() {
   );
 
   const addressKey = useMemo(() => {
-    if (fulfillment !== "ship" || !shippingPayload) return "pickup";
+    if (fulfillment !== "ship" || !shippingPayload) {
+      return "pickup";
+    }
     return [
       shippingPayload.line1,
       shippingPayload.city,
@@ -255,23 +284,46 @@ export function CheckoutStart() {
       shippingPayload.postal_code,
       shippingPayload.country,
     ].join("|");
-  }, [fulfillment, shippingPayload?.line1, shippingPayload?.city, shippingPayload?.state, shippingPayload?.postal_code, shippingPayload?.country]);
+  }, [
+    fulfillment,
+    shippingPayload?.line1,
+    shippingPayload?.city,
+    shippingPayload?.state,
+    shippingPayload?.postal_code,
+    shippingPayload?.country,
+  ]);
 
   const cartKey = useMemo(() => buildCartSignature(items), [items]);
 
   const pricingKey = useMemo(() => {
-    if (!orderId) return null;
+    if (!orderId) {
+      return null;
+    }
     return `${orderId}:${cartKey}:${fulfillment}:${addressKey}`;
   }, [orderId, cartKey, fulfillment, addressKey]);
 
   useEffect(() => {
-    if (!isReady || items.length === 0) return;
-    if (!idempotencyKey) return;
-    if (isAuthenticated === null) return;
-    if (!isAuthenticated && !isGuestFlow) return;
-    if (!isAuthenticated && !guestEnabled) return;
-    if (!isAuthenticated && !guestEmail) return;
-    if (clientSecret && orderId) return;
+    if (!isReady || items.length === 0) {
+      return;
+    }
+    if (!idempotencyKey) {
+      return;
+    }
+    if (isAuthenticated === null) {
+      return;
+    }
+    if (!isAuthenticated && !isGuestFlow) {
+      return;
+    }
+    if (!isAuthenticated && !guestEnabled) {
+      return;
+    }
+    if (!isAuthenticated && !guestEmail) {
+      return;
+    }
+    if (clientSecret && orderId) {
+      return;
+    }
 
     let isActive = true;
 
@@ -298,17 +350,25 @@ export function CheckoutStart() {
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          if (data?.code === "IDEMPOTENCY_KEY_EXPIRED" || data?.code === "CART_MISMATCH") {
+          if (
+            data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
+            data?.code === "CART_MISMATCH"
+          ) {
             clearIdempotencyKeyFromStorage();
           }
-          if (data?.code === "GUEST_EMAIL_REQUIRED" || data?.code === "GUEST_CHECKOUT_DISABLED") {
+          if (
+            data?.code === "GUEST_EMAIL_REQUIRED" ||
+            data?.code === "GUEST_CHECKOUT_DISABLED"
+          ) {
             router.push("/checkout");
             return;
           }
           throw new Error(data?.error || "Failed to start checkout");
         }
 
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
 
         if (data?.status === "paid" && data?.orderId) {
           router.push(`/checkout/success?orderId=${data.orderId}`);
@@ -329,10 +389,14 @@ export function CheckoutStart() {
 
         lastPricingKeyRef.current = null;
       } catch (err: any) {
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
         setError(err?.message ?? "Failed to start checkout.");
       } finally {
-        if (isActive) setIsInitializing(false);
+        if (isActive) {
+          setIsInitializing(false);
+        }
       }
     };
 
@@ -356,16 +420,26 @@ export function CheckoutStart() {
   ]);
 
   const updatePricing = useCallback(
-    async (nextFulfillment: "ship" | "pickup", nextShippingAddress: ShippingPayload, dedupeKey?: string | null) => {
-      if (!orderId) return;
+    async (
+      nextFulfillment: "ship" | "pickup",
+      nextShippingAddress: ShippingPayload,
+      dedupeKey?: string | null,
+    ) => {
+      if (!orderId) {
+        return;
+      }
 
-      if (dedupeKey && lastPricingKeyRef.current === dedupeKey) return;
+      if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
+        return;
+      }
 
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
 
-      if (inFlightRef.current) return;
+      if (inFlightRef.current) {
+        return;
+      }
       inFlightRef.current = true;
 
       setIsUpdatingFulfillment(true);
@@ -385,7 +459,9 @@ export function CheckoutStart() {
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error(data?.error || `Failed to update fulfillment (${response.status}).`);
+          throw new Error(
+            data?.error || `Failed to update fulfillment (${response.status}).`,
+          );
         }
 
         setFulfillment(data.fulfillment ?? nextFulfillment);
@@ -394,7 +470,9 @@ export function CheckoutStart() {
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
 
-        if (dedupeKey) lastPricingKeyRef.current = dedupeKey;
+        if (dedupeKey) {
+          lastPricingKeyRef.current = dedupeKey;
+        }
       } catch (err: any) {
         if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
           lastPricingKeyRef.current = null;
@@ -411,12 +489,22 @@ export function CheckoutStart() {
   );
 
   useEffect(() => {
-    if (fulfillment !== "ship") return;
-    if (!orderId || !clientSecret) return;
-    if (!pricingKey) return;
-    if (isUpdatingFulfillment) return;
+    if (fulfillment !== "ship") {
+      return;
+    }
+    if (!orderId || !clientSecret) {
+      return;
+    }
+    if (!pricingKey) {
+      return;
+    }
+    if (isUpdatingFulfillment) {
+      return;
+    }
 
-    if (!shippingPayload) return;
+    if (!shippingPayload) {
+      return;
+    }
     const valid =
       shippingPayload.name.trim() !== "" &&
       shippingPayload.line1.trim() !== "" &&
@@ -424,9 +512,13 @@ export function CheckoutStart() {
       shippingPayload.state.trim() !== "" &&
       shippingPayload.postal_code.trim() !== "";
 
-    if (!valid) return;
+    if (!valid) {
+      return;
+    }
 
-    if (lastPricingKeyRef.current === pricingKey) return;
+    if (lastPricingKeyRef.current === pricingKey) {
+      return;
+    }
 
     const t = setTimeout(() => {
       lastPricingKeyRef.current = pricingKey;
@@ -445,7 +537,9 @@ export function CheckoutStart() {
   ]);
 
   const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
-    if (nextFulfillment === fulfillment) return;
+    if (nextFulfillment === fulfillment) {
+      return;
+    }
 
     lastPricingKeyRef.current = null;
 
@@ -459,7 +553,11 @@ export function CheckoutStart() {
         ? `${orderId}:${cartKey}:ship:${addressKey}`
         : `${orderId}:${cartKey}:pickup:pickup`;
 
-    await updatePricing(nextFulfillment, nextFulfillment === "ship" ? shippingPayload : null, nextKey);
+    await updatePricing(
+      nextFulfillment,
+      nextFulfillment === "ship" ? shippingPayload : null,
+      nextKey,
+    );
   };
 
   if (!isReady || isRestoring || items.length === 0) {
@@ -507,7 +605,9 @@ export function CheckoutStart() {
       <div className="flex items-center justify-between mb-6 sm:mb-8 pt-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
-          <p className="text-sm sm:text-base text-gray-400">Secure checkout powered by Stripe</p>
+          <p className="text-sm sm:text-base text-gray-400">
+            Secure checkout powered by Stripe
+          </p>
         </div>
         <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
           Back to cart

@@ -1,5 +1,6 @@
 // app/checkout/page.tsx
 import { redirect } from "next/navigation";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CheckoutGate } from "@/components/checkout/CheckoutGate";
 

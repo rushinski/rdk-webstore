@@ -9,7 +9,9 @@ export class SitePageviewsRepository {
 
   async insert(payload: SitePageviewInsert) {
     const { error } = await this.supabase.from("site_pageviews").insert(payload);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async listSince(startDateIso: string) {
@@ -18,7 +20,9 @@ export class SitePageviewsRepository {
       .select("created_at, visitor_id, session_id")
       .gte("created_at", startDateIso);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 }

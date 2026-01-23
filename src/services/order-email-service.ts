@@ -47,10 +47,14 @@ type DetailedOrderItemRow = {
 };
 
 const safeHttpsUrl = (value?: string | null) => {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return null;
+    if (url.protocol !== "https:") {
+      return null;
+    }
     return url.toString();
   } catch {
     return null;
@@ -58,10 +62,14 @@ const safeHttpsUrl = (value?: string | null) => {
 };
 
 const pickPrimaryImage = (images?: ProductImageRow[] | null) => {
-  if (!images?.length) return null;
+  if (!images?.length) {
+    return null;
+  }
 
   const primary = images.find((img) => img.is_primary);
-  if (primary?.url) return safeHttpsUrl(primary.url);
+  if (primary?.url) {
+    return safeHttpsUrl(primary.url);
+  }
 
   const sorted = [...images].sort(
     (a, b) => (a.sort_order ?? 9999) - (b.sort_order ?? 9999),
@@ -107,7 +115,9 @@ export class OrderEmailService {
    * Existing path (still supported): caller already supplies email-ready items.
    */
   async sendOrderConfirmation(input: OrderConfirmationEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildOrderConfirmationEmail(input);
     await this.send(input.to, emailSubjects.orderConfirmation(), content);
   }
@@ -120,7 +130,9 @@ export class OrderEmailService {
     order: Omit<OrderConfirmationEmailInput, "items" | "to">;
     itemsDetailed: DetailedOrderItemRow[];
   }) {
-    if (!params.to) return;
+    if (!params.to) {
+      return;
+    }
 
     const items = mapOrderItemsToEmailItems(params.itemsDetailed);
 
@@ -135,31 +147,41 @@ export class OrderEmailService {
   }
 
   async sendPickupInstructions(input: PickupInstructionsEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildPickupInstructionsEmail(input);
     await this.send(input.to, emailSubjects.pickupInstructions(input.orderId), content);
   }
 
   async sendOrderLabelCreated(input: OrderLabelCreatedEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildOrderLabelCreatedEmail(input);
     await this.send(input.to, emailSubjects.orderLabelCreated(input.orderId), content);
   }
 
   async sendOrderInTransit(input: OrderInTransitEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildOrderInTransitEmail(input);
     await this.send(input.to, emailSubjects.orderInTransit(input.orderId), content);
   }
 
   async sendOrderDelivered(input: OrderDeliveredEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildOrderDeliveredEmail(input);
     await this.send(input.to, emailSubjects.orderDelivered(input.orderId), content);
   }
 
   async sendOrderRefunded(input: OrderRefundedEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildOrderRefundedEmail(input);
     await this.send(input.to, emailSubjects.orderRefunded(input.orderId), content);
   }

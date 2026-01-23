@@ -27,7 +27,9 @@ export class AuthService {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     // IMPORTANT:
     // No email_subscribers insert here.
@@ -40,8 +42,12 @@ export class AuthService {
       password,
     });
 
-    if (error) throw error;
-    if (!data.user) return { user: null, profile: null };
+    if (error) {
+      throw error;
+    }
+    if (!data.user) {
+      return { user: null, profile: null };
+    }
 
     const repo = new ProfileRepository(this.supabase);
     const profile = await repo.getByUserId(data.user.id);
@@ -51,12 +57,16 @@ export class AuthService {
 
   async signOut() {
     const { error } = await this.supabase.auth.signOut();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async sendPasswordReset(email: string) {
     const { error } = await this.supabase.auth.resetPasswordForEmail(email);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async verifyPasswordResetCode(email: string, code: string) {
@@ -66,7 +76,9 @@ export class AuthService {
       type: "recovery",
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -75,7 +87,9 @@ export class AuthService {
       password: newPassword,
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   // Note: flow param kept for compatibility with your existing callers.
@@ -85,7 +99,9 @@ export class AuthService {
       email,
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async requestEmailOtpForSignIn(email: string) {
@@ -107,8 +123,12 @@ export class AuthService {
       type: "email",
     });
 
-    if (error) throw error;
-    if (!data.user) return { user: null, profile: null };
+    if (error) {
+      throw error;
+    }
+    if (!data.user) {
+      return { user: null, profile: null };
+    }
 
     const repo = new ProfileRepository(this.supabase);
     const profile = await repo.getByUserId(data.user.id);
@@ -129,8 +149,12 @@ export class AuthService {
       type: "signup",
     });
 
-    if (error) throw error;
-    if (!data.user) return { user: null, profile: null };
+    if (error) {
+      throw error;
+    }
+    if (!data.user) {
+      return { user: null, profile: null };
+    }
 
     const user = data.user;
 

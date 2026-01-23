@@ -3,7 +3,10 @@ import { z } from "zod";
 
 const emailSchema = z.string().trim().email();
 const passwordSchema = z.string().trim().min(1);
-const otpCodeSchema = z.string().trim().regex(/^\d{6}$/);
+const otpCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/);
 
 export const loginSchema = z
   .object({

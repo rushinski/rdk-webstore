@@ -9,7 +9,7 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_DB_URL: z.string(),
 
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string(), 
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string(),
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
 
@@ -20,7 +20,7 @@ const schema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string(),
 
   ADMIN_SESSION_SECRET: z.string(),
-  
+
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
 
@@ -38,7 +38,10 @@ const schema = z.object({
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
   NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("true"),
 
-  NODE_ENV: z.enum(["development", "test", "production"]).optional().default("development"),
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .optional()
+    .default("development"),
 });
 
 export const env = schema.parse(process.env);

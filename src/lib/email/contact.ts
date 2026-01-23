@@ -55,7 +55,7 @@ export const buildContactSubmissionEmail = (input: ContactEmailInput) => {
                           style="display:block;width:100%;max-width:420px;border:1px solid ${EMAIL_COLORS.panelBorder};background:${EMAIL_COLORS.surface};"
                         />
                       </div>`
-                    : ""
+                    : "",
                 )
                 .join("")}
             </div>

@@ -25,7 +25,7 @@ export async function mfaStartChallenge() {
 export async function mfaVerifyChallenge(
   factorId: string,
   challengeId: string,
-  code: string
+  code: string,
 ) {
   const res = await fetch("/api/auth/2fa/challenge/verify", {
     method: "POST",

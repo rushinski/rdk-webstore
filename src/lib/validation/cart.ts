@@ -9,7 +9,7 @@ export const cartValidateSchema = z
           productId: z.string().uuid(),
           variantId: z.string().uuid(),
           quantity: z.number().int().positive(),
-        })
+        }),
       )
       .default([]),
   })
@@ -30,7 +30,7 @@ export const cartSnapshotSchema = z
           imageUrl: z.string().trim().min(1),
           quantity: z.number().int().positive(),
           maxStock: z.number().int().positive().optional(),
-        })
+        }),
       )
       .default([]),
   })

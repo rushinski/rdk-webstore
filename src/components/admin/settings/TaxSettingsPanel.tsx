@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
 import { logError } from "@/lib/log";
@@ -128,7 +129,9 @@ export function TaxSettingsPanel() {
     <div className="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-base sm:text-lg font-semibold text-white">Tax collection</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-white">
+            Tax collection
+          </h2>
           <p className="text-xs sm:text-sm text-gray-400">
             Toggle Stripe Tax calculations and assign category tax codes.
           </p>
@@ -154,13 +157,15 @@ export function TaxSettingsPanel() {
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm sm:text-base font-semibold text-white">Category tax codes</h3>
+          <h3 className="text-sm sm:text-base font-semibold text-white">
+            Category tax codes
+          </h3>
           <p className="text-xs sm:text-sm text-gray-400">
             Stripe Tax uses these codes to determine the correct tax rules per category.
           </p>
           <div className="mt-2 text-[11px] sm:text-xs text-gray-500">
-            Tax codes are Stripe identifiers (ex: txcd_30011000) that map to product taxability.
-            {" "}
+            Tax codes are Stripe identifiers (ex: txcd_30011000) that map to product
+            taxability.{" "}
             <a
               href="https://docs.stripe.com/tax/tax-codes"
               target="_blank"
@@ -230,7 +235,9 @@ export function TaxSettingsPanel() {
         >
           {isSaving ? "Saving..." : "Save tax settings"}
         </button>
-        {message && <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>}
+        {message && (
+          <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>
+        )}
       </div>
     </div>
   );

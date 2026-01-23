@@ -3,8 +3,10 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { EmailCodeFlow } from "./EmailCodeFlow";
+
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+
+import { EmailCodeFlow } from "./EmailCodeFlow";
 
 interface OtpLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
@@ -27,8 +29,9 @@ export function OtpLoginForm({
     });
 
     const json = await res.json();
-    if (!res.ok || !json.ok)
+    if (!res.ok || !json.ok) {
       throw new Error(json.error ?? "Error sending verification email.");
+    }
   }
 
   async function verifyOtp(email: string, code: string) {
@@ -45,11 +48,16 @@ export function OtpLoginForm({
       return;
     }
 
-    if (!json.ok) throw new Error(json.error ?? "Invalid or expired code");
+    if (!json.ok) {
+      throw new Error(json.error ?? "Invalid or expired code");
+    }
 
-    if (json.isAdmin && json.requiresTwoFASetup) return router.push("/auth/2fa/setup");
-    if (json.isAdmin && json.requiresTwoFAChallenge)
+    if (json.isAdmin && json.requiresTwoFASetup) {
+      return router.push("/auth/2fa/setup");
+    }
+    if (json.isAdmin && json.requiresTwoFAChallenge) {
       return router.push("/auth/2fa/challenge");
+    }
 
     // Redirect to where they came from or admin/home
     const destination = json.isAdmin ? "/admin" : nextUrl;

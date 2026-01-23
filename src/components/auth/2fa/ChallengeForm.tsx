@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
@@ -22,7 +23,7 @@ export function ChallengeForm() {
 
   const canSubmit = useMemo(
     () => Boolean(factorId && challengeId && code.length === 6),
-    [code, factorId, challengeId]
+    [code, factorId, challengeId],
   );
 
   useEffect(() => {

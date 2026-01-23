@@ -2,6 +2,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+
 import { EmailCodeFlow } from "./EmailCodeFlow";
 
 type VerifyFlow = "signup" | "signin";
@@ -23,8 +24,7 @@ export function VerifyEmailForm({
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") || "/";
 
-  const heading =
-    flow === "signin" ? "Verify your email" : "Activate your account";
+  const heading = flow === "signin" ? "Verify your email" : "Activate your account";
 
   const baseDescription =
     flow === "signin"
@@ -63,8 +63,11 @@ export function VerifyEmailForm({
 
     // After successful verification, redirect to where they came from
     const destination = json.nextPath || nextUrl;
-    if (onVerified) onVerified(destination);
-    else router.push(destination);
+    if (onVerified) {
+      onVerified(destination);
+    } else {
+      router.push(destination);
+    }
   }
 
   return (
@@ -86,7 +89,11 @@ export function VerifyEmailForm({
       codeLength={6}
       backLabel="Back to sign in"
       onBack={onBackToLogin}
-      backHref={onBackToLogin ? undefined : `/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
+      backHref={
+        onBackToLogin
+          ? undefined
+          : `/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`
+      }
     />
   );
 }

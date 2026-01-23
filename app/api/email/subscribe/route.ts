@@ -1,6 +1,9 @@
 // app/api/email/subscribe/route.ts
-import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmailSubscriptionService } from "@/services/email-subscription-service";

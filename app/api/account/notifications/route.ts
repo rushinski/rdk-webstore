@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -24,7 +26,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { chat_notifications_enabled: profile?.chat_notifications_enabled ?? true },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to load notifications", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -51,7 +53,7 @@ export async function PATCH(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -60,10 +62,7 @@ export async function PATCH(request: NextRequest) {
 
     await profileRepo.updateNotificationPreferences(session.user.id, parsed.data);
 
-    return NextResponse.json(
-      { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -73,7 +72,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to update notifications", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

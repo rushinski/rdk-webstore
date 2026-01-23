@@ -1,36 +1,44 @@
 // app/admin/dashboard/page.tsx
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { logError } from '@/lib/log';
-import { SalesChart } from '@/components/admin/charts/SalesChart';
-import { TrafficChart } from '@/components/admin/charts/TrafficChart';
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Package, Users } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ShoppingCart,
+  Package,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import { logError } from "@/lib/log";
+import { SalesChart } from "@/components/admin/charts/SalesChart";
+import { TrafficChart } from "@/components/admin/charts/TrafficChart";
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState({ revenue: 0, orders: 0 });
-  const [salesTrend, setSalesTrend] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [salesTrend, setSalesTrend] = useState<Array<{ date: string; revenue: number }>>(
+    [],
+  );
   const [trafficSummary, setTrafficSummary] = useState({
     visits: 0,
     uniqueVisitors: 0,
     pageViews: 0,
   });
-  const [trafficTrend, setTrafficTrend] = useState<Array<{ date: string; visits: number }>>([]);
+  const [trafficTrend, setTrafficTrend] = useState<
+    Array<{ date: string; visits: number }>
+  >([]);
   const [productsCount, setProductsCount] = useState(0);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  
+
   useEffect(() => {
     const loadDashboard = async () => {
       try {
-        const [
-          analyticsResponse,
-          productsResponse,
-          ordersResponse,
-        ] = await Promise.all([
-          fetch('/api/admin/analytics?range=7d'),
-          fetch('/api/store/products?limit=1'),
-          fetch('/api/admin/orders?status=paid&status=shipped'),
+        const [analyticsResponse, productsResponse, ordersResponse] = await Promise.all([
+          fetch("/api/admin/analytics?range=7d"),
+          fetch("/api/store/products?limit=1"),
+          fetch("/api/admin/orders?status=paid&status=shipped"),
         ]);
 
         const analyticsData = await analyticsResponse.json();
@@ -41,7 +49,11 @@ export default function DashboardPage() {
           });
           setSalesTrend(analyticsData.salesTrend || []);
           setTrafficSummary(
-            analyticsData.trafficSummary || { visits: 0, uniqueVisitors: 0, pageViews: 0 }
+            analyticsData.trafficSummary || {
+              visits: 0,
+              uniqueVisitors: 0,
+              pageViews: 0,
+            },
           );
           setTrafficTrend(analyticsData.trafficTrend || []);
         }
@@ -61,31 +73,31 @@ export default function DashboardPage() {
 
   const stats = [
     {
-      title: 'Revenue',
+      title: "Revenue",
       value: `$${summary.revenue.toFixed(2)}`,
-      change: '-',
-      trend: summary.revenue > 0 ? 'up' : 'down',
+      change: "-",
+      trend: summary.revenue > 0 ? "up" : "down",
       icon: DollarSign,
     },
     {
-      title: 'Orders',
+      title: "Orders",
       value: `${summary.orders}`,
-      change: '-',
-      trend: summary.orders > 0 ? 'up' : 'down',
+      change: "-",
+      trend: summary.orders > 0 ? "up" : "down",
       icon: ShoppingCart,
     },
     {
-      title: 'Products',
+      title: "Products",
       value: `${productsCount}`,
-      change: '-',
-      trend: productsCount > 0 ? 'up' : 'down',
+      change: "-",
+      trend: productsCount > 0 ? "up" : "down",
       icon: Package,
     },
     {
-      title: 'Visitors',
+      title: "Visitors",
       value: `${trafficSummary.uniqueVisitors}`,
-      change: '-',
-      trend: trafficSummary.uniqueVisitors > 0 ? 'up' : 'down',
+      change: "-",
+      trend: trafficSummary.uniqueVisitors > 0 ? "up" : "down",
       icon: Users,
     },
   ];
@@ -102,19 +114,24 @@ export default function DashboardPage() {
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.title} className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
+            <div
+              key={stat.title}
+              className="bg-zinc-900 border border-zinc-800/70 rounded p-6"
+            >
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-400 text-sm">{stat.title}</span>
                 <Icon className="w-5 h-5 text-gray-400" />
               </div>
               <div className="flex items-end justify-between">
-                <span className="text-xl sm:text-3xl font-bold text-white">{stat.value}</span>
+                <span className="text-xl sm:text-3xl font-bold text-white">
+                  {stat.value}
+                </span>
                 <span
                   className={`flex items-center gap-1 text-sm font-semibold ${
-                    stat.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                    stat.trend === "up" ? "text-green-400" : "text-red-400"
                   }`}
                 >
-                  {stat.trend === 'up' ? (
+                  {stat.trend === "up" ? (
                     <TrendingUp className="w-4 h-4" />
                   ) : (
                     <TrendingDown className="w-4 h-4" />
@@ -154,9 +171,11 @@ export default function DashboardPage() {
                 <tr key={order.id} className="border-b border-zinc-800/70">
                   <td className="py-3 text-white">#{order.id.slice(0, 8)}</td>
                   <td className="hidden sm:table-cell py-3 text-gray-400">
-                    {order.user_id ? order.user_id.slice(0, 6) : 'Guest'}
+                    {order.user_id ? order.user_id.slice(0, 6) : "Guest"}
                   </td>
-                  <td className="py-3 text-right text-white">${Number(order.total ?? 0).toFixed(2)}</td>
+                  <td className="py-3 text-right text-white">
+                    ${Number(order.total ?? 0).toFixed(2)}
+                  </td>
                   <td className="hidden sm:table-cell py-3 text-right text-green-400">
                     +${Number(order.subtotal ?? 0).toFixed(2)}
                   </td>

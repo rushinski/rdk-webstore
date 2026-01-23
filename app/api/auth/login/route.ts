@@ -1,5 +1,7 @@
 // app/api/auth/login/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";

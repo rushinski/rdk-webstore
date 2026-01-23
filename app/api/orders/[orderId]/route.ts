@@ -1,7 +1,9 @@
 // src/app/api/orders/[orderId]/route.ts (CORRECTED)
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { OrdersService } from "@/services/orders-service";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";

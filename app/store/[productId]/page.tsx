@@ -1,12 +1,13 @@
 // app/store/[productId]/page.tsx
 
 import { unstable_cache } from "next/cache";
-import { createSupabasePublicClient } from "@/lib/supabase/public";
-import { ProductRepository } from "@/repositories/product-repo";
-import { ProductDetail } from "@/components/store/ProductDetail";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+
+import { createSupabasePublicClient } from "@/lib/supabase/public";
+import { ProductRepository } from "@/repositories/product-repo";
+import { ProductDetail } from "@/components/store/ProductDetail";
 
 const PRODUCT_REVALIDATE_SECONDS = 60;
 export const revalidate = 60;
@@ -19,7 +20,7 @@ const getCachedProduct = (productId: string) =>
       return repo.getById(productId);
     },
     ["storefront", "product", productId],
-    { revalidate: PRODUCT_REVALIDATE_SECONDS, tags: [`product:${productId}`] }
+    { revalidate: PRODUCT_REVALIDATE_SECONDS, tags: [`product:${productId}`] },
   )();
 
 export default async function ProductDetailPage({
@@ -30,7 +31,9 @@ export default async function ProductDetailPage({
   const { productId } = await params;
   const isUuid =
     typeof productId === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(productId);
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      productId,
+    );
   if (!isUuid) {
     notFound();
   }

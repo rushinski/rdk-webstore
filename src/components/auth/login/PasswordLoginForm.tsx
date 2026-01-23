@@ -5,10 +5,13 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { SocialButton } from "../ui/SocialButton";
-import { PasswordField } from "./PasswordField";
+
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+
+import { SocialButton } from "../ui/SocialButton";
+
+import { PasswordField } from "./PasswordField";
 
 interface PasswordLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
@@ -60,9 +63,12 @@ export function PasswordLoginForm({
         return;
       }
 
-      if (json.isAdmin && json.requiresTwoFASetup) return router.push("/auth/2fa/setup");
-      if (json.isAdmin && json.requiresTwoFAChallenge)
+      if (json.isAdmin && json.requiresTwoFASetup) {
+        return router.push("/auth/2fa/setup");
+      }
+      if (json.isAdmin && json.requiresTwoFAChallenge) {
         return router.push("/auth/2fa/challenge");
+      }
 
       // Redirect to where they came from or admin/home
       const destination = json.isAdmin ? "/admin" : nextUrl;

@@ -16,7 +16,7 @@ function parseDuration(duration: string): Duration {
 
   if (!match) {
     throw new Error(
-      `Invalid duration format: ${duration}. Expected format like "1m", "5 s", "1 h", "250ms"`
+      `Invalid duration format: ${duration}. Expected format like "1m", "5 s", "1 h", "250ms"`,
     );
   }
 
@@ -49,7 +49,9 @@ function getRedis(): Redis {
     throw new Error("rate_limit_missing_upstash_config");
   }
 
-  if (redis) return redis;
+  if (redis) {
+    return redis;
+  }
 
   redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL!,
@@ -60,7 +62,9 @@ function getRedis(): Redis {
 }
 
 function getGlobalLimiter(): Ratelimit {
-  if (globalLimiter) return globalLimiter;
+  if (globalLimiter) {
+    return globalLimiter;
+  }
 
   const redisInstance = getRedis();
   const rateLimit = security.proxy.rateLimit;
@@ -68,23 +72,30 @@ function getGlobalLimiter(): Ratelimit {
 
   globalLimiter = new Ratelimit({
     redis: redisInstance,
-    limiter: Ratelimit.slidingWindow(rateLimit.maxRequestsGlobal, parseDuration(rateLimit.window)),
+    limiter: Ratelimit.slidingWindow(
+      rateLimit.maxRequestsGlobal,
+      parseDuration(rateLimit.window),
+    ),
     prefix: `rdk:rl:global:${envLabel}`,
   });
 
   return globalLimiter;
 }
 
-function getPathLimiter(pathname: string, maxRequests: number, window: string): Ratelimit {
+function getPathLimiter(
+  pathname: string,
+  maxRequests: number,
+  window: string,
+): Ratelimit {
   const envLabel = process.env.NODE_ENV ?? "unknown";
   const cacheKey = `${pathname}:${maxRequests}:${window}`;
-  
+
   if (pathLimiters.has(cacheKey)) {
     return pathLimiters.get(cacheKey)!;
   }
 
   const redisInstance = getRedis();
-  
+
   const limiter = new Ratelimit({
     redis: redisInstance,
     limiter: Ratelimit.slidingWindow(maxRequests, parseDuration(window)),
@@ -99,27 +110,37 @@ function getClientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
     const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) return firstIp;
+    if (firstIp) {
+      return firstIp;
+    }
   }
 
   const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
+  if (realIp) {
+    return realIp;
+  }
 
   return "unknown";
 }
 
 function maskIpForLog(ip: string): string {
-  if (ip === "unknown") return ip;
+  if (ip === "unknown") {
+    return ip;
+  }
 
   if (ip.includes(".")) {
     const parts = ip.split(".");
-    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+    }
     return ip;
   }
 
   if (ip.includes(":")) {
     const parts = ip.split(":").filter(Boolean);
-    if (parts.length >= 2) return `${parts[0]}:${parts[1]}::/??`;
+    if (parts.length >= 2) {
+      return `${parts[0]}:${parts[1]}::/??`;
+    }
     return ip;
   }
 
@@ -132,17 +153,13 @@ function maskIpForLog(ip: string): string {
  */
 function normalizePathForRateLimit(pathname: string): string {
   // Routes that should have query params stripped for rate limiting
-  const FILTERED_ROUTES = [
-    '/store',
-    '/brands',
-    '/search',
-  ];
+  const FILTERED_ROUTES = ["/store", "/brands", "/search"];
 
-  const isFilteredRoute = FILTERED_ROUTES.some(route => 
-    pathname === route || pathname.startsWith(`${route}/`)
+  const isFilteredRoute = FILTERED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  return isFilteredRoute ? pathname.split('?')[0] : pathname;
+  return isFilteredRoute ? pathname.split("?")[0] : pathname;
 }
 
 /**
@@ -155,20 +172,34 @@ function getPrefetchSignals(request: NextRequest): string[] {
   const rawUrl = request.url;
 
   // App Router flight query param
-  if (url.searchParams.has("_rsc")) signals.push("q:_rsc(nextUrl)");
-  if (rawUrl.includes("_rsc=")) signals.push("q:_rsc(rawUrl)");
+  if (url.searchParams.has("_rsc")) {
+    signals.push("q:_rsc(nextUrl)");
+  }
+  if (rawUrl.includes("_rsc=")) {
+    signals.push("q:_rsc(rawUrl)");
+  }
 
   // Next.js App Router flight headers
   const rsc = (h("rsc") ?? "").toLowerCase();
-  if (rsc === "1" || rsc === "true") signals.push("hdr:rsc");
+  if (rsc === "1" || rsc === "true") {
+    signals.push("hdr:rsc");
+  }
 
-  if (h("next-router-prefetch") === "1") signals.push("hdr:next-router-prefetch=1");
-  if (h("next-router-segment-prefetch")) signals.push("hdr:next-router-segment-prefetch");
-  if (h("x-middleware-prefetch") === "1") signals.push("hdr:x-middleware-prefetch=1");
+  if (h("next-router-prefetch") === "1") {
+    signals.push("hdr:next-router-prefetch=1");
+  }
+  if (h("next-router-segment-prefetch")) {
+    signals.push("hdr:next-router-segment-prefetch");
+  }
+  if (h("x-middleware-prefetch") === "1") {
+    signals.push("hdr:x-middleware-prefetch=1");
+  }
 
   // Flight payload content-type
   const accept = (h("accept") ?? "").toLowerCase();
-  if (accept.includes("text/x-component")) signals.push("hdr:accept=text/x-component");
+  if (accept.includes("text/x-component")) {
+    signals.push("hdr:accept=text/x-component");
+  }
 
   // Browser prefetch
   const purpose = (
@@ -177,9 +208,13 @@ function getPrefetchSignals(request: NextRequest): string[] {
     h("sec-fetch-purpose") ??
     ""
   ).toLowerCase();
-  if (purpose.includes("prefetch")) signals.push("hdr:purpose=prefetch");
+  if (purpose.includes("prefetch")) {
+    signals.push("hdr:purpose=prefetch");
+  }
 
-  if (h("next-router-state-tree")) signals.push("hdr:next-router-state-tree");
+  if (h("next-router-state-tree")) {
+    signals.push("hdr:next-router-state-tree");
+  }
 
   return signals;
 }
@@ -191,10 +226,14 @@ function isPrefetchLike(request: NextRequest): { yes: boolean; signals: string[]
 
 function pickMostRestrictive(
   globalResult: RateLimitResult,
-  pathResult: RateLimitResult
+  pathResult: RateLimitResult,
 ): { which: WhichBucket; result: RateLimitResult } {
-  if (!globalResult.success && pathResult.success) return { which: "global", result: globalResult };
-  if (!pathResult.success && globalResult.success) return { which: "path", result: pathResult };
+  if (!globalResult.success && pathResult.success) {
+    return { which: "global", result: globalResult };
+  }
+  if (!pathResult.success && globalResult.success) {
+    return { which: "path", result: pathResult };
+  }
 
   if (!globalResult.success && !pathResult.success) {
     return globalResult.remaining <= pathResult.remaining
@@ -209,26 +248,34 @@ function pickMostRestrictive(
 
 export async function applyRateLimit(
   request: NextRequest,
-  requestId: string
+  requestId: string,
 ): Promise<NextResponse | null> {
   const { pathname, hostname } = request.nextUrl;
   const { rateLimit } = security.proxy;
 
   // Config master kill switch
-  if (!rateLimit.enabled) return null;
+  if (!rateLimit.enabled) {
+    return null;
+  }
 
   // Never rate-limit the rate-limit page itself
-  if (pathname === rateLimit.tooManyRequestsPath) return null;
+  if (pathname === rateLimit.tooManyRequestsPath) {
+    return null;
+  }
 
   // Allowlist bypasses
-  if (rateLimit.bypassPrefixes?.some((prefix) => pathname.startsWith(prefix))) return null;
+  if (rateLimit.bypassPrefixes?.some((prefix) => pathname.startsWith(prefix))) {
+    return null;
+  }
 
   // Local dev behavior
   const isLocalhost =
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
   const isLocalDev = isLocalhost;
 
-  if (!rateLimit.applyInLocalDev && isLocalDev) return null;
+  if (!rateLimit.applyInLocalDev && isLocalDev) {
+    return null;
+  }
 
   // Ignore prefetch/RSC requests
   if (rateLimit.ignorePrefetch) {
@@ -266,7 +313,7 @@ export async function applyRateLimit(
     const pathLimiter = getPathLimiter(
       normalizedPath,
       pathConfig.maxRequests,
-      pathConfig.window
+      pathConfig.window,
     );
 
     const globalKey = `host:${hostname}:ip:${clientIp}`;
@@ -295,7 +342,9 @@ export async function applyRateLimit(
   }
 
   const blocked = !globalResult.success || !pathResult.success;
-  if (!blocked) return null;
+  if (!blocked) {
+    return null;
+  }
 
   const chosen = pickMostRestrictive(globalResult, pathResult);
   const prefetch = isPrefetchLike(request);
@@ -333,15 +382,15 @@ export async function applyRateLimit(
   }
 
   const response = NextResponse.json(
-    { 
-      error: "Rate limit exceeded", 
-      requestId, 
+    {
+      error: "Rate limit exceeded",
+      requestId,
       bucket: chosen.which,
       limit: chosen.result.limit,
       remaining: chosen.result.remaining,
       reset: chosen.result.reset,
     },
-    { status: rateLimit.blockStatus }
+    { status: rateLimit.blockStatus },
   );
 
   response.headers.set("X-RateLimit-Bucket", chosen.which);

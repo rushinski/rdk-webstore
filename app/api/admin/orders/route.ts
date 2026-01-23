@@ -1,6 +1,8 @@
 // app/api/admin/orders/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
@@ -24,8 +26,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const statusesRaw = searchParams.getAll("status").filter(Boolean);
     const fulfillmentRaw = searchParams.get("fulfillment") ?? undefined;
-    const fulfillmentStatusRaw =
-      searchParams.get("fulfillmentStatus") ?? undefined;
+    const fulfillmentStatusRaw = searchParams.get("fulfillmentStatus") ?? undefined;
 
     const parsedStatuses = statusSchema.safeParse(statusesRaw);
     const parsedFulfillment = fulfillmentSchema.safeParse(fulfillmentRaw);
@@ -41,35 +42,43 @@ export async function GET(request: NextRequest) {
     if (!parsedStatuses.success) {
       return NextResponse.json(
         { error: "Invalid status", issues: parsedStatuses.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!parsedFulfillment.success) {
       return NextResponse.json(
-        { error: "Invalid fulfillment", issues: parsedFulfillment.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Invalid fulfillment",
+          issues: parsedFulfillment.error.format(),
+          requestId,
+        },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!parsedFulfillmentStatus.success) {
       return NextResponse.json(
-        { error: "Invalid fulfillmentStatus", issues: parsedFulfillmentStatus.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Invalid fulfillmentStatus",
+          issues: parsedFulfillmentStatus.error.format(),
+          requestId,
+        },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (parsedPage && !parsedPage.success) {
       return NextResponse.json(
         { error: "Invalid page", issues: parsedPage.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (parsedLimit && !parsedLimit.success) {
       return NextResponse.json(
         { error: "Invalid limit", issues: parsedLimit.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -82,8 +91,13 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { orders, count, page: parsedPage?.success ? parsedPage.data : 1, limit: parsedLimit?.success ? parsedLimit.data : 20 },
-      { headers: { "Cache-Control": "no-store" } }
+      {
+        orders,
+        count,
+        page: parsedPage?.success ? parsedPage.data : 1,
+        limit: parsedLimit?.success ? parsedLimit.data : 20,
+      },
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     logError(error, {
@@ -93,7 +107,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to fetch orders", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

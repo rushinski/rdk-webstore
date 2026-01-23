@@ -1,21 +1,22 @@
 // app/admin/settings/shipping/page.tsx
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import { logError } from '@/lib/log';
-import { ModalPortal } from '@/components/ui/ModalPortal';
+import { useEffect, useMemo, useState } from "react";
+
+import { logError } from "@/lib/log";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 const SHIPPING_CATEGORIES = [
-  { key: 'sneakers', label: 'Sneakers' },
-  { key: 'clothing', label: 'Clothing' },
-  { key: 'accessories', label: 'Accessories' },
-  { key: 'electronics', label: 'Electronics' },
+  { key: "sneakers", label: "Sneakers" },
+  { key: "clothing", label: "Clothing" },
+  { key: "accessories", label: "Accessories" },
+  { key: "electronics", label: "Electronics" },
 ];
 
 const AVAILABLE_CARRIERS = [
-  { key: 'UPS', label: 'UPS', description: 'United Parcel Service' },
-  { key: 'USPS', label: 'USPS', description: 'United States Postal Service' },
-  { key: 'FedEx', label: 'FedEx', description: 'Federal Express' },
+  { key: "UPS", label: "UPS", description: "United Parcel Service" },
+  { key: "USPS", label: "USPS", description: "United States Postal Service" },
+  { key: "FedEx", label: "FedEx", description: "Federal Express" },
 ];
 
 type ShippingDefaultValues = {
@@ -35,39 +36,45 @@ const defaultPackage: ShippingDefaultValues = {
 };
 
 const initialOrigin = {
-  name: '',
-  company: '',
-  phone: '',
-  line1: '',
-  line2: '',
-  city: '',
-  state: '',
-  postal_code: '',
-  country: 'US',
+  name: "",
+  company: "",
+  phone: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  postal_code: "",
+  country: "US",
 };
 
 type ShippingOriginAddress = typeof initialOrigin;
 
 const moneyToCents = (raw: string) => {
-  const cleaned = raw.replace(/[^\d.]/g, '');
-  if (!cleaned || cleaned === '.') return 0;
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  if (!cleaned || cleaned === ".") {
+    return 0;
+  }
 
-  const firstDot = cleaned.indexOf('.');
+  const firstDot = cleaned.indexOf(".");
   let normalized = cleaned;
 
   if (firstDot !== -1) {
     const before = cleaned.slice(0, firstDot + 1);
-    const after = cleaned.slice(firstDot + 1).replace(/\./g, '');
+    const after = cleaned.slice(firstDot + 1).replace(/\./g, "");
     normalized = before + after;
   }
 
-  const [whole, frac = ''] = normalized.split('.');
-  const wholeNum = Number(whole || '0');
-  if (!Number.isFinite(wholeNum)) return 0;
+  const [whole, frac = ""] = normalized.split(".");
+  const wholeNum = Number(whole || "0");
+  if (!Number.isFinite(wholeNum)) {
+    return 0;
+  }
 
   const centsStr = `${frac}00`.slice(0, 2);
-  const centsNum = Number(centsStr || '0');
-  if (!Number.isFinite(centsNum)) return 0;
+  const centsNum = Number(centsStr || "0");
+  if (!Number.isFinite(centsNum)) {
+    return 0;
+  }
 
   return wholeNum * 100 + centsNum;
 };
@@ -78,41 +85,44 @@ const centsToMoneyString = (cents: number) => {
 };
 
 export default function ShippingSettingsPage() {
-  const [shippingDefaults, setShippingDefaults] = useState<Record<string, ShippingDefaultValues>>({});
-  const [originAddress, setOriginAddress] = useState<ShippingOriginAddress>(initialOrigin);
+  const [shippingDefaults, setShippingDefaults] = useState<
+    Record<string, ShippingDefaultValues>
+  >({});
+  const [originAddress, setOriginAddress] =
+    useState<ShippingOriginAddress>(initialOrigin);
   const [enabledCarriers, setEnabledCarriers] = useState<string[]>([]);
   const [isSavingDefaults, setIsSavingDefaults] = useState(false);
   const [isSavingOrigin, setIsSavingOrigin] = useState(false);
   const [isSavingCarriers, setIsSavingCarriers] = useState(false);
-  const [message, setMessage] = useState('');
-  const [originMessage, setOriginMessage] = useState('');
-  const [carriersMessage, setCarriersMessage] = useState('');
+  const [message, setMessage] = useState("");
+  const [originMessage, setOriginMessage] = useState("");
+  const [carriersMessage, setCarriersMessage] = useState("");
   const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [defaultsDraft, setDefaultsDraft] = useState<ShippingDefaultValues | null>(null);
 
   // String versions for controlled inputs
-  const [shippingCostInput, setShippingCostInput] = useState<string>('0.00');
-  const [weightInput, setWeightInput] = useState<string>('16');
-  const [lengthInput, setLengthInput] = useState<string>('12');
-  const [widthInput, setWidthInput] = useState<string>('12');
-  const [heightInput, setHeightInput] = useState<string>('12');
+  const [shippingCostInput, setShippingCostInput] = useState<string>("0.00");
+  const [weightInput, setWeightInput] = useState<string>("16");
+  const [lengthInput, setLengthInput] = useState<string>("12");
+  const [widthInput, setWidthInput] = useState<string>("12");
+  const [heightInput, setHeightInput] = useState<string>("12");
 
   const [isOriginModalOpen, setIsOriginModalOpen] = useState(false);
   const [originDraft, setOriginDraft] = useState<ShippingOriginAddress>(initialOrigin);
 
   const categoryMap = useMemo(
     () => new Map(SHIPPING_CATEGORIES.map((category) => [category.key, category.label])),
-    []
+    [],
   );
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const [defaultsResponse, originResponse, carriersResponse] = await Promise.all([
-          fetch('/api/admin/shipping/defaults', { cache: 'no-store' }),
-          fetch('/api/admin/shipping/origin', { cache: 'no-store' }),
-          fetch('/api/admin/shipping/carriers', { cache: 'no-store' }),
+          fetch("/api/admin/shipping/defaults", { cache: "no-store" }),
+          fetch("/api/admin/shipping/origin", { cache: "no-store" }),
+          fetch("/api/admin/shipping/carriers", { cache: "no-store" }),
         ]);
 
         const defaultsData = await defaultsResponse.json();
@@ -120,10 +130,13 @@ export default function ShippingSettingsPage() {
         for (const entry of defaultsData.defaults || []) {
           map[entry.category] = {
             shipping_cost_cents: entry.shipping_cost_cents ?? 0,
-            default_weight_oz: entry.default_weight_oz ?? defaultPackage.default_weight_oz,
-            default_length_in: entry.default_length_in ?? defaultPackage.default_length_in,
+            default_weight_oz:
+              entry.default_weight_oz ?? defaultPackage.default_weight_oz,
+            default_length_in:
+              entry.default_length_in ?? defaultPackage.default_length_in,
             default_width_in: entry.default_width_in ?? defaultPackage.default_width_in,
-            default_height_in: entry.default_height_in ?? defaultPackage.default_height_in,
+            default_height_in:
+              entry.default_height_in ?? defaultPackage.default_height_in,
           };
         }
         setShippingDefaults(map);
@@ -136,7 +149,7 @@ export default function ShippingSettingsPage() {
         const carriersData = await carriersResponse.json();
         setEnabledCarriers(carriersData.carriers || []);
       } catch (error) {
-        logError(error, { layer: 'frontend', event: 'admin_load_settings_shipping' });
+        logError(error, { layer: "frontend", event: "admin_load_settings_shipping" });
       }
     };
 
@@ -153,54 +166,61 @@ export default function ShippingSettingsPage() {
     setWidthInput(String(current.default_width_in));
     setHeightInput(String(current.default_height_in));
     setIsDefaultsModalOpen(true);
-    setMessage('');
+    setMessage("");
   };
 
   const closeDefaultsModal = () => {
     setIsDefaultsModalOpen(false);
     setActiveCategory(null);
     setDefaultsDraft(null);
-    setShippingCostInput('0.00');
-    setWeightInput('16');
-    setLengthInput('12');
-    setWidthInput('12');
-    setHeightInput('12');
+    setShippingCostInput("0.00");
+    setWeightInput("16");
+    setLengthInput("12");
+    setWidthInput("12");
+    setHeightInput("12");
   };
 
   const openOriginModal = () => {
     setOriginDraft({ ...originAddress });
     setIsOriginModalOpen(true);
-    setOriginMessage('');
+    setOriginMessage("");
   };
 
-  const handleDimensionInput = (field: 'weight' | 'length' | 'width' | 'height', value: string) => {
-    const cleaned = value.replace(/[^\d.]/g, '');
-    
+  const handleDimensionInput = (
+    field: "weight" | "length" | "width" | "height",
+    value: string,
+  ) => {
+    const cleaned = value.replace(/[^\d.]/g, "");
+
     switch (field) {
-      case 'weight':
+      case "weight":
         setWeightInput(cleaned);
         break;
-      case 'length':
+      case "length":
         setLengthInput(cleaned);
         break;
-      case 'width':
+      case "width":
         setWidthInput(cleaned);
         break;
-      case 'height':
+      case "height":
         setHeightInput(cleaned);
         break;
     }
 
     const numericValue = Number(cleaned);
-    if (!Number.isFinite(numericValue) || numericValue < 0) return;
+    if (!Number.isFinite(numericValue) || numericValue < 0) {
+      return;
+    }
 
     setDefaultsDraft((prev) => {
-      if (!prev) return prev;
+      if (!prev) {
+        return prev;
+      }
       const fieldMap = {
-        weight: 'default_weight_oz' as const,
-        length: 'default_length_in' as const,
-        width: 'default_width_in' as const,
-        height: 'default_height_in' as const,
+        weight: "default_weight_oz" as const,
+        length: "default_length_in" as const,
+        width: "default_width_in" as const,
+        height: "default_height_in" as const,
       };
       return { ...prev, [fieldMap[field]]: numericValue };
     });
@@ -210,7 +230,9 @@ export default function ShippingSettingsPage() {
     setShippingCostInput(value);
     const cents = moneyToCents(value);
     setDefaultsDraft((prev) => {
-      if (!prev) return prev;
+      if (!prev) {
+        return prev;
+      }
       return { ...prev, shipping_cost_cents: cents };
     });
   };
@@ -229,9 +251,11 @@ export default function ShippingSettingsPage() {
   };
 
   const saveDefaults = async () => {
-    if (!activeCategory || !defaultsDraft) return;
+    if (!activeCategory || !defaultsDraft) {
+      return;
+    }
     setIsSavingDefaults(true);
-    setMessage('');
+    setMessage("");
 
     const nextDefaults: Record<string, ShippingDefaultValues> = {
       ...shippingDefaults,
@@ -241,29 +265,38 @@ export default function ShippingSettingsPage() {
     try {
       const defaults = SHIPPING_CATEGORIES.map((category) => ({
         category: category.key,
-        shipping_cost_cents: Math.round(nextDefaults[category.key]?.shipping_cost_cents ?? 0),
-        default_weight_oz: nextDefaults[category.key]?.default_weight_oz ?? defaultPackage.default_weight_oz,
-        default_length_in: nextDefaults[category.key]?.default_length_in ?? defaultPackage.default_length_in,
-        default_width_in: nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
-        default_height_in: nextDefaults[category.key]?.default_height_in ?? defaultPackage.default_height_in,
+        shipping_cost_cents: Math.round(
+          nextDefaults[category.key]?.shipping_cost_cents ?? 0,
+        ),
+        default_weight_oz:
+          nextDefaults[category.key]?.default_weight_oz ??
+          defaultPackage.default_weight_oz,
+        default_length_in:
+          nextDefaults[category.key]?.default_length_in ??
+          defaultPackage.default_length_in,
+        default_width_in:
+          nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
+        default_height_in:
+          nextDefaults[category.key]?.default_height_in ??
+          defaultPackage.default_height_in,
       }));
 
-      const response = await fetch('/api/admin/shipping/defaults', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/shipping/defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ defaults }),
       });
 
       if (response.ok) {
         setShippingDefaults(nextDefaults);
         closeDefaultsModal();
-        setMessage('Shipping defaults updated.');
+        setMessage("Shipping defaults updated.");
       } else {
         const errorData = await response.json();
         setMessage(`Failed to update defaults: ${errorData.error}`);
       }
     } catch (error) {
-      setMessage('An unexpected error occurred.');
+      setMessage("An unexpected error occurred.");
     } finally {
       setIsSavingDefaults(false);
     }
@@ -271,24 +304,24 @@ export default function ShippingSettingsPage() {
 
   const saveOrigin = async () => {
     setIsSavingOrigin(true);
-    setOriginMessage('');
+    setOriginMessage("");
     try {
-      const response = await fetch('/api/admin/shipping/origin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/shipping/origin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(originDraft),
       });
 
       if (response.ok) {
         setOriginAddress(originDraft);
         setIsOriginModalOpen(false);
-        setOriginMessage('Shipping origin address saved.');
+        setOriginMessage("Shipping origin address saved.");
       } else {
         const errorData = await response.json();
         setOriginMessage(`Failed to save address: ${errorData.error}`);
       }
     } catch (error) {
-      setOriginMessage('An unexpected error occurred.');
+      setOriginMessage("An unexpected error occurred.");
     } finally {
       setIsSavingOrigin(false);
     }
@@ -296,11 +329,11 @@ export default function ShippingSettingsPage() {
 
   const saveCarriers = async () => {
     setIsSavingCarriers(true);
-    setCarriersMessage('');
+    setCarriersMessage("");
     try {
-      const response = await fetch('/api/admin/shipping/carriers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/admin/shipping/carriers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ carriers: enabledCarriers }),
       });
 
@@ -308,13 +341,13 @@ export default function ShippingSettingsPage() {
 
       if (response.ok) {
         setEnabledCarriers(data.carriers || []);
-        setCarriersMessage('Enabled carriers updated.');
-        setTimeout(() => setCarriersMessage(''), 3000);
+        setCarriersMessage("Enabled carriers updated.");
+        setTimeout(() => setCarriersMessage(""), 3000);
       } else {
         setCarriersMessage(`Failed to save carriers: ${data.error}`);
       }
     } catch (error) {
-      setCarriersMessage('An unexpected error occurred.');
+      setCarriersMessage("An unexpected error occurred.");
     } finally {
       setIsSavingCarriers(false);
     }
@@ -339,15 +372,19 @@ export default function ShippingSettingsPage() {
       originAddress.state,
       originAddress.postal_code,
     ].filter(Boolean);
-    return parts.join(', ');
+    return parts.join(", ");
   }, [originAddress]);
 
-  const activeCategoryLabel = activeCategory ? categoryMap.get(activeCategory) ?? '' : '';
+  const activeCategoryLabel = activeCategory
+    ? (categoryMap.get(activeCategory) ?? "")
+    : "";
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Shipping Settings</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          Shipping Settings
+        </h1>
         <p className="text-sm sm:text-base text-gray-400">
           Shipping defaults, origin address, and carrier options
         </p>
@@ -357,8 +394,12 @@ export default function ShippingSettingsPage() {
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white">Origin address</h2>
-              <p className="text-xs sm:text-sm text-gray-400">Used for labels and rate estimates.</p>
+              <h2 className="text-base sm:text-lg font-semibold text-white">
+                Origin address
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-400">
+                Used for labels and rate estimates.
+              </p>
             </div>
             <button
               type="button"
@@ -369,13 +410,15 @@ export default function ShippingSettingsPage() {
             </button>
           </div>
           <div className="text-[12px] sm:text-sm text-gray-400">
-            {originLine ? originLine : 'No origin address saved yet.'}
+            {originLine ? originLine : "No origin address saved yet."}
           </div>
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
           <div>
-            <h2 className="text-base sm:text-lg font-semibold text-white mb-2">Enabled Carriers</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-white mb-2">
+              Enabled Carriers
+            </h2>
             <p className="text-xs sm:text-sm text-gray-400 mb-4">
               Select which carriers to offer for label creation.
             </p>
@@ -410,7 +453,7 @@ export default function ShippingSettingsPage() {
               disabled={isSavingCarriers}
               className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
             >
-              {isSavingCarriers ? 'Saving...' : 'Save carriers'}
+              {isSavingCarriers ? "Saving..." : "Save carriers"}
             </button>
             {carriersMessage && (
               <div className="mt-2 text-[12px] sm:text-sm text-gray-400">
@@ -423,19 +466,26 @@ export default function ShippingSettingsPage() {
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-4 lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white">Default packages</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-white">
+                Default packages
+              </h2>
               <p className="text-xs sm:text-sm text-gray-400">
                 Configure default cost, weight, and dimensions per category.
               </p>
             </div>
-            {message && <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>}
+            {message && (
+              <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4">
             {SHIPPING_CATEGORIES.map((category) => {
               const summary = getPackageSummary(category.key);
               return (
-                <div key={category.key} className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40">
+                <div
+                  key={category.key}
+                  className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
@@ -445,7 +495,8 @@ export default function ShippingSettingsPage() {
                         ${summary.cost} shipping
                       </div>
                       <div className="text-[11px] sm:text-xs text-gray-400 mt-2">
-                        {summary.length} x {summary.width} x {summary.height} in · {summary.weight} oz
+                        {summary.length} x {summary.width} x {summary.height} in ·{" "}
+                        {summary.weight} oz
                       </div>
                     </div>
                     <button
@@ -474,25 +525,35 @@ export default function ShippingSettingsPage() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-white">Edit package defaults</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Edit package defaults
+                </h3>
                 <p className="text-xs text-gray-500">{activeCategoryLabel} defaults</p>
               </div>
-              <button type="button" onClick={closeDefaultsModal} className="text-gray-400 hover:text-white">
+              <button
+                type="button"
+                onClick={closeDefaultsModal}
+                className="text-gray-400 hover:text-white"
+              >
                 Close
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">Package size</div>
+                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
+                  Package size
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-gray-400 text-xs mb-1">Length (in)</label>
+                    <label className="block text-gray-400 text-xs mb-1">
+                      Length (in)
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={lengthInput}
-                      onChange={(e) => handleDimensionInput('length', e.target.value)}
+                      onChange={(e) => handleDimensionInput("length", e.target.value)}
                       className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                     />
                   </div>
@@ -502,17 +563,19 @@ export default function ShippingSettingsPage() {
                       type="text"
                       inputMode="numeric"
                       value={widthInput}
-                      onChange={(e) => handleDimensionInput('width', e.target.value)}
+                      onChange={(e) => handleDimensionInput("width", e.target.value)}
                       className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                     />
                   </div>
                   <div>
-                    <label className="block text-gray-400 text-xs mb-1">Height (in)</label>
+                    <label className="block text-gray-400 text-xs mb-1">
+                      Height (in)
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={heightInput}
-                      onChange={(e) => handleDimensionInput('height', e.target.value)}
+                      onChange={(e) => handleDimensionInput("height", e.target.value)}
                       className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                     />
                   </div>
@@ -526,19 +589,25 @@ export default function ShippingSettingsPage() {
                     type="text"
                     inputMode="numeric"
                     value={weightInput}
-                    onChange={(e) => handleDimensionInput('weight', e.target.value)}
+                    onChange={(e) => handleDimensionInput("weight", e.target.value)}
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 text-xs mb-1">Shipping cost ($)</label>
+                  <label className="block text-gray-400 text-xs mb-1">
+                    Shipping cost ($)
+                  </label>
                   <input
                     type="text"
                     inputMode="decimal"
                     placeholder="0.00"
                     value={shippingCostInput}
                     onChange={(e) => handleShippingCostChange(e.target.value)}
-                    onBlur={() => setShippingCostInput(centsToMoneyString(defaultsDraft.shipping_cost_cents))}
+                    onBlur={() =>
+                      setShippingCostInput(
+                        centsToMoneyString(defaultsDraft.shipping_cost_cents),
+                      )
+                    }
                     className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
                   />
                 </div>
@@ -559,7 +628,7 @@ export default function ShippingSettingsPage() {
                 disabled={isSavingDefaults}
                 className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
               >
-                {isSavingDefaults ? 'Saving...' : 'Save'}
+                {isSavingDefaults ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
@@ -571,7 +640,9 @@ export default function ShippingSettingsPage() {
           <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-3 sm:p-6">
             <div className="flex items-center justify-between gap-3 mb-2 sm:mb-4">
               <div>
-                <h2 className="text-sm sm:text-lg font-semibold text-white">Edit origin</h2>
+                <h2 className="text-sm sm:text-lg font-semibold text-white">
+                  Edit origin
+                </h2>
                 <p className="hidden sm:block text-[12px] sm:text-sm text-zinc-400">
                   Shipping origin address
                 </p>
@@ -591,7 +662,7 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.name}
-                  onChange={(e) => handleOriginDraftChange('name', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("name", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -599,8 +670,8 @@ export default function ShippingSettingsPage() {
                 <label className="block text-gray-400 mb-0.5">Company</label>
                 <input
                   type="text"
-                  value={originDraft.company ?? ''}
-                  onChange={(e) => handleOriginDraftChange('company', e.target.value)}
+                  value={originDraft.company ?? ""}
+                  onChange={(e) => handleOriginDraftChange("company", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -609,7 +680,7 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.phone}
-                  onChange={(e) => handleOriginDraftChange('phone', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("phone", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -618,16 +689,18 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.line1}
-                  onChange={(e) => handleOriginDraftChange('line1', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("line1", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
               <div>
-                <label className="block text-gray-400 mb-0.5">Apartment, suite, etc.</label>
+                <label className="block text-gray-400 mb-0.5">
+                  Apartment, suite, etc.
+                </label>
                 <input
                   type="text"
-                  value={originDraft.line2 ?? ''}
-                  onChange={(e) => handleOriginDraftChange('line2', e.target.value)}
+                  value={originDraft.line2 ?? ""}
+                  onChange={(e) => handleOriginDraftChange("line2", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -636,7 +709,7 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.city}
-                  onChange={(e) => handleOriginDraftChange('city', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("city", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -645,7 +718,7 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.state}
-                  onChange={(e) => handleOriginDraftChange('state', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("state", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -654,7 +727,7 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.postal_code}
-                  onChange={(e) => handleOriginDraftChange('postal_code', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("postal_code", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -663,7 +736,7 @@ export default function ShippingSettingsPage() {
                 <input
                   type="text"
                   value={originDraft.country}
-                  onChange={(e) => handleOriginDraftChange('country', e.target.value)}
+                  onChange={(e) => handleOriginDraftChange("country", e.target.value)}
                   className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
                 />
               </div>
@@ -687,7 +760,7 @@ export default function ShippingSettingsPage() {
                 disabled={isSavingOrigin}
                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white text-[11px] sm:text-sm hover:bg-red-500 disabled:bg-zinc-700"
               >
-                {isSavingOrigin ? 'Saving...' : 'Save origin'}
+                {isSavingOrigin ? "Saving..." : "Save origin"}
               </button>
             </div>
           </div>

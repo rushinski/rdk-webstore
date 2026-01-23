@@ -1,6 +1,8 @@
 // app/api/webhooks/stripe/route.ts (FIXED)
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { StripeOrderJob } from "@/jobs/stripe-order-job";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -89,7 +91,8 @@ export async function POST(request: NextRequest) {
           try {
             // Get the tenant's Stripe Connect account ID
             const profileRepo = new ProfileRepository(adminSupabase);
-            const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(tenantId);
+            const stripeAccountId =
+              await profileRepo.getStripeAccountIdForTenant(tenantId);
 
             if (!stripeAccountId) {
               log({
@@ -252,7 +255,8 @@ async function handleRefundEvent(
       reason: refund.reason,
     });
 
-    const chargeId = typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+    const chargeId =
+      typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
 
     if (!chargeId) {
       log({

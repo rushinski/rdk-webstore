@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { useEffect } from 'react';
-import { logError } from '@/lib/log';
+import Link from "next/link";
+import { useEffect } from "react";
+
+import { logError } from "@/lib/log";
 
 export default function Error({
   error,
@@ -12,7 +13,11 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    logError(error, { layer: 'frontend', event: 'account_error', digest: error.digest ?? null });
+    logError(error, {
+      layer: "frontend",
+      event: "account_error",
+      digest: error.digest ?? null,
+    });
   }, [error]);
 
   return (

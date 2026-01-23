@@ -16,9 +16,13 @@ export function ToggleSwitch({
   ariaLabel,
 }: ToggleSwitchProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
     event.preventDefault();
-    if (disabled) return;
+    if (disabled) {
+      return;
+    }
     onChange(!checked);
   };
 
@@ -30,7 +34,9 @@ export function ToggleSwitch({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={() => {
-        if (!disabled) onChange(!checked);
+        if (!disabled) {
+          onChange(!checked);
+        }
       }}
       onKeyDown={handleKeyDown}
       data-state={checked ? "on" : "off"}

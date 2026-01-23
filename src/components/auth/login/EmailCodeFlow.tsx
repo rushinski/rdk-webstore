@@ -3,9 +3,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
+
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
+
+import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 type Stage = "request" | "verify";
 
@@ -77,7 +79,9 @@ export function EmailCodeFlow({
   const [isSendingResend, setIsSendingResend] = useState(false);
 
   useEffect(() => {
-    if (resendCooldown <= 0) return;
+    if (resendCooldown <= 0) {
+      return;
+    }
     const id = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(id);
   }, [resendCooldown]);
@@ -96,11 +100,14 @@ export function EmailCodeFlow({
     setIsSubmitting(true);
 
     try {
-      if (!trimmedEmail) throw new Error("Email is required.");
+      if (!trimmedEmail) {
+        throw new Error("Email is required.");
+      }
 
       if (stage === "request") {
-        if (!onRequestCode)
+        if (!onRequestCode) {
           throw new Error("Requesting a code is not supported for this flow.");
+        }
 
         await onRequestCode(trimmedEmail);
 
@@ -123,8 +130,12 @@ export function EmailCodeFlow({
   }
 
   async function handleResend() {
-    if (!effectiveResendHandler) return;
-    if (!trimmedEmail || isSendingResend || resendCooldown > 0) return;
+    if (!effectiveResendHandler) {
+      return;
+    }
+    if (!trimmedEmail || isSendingResend || resendCooldown > 0) {
+      return;
+    }
 
     setError(null);
     setResendError(null);
@@ -161,10 +172,7 @@ export function EmailCodeFlow({
       <div className="space-y-4">
         {canShowEmailInput && (
           <div className="space-y-2">
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-zinc-300"
-            >
+            <label htmlFor="email" className="block text-sm font-medium text-zinc-300">
               {emailLabel}
             </label>
             <input

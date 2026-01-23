@@ -1,5 +1,7 @@
 // app/api/admin/nexus/summary/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -16,14 +18,14 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    
+
     const contextService = new TenantContextService(supabase);
     const context = await contextService.getAdminContext(session.user.id);
 
     const nexusRepo = new NexusRepository(supabase);
     const taxSettingsRepo = new TaxSettingsRepository(supabase);
     const stripeTax = new StripeTaxService(supabase, context.stripeAccountId);
-    
+
     const summaryService = new NexusSummaryService(nexusRepo, taxSettingsRepo, stripeTax);
     const summary = await summaryService.buildSummary(context.tenantId);
 
@@ -32,7 +34,7 @@ export async function GET(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/summary" });
     return NextResponse.json(
       { error: error.message || "Failed to fetch nexus summary", requestId },
-      { status: error.message?.includes("not found") ? 404 : 500 }
+      { status: error.message?.includes("not found") ? 404 : 500 },
     );
   }
 }

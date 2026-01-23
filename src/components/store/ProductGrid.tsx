@@ -1,6 +1,7 @@
 // src/components/store/ProductGrid.tsx
 
 import type { ProductWithDetails } from "@/types/domain/product";
+
 import { ProductCard } from "./ProductCard";
 
 interface ProductGridProps {

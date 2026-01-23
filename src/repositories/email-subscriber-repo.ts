@@ -11,7 +11,7 @@ export interface EmailSubscriber {
 export class EmailSubscriberRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
-  async subscribe(email: string, source: string = 'website'): Promise<void> {
+  async subscribe(email: string, source: string = "website"): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Check if already exists
@@ -22,7 +22,9 @@ export class EmailSubscriberRepository {
       .maybeSingle();
 
     // If already exists, silently succeed
-    if (existing) return;
+    if (existing) {
+      return;
+    }
 
     // Insert new subscriber
     const { error } = await this.supabase
@@ -30,7 +32,7 @@ export class EmailSubscriberRepository {
       .insert({ email: normalizedEmail, source });
 
     // Ignore unique constraint violations (race condition)
-    if (error && !error.message.includes('duplicate') && !error.code?.includes('23505')) {
+    if (error && !error.message.includes("duplicate") && !error.code?.includes("23505")) {
       throw error;
     }
   }
@@ -51,6 +53,8 @@ export class EmailSubscriberRepository {
       .delete()
       .eq("email", email.trim().toLowerCase());
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

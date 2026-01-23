@@ -24,7 +24,9 @@ export class CatalogRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   private withTenantScope<T>(query: T, tenantId?: string | null) {
-    if (!tenantId) return (query as any).is("tenant_id", null);
+    if (!tenantId) {
+      return (query as any).is("tenant_id", null);
+    }
     return (query as any).or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
   }
 
@@ -33,11 +35,15 @@ export class CatalogRepository {
     includeInactive = false,
   ): Promise<BrandGroupRow[]> {
     let query = this.supabase.from("catalog_brand_groups").select("*");
-    if (!includeInactive) query = query.eq("is_active", true);
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
     query = this.withTenantScope(query, tenantId);
     query = query.order("label", { ascending: true });
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -47,7 +53,9 @@ export class CatalogRepository {
       .insert(input)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -58,7 +66,9 @@ export class CatalogRepository {
       .eq("id", id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -68,12 +78,18 @@ export class CatalogRepository {
     includeInactive = false,
   ): Promise<BrandRow[]> {
     let query = this.supabase.from("catalog_brands").select("*");
-    if (!includeInactive) query = query.eq("is_active", true);
-    if (groupId) query = query.eq("group_id", groupId);
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
+    if (groupId) {
+      query = query.eq("group_id", groupId);
+    }
     query = this.withTenantScope(query, tenantId);
     query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -81,11 +97,15 @@ export class CatalogRepository {
     let query = this.supabase
       .from("catalog_brands")
       .select("*, group:catalog_brand_groups(id, key, label)");
-    if (!includeInactive) query = query.eq("is_active", true);
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
     query = this.withTenantScope(query, tenantId);
     query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -95,7 +115,9 @@ export class CatalogRepository {
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 
@@ -105,7 +127,9 @@ export class CatalogRepository {
       .insert(input)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -116,7 +140,9 @@ export class CatalogRepository {
       .eq("id", id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -126,12 +152,18 @@ export class CatalogRepository {
     includeInactive = false,
   ): Promise<ModelRow[]> {
     let query = this.supabase.from("catalog_models").select("*");
-    if (!includeInactive) query = query.eq("is_active", true);
-    if (brandId) query = query.eq("brand_id", brandId);
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
+    if (brandId) {
+      query = query.eq("brand_id", brandId);
+    }
     query = this.withTenantScope(query, tenantId);
     query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -143,12 +175,18 @@ export class CatalogRepository {
     let query = this.supabase
       .from("catalog_models")
       .select("*, brand:catalog_brands(id, canonical_label, group_id)");
-    if (!includeInactive) query = query.eq("is_active", true);
-    if (brandId) query = query.eq("brand_id", brandId);
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
+    if (brandId) {
+      query = query.eq("brand_id", brandId);
+    }
     query = this.withTenantScope(query, tenantId);
     query = query.order("canonical_label", { ascending: true });
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -158,7 +196,9 @@ export class CatalogRepository {
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 
@@ -168,7 +208,9 @@ export class CatalogRepository {
       .insert(input)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -179,7 +221,9 @@ export class CatalogRepository {
       .eq("id", id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -189,11 +233,17 @@ export class CatalogRepository {
     includeInactive = false,
   ): Promise<AliasRow[]> {
     let query = this.supabase.from("catalog_aliases").select("*");
-    if (!includeInactive) query = query.eq("is_active", true);
-    if (entityType) query = query.eq("entity_type", entityType);
+    if (!includeInactive) {
+      query = query.eq("is_active", true);
+    }
+    if (entityType) {
+      query = query.eq("entity_type", entityType);
+    }
     query = this.withTenantScope(query, tenantId);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -207,7 +257,9 @@ export class CatalogRepository {
       .eq("is_active", true);
     query = this.withTenantScope(query, tenantId);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -220,7 +272,9 @@ export class CatalogRepository {
     query = this.withTenantScope(query, tenantId);
     query = query.eq("catalog_models.brand_id", brandId);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -232,7 +286,9 @@ export class CatalogRepository {
       .eq("is_active", true);
     query = this.withTenantScope(query, tenantId);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -242,7 +298,9 @@ export class CatalogRepository {
       .insert(input)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -253,7 +311,9 @@ export class CatalogRepository {
       .eq("id", id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -263,9 +323,13 @@ export class CatalogRepository {
       .select("*")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false });
-    if (status) query = query.eq("status", status);
+    if (status) {
+      query = query.eq("status", status);
+    }
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -275,7 +339,9 @@ export class CatalogRepository {
       .insert(input)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -286,7 +352,9 @@ export class CatalogRepository {
       .eq("id", id)
       .select()
       .single();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -296,7 +364,9 @@ export class CatalogRepository {
       .select("*")
       .eq("id", id)
       .maybeSingle();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? null;
   }
 }

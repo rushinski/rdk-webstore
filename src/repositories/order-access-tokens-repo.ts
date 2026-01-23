@@ -23,7 +23,9 @@ export class OrderAccessTokensRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -40,7 +42,9 @@ export class OrderAccessTokensRepository {
       .gt("expires_at", input.now)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -50,6 +54,8 @@ export class OrderAccessTokensRepository {
       .update({ last_used_at: new Date().toISOString() })
       .eq("id", id);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

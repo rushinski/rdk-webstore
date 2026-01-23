@@ -1,7 +1,12 @@
 // src/services/shipping-label-service.ts
 
 import { Shippo } from "shippo";
-import { DistanceUnitEnum, WeightUnitEnum, LabelFileTypeEnum } from "shippo/models/components";
+import {
+  DistanceUnitEnum,
+  WeightUnitEnum,
+  LabelFileTypeEnum,
+} from "shippo/models/components";
+
 import { env } from "@/config/env";
 import { logError } from "@/lib/log";
 
@@ -83,7 +88,9 @@ export class ShippoService {
 
   private normalizeRate(rate: any): NormalizedRate | null {
     const id = rate?.objectId ?? rate?.object_id ?? null;
-    if (!id) return null;
+    if (!id) {
+      return null;
+    }
 
     const carrier = rate?.provider ?? rate?.carrier ?? "Unknown";
     const service = rate?.servicelevel?.name ?? rate?.service ?? "Standard";
@@ -104,7 +111,7 @@ export class ShippoService {
   async createShipment(
     fromAddress: IAddress,
     toAddress: IAddress,
-    parcel: IParcel
+    parcel: IParcel,
   ): Promise<NormalizedShipment> {
     try {
       const shipment = await shippo.shipments.create({
@@ -121,7 +128,9 @@ export class ShippoService {
           event: "shippo_shipment_no_id",
           shipmentKeys: shipment ? Object.keys(shipment) : [],
         });
-        throw new Error("Shippo shipment creation returned invalid response (missing ID)");
+        throw new Error(
+          "Shippo shipment creation returned invalid response (missing ID)",
+        );
       }
 
       const rawRates = (shipment as any)?.rates ?? [];
@@ -139,7 +148,9 @@ export class ShippoService {
         event: "shippo_create_shipment_failed",
         errorMessage: error?.message,
       });
-      throw new Error(`Shippo shipment creation failed: ${error?.message ?? "unknown error"}`);
+      throw new Error(
+        `Shippo shipment creation failed: ${error?.message ?? "unknown error"}`,
+      );
     }
   }
 
@@ -152,11 +163,11 @@ export class ShippoService {
       });
 
       const txn = transaction as any;
-      
+
       // Extract rate information from the transaction
       const rate = txn?.rate?.amount ?? txn?.amount ?? null;
       const currency = txn?.rate?.currency ?? txn?.currency ?? "USD";
-      
+
       return {
         status: String(txn?.status ?? "").toUpperCase(),
         carrier: txn?.rate?.provider ?? txn?.provider ?? null,
@@ -173,7 +184,9 @@ export class ShippoService {
         event: "shippo_purchase_label_failed",
         errorMessage: error?.message,
       });
-      throw new Error(`Shippo label purchase failed: ${error?.message ?? "unknown error"}`);
+      throw new Error(
+        `Shippo label purchase failed: ${error?.message ?? "unknown error"}`,
+      );
     }
   }
 }

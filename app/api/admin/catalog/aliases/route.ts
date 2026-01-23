@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
@@ -50,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid query", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -61,13 +63,10 @@ export async function GET(request: NextRequest) {
     const aliases = await service.listAliases(
       tenantId,
       entityType ?? undefined,
-      includeInactive
+      includeInactive,
     );
 
-    return NextResponse.json(
-      { aliases },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ aliases }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     logError(error, {
       layer: "api",
@@ -76,7 +75,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to load aliases", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -94,7 +93,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -121,7 +120,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to create alias", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

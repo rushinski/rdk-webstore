@@ -70,9 +70,7 @@ export default function AuthLeftPanel({
         </h2>
 
         {/* Blurb */}
-        <p className="mt-4 max-w-md text-sm text-neutral-200/80">
-          {v.blurb}
-        </p>
+        <p className="mt-4 max-w-md text-sm text-neutral-200/80">{v.blurb}</p>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 // src/components/ui/Dialog.tsx
-'use client';
+"use client";
 
-import { X } from 'lucide-react';
-import { ReactNode } from 'react';
+import { X } from "lucide-react";
+import type { ReactNode } from "react";
 
 interface DialogProps {
   isOpen: boolean;
@@ -12,7 +12,9 @@ interface DialogProps {
 }
 
 export function Dialog({ isOpen, onClose, title, children }: DialogProps) {
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

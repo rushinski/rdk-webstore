@@ -6,7 +6,9 @@ import type { AdminOrderPlacedEmailInput } from "@/types/domain/email";
 
 export class AdminOrderEmailService {
   async sendOrderPlaced(input: AdminOrderPlacedEmailInput) {
-    if (!input.to) return;
+    if (!input.to) {
+      return;
+    }
     const content = buildAdminOrderPlacedEmail(input);
 
     await sendEmail({

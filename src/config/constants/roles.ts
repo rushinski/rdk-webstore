@@ -1,6 +1,12 @@
 // src/config/constants/roles.ts
 
-export const PROFILE_ROLES = ["customer", "seller", "admin", "super_admin", "dev"] as const;
+export const PROFILE_ROLES = [
+  "customer",
+  "seller",
+  "admin",
+  "super_admin",
+  "dev",
+] as const;
 export type ProfileRole = (typeof PROFILE_ROLES)[number];
 
 export const ADMIN_ROLES = ["admin", "super_admin", "dev"] as const;
@@ -23,7 +29,7 @@ export const ADMIN_PERMISSIONS: Record<
 // Typed includes helper (fixes TS2345 + gives type guards)
 function includesConst<T extends readonly string[]>(
   arr: T,
-  value: string
+  value: string,
 ): value is T[number] {
   return (arr as readonly string[]).includes(value);
 }

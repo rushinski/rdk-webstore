@@ -1,20 +1,20 @@
 // src/components/chat/ChatLauncher.tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { useState } from "react";
+import { ChevronLeft, ChevronRight, MessageCircle } from "lucide-react";
 
 export function ChatLauncher() {
-  const handleOpen = () => window.dispatchEvent(new CustomEvent('openChat'));
+  const handleOpen = () => window.dispatchEvent(new CustomEvent("openChat"));
   const [collapsed, setCollapsed] = useState(false);
 
   // Smaller overall footprint
   const launcherWidth = 22; // was 32
-  const tabWidth = 4;       // was 6
+  const tabWidth = 4; // was 6
 
   // Smaller popout handle (not full height)
-  const toggleWidth = 12;   // was 18
-  const toggleHeight = 30;  // was 44
+  const toggleWidth = 12; // was 18
+  const toggleHeight = 30; // was 44
 
   // How far the handle overlaps into the launcher to hide seam
   const overlapPx = 2;
@@ -29,7 +29,7 @@ export function ChatLauncher() {
             width: `${launcherWidth}px`,
             transform: collapsed
               ? `translateX(${launcherWidth - tabWidth}px)`
-              : 'translateX(0)',
+              : "translateX(0)",
           }}
         >
           {/* Red launcher (tap ALWAYS opens chat) */}
@@ -44,11 +44,11 @@ export function ChatLauncher() {
               <MessageCircle className="w-3.5 h-3.5" />
               <span
                 className={[
-                  '[writing-mode:vertical-rl] [text-orientation:mixed]', // <-- no rotate here now
-                  'text-[11px] font-semibold tracking-wide leading-none',
-                  collapsed ? 'opacity-0 pointer-events-none select-none' : 'opacity-100',
-                  'transition-opacity duration-150',
-                ].join(' ')}
+                  "[writing-mode:vertical-rl] [text-orientation:mixed]", // <-- no rotate here now
+                  "text-[11px] font-semibold tracking-wide leading-none",
+                  collapsed ? "opacity-0 pointer-events-none select-none" : "opacity-100",
+                  "transition-opacity duration-150",
+                ].join(" ")}
               >
                 Chat with us
               </span>
@@ -60,23 +60,23 @@ export function ChatLauncher() {
             type="button"
             onClick={() => setCollapsed((p) => !p)}
             className={[
-              'absolute top-1/2 -translate-y-1/2',
-              'flex items-center justify-center',
-              'bg-red-600 text-white',
-              'border border-red-700 border-r-0', // IMPORTANT: no border where it meets launcher
-              'shadow-lg',
-              'rounded-l-xl',
-              'hover:bg-red-500 active:bg-red-700 transition-colors',
-              'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70',
-              'z-10', // ensure it sits above launcher border
-            ].join(' ')}
+              "absolute top-1/2 -translate-y-1/2",
+              "flex items-center justify-center",
+              "bg-red-600 text-white",
+              "border border-red-700 border-r-0", // IMPORTANT: no border where it meets launcher
+              "shadow-lg",
+              "rounded-l-xl",
+              "hover:bg-red-500 active:bg-red-700 transition-colors",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
+              "z-10", // ensure it sits above launcher border
+            ].join(" ")}
             style={{
               // push it slightly INTO the launcher to cover the launcher’s border and remove the seam
               left: `-${toggleWidth - overlapPx}px`,
               width: `${toggleWidth}px`,
               height: `${toggleHeight}px`,
             }}
-            aria-label={collapsed ? 'Show chat launcher' : 'Hide chat launcher'}
+            aria-label={collapsed ? "Show chat launcher" : "Hide chat launcher"}
           >
             {collapsed ? (
               <ChevronLeft className="w-4 h-4" />

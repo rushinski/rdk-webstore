@@ -3,7 +3,9 @@
 import Image from "next/image";
 import { Loader2, ShoppingBag, ChevronUp } from "lucide-react";
 import { useMemo, useState } from "react";
+
 import type { CartItem } from "@/types/domain/cart";
+
 import { ChevronPuller } from "./ChevronPuller";
 
 interface OrderSummaryProps {
@@ -195,9 +197,7 @@ export function OrderSummary({
         className={[
           "fixed left-0 right-0 bottom-0 z-50",
           "transform transition-transform duration-200 ease-out",
-          isOpen
-            ? "translate-y-0"
-            : `translate-y-[calc(100%-_DOCK_PULL_HEIGHT_px)]`,
+          isOpen ? "translate-y-0" : `translate-y-[calc(100%-_DOCK_PULL_HEIGHT_px)]`,
         ].join(" ")}
         aria-label="Mobile order summary"
         style={
@@ -226,9 +226,7 @@ export function OrderSummary({
               <div className="text-right text-xs">
                 <p className="text-gray-400">
                   Subtotal:{" "}
-                  <span className="text-white font-semibold">
-                    {money(subtotal)}
-                  </span>
+                  <span className="text-white font-semibold">{money(subtotal)}</span>
                 </p>
                 <p className="text-gray-400">
                   Shipping:{" "}
@@ -236,8 +234,8 @@ export function OrderSummary({
                     {isUpdatingShipping
                       ? "…"
                       : fulfillment === "pickup"
-                      ? "Free"
-                      : money(shipping)}
+                        ? "Free"
+                        : money(shipping)}
                   </span>
                 </p>
                 <p className="text-gray-400">
@@ -254,9 +252,7 @@ export function OrderSummary({
           {isOpen && (
             <div className="border-t border-zinc-800">
               <div className="px-4 py-4">
-                <h3 className="text-base font-semibold text-white mb-3">
-                  Items
-                </h3>
+                <h3 className="text-base font-semibold text-white mb-3">Items</h3>
 
                 <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
                   {items.map((item) => (

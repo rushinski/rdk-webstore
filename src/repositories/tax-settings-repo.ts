@@ -44,13 +44,17 @@ export class TaxSettingsRepository {
 
   async getByTenant(tenantId: string): Promise<TenantTaxSettings | null> {
     const { data, error } = await this.supabase
-      .from('tenant_tax_settings')
-      .select('*')
-      .eq('tenant_id', tenantId)
+      .from("tenant_tax_settings")
+      .select("*")
+      .eq("tenant_id", tenantId)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw error;
-    if (!data) return null;
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
+    if (!data) {
+      return null;
+    }
     return mapTenantTaxSettings(data);
   }
 
@@ -64,24 +68,31 @@ export class TaxSettingsRepository {
     taxCodeOverrides?: Record<string, string> | null;
   }): Promise<TenantTaxSettings> {
     const { data, error } = await this.supabase
-      .from('tenant_tax_settings')
-      .upsert({
-        tenant_id: settings.tenantId,
-        home_state: settings.homeState,
-        business_name: settings.businessName ?? null,
-        tax_id_number: settings.taxIdNumber ?? null,
-        stripe_tax_settings_id: settings.stripeTaxSettingsId ?? null,
-        tax_enabled: settings.taxEnabled ?? false,
-        tax_code_overrides: settings.taxCodeOverrides ?? {},
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'tenant_id'
-      })
+      .from("tenant_tax_settings")
+      .upsert(
+        {
+          tenant_id: settings.tenantId,
+          home_state: settings.homeState,
+          business_name: settings.businessName ?? null,
+          tax_id_number: settings.taxIdNumber ?? null,
+          stripe_tax_settings_id: settings.stripeTaxSettingsId ?? null,
+          tax_enabled: settings.taxEnabled ?? false,
+          tax_code_overrides: settings.taxCodeOverrides ?? {},
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "tenant_id",
+        },
+      )
       .select()
       .single();
 
-    if (error) throw error;
-    if (!data) throw new Error("Failed to upsert tenant tax settings.");
+    if (error) {
+      throw error;
+    }
+    if (!data) {
+      throw new Error("Failed to upsert tenant tax settings.");
+    }
     return mapTenantTaxSettings(data);
   }
 }

@@ -21,8 +21,7 @@ const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
         <span className="text-red-600">Every pair checked.</span>
       </>
     ),
-    blurb:
-      "Sign in to pick up right where you left off and view past orders anytime.",
+    blurb: "Sign in to pick up right where you left off and view past orders anytime.",
   },
   register: {
     title: (
@@ -47,8 +46,7 @@ const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
         <span className="text-red-600">Protected by 2FA.</span>
       </>
     ),
-    blurb:
-      "Complete two-factor authentication to access admin tools securely.",
+    blurb: "Complete two-factor authentication to access admin tools securely.",
   },
   forgot: {
     title: (
@@ -60,8 +58,7 @@ const LEFT_COPY: Record<LeftVariant, { title: ReactNode; blurb: string }> = {
         <span className="text-red-600">In minutes.</span>
       </>
     ),
-    blurb:
-      "We’ll help you reset your password and regain access safely.",
+    blurb: "We’ll help you reset your password and regain access safely.",
   },
 };
 

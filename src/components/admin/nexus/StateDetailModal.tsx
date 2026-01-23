@@ -3,6 +3,7 @@
 
 import React, { useState } from "react";
 import { X, AlertTriangle, ExternalLink, CheckCircle, DollarSign } from "lucide-react";
+
 import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -61,7 +62,9 @@ export default function StateDetailModal({
         `/api/admin/nexus/sales-log?stateCode=${state.stateCode}&limit=10&offset=${offset}`,
         { cache: "no-store" },
       );
-      if (!res.ok) throw new Error("Failed to fetch sales log");
+      if (!res.ok) {
+        throw new Error("Failed to fetch sales log");
+      }
 
       const result = await res.json();
       setSalesLog(result.sales ?? []);
@@ -78,7 +81,9 @@ export default function StateDetailModal({
   };
 
   const handleViewSalesLog = () => {
-    if (!hasSales) return;
+    if (!hasSales) {
+      return;
+    }
     setSalesLogPage(0);
     fetchSalesLog(0);
   };
@@ -103,7 +108,9 @@ export default function StateDetailModal({
 
   // Economic approaching threshold (only if not registered)
   const approachingEconomicThreshold =
-    state.nexusType === "economic" && !state.isRegistered && state.percentageToThreshold >= 95;
+    state.nexusType === "economic" &&
+    !state.isRegistered &&
+    state.percentageToThreshold >= 95;
 
   const onToggleStatePermit = () => {
     onRegisterToggle(state.stateCode, state.isRegistered, state.nexusType);
@@ -171,7 +178,8 @@ export default function StateDetailModal({
                   Physical nexus - state registration required
                 </div>
                 <div className="text-zinc-300">
-                  You have physical nexus in this state. Register for a state permit before collecting sales tax.
+                  You have physical nexus in this state. Register for a state permit
+                  before collecting sales tax.
                 </div>
               </div>
             </div>
@@ -181,11 +189,14 @@ export default function StateDetailModal({
             <div className="mb-6 p-3 bg-red-900/20 border border-red-500/30 rounded-sm flex gap-2">
               <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
               <div className="text-sm">
-                <div className="font-semibold text-red-300">Economic nexus threshold near/exceeded</div>
+                <div className="font-semibold text-red-300">
+                  Economic nexus threshold near/exceeded
+                </div>
                 <div className="text-zinc-300">
-                  You&apos;ve reached {state.percentageToThreshold.toFixed(1)}% of the nexus threshold
-                  ({formatCurrency(state.relevantSales)} of {formatCurrency(state.threshold)}). Consider
-                  registering for a state permit.
+                  You&apos;ve reached {state.percentageToThreshold.toFixed(1)}% of the
+                  nexus threshold ({formatCurrency(state.relevantSales)} of{" "}
+                  {formatCurrency(state.threshold)}). Consider registering for a state
+                  permit.
                 </div>
               </div>
             </div>
@@ -195,7 +206,9 @@ export default function StateDetailModal({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
             <div>
               <div className="text-sm text-zinc-400 mb-1">Nexus Threshold</div>
-              <div className="text-xl font-bold text-white">{formatCurrency(state.threshold)}</div>
+              <div className="text-xl font-bold text-white">
+                {formatCurrency(state.threshold)}
+              </div>
 
               <div className="text-xs text-zinc-500">
                 {state.thresholdType} sales / {state.window}
@@ -203,19 +216,23 @@ export default function StateDetailModal({
 
               {(state.trackingStartDate || state.trackingEndDate) && (
                 <div className="text-xs text-zinc-500 mt-1">
-                  Tracking:{" "}
-                  {state.trackingStartDate ?? "N/A"} {state.trackingEndDate ? `- ${state.trackingEndDate}` : ""}
+                  Tracking: {state.trackingStartDate ?? "N/A"}{" "}
+                  {state.trackingEndDate ? `- ${state.trackingEndDate}` : ""}
                 </div>
               )}
 
               {state.resetDate && (
-                <div className="text-xs text-zinc-500 mt-1">Resets: {state.resetDate}</div>
+                <div className="text-xs text-zinc-500 mt-1">
+                  Resets: {state.resetDate}
+                </div>
               )}
             </div>
 
             <div>
               <div className="text-sm text-zinc-400 mb-1">Current Sales</div>
-              <div className="text-xl font-bold text-white">{formatCurrency(state.relevantSales)}</div>
+              <div className="text-xl font-bold text-white">
+                {formatCurrency(state.relevantSales)}
+              </div>
               <div className="text-xs text-zinc-500">
                 {state.percentageToThreshold.toFixed(1)}% to threshold
               </div>
@@ -241,7 +258,9 @@ export default function StateDetailModal({
 
             <div>
               <div className="text-sm text-zinc-400 mb-1">Taxable Sales</div>
-              <div className="text-lg text-white">{formatCurrency(state.taxableSales)}</div>
+              <div className="text-lg text-white">
+                {formatCurrency(state.taxableSales)}
+              </div>
             </div>
 
             <div>
@@ -268,7 +287,11 @@ export default function StateDetailModal({
                   ].join(" ")}
                   title={!hasSales ? "No sales in this state yet" : "View all sales"}
                 >
-                  {loadingSalesLog ? "Loading..." : !hasSales ? "No Sales Yet" : "View All Sales"}
+                  {loadingSalesLog
+                    ? "Loading..."
+                    : !hasSales
+                      ? "No Sales Yet"
+                      : "View All Sales"}
                 </button>
               )}
             </div>
@@ -295,7 +318,9 @@ export default function StateDetailModal({
                     <tbody className="divide-y divide-zinc-800">
                       {salesLog.map((sale) => (
                         <tr key={sale.order_id} className="hover:bg-zinc-900/60">
-                          <td className="px-4 py-2 text-zinc-300">{formatDate(sale.created_at)}</td>
+                          <td className="px-4 py-2 text-zinc-300">
+                            {formatDate(sale.created_at)}
+                          </td>
                           <td className="px-4 py-2 text-zinc-300 font-mono text-xs">
                             {sale.order_id.slice(0, 8)}...
                           </td>
@@ -305,7 +330,9 @@ export default function StateDetailModal({
                           <td className="px-4 py-2 text-right text-green-400 font-medium">
                             {formatCurrency(sale.tax_amount)}
                           </td>
-                          <td className="px-4 py-2 text-zinc-300 capitalize">{sale.fulfillment}</td>
+                          <td className="px-4 py-2 text-zinc-300 capitalize">
+                            {sale.fulfillment}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -315,7 +342,8 @@ export default function StateDetailModal({
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-zinc-400">
                     Showing {salesLogPage * 10 + 1} to{" "}
-                    {Math.min((salesLogPage + 1) * 10, salesLogTotal)} of {salesLogTotal} sales
+                    {Math.min((salesLogPage + 1) * 10, salesLogTotal)} of {salesLogTotal}{" "}
+                    sales
                   </div>
 
                   <div className="flex gap-2">
@@ -328,7 +356,9 @@ export default function StateDetailModal({
                     </button>
                     <button
                       onClick={() => handleSalesLogPageChange(salesLogPage + 1)}
-                      disabled={(salesLogPage + 1) * 10 >= salesLogTotal || loadingSalesLog}
+                      disabled={
+                        (salesLogPage + 1) * 10 >= salesLogTotal || loadingSalesLog
+                      }
                       className="px-4 py-2 bg-zinc-900 border border-zinc-800/70 text-white rounded-sm hover:bg-zinc-800 disabled:opacity-50"
                     >
                       Next
@@ -378,8 +408,8 @@ export default function StateDetailModal({
             </div>
 
             <div className="text-sm text-zinc-300">
-              Mark your <span className="text-white font-medium">state permit</span> status here, and
-              use the resources to complete state registration.
+              Mark your <span className="text-white font-medium">state permit</span>{" "}
+              status here, and use the resources to complete state registration.
             </div>
 
             {!isHomeOfficeConfigured && (
@@ -406,9 +436,13 @@ export default function StateDetailModal({
                     : "bg-red-600 text-white hover:bg-red-500",
                   "disabled:opacity-50 disabled:cursor-not-allowed",
                 ].join(" ")}
-                title={state.isRegistered ? "Mark as not registered" : "Mark as registered"}
+                title={
+                  state.isRegistered ? "Mark as not registered" : "Mark as registered"
+                }
               >
-                {state.isRegistered ? "Mark permit as not registered" : "Mark permit as registered"}
+                {state.isRegistered
+                  ? "Mark permit as not registered"
+                  : "Mark permit as registered"}
               </button>
 
               {/* Resource links */}

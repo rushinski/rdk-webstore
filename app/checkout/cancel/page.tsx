@@ -1,11 +1,12 @@
 // src/app/checkout/cancel/page.tsx (NEW)
 
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { XCircle } from 'lucide-react';
-import { clearIdempotencyKeyFromStorage } from '@/lib/idempotency';
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { XCircle } from "lucide-react";
+
+import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 
 export default function CheckoutCancelPage() {
@@ -26,13 +27,13 @@ export default function CheckoutCancelPage() {
 
       <div className="space-y-3">
         <button
-          onClick={() => router.push('/cart')}
+          onClick={() => router.push("/cart")}
           className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
         >
           Return to Cart
         </button>
         <button
-          onClick={() => router.push('/store')}
+          onClick={() => router.push("/store")}
           className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
         >
           Continue Shopping

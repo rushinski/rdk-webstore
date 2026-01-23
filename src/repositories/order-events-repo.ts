@@ -15,7 +15,9 @@ export class OrderEventsRepository {
       .eq("order_id", orderId)
       .order("created_at", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -28,7 +30,9 @@ export class OrderEventsRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return Boolean(data);
   }
 
@@ -49,7 +53,9 @@ export class OrderEventsRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 }

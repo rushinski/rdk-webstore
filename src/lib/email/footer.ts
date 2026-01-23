@@ -1,6 +1,11 @@
 // src/lib/email/footer.ts
 import { env } from "@/config/env";
-import { EMAIL_BRAND, EMAIL_COLORS, EMAIL_FONT_STACK, emailStyles } from "@/lib/email/theme";
+import {
+  EMAIL_BRAND,
+  EMAIL_COLORS,
+  EMAIL_FONT_STACK,
+  emailStyles,
+} from "@/lib/email/theme";
 
 const siteUrl = env.NEXT_PUBLIC_SITE_URL;
 

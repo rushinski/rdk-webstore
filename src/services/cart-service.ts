@@ -7,7 +7,9 @@ const CART_KEY = "rdk_cart";
 
 export class CartService {
   getCart(): CartItem[] {
-    if (typeof window === "undefined") return [];
+    if (typeof window === "undefined") {
+      return [];
+    }
     const stored = localStorage.getItem(CART_KEY);
     return stored ? JSON.parse(stored) : [];
   }

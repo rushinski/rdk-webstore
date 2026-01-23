@@ -4,11 +4,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { QRDisplay } from "./QRDisplay";
+
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
+
+import { QRDisplay } from "./QRDisplay";
 
 type CopyStatus = "idle" | "copied" | "error";
 
@@ -35,7 +37,9 @@ export function EnrollmentForm() {
   const formatSecret = (secret: string) => secret.replace(/(.{4})/g, "$1 ").trim();
 
   const extractSecret = (uri: string | null) => {
-    if (!uri) return null;
+    if (!uri) {
+      return null;
+    }
     try {
       const parsed = new URL(uri);
       const secret = parsed.searchParams.get("secret");
@@ -47,7 +51,9 @@ export function EnrollmentForm() {
 
   useEffect(() => {
     return () => {
-      if (manualCopyResetTimer.current) window.clearTimeout(manualCopyResetTimer.current);
+      if (manualCopyResetTimer.current) {
+        window.clearTimeout(manualCopyResetTimer.current);
+      }
     };
   }, []);
 
@@ -68,11 +74,15 @@ export function EnrollmentForm() {
     el.select();
     const ok = document.execCommand("copy");
     document.body.removeChild(el);
-    if (!ok) throw new Error("Copy failed");
+    if (!ok) {
+      throw new Error("Copy failed");
+    }
   };
 
   const handleCopyManualKey = async () => {
-    if (!manualSecret) return;
+    if (!manualSecret) {
+      return;
+    }
 
     try {
       // Copy raw secret (no spaces)
@@ -81,8 +91,13 @@ export function EnrollmentForm() {
     } catch {
       setManualCopyStatus("error");
     } finally {
-      if (manualCopyResetTimer.current) window.clearTimeout(manualCopyResetTimer.current);
-      manualCopyResetTimer.current = window.setTimeout(() => setManualCopyStatus("idle"), 2000);
+      if (manualCopyResetTimer.current) {
+        window.clearTimeout(manualCopyResetTimer.current);
+      }
+      manualCopyResetTimer.current = window.setTimeout(
+        () => setManualCopyStatus("idle"),
+        2000,
+      );
     }
   };
 
@@ -100,7 +115,9 @@ export function EnrollmentForm() {
     ) {
       return;
     }
-    if (searchParams.get("e2e_qr") !== "1") return;
+    if (searchParams.get("e2e_qr") !== "1") {
+      return;
+    }
 
     const testUri = "otpauth://totp/RDK-Test?secret=TESTSECRET&issuer=RDK";
     const testQr =
@@ -162,7 +179,10 @@ export function EnrollmentForm() {
 
   return (
     <div className="space-y-6">
-      <AuthHeader title="Set up 2FA" description="Scan the QR code with your authenticator app, then verify." />
+      <AuthHeader
+        title="Set up 2FA"
+        description="Scan the QR code with your authenticator app, then verify."
+      />
 
       <div className="space-y-5">
         {!factorId && (
@@ -225,7 +245,8 @@ export function EnrollmentForm() {
                   />
 
                   <div id="manual-key-help" className="mt-2 text-xs text-zinc-500">
-                    Tap the key to copy. If you cannot scan the QR, paste this key into your authenticator app.
+                    Tap the key to copy. If you cannot scan the QR, paste this key into
+                    your authenticator app.
                   </div>
 
                   {/* Inline status feedback (reuses your timer/state) */}
@@ -240,7 +261,9 @@ export function EnrollmentForm() {
 
             {!manualSecret && totpUri && (
               <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
-                <div className="text-xs uppercase tracking-wide text-zinc-500">Authenticator URI</div>
+                <div className="text-xs uppercase tracking-wide text-zinc-500">
+                  Authenticator URI
+                </div>
                 <div className="mt-2 text-xs text-zinc-400 break-all">{totpUri}</div>
               </div>
             )}
@@ -255,7 +278,11 @@ export function EnrollmentForm() {
 
             {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
 
-            <button type="submit" disabled={!canVerify || isSubmitting} className={AuthStyles.primaryButton}>
+            <button
+              type="submit"
+              disabled={!canVerify || isSubmitting}
+              className={AuthStyles.primaryButton}
+            >
               {isSubmitting ? "Verifying..." : "Verify & continue"}
             </button>
 

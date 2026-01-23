@@ -1,8 +1,8 @@
 // src/components/ui/Select.tsx
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export type RdkSelectOption = {
   value: string;
@@ -25,11 +25,11 @@ export function RdkSelect({
   value,
   onChange,
   options,
-  placeholder = 'Select…',
+  placeholder = "Select…",
   disabled = false,
-  className = '',
-  buttonClassName = '',
-  menuClassName = '',
+  className = "",
+  buttonClassName = "",
+  menuClassName = "",
 }: Props) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(() => {
@@ -42,42 +42,50 @@ export function RdkSelect({
 
   const selected = useMemo(
     () => options.find((o) => o.value === value) ?? null,
-    [options, value]
+    [options, value],
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
 
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
-      if (!target) return;
-      if (wrapRef.current?.contains(target)) return;
+      if (!target) {
+        return;
+      }
+      if (wrapRef.current?.contains(target)) {
+        return;
+      }
       setOpen(false);
     };
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!open) return;
+      if (!open) {
+        return;
+      }
 
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         event.preventDefault();
         setOpen(false);
         buttonRef.current?.focus();
         return;
       }
 
-      if (event.key === 'ArrowDown') {
+      if (event.key === "ArrowDown") {
         event.preventDefault();
         setActiveIndex((prev) => Math.min(prev + 1, options.length - 1));
         return;
       }
 
-      if (event.key === 'ArrowUp') {
+      if (event.key === "ArrowUp") {
         event.preventDefault();
         setActiveIndex((prev) => Math.max(prev - 1, 0));
         return;
       }
 
-      if (event.key === 'Enter') {
+      if (event.key === "Enter") {
         event.preventDefault();
         const opt = options[activeIndex];
         if (opt && !opt.disabled) {
@@ -88,17 +96,19 @@ export function RdkSelect({
       }
     };
 
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener("mousedown", onMouseDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onMouseDown);
-      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener("mousedown", onMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
     };
   }, [open, activeIndex, onChange, options]);
 
   useEffect(() => {
     const idx = options.findIndex((o) => o.value === value);
-    if (idx >= 0) setActiveIndex(idx);
+    if (idx >= 0) {
+      setActiveIndex(idx);
+    }
   }, [options, value]);
 
   return (
@@ -111,16 +121,16 @@ export function RdkSelect({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         className={[
-          'w-full flex items-center justify-between gap-2',
-          'bg-zinc-900 border border-zinc-800/70',
-          'px-3 py-2 text-sm text-white',
-          'rounded', // sharp-ish edges
-          'focus:outline-none focus:ring-2 focus:ring-red-600',
-          'disabled:cursor-not-allowed disabled:text-gray-500',
+          "w-full flex items-center justify-between gap-2",
+          "bg-zinc-900 border border-zinc-800/70",
+          "px-3 py-2 text-sm text-white",
+          "rounded", // sharp-ish edges
+          "focus:outline-none focus:ring-2 focus:ring-red-600",
+          "disabled:cursor-not-allowed disabled:text-gray-500",
           buttonClassName,
-        ].join(' ')}
+        ].join(" ")}
       >
-        <span className={`min-w-0 truncate ${selected ? 'text-white' : 'text-gray-400'}`}>
+        <span className={`min-w-0 truncate ${selected ? "text-white" : "text-gray-400"}`}>
           {selected?.label ?? placeholder}
         </span>
         <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
@@ -130,11 +140,11 @@ export function RdkSelect({
         <div
           role="listbox"
           className={[
-            'absolute z-50 mt-2 w-full',
-            'bg-zinc-950 border border-zinc-800/70 shadow-xl',
-            'rounded overflow-hidden',
+            "absolute z-50 mt-2 w-full",
+            "bg-zinc-950 border border-zinc-800/70 shadow-xl",
+            "rounded overflow-hidden",
             menuClassName,
-          ].join(' ')}
+          ].join(" ")}
         >
           {options.map((opt, idx) => {
             const isSelected = opt.value === value;
@@ -149,19 +159,21 @@ export function RdkSelect({
                 disabled={opt.disabled}
                 onMouseEnter={() => setActiveIndex(idx)}
                 onClick={() => {
-                  if (opt.disabled) return;
+                  if (opt.disabled) {
+                    return;
+                  }
                   onChange(opt.value);
                   setOpen(false);
                   buttonRef.current?.focus();
                 }}
                 className={[
-                  'w-full text-left px-3 py-2 text-sm',
-                  'transition',
-                  opt.disabled ? 'text-gray-600 cursor-not-allowed' : 'cursor-pointer',
+                  "w-full text-left px-3 py-2 text-sm",
+                  "transition",
+                  opt.disabled ? "text-gray-600 cursor-not-allowed" : "cursor-pointer",
                   isSelected || isActive
-                    ? 'bg-red-600 text-white'
-                    : 'text-gray-200 hover:bg-zinc-800',
-                ].join(' ')}
+                    ? "bg-red-600 text-white"
+                    : "text-gray-200 hover:bg-zinc-800",
+                ].join(" ")}
               >
                 {opt.label}
               </button>

@@ -1,5 +1,6 @@
 // src/lib/auth/session.ts
 import { redirect } from "next/navigation";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import type { ProfileRole } from "@/config/constants/roles";
@@ -37,7 +38,9 @@ async function getServerSessionUncached(): Promise<ServerSession | null> {
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) return null;
+  if (error || !user) {
+    return null;
+  }
 
   const profileRepo = new ProfileRepository(supabase);
   const row = await profileRepo.getByUserId(user.id);
@@ -70,13 +73,17 @@ export const getServerSession = getServerSessionUncached;
  */
 export async function requireUser(): Promise<ServerSession> {
   const session = await getServerSession();
-  if (!session) redirect("/auth/login");
+  if (!session) {
+    redirect("/auth/login");
+  }
   return session;
 }
 
 export async function requireAdmin(): Promise<ServerSession> {
   const session = await requireUser();
-  if (!isAdminRole(session.role)) redirect("/");
+  if (!isAdminRole(session.role)) {
+    redirect("/");
+  }
   return session;
 }
 
@@ -86,12 +93,16 @@ export async function requireAdmin(): Promise<ServerSession> {
  */
 export async function requireUserApi(): Promise<ServerSession> {
   const session = await getServerSession();
-  if (!session) throw new AuthError("Unauthorized", 401);
+  if (!session) {
+    throw new AuthError("Unauthorized", 401);
+  }
   return session;
 }
 
 export async function requireAdminApi(): Promise<ServerSession> {
   const session = await requireUserApi();
-  if (!isAdminRole(session.role)) throw new AuthError("Forbidden", 403);
+  if (!isAdminRole(session.role)) {
+    throw new AuthError("Forbidden", 403);
+  }
   return session;
 }

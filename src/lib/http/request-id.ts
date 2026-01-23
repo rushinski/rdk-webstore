@@ -1,6 +1,7 @@
 // src/lib/http/request-id.ts (NEW)
 
 import { randomUUID } from "crypto";
+
 import { security } from "@/config/security";
 
 export function generateRequestId(): string {

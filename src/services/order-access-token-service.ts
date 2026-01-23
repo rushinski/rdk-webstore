@@ -39,7 +39,9 @@ export class OrderAccessTokenService {
       now,
     });
 
-    if (!record) return null;
+    if (!record) {
+      return null;
+    }
 
     await this.tokensRepo.touchLastUsed(record.id);
     return record;

@@ -1,11 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { AdminNotificationService } from "@/services/admin-notification-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
-import { z } from "zod";
-import { adminNotificationUpdateSchema, adminNotificationsQuerySchema } from "@/lib/validation/admin";
+import {
+  adminNotificationUpdateSchema,
+  adminNotificationsQuerySchema,
+} from "@/lib/validation/admin";
 
 const deleteSchema = z.union([
   z.object({ ids: z.array(z.string().uuid()).min(1) }),
@@ -32,8 +37,12 @@ export async function GET(request: NextRequest) {
 
     if (!parsedQuery.success) {
       return NextResponse.json(
-        { error: "Invalid query parameters", issues: parsedQuery.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Invalid query parameters",
+          issues: parsedQuery.error.format(),
+          requestId,
+        },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -46,7 +55,7 @@ export async function GET(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/notifications" });
     return NextResponse.json(
       { error: "Failed to load notifications", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -62,7 +71,7 @@ export async function PATCH(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -73,12 +82,15 @@ export async function PATCH(request: NextRequest) {
       ? await svc.markAllRead(session.user.id)
       : await svc.markRead(session.user.id, parsed.data.ids ?? []);
 
-    return NextResponse.json({ notifications: updated }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { notifications: updated },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/notifications" });
     return NextResponse.json(
       { error: "Failed to update notifications", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -94,7 +106,7 @@ export async function DELETE(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -112,14 +124,14 @@ export async function DELETE(request: NextRequest) {
       deletedCount === 0
         ? { deletedCount: 0, noop: true, message: "No notifications to delete." }
         : { deletedCount, noop: false },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, { layer: "api", requestId, route: "/api/admin/notifications" });
 
     return NextResponse.json(
       { error: "Failed to delete notifications", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

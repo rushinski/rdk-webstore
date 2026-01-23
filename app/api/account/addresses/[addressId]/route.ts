@@ -1,6 +1,8 @@
 // app/api/account/addresses/[addressId]/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthError, requireUserApi } from "@/lib/auth/session";
 import { AddressesRepository } from "@/repositories/addresses-repo";
@@ -13,7 +15,7 @@ const paramsSchema = z.object({
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ addressId: string }> }
+  { params }: { params: Promise<{ addressId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { addressId } = await params;
@@ -22,7 +24,7 @@ export async function DELETE(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -33,15 +35,12 @@ export async function DELETE(
 
     await repo.deleteUserAddress(session.user.id, parsed.data.addressId);
 
-    return NextResponse.json(
-      { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json(
         { error: error.message, requestId },
-        { status: error.status, headers: { "Cache-Control": "no-store" } }
+        { status: error.status, headers: { "Cache-Control": "no-store" } },
       );
     }
     logError(error, {
@@ -51,7 +50,7 @@ export async function DELETE(
     });
     return NextResponse.json(
       { error: "Failed to delete address", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

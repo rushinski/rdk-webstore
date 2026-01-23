@@ -2,23 +2,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export type LogLevel =
-  | "info"   // Normal system operations
-  | "warn"   // Suspicious, abnormal, or security-relevant behavior
+  | "info" // Normal system operations
+  | "warn" // Suspicious, abnormal, or security-relevant behavior
   | "error"; // Failures that break correctness or availability
 
 export type LogLayer =
-  | "proxy"         // Canonicalize, bot, csrf, rate-limit, admin guard
-  | "auth"          // Sessions, login, 2FA, Supabase auth
-  | "api"           // Next.js route handlers (controllers)
-  | "service"       // Domain logic (OrderService, ProductService)
-  | "repository"    // DB queries + RLS checks
-  | "job"           // Async work, Stripe webhooks, cache invalidation
-  | "stripe"        // Payments, webhook validation, checkout flow
-  | "cache"         // ISR, revalidateTag, stale cache behavior
-  | "infra"         // Migrations, env validation, CI/CD, config issues
+  | "proxy" // Canonicalize, bot, csrf, rate-limit, admin guard
+  | "auth" // Sessions, login, 2FA, Supabase auth
+  | "api" // Next.js route handlers (controllers)
+  | "service" // Domain logic (OrderService, ProductService)
+  | "repository" // DB queries + RLS checks
+  | "job" // Async work, Stripe webhooks, cache invalidation
+  | "stripe" // Payments, webhook validation, checkout flow
+  | "cache" // ISR, revalidateTag, stale cache behavior
+  | "infra" // Migrations, env validation, CI/CD, config issues
   | "observability" // Sentry/PostHog events & ingestion
-  | "frontend"      // Client-side logs (hydration, UI errors)
-  | "unknown";      // Fallback for uncategorized logs
+  | "frontend" // Client-side logs (hydration, UI errors)
+  | "unknown"; // Fallback for uncategorized logs
 
 export interface LogEntry {
   level: LogLevel;
@@ -71,7 +71,9 @@ const EMAIL_REGEX = /([A-Z0-9._%+-]+)@([A-Z0-9.-]+\.[A-Z]{2,})/gi;
 
 function maskEmail(value: string) {
   const [local, domain] = value.split("@");
-  if (!domain) return value;
+  if (!domain) {
+    return value;
+  }
   const safeLocal =
     local.length <= 2
       ? `${local[0] ?? "*"}*`
@@ -104,7 +106,9 @@ function sanitizeExtended(extended: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(extended)) {
     // prevent overriding canonical keys
-    if (RESERVED_KEYS.has(k)) continue;
+    if (RESERVED_KEYS.has(k)) {
+      continue;
+    }
 
     // simple redaction guardrail
     if (SENSITIVE_KEYS.has(k.toLowerCase())) {
@@ -120,9 +124,13 @@ function sanitizeExtended(extended: Record<string, unknown>) {
 function safeStringify(payload: unknown): string {
   const seen = new WeakSet<object>();
   return JSON.stringify(payload, (_key, value) => {
-    if (typeof value === "bigint") return value.toString();
+    if (typeof value === "bigint") {
+      return value.toString();
+    }
     if (typeof value === "object" && value !== null) {
-      if (seen.has(value)) return "[Circular]";
+      if (seen.has(value)) {
+        return "[Circular]";
+      }
       seen.add(value);
     }
     return value;
@@ -131,9 +139,13 @@ function safeStringify(payload: unknown): string {
 
 function write(level: LogLevel, output: unknown) {
   const line = safeStringify(output);
-  if (level === "error") console.error(line);
-  else if (level === "warn") console.warn(line);
-  else console.log(line);
+  if (level === "error") {
+    console.error(line);
+  } else if (level === "warn") {
+    console.warn(line);
+  } else {
+    console.log(line);
+  }
 }
 
 export function log(entry: LogEntry) {

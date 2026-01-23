@@ -6,14 +6,12 @@ import { security, isCsrfUnsafeMethod } from "@/config/security";
 
 const matchesBypassPrefix = (pathname: string, prefixes: readonly string[]): boolean =>
   prefixes.some((prefix) => {
-    const normalized = prefix.endsWith("/") && prefix !== "/" ? prefix.slice(0, -1) : prefix;
+    const normalized =
+      prefix.endsWith("/") && prefix !== "/" ? prefix.slice(0, -1) : prefix;
     return pathname === normalized || pathname.startsWith(`${normalized}/`);
   });
 
-export function checkCsrf(
-  request: NextRequest,
-  requestId: string
-): NextResponse | null {
+export function checkCsrf(request: NextRequest, requestId: string): NextResponse | null {
   const { pathname } = request.nextUrl;
   const { csrf } = security.proxy;
 
@@ -24,14 +22,14 @@ export function checkCsrf(
   if (matchesBypassPrefix(pathname, csrf.bypassPrefixes)) {
     return null;
   }
-  
+
   const originHeader = request.headers.get("origin");
   const hostHeader = request.headers.get("host") ?? request.nextUrl.host;
 
   const blockCsrf = (
     logMessage: string,
     errorMessage: string,
-    extraLogData?: Record<string, unknown>
+    extraLogData?: Record<string, unknown>,
   ): NextResponse => {
     log({
       level: "warn",
@@ -47,7 +45,7 @@ export function checkCsrf(
 
     return NextResponse.json(
       { error: errorMessage, requestId },
-      { status: csrf.blockStatus }
+      { status: csrf.blockStatus },
     );
   };
 
@@ -55,7 +53,7 @@ export function checkCsrf(
     return blockCsrf(
       "csrf_block_missing_origin",
       "Missing or null origin header (possible CSRF)",
-      { origin: originHeader }
+      { origin: originHeader },
     );
   }
 
@@ -63,7 +61,7 @@ export function checkCsrf(
     return blockCsrf(
       "csrf_block_origin_whitespace",
       "Invalid origin header (possible CSRF)",
-      { origin: originHeader }
+      { origin: originHeader },
     );
   }
 
@@ -71,7 +69,7 @@ export function checkCsrf(
     return blockCsrf(
       "csrf_block_origin_too_long",
       "Origin header too long (possible CSRF)",
-      { origin: originHeader }
+      { origin: originHeader },
     );
   }
 
@@ -79,7 +77,7 @@ export function checkCsrf(
     return blockCsrf(
       "csrf_block_origin_non_ascii",
       "Origin header contains invalid characters (possible CSRF)",
-      { origin: originHeader }
+      { origin: originHeader },
     );
   }
 
@@ -95,7 +93,7 @@ export function checkCsrf(
       return blockCsrf(
         "csrf_block_origin_credentials",
         "Origin header contains credentials (possible CSRF)",
-        { origin: originHeader }
+        { origin: originHeader },
       );
     }
 
@@ -103,7 +101,7 @@ export function checkCsrf(
       return blockCsrf(
         "csrf_block_invalid_protocol",
         "Invalid origin protocol (possible CSRF)",
-        { origin: originHeader, originProtocol }
+        { origin: originHeader, originProtocol },
       );
     }
   } catch (parseError) {
@@ -113,7 +111,7 @@ export function checkCsrf(
       {
         origin: originHeader,
         error: parseError instanceof Error ? parseError.message : String(parseError),
-      }
+      },
     );
   }
 
@@ -125,19 +123,15 @@ export function checkCsrf(
       {
         originProtocol,
         requestProtocol,
-      }
+      },
     );
   }
 
   if (originHost.toLowerCase() !== hostHeader.toLowerCase()) {
-    return blockCsrf(
-      "csrf_block_origin_mismatch",
-      "Origin mismatch (CSRF blocked)",
-      {
-        originHost,
-        hostHeader,
-      }
-    );
+    return blockCsrf("csrf_block_origin_mismatch", "Origin mismatch (CSRF blocked)", {
+      originHost,
+      hostHeader,
+    });
   }
 
   return null;

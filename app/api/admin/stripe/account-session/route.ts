@@ -1,5 +1,7 @@
 // app/api/admin/stripe/account-session/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
@@ -22,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
-    
+
     // ✅ Use the onboarding-specific method that doesn't require existing Stripe account
     const contextService = new TenantContextService(supabase);
     const context = await contextService.getAdminContextForOnboarding(session.user.id);
@@ -30,11 +32,11 @@ export async function POST(request: NextRequest) {
     const service = new StripeAdminService(supabase);
 
     // This will create the account if it doesn't exist, or return existing one
-    const { accountId } = await service.ensureExpressAccount({ 
+    const { accountId } = await service.ensureExpressAccount({
       userId: session.user.id,
       tenantId: context.tenantId,
     });
-    
+
     const { clientSecret } = await service.createAccountSession({ accountId });
 
     return NextResponse.json(

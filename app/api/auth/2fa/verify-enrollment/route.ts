@@ -1,5 +1,7 @@
 // app/api/auth/2fa/verify-enrollment/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 import { AdminAuthService } from "@/services/admin-auth-service";
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid payload", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (challengeError || !challengeData) {
       return NextResponse.json(
         { error: challengeError?.message ?? "Failed to create challenge", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -43,18 +45,21 @@ export async function POST(req: NextRequest) {
     const { error: verifyError } = await adminAuthService.verifyChallenge(
       factorId,
       challengeId,
-      code
+      code,
     );
 
     if (verifyError) {
       return NextResponse.json(
         { error: verifyError.message ?? "Invalid code", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     // Success! Set admin session cookie and return
-    let res = NextResponse.json<{ ok: true }>({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+    let res = NextResponse.json<{ ok: true }>(
+      { ok: true },
+      { headers: { "Cache-Control": "no-store" } },
+    );
     res = await setAdminSessionCookie(res, userId);
 
     return res;
@@ -66,8 +71,7 @@ export async function POST(req: NextRequest) {
     });
 
     const message = error instanceof Error ? error.message : "Auth error";
-    const status =
-      message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
+    const status = message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
     const responseError =
       message === "UNAUTHORIZED"
         ? "Unauthorized"
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { error: responseError, requestId },
-      { status, headers: { "Cache-Control": "no-store" } }
+      { status, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

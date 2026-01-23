@@ -46,7 +46,9 @@ export class OrdersRepository {
       .eq("idempotency_key", idempotencyKey)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -57,7 +59,9 @@ export class OrdersRepository {
       .eq("id", orderId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -69,7 +73,9 @@ export class OrdersRepository {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -81,7 +87,9 @@ export class OrdersRepository {
       .eq("public_token", publicToken)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -109,7 +117,9 @@ export class OrdersRepository {
       .select()
       .single();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      throw orderError;
+    }
 
     const orderItems: OrderItemInsert[] = input.items.map((item) => ({
       order_id: order.id,
@@ -125,7 +135,9 @@ export class OrdersRepository {
       .from("order_items")
       .insert(orderItems);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      throw itemsError;
+    }
 
     return order;
   }
@@ -136,7 +148,9 @@ export class OrdersRepository {
       .update({ guest_email: guestEmail })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async updateStripeSession(orderId: string, stripeSessionId: string): Promise<void> {
@@ -145,7 +159,9 @@ export class OrdersRepository {
       .update({ stripe_session_id: stripeSessionId })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async updateStripePaymentIntent(
@@ -157,7 +173,9 @@ export class OrdersRepository {
       .update({ stripe_payment_intent_id: stripePaymentIntentId })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async updatePricingAndFulfillment(
@@ -181,7 +199,9 @@ export class OrdersRepository {
       })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async markPaidTransactionally(
@@ -206,7 +226,9 @@ export class OrdersRepository {
       p_items: payload,
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data === true;
   }
 
@@ -216,7 +238,9 @@ export class OrdersRepository {
       .select("*")
       .eq("order_id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -247,7 +271,9 @@ export class OrdersRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -267,7 +293,9 @@ export class OrdersRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -309,7 +337,9 @@ export class OrdersRepository {
     }
 
     const { data, error, count } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return { orders: data ?? [], count: count ?? 0 };
   }
 
@@ -321,7 +351,9 @@ export class OrdersRepository {
       )
       .eq("order_id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -334,7 +366,9 @@ export class OrdersRepository {
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -350,7 +384,9 @@ export class OrdersRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as OrderRow;
   }
 
@@ -360,7 +396,9 @@ export class OrdersRepository {
       .update({ fulfillment_status: status })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async markFulfilled(
@@ -379,7 +417,9 @@ export class OrdersRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as OrderRow;
   }
 
@@ -420,7 +460,9 @@ export class OrdersRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as OrderRow;
   }
 
@@ -433,21 +475,27 @@ export class OrdersRepository {
       .update({ fulfillment })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async getOrderWithTenant(orderId: string) {
     const { data, error } = await this.supabase
       .from("orders")
-      .select(`
+      .select(
+        `
         *,
         items:order_items(*),
         tenant_id
-      `)
+      `,
+      )
       .eq("id", orderId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -455,7 +503,7 @@ export class OrdersRepository {
     orderId: string,
     status: string,
     refundAmount: number,
-    stripeRefundId?: string
+    stripeRefundId?: string,
   ) {
     const { error } = await this.supabase
       .from("orders")
@@ -467,6 +515,8 @@ export class OrdersRepository {
       })
       .eq("id", orderId);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

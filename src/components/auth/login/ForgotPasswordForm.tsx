@@ -3,12 +3,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PasswordField } from "./PasswordField";
-import { PasswordRequirements } from "../register/PasswordRequirements";
+
 import { isPasswordValid } from "@/lib/validation/password";
-import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
+
+import { PasswordRequirements } from "../register/PasswordRequirements";
+
+import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
+import { PasswordField } from "./PasswordField";
 
 interface ForgotPasswordFormProps {
   onBackToLogin: () => void;
@@ -35,7 +38,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   const [isSendingResend, setIsSendingResend] = useState(false);
 
   useEffect(() => {
-    if (resendCooldown <= 0) return;
+    if (resendCooldown <= 0) {
+      return;
+    }
     const id = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(id);
   }, [resendCooldown]);
@@ -55,8 +60,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
 
       const json = await res.json();
 
-      if (!res.ok || !json.ok)
+      if (!res.ok || !json.ok) {
         throw new Error(json.error ?? "Could not send reset code.");
+      }
 
       setInfoMessage("If an account exists for that email, we've sent a reset code.");
       setStep("reset");
@@ -72,7 +78,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   }
 
   async function handleResendResetCode() {
-    if (!email || step !== "reset" || isSendingResend || resendCooldown > 0) return;
+    if (!email || step !== "reset" || isSendingResend || resendCooldown > 0) {
+      return;
+    }
 
     setError(null);
     setInfoMessage(null);
@@ -87,8 +95,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       });
 
       const json = await res.json();
-      if (!res.ok || !json.ok)
+      if (!res.ok || !json.ok) {
         throw new Error(json.error ?? "Could not resend reset code.");
+      }
 
       setInfoMessage("We've sent you a new reset code.");
       setResendSent(true);
@@ -133,8 +142,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       });
 
       const verifyJson = await verifyRes.json();
-      if (!verifyRes.ok || !verifyJson.ok)
+      if (!verifyRes.ok || !verifyJson.ok) {
         throw new Error(verifyJson.error ?? "Invalid or expired code.");
+      }
 
       // Check if admin needs 2FA
       if (verifyJson.requiresTwoFASetup) {
@@ -155,11 +165,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       });
 
       const updateJson = await updateRes.json();
-      if (!updateRes.ok || !updateJson.ok)
+      if (!updateRes.ok || !updateJson.ok) {
         throw new Error(updateJson.error ?? "Password update failed.");
+      }
 
       setInfoMessage("Your password has been updated.");
-      
+
       // Redirect to admin if they completed 2FA, otherwise to login
       setTimeout(() => {
         router.push("/auth/login");

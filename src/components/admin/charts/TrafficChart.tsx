@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+
 import { AdminLineChart } from "./AdminLineChart";
 
 export function TrafficChart(props: { data: Array<{ date: string; visits: number }> }) {

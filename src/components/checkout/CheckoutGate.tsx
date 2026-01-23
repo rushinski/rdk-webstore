@@ -4,24 +4,20 @@
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+
 import { useCart } from "@/components/cart/CartProvider";
 import { CartSnapshotService } from "@/services/cart-snapshot-service";
 import { clientEnv } from "@/config/client-env";
 
 const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
-const benefits = [
-  "Quicker checkout",
-  "Order history",
-  "Built-in messaging system",
-];
+const benefits = ["Quicker checkout", "Order history", "Built-in messaging system"];
 
 const disclosureItems = [
   "You are responsible for entering a valid email address you can access. This does not opt you into marketing; we will only send order-related communications unless you separately opt in.",
 ];
 
-const isValidEmail = (value: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 
 export function CheckoutGate() {
   const router = useRouter();
@@ -34,7 +30,9 @@ export function CheckoutGate() {
   const snapshotService = useMemo(() => new CartSnapshotService(), []);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady) {
+      return;
+    }
     if (items.length === 0) {
       router.push("/cart");
     }
@@ -80,7 +78,8 @@ export function CheckoutGate() {
     <div className="max-w-5xl mx-auto px-4 pt-2 sm:py-10">
       <h1 className="text-3xl font-bold text-white mb-2">Checkout</h1>
       <p className="text-gray-400 mb-8">
-        Choose how you want to continue. Creating an account keeps your order history and messaging in one place.
+        Choose how you want to continue. Creating an account keeps your order history and
+        messaging in one place.
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -123,7 +122,8 @@ export function CheckoutGate() {
 
               {!guestEnabled && (
                 <p className="text-xs text-zinc-500">
-                  Guest checkout is currently disabled. Sign in or create an account to continue.
+                  Guest checkout is currently disabled. Sign in or create an account to
+                  continue.
                 </p>
               )}
             </div>
@@ -173,7 +173,10 @@ export function CheckoutGate() {
 
           <div className="mt-6 text-xs text-zinc-500">
             Already have an account?{" "}
-            <Link href="/auth/login?next=/checkout" className="text-red-500 hover:text-red-400">
+            <Link
+              href="/auth/login?next=/checkout"
+              className="text-red-500 hover:text-red-400"
+            >
               Sign in
             </Link>
           </div>

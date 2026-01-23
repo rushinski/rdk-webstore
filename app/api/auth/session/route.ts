@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { getServerSession } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
@@ -12,7 +13,7 @@ export async function GET(request: Request) {
     if (!session) {
       return NextResponse.json(
         { user: null, role: null },
-        { headers: { "Cache-Control": "no-store" } }
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
         },
         role: session.role,
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     logError(error, {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { error: "Failed to fetch session", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

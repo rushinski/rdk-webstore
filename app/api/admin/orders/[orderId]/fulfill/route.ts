@@ -1,6 +1,8 @@
 // app/api/admin/orders/[orderId]/fulfill/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
@@ -21,7 +23,7 @@ const fulfillSchema = z
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -35,7 +37,7 @@ export async function POST(
     if (!paramsParsed.success) {
       return NextResponse.json(
         { error: "Invalid params", issues: paramsParsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -44,7 +46,7 @@ export async function POST(
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -53,7 +55,7 @@ export async function POST(
     if (!existing) {
       return NextResponse.json(
         { error: "Order not found", requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -91,7 +93,7 @@ export async function POST(
 
     return NextResponse.json(
       { order: updated },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     logError(error, {
@@ -101,7 +103,7 @@ export async function POST(
     });
     return NextResponse.json(
       { error: "Failed to fulfill order", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

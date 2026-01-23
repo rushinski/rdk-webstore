@@ -1,19 +1,20 @@
 // app/cart/page.tsx
 
-'use client';
+"use client";
 
-import { useCart } from '@/components/cart/CartProvider';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Minus, Plus, Trash2, ShoppingCart } from 'lucide-react';
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+
+import { useCart } from "@/components/cart/CartProvider";
 
 export default function CartPage() {
   const router = useRouter();
   const { items, removeItem, updateQuantity, total } = useCart();
 
   const handleCheckout = () => {
-    router.push('/checkout');
+    router.push("/checkout");
   };
 
   if (items.length === 0) {
@@ -40,71 +41,72 @@ export default function CartPage() {
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => {
-            const canIncrease = typeof item.maxStock === 'number'
-              ? item.quantity < item.maxStock
-              : true;
+            const canIncrease =
+              typeof item.maxStock === "number" ? item.quantity < item.maxStock : true;
             return (
-            <div
-              key={`${item.productId}-${item.variantId}`}
-              className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex gap-4"
-            >
-              <Link
-                href={`/store/${item.productId}`}
-                className="flex gap-4 flex-1 min-w-0"
+              <div
+                key={`${item.productId}-${item.variantId}`}
+                className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex gap-4"
               >
-                <div className="w-24 h-24 relative flex-shrink-0">
-                  <Image
-                    src={item.imageUrl}
-                    alt={item.titleDisplay}
-                    fill
-                    className="object-cover rounded"
-                  />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-bold truncate">{item.titleDisplay}</h3>
-                  <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
-                  <p className="text-white font-bold mt-2">
-                    ${(item.priceCents / 100).toFixed(2)}
-                  </p>
-                </div>
-              </Link>
-
-              <div className="flex flex-col items-end justify-between">
-                <button
-                  onClick={() => removeItem(item.productId, item.variantId)}
-                  className="text-gray-400 hover:text-red-500"
+                <Link
+                  href={`/store/${item.productId}`}
+                  className="flex gap-4 flex-1 min-w-0"
                 >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                  <div className="w-24 h-24 relative flex-shrink-0">
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.titleDisplay}
+                      fill
+                      className="object-cover rounded"
+                    />
+                  </div>
 
-                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-bold truncate">{item.titleDisplay}</h3>
+                    <p className="text-gray-400 text-sm">Size: {item.sizeLabel}</p>
+                    <p className="text-white font-bold mt-2">
+                      ${(item.priceCents / 100).toFixed(2)}
+                    </p>
+                  </div>
+                </Link>
+
+                <div className="flex flex-col items-end justify-between">
                   <button
-                    onClick={() =>
-                      updateQuantity(item.productId, item.variantId, item.quantity - 1)
-                    }
-                    className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                    onClick={() => removeItem(item.productId, item.variantId)}
+                    className="text-gray-400 hover:text-red-500"
                   >
-                    <Minus className="w-4 h-4 text-white" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
-                  <span className="text-white font-semibold w-8 text-center">
-                    {item.quantity}
-                  </span>
-                  <button
-                    onClick={() =>
-                      updateQuantity(item.productId, item.variantId, item.quantity + 1)
-                    }
-                    disabled={!canIncrease}
-                    className={`w-8 h-8 flex items-center justify-center rounded ${
-                      canIncrease ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-900 opacity-50 cursor-not-allowed'
-                    }`}
-                  >
-                    <Plus className="w-4 h-4 text-white" />
-                  </button>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() =>
+                        updateQuantity(item.productId, item.variantId, item.quantity - 1)
+                      }
+                      className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded hover:bg-zinc-700"
+                    >
+                      <Minus className="w-4 h-4 text-white" />
+                    </button>
+                    <span className="text-white font-semibold w-8 text-center">
+                      {item.quantity}
+                    </span>
+                    <button
+                      onClick={() =>
+                        updateQuantity(item.productId, item.variantId, item.quantity + 1)
+                      }
+                      disabled={!canIncrease}
+                      className={`w-8 h-8 flex items-center justify-center rounded ${
+                        canIncrease
+                          ? "bg-zinc-800 hover:bg-zinc-700"
+                          : "bg-zinc-900 opacity-50 cursor-not-allowed"
+                      }`}
+                    >
+                      <Plus className="w-4 h-4 text-white" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
+            );
           })}
         </div>
 
@@ -134,7 +136,7 @@ export default function CartPage() {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={handleCheckout}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition mb-3"
             >

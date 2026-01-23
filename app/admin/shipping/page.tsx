@@ -3,9 +3,11 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ExternalLink, AlertCircle } from "lucide-react";
+
 import { logError } from "@/lib/log";
 import { CreateLabelForm } from "@/components/admin/shipping/CreateLabelForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
 import { OriginModal } from "../../../src/components/admin/shipping/OriginModal";
 import type {
   ShippingAddress,
@@ -36,7 +38,9 @@ const TABS: Array<{ key: TabKey; label: string; status: string }> = [
 ];
 
 const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null) => {
-  if (!trackingNumber) return null;
+  if (!trackingNumber) {
+    return null;
+  }
   const normalized = (carrier ?? "").toLowerCase();
   const encodedTracking = encodeURIComponent(trackingNumber);
 
@@ -57,7 +61,9 @@ const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null)
 };
 
 const resolveShippingAddress = (value: unknown): ShippingAddress | null => {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   if (Array.isArray(value)) {
     return (value[0] ?? null) as ShippingAddress | null;
   }
@@ -68,7 +74,9 @@ const resolveShippingAddress = (value: unknown): ShippingAddress | null => {
 };
 
 const formatAddress = (address: ShippingAddress | null) => {
-  if (!address) return null;
+  if (!address) {
+    return null;
+  }
   const clean = (value?: string | null) => (value ?? "").trim();
   const line1 = [clean(address.line1), clean(address.line2)].filter(Boolean).join(", ");
   const line2 = [clean(address.city), clean(address.state), clean(address.postal_code)]
@@ -81,7 +89,9 @@ const formatAddress = (address: ShippingAddress | null) => {
 };
 
 const formatOriginAddress = (origin: ShippingOrigin | null) => {
-  if (!origin) return null;
+  if (!origin) {
+    return null;
+  }
   const clean = (value?: string | null) => (value ?? "").trim();
   const line1 = [clean(origin.line1), clean(origin.line2)].filter(Boolean).join(", ");
   const line2 = [clean(origin.city), clean(origin.state), clean(origin.postal_code)]
@@ -98,7 +108,9 @@ const formatOriginAddress = (origin: ShippingOrigin | null) => {
 };
 
 const formatPlacedAt = (value?: string | null) => {
-  if (!value) return { date: "-", time: "" };
+  if (!value) {
+    return { date: "-", time: "" };
+  }
   const date = new Date(value);
   return {
     date: date.toLocaleDateString(),
@@ -108,10 +120,14 @@ const formatPlacedAt = (value?: string | null) => {
 
 const getCustomerHandle = (order: any) => {
   const email = order.profiles?.email ?? null;
-  if (email && email.includes("@")) return email.split("@")[0];
+  if (email && email.includes("@")) {
+    return email.split("@")[0];
+  }
   const address = resolveShippingAddress(order.shipping);
   const name = address?.name?.trim();
-  if (name) return name.split(" ")[0];
+  if (name) {
+    return name.split(" ")[0];
+  }
   return order.user_id ? order.user_id.slice(0, 6) : "Guest";
 };
 
@@ -160,7 +176,9 @@ export default function ShippingPage() {
   const loadShippingDefaults = async () => {
     try {
       const response = await fetch("/api/admin/shipping/defaults", { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load shipping defaults");
+      if (!response.ok) {
+        throw new Error("Failed to load shipping defaults");
+      }
       const data = await response.json();
       const defaultsMap: Record<string, ShippingDefault> = {};
       (data.defaults ?? []).forEach((entry: ShippingDefault) => {
@@ -175,7 +193,9 @@ export default function ShippingPage() {
   const loadOriginAddress = async () => {
     try {
       const response = await fetch("/api/admin/shipping/origin", { cache: "no-store" });
-      if (!response.ok) throw new Error("Failed to load shipping origin");
+      if (!response.ok) {
+        throw new Error("Failed to load shipping origin");
+      }
       const data = await response.json();
       setOriginAddress(data.origin ?? null);
     } catch (error) {
@@ -222,7 +242,9 @@ export default function ShippingPage() {
   }, []);
 
   useEffect(() => {
-    if (!originModalOpen) return;
+    if (!originModalOpen) {
+      return;
+    }
     setOriginError("");
     setOriginMessage("");
     loadOriginAddress();
@@ -332,7 +354,9 @@ export default function ShippingPage() {
           trackingNumber: order.tracking_number ?? null,
         }),
       });
-      if (!response.ok) throw new Error("Failed to mark as shipped");
+      if (!response.ok) {
+        throw new Error("Failed to mark as shipped");
+      }
       setRefreshToken((token) => token + 1);
       setConfirmMarkShipped(null);
     } catch (error) {
@@ -358,7 +382,9 @@ export default function ShippingPage() {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Failed to save origin");
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to save origin");
+      }
       setOriginAddress(data.origin ?? payload);
       setOriginMessage("Origin address updated.");
       setOriginModalOpen(false);
@@ -385,13 +411,17 @@ export default function ShippingPage() {
   };
 
   const renderPagination = () => {
-    if (totalPages <= 1) return null;
+    if (totalPages <= 1) {
+      return null;
+    }
 
     const pages: number[] = [];
     const start = Math.max(1, currentPage - 2);
     const end = Math.min(totalPages, currentPage + 2);
 
-    for (let page = start; page <= end; page += 1) pages.push(page);
+    for (let page = start; page <= end; page += 1) {
+      pages.push(page);
+    }
 
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -716,7 +746,9 @@ export default function ShippingPage() {
   const originLine = formatOriginAddress(originAddress);
 
   const labelModalDefaults = useMemo(() => {
-    if (!labelOrder) return null;
+    if (!labelOrder) {
+      return null;
+    }
     return getPackageProfile(labelOrder);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [labelOrder, shippingDefaults]);

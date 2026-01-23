@@ -18,7 +18,9 @@ export class StorageRepository {
       upsert,
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -28,13 +30,19 @@ export class StorageRepository {
     return data.publicUrl;
   }
 
-  async createSignedUrl(params: { bucket: string; path: string; expiresInSeconds: number }) {
+  async createSignedUrl(params: {
+    bucket: string;
+    path: string;
+    expiresInSeconds: number;
+  }) {
     const { bucket, path, expiresInSeconds } = params;
     const { data, error } = await this.supabase.storage
       .from(bucket)
       .createSignedUrl(path, expiresInSeconds);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data.signedUrl;
   }
 }

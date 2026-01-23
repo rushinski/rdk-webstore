@@ -2,11 +2,12 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+
 import { ProductForm } from "@/components/inventory/ProductForm";
 import type { ProductCreateInput } from "@/services/product-service";
 import type { ProductWithDetails } from "@/types/domain/product";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { logError } from "@/lib/log";
 
 export default function EditProductPage() {
@@ -17,7 +18,9 @@ export default function EditProductPage() {
   const productId = typeof params?.id === "string" ? params.id : "";
 
   useEffect(() => {
-    if (!productId) return;
+    if (!productId) {
+      return;
+    }
     loadProduct(productId);
   }, [productId]);
 
@@ -53,7 +56,9 @@ export default function EditProductPage() {
     let message = "Failed to update product";
     try {
       const payload = await response.json();
-      if (payload?.error) message = payload.error;
+      if (payload?.error) {
+        message = payload.error;
+      }
     } catch {
       // ignore parse errors
     }

@@ -1,5 +1,6 @@
 // src/app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
+
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { clearAdminSessionCookie } from "@/lib/http/admin-session-cookie";
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
 
     let res = NextResponse.json(
       { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
     res = clearAdminSessionCookie(res);
 
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(
       { ok: false, error: error.message ?? "Logout failed", requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

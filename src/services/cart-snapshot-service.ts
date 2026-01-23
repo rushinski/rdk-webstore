@@ -5,7 +5,9 @@ import type { CartItem } from "@/types/domain/cart";
 
 export class CartSnapshotService {
   async backupCart(items: CartItem[]) {
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      return;
+    }
     await fetch("/api/cart/snapshot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -20,9 +22,13 @@ export class CartSnapshotService {
       cache: "no-store",
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
     const data = await response.json().catch(() => null);
-    if (!data || !Array.isArray(data.items) || data.items.length === 0) return null;
+    if (!data || !Array.isArray(data.items) || data.items.length === 0) {
+      return null;
+    }
     return data.items as CartItem[];
   }
 }

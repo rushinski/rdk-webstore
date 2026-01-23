@@ -1,6 +1,8 @@
 // app/api/admin/shipping/rates/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingOriginsRepository } from "@/repositories/shipping-origins-repo";
@@ -60,8 +62,9 @@ const toShippoAddress = (address: {
     !address.state ||
     !address.postal_code ||
     !address.country
-  )
+  ) {
     return null;
+  }
 
   return {
     name: address.name ?? undefined,

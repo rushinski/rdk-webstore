@@ -27,7 +27,9 @@ export class AdminInvitesRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as AdminInviteRow;
   }
 
@@ -38,7 +40,9 @@ export class AdminInvitesRepository {
       .eq("token_hash", tokenHash)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -50,7 +54,9 @@ export class AdminInvitesRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as AdminInviteRow;
   }
 }

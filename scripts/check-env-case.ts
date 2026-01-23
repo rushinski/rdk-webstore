@@ -37,7 +37,9 @@ function walk(dir: string): void {
     const full = path.join(dir, entry);
 
     // If entry is in IGNORE_DIRS we go to the next element in the array
-    if (IGNORE_DIRS.has(entry)) continue;
+    if (IGNORE_DIRS.has(entry)) {
+      continue;
+    }
 
     // Stores the stats of full as a object. Ex. "isFile: [Function], isDirectory: [Function], ...""
     const stat = fs.statSync(full);

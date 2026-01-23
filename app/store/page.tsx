@@ -1,6 +1,7 @@
 // app/store/page.tsx
 
 import Link from "next/link";
+
 import { FilterPanel } from "@/components/store/FilterPanel";
 import { ProductGrid } from "@/components/store/ProductGrid";
 import { StoreControls } from "@/components/store/StoreControls";
@@ -13,27 +14,35 @@ export const revalidate = 0;
 
 const getArrayParam = (
   searchParams: Record<string, string | string[] | undefined> | undefined,
-  key: string
+  key: string,
 ) => {
   const value = searchParams?.[key];
-  if (Array.isArray(value)) return value.filter(Boolean);
-  if (typeof value === "string" && value.trim().length > 0) return [value];
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    return [value];
+  }
   return [];
 };
 
 const getStringParam = (
   searchParams: Record<string, string | string[] | undefined> | undefined,
-  key: string
+  key: string,
 ) => {
   const value = searchParams?.[key];
-  if (Array.isArray(value)) return value[0];
+  if (Array.isArray(value)) {
+    return value[0];
+  }
   return typeof value === "string" ? value : undefined;
 };
 
 export default async function StorePage({
   searchParams,
 }: {
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 }) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const qParam = getStringParam(resolvedSearchParams, "q");
@@ -96,9 +105,7 @@ export default async function StorePage({
 
   const breadcrumbItems = (() => {
     const formatLabel = (value: string) =>
-      value
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (match) => match.toUpperCase());
+      value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
 
     const items: Array<{ label: string; href?: string }> = [
       { label: "Home", href: "/" },

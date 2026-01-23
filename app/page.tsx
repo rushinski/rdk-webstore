@@ -68,8 +68,8 @@ export default async function HomePage() {
                 </h1>
 
                 <p className="mt-6 text-lg md:text-xl text-gray-300 max-w-xl">
-                  Sneakers &amp; streetwear you can trust: curated inventory, clear condition, and a
-                  straight-to-the-point buying experience.
+                  Sneakers &amp; streetwear you can trust: curated inventory, clear
+                  condition, and a straight-to-the-point buying experience.
                 </p>
 
                 <div className="mt-10 flex flex-col sm:flex-row gap-3">
@@ -108,7 +108,9 @@ export default async function HomePage() {
         <div className="relative z-20 -mt-28 md:-mt-32">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-end justify-between mb-6">
-              <h2 className="text-3xl md:text-4xl font-bold text-white">Shop by Category</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-white">
+                Shop by Category
+              </h2>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

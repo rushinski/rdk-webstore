@@ -4,6 +4,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
+
 import type { ProductWithDetails } from "@/types/domain/product";
 import { useCart } from "@/components/cart/CartProvider";
 import { Toast } from "@/components/ui/Toast";
@@ -34,7 +35,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const canAddMore = selectedVariant ? selectedVariant.stock > inCartQuantity : false;
 
   const handleAddToCart = () => {
-    if (!selectedVariant) return;
+    if (!selectedVariant) {
+      return;
+    }
     if (!canAddMore) {
       setToast({
         message: "Only limited stock is available for this size.",

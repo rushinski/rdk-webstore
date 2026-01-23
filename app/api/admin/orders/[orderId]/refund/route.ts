@@ -1,6 +1,8 @@
 // app/api/admin/orders/[orderId]/refund/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -15,16 +17,20 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
 });
 
 function toExpandedCharge(
-  latestCharge: Stripe.PaymentIntent["latest_charge"]
+  latestCharge: Stripe.PaymentIntent["latest_charge"],
 ): Stripe.Charge | null {
-  if (!latestCharge) return null;
-  if (typeof latestCharge === "string") return null;
+  if (!latestCharge) {
+    return null;
+  }
+  if (typeof latestCharge === "string") {
+    return null;
+  }
   return latestCharge;
 }
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { orderId } = await params;
@@ -40,21 +46,21 @@ export async function POST(
     if (!order) {
       return NextResponse.json(
         { error: "Order not found", requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (order.status === "refunded") {
       return NextResponse.json(
         { error: "Order has already been refunded", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     if (!order.stripe_payment_intent_id) {
       return NextResponse.json(
         { error: "Cannot refund order: Missing payment information", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -62,7 +68,7 @@ export async function POST(
     if (!tenantId) {
       return NextResponse.json(
         { error: "Cannot refund: Tenant not found for order", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -85,7 +91,7 @@ export async function POST(
     try {
       paymentIntent = await stripe.paymentIntents.retrieve(
         order.stripe_payment_intent_id,
-        { expand: ["latest_charge", "latest_charge.transfer"] }
+        { expand: ["latest_charge", "latest_charge.transfer"] },
       );
       retrievedOnAccount = "platform";
     } catch (platformError: any) {
@@ -94,7 +100,7 @@ export async function POST(
           paymentIntent = await stripe.paymentIntents.retrieve(
             order.stripe_payment_intent_id,
             { expand: ["latest_charge", "latest_charge.transfer"] },
-            { stripeAccount: stripeAccountId }
+            { stripeAccount: stripeAccountId },
           );
           retrievedOnAccount = "connect";
         } catch (connectError: any) {
@@ -111,7 +117,7 @@ export async function POST(
               error: "Payment intent not found",
               requestId,
             },
-            { status: 400, headers: { "Cache-Control": "no-store" } }
+            { status: 400, headers: { "Cache-Control": "no-store" } },
           );
         }
       } else {
@@ -131,7 +137,7 @@ export async function POST(
         },
         retrievedOnAccount === "connect" && stripeAccountId
           ? { stripeAccount: stripeAccountId }
-          : undefined
+          : undefined,
       );
       charge = chargesResp.data[0] ?? null;
     }
@@ -143,22 +149,19 @@ export async function POST(
 
     // Validate transfer exists if configured
     if (!hasActualTransfer && paymentIntent.transfer_data) {
-      logError(
-        new Error("Transfer configured but not created"),
-        {
-          layer: "api",
-          requestId,
-          orderId,
-          paymentIntentId: paymentIntent.id,
-        }
-      );
+      logError(new Error("Transfer configured but not created"), {
+        layer: "api",
+        requestId,
+        orderId,
+        paymentIntentId: paymentIntent.id,
+      });
 
       return NextResponse.json(
         {
           error: "Cannot refund: Transfer to seller account was not completed",
           requestId,
         },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -230,7 +233,7 @@ export async function POST(
 
     return NextResponse.json(
       { success: true, refundId: refund.id },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: any) {
     logError(error, {
@@ -245,7 +248,7 @@ export async function POST(
 
     return NextResponse.json(
       { error: errorMessage, requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

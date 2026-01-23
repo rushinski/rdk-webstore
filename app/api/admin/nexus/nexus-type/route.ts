@@ -1,16 +1,18 @@
 // app/api/admin/nexus/nexus-type/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { TenantContextService } from "@/services/tenant-context-service";
 import { NexusRepository } from "@/repositories/nexus-repo";
-import { z } from "zod";
 
 const nexusTypeSchema = z.object({
   stateCode: z.string().length(2),
-  nexusType: z.enum(['physical', 'economic']),
+  nexusType: z.enum(["physical", "economic"]),
 });
 
 export async function POST(request: NextRequest) {
@@ -19,7 +21,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    
+
     const contextService = new TenantContextService(supabase);
     const tenantId = await contextService.getTenantId(session.user.id);
 
@@ -29,13 +31,13 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const nexusRepo = new NexusRepository(supabase);
     const existing = await nexusRepo.getRegistration(tenantId, parsed.data.stateCode);
-    
+
     await nexusRepo.upsertRegistration({
       tenantId,
       stateCode: parsed.data.stateCode,
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/nexus-type" });
     return NextResponse.json(
       { error: error.message || "Failed to update nexus type", requestId },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

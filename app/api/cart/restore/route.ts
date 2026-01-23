@@ -1,6 +1,7 @@
 // app/api/cart/restore/route.ts
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+
 import { cartSnapshotSchema } from "@/lib/validation/cart";
 import { parseCartSnapshot } from "@/lib/cart/snapshot";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   if (!snapshotCookie?.value) {
     return NextResponse.json(
       { items: [], restored: false, requestId },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
   if (!items) {
     const response = NextResponse.json(
       { items: [], restored: false, requestId },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
     response.cookies.set({
       name: COOKIE_NAME,
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
   if (!parsed.success) {
     const response = NextResponse.json(
       { items: [], restored: false, requestId },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
     response.cookies.set({
       name: COOKIE_NAME,
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
 
   const response = NextResponse.json(
     { items: parsed.data.items, restored: true, requestId },
-    { headers: { "Cache-Control": "no-store" } }
+    { headers: { "Cache-Control": "no-store" } },
   );
 
   response.cookies.set({

@@ -12,7 +12,9 @@ export const storeProductsQuerySchema = z
     sizeShoe: stringList,
     sizeClothing: stringList,
     condition: stringList,
-    sort: z.enum(["newest", "price_asc", "price_desc", "name_asc", "name_desc"]).default("newest"),
+    sort: z
+      .enum(["newest", "price_asc", "price_desc", "name_asc", "name_desc"])
+      .default("newest"),
     page: z.number().int().positive().finite().default(1),
     limit: z.number().int().positive().finite().max(100).default(20),
     stockStatus: z.enum(["in_stock", "out_of_stock", "all"]).default("in_stock"),

@@ -1,6 +1,8 @@
 // app/api/store/filters/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { StorefrontService } from "@/services/storefront-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to fetch filters", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

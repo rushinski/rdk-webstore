@@ -1,5 +1,7 @@
 // app/api/admin/payout/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { PayoutSettingsRepository } from "@/repositories/payout-settings-repo";

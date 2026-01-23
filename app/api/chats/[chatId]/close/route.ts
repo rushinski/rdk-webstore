@@ -1,5 +1,7 @@
 // app/api/chats/[chatId]/close/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
@@ -9,7 +11,7 @@ import { logError } from "@/lib/log";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ chatId: string }> }
+  { params }: { params: Promise<{ chatId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { chatId } = await params;
@@ -18,7 +20,7 @@ export async function POST(
   if (!parsedParams.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: parsedParams.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -29,10 +31,7 @@ export async function POST(
 
     const chat = await chatService.closeChat(parsedParams.data.chatId, session.user.id);
 
-    return NextResponse.json(
-      { chat },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ chat }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -42,7 +41,7 @@ export async function POST(
 
     return NextResponse.json(
       { error: "Failed to close chat", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

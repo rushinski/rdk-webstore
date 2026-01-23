@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { OrderStatusView } from "@/components/orders/OrderStatusView";
 
@@ -18,7 +19,9 @@ export default function OrderStatusPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId) {
+      return;
+    }
     if (!token) {
       setError("Missing secure order link. Please check your email.");
       return;

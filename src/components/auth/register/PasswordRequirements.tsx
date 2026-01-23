@@ -2,6 +2,7 @@
 "use client";
 
 import { Check, X } from "lucide-react";
+
 import { evaluatePasswordRequirements } from "@/lib/validation/password";
 
 export function PasswordRequirements({ password }: { password: string }) {

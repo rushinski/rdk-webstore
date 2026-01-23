@@ -1,26 +1,30 @@
 // src/components/account/AccountProfile.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import type { Tables } from '@/types/db/database.types'; 
-import { logError } from '@/lib/log';
-import { PasswordRequirements } from '@/components/auth/register/PasswordRequirements';
-import { isPasswordValid } from '@/lib/validation/password';
-import { Toast } from '@/components/ui/Toast';
-import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
+import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
+
+import type { Tables } from "@/types/db/database.types";
+import { logError } from "@/lib/log";
+import { PasswordRequirements } from "@/components/auth/register/PasswordRequirements";
+import { isPasswordValid } from "@/lib/validation/password";
+import { Toast } from "@/components/ui/Toast";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 type ShippingProfile = Tables<"shipping_profiles">;
 
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [message, setMessage] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [newPasswordVisible, setNewPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error" | "info";
+  } | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -32,14 +36,14 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [isDefaultSaving, setIsDefaultSaving] = useState(false);
   const [setAsDefault, setSetAsDefault] = useState(false);
   const [addressForm, setAddressForm] = useState({
-    name: '',
-    phone: '',
-    line1: '',
-    line2: '',
-    city: '',
-    state: '',
-    postal_code: '',
-    country: '',
+    name: "",
+    phone: "",
+    line1: "",
+    line2: "",
+    city: "",
+    state: "",
+    postal_code: "",
+    country: "",
   });
 
   useEffect(() => {
@@ -51,7 +55,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
   const loadProfile = async () => {
     try {
-      const response = await fetch('/api/account/shipping');
+      const response = await fetch("/api/account/shipping");
       const data = await response.json();
       setProfile(data);
     } catch (error) {
@@ -62,7 +66,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const loadOrders = async () => {
     setIsOrdersLoading(true);
     try {
-      const response = await fetch('/api/account/orders');
+      const response = await fetch("/api/account/orders");
       const data = await response.json();
       setOrders(data.orders || []);
     } catch (error) {
@@ -74,7 +78,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
   const loadChatNotifications = async () => {
     try {
-      const response = await fetch('/api/account/notifications', { cache: 'no-store' });
+      const response = await fetch("/api/account/notifications", { cache: "no-store" });
       const data = await response.json();
       setChatNotificationsEnabled(Boolean(data.chat_notifications_enabled));
     } catch (error) {
@@ -84,32 +88,34 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
   const handleSaveChatNotifications = async () => {
     setIsChatSaving(true);
-    setMessage('');
+    setMessage("");
     try {
-      const response = await fetch('/api/account/notifications', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/account/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chat_notifications_enabled: chatNotificationsEnabled }),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        setMessage(data?.error ?? 'Failed to update chat notifications');
+        setMessage(data?.error ?? "Failed to update chat notifications");
         return;
       }
 
-      setMessage('Chat notification preference updated.');
+      setMessage("Chat notification preference updated.");
     } catch (error) {
-      setMessage('Failed to update chat notifications');
+      setMessage("Failed to update chat notifications");
     } finally {
       setIsChatSaving(false);
     }
   };
 
-  const formatField = (value?: string | null) => (value ?? '').trim().toLowerCase();
+  const formatField = (value?: string | null) => (value ?? "").trim().toLowerCase();
 
   const isDefaultAddress = (address: any) => {
-    if (!profile.address_line1) return false;
+    if (!profile.address_line1) {
+      return false;
+    }
     return (
       formatField(profile.address_line1) === formatField(address.line1) &&
       formatField(profile.address_line2) === formatField(address.line2) &&
@@ -123,13 +129,13 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const handleSetDefaultAddress = async (address: any, silent?: boolean) => {
     setIsDefaultSaving(true);
     if (!silent) {
-      setMessage('');
+      setMessage("");
     }
 
     try {
-      const response = await fetch('/api/account/shipping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/account/shipping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: address.name ?? null,
           phone: address.phone ?? null,
@@ -146,18 +152,18 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
       if (!response.ok) {
         if (!silent) {
-          setMessage(data?.error ?? 'Failed to set default shipping address');
+          setMessage(data?.error ?? "Failed to set default shipping address");
         }
         return;
       }
 
       setProfile(data || {});
       if (!silent) {
-        setMessage('Default shipping address updated successfully.');
+        setMessage("Default shipping address updated successfully.");
       }
     } catch (error) {
       if (!silent) {
-        setMessage('Error updating default shipping address');
+        setMessage("Error updating default shipping address");
       }
     } finally {
       setIsDefaultSaving(false);
@@ -167,13 +173,13 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const handleClearDefaultShipping = async (silent?: boolean) => {
     setIsDefaultSaving(true);
     if (!silent) {
-      setMessage('');
+      setMessage("");
     }
 
     try {
-      const response = await fetch('/api/account/shipping', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/account/shipping", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           full_name: null,
           phone: null,
@@ -190,18 +196,18 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
       if (!response.ok) {
         if (!silent) {
-          setMessage(data?.error ?? 'Failed to clear default shipping address');
+          setMessage(data?.error ?? "Failed to clear default shipping address");
         }
         return;
       }
 
       setProfile(data || {});
       if (!silent) {
-        setMessage('Default shipping address cleared successfully.');
+        setMessage("Default shipping address cleared successfully.");
       }
     } catch (error) {
       if (!silent) {
-        setMessage('Error clearing default shipping address');
+        setMessage("Error clearing default shipping address");
       }
     } finally {
       setIsDefaultSaving(false);
@@ -211,40 +217,40 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setMessage('');
+    setMessage("");
 
     if (newPassword !== confirmPassword) {
-      setMessage('Passwords do not match');
+      setMessage("Passwords do not match");
       setIsLoading(false);
       return;
     }
 
     if (!isPasswordValid(newPassword)) {
-      setMessage('Password does not meet the required criteria.');
+      setMessage("Password does not meet the required criteria.");
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await fetch('/api/account/password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/account/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password: newPassword }),
       });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setMessage(`Failed to change password: ${data?.error ?? 'Unknown error'}`);
+        setMessage(`Failed to change password: ${data?.error ?? "Unknown error"}`);
       } else {
-        setToast({ message: 'Password changed successfully!', tone: 'success' });
-        setNewPassword('');
-        setConfirmPassword('');
+        setToast({ message: "Password changed successfully!", tone: "success" });
+        setNewPassword("");
+        setConfirmPassword("");
         setNewPasswordVisible(false);
         setConfirmPasswordVisible(false);
       }
     } catch (error) {
-      setMessage('Error changing password');
+      setMessage("Error changing password");
     } finally {
       setIsLoading(false);
     }
@@ -253,7 +259,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const loadAddresses = async () => {
     setIsAddressesLoading(true);
     try {
-      const response = await fetch('/api/account/addresses');
+      const response = await fetch("/api/account/addresses");
       const data = await response.json();
       setAddresses(data.addresses || []);
     } catch (error) {
@@ -266,69 +272,72 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddressSaving(true);
-    setMessage('');
+    setMessage("");
     const addressPayload = { ...addressForm };
 
     try {
-      const response = await fetch('/api/account/addresses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/account/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(addressForm),
       });
 
       if (!response.ok) {
-        setMessage('Failed to save address');
+        setMessage("Failed to save address");
         return;
       }
 
       const data = await response.json();
       setAddresses(data.addresses || []);
       setAddressForm({
-        name: '',
-        phone: '',
-        line1: '',
-        line2: '',
-        city: '',
-        state: '',
-        postal_code: '',
-        country: '',
+        name: "",
+        phone: "",
+        line1: "",
+        line2: "",
+        city: "",
+        state: "",
+        postal_code: "",
+        country: "",
       });
       if (setAsDefault) {
-        await handleSetDefaultAddress({
-          name: addressPayload.name,
-          phone: addressPayload.phone,
-          line1: addressPayload.line1,
-          line2: addressPayload.line2,
-          city: addressPayload.city,
-          state: addressPayload.state,
-          postal_code: addressPayload.postal_code,
-          country: addressPayload.country,
-        }, true);
+        await handleSetDefaultAddress(
+          {
+            name: addressPayload.name,
+            phone: addressPayload.phone,
+            line1: addressPayload.line1,
+            line2: addressPayload.line2,
+            city: addressPayload.city,
+            state: addressPayload.state,
+            postal_code: addressPayload.postal_code,
+            country: addressPayload.country,
+          },
+          true,
+        );
       }
       setSetAsDefault(false);
       setMessage(
         setAsDefault
-          ? 'Address saved successfully and set as default shipping.'
-          : 'Address saved successfully!'
+          ? "Address saved successfully and set as default shipping."
+          : "Address saved successfully!",
       );
     } catch (error) {
-      setMessage('Error saving address');
+      setMessage("Error saving address");
     } finally {
       setIsAddressSaving(false);
     }
   };
 
   const handleDeleteAddress = async (addressId: string) => {
-    setMessage('');
+    setMessage("");
     const targetAddress = addresses.find((address) => address.id === addressId);
     const wasDefault = targetAddress ? isDefaultAddress(targetAddress) : false;
     try {
       const response = await fetch(`/api/account/addresses/${addressId}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
 
       if (!response.ok) {
-        setMessage('Failed to remove address');
+        setMessage("Failed to remove address");
         return;
       }
 
@@ -337,25 +346,27 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         await handleClearDefaultShipping(true);
       }
     } catch (error) {
-      setMessage('Error removing address');
+      setMessage("Error removing address");
     }
   };
 
   const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null) => {
-    if (!trackingNumber) return null;
-    const normalized = (carrier ?? '').toLowerCase();
+    if (!trackingNumber) {
+      return null;
+    }
+    const normalized = (carrier ?? "").toLowerCase();
     const encodedTracking = encodeURIComponent(trackingNumber);
 
-    if (normalized.includes('ups')) {
+    if (normalized.includes("ups")) {
       return `https://www.ups.com/track?loc=en_US&tracknum=${encodedTracking}`;
     }
-    if (normalized.includes('usps')) {
+    if (normalized.includes("usps")) {
       return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodedTracking}`;
     }
-    if (normalized.includes('fedex') || normalized.includes('fed ex')) {
+    if (normalized.includes("fedex") || normalized.includes("fed ex")) {
       return `https://www.fedex.com/fedextrack/?trknbr=${encodedTracking}`;
     }
-    if (normalized.includes('dhl')) {
+    if (normalized.includes("dhl")) {
       return `https://www.dhl.com/us-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encodedTracking}`;
     }
 
@@ -365,10 +376,10 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const handleLogout = async () => {
     setIsSigningOut(true);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      window.location.href = '/';
+      await fetch("/api/auth/logout", { method: "POST" });
+      window.location.href = "/";
     } catch (error) {
-      setMessage('Failed to log out. Please try again.');
+      setMessage("Failed to log out. Please try again.");
     } finally {
       setIsSigningOut(false);
     }
@@ -381,16 +392,22 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       </h1>
 
       {message && (
-        <div className={`mb-6 p-4 rounded ${
-          message.includes('success') ? 'bg-green-900/20 text-green-400' : 'bg-red-900/20 text-red-400'
-        }`}>
+        <div
+          className={`mb-6 p-4 rounded ${
+            message.includes("success")
+              ? "bg-green-900/20 text-green-400"
+              : "bg-red-900/20 text-red-400"
+          }`}
+        >
           {message}
         </div>
       )}
 
       {/* Email (Read-only) */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Email</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+          Email
+        </h2>
         <p className="text-gray-400">{userEmail}</p>
         <p className="text-gray-500 text-[12px] sm:text-sm mt-2">
           Email changes are not currently supported
@@ -418,14 +435,16 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           disabled={isChatSaving}
           className="mt-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
         >
-          {isChatSaving ? 'Saving...' : 'Save Preference'}
+          {isChatSaving ? "Saving..." : "Save Preference"}
         </button>
       </div>
 
       {/* Saved Addresses */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-white">Shipping Addresses</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-white">
+            Shipping Addresses
+          </h2>
           <span className="text-[11px] sm:text-xs text-zinc-500">
             Save multiple addresses and pick a default for checkout.
           </span>
@@ -463,7 +482,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 disabled={isDefaultSaving}
                 className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
               >
-                {isDefaultSaving ? 'Updating...' : 'Clear default'}
+                {isDefaultSaving ? "Updating..." : "Clear default"}
               </button>
             )}
           </div>
@@ -480,7 +499,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 <div className="flex items-start justify-between gap-4">
                   <div className="text-[12px] sm:text-sm text-zinc-300">
                     <div className="flex items-center gap-2 text-white font-semibold">
-                      <span>{address.name || 'Saved Address'}</span>
+                      <span>{address.name || "Saved Address"}</span>
                       {isDefaultAddress(address) && (
                         <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-300 bg-zinc-800/70 px-2 py-0.5 rounded">
                           Default
@@ -493,7 +512,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                       {address.city}, {address.state} {address.postal_code}
                     </div>
                     <div>{address.country}</div>
-                    {address.phone && <div className="text-zinc-500">{address.phone}</div>}
+                    {address.phone && (
+                      <div className="text-zinc-500">{address.phone}</div>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -510,7 +531,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     disabled={isDefaultSaving}
                     className="mt-3 text-[11px] sm:text-xs text-zinc-300 hover:text-white transition-colors disabled:opacity-60"
                   >
-                    {isDefaultSaving ? 'Updating...' : 'Set as default shipping'}
+                    {isDefaultSaving ? "Updating..." : "Set as default shipping"}
                   </button>
                 )}
               </div>
@@ -520,7 +541,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
         <form onSubmit={handleSaveAddress} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Full Name</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+              Full Name
+            </label>
             <input
               type="text"
               value={addressForm.name}
@@ -530,7 +553,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Phone</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+              Phone
+            </label>
             <input
               type="tel"
               value={addressForm.phone}
@@ -553,7 +578,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           </div>
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Apartment / Unit</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+              Apartment / Unit
+            </label>
             <input
               type="text"
               value={addressForm.line2}
@@ -584,7 +611,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 required
                 value={addressForm.state}
-                onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
+                onChange={(e) =>
+                  setAddressForm({ ...addressForm, state: e.target.value })
+                }
                 className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
@@ -599,7 +628,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 required
                 value={addressForm.postal_code}
-                onChange={(e) => setAddressForm({ ...addressForm, postal_code: e.target.value })}
+                onChange={(e) =>
+                  setAddressForm({ ...addressForm, postal_code: e.target.value })
+                }
                 className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
@@ -612,7 +643,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="text"
                 required
                 value={addressForm.country}
-                onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
+                onChange={(e) =>
+                  setAddressForm({ ...addressForm, country: e.target.value })
+                }
                 className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
@@ -633,7 +666,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             disabled={isAddressSaving}
             className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
           >
-            {isAddressSaving ? 'Saving...' : 'Add Address'}
+            {isAddressSaving ? "Saving..." : "Add Address"}
           </button>
         </form>
       </div>
@@ -650,55 +683,69 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         ) : (
           <div className="space-y-4">
             {orders.map((order) => {
-              const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number);
-              const showTracking = order.fulfillment === 'ship' && order.tracking_number;
+              const trackingUrl = getTrackingUrl(
+                order.shipping_carrier,
+                order.tracking_number,
+              );
+              const showTracking = order.fulfillment === "ship" && order.tracking_number;
 
               return (
-              <div key={order.id} className="border border-zinc-800/70 rounded p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <div className="text-white font-semibold">Order #{order.id.slice(0, 8)}</div>
-                  <div className="text-gray-400 text-[12px] sm:text-sm">
-                    {new Date(order.created_at).toLocaleDateString()}
+                <div key={order.id} className="border border-zinc-800/70 rounded p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div className="text-white font-semibold">
+                      Order #{order.id.slice(0, 8)}
+                    </div>
+                    <div className="text-gray-400 text-[12px] sm:text-sm">
+                      {new Date(order.created_at).toLocaleDateString()}
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <span className="text-gray-400 text-[12px] sm:text-sm">Status: {order.status}</span>
-                  <span className="text-white font-semibold">
-                    ${Number(order.total ?? 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {(order.items || []).map((item: any) => (
-                    <div key={item.id} className="flex items-center justify-between text-[12px] sm:text-sm">
-                      <span className="text-gray-300">
-                        {item.product?.title_display ??
-                          `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
-                        {item.variant?.size_label ? ` (${item.variant.size_label})` : ''}
-                      </span>
-                      <span className="text-gray-400">x{item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
-                {showTracking && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px] sm:text-sm">
-                    <div className="text-zinc-400">
-                      Tracking: {order.shipping_carrier ? `${order.shipping_carrier} ` : ""}
-                      <span className="text-zinc-200">{order.tracking_number}</span>
-                    </div>
-                    {trackingUrl ? (
-                      <a
-                        href={trackingUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-red-400 hover:underline"
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <span className="text-gray-400 text-[12px] sm:text-sm">
+                      Status: {order.status}
+                    </span>
+                    <span className="text-white font-semibold">
+                      ${Number(order.total ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {(order.items || []).map((item: any) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between text-[12px] sm:text-sm"
                       >
-                        Track shipment
-                      </a>
-                    ) : null}
+                        <span className="text-gray-300">
+                          {item.product?.title_display ??
+                            `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
+                          {item.variant?.size_label
+                            ? ` (${item.variant.size_label})`
+                            : ""}
+                        </span>
+                        <span className="text-gray-400">x{item.quantity}</span>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            )})}
+                  {showTracking && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px] sm:text-sm">
+                      <div className="text-zinc-400">
+                        Tracking:{" "}
+                        {order.shipping_carrier ? `${order.shipping_carrier} ` : ""}
+                        <span className="text-zinc-200">{order.tracking_number}</span>
+                      </div>
+                      {trackingUrl ? (
+                        <a
+                          href={trackingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-red-400 hover:underline"
+                        >
+                          Track shipment
+                        </a>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -710,10 +757,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         </h2>
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">New Password</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+              New Password
+            </label>
             <div className="relative">
               <input
-                type={newPasswordVisible ? 'text' : 'password'}
+                type={newPasswordVisible ? "text" : "password"}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
@@ -723,7 +772,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="button"
                 onClick={() => setNewPasswordVisible((prev) => !prev)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
-                aria-label={newPasswordVisible ? 'Hide password' : 'Show password'}
+                aria-label={newPasswordVisible ? "Hide password" : "Show password"}
               >
                 {newPasswordVisible ? (
                   <EyeOff className="w-4 h-4" />
@@ -737,10 +786,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           <PasswordRequirements password={newPassword} />
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Confirm Password</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+              Confirm Password
+            </label>
             <div className="relative">
               <input
-                type={confirmPasswordVisible ? 'text' : 'password'}
+                type={confirmPasswordVisible ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
@@ -750,7 +801,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="button"
                 onClick={() => setConfirmPasswordVisible((prev) => !prev)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
-                aria-label={confirmPasswordVisible ? 'Hide password' : 'Show password'}
+                aria-label={confirmPasswordVisible ? "Hide password" : "Show password"}
               >
                 {confirmPasswordVisible ? (
                   <EyeOff className="w-4 h-4" />
@@ -766,13 +817,15 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             disabled={isLoading}
             className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
           >
-            {isLoading ? 'Changing...' : 'Change Password'}
+            {isLoading ? "Changing..." : "Change Password"}
           </button>
         </form>
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Sign out</h2>
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+          Sign out
+        </h2>
         <p className="text-gray-400 text-[12px] sm:text-sm mb-4">
           You can sign back in anytime to view your orders and account details.
         </p>
@@ -782,13 +835,13 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           disabled={isSigningOut}
           className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm transition cursor-pointer"
         >
-          {isSigningOut ? 'Signing out...' : 'Logout'}
+          {isSigningOut ? "Signing out..." : "Logout"}
         </button>
       </div>
       <Toast
         open={Boolean(toast)}
-        message={toast?.message ?? ''}
-        tone={toast?.tone ?? 'info'}
+        message={toast?.message ?? ""}
+        tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
       />
     </div>

@@ -21,10 +21,14 @@ const escapeHtml = (value: string) =>
 const safeText = (value?: string | null) => (value ? escapeHtml(value.trim()) : "");
 
 const safeHttpsUrl = (value?: string | null) => {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:") return null;
+    if (url.protocol !== "https:") {
+      return null;
+    }
     return url.toString();
   } catch {
     return null;

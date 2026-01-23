@@ -1,5 +1,7 @@
 // app/api/auth/forgot-password/verify-code/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
 import { AdminAuthService } from "@/services/admin-auth-service";

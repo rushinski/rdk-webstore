@@ -4,6 +4,7 @@
 import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { RdkSelect } from "@/components/ui/Select";
 
 interface StoreControlsProps {
@@ -42,7 +43,9 @@ export function StoreControls({
   const showingEnd = total === 0 ? 0 : Math.min(page * limit, total);
 
   const pageNumbers = useMemo(() => {
-    if (pageCount <= 1) return [1];
+    if (pageCount <= 1) {
+      return [1];
+    }
 
     const half = Math.floor(MAX_PAGE_BUTTONS / 2);
     let start = Math.max(1, page - half);
@@ -59,7 +62,9 @@ export function StoreControls({
     return pages;
   }, [page, pageCount]);
 
-  const updateParams = (updates: Partial<{ page: number; limit: number; sort: string }>) => {
+  const updateParams = (
+    updates: Partial<{ page: number; limit: number; sort: string }>,
+  ) => {
     const params = new URLSearchParams(searchParams.toString());
 
     if (updates.sort) {
@@ -84,7 +89,9 @@ export function StoreControls({
   };
 
   const goToPage = (nextPage: number) => {
-    if (nextPage < 1 || nextPage > pageCount || nextPage === page) return;
+    if (nextPage < 1 || nextPage > pageCount || nextPage === page) {
+      return;
+    }
     updateParams({ page: nextPage });
   };
 
@@ -93,7 +100,9 @@ export function StoreControls({
       {showSortControls && (
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="text-gray-400 text-[12px] sm:text-sm">
-            {total === 0 ? "No products found" : `Showing ${showingStart}-${showingEnd} of ${total}`}
+            {total === 0
+              ? "No products found"
+              : `Showing ${showingStart}-${showingEnd} of ${total}`}
           </div>
           <div className="flex items-center gap-1.5 flex-nowrap">
             <label className="text-gray-400 text-[11px] sm:text-sm whitespace-nowrap leading-none">

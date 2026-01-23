@@ -1,6 +1,8 @@
 // app/api/checkout/create-payment-intent/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import Stripe from "stripe";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { ProductRepository } from "@/repositories/product-repo";
@@ -50,7 +52,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } = parsed.data;
+    const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } =
+      parsed.data;
 
     if (!userId && !guestEmail) {
       return NextResponse.json(
@@ -65,10 +68,16 @@ export async function POST(request: NextRequest) {
 
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
-      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
+      const expiresAt = existingOrder.expires_at
+        ? new Date(existingOrder.expires_at)
+        : null;
       if (expiresAt && expiresAt < new Date()) {
         return NextResponse.json(
-          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId },
+          {
+            error: "IDEMPOTENCY_KEY_EXPIRED",
+            code: "IDEMPOTENCY_KEY_EXPIRED",
+            requestId,
+          },
           { status: 409, headers: { "Cache-Control": "no-store" } },
         );
       }
@@ -105,7 +114,11 @@ export async function POST(request: NextRequest) {
 
         if (paymentIntent.status === "canceled") {
           return NextResponse.json(
-            { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
+            {
+              error: "PAYMENT_INTENT_CANCELED",
+              code: "PAYMENT_INTENT_CANCELED",
+              requestId,
+            },
             { status: 409, headers: { "Cache-Control": "no-store" } },
           );
         }
@@ -161,7 +174,8 @@ export async function POST(request: NextRequest) {
 
     // Get tenant's Stripe Connect account
     const tenantProfileRepo = new ProfileRepository(adminSupabase);
-    const tenantStripeAccountId = await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
+    const tenantStripeAccountId =
+      await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
 
     if (!tenantStripeAccountId) {
       log({
@@ -179,18 +193,27 @@ export async function POST(request: NextRequest) {
 
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId, categories);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
+      tenantId,
+      categories,
+    );
     const shippingDefaultsMap = new Map(
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)]),
     );
 
     const lineItems = items.map((item: any) => {
       const product = productMap.get(item.productId);
-      if (!product) throw new Error("Product not found");
+      if (!product) {
+        throw new Error("Product not found");
+      }
 
       const variant = product.variants.find((v) => v.id === item.variantId);
-      if (!variant) throw new Error("Variant not found");
-      if (variant.stock < item.quantity) throw new Error("INSUFFICIENT_STOCK");
+      if (!variant) {
+        throw new Error("Variant not found");
+      }
+      if (variant.stock < item.quantity) {
+        throw new Error("INSUFFICIENT_STOCK");
+      }
 
       const unitPrice = Number(variant.priceCents ?? 0) / 100;
       const unitCost = Number(variant.costCents ?? 0) / 100;
@@ -224,7 +247,8 @@ export async function POST(request: NextRequest) {
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
     const taxEnabled = taxSettings?.tax_enabled ?? false;
     const taxCodeOverrides =
-      taxSettings?.tax_code_overrides && typeof taxSettings.tax_code_overrides === "object"
+      taxSettings?.tax_code_overrides &&
+      typeof taxSettings.tax_code_overrides === "object"
         ? (taxSettings.tax_code_overrides as Record<string, string>)
         : {};
 
@@ -233,11 +257,12 @@ export async function POST(request: NextRequest) {
     const destinationState =
       normalizedFulfillment === "pickup"
         ? homeState
-        : shippingAddress?.state?.trim().toUpperCase() ?? null;
-    
-    const stripeRegistrations = taxEnabled && destinationState
-      ? await taxService.getStripeRegistrations()
-      : new Map<string, { id: string; state: string; active: boolean }>();
+        : (shippingAddress?.state?.trim().toUpperCase() ?? null);
+
+    const stripeRegistrations =
+      taxEnabled && destinationState
+        ? await taxService.getStripeRegistrations()
+        : new Map<string, { id: string; state: string; active: boolean }>();
 
     let customerAddress: {
       line1: string;
@@ -272,9 +297,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const hasStripeRegistration = taxEnabled && destinationState
-      ? stripeRegistrations.get(destinationState)?.active ?? false
-      : false;
+    const hasStripeRegistration =
+      taxEnabled && destinationState
+        ? (stripeRegistrations.get(destinationState)?.active ?? false)
+        : false;
 
     log({
       level: "info",
@@ -289,25 +315,26 @@ export async function POST(request: NextRequest) {
       customerAddress: customerAddress ? "provided" : "null",
     });
 
-    const taxCalc = hasStripeRegistration && customerAddress
-      ? await taxService.calculateTax({
-          currency: "usd",
-          customerAddress,
-          lineItems: lineItems.map((item) => ({
-            amount: Math.round(item.unitPrice * 100),
-            quantity: item.quantity,
-            productId: item.productId,
-            category: item.category,
-          })),
-          shippingCost: Math.round(shipping * 100),
-          taxCodes: taxCodeOverrides,
-          taxEnabled,
-        })
-      : {
-          taxAmount: 0,
-          totalAmount: Math.round((subtotal + shipping) * 100),
-          taxCalculationId: null,
-        };
+    const taxCalc =
+      hasStripeRegistration && customerAddress
+        ? await taxService.calculateTax({
+            currency: "usd",
+            customerAddress,
+            lineItems: lineItems.map((item) => ({
+              amount: Math.round(item.unitPrice * 100),
+              quantity: item.quantity,
+              productId: item.productId,
+              category: item.category,
+            })),
+            shippingCost: Math.round(shipping * 100),
+            taxCodes: taxCodeOverrides,
+            taxEnabled,
+          })
+        : {
+            taxAmount: 0,
+            totalAmount: Math.round((subtotal + shipping) * 100),
+            taxCalculationId: null,
+          };
 
     const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;
@@ -351,7 +378,7 @@ export async function POST(request: NextRequest) {
       }));
 
     const customerState = destinationState ?? null;
-    
+
     // Update order with tax information
     await adminSupabase
       .from("orders")

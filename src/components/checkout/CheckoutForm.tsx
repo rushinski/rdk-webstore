@@ -9,10 +9,12 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { SavedAddresses } from "./SavedAddresses";
 import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
 import Link from "next/link";
+
 import type { CartItem } from "@/types/domain/cart";
+
+import { SavedAddresses } from "./SavedAddresses";
 
 interface CheckoutFormProps {
   orderId: string;
@@ -86,7 +88,8 @@ export function CheckoutForm({
         orderId,
         paymentIntentId,
         fulfillment,
-        shippingAddress: fulfillment === "ship" ? toApiShippingAddress(shippingAddress) : null,
+        shippingAddress:
+          fulfillment === "ship" ? toApiShippingAddress(shippingAddress) : null,
       }),
     });
 
@@ -144,7 +147,8 @@ export function CheckoutForm({
     }
 
     if (withSubmit && !paymentComplete) {
-      const message = paymentElementError ?? "Please enter your card details to continue.";
+      const message =
+        paymentElementError ?? "Please enter your card details to continue.";
       setError(message);
       return { ok: false, error: message };
     }
@@ -332,7 +336,8 @@ export function CheckoutForm({
           <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
             <p className="font-medium text-white mb-2">Pickup Information</p>
             <p>
-              After purchase, you will receive a pickup email you can reply to for scheduling.
+              After purchase, you will receive a pickup email you can reply to for
+              scheduling.
             </p>
             <p>
               You can also DM us on{" "}
@@ -346,13 +351,21 @@ export function CheckoutForm({
               </a>
               .
             </p>
-            {canUseChat && <p>Signed-in customers can also use the in-app pickup chat.</p>}
-            
+            {canUseChat && (
+              <p>Signed-in customers can also use the in-app pickup chat.</p>
+            )}
+
             <div className="mt-3 pt-3 border-t border-zinc-800">
               <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
-              <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
+              <p>
+                All sales are final except as outlined in our Returns &amp; Refunds
+                policy.
+              </p>
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                <Link
+                  href="/refunds"
+                  className="text-red-500 hover:text-red-400 underline"
+                >
                   Returns &amp; Refunds Policy
                 </Link>
               </div>
@@ -363,20 +376,27 @@ export function CheckoutForm({
         {fulfillment === "ship" && (
           <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
             <p className="font-medium text-white mb-2">Shipping Information</p>
-            <p>
-              We aim to ship within 24 hours (processing time, not delivery time).
-            </p>
+            <p>We aim to ship within 24 hours (processing time, not delivery time).</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-              <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
-                  Shipping Policy
+              <Link
+                href="/shipping"
+                className="text-red-500 hover:text-red-400 underline"
+              >
+                Shipping Policy
               </Link>
             </div>
-            
+
             <div className="mt-3 pt-3 border-t border-zinc-800">
               <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
-              <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
+              <p>
+                All sales are final except as outlined in our Returns &amp; Refunds
+                policy.
+              </p>
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                <Link
+                  href="/refunds"
+                  className="text-red-500 hover:text-red-400 underline"
+                >
                   Returns &amp; Refunds Policy
                 </Link>
               </div>
@@ -406,7 +426,7 @@ export function CheckoutForm({
           <ExpressCheckoutElement
             options={{
               layout: {
-                overflow: "never", 
+                overflow: "never",
               },
             }}
             onConfirm={handleExpressConfirm}
@@ -434,10 +454,13 @@ export function CheckoutForm({
         <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
           <p className="flex items-center gap-2">
             <Lock className="w-4 h-4" />
-            All payment information is securely processed by Stripe. We never store your card details.
+            All payment information is securely processed by Stripe. We never store your
+            card details.
           </p>
         </div>
-        {paymentElementError && <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>}
+        {paymentElementError && (
+          <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>
+        )}
       </div>
 
       {/* Submit Button */}
@@ -468,7 +491,10 @@ export function CheckoutForm({
             Terms of Service
           </Link>
           {" and "}
-          <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
+          <Link
+            href="/legal/privacy"
+            className="text-red-500 hover:text-red-400 underline"
+          >
             Privacy Policy
           </Link>
           .

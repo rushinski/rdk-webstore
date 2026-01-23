@@ -28,7 +28,10 @@ export class CatalogService {
     });
   }
 
-  async updateBrandGroup(id: string, input: { key?: string; label?: string; isActive?: boolean }) {
+  async updateBrandGroup(
+    id: string,
+    input: { key?: string; label?: string; isActive?: boolean },
+  ) {
     return this.repo.updateBrandGroup(id, {
       key: input.key,
       label: input.label,
@@ -36,10 +39,16 @@ export class CatalogService {
     });
   }
 
-  async listBrands(tenantId?: string | null, groupId?: string | null, includeInactive = false) {
-    return this.repo.listBrandsWithGroups(tenantId, includeInactive).then((brands) =>
-      groupId ? brands.filter((brand) => brand.group_id === groupId) : brands
-    );
+  async listBrands(
+    tenantId?: string | null,
+    groupId?: string | null,
+    includeInactive = false,
+  ) {
+    return this.repo
+      .listBrandsWithGroups(tenantId, includeInactive)
+      .then((brands) =>
+        groupId ? brands.filter((brand) => brand.group_id === groupId) : brands,
+      );
   }
 
   async createBrand(input: {
@@ -58,7 +67,15 @@ export class CatalogService {
     });
   }
 
-  async updateBrand(id: string, input: { groupId?: string; canonicalLabel?: string; isActive?: boolean; isVerified?: boolean }) {
+  async updateBrand(
+    id: string,
+    input: {
+      groupId?: string;
+      canonicalLabel?: string;
+      isActive?: boolean;
+      isVerified?: boolean;
+    },
+  ) {
     return this.repo.updateBrand(id, {
       group_id: input.groupId,
       canonical_label: input.canonicalLabel,
@@ -67,7 +84,11 @@ export class CatalogService {
     });
   }
 
-  async listModels(tenantId?: string | null, brandId?: string | null, includeInactive = false) {
+  async listModels(
+    tenantId?: string | null,
+    brandId?: string | null,
+    includeInactive = false,
+  ) {
     return this.repo.listModels(tenantId, brandId, includeInactive);
   }
 
@@ -87,7 +108,15 @@ export class CatalogService {
     });
   }
 
-  async updateModel(id: string, input: { brandId?: string; canonicalLabel?: string; isActive?: boolean; isVerified?: boolean }) {
+  async updateModel(
+    id: string,
+    input: {
+      brandId?: string;
+      canonicalLabel?: string;
+      isActive?: boolean;
+      isVerified?: boolean;
+    },
+  ) {
     return this.repo.updateModel(id, {
       brand_id: input.brandId,
       canonical_label: input.canonicalLabel,
@@ -96,7 +125,11 @@ export class CatalogService {
     });
   }
 
-  async listAliases(tenantId?: string | null, entityType?: "brand" | "model", includeInactive = false) {
+  async listAliases(
+    tenantId?: string | null,
+    entityType?: "brand" | "model",
+    includeInactive = false,
+  ) {
     return this.repo.listAliases(tenantId, entityType, includeInactive);
   }
 
@@ -121,7 +154,10 @@ export class CatalogService {
     });
   }
 
-  async updateAlias(id: string, input: { aliasLabel?: string; priority?: number; isActive?: boolean }) {
+  async updateAlias(
+    id: string,
+    input: { aliasLabel?: string; priority?: number; isActive?: boolean },
+  ) {
     const normalized = input.aliasLabel ? normalizeLabel(input.aliasLabel) : undefined;
     return this.repo.updateAlias(id, {
       alias_label: input.aliasLabel,

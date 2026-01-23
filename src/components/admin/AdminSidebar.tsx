@@ -21,6 +21,7 @@ import {
   Landmark,
   Receipt,
 } from "lucide-react";
+
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { canViewBank } from "@/config/constants/roles";
 import type { ProfileRole } from "@/config/constants/roles";
@@ -114,7 +115,9 @@ export function AdminSidebar({
   const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -127,9 +130,13 @@ export function AdminSidebar({
       const res = await fetch("/api/admin/notifications/unread-count", {
         cache: "no-store",
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        return;
+      }
       const data = await res.json();
-      if (typeof data.unreadCount === "number") setNotifBadgeCount(data.unreadCount);
+      if (typeof data.unreadCount === "number") {
+        setNotifBadgeCount(data.unreadCount);
+      }
     } catch {
       // keep last value; do not force 0
     }
@@ -141,7 +148,9 @@ export function AdminSidebar({
     const onUpdated = (e: Event) => {
       const evt = e as CustomEvent;
       const next = evt.detail?.unreadCount;
-      if (typeof next === "number") setNotifBadgeCount(next);
+      if (typeof next === "number") {
+        setNotifBadgeCount(next);
+      }
     };
 
     window.addEventListener("adminNotificationsUpdated", onUpdated);
@@ -185,9 +194,13 @@ export function AdminSidebar({
         const count = Array.from(nextMap.values()).filter(
           (role) => role !== "admin",
         ).length;
-        if (isActive) setChatBadgeCount(count);
+        if (isActive) {
+          setChatBadgeCount(count);
+        }
       } catch {
-        if (isActive) setChatBadgeCount(0);
+        if (isActive) {
+          setChatBadgeCount(0);
+        }
       }
     };
 
@@ -201,7 +214,9 @@ export function AdminSidebar({
         { event: "INSERT", schema: "public", table: "chats" },
         (payload) => {
           const chat = payload.new as { id: string; status?: string | null };
-          if (chat.status && chat.status !== "open") return;
+          if (chat.status && chat.status !== "open") {
+            return;
+          }
           chatLastSenderRef.current.set(chat.id, "none");
 
           if (isActive) {
@@ -217,10 +232,11 @@ export function AdminSidebar({
         { event: "UPDATE", schema: "public", table: "chats" },
         (payload) => {
           const chat = payload.new as { id: string; status?: string | null };
-          if (chat.status && chat.status !== "open")
+          if (chat.status && chat.status !== "open") {
             chatLastSenderRef.current.delete(chat.id);
-          else if (!chatLastSenderRef.current.has(chat.id))
+          } else if (!chatLastSenderRef.current.has(chat.id)) {
             chatLastSenderRef.current.set(chat.id, "none");
+          }
 
           if (isActive) {
             const count = Array.from(chatLastSenderRef.current.values()).filter(
@@ -238,7 +254,9 @@ export function AdminSidebar({
             chat_id: string;
             sender_role?: "customer" | "admin";
           };
-          if (!chatLastSenderRef.current.has(message.chat_id)) return;
+          if (!chatLastSenderRef.current.has(message.chat_id)) {
+            return;
+          }
 
           chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
 
@@ -323,7 +341,9 @@ export function AdminSidebar({
                     href={item.href}
                     onClick={() => setIsOpen(false)}
                     className={`${baseItemClass} ${isActive ? activeItemClass : inactiveItemClass}`}
-                    data-testid={item.href === "/admin/bank" ? "admin-nav-bank" : undefined}
+                    data-testid={
+                      item.href === "/admin/bank" ? "admin-nav-bank" : undefined
+                    }
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-[13px] sm:text-[15px]">{item.label}</span>
@@ -386,7 +406,9 @@ export function AdminSidebar({
                                 : "text-gray-400 hover:bg-zinc-950 hover:border-zinc-800/70 hover:text-white"
                             }`}
                           >
-                            <span className="text-[12px] sm:text-[14px]">{child.label}</span>
+                            <span className="text-[12px] sm:text-[14px]">
+                              {child.label}
+                            </span>
                           </Link>
                         );
                       })}

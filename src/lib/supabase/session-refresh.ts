@@ -2,6 +2,7 @@
 // used to refresh supabase session cookies
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+
 import { env } from "@/config/env";
 import type { Database } from "@/types/db/database.types";
 
@@ -19,7 +20,9 @@ export async function refreshSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value),
+          );
           supabaseResponse = NextResponse.next({
             request,
           });

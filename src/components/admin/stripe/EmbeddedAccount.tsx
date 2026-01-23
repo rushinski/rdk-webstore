@@ -11,6 +11,7 @@ import {
   ConnectBalances,
   ConnectPayouts,
 } from "@stripe/react-connect-js";
+
 import { logError } from "@/lib/log";
 import { connectAppearance } from "@/lib/stripe/connect-appearance";
 
@@ -38,7 +39,9 @@ export function EmbeddedAccount({
   const [isCompact, setIsCompact] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
     const media = window.matchMedia("(max-width: 640px)");
     const handleChange = () => setIsCompact(media.matches);
     handleChange();
@@ -68,7 +71,9 @@ export function EmbeddedAccount({
     let cancelled = false;
 
     const fetchClientSecret = async () => {
-      const response = await fetch("/api/admin/stripe/account-session", { method: "POST" });
+      const response = await fetch("/api/admin/stripe/account-session", {
+        method: "POST",
+      });
 
       if (!response.ok) {
         const text = await response.text();
@@ -76,7 +81,9 @@ export function EmbeddedAccount({
       }
 
       const { client_secret, account_id } = await response.json();
-      if (!cancelled) setAccountId(account_id);
+      if (!cancelled) {
+        setAccountId(account_id);
+      }
       return client_secret;
     };
 
@@ -88,13 +95,17 @@ export function EmbeddedAccount({
           appearance,
         });
 
-        if (!cancelled) setStripeConnectInstance(instance);
+        if (!cancelled) {
+          setStripeConnectInstance(instance);
+        }
       } catch (err: any) {
         logError(err, { layer: "frontend", event: "stripe_connect_init_failed" });
       }
     };
 
-    if (publishableKey) initializeStripeConnect();
+    if (publishableKey) {
+      initializeStripeConnect();
+    }
 
     return () => {
       cancelled = true;
@@ -137,15 +148,23 @@ export function EmbeddedAccount({
           isPlain ? (
             <div className="min-w-0">
               <ConnectAccountManagement
-                collectionOptions={{ fields: "eventually_due", futureRequirements: "include" }}
+                collectionOptions={{
+                  fields: "eventually_due",
+                  futureRequirements: "include",
+                }}
               />
             </div>
           ) : (
             <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
               <h2 className="text-lg font-semibold text-white mb-2">Bank accounts</h2>
-              <p className="text-sm text-zinc-400 mb-4">Add/edit bank accounts for payouts.</p>
+              <p className="text-sm text-zinc-400 mb-4">
+                Add/edit bank accounts for payouts.
+              </p>
               <ConnectAccountManagement
-                collectionOptions={{ fields: "eventually_due", futureRequirements: "include" }}
+                collectionOptions={{
+                  fields: "eventually_due",
+                  futureRequirements: "include",
+                }}
               />
             </div>
           )
@@ -158,7 +177,9 @@ export function EmbeddedAccount({
             </div>
           ) : (
             <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm p-6">
-              <h2 className="text-lg font-semibold text-white mb-2">Balances & upcoming payout</h2>
+              <h2 className="text-lg font-semibold text-white mb-2">
+                Balances & upcoming payout
+              </h2>
               <p className="text-sm text-zinc-400 mb-4">
                 Pending, available, and upcoming payout details.
               </p>

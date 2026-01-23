@@ -14,7 +14,9 @@ export class AdminNotificationService {
 
   async notifyOrderPlaced(orderId: string) {
     const staff = await this.profilesRepo.listStaffProfiles();
-    const recipients = staff.filter((admin) => admin.admin_order_notifications_enabled !== false);
+    const recipients = staff.filter(
+      (admin) => admin.admin_order_notifications_enabled !== false,
+    );
 
     const rows = recipients.map((admin) => ({
       admin_id: admin.id,
@@ -30,13 +32,13 @@ export class AdminNotificationService {
     chatId: string,
     messagePreview: string,
     customerLabel?: string,
-    excludeAdminId?: string
+    excludeAdminId?: string,
   ) {
     const staff = await this.profilesRepo.listStaffProfiles();
     const recipients = staff.filter(
       (admin) =>
         admin.chat_notifications_enabled !== false &&
-        (!excludeAdminId || admin.id !== excludeAdminId)
+        (!excludeAdminId || admin.id !== excludeAdminId),
     );
 
     const label = customerLabel?.trim() || "Customer";
@@ -50,13 +52,22 @@ export class AdminNotificationService {
     await this.notificationsRepo.insertMany(rows);
   }
 
-  async listCenter(adminId: string, params: { limit: number; page: number; unreadOnly?: boolean }) {
+  async listCenter(
+    adminId: string,
+    params: { limit: number; page: number; unreadOnly?: boolean },
+  ) {
     const [{ notifications, hasMore }, unreadCount] = await Promise.all([
       this.notificationsRepo.listPageForAdmin(adminId, params),
       this.notificationsRepo.countUnread(adminId),
     ]);
 
-    return { notifications, hasMore, unreadCount, page: params.page, limit: params.limit };
+    return {
+      notifications,
+      hasMore,
+      unreadCount,
+      page: params.page,
+      limit: params.limit,
+    };
   }
 
   async unreadCount(adminId: string) {

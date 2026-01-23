@@ -1,6 +1,7 @@
 // src/jobs/stripe-order-job.ts
 import Stripe from "stripe";
 import { revalidateTag } from "next/cache";
+
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -86,13 +87,17 @@ export class StripeOrderJob {
     orderItems: Array<{ quantity?: number | null }>;
     customerEmail?: string | null;
   }) {
-    if (!this.adminSupabase) return;
+    if (!this.adminSupabase) {
+      return;
+    }
 
     const staff = await this.profilesRepo.listStaffProfiles();
     const recipients = staff.filter(
       (admin) => admin.admin_order_notifications_enabled !== false && admin.email,
     );
-    if (recipients.length === 0) return;
+    if (recipients.length === 0) {
+      return;
+    }
 
     const itemCount = params.orderItems.reduce(
       (sum, item) => sum + Number(item.quantity ?? 0),

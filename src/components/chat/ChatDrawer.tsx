@@ -1,12 +1,13 @@
 // src/components/chat/ChatDrawer.tsx
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Send, X } from 'lucide-react';
-import { logError } from '@/lib/log';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Send, X } from "lucide-react";
+
+import { logError } from "@/lib/log";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ type ChatMessage = {
   id: string;
   chat_id: string;
   sender_id: string;
-  sender_role: 'customer' | 'admin';
+  sender_role: "customer" | "admin";
   body: string;
   created_at: string;
 };
@@ -34,12 +35,15 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
   const pathname = usePathname();
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [messageDraft, setMessageDraft] = useState('');
+  const [messageDraft, setMessageDraft] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
   const [requiresAuth, setRequiresAuth] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [guestAccess, setGuestAccess] = useState<{ orderId: string; token: string } | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [guestAccess, setGuestAccess] = useState<{
+    orderId: string;
+    token: string;
+  } | null>(null);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const hasLoadedMessages = useRef(false);
@@ -47,25 +51,30 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
   const draftRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loginUrl = useMemo(() => {
-    if (!pathname) return '/auth/login';
+    if (!pathname) {
+      return "/auth/login";
+    }
     return `/auth/login?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
 
   const loadMessages = async (chatId: string, isInitial = false) => {
-    if (isInitial) setIsMessagesLoading(true);
+    if (isInitial) {
+      setIsMessagesLoading(true);
+    }
     try {
       const guestQuery = guestAccess
         ? `?orderId=${encodeURIComponent(guestAccess.orderId)}&token=${encodeURIComponent(
-            guestAccess.token
+            guestAccess.token,
           )}`
-        : '';
+        : "";
       const endpoint = guestAccess
         ? `/api/chats/guest/${chatId}/messages${guestQuery}`
         : `/api/chats/${chatId}/messages`;
-      const response = await fetch(endpoint, { cache: 'no-store' });
+      const response = await fetch(endpoint, { cache: "no-store" });
       const data = await response.json();
       const nextMessages = data.messages ?? [];
-      const nextLast = nextMessages.length > 0 ? nextMessages[nextMessages.length - 1].id : null;
+      const nextLast =
+        nextMessages.length > 0 ? nextMessages[nextMessages.length - 1].id : null;
       if (nextLast && nextLast !== lastMessageId.current) {
         lastMessageId.current = nextLast;
         setMessages(nextMessages);
@@ -74,7 +83,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         setMessages([]);
       }
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'chat_load_messages' });
+      logError(error, { layer: "frontend", event: "chat_load_messages" });
     } finally {
       if (isInitial) {
         setIsMessagesLoading(false);
@@ -85,16 +94,16 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   const loadChat = async () => {
     setIsLoading(true);
-    setErrorMessage('');
+    setErrorMessage("");
 
     try {
-      const sessionResponse = await fetch('/api/auth/session', { cache: 'no-store' });
+      const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" });
       const sessionData = await sessionResponse.json().catch(() => null);
       if (!sessionData?.user) {
         let storedAccess: { orderId: string; token: string } | null = null;
         try {
-          const orderId = sessionStorage.getItem('rdk_guest_order_id');
-          const token = sessionStorage.getItem('rdk_guest_order_token');
+          const orderId = sessionStorage.getItem("rdk_guest_order_id");
+          const token = sessionStorage.getItem("rdk_guest_order_token");
           if (orderId && token) {
             storedAccess = { orderId, token };
           }
@@ -116,9 +125,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
         const response = await fetch(
           `/api/chats/guest?orderId=${encodeURIComponent(storedAccess.orderId)}&token=${encodeURIComponent(
-            storedAccess.token
+            storedAccess.token,
           )}`,
-          { cache: 'no-store' }
+          { cache: "no-store" },
         );
         const data = await response.json();
         setChat(data.chat ?? null);
@@ -130,7 +139,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         return;
       }
 
-      const response = await fetch('/api/chats/current', { cache: 'no-store' });
+      const response = await fetch("/api/chats/current", { cache: "no-store" });
       if (!response.ok) {
         setRequiresAuth(true);
         setChat(null);
@@ -149,8 +158,8 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         setMessages([]);
       }
     } catch (error) {
-      setErrorMessage('Failed to load chat.');
-      logError(error, { layer: 'frontend', event: 'chat_load_chat' });
+      setErrorMessage("Failed to load chat.");
+      logError(error, { layer: "frontend", event: "chat_load_chat" });
     } finally {
       setIsLoading(false);
     }
@@ -158,29 +167,34 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   useEffect(() => {
     const el = draftRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     el.style.height = "0px";
     const next = Math.min(el.scrollHeight, 128); // cap height
     el.style.height = `${next}px`;
   }, [messageDraft]);
 
-
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      return;
+    }
     loadChat();
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen || !chat?.id) return;
+    if (!isOpen || !chat?.id) {
+      return;
+    }
     const supabase = createSupabaseBrowserClient();
     const channel = supabase
       .channel(`chat-messages-${chat.id}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
           filter: `chat_id=eq.${chat.id}`,
         },
         (payload) => {
@@ -189,9 +203,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           setMessages((prev) =>
             prev.some((message) => message.id === nextMessage.id)
               ? prev
-              : [...prev, nextMessage]
+              : [...prev, nextMessage],
           );
-        }
+        },
       )
       .subscribe();
 
@@ -207,23 +221,23 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
   const handleStartChat = async () => {
     setIsLoading(true);
-    setErrorMessage('');
+    setErrorMessage("");
     try {
-      const endpoint = isGuestMode && guestAccess ? '/api/chats/guest' : '/api/chats';
+      const endpoint = isGuestMode && guestAccess ? "/api/chats/guest" : "/api/chats";
       const payload =
         isGuestMode && guestAccess
           ? { orderId: guestAccess.orderId, token: guestAccess.token }
           : {};
 
       const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
       if (!response.ok) {
-        setErrorMessage(data?.error ?? 'Failed to start chat.');
+        setErrorMessage(data?.error ?? "Failed to start chat.");
         return;
       }
 
@@ -232,16 +246,18 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         await loadMessages(data.chat.id);
       }
     } catch (error) {
-      setErrorMessage('Failed to start chat.');
+      setErrorMessage("Failed to start chat.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSend = async () => {
-    if (!chat?.id || !messageDraft.trim()) return;
+    if (!chat?.id || !messageDraft.trim()) {
+      return;
+    }
     const body = messageDraft.trim();
-    setMessageDraft('');
+    setMessageDraft("");
 
     try {
       const endpoint =
@@ -254,8 +270,8 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           : { message: body };
 
       const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
@@ -264,12 +280,14 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
         setMessages((prev) => [...prev, data.message]);
       }
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'chat_send_message' });
+      logError(error, { layer: "frontend", event: "chat_send_message" });
     }
   };
 
   const handleCloseChat = async () => {
-    if (!chat?.id) return;
+    if (!chat?.id) {
+      return;
+    }
     setConfirmClose(false);
     try {
       const endpoint =
@@ -282,18 +300,20 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           : null;
 
       await fetch(endpoint, {
-        method: 'POST',
-        headers: payload ? { 'Content-Type': 'application/json' } : undefined,
+        method: "POST",
+        headers: payload ? { "Content-Type": "application/json" } : undefined,
         body: payload ? JSON.stringify(payload) : undefined,
       });
       setChat(null);
       setMessages([]);
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'chat_close_chat' });
+      logError(error, { layer: "frontend", event: "chat_close_chat" });
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50">
@@ -303,7 +323,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-2xl font-bold text-white">Chat with us</h2>
-              <p className="text-xs text-zinc-500">Pickup timing, questions, and support.</p>
+              <p className="text-xs text-zinc-500">
+                Pickup timing, questions, and support.
+              </p>
             </div>
             <button onClick={onClose} className="text-gray-400 hover:text-white">
               <X className="w-6 h-6" />
@@ -312,7 +334,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
           {requiresAuth ? (
             <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-              <p className="text-zinc-400">Sign in to start a secure chat with our admins.</p>
+              <p className="text-zinc-400">
+                Sign in to start a secure chat with our admins.
+              </p>
               <Link
                 href={loginUrl}
                 className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2"
@@ -351,15 +375,17 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                     <div
                       key={message.id}
                       className={`max-w-[80%] w-fit rounded-2xl px-4 py-3 border border-zinc-800/70 ${
-                        message.sender_role === 'customer'
-                          ? 'bg-red-900/20 text-white ml-auto'
-                          : 'bg-zinc-900 text-zinc-200 mr-auto'
+                        message.sender_role === "customer"
+                          ? "bg-red-900/20 text-white ml-auto"
+                          : "bg-zinc-900 text-zinc-200 mr-auto"
                       }`}
                     >
                       <div className="text-xs text-zinc-500 mb-1">
-                        {message.sender_role === 'customer' ? 'You' : 'Admin'}
+                        {message.sender_role === "customer" ? "You" : "Admin"}
                       </div>
-                      <div className="text-sm whitespace-pre-wrap break-words">{message.body}</div>
+                      <div className="text-sm whitespace-pre-wrap break-words">
+                        {message.body}
+                      </div>
                     </div>
                   ))
                 )}
@@ -406,11 +432,15 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
 
       {confirmClose && (
         <div className="absolute inset-0 flex items-center justify-center z-50">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setConfirmClose(false)}
+          />
           <div className="relative bg-zinc-950 border border-zinc-800/70 p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-white mb-2">Close this chat?</h3>
             <p className="text-sm text-zinc-400 mb-4">
-              Closing will end the conversation. You can't send new messages unless you sign in again.
+              Closing will end the conversation. You can't send new messages unless you
+              sign in again.
             </p>
             <div className="flex gap-3">
               <button

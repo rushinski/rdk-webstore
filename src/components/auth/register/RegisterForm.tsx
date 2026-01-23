@@ -6,12 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-import { SocialButton } from "../ui/SocialButton";
-import { PasswordField } from "../login/PasswordField";
-import { PasswordRequirements } from "./PasswordRequirements";
 import { isPasswordValid } from "@/lib/validation/password";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+
+import { SocialButton } from "../ui/SocialButton";
+import { PasswordField } from "../login/PasswordField";
+
+import { PasswordRequirements } from "./PasswordRequirements";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -146,7 +148,11 @@ export function RegisterForm() {
           </span>
         </label>
 
-        <button type="submit" disabled={isSubmitting} className={AuthStyles.primaryButton}>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={AuthStyles.primaryButton}
+        >
           {isSubmitting ? "Creating account..." : "Create account"}
         </button>
 

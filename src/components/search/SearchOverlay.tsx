@@ -1,11 +1,12 @@
 // src/components/search/SearchOverlay.tsx
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { X, Search } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { logError } from '@/lib/log';
+import { useState, useEffect } from "react";
+import { X, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+
+import { logError } from "@/lib/log";
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -14,7 +15,7 @@ interface SearchOverlayProps {
 
 export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const router = useRouter();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,7 +28,9 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/store/products?q=${encodeURIComponent(query)}&limit=5`);
+        const response = await fetch(
+          `/api/store/products?q=${encodeURIComponent(query)}&limit=5`,
+        );
         const data = await response.json();
         setResults(data.products || []);
       } catch (error) {
@@ -48,7 +51,9 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/95">
@@ -79,9 +84,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
         </form>
 
-        {isLoading && (
-          <p className="text-gray-400 text-center">Searching...</p>
-        )}
+        {isLoading && <p className="text-gray-400 text-center">Searching...</p>}
 
         {results.length > 0 && (
           <div className="space-y-2">
@@ -97,7 +100,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               >
                 <div className="w-16 h-16 relative flex-shrink-0">
                   <Image
-                    src={product.images[0]?.url || '/placeholder.png'}
+                    src={product.images[0]?.url || "/placeholder.png"}
                     alt={product.title_display ?? product.name}
                     fill
                     sizes="64px"

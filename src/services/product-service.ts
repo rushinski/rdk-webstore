@@ -4,9 +4,10 @@ import { log } from "@/lib/log";
 import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/db/database.types";
 import type { Category, Condition } from "@/types/domain/product";
-import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
+
+import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
 
 type VariantInput = Pick<
   TablesInsert<"product_variants">,
@@ -207,7 +208,9 @@ export class ProductService {
     },
   ) {
     const original = await this.repo.getById(productId, { includeOutOfStock: true });
-    if (!original) throw new Error("Product not found");
+    if (!original) {
+      throw new Error("Product not found");
+    }
 
     const input: ProductCreateInput = {
       title_raw: `${
@@ -244,7 +247,9 @@ export class ProductService {
 
   async syncSizeTags(productId: string) {
     const product = await this.repo.getById(productId, { includeOutOfStock: true });
-    if (!product) return;
+    if (!product) {
+      return;
+    }
 
     const sizeTags = buildSizeTags(product.variants);
     const preservedTags = product.tags.filter(
@@ -284,7 +289,9 @@ export class ProductService {
       .map((variant) => variant.cost_cents)
       .filter((cost): cost is number => typeof cost === "number" && !Number.isNaN(cost));
 
-    if (costs.length === 0) return 0;
+    if (costs.length === 0) {
+      return 0;
+    }
     return Math.min(...costs);
   }
 

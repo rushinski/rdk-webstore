@@ -1,6 +1,8 @@
 // app/api/admin/products/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
@@ -31,8 +33,12 @@ export async function GET(request: NextRequest) {
 
     if (!parsedQuery.success) {
       return NextResponse.json(
-        { error: "Invalid query parameters", issues: parsedQuery.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        {
+          error: "Invalid query parameters",
+          issues: parsedQuery.error.format(),
+          requestId,
+        },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to load products", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -77,7 +83,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
     const payload = {
@@ -119,7 +125,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to create product", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

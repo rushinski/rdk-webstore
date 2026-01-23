@@ -14,8 +14,8 @@ export async function GET() {
 
     // Stripe readiness
     const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-10-29.clover",
-});
+      apiVersion: "2025-10-29.clover",
+    });
     // (Optional) We can ping Stripe to ensure key validity:
     try {
       await stripe.balance.retrieve(); // very lightweight call
@@ -27,20 +27,14 @@ export async function GET() {
           details:
             stripeErr instanceof Error ? stripeErr.message : "Unknown Stripe error",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
     // Supabase readiness (Service Role Key)
-    const supabase = createClient(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.SUPABASE_SECRET_KEY
-    );
+    const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY);
 
-    const { error: dbError } = await supabase
-      .from("products")
-      .select("id")
-      .limit(1);
+    const { error: dbError } = await supabase.from("products").select("id").limit(1);
 
     if (dbError) {
       return NextResponse.json(
@@ -49,7 +43,7 @@ export async function GET() {
           error: "Supabase query failed",
           details: dbError.message,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -67,10 +61,9 @@ export async function GET() {
         {
           ready: false,
           error: "Redis unreachable",
-          details:
-            redisErr instanceof Error ? redisErr.message : "Unknown Redis error",
+          details: redisErr instanceof Error ? redisErr.message : "Unknown Redis error",
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -81,7 +74,7 @@ export async function GET() {
           error: "Upstash returned invalid response",
           returned: pong,
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -96,7 +89,7 @@ export async function GET() {
           message: "Latency above threshold",
           latency_ms: latency,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -106,7 +99,7 @@ export async function GET() {
         ready: true,
         latency_ms: latency,
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unexpected error";
@@ -117,7 +110,7 @@ export async function GET() {
         error: "Startup readiness check failed",
         details: message,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

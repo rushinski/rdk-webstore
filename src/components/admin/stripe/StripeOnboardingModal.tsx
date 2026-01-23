@@ -1,16 +1,17 @@
 // src/components/admin/stripe/StripeOnboardingModal.tsx
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
-import { initStripeConnect } from '@/lib/stripe/connect-client';
-import { connectAppearance } from '@/lib/stripe/connect-appearance';
-import { logError } from '@/lib/log';
-import { 
-  ConnectComponentsProvider, 
+import { useEffect, useState } from "react";
+import { Loader2, X } from "lucide-react";
+import {
+  ConnectComponentsProvider,
   ConnectAccountOnboarding,
-  ConnectNotificationBanner 
-} from '@stripe/react-connect-js';
+  ConnectNotificationBanner,
+} from "@stripe/react-connect-js";
+
+import { initStripeConnect } from "@/lib/stripe/connect-client";
+import { connectAppearance } from "@/lib/stripe/connect-appearance";
+import { logError } from "@/lib/log";
 
 interface StripeOnboardingModalProps {
   open: boolean;
@@ -19,15 +20,20 @@ interface StripeOnboardingModalProps {
   onCompleted: () => Promise<void> | void;
 }
 
-export function StripeOnboardingModal({ open, onClose, publishableKey, onCompleted }: StripeOnboardingModalProps) {
+export function StripeOnboardingModal({
+  open,
+  onClose,
+  publishableKey,
+  onCompleted,
+}: StripeOnboardingModalProps) {
   const [isBooting, setIsBooting] = useState(false);
-  const [bootError, setBootError] = useState<string>('');
+  const [bootError, setBootError] = useState<string>("");
   const [connectInstance, setConnectInstance] = useState<any>(null);
 
   useEffect(() => {
     if (!open) {
       setIsBooting(false);
-      setBootError('');
+      setBootError("");
       setConnectInstance(null);
       return;
     }
@@ -35,16 +41,18 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
 
   const boot = async () => {
     if (!publishableKey) {
-      setBootError('Stripe publishable key is missing.');
+      setBootError("Stripe publishable key is missing.");
       return;
     }
 
     setIsBooting(true);
-    setBootError('');
+    setBootError("");
 
     try {
-      const res = await fetch('/api/admin/stripe/account-session', { method: 'POST' });
-      if (!res.ok) throw new Error(await res.text());
+      const res = await fetch("/api/admin/stripe/account-session", { method: "POST" });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
 
       const { client_secret } = await res.json();
 
@@ -56,8 +64,8 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
 
       setConnectInstance(instance);
     } catch (err: any) {
-      logError(err, { layer: 'frontend', event: 'stripe_onboarding_boot_failed' });
-      setBootError('Could not start Stripe onboarding. Please try again.');
+      logError(err, { layer: "frontend", event: "stripe_onboarding_boot_failed" });
+      setBootError("Could not start Stripe onboarding. Please try again.");
     } finally {
       setIsBooting(false);
     }
@@ -71,11 +79,17 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
     }
   };
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[9999]">
-      <div className="absolute inset-0 bg-black/80" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/80"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="w-full max-w-3xl max-h-[92vh] bg-zinc-950 border border-zinc-800 rounded-sm shadow-xl flex flex-col">
           {/* Header */}
@@ -108,7 +122,8 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
               <div className="space-y-6">
                 <div className="rounded-sm bg-zinc-900 border border-zinc-800/70 p-6">
                   <p className="text-sm text-zinc-300 mb-4">
-                    Stripe will securely collect the information needed to enable payouts to your bank account.
+                    Stripe will securely collect the information needed to enable payouts
+                    to your bank account.
                   </p>
                   <ul className="space-y-2 text-sm text-zinc-400">
                     <li className="flex items-start gap-2">
@@ -138,7 +153,7 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
                       Loading...
                     </span>
                   ) : (
-                    'Start Verification'
+                    "Start Verification"
                   )}
                 </button>
               </div>
@@ -152,11 +167,11 @@ export function StripeOnboardingModal({ open, onClose, publishableKey, onComplet
 
                   {/* Account Onboarding Component */}
                   <div className="rounded-sm border border-zinc-800 bg-zinc-900 p-4">
-                    <ConnectAccountOnboarding 
+                    <ConnectAccountOnboarding
                       onExit={() => {
                         // User clicked a "Done" or similar button in the embedded component
                         done();
-                      }} 
+                      }}
                     />
                   </div>
                 </div>

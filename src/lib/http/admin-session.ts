@@ -13,24 +13,24 @@ let cachedKey: Uint8Array | null = null;
 function base64ToBytes(base64String: string): Uint8Array {
   if (typeof globalThis.atob === "function") {
     const binaryString = globalThis.atob(base64String);
-    
+
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-    
+
     return bytes;
   }
 
   const NodeBuffer = (globalThis as any).Buffer;
-  
+
   if (NodeBuffer && typeof NodeBuffer.from === "function") {
     return new Uint8Array(NodeBuffer.from(base64String, "base64"));
   }
-  
+
   throw new Error(
     "No base64 decoder available in this runtime. " +
-    "This should never happen in Vercel/Node environments."
+      "This should never happen in Vercel/Node environments.",
   );
 }
 
@@ -45,8 +45,8 @@ function getAdminSessionKey(): Uint8Array {
   if (keyBytes.length !== 32) {
     throw new Error(
       `ADMIN_SESSION_SECRET must be a base64-encoded 32-byte key. ` +
-      `Got ${keyBytes.length} bytes. ` +
-      `Generate with: openssl rand -base64 32`
+        `Got ${keyBytes.length} bytes. ` +
+        `Generate with: openssl rand -base64 32`,
     );
   }
 
@@ -56,18 +56,18 @@ function getAdminSessionKey(): Uint8Array {
 }
 
 export async function createAdminSessionToken(userId: string): Promise<string> {
-  const now = Math.floor(Date.now() / 1000); 
+  const now = Math.floor(Date.now() / 1000);
   const expiresAt = now + security.proxy.adminSession.ttlSeconds;
 
   const key = getAdminSessionKey();
 
   return new EncryptJWT({
-    v: 1,        
-    sub: userId, 
+    v: 1,
+    sub: userId,
   })
     .setProtectedHeader({
-      alg: "dir",      
-      enc: "A256GCM",  
+      alg: "dir",
+      enc: "A256GCM",
     })
     .setIssuedAt(now)
     .setExpirationTime(expiresAt)
@@ -75,7 +75,7 @@ export async function createAdminSessionToken(userId: string): Promise<string> {
 }
 
 export async function verifyAdminSessionToken(
-  token: string
+  token: string,
 ): Promise<AdminSessionPayload | null> {
   try {
     const key = getAdminSessionKey();
@@ -84,27 +84,23 @@ export async function verifyAdminSessionToken(
       clockTolerance: 5,
     });
 
-    if (
-      protectedHeader.alg !== "dir" ||
-      protectedHeader.enc !== "A256GCM"
-    ) {
-      return null; 
+    if (protectedHeader.alg !== "dir" || protectedHeader.enc !== "A256GCM") {
+      return null;
     }
 
     const version = (payload as { v?: unknown }).v;
-    
+
     if (version !== 1) {
-      return null; 
+      return null;
     }
-    
+
     const userId = payload.sub;
-    
+
     if (typeof userId !== "string" || userId.length === 0) {
-      return null; 
+      return null;
     }
 
     return payload as AdminSessionPayload;
-    
   } catch (error) {
     return null;
   }

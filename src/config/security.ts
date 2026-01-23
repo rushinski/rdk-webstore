@@ -1,6 +1,6 @@
 // src/config/security.ts
 
-const allowLocalSupabaseInProd = true
+const allowLocalSupabaseInProd = true;
 const prodConnectSrc = [
   "'self'",
   "https://*.supabase.co",
@@ -56,11 +56,7 @@ export const security = {
       minUserAgentLength: 8,
       maxLoggedUserAgentLength: 200,
 
-      allowedUserAgents: [
-        "Googlebot",
-        "Applebot",
-        "Bingbot",
-      ],
+      allowedUserAgents: ["Googlebot", "Applebot", "Bingbot"],
 
       disallowedUserAgentSubstrings: [
         "curl/",
@@ -69,8 +65,8 @@ export const security = {
         "go-http-client",
         "libwww-perl",
         "scrapy",
-        "aiohttp",       
-      ]
+        "aiohttp",
+      ],
     },
 
     csrf: {
@@ -78,10 +74,7 @@ export const security = {
       unsafeMethods: ["POST", "PUT", "PATCH", "DELETE"] as const,
       maxOriginLength: 512,
 
-      bypassPrefixes: [
-        "/api/stripe/webhook",
-        "/api/auth/2fa/challenge/verify",
-      ],
+      bypassPrefixes: ["/api/stripe/webhook", "/api/auth/2fa/challenge/verify"],
     },
 
     rateLimit: {
@@ -89,16 +82,16 @@ export const security = {
       enabled: true,
       ignorePrefetch: true,
       applyInLocalDev: true,
-      
+
       // Default window for all limits
       window: "1 m",
-      
+
       // Global per-IP limit (applies across all routes)
       maxRequestsGlobal: 300,
-      
+
       // Default per-path limit (fallback for routes not specified below)
       maxRequests: 60,
-      
+
       blockStatus: 429,
       tooManyRequestsPath: "/too-many-requests",
       redirectStatus: 302,
@@ -108,7 +101,7 @@ export const security = {
         // Storefront routes - very permissive since they have heavy prefetching
         {
           pathPrefix: "/store",
-          maxRequests: 200,  // Much higher limit for store browsing
+          maxRequests: 200, // Much higher limit for store browsing
           window: "1 m",
         },
         {
@@ -116,7 +109,7 @@ export const security = {
           maxRequests: 100,
           window: "1 m",
         },
-        
+
         // API routes - moderate limits
         {
           pathPrefix: "/api/store",
@@ -128,7 +121,7 @@ export const security = {
           maxRequests: 60,
           window: "1 m",
         },
-        
+
         // Auth routes - stricter limits
         {
           pathPrefix: "/api/auth/login",
@@ -145,7 +138,7 @@ export const security = {
           maxRequests: 3,
           window: "15 m",
         },
-        
+
         // Checkout - moderate limits
         {
           pathPrefix: "/api/checkout",
@@ -157,7 +150,7 @@ export const security = {
           maxRequests: 50,
           window: "1 m",
         },
-        
+
         // Admin routes - strict limits
         {
           pathPrefix: "/admin",
@@ -169,7 +162,7 @@ export const security = {
           maxRequests: 60,
           window: "1 m",
         },
-        
+
         // Contact form - very strict
         {
           pathPrefix: "/api/contact",
@@ -251,10 +244,7 @@ export const security = {
   },
 } as const;
 
-export function startsWithAny(
-  pathname: string,
-  prefixes: readonly string[]
-): boolean {
+export function startsWithAny(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
@@ -268,18 +258,21 @@ export function isCsrfUnsafeMethod(method: string): method is CsrfUnsafeMethod {
 // Helper to get the appropriate rate limit config for a path
 export function getRateLimitConfigForPath(pathname: string) {
   const { routeLimits, maxRequests, window } = security.proxy.rateLimit;
-  
+
   // Find the most specific matching route (longest prefix match)
   let matchedConfig = null;
   let longestMatch = 0;
-  
+
   for (const config of routeLimits) {
-    if (pathname.startsWith(config.pathPrefix) && config.pathPrefix.length > longestMatch) {
+    if (
+      pathname.startsWith(config.pathPrefix) &&
+      config.pathPrefix.length > longestMatch
+    ) {
       matchedConfig = config;
       longestMatch = config.pathPrefix.length;
     }
   }
-  
+
   // Return matched config or default
   return matchedConfig || { maxRequests, window, pathPrefix: pathname };
 }

@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useEffect } from "react";
+import { X } from "lucide-react";
 
-type ToastTone = 'success' | 'error' | 'info';
+type ToastTone = "success" | "error" | "info";
 
 const toneStyles: Record<ToastTone, string> = {
-  success: 'bg-green-600 text-white',
-  error: 'bg-red-600 text-white',
-  info: 'bg-zinc-900 text-white',
+  success: "bg-green-600 text-white",
+  error: "bg-red-600 text-white",
+  info: "bg-zinc-900 text-white",
 };
 
 interface ToastProps {
@@ -22,21 +22,27 @@ interface ToastProps {
 export function Toast({
   open,
   message,
-  tone = 'info',
+  tone = "info",
   durationMs = 3200,
   onClose,
 }: ToastProps) {
   useEffect(() => {
-    if (!open || durationMs <= 0) return;
+    if (!open || durationMs <= 0) {
+      return;
+    }
     const timer = setTimeout(() => onClose(), durationMs);
     return () => clearTimeout(timer);
   }, [open, durationMs, onClose]);
 
-  if (!open) return null;
+  if (!open) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-6 left-4 right-4 sm:left-auto sm:right-6 z-50 max-w-sm sm:max-w-xs">
-      <div className={`bg-zinc-900 border border-zinc-800 ${toneStyles[tone]} px-4 py-3 shadow-lg`}>
+      <div
+        className={`bg-zinc-900 border border-zinc-800 ${toneStyles[tone]} px-4 py-3 shadow-lg`}
+      >
         <div className="flex items-start gap-3">
           <div className="text-sm leading-snug">{message}</div>
           <button

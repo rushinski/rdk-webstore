@@ -1,6 +1,8 @@
 // app/api/admin/shipping/origin/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingOriginsRepository } from "@/repositories/shipping-origins-repo";
@@ -8,15 +10,15 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
 const originSchema = z.object({
-    name: z.string().trim().min(1),
-    company: z.string().trim().optional().nullable(),
-    phone: z.string().trim().min(1),
-    line1: z.string().trim().min(1),
-    line2: z.string().trim().optional().nullable(),
-    city: z.string().trim().min(1),
-    state: z.string().trim().min(1),
-    postal_code: z.string().trim().min(1),
-    country: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  company: z.string().trim().optional().nullable(),
+  phone: z.string().trim().min(1),
+  line1: z.string().trim().min(1),
+  line2: z.string().trim().optional().nullable(),
+  city: z.string().trim().min(1),
+  state: z.string().trim().min(1),
+  postal_code: z.string().trim().min(1),
+  country: z.string().trim().min(1),
 });
 
 export async function GET(request: NextRequest) {
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/shipping/origin" });
     return NextResponse.json(
       { error: "Failed to fetch shipping origin", requestId },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/shipping/origin" });
     return NextResponse.json(
       { error: "Failed to save shipping origin", requestId },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

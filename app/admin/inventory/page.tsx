@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { Plus, Trash2, MoreVertical, Search } from "lucide-react";
+
 import type { ProductWithDetails, Category, Condition } from "@/types/domain/product";
 import { logError } from "@/lib/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -49,16 +50,22 @@ export default function InventoryPage() {
       },
       showLoading = true,
     ) => {
-      if (showLoading) setIsLoading(true);
+      if (showLoading) {
+        setIsLoading(true);
+      }
       try {
         // Admin list must include out-of-stock so the admin tabs can display them.
         const params = new URLSearchParams({ limit: "100", includeOutOfStock: "1" });
 
-        if (filters?.q) params.set("q", filters.q.trim());
-        if (filters?.category && filters.category !== "all")
+        if (filters?.q) {
+          params.set("q", filters.q.trim());
+        }
+        if (filters?.category && filters.category !== "all") {
           params.append("category", filters.category);
-        if (filters?.condition && filters.condition !== "all")
+        }
+        if (filters?.condition && filters.condition !== "all") {
           params.append("condition", filters.condition);
+        }
 
         const response = await fetch(`/api/admin/products?${params.toString()}`);
         const data = await response.json();
@@ -72,7 +79,9 @@ export default function InventoryPage() {
                 (sum, v) => sum + (v.stock ?? 0),
                 0,
               );
-              if (filters.stockStatus === "out_of_stock") return totalStock <= 0;
+              if (filters.stockStatus === "out_of_stock") {
+                return totalStock <= 0;
+              }
               return totalStock > 0;
             })
           : loaded;
@@ -81,7 +90,9 @@ export default function InventoryPage() {
       } catch (error) {
         logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
       } finally {
-        if (showLoading) setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
     },
     [],
@@ -103,13 +114,17 @@ export default function InventoryPage() {
   }, [searchQuery, categoryFilter, conditionFilter, stockStatusFilter, loadProducts]);
 
   useEffect(() => {
-    if (!openMenuId) return;
+    if (!openMenuId) {
+      return;
+    }
     const handleClick = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
       const activeMenus = Array.from(
         document.querySelectorAll(`[data-menu-id="${openMenuId}"]`),
       );
-      if (target && activeMenus.some((menu) => menu.contains(target))) return;
+      if (target && activeMenus.some((menu) => menu.contains(target))) {
+        return;
+      }
       setOpenMenuId(null);
     };
     document.addEventListener("mousedown", handleClick);
@@ -160,7 +175,9 @@ export default function InventoryPage() {
   };
 
   const confirmDelete = async () => {
-    if (!pendingDelete) return;
+    if (!pendingDelete) {
+      return;
+    }
     const { id, label } = pendingDelete;
     setPendingDelete(null);
 
@@ -184,7 +201,9 @@ export default function InventoryPage() {
 
   const confirmMassDelete = async () => {
     setPendingMassDelete(false);
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0) {
+      return;
+    }
 
     try {
       const results = await Promise.all(
@@ -192,12 +211,14 @@ export default function InventoryPage() {
       );
       const failed = results.filter((res) => !res.ok).length;
 
-      if (failed > 0)
+      if (failed > 0) {
         showToast(
           `Deleted ${selectedIds.length - failed} items, ${failed} failed.`,
           "error",
         );
-      else showToast(`Deleted ${selectedIds.length} items.`, "success");
+      } else {
+        showToast(`Deleted ${selectedIds.length} items.`, "success");
+      }
 
       setSelectedIds([]);
       await loadProducts({
@@ -240,7 +261,9 @@ export default function InventoryPage() {
   };
 
   const handleMassDelete = () => {
-    if (selectedIds.length === 0) return;
+    if (selectedIds.length === 0) {
+      return;
+    }
     setPendingMassDelete(true);
   };
 
@@ -370,8 +393,11 @@ export default function InventoryPage() {
                       type="checkbox"
                       className="rdk-checkbox"
                       onChange={(e) => {
-                        if (e.target.checked) setSelectedIds(products.map((p) => p.id));
-                        else setSelectedIds([]);
+                        if (e.target.checked) {
+                          setSelectedIds(products.map((p) => p.id));
+                        } else {
+                          setSelectedIds([]);
+                        }
                       }}
                       checked={
                         selectedIds.length === products.length && products.length > 0

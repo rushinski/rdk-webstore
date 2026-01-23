@@ -1,6 +1,8 @@
 // app/api/admin/tax-settings/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    
+
     const contextService = new TenantContextService(supabase);
     const tenantId = await contextService.getTenantId(session.user.id);
 
@@ -45,7 +47,10 @@ export async function GET(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/tax-settings" });
     return NextResponse.json(
       { error: error.message || "Failed to load tax settings", requestId },
-      { status: error.message?.includes("not found") ? 404 : 500, headers: { "Cache-Control": "no-store" } },
+      {
+        status: error.message?.includes("not found") ? 404 : 500,
+        headers: { "Cache-Control": "no-store" },
+      },
     );
   }
 }
@@ -56,7 +61,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    
+
     const contextService = new TenantContextService(supabase);
     const context = await contextService.getAdminContext(session.user.id);
 
@@ -74,9 +79,13 @@ export async function POST(request: NextRequest) {
     const incomingOverrides = parsed.data.taxCodeOverrides ?? {};
     const filteredOverrides: Record<string, string> = {};
     for (const [category, code] of Object.entries(incomingOverrides)) {
-      if (!allowedCategories.has(category)) continue;
+      if (!allowedCategories.has(category)) {
+        continue;
+      }
       const cleaned = String(code ?? "").trim();
-      if (!cleaned) continue;
+      if (!cleaned) {
+        continue;
+      }
       filteredOverrides[category] = cleaned;
     }
 
@@ -112,7 +121,10 @@ export async function POST(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/tax-settings" });
     return NextResponse.json(
       { error: error.message || "Failed to save tax settings", requestId },
-      { status: error.message?.includes("not configured") ? 400 : 500, headers: { "Cache-Control": "no-store" } },
+      {
+        status: error.message?.includes("not configured") ? 400 : 500,
+        headers: { "Cache-Control": "no-store" },
+      },
     );
   }
 }

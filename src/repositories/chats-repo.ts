@@ -16,7 +16,9 @@ export class ChatsRepository {
       .eq("id", chatId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -29,7 +31,9 @@ export class ChatsRepository {
       .order("created_at", { ascending: false })
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -53,7 +57,9 @@ export class ChatsRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ChatRow;
   }
 
@@ -65,7 +71,9 @@ export class ChatsRepository {
       .order("created_at", { ascending: false })
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -77,7 +85,9 @@ export class ChatsRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ChatRow;
   }
 
@@ -93,7 +103,9 @@ export class ChatsRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ChatRow;
   }
 
@@ -116,7 +128,9 @@ export class ChatsRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 }

@@ -14,7 +14,9 @@ export class ContactMessagesRepository {
       .select("id")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data.id as string;
   }
 
@@ -24,6 +26,8 @@ export class ContactMessagesRepository {
       .update({ attachments: params.attachments as any })
       .eq("id", params.id);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

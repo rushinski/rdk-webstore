@@ -1,11 +1,12 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { logError } from '@/lib/log';
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
-type InviteState = 'idle' | 'accepting' | 'accepted' | 'error' | 'missing';
+import { logError } from "@/lib/log";
+
+type InviteState = "idle" | "accepting" | "accepted" | "error" | "missing";
 
 type MeResponse = {
   user: { id: string; email: string } | null;
@@ -14,24 +15,26 @@ type MeResponse = {
 
 export default function AdminInvitePage() {
   const searchParams = useSearchParams();
-  const token = searchParams.get('token');
-  const [state, setState] = useState<InviteState>('idle');
-  const [message, setMessage] = useState('');
+  const token = searchParams.get("token");
+  const [state, setState] = useState<InviteState>("idle");
+  const [message, setMessage] = useState("");
   const [me, setMe] = useState<MeResponse | null>(null);
 
   const nextUrl = useMemo(() => {
-    if (!token) return '/invite/admin';
+    if (!token) {
+      return "/invite/admin";
+    }
     return `/invite/admin?token=${encodeURIComponent(token)}`;
   }, [token]);
 
   useEffect(() => {
     const loadMe = async () => {
       try {
-        const response = await fetch('/api/me', { cache: 'no-store' });
+        const response = await fetch("/api/me", { cache: "no-store" });
         const data = await response.json();
         setMe(data);
       } catch (error) {
-        logError(error, { layer: 'frontend', event: 'admin_invite_load_me' });
+        logError(error, { layer: "frontend", event: "admin_invite_load_me" });
       }
     };
 
@@ -40,36 +43,38 @@ export default function AdminInvitePage() {
 
   useEffect(() => {
     if (!token) {
-      setState('missing');
-      setMessage('This invite link is missing a token.');
+      setState("missing");
+      setMessage("This invite link is missing a token.");
       return;
     }
 
-    if (!me?.user || state !== 'idle') return;
+    if (!me?.user || state !== "idle") {
+      return;
+    }
 
     const acceptInvite = async () => {
-      setState('accepting');
-      setMessage('Accepting invite...');
+      setState("accepting");
+      setMessage("Accepting invite...");
 
       try {
-        const response = await fetch('/api/invites/accept', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/invites/accept", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token }),
         });
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          setState('error');
-          setMessage(data?.error ?? 'Failed to accept invite.');
+          setState("error");
+          setMessage(data?.error ?? "Failed to accept invite.");
           return;
         }
 
-        setState('accepted');
-        setMessage('Invite accepted. Your account now has admin access.');
+        setState("accepted");
+        setMessage("Invite accepted. Your account now has admin access.");
       } catch (error) {
-        setState('error');
-        setMessage('Failed to accept invite.');
+        setState("error");
+        setMessage("Failed to accept invite.");
       }
     };
 
@@ -119,7 +124,7 @@ export default function AdminInvitePage() {
       <div className="bg-zinc-900 border border-zinc-800/70 p-6 text-center space-y-3">
         <h1 className="text-2xl font-bold text-white">Admin invitation</h1>
         <p className="text-zinc-400">{message}</p>
-        {state === 'accepted' && (
+        {state === "accepted" && (
           <Link
             href="/admin"
             className="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold px-5 py-2"

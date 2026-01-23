@@ -2,17 +2,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DollarSign, TrendingUp, ShoppingCart } from "lucide-react";
+
 import { logError } from "@/lib/log";
 import { SalesChart } from "@/components/admin/charts/SalesChart";
 import { RdkSelect } from "@/components/ui/Select";
-import { DollarSign, TrendingUp, ShoppingCart } from "lucide-react";
 
 type Range = "today" | "7d" | "30d" | "90d";
 const DEFAULT_RANGE: Range = "30d";
 const POLL_MS = 30_000;
 
 function rangeToDays(range: Range): number {
-  if (range === "today") return 1;
+  if (range === "today") {
+    return 1;
+  }
   return Number(range.replace("d", "")) || 30;
 }
 
@@ -25,7 +28,7 @@ type DailySeriesPoint<K extends string> = { date: string } & Record<K, number>;
 function normalizeDailySeries<K extends string>(
   range: Range,
   raw: Array<{ date: string } & Partial<Record<K, number>>>,
-  valueKey: K
+  valueKey: K,
 ): DailySeriesPoint<K>[] {
   const days = rangeToDays(range);
 
@@ -34,7 +37,9 @@ function normalizeDailySeries<K extends string>(
   for (const row of raw || []) {
     const date = typeof row.date === "string" ? row.date.slice(0, 10) : "";
     const v = Number(row[valueKey] ?? 0);
-    if (!date) continue;
+    if (!date) {
+      continue;
+    }
     map.set(date, (map.get(date) ?? 0) + (Number.isFinite(v) ? v : 0));
   }
 
@@ -61,7 +66,9 @@ function normalizeDailySeries<K extends string>(
 export default function AnalyticsFinancialsPage() {
   const [range, setRange] = useState<Range>(DEFAULT_RANGE);
   const [summary, setSummary] = useState({ revenue: 0, profit: 0, orders: 0 });
-  const [salesTrendRaw, setSalesTrendRaw] = useState<Array<{ date: string; revenue: number }>>([]);
+  const [salesTrendRaw, setSalesTrendRaw] = useState<
+    Array<{ date: string; revenue: number }>
+  >([]);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -83,7 +90,9 @@ export default function AnalyticsFinancialsPage() {
       }
     } catch (error: any) {
       // Ignore abort noise
-      if (error?.name === "AbortError") return;
+      if (error?.name === "AbortError") {
+        return;
+      }
       logError(error, { layer: "frontend", event: "admin_load_analytics_financials" });
     }
   };
@@ -93,11 +102,15 @@ export default function AnalyticsFinancialsPage() {
 
     const interval = setInterval(() => {
       // Only poll when tab is visible (keeps it snappy and cheaper)
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") {
+        load();
+      }
     }, POLL_MS);
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") {
+        load();
+      }
     };
     document.addEventListener("visibilitychange", onVisibility);
 

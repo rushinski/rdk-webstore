@@ -11,11 +11,13 @@ import {
   Download,
   Home,
 } from "lucide-react";
+
+import { RdkSelect } from "@/components/ui/Select";
+import type { NexusData, StateSummary } from "@/types/domain/nexus";
+
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
 import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
-import { RdkSelect } from "@/components/ui/Select";
-import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
 export default function NexusTrackerClient() {
   const [data, setData] = useState<NexusData | null>(null);
@@ -28,7 +30,9 @@ export default function NexusTrackerClient() {
   const [filterRegistered, setFilterRegistered] = useState<
     "all" | "registered" | "unregistered"
   >("all");
-  const [filterNexusType, setFilterNexusType] = useState<"all" | "physical" | "economic">("all");
+  const [filterNexusType, setFilterNexusType] = useState<"all" | "physical" | "economic">(
+    "all",
+  );
   const [filterWindow, setFilterWindow] = useState<"all" | "calendar" | "rolling">("all");
   const [filterNeedsAction, setFilterNeedsAction] = useState(false);
   const [showHomeSetup, setShowHomeSetup] = useState(false);
@@ -84,17 +88,31 @@ export default function NexusTrackerClient() {
   };
 
   const getStateColor = (state: StateSummary | undefined) => {
-    if (!state) return "#374151";
-    if (state.thresholdType === "none" || state.threshold <= 0) return "#374151";
+    if (!state) {
+      return "#374151";
+    }
+    if (state.thresholdType === "none" || state.threshold <= 0) {
+      return "#374151";
+    }
 
-    if (state.isRegistered) return "#22c55e";
+    if (state.isRegistered) {
+      return "#22c55e";
+    }
 
     const pct = state.percentageToThreshold;
 
-    if (pct < 50) return "#374151";
-    if (pct < 70) return "#facc15";
-    if (pct < 85) return "#f59e0b";
-    if (pct < 95) return "#f97316";
+    if (pct < 50) {
+      return "#374151";
+    }
+    if (pct < 70) {
+      return "#facc15";
+    }
+    if (pct < 85) {
+      return "#f59e0b";
+    }
+    if (pct < 95) {
+      return "#f97316";
+    }
     return "#ef4444";
   };
 
@@ -109,7 +127,6 @@ export default function NexusTrackerClient() {
     ],
     [],
   );
-
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat("en-US", {
@@ -173,7 +190,7 @@ export default function NexusTrackerClient() {
   ) => {
     try {
       setIsUpdating(true);
-      
+
       // Just update the nexus type, don't auto-register
       const res = await fetch("/api/admin/nexus/nexus-type", {
         method: "POST",
@@ -217,7 +234,9 @@ export default function NexusTrackerClient() {
     sortField === field ? (sortDirection === "asc" ? "^" : "v") : "";
 
   const filteredAndSortedStates = useMemo(() => {
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
 
     let filtered = data.states.filter((state) => {
       if (searchQuery) {
@@ -230,14 +249,26 @@ export default function NexusTrackerClient() {
         }
       }
 
-      if (filterRegistered === "registered" && !state.isRegistered) return false;
-      if (filterRegistered === "unregistered" && state.isRegistered) return false;
+      if (filterRegistered === "registered" && !state.isRegistered) {
+        return false;
+      }
+      if (filterRegistered === "unregistered" && state.isRegistered) {
+        return false;
+      }
 
-      if (filterNexusType === "physical" && state.nexusType !== "physical") return false;
-      if (filterNexusType === "economic" && state.nexusType !== "economic") return false;
+      if (filterNexusType === "physical" && state.nexusType !== "physical") {
+        return false;
+      }
+      if (filterNexusType === "economic" && state.nexusType !== "economic") {
+        return false;
+      }
 
-      if (filterWindow === "calendar" && state.window !== "calendar") return false;
-      if (filterWindow === "rolling" && state.window !== "rolling 12 months") return false;
+      if (filterWindow === "calendar" && state.window !== "calendar") {
+        return false;
+      }
+      if (filterWindow === "rolling" && state.window !== "rolling 12 months") {
+        return false;
+      }
 
       if (filterNeedsAction) {
         const needsRegistration = state.nexusType === "physical" && !state.isRegistered;
@@ -245,7 +276,9 @@ export default function NexusTrackerClient() {
           state.nexusType === "economic" &&
           !state.isRegistered &&
           state.percentageToThreshold >= 85;
-        if (!needsRegistration && !atRisk) return false;
+        if (!needsRegistration && !atRisk) {
+          return false;
+        }
       }
 
       return true;
@@ -269,7 +302,16 @@ export default function NexusTrackerClient() {
     });
 
     return filtered;
-  }, [data, searchQuery, sortField, sortDirection, filterRegistered, filterNexusType, filterWindow, filterNeedsAction]);
+  }, [
+    data,
+    searchQuery,
+    sortField,
+    sortDirection,
+    filterRegistered,
+    filterNexusType,
+    filterWindow,
+    filterNeedsAction,
+  ]);
 
   if (loading) {
     return (
@@ -288,10 +330,7 @@ export default function NexusTrackerClient() {
   }
 
   const atRiskStates = data.states.filter(
-    (s) =>
-      s.nexusType === "economic" &&
-      !s.isRegistered &&
-      s.percentageToThreshold >= 85,
+    (s) => s.nexusType === "economic" && !s.isRegistered && s.percentageToThreshold >= 85,
   ).length;
 
   const registeredStates = data.states.filter((s) => s.isRegistered).length;
@@ -308,7 +347,9 @@ export default function NexusTrackerClient() {
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
-          <p className="text-gray-400">Monitor your sales tax obligations across all US states</p>
+          <p className="text-gray-400">
+            Monitor your sales tax obligations across all US states
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -411,9 +452,7 @@ export default function NexusTrackerClient() {
         {/* Stats Cards (3 only, per request) */}
         <div className="grid grid-cols-3 md:grid-cols-3 gap-2 sm:gap-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
-            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">
-              Registered States
-            </p>
+            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">Registered States</p>
             <div className="mt-auto flex items-center justify-between">
               <p className="text-base sm:text-2xl font-bold text-white">
                 {registeredStates}
@@ -543,7 +582,10 @@ export default function NexusTrackerClient() {
                       <span className="text-xs text-red-400">(Home)</span>
                     )}
                     {state.nexusType === "physical" && !state.isRegistered && (
-                      <span title="Physical nexus - needs registration" className="inline-flex">
+                      <span
+                        title="Physical nexus - needs registration"
+                        className="inline-flex"
+                      >
                         <AlertTriangle className="w-4 h-4 text-yellow-500" />
                       </span>
                     )}

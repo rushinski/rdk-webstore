@@ -1,6 +1,8 @@
 // src/app/api/checkout/session/route.ts (CORRECTED)
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { CheckoutService } from "@/services/checkout-service";

@@ -1,5 +1,6 @@
 // src/lib/http/admin-session-cookie.ts
-import { NextResponse } from "next/server";
+import type { NextResponse } from "next/server";
+
 import { createAdminSessionToken } from "@/lib/http/admin-session";
 import { env } from "@/config/env";
 import { security } from "@/config/security";

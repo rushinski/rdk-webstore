@@ -15,7 +15,9 @@ export class ChatMessagesRepository {
       .eq("chat_id", chatId)
       .order("created_at", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -38,7 +40,9 @@ export class ChatMessagesRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ChatMessageRow;
   }
 }

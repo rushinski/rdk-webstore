@@ -72,15 +72,17 @@ export class StorefrontService {
     const sortWithOtherLast = (values: string[]) => {
       const sorted = values.slice().sort((a, b) => a.localeCompare(b));
       const otherIndex = sorted.findIndex((value) => value.toLowerCase() === "other");
-      if (otherIndex === -1) return sorted;
+      if (otherIndex === -1) {
+        return sorted;
+      }
       const [other] = sorted.splice(otherIndex, 1);
       sorted.push(other);
       return sorted;
     };
 
-    const brands = sortWithOtherLast(Array.from(brandMap.values()).map((entry) => entry.label)).map(
-      (label) => brandMap.get(label)!
-    );
+    const brands = sortWithOtherLast(
+      Array.from(brandMap.values()).map((entry) => entry.label),
+    ).map((label) => brandMap.get(label)!);
 
     for (const brand of Object.keys(modelsByBrand)) {
       modelsByBrand[brand] = modelsByBrand[brand].sort((a, b) => a.localeCompare(b));
@@ -95,9 +97,15 @@ export class StorefrontService {
     const categories = Array.from(categorySet).sort((a, b) => {
       const aIndex = categoryOrder.indexOf(a);
       const bIndex = categoryOrder.indexOf(b);
-      if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
-      if (aIndex === -1) return 1;
-      if (bIndex === -1) return -1;
+      if (aIndex === -1 && bIndex === -1) {
+        return a.localeCompare(b);
+      }
+      if (aIndex === -1) {
+        return 1;
+      }
+      if (bIndex === -1) {
+        return -1;
+      }
       return aIndex - bIndex;
     });
 

@@ -20,8 +20,9 @@ export const adminNotificationUpdateSchema = z
   })
   .strict()
   .refine(
-    (value) => Boolean(value.mark_all) || (Array.isArray(value.ids) && value.ids.length > 0),
-    { message: "Provide ids or mark_all" }
+    (value) =>
+      Boolean(value.mark_all) || (Array.isArray(value.ids) && value.ids.length > 0),
+    { message: "Provide ids or mark_all" },
   );
 
 export const adminPreferencesSchema = z
@@ -35,7 +36,11 @@ export const payoutSettingsSchema = z
   .object({
     provider: z.string().trim().max(80).nullable(),
     account_label: z.string().trim().max(140).nullable(),
-    account_last4: z.string().trim().regex(/^[0-9]{4}$/).nullable(),
+    account_last4: z
+      .string()
+      .trim()
+      .regex(/^[0-9]{4}$/)
+      .nullable(),
   })
   .strict();
 

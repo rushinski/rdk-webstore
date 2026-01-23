@@ -1,5 +1,7 @@
 // app/api/chats/current/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
@@ -16,10 +18,7 @@ export async function GET(request: NextRequest) {
 
     const chat = await chatService.getOpenChatForUser(session.user.id);
 
-    return NextResponse.json(
-      { chat },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ chat }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "api",
@@ -29,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Failed to load chat", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

@@ -1,6 +1,7 @@
 // src/services/shipping-carriers-service.ts
-import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { z } from "zod";
+
+import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
 
 // Keep aligned with UI
@@ -33,7 +34,9 @@ export class ShippingCarriersService {
       .filter(Boolean)
       .map((c) => c.toUpperCase());
 
-    const filtered = normalized.filter((c) => (allowedCarriers as readonly string[]).includes(c));
+    const filtered = normalized.filter((c) =>
+      (allowedCarriers as readonly string[]).includes(c),
+    );
 
     // unique
     const unique = Array.from(new Set(filtered));

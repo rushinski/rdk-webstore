@@ -3,6 +3,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { X, Building, AlertTriangle } from "lucide-react";
+
 import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { RdkSelect } from "@/components/ui/Select";
@@ -28,11 +29,11 @@ type OldHomeOfficeAction = {
   continueCollecting: boolean;
 };
 
-export default function HomeOfficeSetupModal({ 
-  onClose, 
-  onSuccess, 
+export default function HomeOfficeSetupModal({
+  onClose,
+  onSuccess,
   title,
-  isConfigured = false 
+  isConfigured = false,
 }: HomeOfficeSetupModalProps) {
   const [formData, setFormData] = useState({
     stateCode: "",
@@ -108,7 +109,12 @@ export default function HomeOfficeSetupModal({
     e.preventDefault();
     setError(null);
 
-    if (!formData.stateCode || !formData.line1 || !formData.city || !formData.postalCode) {
+    if (
+      !formData.stateCode ||
+      !formData.line1 ||
+      !formData.city ||
+      !formData.postalCode
+    ) {
       setError("Please fill in all required fields");
       return;
     }
@@ -139,13 +145,21 @@ export default function HomeOfficeSetupModal({
             postalCode: formData.postalCode,
             country: "US",
           },
-          oldHomeState: isConfigured && oldHomeState !== formData.stateCode ? oldHomeState : undefined,
-          oldHomeAction: isConfigured && oldHomeState !== formData.stateCode ? oldHomeAction : undefined,
+          oldHomeState:
+            isConfigured && oldHomeState !== formData.stateCode
+              ? oldHomeState
+              : undefined,
+          oldHomeAction:
+            isConfigured && oldHomeState !== formData.stateCode
+              ? oldHomeAction
+              : undefined,
         }),
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Failed to setup home office");
+      if (!res.ok) {
+        throw new Error(result.error || "Failed to setup home office");
+      }
       onSuccess();
     } catch (err: any) {
       setError(err.message || "Failed to setup home office");
@@ -180,14 +194,16 @@ export default function HomeOfficeSetupModal({
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-6 h-6 text-yellow-500" />
               <div>
-                <h2 className="text-xl font-semibold text-white">Update Previous Home Office</h2>
+                <h2 className="text-xl font-semibold text-white">
+                  Update Previous Home Office
+                </h2>
                 <p className="text-sm text-zinc-400 mt-1">
                   What should we do with {STATE_NAMES[oldHomeState]} ({oldHomeState})?
                 </p>
               </div>
             </div>
-            <button 
-              onClick={() => setShowOldHomeAction(false)} 
+            <button
+              onClick={() => setShowOldHomeAction(false)}
               className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm"
             >
               <X className="w-4 h-4 text-zinc-300" />
@@ -197,11 +213,16 @@ export default function HomeOfficeSetupModal({
           <div className="px-6 py-6 space-y-6">
             <div className="p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-sm">
               <p className="text-sm text-yellow-300 mb-2">
-                You're moving your home office from <strong>{STATE_NAMES[oldHomeState]}</strong> to{" "}
-                <strong>{STATE_NAMES[formData.stateCode]}</strong>. Please specify your ongoing relationship with the old state.
+                You're moving your home office from{" "}
+                <strong>{STATE_NAMES[oldHomeState]}</strong> to{" "}
+                <strong>{STATE_NAMES[formData.stateCode]}</strong>. Please specify your
+                ongoing relationship with the old state.
               </p>
               <p className="text-xs text-yellow-200/80 mt-2">
-                <strong>Important:</strong> Most states require you to continue collecting sales tax through the end of the current tax year even after moving your office location. Consult with a tax professional before disabling collection.
+                <strong>Important:</strong> Most states require you to continue collecting
+                sales tax through the end of the current tax year even after moving your
+                office location. Consult with a tax professional before disabling
+                collection.
               </p>
             </div>
 
@@ -213,7 +234,9 @@ export default function HomeOfficeSetupModal({
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setOldHomeAction({ ...oldHomeAction, hasPhysicalNexus: true })}
+                    onClick={() =>
+                      setOldHomeAction({ ...oldHomeAction, hasPhysicalNexus: true })
+                    }
                     className={[
                       "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
                       oldHomeAction.hasPhysicalNexus
@@ -225,7 +248,9 @@ export default function HomeOfficeSetupModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setOldHomeAction({ ...oldHomeAction, hasPhysicalNexus: false })}
+                    onClick={() =>
+                      setOldHomeAction({ ...oldHomeAction, hasPhysicalNexus: false })
+                    }
                     className={[
                       "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
                       !oldHomeAction.hasPhysicalNexus
@@ -243,12 +268,16 @@ export default function HomeOfficeSetupModal({
                   Should we continue collecting tax in {STATE_NAMES[oldHomeState]}?
                 </label>
                 <p className="text-xs text-zinc-400 mb-3">
-                  Most states require you to continue collecting through the end of the current tax year. Only select "No" if you've confirmed with your state's tax authority or a tax professional.
+                  Most states require you to continue collecting through the end of the
+                  current tax year. Only select "No" if you've confirmed with your state's
+                  tax authority or a tax professional.
                 </p>
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setOldHomeAction({ ...oldHomeAction, continueCollecting: true })}
+                    onClick={() =>
+                      setOldHomeAction({ ...oldHomeAction, continueCollecting: true })
+                    }
                     className={[
                       "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
                       oldHomeAction.continueCollecting
@@ -260,7 +289,9 @@ export default function HomeOfficeSetupModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setOldHomeAction({ ...oldHomeAction, continueCollecting: false })}
+                    onClick={() =>
+                      setOldHomeAction({ ...oldHomeAction, continueCollecting: false })
+                    }
                     className={[
                       "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
                       !oldHomeAction.continueCollecting
@@ -316,15 +347,17 @@ export default function HomeOfficeSetupModal({
                 {title ?? (isConfigured ? "Change Office Location" : "Setup Home Office")}
               </h2>
               <p className="text-sm text-zinc-400 mt-1">
-                {isConfigured 
+                {isConfigured
                   ? "Update your business address for tax registrations"
-                  : "Configure your business address to enable tax registrations"
-                }
+                  : "Configure your business address to enable tax registrations"}
               </p>
             </div>
           </div>
 
-          <button onClick={onClose} className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm">
+          <button
+            onClick={onClose}
+            className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm"
+          >
             <X className="w-4 h-4 text-zinc-300" />
           </button>
         </div>
@@ -332,12 +365,15 @@ export default function HomeOfficeSetupModal({
         <div className="px-6 py-6">
           {existingAddress && (
             <div className="mb-6 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
-              <div className="text-sm text-zinc-300 font-semibold mb-2">Current Address</div>
+              <div className="text-sm text-zinc-300 font-semibold mb-2">
+                Current Address
+              </div>
               <div className="text-sm text-zinc-400 space-y-1">
                 <div>{existingAddress.line1}</div>
                 {existingAddress.line2 && <div>{existingAddress.line2}</div>}
                 <div>
-                  {existingAddress.city}, {existingAddress.state} {existingAddress.postal_code}
+                  {existingAddress.city}, {existingAddress.state}{" "}
+                  {existingAddress.postal_code}
                 </div>
               </div>
             </div>
@@ -351,11 +387,15 @@ export default function HomeOfficeSetupModal({
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">Business Name (Optional)</label>
+              <label className="block text-sm text-zinc-300 mb-2">
+                Business Name (Optional)
+              </label>
               <input
                 type="text"
                 value={formData.businessName}
-                onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, businessName: e.target.value })
+                }
                 className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                 placeholder="Your Business Name"
               />
@@ -419,7 +459,9 @@ export default function HomeOfficeSetupModal({
                 <input
                   type="text"
                   value={formData.postalCode}
-                  onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, postalCode: e.target.value })
+                  }
                   className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   placeholder="29401"
                   required
@@ -433,7 +475,11 @@ export default function HomeOfficeSetupModal({
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? "Saving..." : isConfigured ? "Update Home Office" : "Setup Home Office"}
+                {isSubmitting
+                  ? "Saving..."
+                  : isConfigured
+                    ? "Update Home Office"
+                    : "Setup Home Office"}
               </button>
               <button
                 type="button"
@@ -447,8 +493,9 @@ export default function HomeOfficeSetupModal({
 
           <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
             <p className="text-sm text-zinc-400">
-              <strong className="text-zinc-200">Note:</strong> This address will be used as your tax registration
-              headquarters with Stripe Tax. {!isConfigured && "It will mark your home state for physical nexus."}
+              <strong className="text-zinc-200">Note:</strong> This address will be used
+              as your tax registration headquarters with Stripe Tax.{" "}
+              {!isConfigured && "It will mark your home state for physical nexus."}
             </p>
           </div>
         </div>

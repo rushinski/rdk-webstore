@@ -1,8 +1,9 @@
 // src/services/admin-auth-service.ts
+import type { Factor } from "@supabase/supabase-js";
+
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
-import type { Factor } from "@supabase/supabase-js";
 
 export class AdminAuthService {
   private profileRepo: ProfileRepository;
@@ -44,10 +45,7 @@ export class AdminAuthService {
     requiresTwoFASetup: boolean;
     requiresTwoFAChallenge: boolean;
   }> {
-    if (
-      process.env.NODE_ENV === "test" ||
-      process.env.E2E_TEST_MODE === "1"
-    ) {
+    if (process.env.NODE_ENV === "test" || process.env.E2E_TEST_MODE === "1") {
       return { requiresTwoFASetup: false, requiresTwoFAChallenge: false };
     }
 
@@ -69,7 +67,9 @@ export class AdminAuthService {
 
   async listTotpFactors(): Promise<Factor[]> {
     const { data: factorsData, error } = await this.supabase.auth.mfa.listFactors();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return factorsData?.totp ?? [];
   }
 

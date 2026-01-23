@@ -16,7 +16,9 @@ export class TenantRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data?.id ?? null;
   }
 
@@ -28,7 +30,9 @@ export class TenantRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 }

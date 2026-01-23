@@ -1,7 +1,9 @@
 // app/api/account/shipping/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
 import { ShippingService } from "@/services/shipping-service";
@@ -11,14 +13,13 @@ import type { TablesInsert } from "@/types/db/database.types";
 
 type ShippingProfileUpsert = TablesInsert<"shipping_profiles">;
 
-const optionalText = z.preprocess(
-  (value) => {
-    if (typeof value !== "string") return value;
-    const trimmed = value.trim();
-    return trimmed.length === 0 ? null : trimmed;
-  },
-  z.string().trim().min(1).nullable().optional()
-);
+const optionalText = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}, z.string().trim().min(1).nullable().optional());
 
 const shippingProfileSchema = z
   .object({
@@ -43,10 +44,7 @@ export async function GET(request: NextRequest) {
 
     const profile = await service.getProfile(session.user.id);
 
-    return NextResponse.json(
-      profile || {},
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json(profile || {}, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     logError(error, {
       layer: "api",
@@ -55,7 +53,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to fetch shipping profile", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -74,7 +72,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -87,10 +85,7 @@ export async function POST(request: NextRequest) {
 
     const profile = await service.upsertProfile(input);
 
-    return NextResponse.json(
-      profile,
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json(profile, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     logError(error, {
       layer: "api",
@@ -99,7 +94,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to save shipping profile", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

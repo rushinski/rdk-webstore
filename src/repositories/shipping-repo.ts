@@ -16,7 +16,9 @@ export class ShippingRepository {
       .eq("user_id", userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -27,7 +29,9 @@ export class ShippingRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as ShippingProfileRow;
   }
 }

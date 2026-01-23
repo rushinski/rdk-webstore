@@ -1,8 +1,9 @@
 // src/lib/email/mailer.ts
-import { env } from "@/config/env";
 import { SESClient, SendRawEmailCommand } from "@aws-sdk/client-ses";
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import MailComposer from "nodemailer/lib/mail-composer";
+
+import { env } from "@/config/env";
 
 type EmailAttachment = {
   filename: string;
@@ -31,7 +32,9 @@ let sesv2: SESv2Client | null = null;
 let ses: SESClient | null = null;
 
 const getSesv2 = () => {
-  if (sesv2) return sesv2;
+  if (sesv2) {
+    return sesv2;
+  }
   sesv2 = new SESv2Client({
     region: env.AWS_REGION,
     credentials: {
@@ -43,7 +46,9 @@ const getSesv2 = () => {
 };
 
 const getSes = () => {
-  if (ses) return ses;
+  if (ses) {
+    return ses;
+  }
   ses = new SESClient({
     region: env.AWS_REGION,
     credentials: {
@@ -57,7 +62,14 @@ const getSes = () => {
 const buildFrom = () => `"${env.SES_FROM_NAME}" <${env.SES_FROM_EMAIL}>`;
 
 // Prefer SESv2 for simple emails (no attachments). Use SES raw for attachments / CID.
-export async function sendEmail({ to, subject, html, text, attachments, replyTo }: SendEmailInput) {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  attachments,
+  replyTo,
+}: SendEmailInput) {
   const from = buildFrom();
 
   if (attachments && attachments.length > 0) {
@@ -84,7 +96,7 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
     await client.send(
       new SendRawEmailCommand({
         RawMessage: { Data: raw },
-      })
+      }),
     );
 
     return;
@@ -108,7 +120,7 @@ export async function sendEmail({ to, subject, html, text, attachments, replyTo 
         },
       },
       // ConfigurationSetName: env.AWS_SES_CONFIGURATION_SET,
-    })
+    }),
   );
 }
 
@@ -127,7 +139,10 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number) => {
   }
 };
 
-export async function sendEmailWithRetry(input: SendEmailInput, options: RetryOptions = {}) {
+export async function sendEmailWithRetry(
+  input: SendEmailInput,
+  options: RetryOptions = {},
+) {
   const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
   const baseDelayMs = Math.max(0, options.baseDelayMs ?? 500);
   const timeoutMs = Math.max(1000, options.timeoutMs ?? 5000);

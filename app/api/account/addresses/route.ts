@@ -1,20 +1,21 @@
 // app/api/account/addresses/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthError, requireUserApi } from "@/lib/auth/session";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 
-const optionalText = z.preprocess(
-  (value) => {
-    if (typeof value !== "string") return value;
-    const trimmed = value.trim();
-    return trimmed.length === 0 ? null : trimmed;
-  },
-  z.string().trim().min(1).nullable().optional()
-);
+const optionalText = z.preprocess((value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
+}, z.string().trim().min(1).nullable().optional());
 
 const requiredText = z.string().trim().min(1);
 
@@ -40,15 +41,12 @@ export async function GET(request: NextRequest) {
     const repo = new AddressesRepository(supabase);
 
     const addresses = await repo.listUserAddresses(session.user.id);
-    return NextResponse.json(
-      { addresses },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ addresses }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json(
         { error: error.message, requestId },
-        { status: error.status, headers: { "Cache-Control": "no-store" } }
+        { status: error.status, headers: { "Cache-Control": "no-store" } },
       );
     }
     logError(error, {
@@ -58,7 +56,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to load addresses", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }
@@ -77,7 +75,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -93,15 +91,12 @@ export async function POST(request: NextRequest) {
     });
 
     const addresses = await repo.listUserAddresses(session.user.id);
-    return NextResponse.json(
-      { addresses },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ addresses }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json(
         { error: error.message, requestId },
-        { status: error.status, headers: { "Cache-Control": "no-store" } }
+        { status: error.status, headers: { "Cache-Control": "no-store" } },
       );
     }
     logError(error, {
@@ -111,7 +106,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json(
       { error: "Failed to save address", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

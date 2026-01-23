@@ -4,6 +4,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X, ChevronDown, Filter } from "lucide-react";
+
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 
 type BrandOption = { label: string; value: string };

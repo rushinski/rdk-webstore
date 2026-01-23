@@ -1,6 +1,8 @@
 // app/api/admin/stripe/payout-schedule/route.ts (FIXED)
-import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import type Stripe from "stripe";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
@@ -8,7 +10,10 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeAdminService } from "@/services/stripe-admin-service";
-import { STRIPE_PAYOUT_INTERVALS, STRIPE_PAYOUT_WEEKLY_ANCHORS } from "@/config/constants/stripe";
+import type {
+  STRIPE_PAYOUT_INTERVALS,
+  STRIPE_PAYOUT_WEEKLY_ANCHORS,
+} from "@/config/constants/stripe";
 import { stripePayoutScheduleSchema } from "@/lib/validation/stripe";
 
 type Interval = (typeof STRIPE_PAYOUT_INTERVALS)[number];
@@ -28,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
-    
+
     // ✅ Get tenant context
     const contextService = new TenantContextService(supabase);
     const context = await contextService.getAdminContext(session.user.id);
@@ -46,11 +51,11 @@ export async function POST(request: NextRequest) {
 
     const interval = parsed.data.interval as Interval;
 
-    const summary = await service.getStripeAccountSummary({ 
+    const summary = await service.getStripeAccountSummary({
       userId: session.user.id,
       tenantId: context.tenantId,
     });
-    
+
     if (!summary.account?.id) {
       return NextResponse.json(
         { error: "Stripe account not found", requestId },

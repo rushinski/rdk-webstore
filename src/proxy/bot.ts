@@ -4,10 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { log } from "@/lib/log";
 import { security } from "@/config/security";
 
-export function checkBot(
-  request: NextRequest,
-  requestId: string
-): NextResponse | null {
+export function checkBot(request: NextRequest, requestId: string): NextResponse | null {
   const { pathname } = request.nextUrl;
   const { bot } = security.proxy;
 
@@ -34,12 +31,12 @@ export function checkBot(
 
     return NextResponse.json(
       { error: errorMessage, requestId },
-      { status: bot.blockStatus }
+      { status: bot.blockStatus },
     );
   };
 
   const isAllowedBot = bot.allowedUserAgents.some((allowedToken) =>
-    userAgentLower.includes(allowedToken.toLowerCase())
+    userAgentLower.includes(allowedToken.toLowerCase()),
   );
 
   if (isAllowedBot) {
@@ -51,14 +48,11 @@ export function checkBot(
   }
 
   const isDisallowedAgent = bot.disallowedUserAgentSubstrings.some(
-    (disallowedSubstring) => userAgentLower.includes(disallowedSubstring)
+    (disallowedSubstring) => userAgentLower.includes(disallowedSubstring),
   );
 
   if (isDisallowedAgent) {
-    return blockBot(
-      "bot_block_suspect_agent",
-      "Bot blocked (disallowed user-agent)"
-    );
+    return blockBot("bot_block_suspect_agent", "Bot blocked (disallowed user-agent)");
   }
 
   if (userAgentTrimmed.length < bot.minUserAgentLength) {

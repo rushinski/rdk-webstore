@@ -3,7 +3,8 @@ import Link from "next/link";
 const STATUS_CONTENT: Record<string, { title: string; message: string }> = {
   success: {
     title: "Subscription confirmed",
-    message: "You’re all set to receive newsletter & product posting alerts from Realdealkickzsc.",
+    message:
+      "You’re all set to receive newsletter & product posting alerts from Realdealkickzsc.",
   },
   already: {
     title: "Already subscribed",
@@ -34,7 +35,7 @@ export default async function EmailConfirmPage({
   const resolved = searchParams ? await searchParams : undefined;
 
   const raw = resolved?.status;
-  const status = Array.isArray(raw) ? raw[0] : raw ?? "success";
+  const status = Array.isArray(raw) ? raw[0] : (raw ?? "success");
   const content = STATUS_CONTENT[status] ?? STATUS_CONTENT.success;
 
   return (

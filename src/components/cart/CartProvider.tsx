@@ -1,6 +1,7 @@
 // src/components/cart/CartProvider.tsx (FIXED - handles new event structure)
 "use client";
 
+import type { ReactNode } from "react";
 import {
   createContext,
   useContext,
@@ -8,8 +9,8 @@ import {
   useEffect,
   useCallback,
   useRef,
-  ReactNode,
 } from "react";
+
 import { CartService } from "@/services/cart-service";
 import type { CartItem } from "@/types/domain/cart";
 
@@ -36,7 +37,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const refreshCart = useCallback(async () => {
     const current = cart.getCart();
-    if (current.length === 0 || isValidatingRef.current) return;
+    if (current.length === 0 || isValidatingRef.current) {
+      return;
+    }
     isValidatingRef.current = true;
 
     try {
@@ -89,7 +92,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cart]);
 
   useEffect(() => {
-    if (didInitialValidation.current || !isReady) return;
+    if (didInitialValidation.current || !isReady) {
+      return;
+    }
     didInitialValidation.current = true;
     if (items.length > 0) {
       refreshCart();

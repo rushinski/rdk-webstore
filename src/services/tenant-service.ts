@@ -17,7 +17,9 @@ export class TenantService {
 
   async ensureTenantId(session: ServerSession): Promise<string> {
     const existingId = session.profile?.tenant_id;
-    if (existingId) return existingId;
+    if (existingId) {
+      return existingId;
+    }
 
     let tenantId = await this.tenantsRepo.getFirstTenantId();
 

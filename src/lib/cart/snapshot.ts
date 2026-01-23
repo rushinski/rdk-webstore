@@ -1,6 +1,7 @@
 // src/lib/cart/snapshot.ts
 
 import crypto from "crypto";
+
 import type { CartItem } from "@/types/domain/cart";
 import { env } from "@/config/env";
 
@@ -26,13 +27,19 @@ export function serializeCartSnapshot(items: CartItem[]): string {
 
 export function parseCartSnapshot(value: string): CartItem[] | null {
   const [data, signature] = value.split(".");
-  if (!data || !signature) return null;
+  if (!data || !signature) {
+    return null;
+  }
 
   const expected = signPayload(data);
   const signatureBuf = Buffer.from(signature, "utf8");
   const expectedBuf = Buffer.from(expected, "utf8");
-  if (signatureBuf.length !== expectedBuf.length) return null;
-  if (!crypto.timingSafeEqual(signatureBuf, expectedBuf)) return null;
+  if (signatureBuf.length !== expectedBuf.length) {
+    return null;
+  }
+  if (!crypto.timingSafeEqual(signatureBuf, expectedBuf)) {
+    return null;
+  }
 
   let payload: SnapshotPayload;
   try {
@@ -42,10 +49,16 @@ export function parseCartSnapshot(value: string): CartItem[] | null {
     return null;
   }
 
-  if (!payload?.createdAt || !Array.isArray(payload.items)) return null;
+  if (!payload?.createdAt || !Array.isArray(payload.items)) {
+    return null;
+  }
   const createdAt = new Date(payload.createdAt).getTime();
-  if (!Number.isFinite(createdAt)) return null;
-  if (Date.now() - createdAt > SNAPSHOT_TTL_MS) return null;
+  if (!Number.isFinite(createdAt)) {
+    return null;
+  }
+  if (Date.now() - createdAt > SNAPSHOT_TTL_MS) {
+    return null;
+  }
 
   return payload.items;
 }

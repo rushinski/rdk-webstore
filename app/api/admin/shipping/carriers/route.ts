@@ -1,6 +1,8 @@
 // app/api/admin/shipping/carriers/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
@@ -16,8 +18,12 @@ const carriersSchema = z
   .strict();
 
 function toError(err: unknown): Error {
-  if (err instanceof Error) return err;
-  if (typeof err === "string") return new Error(err);
+  if (err instanceof Error) {
+    return err;
+  }
+  if (typeof err === "string") {
+    return new Error(err);
+  }
   try {
     return new Error(JSON.stringify(err));
   } catch {

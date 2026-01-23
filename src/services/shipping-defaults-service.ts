@@ -22,7 +22,7 @@ export class ShippingDefaultsService {
       default_length_in: number;
       default_width_in: number;
       default_height_in: number;
-    }>
+    }>,
   ) {
     return this.repo.upsertDefaults(tenantId, defaults);
   }

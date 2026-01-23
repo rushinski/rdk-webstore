@@ -1,12 +1,14 @@
 // app/api/admin/nexus/setup-home/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { TenantContextService } from "@/services/tenant-context-service";
 import { StripeTaxService } from "@/services/stripe-tax-service";
-import { z } from "zod";
 
 const setupHomeSchema = z.object({
   stateCode: z.string().length(2),
@@ -20,10 +22,12 @@ const setupHomeSchema = z.object({
     country: z.string().length(2),
   }),
   oldHomeState: z.string().length(2).optional(),
-  oldHomeAction: z.object({
-    hasPhysicalNexus: z.boolean(),
-    continueCollecting: z.boolean(),
-  }).optional(),
+  oldHomeAction: z
+    .object({
+      hasPhysicalNexus: z.boolean(),
+      continueCollecting: z.boolean(),
+    })
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -32,7 +36,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
-    
+
     const contextService = new TenantContextService(supabase);
     const context = await contextService.getAdminContext(session.user.id);
 
@@ -42,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -82,7 +86,7 @@ export async function POST(request: NextRequest) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/setup-home" });
     return NextResponse.json(
       { error: error.message || "Failed to setup home state", requestId },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

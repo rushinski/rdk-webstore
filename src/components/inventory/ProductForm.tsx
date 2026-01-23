@@ -3,13 +3,15 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { ImagePlus, Plus, Trash2, X } from "lucide-react";
-import { TagInput, type TagChip } from "./TagInput";
+
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
 import type { ProductCreateInput } from "@/services/product-service";
 import { logError } from "@/lib/log";
 import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
+
+import { TagInput, type TagChip } from "./TagInput";
 
 interface ProductFormProps {
   initialData?: Partial<ProductCreateInput> & { id?: string };
@@ -76,9 +78,15 @@ const AUTO_TAG_GROUP_KEYS = new Set([
 ]);
 
 const getSizeTypeForCategory = (category: Category): SizeType => {
-  if (category === "sneakers") return "shoe";
-  if (category === "clothing") return "clothing";
-  if (category === "accessories") return "custom";
+  if (category === "sneakers") {
+    return "shoe";
+  }
+  if (category === "clothing") {
+    return "clothing";
+  }
+  if (category === "accessories") {
+    return "custom";
+  }
   return "none";
 };
 
@@ -181,9 +189,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     const addTag = (label: string, group_key: string) => {
       const trimmed = label.trim();
-      if (!trimmed) return;
+      if (!trimmed) {
+        return;
+      }
       const key = `${group_key}:${trimmed}`;
-      if (seen.has(key)) return;
+      if (seen.has(key)) {
+        return;
+      }
       seen.add(key);
       tags.push({ label: trimmed, group_key, source: "auto" });
     };
@@ -199,8 +211,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       addTag(parsedModelLabel, "model");
     }
 
-    if (category) addTag(category, "category");
-    if (condition) addTag(condition, "condition");
+    if (category) {
+      addTag(category, "category");
+    }
+    if (condition) {
+      addTag(condition, "condition");
+    }
 
     if (sizeType !== "none") {
       const groupKey =
@@ -212,7 +228,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
       variants.forEach((variant) => {
         const stockCount = Number.parseInt(variant.stock, 10);
-        if (!Number.isFinite(stockCount) || stockCount <= 0) return;
+        if (!Number.isFinite(stockCount) || stockCount <= 0) {
+          return;
+        }
         addTag(variant.size_label, groupKey);
       });
     }
@@ -238,7 +256,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     const seen = new Set<string>();
     return merged.filter((tag) => {
       const key = getTagKey(tag);
-      if (seen.has(key)) return false;
+      if (seen.has(key)) {
+        return false;
+      }
       seen.add(key);
       return true;
     });
@@ -329,7 +349,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   }, [effectiveBrandId]);
 
   useEffect(() => {
-    if (!modelOverrideId) return;
+    if (!modelOverrideId) {
+      return;
+    }
     const stillValid = modelOptions.some((option) => option.id === modelOverrideId);
     if (!stillValid) {
       setModelOverrideId(null);
@@ -360,11 +382,15 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           signal: controller.signal,
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data?.error || "Failed to parse title.");
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to parse title.");
+        }
         setParseResult(data);
         setParseStatus("idle");
       } catch (error) {
-        if ((error as any)?.name === "AbortError") return;
+        if ((error as any)?.name === "AbortError") {
+          return;
+        }
         logError(error, { layer: "frontend", event: "inventory_parse_title" });
         setParseStatus("error");
       }
@@ -384,16 +410,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     setVariants((current) =>
       current.map((variant) => {
-        if (sizeType === "none") return { ...variant, size_label: "N/A" };
-        if (sizeType === "custom")
+        if (sizeType === "none") {
+          return { ...variant, size_label: "N/A" };
+        }
+        if (sizeType === "custom") {
           return variant.size_label === "N/A" ? { ...variant, size_label: "" } : variant;
+        }
         return { ...variant, size_label: "" };
       }),
     );
   }, [sizeType]);
 
   useEffect(() => {
-    if (hasInitializedTags.current || !initialData?.tags) return;
+    if (hasInitializedTags.current || !initialData?.tags) {
+      return;
+    }
 
     const existingKeys = new Set(initialData.tags.map(getTagKey));
     const missing = autoTags.map(getTagKey).filter((key) => !existingKeys.has(key));
@@ -415,7 +446,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   };
 
   const removeVariant = (index: number) => {
-    if (variants.length > 1) setVariants(variants.filter((_, i) => i !== index));
+    if (variants.length > 1) {
+      setVariants(variants.filter((_, i) => i !== index));
+    }
   };
 
   const updateVariant = (index: number, field: keyof VariantDraft, value: string) => {
@@ -426,7 +459,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const addImageEntry = (url: string) => {
     const trimmed = url.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
     setImages((current) =>
       normalizeImages([
         ...current,
@@ -455,10 +490,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   };
 
   const handleUploadFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      return;
+    }
 
     const uploads = Array.from(files).filter((file) => file.type.startsWith("image/"));
-    if (uploads.length === 0) return;
+    if (uploads.length === 0) {
+      return;
+    }
 
     try {
       // Upload sequentially (simpler, avoids overwhelming local stack)
@@ -467,7 +506,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         fd.append("file", file);
 
         // If editing an existing product, you can pass productId for folder placement:
-        if (initialData?.id) fd.append("productId", initialData.id);
+        if (initialData?.id) {
+          fd.append("productId", initialData.id);
+        }
 
         const res = await fetch("/api/admin/uploads/product-image", {
           method: "POST",
@@ -488,7 +529,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       const message = error instanceof Error ? error.message : "Failed to upload image";
       setToast({ message, tone: "error" });
     } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       setIsDragging(false);
     }
   };
@@ -508,7 +551,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const handleAddTag = (label: string) => {
     const trimmed = label.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
     const newTag: TagChip = {
       label: trimmed,
@@ -517,7 +562,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     };
 
     const existingKeys = new Set(allTags.map(getTagKey));
-    if (existingKeys.has(getTagKey(newTag))) return;
+    if (existingKeys.has(getTagKey(newTag))) {
+      return;
+    }
 
     setCustomTags([...customTags, newTag]);
   };
@@ -564,15 +611,23 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const modelSuggestion = parseResult?.suggestions?.model;
 
   const applyBrandSuggestion = () => {
-    if (!brandSuggestion) return;
+    if (!brandSuggestion) {
+      return;
+    }
     const match = brandOptions.find((option) => option.id === brandSuggestion.id);
-    if (match) applyBrandOverride(match);
+    if (match) {
+      applyBrandOverride(match);
+    }
   };
 
   const applyModelSuggestion = () => {
-    if (!modelSuggestion) return;
+    if (!modelSuggestion) {
+      return;
+    }
     const match = modelOptions.find((option) => option.id === modelSuggestion.id);
-    if (match) applyModelOverride(match);
+    if (match) {
+      applyModelOverride(match);
+    }
   };
 
   const handleRemoveTag = (tag: TagChip) => {
@@ -587,15 +642,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const parseMoneyToCents = (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return null;
+    if (!trimmed) {
+      return null;
+    }
     const parsed = Number.parseFloat(trimmed);
-    if (!Number.isFinite(parsed)) return null;
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
     return Math.round(parsed * 100);
   };
 
   const parseStockCount = (value: string) => {
     const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed)) return null;
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
     return Math.max(parsed, 0);
   };
 
@@ -605,28 +666,36 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
     try {
       const trimmedTitle = titleRaw.trim();
-      if (!trimmedTitle) throw new Error("Full title is required.");
+      if (!trimmedTitle) {
+        throw new Error("Full title is required.");
+      }
 
       const trimmedShipping = shippingPrice.trim();
       const shippingCents = trimmedShipping ? parseMoneyToCents(trimmedShipping) : null;
-      if (trimmedShipping && shippingCents === null)
+      if (trimmedShipping && shippingCents === null) {
         throw new Error("Please enter a valid shipping price.");
+      }
 
       const preparedVariants = variants.map((variant, index) => {
         const priceCents = parseMoneyToCents(variant.price);
-        if (priceCents === null)
+        if (priceCents === null) {
           throw new Error(`Variant ${index + 1} price is invalid.`);
+        }
 
         const costCents = parseMoneyToCents(variant.cost);
-        if (costCents === null) throw new Error(`Variant ${index + 1} cost is invalid.`);
+        if (costCents === null) {
+          throw new Error(`Variant ${index + 1} cost is invalid.`);
+        }
 
         const stockCount = parseStockCount(variant.stock);
-        if (stockCount === null)
+        if (stockCount === null) {
           throw new Error(`Variant ${index + 1} stock is invalid.`);
+        }
 
         const sizeLabel = sizeType === "none" ? "N/A" : variant.size_label.trim();
-        if (sizeType !== "none" && !sizeLabel)
+        if (sizeType !== "none" && !sizeLabel) {
           throw new Error(`Variant ${index + 1} size is required.`);
+        }
 
         return {
           size_type: sizeType,
@@ -641,8 +710,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         .map((image) => ({ ...image, url: image.url.trim() }))
         .filter((image) => image.url);
 
-      if (preparedImages.length === 0)
+      if (preparedImages.length === 0) {
         throw new Error("Please add at least one product image.");
+      }
 
       const data: ProductCreateInput = {
         title_raw: trimmedTitle,
@@ -667,8 +737,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       setIsLoading(false);
     }
   };
-
-  const primaryImage = images.find((image) => image.is_primary) ?? images[0] ?? null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

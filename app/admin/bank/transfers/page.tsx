@@ -1,9 +1,10 @@
 // app/admin/bank/transfers/page.tsx
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react';
-import { logError } from '@/lib/log';
+import { useEffect, useState } from "react";
+import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
+
+import { logError } from "@/lib/log";
 
 type StripePayout = {
   id: string;
@@ -17,48 +18,52 @@ type StripePayout = {
 };
 
 function formatCurrency(amount: number, currency: string) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
     currency: currency.toUpperCase(),
   }).format(amount / 100);
 }
 
 function formatDate(timestamp?: number | null) {
-  if (!timestamp) return '-';
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
+  if (!timestamp) {
+    return "-";
+  }
+  return new Date(timestamp * 1000).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
   });
 }
 
 function formatTime(timestamp?: number | null) {
-  if (!timestamp) return '';
-  return new Date(timestamp * 1000).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
+  if (!timestamp) {
+    return "";
+  }
+  return new Date(timestamp * 1000).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
 function getStatusStyle(status: string) {
   switch (status) {
-    case 'paid':
-      return 'bg-green-500/10 border-green-500/20 text-green-400';
-    case 'pending':
-    case 'in_transit':
-      return 'bg-yellow-500/10 border-yellow-500/20 text-yellow-400';
-    case 'failed':
-    case 'canceled':
-      return 'bg-red-500/10 border-red-500/20 text-red-400';
+    case "paid":
+      return "bg-green-500/10 border-green-500/20 text-green-400";
+    case "pending":
+    case "in_transit":
+      return "bg-yellow-500/10 border-yellow-500/20 text-yellow-400";
+    case "failed":
+    case "canceled":
+      return "bg-red-500/10 border-red-500/20 text-red-400";
     default:
-      return 'bg-zinc-500/10 border-zinc-500/20 text-zinc-400';
+      return "bg-zinc-500/10 border-zinc-500/20 text-zinc-400";
   }
 }
 
 export default function ViewTransfersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState("");
   const [payouts, setPayouts] = useState<StripePayout[]>([]);
 
   const fetchPayouts = async (showRefreshing = false) => {
@@ -69,14 +74,18 @@ export default function ViewTransfersPage() {
     }
 
     try {
-      const response = await fetch('/api/admin/stripe/payouts?limit=50', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Failed to fetch payouts');
+      const response = await fetch("/api/admin/stripe/payouts?limit=50", {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch payouts");
+      }
       const data = await response.json();
       setPayouts(data.payouts ?? []);
-      setErrorMessage('');
+      setErrorMessage("");
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'fetch_all_payouts' });
-      setErrorMessage('Could not load transfer history.');
+      logError(error, { layer: "frontend", event: "fetch_all_payouts" });
+      setErrorMessage("Could not load transfer history.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -129,7 +138,7 @@ export default function ViewTransfersPage() {
           <div>
             <h1 className="text-3xl font-bold text-white">All Transfers</h1>
             <p className="text-zinc-400 text-sm mt-1">
-              {payouts.length > 0 ? `${payouts.length} transfers` : 'No transfers yet'}
+              {payouts.length > 0 ? `${payouts.length} transfers` : "No transfers yet"}
             </p>
           </div>
         </div>
@@ -140,8 +149,8 @@ export default function ViewTransfersPage() {
           disabled={isRefreshing}
           className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-800/70 text-sm text-zinc-300 hover:border-zinc-700 disabled:opacity-50"
         >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+          {isRefreshing ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
@@ -180,19 +189,27 @@ export default function ViewTransfersPage() {
                 {payouts.map((payout) => (
                   <tr key={payout.id} className="hover:bg-zinc-950/50 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="text-white text-sm">{formatDate(payout.created)}</div>
-                      <div className="text-zinc-500 text-xs mt-0.5">{formatTime(payout.created)}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-zinc-300 text-sm">{formatDate(payout.arrival_date)}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-zinc-300 text-sm capitalize">
-                        {payout.method || 'Standard'}
+                      <div className="text-white text-sm">
+                        {formatDate(payout.created)}
+                      </div>
+                      <div className="text-zinc-500 text-xs mt-0.5">
+                        {formatTime(payout.created)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`inline-block px-2.5 py-1 text-xs font-medium border rounded-sm capitalize ${getStatusStyle(payout.status)}`}>
+                      <div className="text-zinc-300 text-sm">
+                        {formatDate(payout.arrival_date)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-zinc-300 text-sm capitalize">
+                        {payout.method || "Standard"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-block px-2.5 py-1 text-xs font-medium border rounded-sm capitalize ${getStatusStyle(payout.status)}`}
+                      >
                         {payout.status}
                       </span>
                     </td>
@@ -212,8 +229,9 @@ export default function ViewTransfersPage() {
       {/* Info Box */}
       <div className="rounded-sm bg-zinc-950 border border-zinc-800/70 p-4">
         <p className="text-xs text-zinc-500">
-          <strong className="text-zinc-400">Note:</strong> Standard payouts typically arrive in 2-3 business days and are free. 
-          Instant payouts (if available) arrive within 30 minutes but may include a fee.
+          <strong className="text-zinc-400">Note:</strong> Standard payouts typically
+          arrive in 2-3 business days and are free. Instant payouts (if available) arrive
+          within 30 minutes but may include a fee.
         </p>
       </div>
     </div>

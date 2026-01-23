@@ -18,7 +18,9 @@ export class ShippingDefaultsRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -26,7 +28,9 @@ export class ShippingDefaultsRepository {
     tenantId: string | null,
     categories: string[],
   ): Promise<ShippingDefaultRow[]> {
-    if (categories.length === 0) return [];
+    if (categories.length === 0) {
+      return [];
+    }
 
     let query = this.supabase
       .from("shipping_defaults")
@@ -40,7 +44,9 @@ export class ShippingDefaultsRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -73,7 +79,9 @@ export class ShippingDefaultsRepository {
       .upsert(rows, { onConflict: "tenant_id,category" })
       .select();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 }

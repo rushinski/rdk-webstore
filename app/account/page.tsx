@@ -1,19 +1,22 @@
 // app/account/page.tsx
 
-import { requireUser } from '@/lib/auth/session';
-import { AccountProfile } from '@/components/account/AccountProfile';
-import { redirect } from 'next/navigation';
-import Link from 'next/link';
+import { redirect } from "next/navigation";
+import Link from "next/link";
+
+import { requireUser } from "@/lib/auth/session";
+import { AccountProfile } from "@/components/account/AccountProfile";
 
 export default async function AccountPage() {
   let session;
-  
+
   try {
     session = await requireUser();
   } catch {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <h1 className="text-3xl font-bold text-white mb-4">Sign in to view your account</h1>
+        <h1 className="text-3xl font-bold text-white mb-4">
+          Sign in to view your account
+        </h1>
         <p className="text-gray-400 mb-8">
           Access your profile, shipping info, and order history
         </p>

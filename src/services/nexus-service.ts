@@ -14,7 +14,11 @@ type SalesAgg = {
 };
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function startOfYear(year: number): Date {
@@ -76,7 +80,8 @@ export class NexusSummaryService {
       const threshold = NEXUS_THRESHOLDS[stateCode as keyof typeof NEXUS_THRESHOLDS];
       const window = threshold.window as Window;
 
-      const registration = registrations.find((r: any) => r.state_code === stateCode) ?? null;
+      const registration =
+        registrations.find((r: any) => r.state_code === stateCode) ?? null;
       const stripeReg = stripeRegs.get(stateCode);
 
       const salesMap =
@@ -86,16 +91,16 @@ export class NexusSummaryService {
             ? calendarSales
             : null;
 
-      const sales: SalesAgg =
-        (salesMap?.get(stateCode) as SalesAgg) ?? {
-          totalSales: 0,
-          taxableSales: 0,
-          transactionCount: 0,
-          taxCollected: 0,
-        };
+      const sales: SalesAgg = (salesMap?.get(stateCode) as SalesAgg) ?? {
+        totalSales: 0,
+        taxableSales: 0,
+        transactionCount: 0,
+        taxCollected: 0,
+      };
 
       // Relevant sales depends on threshold type
-      const relevantSales = threshold.type === "taxable" ? sales.taxableSales : sales.totalSales;
+      const relevantSales =
+        threshold.type === "taxable" ? sales.taxableSales : sales.totalSales;
       const thresholdAmount = threshold.threshold;
 
       const percentageToThreshold =
@@ -107,7 +112,9 @@ export class NexusSummaryService {
       }
 
       const isHomeState = stateCode === homeState;
-      const nexusType = isHomeState ? "physical" : (registration?.registration_type ?? "economic");
+      const nexusType = isHomeState
+        ? "physical"
+        : (registration?.registration_type ?? "economic");
       const isRegistered = registration?.is_registered ?? false;
 
       // Tracking display fields

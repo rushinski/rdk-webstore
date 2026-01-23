@@ -1,11 +1,12 @@
 // src/components/contact/ContactForm.tsx
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { security } from '@/config/security';
-import { Toast } from '@/components/ui/Toast';
+import { useEffect, useMemo, useRef, useState } from "react";
 
-type ContactFormSource = 'contact_form' | 'bug_report';
+import { security } from "@/config/security";
+import { Toast } from "@/components/ui/Toast";
+
+type ContactFormSource = "contact_form" | "bug_report";
 
 type ContactFormProps = {
   source?: ContactFormSource;
@@ -15,20 +16,23 @@ type ContactFormProps = {
 };
 
 export function ContactForm({
-  source = 'contact_form',
-  initialSubject = '',
-  initialMessage = '',
+  source = "contact_form",
+  initialSubject = "",
+  initialMessage = "",
   messagePlaceholder,
 }: ContactFormProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    subject: '',
-    message: '',
+    name: "",
+    email: "",
+    subject: "",
+    message: "",
   });
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(null);
+  const [status, setStatus] = useState<"idle" | "sending" | "success" | "error">("idle");
+  const [toast, setToast] = useState<{
+    message: string;
+    tone: "success" | "error" | "info";
+  } | null>(null);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -38,12 +42,13 @@ export function ContactForm({
   const allowedTypes = attachmentConfig.allowedTypes.map((type) => type);
   const maxAttachmentSizeMb = Math.max(1, Math.round(maxAttachmentSize / (1024 * 1024)));
   const allowedTypesSet = useMemo(() => new Set<string>(allowedTypes), [allowedTypes]);
-  const storageKey = source === 'bug_report' ? 'rdk_bug_report_draft' : 'rdk_contact_draft';
+  const storageKey =
+    source === "bug_report" ? "rdk_bug_report_draft" : "rdk_contact_draft";
   const draftRef = useRef(formData);
 
   const previews = useMemo(
     () => attachments.map((file) => ({ file, url: URL.createObjectURL(file) })),
-    [attachments]
+    [attachments],
   );
 
   useEffect(() => {
@@ -55,9 +60,13 @@ export function ContactForm({
   }, [initialSubject, initialMessage]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") {
+      return;
+    }
     const stored = sessionStorage.getItem(storageKey);
-    if (!stored) return;
+    if (!stored) {
+      return;
+    }
     sessionStorage.removeItem(storageKey);
     try {
       const parsed = JSON.parse(stored) as Partial<typeof formData>;
@@ -79,14 +88,12 @@ export function ContactForm({
   }, [previews]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") {
+      return;
+    }
     const handleBeforeUnload = () => {
       const draft = draftRef.current;
-      const hasDraft =
-        draft.name ||
-        draft.email ||
-        draft.subject ||
-        draft.message;
+      const hasDraft = draft.name || draft.email || draft.subject || draft.message;
 
       if (!hasDraft) {
         sessionStorage.removeItem(storageKey);
@@ -96,10 +103,10 @@ export function ContactForm({
       sessionStorage.setItem(storageKey, JSON.stringify(draft));
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [storageKey]);
 
@@ -108,7 +115,9 @@ export function ContactForm({
   }, [formData]);
 
   const handleAttachments = (files: FileList | null) => {
-    if (!files) return;
+    if (!files) {
+      return;
+    }
     const incoming = Array.from(files);
     const next: File[] = [];
     const errors: string[] = [];
@@ -131,7 +140,7 @@ export function ContactForm({
 
     const trimmed = next.slice(0, Math.max(0, maxAttachments - attachments.length));
     setAttachments((prev) => [...prev, ...trimmed]);
-    setAttachmentError(errors.length > 0 ? errors.join(' ') : null);
+    setAttachmentError(errors.length > 0 ? errors.join(" ") : null);
   };
 
   const removeAttachment = (index: number) => {
@@ -155,30 +164,30 @@ export function ContactForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus('sending');
+    setStatus("sending");
     setToast(null);
 
     try {
       const payload = new FormData();
-      payload.append('name', formData.name);
-      payload.append('email', formData.email);
-      payload.append('subject', formData.subject);
-      payload.append('message', formData.message);
-      payload.append('source', source);
-      attachments.forEach((file) => payload.append('attachments', file));
+      payload.append("name", formData.name);
+      payload.append("email", formData.email);
+      payload.append("subject", formData.subject);
+      payload.append("message", formData.message);
+      payload.append("source", source);
+      attachments.forEach((file) => payload.append("attachments", file));
 
-      const response = await fetch('/api/contact', {
-        method: 'POST',
+      const response = await fetch("/api/contact", {
+        method: "POST",
         body: payload,
       });
 
       const data = await response.json().catch(() => null);
 
       if (response.ok) {
-        setStatus('success');
+        setStatus("success");
         setFormData({
-          name: '',
-          email: '',
+          name: "",
+          email: "",
           subject: initialSubject,
           message: initialMessage,
         });
@@ -186,35 +195,36 @@ export function ContactForm({
         setAttachmentError(null);
         setToast({
           message: "Thank you for your message! We'll get back to you soon.",
-          tone: 'success',
+          tone: "success",
         });
-        if (typeof window !== 'undefined') {
+        if (typeof window !== "undefined") {
           sessionStorage.removeItem(storageKey);
         }
       } else {
-        setStatus('error');
+        setStatus("error");
         setToast({
-          message: data?.error ?? 'Something went wrong. Please try again.',
-          tone: 'error',
+          message: data?.error ?? "Something went wrong. Please try again.",
+          tone: "error",
         });
       }
     } catch (error) {
-      setStatus('error');
+      setStatus("error");
       setToast({
-        message: 'Something went wrong. Please try again or email us directly.',
-        tone: 'error',
+        message: "Something went wrong. Please try again or email us directly.",
+        tone: "error",
       });
     }
   };
 
-  const attachmentsLabel = source === 'bug_report' ? 'Screenshots' : 'Photos';
-  const attachmentsHint = source === 'bug_report'
-    ? `PNG, JPG, or WEBP. Up to ${maxAttachments} screenshots, ${maxAttachmentSizeMb}MB each.`
-    : `PNG, JPG, or WEBP. Up to ${maxAttachments} photos, ${maxAttachmentSizeMb}MB each.`;
+  const attachmentsLabel = source === "bug_report" ? "Screenshots" : "Photos";
+  const attachmentsHint =
+    source === "bug_report"
+      ? `PNG, JPG, or WEBP. Up to ${maxAttachments} screenshots, ${maxAttachmentSizeMb}MB each.`
+      : `PNG, JPG, or WEBP. Up to ${maxAttachments} photos, ${maxAttachmentSizeMb}MB each.`;
   const resolvedPlaceholder =
     messagePlaceholder ??
-    (source === 'bug_report'
-      ? 'Share the steps, where it happened, and what you expected to see.'
+    (source === "bug_report"
+      ? "Share the steps, where it happened, and what you expected to see."
       : undefined);
 
   return (
@@ -277,12 +287,17 @@ export function ContactForm({
       </div>
 
       <div>
-        <label htmlFor="attachments" className="block text-sm font-semibold text-white mb-2">
+        <label
+          htmlFor="attachments"
+          className="block text-sm font-semibold text-white mb-2"
+        >
           {attachmentsLabel}
         </label>
         <div
           className={`rounded border border-dashed px-4 py-4 transition-colors ${
-            isDragging ? 'border-red-500/70 bg-red-500/5' : 'border-zinc-700 bg-zinc-900/40'
+            isDragging
+              ? "border-red-500/70 bg-red-500/5"
+              : "border-zinc-700 bg-zinc-900/40"
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -291,13 +306,15 @@ export function ContactForm({
           <input
             id="attachments"
             type="file"
-            accept={allowedTypes.join(',')}
+            accept={allowedTypes.join(",")}
             multiple
             onChange={(e) => handleAttachments(e.target.files)}
             className="block w-full text-sm text-zinc-300 cursor-pointer file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:cursor-pointer hover:file:bg-red-700"
           />
           <p className="text-xs text-zinc-500 mt-2">{attachmentsHint}</p>
-          {attachmentError && <p className="text-xs text-red-400 mt-2">{attachmentError}</p>}
+          {attachmentError && (
+            <p className="text-xs text-red-400 mt-2">{attachmentError}</p>
+          )}
           {attachments.length > 0 && (
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {previews.map((preview, index) => (
@@ -323,15 +340,15 @@ export function ContactForm({
 
       <button
         type="submit"
-        disabled={status === 'sending'}
+        disabled={status === "sending"}
         className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer"
       >
-        {status === 'sending' ? 'Sending...' : 'Send Message'}
+        {status === "sending" ? "Sending..." : "Send Message"}
       </button>
       <Toast
         open={Boolean(toast)}
-        message={toast?.message ?? ''}
-        tone={toast?.tone ?? 'info'}
+        message={toast?.message ?? ""}
+        tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
       />
     </form>

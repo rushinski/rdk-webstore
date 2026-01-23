@@ -1,11 +1,12 @@
 // app/admin/chats/page.tsx
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { Send, XCircle } from 'lucide-react';
-import { logError } from '@/lib/log';
-import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Send, XCircle } from "lucide-react";
+
+import { logError } from "@/lib/log";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ChatSummary = {
   id: string;
@@ -20,7 +21,7 @@ type ChatSummary = {
   messages?: Array<{
     id: string;
     body: string;
-    sender_role: 'customer' | 'admin';
+    sender_role: "customer" | "admin";
     created_at: string;
   }>;
 };
@@ -29,7 +30,7 @@ type ChatMessage = {
   id: string;
   chat_id: string;
   sender_id: string;
-  sender_role: 'customer' | 'admin';
+  sender_role: "customer" | "admin";
   body: string;
   created_at: string;
 };
@@ -39,7 +40,7 @@ export default function AdminChatsPage() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [messageDraft, setMessageDraft] = useState('');
+  const [messageDraft, setMessageDraft] = useState("");
   const [isLoadingChats, setIsLoadingChats] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -52,7 +53,9 @@ export default function AdminChatsPage() {
 
   useEffect(() => {
     const el = draftRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     el.style.height = "0px";
     const next = Math.min(el.scrollHeight, 128); // cap growth (~8rem)
     el.style.height = `${next}px`;
@@ -64,9 +67,11 @@ export default function AdminChatsPage() {
 
   useEffect(() => {
     const loadChats = async (isInitial = false) => {
-      if (isInitial) setIsLoadingChats(true);
+      if (isInitial) {
+        setIsLoadingChats(true);
+      }
       try {
-        const response = await fetch('/api/chats?status=open', { cache: 'no-store' });
+        const response = await fetch("/api/chats?status=open", { cache: "no-store" });
         const data = await response.json();
         const nextChats = data.chats ?? [];
         setChats(nextChats);
@@ -74,7 +79,7 @@ export default function AdminChatsPage() {
           setActiveChatId((current) => current ?? nextChats[0].id);
         }
       } catch (error) {
-        logError(error, { layer: 'frontend', event: 'admin_load_chats' });
+        logError(error, { layer: "frontend", event: "admin_load_chats" });
       } finally {
         if (isInitial) {
           setIsLoadingChats(false);
@@ -87,26 +92,33 @@ export default function AdminChatsPage() {
   }, []);
 
   useEffect(() => {
-    const chatIdParam = searchParams.get('chatId');
+    const chatIdParam = searchParams.get("chatId");
     if (chatIdParam) {
       setActiveChatId(chatIdParam);
     }
   }, [searchParams]);
 
   useEffect(() => {
-    if (!activeChatId) return;
+    if (!activeChatId) {
+      return;
+    }
 
     let isActive = true;
     const loadMessages = async (isInitial = false) => {
-      if (isInitial) setIsLoadingMessages(true);
+      if (isInitial) {
+        setIsLoadingMessages(true);
+      }
       try {
         const response = await fetch(`/api/chats/${activeChatId}/messages`, {
-          cache: 'no-store',
+          cache: "no-store",
         });
         const data = await response.json();
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
         const nextMessages = data.messages ?? [];
-        const nextLast = nextMessages.length > 0 ? nextMessages[nextMessages.length - 1].id : null;
+        const nextLast =
+          nextMessages.length > 0 ? nextMessages[nextMessages.length - 1].id : null;
         if (nextLast && nextLast !== lastMessageId.current) {
           lastMessageId.current = nextLast;
           setMessages(nextMessages);
@@ -115,7 +127,7 @@ export default function AdminChatsPage() {
           setMessages([]);
         }
       } catch (error) {
-        logError(error, { layer: 'frontend', event: 'admin_load_chat_messages' });
+        logError(error, { layer: "frontend", event: "admin_load_chat_messages" });
       } finally {
         if (isInitial && isActive) {
           setIsLoadingMessages(false);
@@ -140,29 +152,31 @@ export default function AdminChatsPage() {
     const supabase = createSupabaseBrowserClient();
 
     const chatsChannel = supabase
-      .channel('admin-chats')
+      .channel("admin-chats")
       .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chats' },
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chats" },
         (payload) => {
           const nextChat = payload.new as ChatSummary;
-          if (nextChat.status !== 'open') return;
+          if (nextChat.status !== "open") {
+            return;
+          }
           setChats((prev) =>
-            prev.some((chat) => chat.id === nextChat.id) ? prev : [nextChat, ...prev]
+            prev.some((chat) => chat.id === nextChat.id) ? prev : [nextChat, ...prev],
           );
           if (!activeChatIdRef.current) {
             setActiveChatId(nextChat.id);
           }
-        }
+        },
       )
       .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'chats' },
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chats" },
         (payload) => {
           const updatedChat = payload.new as ChatSummary;
           setChats((prev) => {
             const index = prev.findIndex((chat) => chat.id === updatedChat.id);
-            if (updatedChat.status !== 'open') {
+            if (updatedChat.status !== "open") {
               return prev.filter((chat) => chat.id !== updatedChat.id);
             }
             if (index === -1) {
@@ -173,25 +187,30 @@ export default function AdminChatsPage() {
             return next;
           });
 
-          if (updatedChat.status !== 'open' && activeChatIdRef.current === updatedChat.id) {
+          if (
+            updatedChat.status !== "open" &&
+            activeChatIdRef.current === updatedChat.id
+          ) {
             setActiveChatId(null);
             setMessages([]);
           }
-        }
+        },
       )
       .subscribe();
 
     const messagesChannel = supabase
-      .channel('admin-chat-messages')
+      .channel("admin-chat-messages")
       .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "chat_messages" },
         (payload) => {
           const nextMessage = payload.new as ChatMessage;
 
           setChats((prev) => {
             const index = prev.findIndex((chat) => chat.id === nextMessage.chat_id);
-            if (index === -1) return prev;
+            if (index === -1) {
+              return prev;
+            }
             const next = [...prev];
             const updatedChat = {
               ...next[index],
@@ -213,10 +232,10 @@ export default function AdminChatsPage() {
             setMessages((prev) =>
               prev.some((message) => message.id === nextMessage.id)
                 ? prev
-                : [...prev, nextMessage]
+                : [...prev, nextMessage],
             );
           }
-        }
+        },
       )
       .subscribe();
 
@@ -228,26 +247,30 @@ export default function AdminChatsPage() {
 
   const customerLabel = (chat: ChatSummary) => {
     const email = chat.customer?.email ?? chat.guest_email ?? null;
-    if (!email) return 'Customer';
-    const [prefix] = email.split('@');
-    return prefix || 'Customer';
+    if (!email) {
+      return "Customer";
+    }
+    const [prefix] = email.split("@");
+    return prefix || "Customer";
   };
 
   const activeChat = useMemo(
     () => chats.find((chat) => chat.id === activeChatId) ?? null,
-    [chats, activeChatId]
+    [chats, activeChatId],
   );
 
   const handleSend = async () => {
-    if (!activeChatId || !messageDraft.trim()) return;
+    if (!activeChatId || !messageDraft.trim()) {
+      return;
+    }
 
     const body = messageDraft.trim();
-    setMessageDraft('');
+    setMessageDraft("");
 
     try {
       const response = await fetch(`/api/chats/${activeChatId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: body }),
       });
 
@@ -256,20 +279,22 @@ export default function AdminChatsPage() {
         setMessages((prev) => [...prev, data.message]);
       }
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'admin_send_chat_message' });
+      logError(error, { layer: "frontend", event: "admin_send_chat_message" });
     }
   };
 
   const handleCloseChat = async () => {
-    if (!activeChatId) return;
+    if (!activeChatId) {
+      return;
+    }
     setConfirmClose(false);
     try {
-      await fetch(`/api/chats/${activeChatId}/close`, { method: 'POST' });
+      await fetch(`/api/chats/${activeChatId}/close`, { method: "POST" });
       setChats((prev) => prev.filter((chat) => chat.id !== activeChatId));
       setActiveChatId(null);
       setMessages([]);
     } catch (error) {
-      logError(error, { layer: 'frontend', event: 'admin_close_chat' });
+      logError(error, { layer: "frontend", event: "admin_close_chat" });
     }
   };
 
@@ -298,7 +323,7 @@ export default function AdminChatsPage() {
               </div>
             ) : (
               chats.map((chat) => {
-                const preview = chat.messages?.[0]?.body ?? 'No messages yet.';
+                const preview = chat.messages?.[0]?.body ?? "No messages yet.";
                 const label = customerLabel(chat);
                 const orderLabel = chat.order_id
                   ? `${label} - Order #${chat.order_id.slice(0, 8)}`
@@ -310,7 +335,9 @@ export default function AdminChatsPage() {
                     key={chat.id}
                     onClick={() => setActiveChatId(chat.id)}
                     className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-800/70 transition min-w-0 ${
-                      isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/60'
+                      isActive
+                        ? "bg-zinc-800 text-white"
+                        : "text-zinc-400 hover:bg-zinc-800/60"
                     }`}
                   >
                     <div className="text-[12px] sm:text-sm font-semibold text-white truncate">
@@ -334,9 +361,11 @@ export default function AdminChatsPage() {
                   ? activeChat.order_id
                     ? `${customerLabel(activeChat)} - Order #${activeChat.order_id.slice(0, 8)}`
                     : customerLabel(activeChat)
-                  : 'Chat'}
+                  : "Chat"}
               </div>
-              <div className="text-[11px] sm:text-xs text-zinc-500">Customer conversation</div>
+              <div className="text-[11px] sm:text-xs text-zinc-500">
+                Customer conversation
+              </div>
             </div>
             {activeChat && (
               <button
@@ -352,7 +381,9 @@ export default function AdminChatsPage() {
 
           <div className="flex-1 p-3 sm:p-4 space-y-3 overflow-y-auto">
             {isLoadingMessages && !hasLoadedMessages.current ? (
-              <div className="text-[12px] sm:text-sm text-zinc-500">Loading messages...</div>
+              <div className="text-[12px] sm:text-sm text-zinc-500">
+                Loading messages...
+              </div>
             ) : messages.length === 0 ? (
               <div className="text-[12px] sm:text-sm text-zinc-500">No messages yet.</div>
             ) : (
@@ -360,18 +391,18 @@ export default function AdminChatsPage() {
                 <div
                   key={message.id}
                   className={`max-w-[80%] w-fit rounded-2xl px-4 py-3 border border-zinc-800/70 ${
-                    message.sender_role === 'admin'
-                      ? 'bg-zinc-950 text-white ml-auto'
-                      : 'bg-zinc-800 text-zinc-100 mr-auto'
+                    message.sender_role === "admin"
+                      ? "bg-zinc-950 text-white ml-auto"
+                      : "bg-zinc-800 text-zinc-100 mr-auto"
                   }`}
                   data-testid="chat-message"
                 >
                   <div className="text-[11px] sm:text-xs text-zinc-500 mb-1">
-                    {message.sender_role === 'admin'
-                      ? 'Admin'
+                    {message.sender_role === "admin"
+                      ? "Admin"
                       : activeChat
                         ? customerLabel(activeChat)
-                        : 'Customer'}
+                        : "Customer"}
                   </div>
                   <div className="text-[12px] sm:text-sm whitespace-pre-wrap break-words">
                     {message.body}
@@ -417,7 +448,10 @@ export default function AdminChatsPage() {
 
       {confirmClose && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setConfirmClose(false)}
+          />
           <div className="relative bg-zinc-950 border border-zinc-800/70 p-6 max-w-sm w-full mx-4">
             <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
               Close this chat?

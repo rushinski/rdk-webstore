@@ -2,6 +2,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
+
 import { PasswordLoginForm } from "./PasswordLoginForm";
 import { OtpLoginForm } from "./OtpLoginForm";
 import { VerifyEmailForm } from "./VerifyEmailForm";
@@ -20,9 +21,13 @@ export function LoginForm() {
     params.get("verifyFlow") === "signup" ? "signup" : "signin";
 
   let mode: Mode = "password";
-  if (flowParam === "otp") mode = "otp";
-  else if (flowParam === "verify-email") mode = "verifyEmail";
-  else if (flowParam === "forgot-password") mode = "forgotPassword";
+  if (flowParam === "otp") {
+    mode = "otp";
+  } else if (flowParam === "verify-email") {
+    mode = "verifyEmail";
+  } else if (flowParam === "forgot-password") {
+    mode = "forgotPassword";
+  }
 
   function goToPassword() {
     const search = new URLSearchParams(Array.from(params.entries()));

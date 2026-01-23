@@ -35,7 +35,9 @@ export default function TooManyRequestsPage() {
 
           <div className="mt-4 flex items-center justify-center sm:justify-start text-[11px] uppercase tracking-[0.22em] text-zinc-400">
             <span>429</span>
-            <span aria-hidden className="mx-3 text-zinc-600">•</span>
+            <span aria-hidden className="mx-3 text-zinc-600">
+              •
+            </span>
             <span>Cool down</span>
           </div>
 

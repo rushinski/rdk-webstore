@@ -1,6 +1,7 @@
 // app/brands/page.tsx
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
+
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { StorefrontService } from "@/services/storefront-service";
 
@@ -15,7 +16,7 @@ const listBrandLabelsCached = unstable_cache(
     return Array.from(new Set(brands.map((b) => b.label).filter(Boolean)));
   },
   ["storefront", "brands"],
-  { revalidate: BRANDS_REVALIDATE_SECONDS, tags: ["products:list"] }
+  { revalidate: BRANDS_REVALIDATE_SECONDS, tags: ["products:list"] },
 );
 
 function buildStoreHref(brand: string) {
@@ -33,8 +34,12 @@ function sortLabels(labels: string[]) {
   return [...labels].sort((a, b) => {
     const aLower = a.toLowerCase();
     const bLower = b.toLowerCase();
-    if (aLower === "other") return 1;
-    if (bLower === "other") return -1;
+    if (aLower === "other") {
+      return 1;
+    }
+    if (bLower === "other") {
+      return -1;
+    }
     return a.localeCompare(b);
   });
 }
@@ -66,8 +71,12 @@ export default async function BrandsPage({
   }, {});
 
   const lettersWithResults = Object.keys(grouped).sort((a, b) => {
-    if (a === "#") return 1;
-    if (b === "#") return -1;
+    if (a === "#") {
+      return 1;
+    }
+    if (b === "#") {
+      return -1;
+    }
     return a.localeCompare(b);
   });
 
@@ -91,7 +100,9 @@ export default async function BrandsPage({
               <p className="text-[11px] sm:text-xs uppercase tracking-[0.4em] text-zinc-500">
                 Brand Index
               </p>
-              <h1 className="text-2xl sm:text-4xl font-bold text-white mt-2 sm:mt-3">All Brands</h1>
+              <h1 className="text-2xl sm:text-4xl font-bold text-white mt-2 sm:mt-3">
+                All Brands
+              </h1>
               <p className="text-zinc-400 text-[12px] sm:text-sm mt-2 sm:mt-3">
                 Browse by letter or search for a favorite.
               </p>
@@ -133,8 +144,9 @@ export default async function BrandsPage({
               </div>
 
               <div className="mt-2 text-[11px] sm:text-xs text-zinc-500">
-                Showing <span className="text-zinc-200 font-medium">{filtered.length}</span>{" "}
-                of <span className="text-zinc-200 font-medium">{uniqueLabels.length}</span>{" "}
+                Showing{" "}
+                <span className="text-zinc-200 font-medium">{filtered.length}</span> of{" "}
+                <span className="text-zinc-200 font-medium">{uniqueLabels.length}</span>{" "}
                 brands
               </div>
             </form>
@@ -143,7 +155,9 @@ export default async function BrandsPage({
           {/* Go To strip (dark) */}
           <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-zinc-800/70 flex items-center justify-between gap-3 sm:gap-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-[12px] sm:text-sm font-medium text-zinc-400">Go To:</span>
+              <span className="text-[12px] sm:text-sm font-medium text-zinc-400">
+                Go To:
+              </span>
 
               <div className="flex flex-wrap gap-1 w-full">
                 {allLetters.map((letter) => {
@@ -225,7 +239,11 @@ export default async function BrandsPage({
                     <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 sm:gap-x-10 gap-y-2.5 sm:gap-y-3">
                       {grouped[letter].map((label) => (
                         <li key={label} className="min-w-0">
-                          <Link href={buildStoreHref(label)} className={pillLink} title={`Shop ${label}`}>
+                          <Link
+                            href={buildStoreHref(label)}
+                            className={pillLink}
+                            title={`Shop ${label}`}
+                          >
                             {label}
                           </Link>
                         </li>

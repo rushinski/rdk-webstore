@@ -1,5 +1,7 @@
 // app/api/auth/otp/verify/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AuthService } from "@/services/auth-service";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";

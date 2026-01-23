@@ -22,7 +22,9 @@ export class ProfileRepository {
       .eq("id", userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -34,13 +36,17 @@ export class ProfileRepository {
       .eq("id", userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
   async ensureProfile(userId: string, email: string, tenantId?: string) {
     const existing = await this.getByUserId(userId);
-    if (existing) return existing;
+    if (existing) {
+      return existing;
+    }
 
     let assignedTenantId = tenantId;
 
@@ -52,8 +58,12 @@ export class ProfileRepository {
         .limit(1)
         .maybeSingle();
 
-      if (error) throw new Error(`Failed to query tenants: ${error.message}`);
-      if (!firstTenant) throw new Error("No tenant found in database. Please run seed script.");
+      if (error) {
+        throw new Error(`Failed to query tenants: ${error.message}`);
+      }
+      if (!firstTenant) {
+        throw new Error("No tenant found in database. Please run seed script.");
+      }
 
       assignedTenantId = firstTenant.id;
     }
@@ -69,13 +79,20 @@ export class ProfileRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
   async setRole(userId: string, role: ProfileRole) {
-    const { error } = await this.supabase.from("profiles").update({ role }).eq("id", userId);
-    if (error) throw error;
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ role })
+      .eq("id", userId);
+    if (error) {
+      throw error;
+    }
   }
 
   async updateNotificationPreferences(
@@ -86,17 +103,23 @@ export class ProfileRepository {
     },
   ) {
     const { error } = await this.supabase.from("profiles").update(input).eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async listStaffProfiles() {
     const { data, error } = await this.supabase
       .from("profiles")
-      .select("id, email, role, chat_notifications_enabled, admin_order_notifications_enabled")
+      .select(
+        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled",
+      )
       // ✅ Use the constant so you never drift
       .in("role", ADMIN_ROLES as unknown as string[]);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -110,7 +133,9 @@ export class ProfileRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data?.stripe_account_id ?? null;
   }
 
@@ -119,7 +144,9 @@ export class ProfileRepository {
       .from("profiles")
       .update({ stripe_customer_id: stripeCustomerId })
       .eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async setStripeAccountId(userId: string, stripeAccountId: string) {
@@ -127,11 +154,18 @@ export class ProfileRepository {
       .from("profiles")
       .update({ stripe_account_id: stripeAccountId })
       .eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async setTenantId(userId: string, tenantId: string) {
-    const { error } = await this.supabase.from("profiles").update({ tenant_id: tenantId }).eq("id", userId);
-    if (error) throw error;
+    const { error } = await this.supabase
+      .from("profiles")
+      .update({ tenant_id: tenantId })
+      .eq("id", userId);
+    if (error) {
+      throw error;
+    }
   }
 }

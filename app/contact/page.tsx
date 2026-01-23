@@ -1,6 +1,7 @@
 // app/(main)/contact/page.tsx
-import Image from 'next/image';
-import { ContactForm } from '@/components/contact/ContactForm';
+import Image from "next/image";
+
+import { ContactForm } from "@/components/contact/ContactForm";
 
 export default function ContactPage() {
   return (
@@ -8,8 +9,8 @@ export default function ContactPage() {
       <h1 className="text-4xl font-bold text-white mb-4">Contact Us</h1>
       <div className="text-zinc-400 mb-12 space-y-4">
         <p>
-          Trying to sell sneakers, clothing, accessories, or anything you think we might want? Reach out. We&apos;re
-          always buying.
+          Trying to sell sneakers, clothing, accessories, or anything you think we might
+          want? Reach out. We&apos;re always buying.
         </p>
         <p>
           You can contact us through{" "}
@@ -21,7 +22,10 @@ export default function ContactPage() {
             onsite messaging system
           </a>
           , by emailing us at{" "}
-          <a href="mailto:realdealholyspill@gmail.com" className="text-red-400 hover:underline">
+          <a
+            href="mailto:realdealholyspill@gmail.com"
+            className="text-red-400 hover:underline"
+          >
             realdealholyspill@gmail.com
           </a>
           , or by sending us a DM on Instagram at{" "}
@@ -36,9 +40,10 @@ export default function ContactPage() {
           .
         </p>
         <p>
-          Need help putting together a fit? We offer fit services too. Submit your size, style, and any specific
-          colors, shoes, or clothing you want included, and we will build a full outfit for you. You purchase it,
-          and we will ship everything straight to you.
+          Need help putting together a fit? We offer fit services too. Submit your size,
+          style, and any specific colors, shoes, or clothing you want included, and we
+          will build a full outfit for you. You purchase it, and we will ship everything
+          straight to you.
         </p>
         <p>Have questions or need anything else? Feel free to reach out.</p>
       </div>

@@ -1,7 +1,13 @@
 // src/components/auth/2fa/QRDisplay.tsx
 import { useEffect, useRef, useState } from "react";
 
-export function QRDisplay({ qrCode, copyValue }: { qrCode: string; copyValue?: string | null }) {
+export function QRDisplay({
+  qrCode,
+  copyValue,
+}: {
+  qrCode: string;
+  copyValue?: string | null;
+}) {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">("idle");
   const resetTimer = useRef<number | null>(null);
 
@@ -27,11 +33,15 @@ export function QRDisplay({ qrCode, copyValue }: { qrCode: string; copyValue?: s
     el.select();
     const ok = document.execCommand("copy");
     document.body.removeChild(el);
-    if (!ok) throw new Error("Copy failed");
+    if (!ok) {
+      throw new Error("Copy failed");
+    }
   };
 
   const handleCopy = async () => {
-    if (!copyValue) return;
+    if (!copyValue) {
+      return;
+    }
     try {
       await writeClipboard(copyValue);
       setCopyStatus("copied");

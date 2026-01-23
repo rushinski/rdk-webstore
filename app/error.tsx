@@ -3,6 +3,7 @@
 
 import Image from "next/image";
 import { useEffect } from "react";
+
 import { logError } from "@/lib/log";
 
 export default function ErrorPage({

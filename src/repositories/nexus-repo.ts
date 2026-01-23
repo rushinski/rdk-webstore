@@ -6,7 +6,7 @@ export type NexusRegistration = {
   id: string;
   tenant_id: string;
   state_code: string;
-  registration_type: 'physical' | 'economic';
+  registration_type: "physical" | "economic";
   is_registered: boolean;
   registered_at: string | null;
   stripe_registration_id: string | null;
@@ -60,24 +60,31 @@ export class NexusRepository {
 
   async getRegistrationsByTenant(tenantId: string): Promise<NexusRegistration[]> {
     const { data, error } = await this.supabase
-      .from('nexus_registrations')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('state_code');
+      .from("nexus_registrations")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("state_code");
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return (data ?? []) as NexusRegistration[];
   }
 
-  async getRegistration(tenantId: string, stateCode: string): Promise<NexusRegistration | null> {
+  async getRegistration(
+    tenantId: string,
+    stateCode: string,
+  ): Promise<NexusRegistration | null> {
     const { data, error } = await this.supabase
-      .from('nexus_registrations')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .eq('state_code', stateCode)
+      .from("nexus_registrations")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("state_code", stateCode)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw error;
+    if (error && error.code !== "PGRST116") {
+      throw error;
+    }
     return data as NexusRegistration | null;
   }
 
@@ -90,10 +97,12 @@ export class NexusRepository {
     stripeRegistrationId?: string | null;
   }): Promise<NexusRegistration> {
     // Read existing so we can preserve tracking_started_at once it exists
-    const existing = await this.getRegistration(registration.tenantId, registration.stateCode);
+    const existing = await this.getRegistration(
+      registration.tenantId,
+      registration.stateCode,
+    );
 
-    const tracking_started_at =
-      existing?.tracking_started_at ?? new Date().toISOString(); // set once (first time row is created)
+    const tracking_started_at = existing?.tracking_started_at ?? new Date().toISOString(); // set once (first time row is created)
 
     const { data, error } = await this.supabase
       .from("nexus_registrations")
@@ -115,7 +124,9 @@ export class NexusRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as NexusRegistration;
   }
 
@@ -125,7 +136,12 @@ export class NexusRepository {
   ): Promise<
     Map<
       string,
-      { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }
+      {
+        totalSales: number;
+        taxableSales: number;
+        transactionCount: number;
+        taxCollected: number;
+      }
     >
   > {
     const now = new Date();
@@ -133,7 +149,9 @@ export class NexusRepository {
 
     let query = this.supabase
       .from("state_sales_tracking")
-      .select("state_code, total_sales, taxable_sales, transaction_count, tax_collected, year, month")
+      .select(
+        "state_code, total_sales, taxable_sales, transaction_count, tax_collected, year, month",
+      )
       .eq("tenant_id", tenantId);
 
     if (windowType === "calendar") {
@@ -144,11 +162,18 @@ export class NexusRepository {
     }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     const salesMap = new Map<
       string,
-      { totalSales: number; taxableSales: number; transactionCount: number; taxCollected: number }
+      {
+        totalSales: number;
+        taxableSales: number;
+        transactionCount: number;
+        taxCollected: number;
+      }
     >();
 
     (data ?? []).forEach((row) => {
@@ -181,7 +206,9 @@ export class NexusRepository {
       .order("year", { ascending: true })
       .order("month", { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     const map = new Map<string, { year: number; month: number }>();
     (data ?? []).forEach((row) => {
@@ -203,24 +230,28 @@ export class NexusRepository {
     const offset = params.offset ?? 0;
 
     const { data, error, count } = await this.supabase
-      .from('orders')
-      .select('id, created_at, total, tax_amount, customer_state, fulfillment, status', { count: 'exact' })
-      .eq('tenant_id', params.tenantId)
-      .eq('customer_state', params.stateCode)
-      .eq('status', 'paid')
-      .order('created_at', { ascending: false })
+      .from("orders")
+      .select("id, created_at, total, tax_amount, customer_state, fulfillment, status", {
+        count: "exact",
+      })
+      .eq("tenant_id", params.tenantId)
+      .eq("customer_state", params.stateCode)
+      .eq("status", "paid")
+      .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    const sales: StateSalesLog[] = (data ?? []).map(order => ({
+    const sales: StateSalesLog[] = (data ?? []).map((order) => ({
       order_id: order.id,
       created_at: order.created_at,
       total: Number(order.total ?? 0),
       tax_amount: Number(order.tax_amount ?? 0),
       customer_state: order.customer_state ?? params.stateCode,
-      fulfillment: order.fulfillment ?? 'ship',
-      status: order.status ?? 'paid',
+      fulfillment: order.fulfillment ?? "ship",
+      status: order.status ?? "paid",
     }));
 
     return {
@@ -245,9 +276,8 @@ export class NexusRepository {
     const month = now.getMonth() + 1;
 
     // Upsert the tracking record
-    const { error } = await this.supabase
-      .from('state_sales_tracking')
-      .upsert({
+    const { error } = await this.supabase.from("state_sales_tracking").upsert(
+      {
         tenant_id: params.tenantId,
         state_code: params.stateCode,
         year,
@@ -256,13 +286,17 @@ export class NexusRepository {
         taxable_sales: params.isTaxable ? params.orderTotal : 0,
         transaction_count: 1,
         tax_collected: params.taxAmount,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'tenant_id,state_code,year,month',
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "tenant_id,state_code,year,month",
         // Increment existing values
-        ignoreDuplicates: false
-      });
+        ignoreDuplicates: false,
+      },
+    );
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

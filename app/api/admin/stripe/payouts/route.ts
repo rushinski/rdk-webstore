@@ -1,5 +1,7 @@
 // app/api/admin/stripe/payouts/route.ts (FIXED)
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { canViewBank } from "@/config/constants/roles";
@@ -23,13 +25,13 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = await createSupabaseServerClient();
-    
+
     // ✅ Get tenant context
     const contextService = new TenantContextService(supabase);
     const context = await contextService.getAdminContext(session.user.id);
 
     const service = new StripeAdminService(supabase);
-    const summary = await service.getStripeAccountSummary({ 
+    const summary = await service.getStripeAccountSummary({
       userId: session.user.id,
       tenantId: context.tenantId,
     });
@@ -48,7 +50,11 @@ export async function GET(request: NextRequest) {
 
     if (!parsedQuery.success) {
       return NextResponse.json(
-        { error: "Invalid query parameters", issues: parsedQuery.error.format(), requestId },
+        {
+          error: "Invalid query parameters",
+          issues: parsedQuery.error.format(),
+          requestId,
+        },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }

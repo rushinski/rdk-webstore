@@ -1,8 +1,9 @@
 // src/components/ui/Accordion.tsx
-'use client';
+"use client";
 
-import { ChevronDown } from 'lucide-react';
-import { ReactNode, useState } from 'react';
+import { ChevronDown } from "lucide-react";
+import type { ReactNode } from "react";
+import { useState } from "react";
 
 interface AccordionItemProps {
   title: string;
@@ -10,7 +11,11 @@ interface AccordionItemProps {
   defaultOpen?: boolean;
 }
 
-export function AccordionItem({ title, children, defaultOpen = false }: AccordionItemProps) {
+export function AccordionItem({
+  title,
+  children,
+  defaultOpen = false,
+}: AccordionItemProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -21,7 +26,7 @@ export function AccordionItem({ title, children, defaultOpen = false }: Accordio
       >
         <span className="font-semibold">{title}</span>
         <ChevronDown
-          className={`w-5 h-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-5 h-5 transition-transform ${isOpen ? "rotate-180" : ""}`}
         />
       </button>
       {isOpen && <div className="pb-4 text-gray-400">{children}</div>}

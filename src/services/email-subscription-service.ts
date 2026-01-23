@@ -16,11 +16,13 @@ export class EmailSubscriptionService {
     email: string,
     source: string | undefined,
     token: string,
-    expiresAt: string
+    expiresAt: string,
   ): Promise<"already_subscribed" | "pending"> {
     const normalizedEmail = email.trim().toLowerCase();
     const alreadySubscribed = await this.repo.isSubscribed(normalizedEmail);
-    if (alreadySubscribed) return "already_subscribed";
+    if (alreadySubscribed) {
+      return "already_subscribed";
+    }
 
     await this.tokenRepo.deleteByEmail(normalizedEmail);
     await this.tokenRepo.createToken({
@@ -35,11 +37,13 @@ export class EmailSubscriptionService {
 
   async subscribeDirect(
     email: string,
-    source: string | undefined
+    source: string | undefined,
   ): Promise<"already_subscribed" | "subscribed"> {
     const normalizedEmail = email.trim().toLowerCase();
     const alreadySubscribed = await this.repo.isSubscribed(normalizedEmail);
-    if (alreadySubscribed) return "already_subscribed";
+    if (alreadySubscribed) {
+      return "already_subscribed";
+    }
 
     await this.tokenRepo.deleteByEmail(normalizedEmail);
     await this.repo.subscribe(normalizedEmail, source ?? "website");
@@ -48,7 +52,7 @@ export class EmailSubscriptionService {
   }
 
   async confirmToken(
-    token: string
+    token: string,
   ): Promise<
     | { status: "invalid" }
     | { status: "expired" }
@@ -56,7 +60,9 @@ export class EmailSubscriptionService {
     | { status: "confirmed"; email: string }
   > {
     const record = await this.tokenRepo.getByToken(token);
-    if (!record) return { status: "invalid" };
+    if (!record) {
+      return { status: "invalid" };
+    }
 
     const expiresAt = new Date(record.expires_at);
     if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() < Date.now()) {

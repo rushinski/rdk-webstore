@@ -25,6 +25,7 @@ import {
   LayoutGrid,
   LayoutDashboard,
 } from "lucide-react";
+
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import { logError } from "@/lib/log";
 import { CartService } from "@/services/cart-service";
@@ -46,7 +47,9 @@ function buildStoreHref(params: Record<string, string | string[]>) {
       value.filter(Boolean).forEach((entry) => sp.append(key, entry));
       return;
     }
-    if (value === undefined || value === null || value === "") return;
+    if (value === undefined || value === null || value === "") {
+      return;
+    }
     sp.set(key, value);
   });
   const query = sp.toString();
@@ -154,12 +157,16 @@ export function Navbar({
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
-    if (pathname === "/") return "/auth/login";
+    if (pathname === "/") {
+      return "/auth/login";
+    }
     return `/auth/login?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
 
   const registerUrl = useMemo(() => {
-    if (pathname === "/") return "/auth/register";
+    if (pathname === "/") {
+      return "/auth/register";
+    }
     return `/auth/register?next=${encodeURIComponent(pathname)}`;
   }, [pathname]);
 
@@ -178,14 +185,18 @@ export function Navbar({
       try {
         const response = await fetch("/api/auth/session", { cache: "no-store" });
         if (!response.ok) {
-          if (!isActive) return;
+          if (!isActive) {
+            return;
+          }
           setClientIsAuthenticated(false);
           setClientUserEmail(null);
           return;
         }
 
         const data = await response.json();
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
         const user = data?.user ?? null;
         setClientIsAuthenticated(Boolean(user));
         setClientUserEmail(user?.email ?? null);
@@ -193,7 +204,9 @@ export function Navbar({
         // no-op: admin routes handled in layout
       } catch (error) {
         logError(error, { layer: "frontend", event: "navbar_load_session" });
-        if (!isActive) return;
+        if (!isActive) {
+          return;
+        }
         setClientIsAuthenticated(false);
         setClientUserEmail(null);
         setClientRole(null);
@@ -241,7 +254,9 @@ export function Navbar({
 
   // Scroll lock when mobile menu is open
   useEffect(() => {
-    if (!isMobileMenuOpen) return;
+    if (!isMobileMenuOpen) {
+      return;
+    }
 
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -286,7 +301,9 @@ export function Navbar({
     ];
     const unique = new Map<string, { key: string; label: string }>();
     for (const group of withCustom) {
-      if (!unique.has(group.label)) unique.set(group.label, group);
+      if (!unique.has(group.label)) {
+        unique.set(group.label, group);
+      }
     }
     const base = Array.from(unique.values());
     return base.slice().sort((a, b) => a.label.localeCompare(b.label));

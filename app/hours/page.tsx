@@ -4,12 +4,12 @@ export default function HoursPage() {
     <div className="max-w-6xl mx-auto px-4 pt-8 pb-16">
       <h1 className="text-4xl font-bold text-white mb-4">Hours</h1>
       <p className="text-zinc-400 mb-4">
-        Pickup and meetup availability for Simpsonville, South Carolina. Local pickups are available and you can
-        select local pickup at checkout.
+        Pickup and meetup availability for Simpsonville, South Carolina. Local pickups are
+        available and you can select local pickup at checkout.
       </p>
       <p className="text-zinc-400 mb-10">
-        We are always looking to buy sneakers no matter the condition and no matter the quantity. If you are
-        interested in selling, reach out on{" "}
+        We are always looking to buy sneakers no matter the condition and no matter the
+        quantity. If you are interested in selling, reach out on{" "}
         <a
           href="https://instagram.com/realdealkickzllc"
           target="_blank"
@@ -19,7 +19,10 @@ export default function HoursPage() {
           Instagram
         </a>
         ,{" "}
-        <a href="mailto:realdealholyspill@gmail.com" className="text-red-400 hover:underline">
+        <a
+          href="mailto:realdealholyspill@gmail.com"
+          className="text-red-400 hover:underline"
+        >
           email us
         </a>
         , submit through the{" "}

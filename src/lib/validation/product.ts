@@ -79,4 +79,3 @@ export const adminProductsQuerySchema = z
     includeOutOfStock: includeOutOfStockSchema,
   })
   .strict();
-

@@ -1,6 +1,8 @@
 // src/app/api/checkout/calculate-shipping/route.ts (NEW)
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";

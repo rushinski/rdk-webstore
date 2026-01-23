@@ -1,5 +1,6 @@
 // app/api/contact/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -10,7 +11,6 @@ import { sendEmail } from "@/lib/email/mailer";
 import { buildContactSubmissionEmail } from "@/lib/email/contact";
 import { ContactMessagesRepository } from "@/repositories/contact-messages-repo";
 import { ContactAttachmentService } from "@/services/contact-attachment-service";
-
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/log";
 import { env } from "@/config/env";
@@ -34,7 +34,10 @@ type ContactSource = "contact_form" | "bug_report";
 
 const attachmentConfig = security.contact.attachments;
 const ALLOWED_ATTACHMENT_TYPES = new Set<string>(attachmentConfig.allowedTypes);
-const MAX_ATTACHMENT_SIZE_MB = Math.max(1, Math.round(attachmentConfig.maxBytes / (1024 * 1024)));
+const MAX_ATTACHMENT_SIZE_MB = Math.max(
+  1,
+  Math.round(attachmentConfig.maxBytes / (1024 * 1024)),
+);
 
 const redis = new Redis({
   url: env.UPSTASH_REDIS_REST_URL!,
@@ -45,7 +48,7 @@ const contactRateLimit = new Ratelimit({
   redis,
   limiter: Ratelimit.slidingWindow(
     security.contact.rateLimit.maxRequests,
-    security.contact.rateLimit.window
+    security.contact.rateLimit.window,
   ),
 });
 
@@ -63,12 +66,16 @@ const detectImageType = (bytes: Uint8Array): { mime: string; ext: string } | nul
       bytes[5] === 0x0a &&
       bytes[6] === 0x1a &&
       bytes[7] === 0x0a;
-    if (isPng) return { mime: "image/png", ext: "png" };
+    if (isPng) {
+      return { mime: "image/png", ext: "png" };
+    }
   }
 
   if (bytes.length >= 3) {
     const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-    if (isJpeg) return { mime: "image/jpeg", ext: "jpg" };
+    if (isJpeg) {
+      return { mime: "image/jpeg", ext: "jpg" };
+    }
   }
 
   if (bytes.length >= 12) {
@@ -81,7 +88,9 @@ const detectImageType = (bytes: Uint8Array): { mime: string; ext: string } | nul
       bytes[9] === 0x45 &&
       bytes[10] === 0x42 &&
       bytes[11] === 0x50;
-    if (isWebp) return { mime: "image/webp", ext: "webp" };
+    if (isWebp) {
+      return { mime: "image/webp", ext: "webp" };
+    }
   }
 
   return null;
@@ -89,7 +98,9 @@ const detectImageType = (bytes: Uint8Array): { mime: string; ext: string } | nul
 
 const sanitizeFilename = (name: string, fallback: string) => {
   const trimmed = name.trim();
-  if (!trimmed) return fallback;
+  if (!trimmed) {
+    return fallback;
+  }
   const safe = trimmed.replace(/[^a-zA-Z0-9._-]/g, "_");
   return safe.length > 0 ? safe : fallback;
 };
@@ -98,11 +109,15 @@ const getClientIp = (request: NextRequest): string => {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
     const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) return firstIp;
+    if (firstIp) {
+      return firstIp;
+    }
   }
 
   const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
+  if (realIp) {
+    return realIp;
+  }
 
   return "unknown";
 };
@@ -137,7 +152,7 @@ export async function POST(request: NextRequest) {
             "X-RateLimit-Remaining": String(rateResult.remaining),
             "X-RateLimit-Reset": String(rateResult.reset),
           },
-        }
+        },
       );
     }
 
@@ -163,18 +178,30 @@ export async function POST(request: NextRequest) {
 
       body = {
         name: typeof formData.get("name") === "string" ? formData.get("name") : undefined,
-        email: typeof formData.get("email") === "string" ? formData.get("email") : undefined,
-        subject: typeof formData.get("subject") === "string" ? formData.get("subject") : undefined,
-        message: typeof formData.get("message") === "string" ? formData.get("message") : undefined,
-        source: typeof formData.get("source") === "string" ? formData.get("source") : undefined,
+        email:
+          typeof formData.get("email") === "string" ? formData.get("email") : undefined,
+        subject:
+          typeof formData.get("subject") === "string"
+            ? formData.get("subject")
+            : undefined,
+        message:
+          typeof formData.get("message") === "string"
+            ? formData.get("message")
+            : undefined,
+        source:
+          typeof formData.get("source") === "string" ? formData.get("source") : undefined,
       };
 
       const fileEntries = formData.getAll("attachments").filter(isFileValue);
 
       if (fileEntries.length > attachmentConfig.maxFiles) {
         return NextResponse.json(
-          { ok: false, error: `You can upload up to ${attachmentConfig.maxFiles} images.`, requestId },
-          { status: 400, headers: { "Cache-Control": "no-store" } }
+          {
+            ok: false,
+            error: `You can upload up to ${attachmentConfig.maxFiles} images.`,
+            requestId,
+          },
+          { status: 400, headers: { "Cache-Control": "no-store" } },
         );
       }
 
@@ -186,14 +213,18 @@ export async function POST(request: NextRequest) {
               error: `${file.name || "Attachment"} exceeds ${MAX_ATTACHMENT_SIZE_MB}MB.`,
               requestId,
             },
-            { status: 400, headers: { "Cache-Control": "no-store" } }
+            { status: 400, headers: { "Cache-Control": "no-store" } },
           );
         }
 
         if (file.type && !ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
           return NextResponse.json(
-            { ok: false, error: `${file.name || "Attachment"} is not a supported image type.`, requestId },
-            { status: 400, headers: { "Cache-Control": "no-store" } }
+            {
+              ok: false,
+              error: `${file.name || "Attachment"} is not a supported image type.`,
+              requestId,
+            },
+            { status: 400, headers: { "Cache-Control": "no-store" } },
           );
         }
 
@@ -202,15 +233,23 @@ export async function POST(request: NextRequest) {
 
         if (!signature) {
           return NextResponse.json(
-            { ok: false, error: `${file.name || "Attachment"} is not a valid image.`, requestId },
-            { status: 400, headers: { "Cache-Control": "no-store" } }
+            {
+              ok: false,
+              error: `${file.name || "Attachment"} is not a valid image.`,
+              requestId,
+            },
+            { status: 400, headers: { "Cache-Control": "no-store" } },
           );
         }
 
         if (file.type && signature.mime !== file.type) {
           return NextResponse.json(
-            { ok: false, error: `${file.name || "Attachment"} failed image validation.`, requestId },
-            { status: 400, headers: { "Cache-Control": "no-store" } }
+            {
+              ok: false,
+              error: `${file.name || "Attachment"} failed image validation.`,
+              requestId,
+            },
+            { status: 400, headers: { "Cache-Control": "no-store" } },
           );
         }
 
@@ -241,7 +280,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -324,7 +363,10 @@ export async function POST(request: NextRequest) {
       subject: parsed.data.subject,
       message: parsed.data.message,
       source,
-      attachments: emailAttachments.map((file) => ({ filename: file.filename, cid: file.cid })),
+      attachments: emailAttachments.map((file) => ({
+        filename: file.filename,
+        cid: file.cid,
+      })),
     });
 
     try {
@@ -354,7 +396,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { ok: false, error: "Failed to send message", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

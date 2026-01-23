@@ -1,4 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { EmailSubscriptionService } from "@/services/email-subscription-service";
 import { sendEmail } from "@/lib/email/mailer";

@@ -15,7 +15,9 @@ export class PayoutSettingsRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -46,7 +48,9 @@ export class PayoutSettingsRepository {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       return data as PayoutSettingsRow;
     }
 
@@ -56,7 +60,9 @@ export class PayoutSettingsRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as PayoutSettingsRow;
   }
 }

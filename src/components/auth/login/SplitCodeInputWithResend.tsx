@@ -2,8 +2,9 @@
 "use client";
 
 import type { ComponentPropsWithoutRef } from "react";
-import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { RotateCw } from "lucide-react";
+
+import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 
 export interface SplitCodeInputWithResendProps
   extends Omit<ComponentPropsWithoutRef<"input">, "onChange" | "value"> {
@@ -64,7 +65,7 @@ export function SplitCodeInputWithResend({
           disabled={resendDisabled}
           className="flex items-center gap-1.5 text-red-600 hover:text-red-500 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
         >
-          <RotateCw className={`w-3 h-3 ${isSending ? 'animate-spin' : ''}`} />
+          <RotateCw className={`w-3 h-3 ${isSending ? "animate-spin" : ""}`} />
           <span>
             {isSending
               ? "Sending..."

@@ -28,7 +28,9 @@ export function createCartHash(items: any[], fulfillment: string): string {
     .sort((a, b) => {
       const keyA = `${a.productId}:${a.variantId}`;
       const keyB = `${b.productId}:${b.variantId}`;
-      if (keyA !== keyB) return keyA.localeCompare(keyB);
+      if (keyA !== keyB) {
+        return keyA.localeCompare(keyB);
+      }
       return a.quantity - b.quantity;
     });
 

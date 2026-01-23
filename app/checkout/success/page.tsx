@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, Loader2, Mail } from "lucide-react";
+
 import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { useCart } from "@/components/cart/CartProvider";
@@ -62,7 +63,9 @@ function SuccessContent() {
   }, [accessToken]);
 
   useEffect(() => {
-    if (!orderId || !canFetchStatus) return;
+    if (!orderId || !canFetchStatus) {
+      return;
+    }
 
     let pollInterval: NodeJS.Timeout;
     let timeoutId: NodeJS.Timeout;
@@ -150,7 +153,7 @@ function SuccessContent() {
               Check your email for pickup instructions and scheduling.
             </p>
             <p className="text-sm text-gray-400">
-              You can also DM us on Instagram {" "}
+              You can also DM us on Instagram{" "}
               <a
                 href="https://instagram.com/realdealkickzllc"
                 className="text-red-400 hover:text-red-300"
@@ -158,8 +161,8 @@ function SuccessContent() {
                 rel="noreferrer"
               >
                 @realdealkickzllc
-              </a>
-              {" "} to schedule pickup.
+              </a>{" "}
+              to schedule pickup.
             </p>
           </div>
         )}

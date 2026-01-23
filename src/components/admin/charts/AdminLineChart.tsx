@@ -2,14 +2,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  LineChart,
-  Line,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from "recharts";
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 
 type AdminLineChartProps<T extends Record<string, unknown>> = {
   data: T[];
@@ -24,7 +17,9 @@ type AdminLineChartProps<T extends Record<string, unknown>> = {
 };
 
 function toNumber(v: unknown): number {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (typeof v === "number") {
+    return Number.isFinite(v) ? v : 0;
+  }
   if (typeof v === "string") {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
@@ -35,27 +30,43 @@ function toNumber(v: unknown): number {
 function formatDateShort(input: unknown) {
   const s = typeof input === "string" ? input : "";
   const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return s || "";
+  if (Number.isNaN(d.getTime())) {
+    return s || "";
+  }
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(d);
 }
 
 function niceStep(raw: number): number {
-  if (!Number.isFinite(raw) || raw <= 0) return 1;
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 1;
+  }
   const exp = Math.floor(Math.log10(raw));
   const f = raw / Math.pow(10, exp);
 
   let nf = 1;
-  if (f <= 1) nf = 1;
-  else if (f <= 2) nf = 2;
-  else if (f <= 5) nf = 5;
-  else nf = 10;
+  if (f <= 1) {
+    nf = 1;
+  } else if (f <= 2) {
+    nf = 2;
+  } else if (f <= 5) {
+    nf = 5;
+  } else {
+    nf = 10;
+  }
 
   return nf * Math.pow(10, exp);
 }
 
 function genTicks(min: number, max: number, step: number) {
   const out: number[] = [];
-  if (!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(step) || step <= 0) return out;
+  if (
+    !Number.isFinite(min) ||
+    !Number.isFinite(max) ||
+    !Number.isFinite(step) ||
+    step <= 0
+  ) {
+    return out;
+  }
 
   const start = Math.floor(min / step) * step;
   const end = Math.ceil(max / step) * step;
@@ -66,7 +77,9 @@ function genTicks(min: number, max: number, step: number) {
   for (let v = start; v <= end + step / 2; v += step) {
     out.push(Number(v.toFixed(12)));
     count++;
-    if (count > MAX_TICKS) break;
+    if (count > MAX_TICKS) {
+      break;
+    }
   }
 
   return Array.from(new Set(out)).sort((a, b) => a - b);
@@ -99,7 +112,9 @@ export function AdminLineChart<T extends Record<string, unknown>>({
     : { top: 8, right: 18, bottom: 8, left: 12 };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
     const media = window.matchMedia("(max-width: 640px)");
     const handleChange = () => setIsCompact(media.matches);
     handleChange();
@@ -115,11 +130,15 @@ export function AdminLineChart<T extends Record<string, unknown>>({
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
 
     let raf = 0;
     const update = () => {
-      if (raf) cancelAnimationFrame(raf);
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
       raf = requestAnimationFrame(() => {
         const rect = el.getBoundingClientRect();
         const parentWidth = el.parentElement?.clientWidth ?? 0;
@@ -145,14 +164,18 @@ export function AdminLineChart<T extends Record<string, unknown>>({
       observer.observe(el);
       return () => {
         observer.disconnect();
-        if (raf) cancelAnimationFrame(raf);
+        if (raf) {
+          cancelAnimationFrame(raf);
+        }
       };
     }
 
     window.addEventListener("resize", update);
     return () => {
       window.removeEventListener("resize", update);
-      if (raf) cancelAnimationFrame(raf);
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
     };
   }, [chartHeight, data.length]);
 
@@ -166,7 +189,9 @@ export function AdminLineChart<T extends Record<string, unknown>>({
       .sort((a, b) => {
         const da = new Date(String((a as any).__x)).getTime();
         const db = new Date(String((b as any).__x)).getTime();
-        if (Number.isNaN(da) || Number.isNaN(db)) return 0;
+        if (Number.isNaN(da) || Number.isNaN(db)) {
+          return 0;
+        }
         return da - db;
       });
   }, [data, xKey, yKey]);
@@ -201,8 +226,11 @@ export function AdminLineChart<T extends Record<string, unknown>>({
     let step: number;
 
     if (wantIntegers) {
-      if (domainMax <= 12) step = 1;
-      else step = Math.max(1, niceStep((domainMax - min) / 5));
+      if (domainMax <= 12) {
+        step = 1;
+      } else {
+        step = Math.max(1, niceStep((domainMax - min) / 5));
+      }
     } else {
       step = niceStep((domainMax - min) / 5);
     }
@@ -223,7 +251,9 @@ export function AdminLineChart<T extends Record<string, unknown>>({
     if (ticks.length > MAX_TICKS_SHOWN) {
       const stride = Math.ceil(ticks.length / MAX_TICKS_SHOWN);
       ticks = ticks.filter((_, idx) => idx % stride === 0);
-      if (ticks[ticks.length - 1] !== domainMax) ticks.push(domainMax);
+      if (ticks[ticks.length - 1] !== domainMax) {
+        ticks.push(domainMax);
+      }
     }
 
     return {

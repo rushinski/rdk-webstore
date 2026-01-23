@@ -24,7 +24,9 @@ const buildChatLink = (input: ChatEmailInput) => {
 
 const truncate = (value: string, max = 240) => {
   const trimmed = value.trim();
-  if (trimmed.length <= max) return trimmed;
+  if (trimmed.length <= max) {
+    return trimmed;
+  }
   return `${trimmed.slice(0, max - 3)}...`;
 };
 

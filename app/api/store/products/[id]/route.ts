@@ -1,7 +1,9 @@
 // app/api/store/products/[id]/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getServerSession } from "@/lib/auth/session";
 import { StorefrontService } from "@/services/storefront-service";
@@ -14,7 +16,7 @@ const paramsSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const { id } = await params;
@@ -23,7 +25,7 @@ export async function GET(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -43,7 +45,7 @@ export async function GET(
     if (!product) {
       return NextResponse.json(
         { error: "Product not found", requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
+        { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -58,7 +60,7 @@ export async function GET(
     });
     return NextResponse.json(
       { error: "Failed to fetch product", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

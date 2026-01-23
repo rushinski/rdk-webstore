@@ -1,5 +1,7 @@
 // app/api/auth/2fa/enroll/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -20,7 +22,7 @@ export async function POST(req: NextRequest) {
     if (error || !data) {
       return NextResponse.json(
         { error: error?.message ?? "Failed to start MFA enrollment", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
         qrCode: totp.qr_code,
         uri: totp.uri,
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
     logError(error, {
@@ -43,8 +45,7 @@ export async function POST(req: NextRequest) {
     });
 
     const message = error instanceof Error ? error.message : "Auth error";
-    const status =
-      message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
+    const status = message === "UNAUTHORIZED" ? 401 : message === "FORBIDDEN" ? 403 : 500;
     const responseError =
       message === "UNAUTHORIZED"
         ? "Unauthorized"
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { error: responseError, requestId },
-      { status, headers: { "Cache-Control": "no-store" } }
+      { status, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

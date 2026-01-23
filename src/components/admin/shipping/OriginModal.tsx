@@ -1,7 +1,8 @@
 "use client";
 
-import type { ShippingOrigin } from "../../../types/domain/shipping";
 import { ModalPortal } from "@/components/ui/ModalPortal";
+
+import type { ShippingOrigin } from "../../../types/domain/shipping";
 
 type OriginModalProps = {
   open: boolean;

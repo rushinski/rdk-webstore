@@ -1,7 +1,6 @@
 // app/api/maps/us-states/route.ts
 export async function GET() {
-  const upstream =
-    "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+  const upstream = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
   const res = await fetch(upstream, {
     // Keep it simple—don’t add headers that trigger preflight

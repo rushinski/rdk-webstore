@@ -59,7 +59,9 @@ function walk(dir: string): void {
       const folderName = path.basename(full);
 
       // Skip ignored directories
-      if (IGNORE_DIRS.has(folderName)) continue;
+      if (IGNORE_DIRS.has(folderName)) {
+        continue;
+      }
 
       walk(full);
     } else {
@@ -84,13 +86,19 @@ for (const fullPath of allFiles) {
   const inAppFolder = /(^|[\\/])app[\\/]/.test(fullPath);
 
   // RULE: Entire `tests/` folder is allowed
-  if (/(^|[\\/])tests[\\/]/.test(fullPath)) continue;
+  if (/(^|[\\/])tests[\\/]/.test(fullPath)) {
+    continue;
+  }
 
   // RULE: exact whitelisted filenames
-  if (allowedExactNames.some((rx) => rx.test(file))) continue;
+  if (allowedExactNames.some((rx) => rx.test(file))) {
+    continue;
+  }
 
   // RULE: allowed extensions (.md, .ps1)
-  if (allowedExtensions.test(file)) continue;
+  if (allowedExtensions.test(file)) {
+    continue;
+  }
 
   // RULE: TS logic files (.ts)
   // lowercase-with-dashes only
@@ -104,14 +112,18 @@ for (const fullPath of allFiles) {
   // RULE: TSX files inside /app
   // lowercase-with-dashes only
   if (isTsx && inAppFolder) {
-    if (!appRoutePattern.test(file)) invalid.push(fullPath);
+    if (!appRoutePattern.test(file)) {
+      invalid.push(fullPath);
+    }
     continue;
   }
 
   // RULE: TSX files outside /app
   // PascalCase only
   if (isTsx && !inAppFolder) {
-    if (!tsxPatternPascal.test(file)) invalid.push(fullPath);
+    if (!tsxPatternPascal.test(file)) {
+      invalid.push(fullPath);
+    }
     continue;
   }
 
@@ -119,7 +131,9 @@ for (const fullPath of allFiles) {
   const segments = dir.split(/[\\/]/).filter(Boolean);
 
   for (const seg of segments) {
-    if (IGNORE_DIRS.has(seg)) continue;
+    if (IGNORE_DIRS.has(seg)) {
+      continue;
+    }
     if (/[A-Z]/.test(seg)) {
       invalid.push(fullPath);
       break;

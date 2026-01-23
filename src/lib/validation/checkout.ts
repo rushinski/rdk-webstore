@@ -16,7 +16,7 @@ export const shippingAddressSchema = z
     city: z.string().trim().min(1).max(100),
     state: z.string().trim().length(2), // Also fix this - should be exactly 2 chars
     postal_code: z.string().trim().min(1).max(20), // Changed from postalCode
-    country: z.string().trim().length(2).default('US'),
+    country: z.string().trim().length(2).default("US"),
   })
   .strict();
 

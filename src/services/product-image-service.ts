@@ -41,8 +41,12 @@ export class ProductImageService {
 
     const maxBytes = bytesFromEnv(process.env.PRODUCT_IMAGE_MAX_BYTES, DEFAULT_MAX_BYTES);
 
-    if (!input.file) throw new Error("Missing file");
-    if (input.file.size <= 0) throw new Error("Empty file");
+    if (!input.file) {
+      throw new Error("Missing file");
+    }
+    if (input.file.size <= 0) {
+      throw new Error("Empty file");
+    }
     if (input.file.size > maxBytes) {
       throw new Error(`File too large. Max ${maxBytes} bytes`);
     }

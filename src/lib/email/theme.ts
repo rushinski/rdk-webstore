@@ -6,8 +6,7 @@ export const EMAIL_BRAND = {
   logoUrl: BRAND_LOGO_URL,
 };
 
-export const EMAIL_FONT_STACK =
-  "'Inter', 'Helvetica Neue', Arial, Helvetica, sans-serif";
+export const EMAIL_FONT_STACK = "'Inter', 'Helvetica Neue', Arial, Helvetica, sans-serif";
 
 export const EMAIL_COLORS = {
   background: "#000000",
@@ -30,7 +29,8 @@ export const emailStyles = {
   preheader:
     "display:none;font-size:1px;line-height:1px;color:#000000;max-height:0;max-width:0;opacity:0;overflow:hidden;",
   eyebrow: `font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:${EMAIL_COLORS.accent};font-weight:700;`,
-  heading: "margin:10px 0 0;font-size:20px;line-height:1.4;font-weight:700;color:#ffffff;",
+  heading:
+    "margin:10px 0 0;font-size:20px;line-height:1.4;font-weight:700;color:#ffffff;",
   copy: `margin:0;font-size:14px;line-height:1.7;color:${EMAIL_COLORS.muted};`,
   subcopy: `margin:0;font-size:12px;line-height:1.6;color:${EMAIL_COLORS.subtle};`,
   panel: `background:${EMAIL_COLORS.panel};border:1px solid ${EMAIL_COLORS.panelBorder};`,

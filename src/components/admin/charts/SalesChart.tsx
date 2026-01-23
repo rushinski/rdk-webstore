@@ -2,6 +2,7 @@
 "use client";
 
 import React from "react";
+
 import { AdminLineChart } from "./AdminLineChart";
 
 export function SalesChart(props: { data: Array<{ date: string; revenue: number }> }) {

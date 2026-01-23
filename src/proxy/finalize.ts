@@ -6,7 +6,7 @@ import { security } from "@/config/security";
 
 export function finalizeProxyResponse(
   response: NextResponse,
-  requestId: string
+  requestId: string,
 ): NextResponse {
   response.headers.set(security.proxy.requestIdHeader, requestId);
   applySecurityHeaders(response);

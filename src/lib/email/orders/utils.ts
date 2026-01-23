@@ -9,7 +9,9 @@ export const formatMoney = (value: number) => value.toFixed(2);
 const formatLine = (value?: string | null) => (value ? value.trim() : "");
 
 export const buildAddressLines = (address?: ShippingAddress | null) => {
-  if (!address) return [];
+  if (!address) {
+    return [];
+  }
   const lines = [
     formatLine(address.name),
     formatLine(address.line1),
@@ -59,8 +61,14 @@ export const buildTrackingPanelHtml = (input: OrderTrackingEmailBase) => {
 
 export const buildTrackingPanelText = (input: OrderTrackingEmailBase) => {
   const lines: string[] = [];
-  if (input.carrier) lines.push(`Carrier: ${input.carrier}`);
-  if (input.trackingNumber) lines.push(`Tracking: ${input.trackingNumber}`);
-  if (input.trackingUrl) lines.push(`Track: ${input.trackingUrl}`);
+  if (input.carrier) {
+    lines.push(`Carrier: ${input.carrier}`);
+  }
+  if (input.trackingNumber) {
+    lines.push(`Tracking: ${input.trackingNumber}`);
+  }
+  if (input.trackingUrl) {
+    lines.push(`Track: ${input.trackingUrl}`);
+  }
   return lines.join("\n");
 };

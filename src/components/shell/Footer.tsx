@@ -8,7 +8,10 @@ import { Instagram, MapPin, Phone, Mail } from "lucide-react";
 export function Footer() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +60,9 @@ export function Footer() {
 
             {/* Email Signup */}
             <div>
-              <p className="text-white text-sm font-medium mb-3">Get drop alerts & exclusives</p>
+              <p className="text-white text-sm font-medium mb-3">
+                Get drop alerts & exclusives
+              </p>
               <form onSubmit={handleEmailSignup} className="space-y-2">
                 <div className="flex gap-2">
                   <input
@@ -77,7 +82,9 @@ export function Footer() {
                   </button>
                 </div>
                 {message && (
-                  <p className={`text-xs ${message.type === "success" ? "text-emerald-500" : "text-red-500"}`}>
+                  <p
+                    className={`text-xs ${message.type === "success" ? "text-emerald-500" : "text-red-500"}`}
+                  >
                     {message.text}
                   </p>
                 )}
@@ -91,7 +98,10 @@ export function Footer() {
             <ul className="space-y-3">
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
                 <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <a href="mailto:realdealholyspill@gmail.com" className="hover:text-white transition-colors">
+                <a
+                  href="mailto:realdealholyspill@gmail.com"
+                  className="hover:text-white transition-colors"
+                >
                   realdealholyspill@gmail.com
                 </a>
               </li>
@@ -120,27 +130,42 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-4 text-sm">Shop</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/store" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/store"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   All Products
                 </Link>
               </li>
               <li>
-                <Link href="/store?category=sneakers" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/store?category=sneakers"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Sneakers
                 </Link>
               </li>
               <li>
-                <Link href="/store?category=clothing" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/store?category=clothing"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Clothing
                 </Link>
               </li>
               <li>
-                <Link href="/store?category=accessories" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/store?category=accessories"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Accessories
                 </Link>
               </li>
               <li>
-                <Link href="/store?category=electronics" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/store?category=electronics"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Electronics
                 </Link>
               </li>
@@ -152,27 +177,42 @@ export function Footer() {
             <h4 className="text-white font-semibold mb-4 text-sm">Info</h4>
             <ul className="space-y-2 mb-6">
               <li>
-                <Link href="/contact" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/contact"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Contact
                 </Link>
               </li>
               <li>
-                <Link href="/bug-report" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/bug-report"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Bug Report
                 </Link>
               </li>
               <li>
-                <Link href="/hours" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/hours"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Hours
                 </Link>
               </li>
               <li>
-                <Link href="/shipping" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/shipping"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Shipping
                 </Link>
               </li>
               <li>
-                <Link href="/refunds" className="text-zinc-500 hover:text-white text-sm transition-colors">
+                <Link
+                  href="/refunds"
+                  className="text-zinc-500 hover:text-white text-sm transition-colors"
+                >
                   Returns &amp; Refunds
                 </Link>
               </li>
@@ -186,10 +226,16 @@ export function Footer() {
             © 2026 Realdealkickzsc. All rights reserved.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/terms" className="text-zinc-400 hover:text-white text-xs transition-colors">
+            <Link
+              href="/terms"
+              className="text-zinc-400 hover:text-white text-xs transition-colors"
+            >
               Terms
             </Link>
-            <Link href="/privacy" className="text-zinc-400 hover:text-white text-xs transition-colors">
+            <Link
+              href="/privacy"
+              className="text-zinc-400 hover:text-white text-xs transition-colors"
+            >
               Privacy
             </Link>
           </div>

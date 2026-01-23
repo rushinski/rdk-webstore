@@ -1,5 +1,7 @@
 // app/api/auth/update-password/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { ok: false, error: "Invalid payload", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 
@@ -24,17 +26,14 @@ export async function POST(req: NextRequest) {
     if (!isPasswordValid(password)) {
       return NextResponse.json(
         { ok: false, error: "Password does not meet the required criteria.", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } }
+        { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
     const supabase = await createSupabaseServerClient();
     const authService = new AuthService(supabase);
 
     await authService.updatePassword(password);
-    return NextResponse.json(
-      { ok: true },
-      { headers: { "Cache-Control": "no-store" } }
-    );
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error: any) {
     logError(error, {
       layer: "auth",
@@ -44,7 +43,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { ok: false, error: error.message ?? "Password update failed", requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } }
+      { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

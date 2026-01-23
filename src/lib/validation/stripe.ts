@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { STRIPE_PAYOUT_INTERVALS, STRIPE_PAYOUT_WEEKLY_ANCHORS } from "@/config/constants/stripe";
+
+import {
+  STRIPE_PAYOUT_INTERVALS,
+  STRIPE_PAYOUT_WEEKLY_ANCHORS,
+} from "@/config/constants/stripe";
 
 export const stripePayoutsQuerySchema = z
   .object({

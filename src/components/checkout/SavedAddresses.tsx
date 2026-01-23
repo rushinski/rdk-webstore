@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { Check, MapPin, Loader2, Plus } from 'lucide-react';
-import type { ShippingAddress } from './CheckoutForm';
-import { ShippingAddressModal } from './ShippingAddressModal';
+import { useEffect, useRef, useState } from "react";
+import { Check, MapPin, Loader2, Plus } from "lucide-react";
+
+import type { ShippingAddress } from "./CheckoutForm";
+import { ShippingAddressModal } from "./ShippingAddressModal";
 
 interface SavedAddress {
   id: string;
@@ -24,18 +25,18 @@ interface SavedAddressesProps {
   isGuest?: boolean;
 }
 
-const GUEST_ADDRESS_STORAGE_KEY = 'rdk_guest_shipping_address_v1';
+const GUEST_ADDRESS_STORAGE_KEY = "rdk_guest_shipping_address_v1";
 
 function toShippingAddress(a: SavedAddress): ShippingAddress {
   return {
-    name: a.name || '',
-    phone: a.phone || '',
-    line1: a.line1 || '',
-    line2: a.line2 || '',
-    city: a.city || '',
-    state: a.state || '',
-    postalCode: a.postal_code || '',
-    country: a.country || 'US',
+    name: a.name || "",
+    phone: a.phone || "",
+    line1: a.line1 || "",
+    line2: a.line2 || "",
+    city: a.city || "",
+    state: a.state || "",
+    postalCode: a.postal_code || "",
+    country: a.country || "US",
   };
 }
 
@@ -48,7 +49,7 @@ function toApiPayload(address: ShippingAddress) {
     city: address.city.trim(),
     state: address.state.trim().toUpperCase(),
     postal_code: address.postalCode.trim(),
-    country: (address.country || 'US').trim().toUpperCase(),
+    country: (address.country || "US").trim().toUpperCase(),
   };
 }
 
@@ -71,7 +72,9 @@ export function SavedAddresses({
 
   useEffect(() => {
     if (isGuest) {
-      if (didInitGuestRef.current) return;
+      if (didInitGuestRef.current) {
+        return;
+      }
       didInitGuestRef.current = true;
 
       try {
@@ -81,14 +84,14 @@ export function SavedAddresses({
 
           // Only update if it actually changes
           setGuestAddress((prev) => {
-            const prevSig = prev ? JSON.stringify(prev) : '';
+            const prevSig = prev ? JSON.stringify(prev) : "";
             const nextSig = JSON.stringify(parsed);
             return prevSig === nextSig ? prev : parsed;
           });
 
           // Only select if not already selected
-          if (selectedAddressId !== 'guest-address') {
-            onSelectAddressId('guest-address');
+          if (selectedAddressId !== "guest-address") {
+            onSelectAddressId("guest-address");
             onSelectAddress(parsed);
           }
         }
@@ -106,8 +109,8 @@ export function SavedAddresses({
     (async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/account/addresses', {
-          cache: 'no-store',
+        const response = await fetch("/api/account/addresses", {
+          cache: "no-store",
           signal: controller.signal,
         });
         if (response.ok) {
@@ -132,8 +135,10 @@ export function SavedAddresses({
   };
 
   const handleSelectGuestAddress = () => {
-    if (!guestAddress) return;
-    onSelectAddressId('guest-address');
+    if (!guestAddress) {
+      return;
+    }
+    onSelectAddressId("guest-address");
     onSelectAddress(guestAddress);
   };
 
@@ -151,7 +156,7 @@ export function SavedAddresses({
     // ✅ Guest: store locally + select + render
     if (isGuest) {
       setGuestAddress(address);
-      onSelectAddressId('guest-address');
+      onSelectAddressId("guest-address");
       onSelectAddress(address);
       try {
         sessionStorage.setItem(GUEST_ADDRESS_STORAGE_KEY, JSON.stringify(address));
@@ -164,15 +169,15 @@ export function SavedAddresses({
     // ✅ Logged-in: persist to DB via your existing route
     setIsLoading(true);
     try {
-      const response = await fetch('/api/account/addresses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/account/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(toApiPayload(address)),
       });
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.error || 'Failed to save address');
+        throw new Error(data?.error || "Failed to save address");
       }
 
       const nextAddresses: SavedAddress[] = data?.addresses || [];
@@ -181,8 +186,8 @@ export function SavedAddresses({
       // Select the saved address (match by line1 + postal_code)
       const saved = nextAddresses.find(
         (a) =>
-          (a.line1 || '').trim().toLowerCase() === address.line1.trim().toLowerCase() &&
-          (a.postal_code || '').trim() === address.postalCode.trim(),
+          (a.line1 || "").trim().toLowerCase() === address.line1.trim().toLowerCase() &&
+          (a.postal_code || "").trim() === address.postalCode.trim(),
       );
 
       if (saved) {
@@ -213,14 +218,14 @@ export function SavedAddresses({
     );
   }
 
-  const guestSelected = isGuest && selectedAddressId === 'guest-address';
+  const guestSelected = isGuest && selectedAddressId === "guest-address";
 
   return (
     <>
       <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
         <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <MapPin className="w-5 h-5" />
-          {isGuest ? 'Shipping Address' : 'Saved Addresses'}
+          {isGuest ? "Shipping Address" : "Saved Addresses"}
         </h2>
 
         <div className="space-y-3">
@@ -230,13 +235,15 @@ export function SavedAddresses({
               type="button"
               onClick={handleSelectGuestAddress}
               className={`w-full text-left p-4 rounded border transition ${
-                guestSelected ? 'border-red-600 bg-red-600/10' : 'border-zinc-800 hover:border-zinc-700'
+                guestSelected
+                  ? "border-red-600 bg-red-600/10"
+                  : "border-zinc-800 hover:border-zinc-700"
               }`}
             >
               <div className="flex items-start gap-3">
                 <div
                   className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                    guestSelected ? 'border-red-600 bg-red-600' : 'border-zinc-600'
+                    guestSelected ? "border-red-600 bg-red-600" : "border-zinc-600"
                   }`}
                 >
                   {guestSelected && <Check className="w-3 h-3 text-white" />}
@@ -245,11 +252,15 @@ export function SavedAddresses({
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium">{guestAddress.name}</p>
                   <p className="text-sm text-gray-400">{guestAddress.line1}</p>
-                  {guestAddress.line2 && <p className="text-sm text-gray-400">{guestAddress.line2}</p>}
+                  {guestAddress.line2 && (
+                    <p className="text-sm text-gray-400">{guestAddress.line2}</p>
+                  )}
                   <p className="text-sm text-gray-400">
                     {guestAddress.city}, {guestAddress.state} {guestAddress.postalCode}
                   </p>
-                  {guestAddress.phone && <p className="text-sm text-gray-500 mt-1">{guestAddress.phone}</p>}
+                  {guestAddress.phone && (
+                    <p className="text-sm text-gray-500 mt-1">{guestAddress.phone}</p>
+                  )}
                 </div>
               </div>
             </button>
@@ -263,26 +274,36 @@ export function SavedAddresses({
                 type="button"
                 onClick={() => handleSelectAddress(address)}
                 className={`w-full text-left p-4 rounded border transition ${
-                  selectedAddressId === address.id ? 'border-red-600 bg-red-600/10' : 'border-zinc-800 hover:border-zinc-700'
+                  selectedAddressId === address.id
+                    ? "border-red-600 bg-red-600/10"
+                    : "border-zinc-800 hover:border-zinc-700"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <div
                     className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                      selectedAddressId === address.id ? 'border-red-600 bg-red-600' : 'border-zinc-600'
+                      selectedAddressId === address.id
+                        ? "border-red-600 bg-red-600"
+                        : "border-zinc-600"
                     }`}
                   >
-                    {selectedAddressId === address.id && <Check className="w-3 h-3 text-white" />}
+                    {selectedAddressId === address.id && (
+                      <Check className="w-3 h-3 text-white" />
+                    )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-medium">{address.name}</p>
                     <p className="text-sm text-gray-400">{address.line1}</p>
-                    {address.line2 && <p className="text-sm text-gray-400">{address.line2}</p>}
+                    {address.line2 && (
+                      <p className="text-sm text-gray-400">{address.line2}</p>
+                    )}
                     <p className="text-sm text-gray-400">
                       {address.city}, {address.state} {address.postal_code}
                     </p>
-                    {address.phone && <p className="text-sm text-gray-500 mt-1">{address.phone}</p>}
+                    {address.phone && (
+                      <p className="text-sm text-gray-500 mt-1">{address.phone}</p>
+                    )}
                   </div>
                 </div>
               </button>
@@ -297,11 +318,11 @@ export function SavedAddresses({
             <span className="font-medium">
               {isGuest
                 ? guestAddress
-                  ? 'Edit shipping address'
-                  : 'Add shipping address'
+                  ? "Edit shipping address"
+                  : "Add shipping address"
                 : addresses.length > 0
-                  ? 'Add another shipping address'
-                  : 'Add a shipping address'}
+                  ? "Add another shipping address"
+                  : "Add a shipping address"}
             </span>
           </button>
         </div>
