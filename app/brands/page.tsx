@@ -43,7 +43,7 @@ const allLetters = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""), "#"];
 
 // Original vibe button class (kept)
 const pillLink =
-  "rounded-full border border-zinc-800/70 px-3 py-1 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors";
+  "rounded-full border border-zinc-800/70 px-2.5 py-1 text-[12px] sm:px-3 sm:text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors";
 
 export default async function BrandsPage({
   searchParams,
@@ -73,9 +73,9 @@ export default async function BrandsPage({
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="max-w-6xl mx-auto px-4 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
         {/* Breadcrumb (dark) */}
-        <nav className="text-sm text-zinc-500 mb-5">
+        <nav className="text-[12px] sm:text-sm text-zinc-500 mb-4 sm:mb-5">
           <span className="hover:text-zinc-200 transition-colors">
             <Link href="/">Home</Link>
           </span>
@@ -86,26 +86,26 @@ export default async function BrandsPage({
         {/* Panel (dark) */}
         <div className="border border-zinc-800/70 bg-zinc-950/40 rounded-md overflow-hidden">
           {/* Header */}
-          <div className="px-5 py-5 border-b border-zinc-800/70 flex items-start justify-between gap-5 flex-wrap">
+          <div className="px-4 py-4 sm:px-5 sm:py-5 border-b border-zinc-800/70 flex items-start justify-between gap-4 sm:gap-5 flex-wrap">
             <div>
-              <p className="text-xs uppercase tracking-[0.4em] text-zinc-500">
+              <p className="text-[11px] sm:text-xs uppercase tracking-[0.4em] text-zinc-500">
                 Brand Index
               </p>
-              <h1 className="text-4xl font-bold text-white mt-3">All Brands</h1>
-              <p className="text-zinc-400 text-sm mt-3">
+              <h1 className="text-2xl sm:text-4xl font-bold text-white mt-2 sm:mt-3">All Brands</h1>
+              <p className="text-zinc-400 text-[12px] sm:text-sm mt-2 sm:mt-3">
                 Browse by letter or search for a favorite.
               </p>
             </div>
 
             {/* Search (server GET, dark) */}
             <form action="/brands" method="get" className="w-full sm:w-auto">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                 <div className="relative w-full sm:w-[360px]">
                   <input
                     name="q"
                     defaultValue={qRaw}
                     placeholder="Search brands..."
-                    className="w-full rounded-md border border-zinc-800/70 bg-black px-3 py-2 pr-10 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600/30"
+                    className="w-full rounded-md border border-zinc-800/70 bg-black px-3 py-2 pr-10 text-[12px] sm:text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600/30"
                   />
                   <span
                     aria-hidden="true"
@@ -117,7 +117,7 @@ export default async function BrandsPage({
 
                 <button
                   type="submit"
-                  className="rounded-md border border-zinc-800/70 bg-zinc-950/60 px-3 py-2 text-sm text-zinc-200 hover:text-white hover:border-red-600/40 transition-colors"
+                  className="rounded-md border border-zinc-800/70 bg-zinc-950/60 px-3 py-2 text-[12px] sm:text-sm text-zinc-200 hover:text-white hover:border-red-600/40 transition-colors"
                 >
                   Search
                 </button>
@@ -125,14 +125,14 @@ export default async function BrandsPage({
                 {qRaw ? (
                   <Link
                     href="/brands"
-                    className="rounded-md border border-zinc-800/70 bg-transparent px-3 py-2 text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors"
+                    className="rounded-md border border-zinc-800/70 bg-transparent px-3 py-2 text-[12px] sm:text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors"
                   >
                     Clear
                   </Link>
                 ) : null}
               </div>
 
-              <div className="mt-2 text-xs text-zinc-500">
+              <div className="mt-2 text-[11px] sm:text-xs text-zinc-500">
                 Showing <span className="text-zinc-200 font-medium">{filtered.length}</span>{" "}
                 of <span className="text-zinc-200 font-medium">{uniqueLabels.length}</span>{" "}
                 brands
@@ -141,16 +141,16 @@ export default async function BrandsPage({
           </div>
 
           {/* Go To strip (dark) */}
-          <div className="px-5 py-4 border-b border-zinc-800/70 flex items-center justify-between gap-4 flex-wrap">
+          <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-zinc-800/70 flex items-center justify-between gap-3 sm:gap-4 flex-wrap">
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm font-medium text-zinc-400">Go To:</span>
+              <span className="text-[12px] sm:text-sm font-medium text-zinc-400">Go To:</span>
 
-              <div className="flex items-center gap-2 flex-nowrap overflow-x-auto whitespace-nowrap [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex flex-wrap gap-1 w-full">
                 {allLetters.map((letter) => {
                   const has = Boolean(grouped[letter]?.length);
 
                   const baseBox =
-                    "shrink-0 inline-flex w-9 h-9 items-center justify-center rounded-md border text-sm font-medium transition-colors";
+                    "inline-flex h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 items-center justify-center rounded-md border text-[10px] sm:text-[11px] lg:text-[12px] font-medium transition-colors";
 
                   return has ? (
                     <a
@@ -173,7 +173,7 @@ export default async function BrandsPage({
               </div>
             </div>
 
-            <div className="text-xs text-zinc-500">
+            <div className="text-[11px] sm:text-xs text-zinc-500">
               {lettersWithResults.length ? (
                 <span>
                   Sections:{" "}
@@ -190,9 +190,9 @@ export default async function BrandsPage({
           {/* Sections */}
           <div className="divide-y divide-zinc-800/70">
             {lettersWithResults.length === 0 ? (
-              <div className="px-5 py-10">
+              <div className="px-4 py-8 sm:px-5 sm:py-10">
                 <div className="text-white font-semibold">No brands found.</div>
-                <div className="text-sm text-zinc-400 mt-1">
+                <div className="text-[12px] sm:text-sm text-zinc-400 mt-1">
                   Try a different search term.
                 </div>
               </div>
@@ -200,29 +200,29 @@ export default async function BrandsPage({
               lettersWithResults.map((letter) => (
                 <section key={letter} id={`brand-${letter}`} className="scroll-mt-24">
                   {/* Section header (dark, original palette) */}
-                  <div className="px-5 py-4 flex items-center justify-between bg-zinc-950/30 border-b border-zinc-800/70">
+                  <div className="px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between bg-zinc-950/30 border-b border-zinc-800/70">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full border border-zinc-800/70 text-zinc-200 flex items-center justify-center text-lg font-semibold">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-zinc-800/70 text-zinc-200 flex items-center justify-center text-sm sm:text-lg font-semibold">
                         {letter}
                       </div>
                       <div>
-                        <h2 className="text-lg font-semibold text-white">
+                        <h2 className="text-base sm:text-lg font-semibold text-white">
                           {letter === "#" ? "Other" : `Brands`}
                         </h2>
-                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mt-0.5">
+                        <p className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500 mt-0.5">
                           Section {letter}
                         </p>
                       </div>
                     </div>
 
-                    <span className="text-xs uppercase tracking-[0.2em] text-zinc-500">
+                    <span className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500">
                       {grouped[letter].length} total
                     </span>
                   </div>
 
                   {/* 3-column list but using your original pill styling */}
-                  <div className="px-5 py-5">
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-10 gap-y-3">
+                  <div className="px-4 py-4 sm:px-5 sm:py-5">
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 sm:gap-x-10 gap-y-2.5 sm:gap-y-3">
                       {grouped[letter].map((label) => (
                         <li key={label} className="min-w-0">
                           <Link href={buildStoreHref(label)} className={pillLink} title={`Shop ${label}`}>

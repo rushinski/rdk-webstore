@@ -117,8 +117,8 @@ export function StoreControls({
                 value: String(size),
                 label: String(size),
               }))}
-              className="w-[62px] sm:min-w-[90px]"
-              buttonClassName="h-7 px-2 text-[11px] sm:text-sm"
+              className="w-[72px] sm:min-w-[90px]"
+              buttonClassName="h-7 px-1.5 text-[11px] sm:text-sm gap-1"
               menuClassName="text-[11px] sm:text-sm"
             />
           </div>
