@@ -375,8 +375,10 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-white mb-8">Account Settings</h1>
+    <div className="max-w-4xl mx-auto px-4 py-8 text-[13px] sm:text-base">
+      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 sm:mb-8">
+        Account Settings
+      </h1>
 
       {message && (
         <div className={`mb-6 p-4 rounded ${
@@ -387,18 +389,22 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       )}
 
       {/* Email (Read-only) */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Email</h2>
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Email</h2>
         <p className="text-gray-400">{userEmail}</p>
-        <p className="text-gray-500 text-sm mt-2">Email changes are not currently supported</p>
+        <p className="text-gray-500 text-[12px] sm:text-sm mt-2">
+          Email changes are not currently supported
+        </p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Chat Notifications</h2>
-        <p className="text-gray-400 mb-4">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+          Chat Notifications
+        </h2>
+        <p className="text-gray-400 text-[12px] sm:text-sm mb-4">
           Get email updates when admins reply to your chat.
         </p>
-        <div className="flex items-center justify-between gap-4 text-sm text-zinc-300">
+        <div className="flex items-center justify-between gap-4 text-[12px] sm:text-sm text-zinc-300">
           <span>Email me about chat replies</span>
           <ToggleSwitch
             checked={chatNotificationsEnabled}
@@ -410,26 +416,32 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           type="button"
           onClick={handleSaveChatNotifications}
           disabled={isChatSaving}
-          className="mt-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
+          className="mt-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
         >
           {isChatSaving ? 'Saving...' : 'Save Preference'}
         </button>
       </div>
 
       {/* Saved Addresses */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 className="text-xl font-semibold text-white">Shipping Addresses</h2>
-          <span className="text-xs text-zinc-500">Save multiple addresses and pick a default for checkout.</span>
+          <h2 className="text-lg sm:text-xl font-semibold text-white">Shipping Addresses</h2>
+          <span className="text-[11px] sm:text-xs text-zinc-500">
+            Save multiple addresses and pick a default for checkout.
+          </span>
         </div>
 
         <div className="border border-zinc-800/70 rounded p-4 mb-6">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-zinc-500">Default shipping address</div>
+              <div className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500">
+                Default shipping address
+              </div>
               {profile.address_line1 ? (
-                <div className="text-sm text-zinc-300 mt-2 space-y-1">
-                  {profile.full_name && <div className="text-white font-semibold">{profile.full_name}</div>}
+                <div className="text-[12px] sm:text-sm text-zinc-300 mt-2 space-y-1">
+                  {profile.full_name && (
+                    <div className="text-white font-semibold">{profile.full_name}</div>
+                  )}
                   <div>{profile.address_line1}</div>
                   {profile.address_line2 && <div>{profile.address_line2}</div>}
                   <div>
@@ -439,7 +451,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                   {profile.phone && <div className="text-zinc-500">{profile.phone}</div>}
                 </div>
               ) : (
-                <div className="text-sm text-zinc-500 mt-2">
+                <div className="text-[12px] sm:text-sm text-zinc-500 mt-2">
                   No default shipping address yet. Choose one below.
                 </div>
               )}
@@ -449,7 +461,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 type="button"
                 onClick={() => handleClearDefaultShipping()}
                 disabled={isDefaultSaving}
-                className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
+                className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
               >
                 {isDefaultSaving ? 'Updating...' : 'Clear default'}
               </button>
@@ -466,7 +478,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             {addresses.map((address) => (
               <div key={address.id} className="border border-zinc-800/70 rounded p-4">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="text-sm text-zinc-300">
+                  <div className="text-[12px] sm:text-sm text-zinc-300">
                     <div className="flex items-center gap-2 text-white font-semibold">
                       <span>{address.name || 'Saved Address'}</span>
                       {isDefaultAddress(address) && (
@@ -486,7 +498,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                   <button
                     type="button"
                     onClick={() => handleDeleteAddress(address.id)}
-                    className="text-xs text-red-400 hover:text-red-300 transition-colors"
+                    className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors"
                   >
                     Remove
                   </button>
@@ -496,7 +508,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     type="button"
                     onClick={() => handleSetDefaultAddress(address)}
                     disabled={isDefaultSaving}
-                    className="mt-3 text-xs text-zinc-300 hover:text-white transition-colors disabled:opacity-60"
+                    className="mt-3 text-[11px] sm:text-xs text-zinc-300 hover:text-white transition-colors disabled:opacity-60"
                   >
                     {isDefaultSaving ? 'Updating...' : 'Set as default shipping'}
                   </button>
@@ -508,27 +520,27 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
         <form onSubmit={handleSaveAddress} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Full Name</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Full Name</label>
             <input
               type="text"
               value={addressForm.name}
               onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Phone</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Phone</label>
             <input
               type="tel"
               value={addressForm.phone}
               onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
               Address Line 1 <span className="text-red-500">*</span>
             </label>
             <input
@@ -536,23 +548,23 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               required
               value={addressForm.line1}
               onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Apartment / Unit</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Apartment / Unit</label>
             <input
               type="text"
               value={addressForm.line2}
               onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-sm mb-1">
+              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
                 City <span className="text-red-500">*</span>
               </label>
               <input
@@ -560,12 +572,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 required
                 value={addressForm.city}
                 onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
 
             <div>
-              <label className="block text-gray-400 text-sm mb-1">
+              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
                 State <span className="text-red-500">*</span>
               </label>
               <input
@@ -573,14 +585,14 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 required
                 value={addressForm.state}
                 onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-sm mb-1">
+              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
                 Postal Code <span className="text-red-500">*</span>
               </label>
               <input
@@ -588,12 +600,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 required
                 value={addressForm.postal_code}
                 onChange={(e) => setAddressForm({ ...addressForm, postal_code: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
 
             <div>
-              <label className="block text-gray-400 text-sm mb-1">
+              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
                 Country <span className="text-red-500">*</span>
               </label>
               <input
@@ -601,12 +613,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 required
                 value={addressForm.country}
                 onChange={(e) => setAddressForm({ ...addressForm, country: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-zinc-400">
+          <label className="flex items-center gap-2 text-[12px] sm:text-sm text-zinc-400">
             <input
               type="checkbox"
               checked={setAsDefault}
@@ -619,7 +631,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           <button
             type="submit"
             disabled={isAddressSaving}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
+            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
           >
             {isAddressSaving ? 'Saving...' : 'Add Address'}
           </button>
@@ -627,8 +639,10 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       </div>
 
       {/* Order History */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Order History</h2>
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+          Order History
+        </h2>
         {isOrdersLoading ? (
           <div className="text-gray-400">Loading orders...</div>
         ) : orders.length === 0 ? (
@@ -643,17 +657,19 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               <div key={order.id} className="border border-zinc-800/70 rounded p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div className="text-white font-semibold">Order #{order.id.slice(0, 8)}</div>
-                  <div className="text-gray-400 text-sm">{new Date(order.created_at).toLocaleDateString()}</div>
+                  <div className="text-gray-400 text-[12px] sm:text-sm">
+                    {new Date(order.created_at).toLocaleDateString()}
+                  </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                  <span className="text-gray-400 text-sm">Status: {order.status}</span>
+                  <span className="text-gray-400 text-[12px] sm:text-sm">Status: {order.status}</span>
                   <span className="text-white font-semibold">
                     ${Number(order.total ?? 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="space-y-2">
                   {(order.items || []).map((item: any) => (
-                    <div key={item.id} className="flex items-center justify-between text-sm">
+                    <div key={item.id} className="flex items-center justify-between text-[12px] sm:text-sm">
                       <span className="text-gray-300">
                         {item.product?.title_display ??
                           `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
@@ -664,7 +680,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                   ))}
                 </div>
                 {showTracking && (
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px] sm:text-sm">
                     <div className="text-zinc-400">
                       Tracking: {order.shipping_carrier ? `${order.shipping_carrier} ` : ""}
                       <span className="text-zinc-200">{order.tracking_number}</span>
@@ -688,18 +704,20 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       </div>
 
       {/* Change Password */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Change Password</h2>
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+          Change Password
+        </h2>
         <form onSubmit={handleChangePassword} className="space-y-4">
           <div>
-            <label className="block text-gray-400 text-sm mb-1">New Password</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">New Password</label>
             <div className="relative">
               <input
                 type={newPasswordVisible ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
               <button
                 type="button"
@@ -719,14 +737,14 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           <PasswordRequirements password={newPassword} />
 
           <div>
-            <label className="block text-gray-400 text-sm mb-1">Confirm Password</label>
+            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">Confirm Password</label>
             <div className="relative">
               <input
                 type={confirmPasswordVisible ? 'text' : 'password'}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
               />
               <button
                 type="button"
@@ -746,23 +764,23 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-6 py-2 rounded transition"
+            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
           >
             {isLoading ? 'Changing...' : 'Change Password'}
           </button>
         </form>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Sign out</h2>
-        <p className="text-gray-400 text-sm mb-4">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
+        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">Sign out</h2>
+        <p className="text-gray-400 text-[12px] sm:text-sm mb-4">
           You can sign back in anytime to view your orders and account details.
         </p>
         <button
           type="button"
           onClick={handleLogout}
           disabled={isSigningOut}
-          className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 text-white font-semibold px-6 py-2 transition cursor-pointer"
+          className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm transition cursor-pointer"
         >
           {isSigningOut ? 'Signing out...' : 'Logout'}
         </button>
