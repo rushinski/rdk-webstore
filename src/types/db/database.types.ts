@@ -1646,44 +1646,6 @@ export type Database = {
           },
         ]
       }
-      tenant_payment_settings: {
-        Row: {
-          created_at: string
-          express_checkout_methods: string[]
-          id: string
-          payment_method_types: string[]
-          tenant_id: string
-          updated_at: string
-          use_automatic_payment_methods: boolean
-        }
-        Insert: {
-          created_at?: string
-          express_checkout_methods?: string[]
-          id?: string
-          payment_method_types?: string[]
-          tenant_id: string
-          updated_at?: string
-          use_automatic_payment_methods?: boolean
-        }
-        Update: {
-          created_at?: string
-          express_checkout_methods?: string[]
-          id?: string
-          payment_method_types?: string[]
-          tenant_id?: string
-          updated_at?: string
-          use_automatic_payment_methods?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tenant_payment_settings_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       tenant_tax_settings: {
         Row: {
           business_name: string | null
