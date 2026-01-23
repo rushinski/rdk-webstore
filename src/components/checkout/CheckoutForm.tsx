@@ -9,9 +9,8 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
-import { ShippingAddressForm } from "./ShippingAddressForm";
 import { SavedAddresses } from "./SavedAddresses";
-import { Loader2, Lock, Package, TruckIcon, ChevronDown } from "lucide-react";
+import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
 import Link from "next/link";
 import type { CartItem } from "@/types/domain/cart";
 import {
@@ -156,7 +155,7 @@ export function CheckoutForm({
     }
 
     if (fulfillment === "ship" && !shippingAddress) {
-      const message = "Please save your shipping address";
+      const message = "Please add a shipping address";
       setError(message);
       return { ok: false, error: message };
     }
@@ -284,6 +283,10 @@ export function CheckoutForm({
     event.resolve({ lineItems });
   };
 
+  const handleShippingAddressSelect = (address: ShippingAddress) => {
+    onShippingAddressChange(address);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -344,6 +347,7 @@ export function CheckoutForm({
 
         {fulfillment === "pickup" && (
           <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
+            <p className="font-medium text-white mb-2">Pickup Information</p>
             <p>
               After purchase, you will receive a pickup email you can reply to for scheduling.
             </p>
@@ -360,26 +364,53 @@ export function CheckoutForm({
               .
             </p>
             {canUseChat && <p>Signed-in customers can also use the in-app pickup chat.</p>}
+            
+            <div className="mt-3 pt-3 border-t border-zinc-800">
+              <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
+              <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+                <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                  Returns &amp; Refunds Policy
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {fulfillment === "ship" && (
+          <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
+            <p className="font-medium text-white mb-2">Shipping Information</p>
+            <p>
+              We aim to ship within 24 hours (processing time, not delivery time). Shipping options
+              and rates are shown at checkout.
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+              <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
+                  Shipping Policy
+              </Link>
+            </div>
+            
+            <div className="mt-3 pt-3 border-t border-zinc-800">
+              <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
+              <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+                <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                  Returns &amp; Refunds Policy
+                </Link>
+              </div>
+            </div>
           </div>
         )}
       </div>
 
       {/* Shipping Address */}
       {fulfillment === "ship" && (
-        <>
-          {canUseChat && (
-            <SavedAddresses
-              onSelectAddress={onShippingAddressChange}
-              selectedAddressId={selectedAddressId}
-              onSelectAddressId={setSelectedAddressId}
-            />
-          )}
-
-          <ShippingAddressForm
-            onAddressChange={onShippingAddressChange}
-            initialAddress={shippingAddress}
-          />
-        </>
+        <SavedAddresses
+          onSelectAddress={handleShippingAddressSelect}
+          selectedAddressId={selectedAddressId}
+          onSelectAddressId={setSelectedAddressId}
+          isGuest={!canUseChat}
+        />
       )}
 
       {/* Payment Method */}
@@ -416,13 +447,6 @@ export function CheckoutForm({
           </div>
         )}
 
-        <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
-          <p className="flex items-center gap-2">
-            <Lock className="w-4 h-4" />
-            All payment information is securely processed by Stripe. We never store your card details.
-          </p>
-        </div>
-
         <PaymentElement
           onChange={(event) => {
             setPaymentComplete(event.complete);
@@ -435,24 +459,14 @@ export function CheckoutForm({
             }
           }}
         />
-        {paymentElementError && <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>}
-      </div>
 
-      {/* Legal Agreements (terms/privacy only) */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
-        <div className="text-sm text-gray-400">
-          <p>
-            By placing your order, you agree to our{" "}
-            <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
-              Terms of Service
-            </Link>
-            {", "}
-            <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
-              Privacy Policy
-            </Link>
-            .
+        <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
+          <p className="flex items-center gap-2">
+            <Lock className="w-4 h-4" />
+            All payment information is securely processed by Stripe. We never store your card details.
           </p>
         </div>
+        {paymentElementError && <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>}
       </div>
 
       {/* Submit Button */}
@@ -475,30 +489,20 @@ export function CheckoutForm({
         )}
       </button>
 
-      {/* Shipping & Returns (moved underneath Place Order) */}
-      <details className="group rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
-        <summary className="cursor-pointer list-none flex items-center justify-between">
-          <span className="text-white font-semibold">Shipping &amp; Returns</span>
-          <ChevronDown className="w-4 h-4 text-gray-400 transition group-open:rotate-180" />
-        </summary>
-
-        <div className="mt-3 space-y-3">
-          <p>
-            We aim to ship within 24 hours (processing time, not delivery time). Shipping options
-            and rates are shown at checkout.
-          </p>
-          <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
-
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
-              Shipping Policy
-            </Link>
-            <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
-              Returns &amp; Refunds
-            </Link>
-          </div>
-        </div>
-      </details>
+      {/* Legal Agreements (terms/privacy only) */}
+      <div className="text-sm text-gray-400 text-center">
+        <p>
+          By placing your order, you agree to our{" "}
+          <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
+            Terms of Service
+          </Link>
+          {" and "}
+          <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+      </div>
 
       <p className="text-xs text-center text-gray-500">Secure checkout powered by Stripe</p>
     </form>
