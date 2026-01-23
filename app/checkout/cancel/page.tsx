@@ -6,12 +6,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { XCircle } from 'lucide-react';
 import { clearIdempotencyKeyFromStorage } from '@/lib/idempotency';
+import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 
 export default function CheckoutCancelPage() {
   const router = useRouter();
 
   useEffect(() => {
     clearIdempotencyKeyFromStorage();
+    clearGuestShippingAddress();
   }, []);
 
   return (

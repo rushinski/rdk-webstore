@@ -7,6 +7,7 @@ import { CheckCircle, Loader2, Mail } from "lucide-react";
 import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { useCart } from "@/components/cart/CartProvider";
+import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -31,6 +32,7 @@ function SuccessContent() {
     }
 
     clearIdempotencyKeyFromStorage();
+    clearGuestShippingAddress();
 
     if (!hasClearedRef.current) {
       hasClearedRef.current = true;

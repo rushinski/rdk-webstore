@@ -20,6 +20,7 @@ import {
 } from "@/lib/idempotency";
 import { CartSnapshotService } from "@/services/cart-snapshot-service";
 import { clientEnv } from "@/config/client-env";
+import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 
 const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
@@ -51,6 +52,17 @@ const stripeAppearance: StripeElementsOptions["appearance"] = {
   },
 };
 
+type ShippingPayload = {
+  name: string;
+  phone?: string | null;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+} | null;
+
 export function CheckoutStart() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -65,25 +77,70 @@ export function CheckoutStart() {
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+
   const [subtotal, setSubtotal] = useState(0);
   const [shipping, setShipping] = useState(0);
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
+
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
+
   const [expressCheckoutMethods, setExpressCheckoutMethods] = useState<string[]>(
     DEFAULT_EXPRESS_CHECKOUT_METHODS,
   );
+
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [guestEmailChecked, setGuestEmailChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
   const [isRestoring, setIsRestoring] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
-  const lastShippingSignatureRef = useRef<string>("null");
+
+  // --- FIX: hard stop for update loops ---
+  const lastPricingKeyRef = useRef<string | null>(null);
+  const inFlightRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const isGuestFlow = searchParams.get("guest") === "1";
+
+
+  useEffect(() => {
+    if (!isGuestFlow) return;
+
+    // We want to KEEP on refresh, but clear on real "leave".
+    // Refresh often triggers beforeunload/pagehide. We'll detect reload and skip clearing.
+    const isReload = () => {
+      try {
+        const nav = performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
+        if (nav) return nav.type === "reload";
+        // Fallback for older browsers
+        return performance.navigation?.type === 1;
+      } catch {
+        return false;
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      // If this is a refresh, do NOT clear.
+      if (isReload()) return;
+      // Otherwise, user is leaving the site/tab/navigating away
+      clearGuestShippingAddress();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+
+      // This runs on SPA route changes away from /checkout/start (unmount).
+      // It will NOT run on refresh because the JS context is torn down.
+      clearGuestShippingAddress();
+    };
+  }, [isGuestFlow]);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -160,9 +217,16 @@ export function CheckoutStart() {
         const nextKey = generateIdempotencyKey();
         setIdempotencyKeyInStorage(nextKey);
         sessionStorage.setItem("checkout_cart_signature", signature);
+
         setIdempotencyKey(nextKey);
         setOrderId(null);
         setClientSecret(null);
+
+        // reset loop-guards for new checkout
+        lastPricingKeyRef.current = null;
+        abortRef.current?.abort();
+        inFlightRef.current = false;
+
         return;
       }
       setIdempotencyKey(storedKey);
@@ -172,25 +236,52 @@ export function CheckoutStart() {
       setIdempotencyKey(fallbackKey);
       setOrderId(null);
       setClientSecret(null);
+
+      lastPricingKeyRef.current = null;
+      abortRef.current?.abort();
+      inFlightRef.current = false;
     }
   }, [isReady, items]);
 
-  const buildShippingPayload = (address: ShippingAddress | null) =>
+  const buildShippingPayload = (address: ShippingAddress | null): ShippingPayload =>
     address
       ? {
-          name: address.name,
-          phone: address.phone,
-          line1: address.line1,
-          line2: address.line2 ?? null,
-          city: address.city,
-          state: address.state.trim().toUpperCase(),
-          postal_code: address.postalCode.trim(),
-          country: address.country.trim().toUpperCase(),
+          name: address.name?.trim() ?? "",
+          phone: address.phone?.trim() ? address.phone.trim() : null,
+          line1: address.line1?.trim() ?? "",
+          line2: address.line2?.trim() ? address.line2.trim() : null,
+          city: address.city?.trim() ?? "",
+          state: address.state?.trim().toUpperCase() ?? "",
+          postal_code: address.postalCode?.trim() ?? "",
+          country: (address.country?.trim() ?? "US").toUpperCase(),
         }
       : null;
 
-  const shippingPayload = useMemo(() => buildShippingPayload(shippingAddress), [shippingAddress]);
+  const shippingPayload = useMemo(
+    () => buildShippingPayload(shippingAddress),
+    [shippingAddress],
+  );
 
+  // Primitive-only key to avoid object identity loops
+  const addressKey = useMemo(() => {
+    if (fulfillment !== "ship" || !shippingPayload) return "pickup";
+    return [
+      shippingPayload.line1,
+      shippingPayload.city,
+      shippingPayload.state,
+      shippingPayload.postal_code,
+      shippingPayload.country,
+    ].join("|");
+  }, [fulfillment, shippingPayload?.line1, shippingPayload?.city, shippingPayload?.state, shippingPayload?.postal_code, shippingPayload?.country]);
+
+  const cartKey = useMemo(() => buildCartSignature(items), [items]);
+
+  const pricingKey = useMemo(() => {
+    if (!orderId) return null;
+    return `${orderId}:${cartKey}:${fulfillment}:${addressKey}`;
+  }, [orderId, cartKey, fulfillment, addressKey]);
+
+  // Init checkout
   useEffect(() => {
     if (!isReady || items.length === 0) return;
     if (!idempotencyKey) return;
@@ -254,15 +345,18 @@ export function CheckoutStart() {
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
         setExpressCheckoutMethods(
-          data?.expressCheckoutMethods?.length ? data.expressCheckoutMethods : DEFAULT_EXPRESS_CHECKOUT_METHODS,
+          data?.expressCheckoutMethods?.length
+            ? data.expressCheckoutMethods
+            : DEFAULT_EXPRESS_CHECKOUT_METHODS,
         );
+
+        // reset pricing dedupe after init (new order)
+        lastPricingKeyRef.current = null;
       } catch (err: any) {
         if (!isActive) return;
         setError(err?.message ?? "Failed to start checkout.");
       } finally {
-        if (isActive) {
-          setIsInitializing(false);
-        }
+        if (isActive) setIsInitializing(false);
       }
     };
 
@@ -285,15 +379,21 @@ export function CheckoutStart() {
     shippingPayload,
   ]);
 
-  useEffect(() => {
-    if (!orderId) {
-      lastShippingSignatureRef.current = "null";
-    }
-  }, [orderId]);
-
+  // --- FIX: stable updatePricing (no subtotal/shipping/tax/total deps) + abort/in-flight guard ---
   const updatePricing = useCallback(
-    async (nextFulfillment: "ship" | "pickup", nextShippingAddress: ReturnType<typeof buildShippingPayload>) => {
+    async (nextFulfillment: "ship" | "pickup", nextShippingAddress: ShippingPayload, dedupeKey?: string | null) => {
       if (!orderId) return;
+
+      // Dedupe identical requests
+      if (dedupeKey && lastPricingKeyRef.current === dedupeKey) return;
+
+      // Prevent stacking; cancel previous and replace
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
 
       setIsUpdatingFulfillment(true);
       setError(null);
@@ -307,47 +407,94 @@ export function CheckoutStart() {
             fulfillment: nextFulfillment,
             shippingAddress: nextShippingAddress,
           }),
+          signal: controller.signal,
         });
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error(data?.error || "Failed to update fulfillment.");
+          // IMPORTANT: do not auto-retry 4xx (esp. 429)
+          throw new Error(data?.error || `Failed to update fulfillment (${response.status}).`);
         }
 
         setFulfillment(data.fulfillment ?? nextFulfillment);
-        setSubtotal(Number(data.subtotal ?? subtotal));
-        setShipping(Number(data.shipping ?? shipping));
-        setTax(Number(data.tax ?? tax));
-        setTotal(Number(data.total ?? total));
+        setSubtotal(Number(data.subtotal ?? 0));
+        setShipping(Number(data.shipping ?? 0));
+        setTax(Number(data.tax ?? 0));
+        setTotal(Number(data.total ?? 0));
 
-        lastShippingSignatureRef.current = JSON.stringify(nextShippingAddress);
+        if (dedupeKey) lastPricingKeyRef.current = dedupeKey;
       } catch (err: any) {
-        setError(err?.message ?? "Failed to update fulfillment.");
+        // allow a future retry by clearing dedupe key
+        if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
+          lastPricingKeyRef.current = null;
+        }
+        // ignore abort errors (happen during rapid changes)
+        if (err?.name !== "AbortError") {
+          setError(err?.message ?? "Failed to update fulfillment.");
+        }
       } finally {
+        inFlightRef.current = false;
         setIsUpdatingFulfillment(false);
       }
     },
-    [orderId, shipping, subtotal, tax, total],
+    [orderId],
   );
 
+  // --- FIX: Debounced + validated auto repricing for shipping ---
   useEffect(() => {
     if (fulfillment !== "ship") return;
     if (!orderId || !clientSecret) return;
+    if (!pricingKey) return;
     if (isUpdatingFulfillment) return;
 
-    const signature = JSON.stringify(shippingPayload);
-    if (signature === lastShippingSignatureRef.current) return;
+    // Require a valid shipping payload before repricing
+    if (!shippingPayload) return;
+    const valid =
+      shippingPayload.name.trim() !== "" &&
+      shippingPayload.line1.trim() !== "" &&
+      shippingPayload.city.trim() !== "" &&
+      shippingPayload.state.trim() !== "" &&
+      shippingPayload.postal_code.trim() !== "";
 
-    updatePricing("ship", shippingPayload);
-  }, [clientSecret, fulfillment, isUpdatingFulfillment, orderId, shippingPayload, updatePricing]);
+    if (!valid) return;
+
+    // Dedupe
+    if (lastPricingKeyRef.current === pricingKey) return;
+
+    const t = setTimeout(() => {
+      // set before firing to avoid rapid loops
+      lastPricingKeyRef.current = pricingKey;
+      updatePricing("ship", shippingPayload, pricingKey);
+    }, 350);
+
+    return () => clearTimeout(t);
+  }, [
+    clientSecret,
+    fulfillment,
+    isUpdatingFulfillment,
+    orderId,
+    pricingKey,
+    shippingPayload,
+    updatePricing,
+  ]);
 
   const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
     if (nextFulfillment === fulfillment) return;
+
+    // Reset dedupe key when fulfillment changes (so next request is allowed)
+    lastPricingKeyRef.current = null;
+
     if (!orderId) {
       setFulfillment(nextFulfillment);
       return;
     }
-    await updatePricing(nextFulfillment, nextFulfillment === "ship" ? shippingPayload : null);
+
+    const nextKey =
+      nextFulfillment === "ship"
+        ? `${orderId}:${cartKey}:ship:${addressKey}`
+        : `${orderId}:${cartKey}:pickup:pickup`;
+
+    await updatePricing(nextFulfillment, nextFulfillment === "ship" ? shippingPayload : null, nextKey);
   };
 
   if (!isReady || isRestoring || items.length === 0) {
@@ -424,7 +571,11 @@ export function CheckoutStart() {
               total={total}
               fulfillment={fulfillment}
               shippingAddress={shippingAddress}
-              onShippingAddressChange={setShippingAddress}
+              onShippingAddressChange={(addr) => {
+                // Reset dedupe when user changes address so repricing can run once
+                lastPricingKeyRef.current = null;
+                setShippingAddress(addr);
+              }}
               onFulfillmentChange={handleFulfillmentChange}
               isUpdatingFulfillment={isUpdatingFulfillment}
               expressCheckoutMethods={expressCheckoutMethods}
@@ -432,6 +583,7 @@ export function CheckoutStart() {
             />
           </Elements>
         </div>
+
         <div className="lg:col-span-1">
           <OrderSummary
             items={items}

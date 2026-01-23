@@ -17,13 +17,7 @@ const benefits = [
 ];
 
 const disclosureItems = [
-  "It is your responsibility to enter a valid email so we can send order updates and required communications.",
-  "This does not opt you into marketing.",
-  "We will only send communications about your order unless you separately opt into marketing.",
-  "We do not store card details (Stripe processes payment).",
-  "For local pickup orders, we do not need a shipping address.",
-  "For shipping orders, we store your shipping address to fulfill the order.",
-  "We may store a payment reference identifier for support or refunds (not card details).",
+  "You are responsible for entering a valid email address you can access. This does not opt you into marketing; we will only send order-related communications unless you separately opt in.",
 ];
 
 const isValidEmail = (value: string) =>
@@ -83,7 +77,7 @@ export function CheckoutGate() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
+    <div className="max-w-5xl mx-auto px-4 pt-2 sm:py-10">
       <h1 className="text-3xl font-bold text-white mb-2">Checkout</h1>
       <p className="text-gray-400 mb-8">
         Choose how you want to continue. Creating an account keeps your order history and messaging in one place.
@@ -166,7 +160,7 @@ export function CheckoutGate() {
           )}
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 h-fit">
+        <div className="hidden lg:block bg-zinc-900 border border-zinc-800/70 rounded p-6 h-fit">
           <h2 className="text-lg font-semibold text-white mb-4">Account benefits</h2>
           <ul className="space-y-3 text-sm text-zinc-400">
             {benefits.map((benefit) => (
