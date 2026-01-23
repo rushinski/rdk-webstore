@@ -67,7 +67,7 @@ export function CheckoutStart() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [subtotal, setSubtotal] = useState(0);
   const [shipping, setShipping] = useState(0);
-  const [tax, setTax] = useState(0); // NEW: Tax state
+  const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
@@ -189,10 +189,7 @@ export function CheckoutStart() {
         }
       : null;
 
-  const shippingPayload = useMemo(
-    () => buildShippingPayload(shippingAddress),
-    [shippingAddress],
-  );
+  const shippingPayload = useMemo(() => buildShippingPayload(shippingAddress), [shippingAddress]);
 
   useEffect(() => {
     if (!isReady || items.length === 0) return;
@@ -228,16 +225,10 @@ export function CheckoutStart() {
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          if (
-            data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
-            data?.code === "CART_MISMATCH"
-          ) {
+          if (data?.code === "IDEMPOTENCY_KEY_EXPIRED" || data?.code === "CART_MISMATCH") {
             clearIdempotencyKeyFromStorage();
           }
-          if (
-            data?.code === "GUEST_EMAIL_REQUIRED" ||
-            data?.code === "GUEST_CHECKOUT_DISABLED"
-          ) {
+          if (data?.code === "GUEST_EMAIL_REQUIRED" || data?.code === "GUEST_CHECKOUT_DISABLED") {
             router.push("/checkout");
             return;
           }
@@ -259,13 +250,11 @@ export function CheckoutStart() {
         setClientSecret(data.clientSecret);
         setSubtotal(Number(data.subtotal ?? 0));
         setShipping(Number(data.shipping ?? 0));
-        setTax(Number(data.tax ?? 0)); // NEW: Set tax from response
+        setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
         setExpressCheckoutMethods(
-          data?.expressCheckoutMethods?.length
-            ? data.expressCheckoutMethods
-            : DEFAULT_EXPRESS_CHECKOUT_METHODS,
+          data?.expressCheckoutMethods?.length ? data.expressCheckoutMethods : DEFAULT_EXPRESS_CHECKOUT_METHODS,
         );
       } catch (err: any) {
         if (!isActive) return;
@@ -293,6 +282,7 @@ export function CheckoutStart() {
     items,
     orderId,
     router,
+    shippingPayload,
   ]);
 
   useEffect(() => {
@@ -302,10 +292,7 @@ export function CheckoutStart() {
   }, [orderId]);
 
   const updatePricing = useCallback(
-    async (
-      nextFulfillment: "ship" | "pickup",
-      nextShippingAddress: ReturnType<typeof buildShippingPayload>,
-    ) => {
+    async (nextFulfillment: "ship" | "pickup", nextShippingAddress: ReturnType<typeof buildShippingPayload>) => {
       if (!orderId) return;
 
       setIsUpdatingFulfillment(true);
@@ -360,10 +347,7 @@ export function CheckoutStart() {
       setFulfillment(nextFulfillment);
       return;
     }
-    await updatePricing(
-      nextFulfillment,
-      nextFulfillment === "ship" ? shippingPayload : null,
-    );
+    await updatePricing(nextFulfillment, nextFulfillment === "ship" ? shippingPayload : null);
   };
 
   if (!isReady || isRestoring || items.length === 0) {
@@ -407,11 +391,12 @@ export function CheckoutStart() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
-      <div className="flex items-center justify-between mb-8">
+    // NOTE: pb-28 prevents the mobile fixed order-summary dock from covering content
+    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 pb-28 lg:pb-10">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">Checkout</h1>
-          <p className="text-gray-400">Complete payment securely with Stripe.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
+          <p className="text-sm sm:text-base text-gray-400">Complete payment securely with Stripe.</p>
         </div>
         <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
           Back to cart

@@ -65,13 +65,15 @@ export function CheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentElementError, setPaymentElementError] = useState<string | null>(null);
+
   const canBypassStripe =
     (process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test") &&
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("e2e_payment_status");
   const isStripeReady = Boolean(stripe) || canBypassStripe;
+
   const expressMethodKeySet = new Set<string>(
-    EXPRESS_CHECKOUT_METHODS.map((method) => method.key)
+    EXPRESS_CHECKOUT_METHODS.map((method) => method.key),
   );
   const normalizedExpressMethods = (expressCheckoutMethods?.length
     ? expressCheckoutMethods
@@ -117,6 +119,7 @@ export function CheckoutForm({
       process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test"
         ? new URLSearchParams(window.location.search).get("e2e_payment_status")
         : null;
+
     if (e2eStatus) {
       setIsProcessing(true);
       setError(null);
@@ -284,14 +287,14 @@ export function CheckoutForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">
+        <div className="bg-red-900/20 border border-red-500 text-red-400 p-4 rounded text-sm sm:text-base">
           {error}
         </div>
       )}
 
       {/* Fulfillment Method */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Package className="w-5 h-5" />
           Delivery Method
         </h2>
@@ -310,7 +313,7 @@ export function CheckoutForm({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <TruckIcon className="w-4 h-4 text-gray-400" />
-                <span className="text-white font-medium">Ship to me</span>
+                <span className="text-white font-medium text-base">Ship to me</span>
               </div>
               <p className="text-sm text-gray-400 mt-1">
                 Standard shipping - calculated based on your items
@@ -332,7 +335,7 @@ export function CheckoutForm({
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-gray-400" />
-                <span className="text-white font-medium">Local pickup</span>
+                <span className="text-white font-medium text-base">Local pickup</span>
               </div>
               <p className="text-sm text-gray-400 mt-1">Free - Pick up at our location</p>
             </div>
@@ -342,8 +345,7 @@ export function CheckoutForm({
         {fulfillment === "pickup" && (
           <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
             <p>
-              After purchase, you will receive a pickup email you can reply to for
-              scheduling.
+              After purchase, you will receive a pickup email you can reply to for scheduling.
             </p>
             <p>
               You can also DM us on{" "}
@@ -357,9 +359,7 @@ export function CheckoutForm({
               </a>
               .
             </p>
-            {canUseChat && (
-              <p>Signed-in customers can also use the in-app pickup chat.</p>
-            )}
+            {canUseChat && <p>Signed-in customers can also use the in-app pickup chat.</p>}
           </div>
         )}
       </div>
@@ -383,8 +383,8 @@ export function CheckoutForm({
       )}
 
       {/* Payment Method */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
           <Lock className="w-5 h-5" />
           Payment Information
         </h2>
@@ -395,7 +395,7 @@ export function CheckoutForm({
               onConfirm={handleExpressConfirm}
               onClick={handleExpressClick}
               options={{
-                layout: { maxColumns: 2, maxRows: expressMaxRows }, // <- key change
+                layout: { maxColumns: 2, maxRows: expressMaxRows },
                 paymentMethodOrder: normalizedExpressMethods,
                 paymentMethods: {
                   applePay: normalizedExpressMethods.includes("apple_pay") ? "auto" : "never",
@@ -419,34 +419,27 @@ export function CheckoutForm({
         <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
           <p className="flex items-center gap-2">
             <Lock className="w-4 h-4" />
-            All payment information is securely processed by Stripe. We never store your
-            card details.
+            All payment information is securely processed by Stripe. We never store your card details.
           </p>
         </div>
 
         <PaymentElement
           onChange={(event) => {
             setPaymentComplete(event.complete);
-
-            // PaymentElement change events don't expose `error`.
-            // Keep the UI clean: only show a generic message when user tries to submit,
-            // OR if you want live feedback, use empty/complete.
             if (event.complete) {
               setPaymentElementError(null);
             } else if (event.empty) {
-              setPaymentElementError(null); // or "Please enter your payment details."
+              setPaymentElementError(null);
             } else {
               setPaymentElementError(null);
             }
           }}
         />
-        {paymentElementError && (
-          <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>
-        )}
+        {paymentElementError && <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>}
       </div>
 
-      {/* Legal Agreements */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
+      {/* Legal Agreements (terms/privacy only) */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
         <div className="text-sm text-gray-400">
           <p>
             By placing your order, you agree to our{" "}
@@ -460,38 +453,13 @@ export function CheckoutForm({
             .
           </p>
         </div>
-
-        <details className="group mt-4 rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
-          <summary className="cursor-pointer list-none flex items-center justify-between">
-            <span className="text-white font-semibold">Shipping &amp; Returns</span>
-            <ChevronDown className="w-4 h-4 text-gray-400 transition group-open:rotate-180" />
-          </summary>
-
-          <div className="mt-3 space-y-3">
-            <p>
-              We aim to ship within 24 hours (processing time, not delivery time). Shipping
-              options and rates are shown at checkout.
-            </p>
-            <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
-
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
-                Shipping Policy
-              </Link>
-              <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
-                Returns &amp; Refunds
-              </Link>
-            </div>
-          </div>
-        </details>
       </div>
-
 
       {/* Submit Button */}
       <button
         type="submit"
         disabled={!isStripeReady || isProcessing || isUpdatingFulfillment}
-        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-lg flex items-center justify-center gap-2"
+        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-base sm:text-lg flex items-center justify-center gap-2"
         data-testid="checkout-submit"
       >
         {isProcessing ? (
@@ -507,9 +475,32 @@ export function CheckoutForm({
         )}
       </button>
 
-      <p className="text-xs text-center text-gray-500">
-        Secure checkout powered by Stripe
-      </p>
+      {/* Shipping & Returns (moved underneath Place Order) */}
+      <details className="group rounded border border-zinc-800 bg-zinc-950/40 px-4 py-3 text-sm text-gray-400">
+        <summary className="cursor-pointer list-none flex items-center justify-between">
+          <span className="text-white font-semibold">Shipping &amp; Returns</span>
+          <ChevronDown className="w-4 h-4 text-gray-400 transition group-open:rotate-180" />
+        </summary>
+
+        <div className="mt-3 space-y-3">
+          <p>
+            We aim to ship within 24 hours (processing time, not delivery time). Shipping options
+            and rates are shown at checkout.
+          </p>
+          <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
+
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
+              Shipping Policy
+            </Link>
+            <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+              Returns &amp; Refunds
+            </Link>
+          </div>
+        </div>
+      </details>
+
+      <p className="text-xs text-center text-gray-500">Secure checkout powered by Stripe</p>
     </form>
   );
 }
