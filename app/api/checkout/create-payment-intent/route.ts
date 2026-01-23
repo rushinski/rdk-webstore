@@ -1,4 +1,4 @@
-// app/api/checkout/create-payment-intent/route.ts (FIXED)
+// app/api/checkout/create-payment-intent/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -8,28 +8,16 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
-import { PaymentSettingsRepository } from "@/repositories/payment-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { createCartHash } from "@/lib/crypto";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
-import {
-  DEFAULT_EXPRESS_CHECKOUT_METHODS,
-  EXPRESS_CHECKOUT_METHODS,
-  PAYMENT_METHOD_TYPES,
-} from "@/config/constants/payment-options";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
 });
-
-const paymentMethodTypeKeys = new Set(PAYMENT_METHOD_TYPES.map((method) => method.key));
-const expressMethodKeys = new Set(EXPRESS_CHECKOUT_METHODS.map((method) => method.key));
-
-const normalizeMethods = (input: string[] | null | undefined, allowed: Set<string>) =>
-  (input ?? []).filter((method) => allowed.has(method));
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -74,16 +62,6 @@ export async function POST(request: NextRequest) {
     const normalizedFulfillment = fulfillment === "pickup" ? "pickup" : "ship";
     const cartHash = createCartHash(items, normalizedFulfillment);
     const ordersRepo = new OrdersRepository(ordersSupabase);
-    const paymentSettingsRepo = new PaymentSettingsRepository(adminSupabase);
-    
-    const resolveExpressCheckoutMethods = async (tenantId: string) => {
-      const settings = await paymentSettingsRepo.getByTenant(tenantId);
-      const expressMethods = normalizeMethods(
-        settings?.express_checkout_methods,
-        expressMethodKeys,
-      );
-      return expressMethods.length > 0 ? expressMethods : DEFAULT_EXPRESS_CHECKOUT_METHODS;
-    };
 
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
     if (existingOrder) {
@@ -132,10 +110,6 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const expressCheckoutMethods = existingOrder.tenant_id
-          ? await resolveExpressCheckoutMethods(existingOrder.tenant_id)
-          : DEFAULT_EXPRESS_CHECKOUT_METHODS;
-
         return NextResponse.json(
           {
             clientSecret: paymentIntent.client_secret,
@@ -146,7 +120,6 @@ export async function POST(request: NextRequest) {
             tax: Number(existingOrder.tax_amount ?? 0),
             total: Number(existingOrder.total ?? 0),
             fulfillment: existingOrder.fulfillment ?? normalizedFulfillment,
-            expressCheckoutMethods,
             requestId,
           },
           { headers: { "Cache-Control": "no-store" } },
@@ -168,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     const productMap = new Map(products.map((p) => [p.id, p]));
 
-    // ✅ CRITICAL: Validate single tenant
+    // Validate single tenant
     const tenantIds = new Set(
       products.map((p) => p.tenantId).filter((id): id is string => Boolean(id)),
     );
@@ -186,7 +159,7 @@ export async function POST(request: NextRequest) {
     }
     const [tenantId] = [...tenantIds];
 
-    // ✅ CRITICAL: Get tenant's Stripe Connect account (REQUIRED)
+    // Get tenant's Stripe Connect account
     const tenantProfileRepo = new ProfileRepository(adminSupabase);
     const tenantStripeAccountId = await tenantProfileRepo.getStripeAccountIdForTenant(tenantId);
 
@@ -203,20 +176,6 @@ export async function POST(request: NextRequest) {
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
-
-    const paymentSettings = await paymentSettingsRepo.getByTenant(tenantId);
-    const useAutomaticPaymentMethods = paymentSettings?.use_automatic_payment_methods ?? true;
-    const paymentMethodTypes = normalizeMethods(
-      paymentSettings?.payment_method_types,
-      paymentMethodTypeKeys,
-    );
-    if (!useAutomaticPaymentMethods && !paymentMethodTypes.includes("card")) {
-      paymentMethodTypes.unshift("card");
-    }
-    const expressCheckoutMethods = normalizeMethods(
-      paymentSettings?.express_checkout_methods,
-      expressMethodKeys,
-    );
 
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
@@ -259,7 +218,7 @@ export async function POST(request: NextRequest) {
       shipping = Math.max(...shippingCosts, 0);
     }
 
-    // ✅ Get tax settings for tenant's Connect account
+    // Get tax settings for tenant's Connect account
     const taxSettingsRepo = new TaxSettingsRepository(adminSupabase);
     const taxSettings = await taxSettingsRepo.getByTenant(tenantId);
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
@@ -269,7 +228,7 @@ export async function POST(request: NextRequest) {
         ? (taxSettings.tax_code_overrides as Record<string, string>)
         : {};
 
-    // ✅ Calculate tax using tenant's Stripe Connect account
+    // Calculate tax using tenant's Stripe Connect account
     const taxService = new StripeTaxService(adminSupabase, tenantStripeAccountId);
     const destinationState =
       normalizedFulfillment === "pickup"
@@ -393,7 +352,7 @@ export async function POST(request: NextRequest) {
 
     const customerState = destinationState ?? null;
     
-    // ✅ Update order with tax information
+    // Update order with tax information
     await adminSupabase
       .from("orders")
       .update({
@@ -421,29 +380,24 @@ export async function POST(request: NextRequest) {
       receiptEmail = userEmail ?? profile?.email ?? undefined;
     }
 
-    // ✅ CRITICAL: Create payment intent on CONNECT account with tax metadata
+    // ✅ SIMPLIFIED: Always use automatic payment methods
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(total * 100),
       currency: "usd",
+      automatic_payment_methods: { enabled: true }, // ✅ Simplified
       customer: stripeCustomerId,
       receipt_email: receiptEmail ?? guestEmail ?? undefined,
       metadata: {
         order_id: order.id,
         cart_hash: cartHash,
         fulfillment: normalizedFulfillment,
-        tax_calculation_id: taxCalc.taxCalculationId ?? "", // ✅ CRITICAL: Include tax calculation ID
+        tax_calculation_id: taxCalc.taxCalculationId ?? "",
         tenant_id: tenantId,
       },
       transfer_data: {
         destination: tenantStripeAccountId,
       },
     };
-
-    if (useAutomaticPaymentMethods || paymentMethodTypes.length === 0) {
-      paymentIntentParams.automatic_payment_methods = { enabled: true };
-    } else {
-      paymentIntentParams.payment_method_types = paymentMethodTypes;
-    }
 
     const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams, {
       idempotencyKey,
@@ -477,10 +431,6 @@ export async function POST(request: NextRequest) {
         tax,
         total,
         fulfillment: normalizedFulfillment,
-        expressCheckoutMethods:
-          expressCheckoutMethods.length > 0
-            ? expressCheckoutMethods
-            : DEFAULT_EXPRESS_CHECKOUT_METHODS,
         requestId,
       },
       { headers: { "Cache-Control": "no-store" } },

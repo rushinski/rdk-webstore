@@ -13,11 +13,6 @@ import { SavedAddresses } from "./SavedAddresses";
 import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
 import Link from "next/link";
 import type { CartItem } from "@/types/domain/cart";
-import {
-  DEFAULT_EXPRESS_CHECKOUT_METHODS,
-  EXPRESS_CHECKOUT_METHODS,
-  type ExpressCheckoutMethod,
-} from "@/config/constants/payment-options";
 
 interface CheckoutFormProps {
   orderId: string;
@@ -28,7 +23,6 @@ interface CheckoutFormProps {
   onShippingAddressChange: (address: ShippingAddress | null) => void;
   onFulfillmentChange: (fulfillment: "ship" | "pickup") => void;
   isUpdatingFulfillment?: boolean;
-  expressCheckoutMethods?: string[];
   canUseChat?: boolean;
 }
 
@@ -52,7 +46,6 @@ export function CheckoutForm({
   onShippingAddressChange,
   onFulfillmentChange,
   isUpdatingFulfillment = false,
-  expressCheckoutMethods,
   canUseChat = false,
 }: CheckoutFormProps) {
   const router = useRouter();
@@ -70,16 +63,6 @@ export function CheckoutForm({
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).has("e2e_payment_status");
   const isStripeReady = Boolean(stripe) || canBypassStripe;
-
-  const expressMethodKeySet = new Set<string>(
-    EXPRESS_CHECKOUT_METHODS.map((method) => method.key),
-  );
-  const normalizedExpressMethods = (expressCheckoutMethods?.length
-    ? expressCheckoutMethods
-    : DEFAULT_EXPRESS_CHECKOUT_METHODS
-  ).filter((method): method is ExpressCheckoutMethod => expressMethodKeySet.has(method));
-  const showExpressCheckout = normalizedExpressMethods.length > 0;
-  const expressMaxRows = Math.max(1, Math.ceil(normalizedExpressMethods.length / 2));
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>
     address
@@ -419,32 +402,16 @@ export function CheckoutForm({
           Payment Information
         </h2>
 
-        {showExpressCheckout && (
-          <div className="mb-4">
-            <ExpressCheckoutElement
-              onConfirm={handleExpressConfirm}
-              onClick={handleExpressClick}
-              options={{
-                layout: { maxColumns: 2, maxRows: expressMaxRows },
-                paymentMethodOrder: normalizedExpressMethods,
-                paymentMethods: {
-                  applePay: normalizedExpressMethods.includes("apple_pay") ? "auto" : "never",
-                  googlePay: normalizedExpressMethods.includes("google_pay") ? "auto" : "never",
-                  amazonPay: normalizedExpressMethods.includes("amazon_pay") ? "auto" : "never",
-                  klarna: normalizedExpressMethods.includes("klarna") ? "auto" : "never",
-                  paypal: normalizedExpressMethods.includes("paypal") ? "auto" : "never",
-                  link: normalizedExpressMethods.includes("link") ? "auto" : "never",
-                },
-              }}
-            />
-          </div>
-        )}
+        <div className="mb-4">
+          <ExpressCheckoutElement
+            onConfirm={handleExpressConfirm}
+            onClick={handleExpressClick}
+          />
+        </div>
 
-        {showExpressCheckout && (
-          <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
-            Or pay with card
-          </div>
-        )}
+        <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
+          Or pay with card
+        </div>
 
         <PaymentElement
           onChange={(event) => {
@@ -488,7 +455,7 @@ export function CheckoutForm({
         )}
       </button>
 
-      {/* Legal Agreements (terms/privacy only) */}
+      {/* Legal Agreements */}
       <div className="text-sm text-gray-400 text-center">
         <p>
           By placing your order, you agree to our{" "}

@@ -11,7 +11,6 @@ import { useCart } from "@/components/cart/CartProvider";
 import { CheckoutForm, type ShippingAddress } from "@/components/checkout/CheckoutForm";
 import { OrderSummary } from "@/components/checkout/OrderSummary";
 import type { CartItem } from "@/types/domain/cart";
-import { DEFAULT_EXPRESS_CHECKOUT_METHODS } from "@/config/constants/payment-options";
 import {
   clearIdempotencyKeyFromStorage,
   generateIdempotencyKey,
@@ -86,10 +85,6 @@ export function CheckoutStart() {
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
 
-  const [expressCheckoutMethods, setExpressCheckoutMethods] = useState<string[]>(
-    DEFAULT_EXPRESS_CHECKOUT_METHODS,
-  );
-
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [guestEmailChecked, setGuestEmailChecked] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -100,24 +95,19 @@ export function CheckoutStart() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // --- FIX: hard stop for update loops ---
   const lastPricingKeyRef = useRef<string | null>(null);
   const inFlightRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const isGuestFlow = searchParams.get("guest") === "1";
 
-
   useEffect(() => {
     if (!isGuestFlow) return;
 
-    // We want to KEEP on refresh, but clear on real "leave".
-    // Refresh often triggers beforeunload/pagehide. We'll detect reload and skip clearing.
     const isReload = () => {
       try {
         const nav = performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined;
         if (nav) return nav.type === "reload";
-        // Fallback for older browsers
         return performance.navigation?.type === 1;
       } catch {
         return false;
@@ -125,9 +115,7 @@ export function CheckoutStart() {
     };
 
     const handleBeforeUnload = () => {
-      // If this is a refresh, do NOT clear.
       if (isReload()) return;
-      // Otherwise, user is leaving the site/tab/navigating away
       clearGuestShippingAddress();
     };
 
@@ -135,9 +123,6 @@ export function CheckoutStart() {
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-
-      // This runs on SPA route changes away from /checkout/start (unmount).
-      // It will NOT run on refresh because the JS context is torn down.
       clearGuestShippingAddress();
     };
   }, [isGuestFlow]);
@@ -222,7 +207,6 @@ export function CheckoutStart() {
         setOrderId(null);
         setClientSecret(null);
 
-        // reset loop-guards for new checkout
         lastPricingKeyRef.current = null;
         abortRef.current?.abort();
         inFlightRef.current = false;
@@ -262,7 +246,6 @@ export function CheckoutStart() {
     [shippingAddress],
   );
 
-  // Primitive-only key to avoid object identity loops
   const addressKey = useMemo(() => {
     if (fulfillment !== "ship" || !shippingPayload) return "pickup";
     return [
@@ -281,7 +264,6 @@ export function CheckoutStart() {
     return `${orderId}:${cartKey}:${fulfillment}:${addressKey}`;
   }, [orderId, cartKey, fulfillment, addressKey]);
 
-  // Init checkout
   useEffect(() => {
     if (!isReady || items.length === 0) return;
     if (!idempotencyKey) return;
@@ -344,13 +326,7 @@ export function CheckoutStart() {
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
-        setExpressCheckoutMethods(
-          data?.expressCheckoutMethods?.length
-            ? data.expressCheckoutMethods
-            : DEFAULT_EXPRESS_CHECKOUT_METHODS,
-        );
 
-        // reset pricing dedupe after init (new order)
         lastPricingKeyRef.current = null;
       } catch (err: any) {
         if (!isActive) return;
@@ -379,15 +355,12 @@ export function CheckoutStart() {
     shippingPayload,
   ]);
 
-  // --- FIX: stable updatePricing (no subtotal/shipping/tax/total deps) + abort/in-flight guard ---
   const updatePricing = useCallback(
     async (nextFulfillment: "ship" | "pickup", nextShippingAddress: ShippingPayload, dedupeKey?: string | null) => {
       if (!orderId) return;
 
-      // Dedupe identical requests
       if (dedupeKey && lastPricingKeyRef.current === dedupeKey) return;
 
-      // Prevent stacking; cancel previous and replace
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -412,7 +385,6 @@ export function CheckoutStart() {
 
         const data = await response.json().catch(() => null);
         if (!response.ok) {
-          // IMPORTANT: do not auto-retry 4xx (esp. 429)
           throw new Error(data?.error || `Failed to update fulfillment (${response.status}).`);
         }
 
@@ -424,11 +396,9 @@ export function CheckoutStart() {
 
         if (dedupeKey) lastPricingKeyRef.current = dedupeKey;
       } catch (err: any) {
-        // allow a future retry by clearing dedupe key
         if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
           lastPricingKeyRef.current = null;
         }
-        // ignore abort errors (happen during rapid changes)
         if (err?.name !== "AbortError") {
           setError(err?.message ?? "Failed to update fulfillment.");
         }
@@ -440,14 +410,12 @@ export function CheckoutStart() {
     [orderId],
   );
 
-  // --- FIX: Debounced + validated auto repricing for shipping ---
   useEffect(() => {
     if (fulfillment !== "ship") return;
     if (!orderId || !clientSecret) return;
     if (!pricingKey) return;
     if (isUpdatingFulfillment) return;
 
-    // Require a valid shipping payload before repricing
     if (!shippingPayload) return;
     const valid =
       shippingPayload.name.trim() !== "" &&
@@ -458,11 +426,9 @@ export function CheckoutStart() {
 
     if (!valid) return;
 
-    // Dedupe
     if (lastPricingKeyRef.current === pricingKey) return;
 
     const t = setTimeout(() => {
-      // set before firing to avoid rapid loops
       lastPricingKeyRef.current = pricingKey;
       updatePricing("ship", shippingPayload, pricingKey);
     }, 350);
@@ -481,7 +447,6 @@ export function CheckoutStart() {
   const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
     if (nextFulfillment === fulfillment) return;
 
-    // Reset dedupe key when fulfillment changes (so next request is allowed)
     lastPricingKeyRef.current = null;
 
     if (!orderId) {
@@ -538,7 +503,6 @@ export function CheckoutStart() {
   };
 
   return (
-    // NOTE: pb-28 prevents the mobile fixed order-summary dock from covering content
     <div className="max-w-6xl mx-auto px-4 pt-0 sm:py-10 pb-28 lg:pb-10">
       <div className="flex items-center justify-between mb-6 sm:mb-8 pt-2">
         <div>
@@ -572,13 +536,11 @@ export function CheckoutStart() {
               fulfillment={fulfillment}
               shippingAddress={shippingAddress}
               onShippingAddressChange={(addr) => {
-                // Reset dedupe when user changes address so repricing can run once
                 lastPricingKeyRef.current = null;
                 setShippingAddress(addr);
               }}
               onFulfillmentChange={handleFulfillmentChange}
               isUpdatingFulfillment={isUpdatingFulfillment}
-              expressCheckoutMethods={expressCheckoutMethods}
               canUseChat={isAuthenticated === true}
             />
           </Elements>
