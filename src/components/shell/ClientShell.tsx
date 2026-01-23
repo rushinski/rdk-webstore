@@ -9,10 +9,7 @@ import { ChatDrawer } from '@/components/chat/ChatDrawer';
 import { ChatLauncher } from '@/components/chat/ChatLauncher';
 import { Footer } from '@/components/shell/Footer';
 import { MobileBottomNav } from '@/components/shell/MobileBottomNav';
-import { AdminSidebar } from '@/components/admin/AdminSidebar';
-
 import type { ProfileRole } from '@/config/constants/roles';
-import { isAdminRole } from '@/config/constants/roles';
 
 export function ClientShell({
   children,
@@ -65,8 +62,6 @@ export function ClientShell({
   const isCheckoutRoute = pathname.startsWith('/checkout');
   const isStoreRoute = !isAdminRoute && !isAuthRoute && !isCheckoutRoute;
 
-  const showAdminSidebar = isAdmin && isStoreRoute && !!role && isAdminRole(role);
-
   useEffect(() => {
     if (!pathname) return;
     if (pathname.startsWith('/admin') || pathname.startsWith('/auth')) return;
@@ -111,8 +106,7 @@ export function ClientShell({
 
   return (
     <>
-      {showAdminSidebar && <AdminSidebar userEmail={userEmail} role={role} />}
-      <div className={showAdminSidebar ? 'md:pl-64' : undefined}>{children}</div>
+      <div>{children}</div>
 
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />

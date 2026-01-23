@@ -4,13 +4,19 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { useCart } from '@/components/cart/CartProvider';
 import { Navbar } from './Navbar';
+import type { ProfileRole } from '@/config/constants/roles';
 
 interface ScrollHeaderProps {
   isAuthenticated?: boolean;
   userEmail?: string;
+  role?: ProfileRole | null;
 }
 
-export function ScrollHeader({ isAuthenticated = false, userEmail }: ScrollHeaderProps) {
+export function ScrollHeader({
+  isAuthenticated = false,
+  userEmail,
+  role = null,
+}: ScrollHeaderProps) {
   const pathname = usePathname();
   const { itemCount } = useCart();
   const isAuthRoute = pathname.startsWith('/auth');
@@ -68,7 +74,12 @@ export function ScrollHeader({ isAuthenticated = false, userEmail }: ScrollHeade
         isVisible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
-      <Navbar isAuthenticated={isAuthenticated} userEmail={userEmail} cartCount={itemCount} />
+      <Navbar
+        isAuthenticated={isAuthenticated}
+        userEmail={userEmail}
+        role={role}
+        cartCount={itemCount}
+      />
     </header>
   );
 }

@@ -30,7 +30,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="bg-black text-white">
         <CartProvider>
           <ClientShell isAdmin={isAdmin} userEmail={userEmail} role={role}>
-            <ScrollHeader isAuthenticated={isAuthenticated} userEmail={userEmail} />
+            <ScrollHeader
+              isAuthenticated={isAuthenticated}
+              userEmail={userEmail}
+              role={role}
+            />
             <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
           </ClientShell>
         </CartProvider>

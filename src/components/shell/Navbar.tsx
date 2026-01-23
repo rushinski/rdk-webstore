@@ -23,10 +23,12 @@ import {
   Watch,
   Laptop,
   LayoutGrid,
+  LayoutDashboard,
 } from "lucide-react";
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import { logError } from "@/lib/log";
 import { CartService } from "@/services/cart-service";
+import { isAdminRole, type ProfileRole } from "@/config/constants/roles";
 
 type ActiveMenu = "shop" | "brands" | "shoeSizes" | "clothingSizes" | null;
 
@@ -34,6 +36,7 @@ interface NavbarProps {
   isAuthenticated?: boolean;
   userEmail?: string;
   cartCount?: number;
+  role?: ProfileRole | null;
 }
 
 function buildStoreHref(params: Record<string, string | string[]>) {
@@ -133,6 +136,7 @@ export function Navbar({
   isAuthenticated = false,
   userEmail,
   cartCount = 0,
+  role = null,
 }: NavbarProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -146,6 +150,7 @@ export function Navbar({
     null,
   );
   const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
+  const [clientRole, setClientRole] = useState<ProfileRole | null>(role ?? null);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -184,12 +189,14 @@ export function Navbar({
         const user = data?.user ?? null;
         setClientIsAuthenticated(Boolean(user));
         setClientUserEmail(user?.email ?? null);
+        setClientRole(data?.role ?? null);
         // no-op: admin routes handled in layout
       } catch (error) {
         logError(error, { layer: "frontend", event: "navbar_load_session" });
         if (!isActive) return;
         setClientIsAuthenticated(false);
         setClientUserEmail(null);
+        setClientRole(null);
         // no-op
       }
     };
@@ -375,6 +382,8 @@ export function Navbar({
   const authResolved = clientIsAuthenticated !== null || isAuthenticated;
   const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
   const effectiveUserEmail = clientUserEmail ?? userEmail;
+  const effectiveRole = clientRole ?? role ?? null;
+  const isAdminUser = effectiveRole ? isAdminRole(effectiveRole) : false;
   const showAuthButtons = authResolved && !effectiveIsAuthenticated;
   const showAuthLoading = !authResolved;
 
@@ -401,6 +410,19 @@ export function Navbar({
         {/* Body */}
         <div className="flex-1 overflow-y-auto py-3">
           <div className="px-3">
+            {isAdminUser && (
+              <Link
+                href="/admin/dashboard"
+                onClick={closeMobileMenu}
+                className="flex items-center justify-between px-4 py-3 text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900"
+              >
+                <span className="flex items-center gap-3">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Back to admin dashboard
+                </span>
+              </Link>
+            )}
+
             {/* Shop All */}
             <Link
               href="/store"
