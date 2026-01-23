@@ -404,6 +404,11 @@ export function CheckoutForm({
 
         <div className="mb-4">
           <ExpressCheckoutElement
+            options={{
+              layout: {
+                overflow: "never", 
+              },
+            }}
             onConfirm={handleExpressConfirm}
             onClick={handleExpressClick}
           />
