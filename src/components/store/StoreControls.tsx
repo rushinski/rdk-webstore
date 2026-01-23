@@ -4,6 +4,7 @@
 import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { RdkSelect } from "@/components/ui/Select";
 
 interface StoreControlsProps {
   total: number;
@@ -17,6 +18,13 @@ interface StoreControlsProps {
 
 const PAGE_SIZE_OPTIONS = [20, 40, 60, 100];
 const MAX_PAGE_BUTTONS = 5;
+const SORT_OPTIONS = [
+  { value: "newest", label: "Newest" },
+  { value: "price_asc", label: "Price: Low to High" },
+  { value: "price_desc", label: "Price: High to Low" },
+  { value: "name_asc", label: "Title: A-Z" },
+  { value: "name_desc", label: "Title: Z-A" },
+];
 
 export function StoreControls({
   total,
@@ -84,34 +92,35 @@ export function StoreControls({
     <div className="mb-6 space-y-4">
       {showSortControls && (
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-gray-400 text-sm">
+          <div className="text-gray-400 text-[12px] sm:text-sm">
             {total === 0 ? "No products found" : `Showing ${showingStart}-${showingEnd} of ${total}`}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="text-gray-400 text-sm">Sort by:</label>
-            <select
+          <div className="flex items-center gap-1.5 flex-nowrap">
+            <label className="text-gray-400 text-[11px] sm:text-sm whitespace-nowrap leading-none">
+              Sort by:
+            </label>
+            <RdkSelect
               value={sort}
-              onChange={(event) => handleSortChange(event.target.value)}
-              className="bg-zinc-900 text-white px-3 py-2 rounded border border-zinc-800/70 text-sm"
-            >
-              <option value="newest">Newest</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="name_asc">Title: A-Z</option>
-              <option value="name_desc">Title: Z-A</option>
-            </select>
-            <label className="text-gray-400 text-sm">Per page:</label>
-            <select
-              value={limit}
-              onChange={(event) => handleLimitChange(Number(event.target.value))}
-              className="bg-zinc-900 text-white px-3 py-2 rounded border border-zinc-800/70 text-sm"
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
+              onChange={handleSortChange}
+              options={SORT_OPTIONS}
+              className="w-[110px] sm:min-w-[160px]"
+              buttonClassName="h-7 px-2 text-[11px] sm:text-sm"
+              menuClassName="text-[11px] sm:text-sm"
+            />
+            <label className="text-gray-400 text-[11px] sm:text-sm whitespace-nowrap leading-none">
+              Per page:
+            </label>
+            <RdkSelect
+              value={String(limit)}
+              onChange={(value) => handleLimitChange(Number(value))}
+              options={PAGE_SIZE_OPTIONS.map((size) => ({
+                value: String(size),
+                label: String(size),
+              }))}
+              className="w-[62px] sm:min-w-[90px]"
+              buttonClassName="h-7 px-2 text-[11px] sm:text-sm"
+              menuClassName="text-[11px] sm:text-sm"
+            />
           </div>
         </div>
       )}
