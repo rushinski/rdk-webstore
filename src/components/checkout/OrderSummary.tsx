@@ -209,8 +209,8 @@ export function OrderSummary({
         <div className="relative bg-zinc-950/95 border-t border-zinc-800 backdrop-blur rounded-t-2xl shadow-2xl">
           <ChevronPuller isOpen={isOpen} setIsOpen={setIsOpen} />
           {/* Handle + header row */}
-          <div className="px-4 pt-3">
-            <div className="mt-3 flex items-start justify-between">
+          <div className="px-4 pt-3 pb-3">
+            <div className="mt-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-gray-300" />
                 <div className="leading-tight">
