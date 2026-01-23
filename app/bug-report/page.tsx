@@ -2,7 +2,7 @@ import { ContactForm } from '@/components/contact/ContactForm';
 
 export default function BugReportPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-16">
+    <div className="max-w-7xl mx-auto px-4 pt-8 pb-16">
       <div className="mb-10 max-w-2xl mx-auto">
         <h1 className="text-4xl font-bold text-white mb-4">Report a bug</h1>
         <p className="text-zinc-400">

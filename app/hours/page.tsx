@@ -1,7 +1,7 @@
 // app/hours/page.tsx
 export default function HoursPage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-16">
+    <div className="max-w-6xl mx-auto px-4 pt-8 pb-16">
       <h1 className="text-4xl font-bold text-white mb-4">Hours</h1>
       <p className="text-zinc-400 mb-4">
         Pickup and meetup availability for Simpsonville, South Carolina. Local pickups are available and you can

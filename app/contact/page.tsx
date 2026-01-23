@@ -4,7 +4,7 @@ import { ContactForm } from '@/components/contact/ContactForm';
 
 export default function ContactPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 py-16">
+    <div className="max-w-7xl mx-auto px-4 pt-8 pb-16">
       <h1 className="text-4xl font-bold text-white mb-4">Contact Us</h1>
       <div className="text-zinc-400 mb-12 space-y-4">
         <p>
@@ -49,7 +49,7 @@ export default function ContactPage() {
           <ContactForm source="contact_form" />
         </div>
 
-        <div className="h-full">
+        <div className="hidden md:block">
           {/* Image stack (matches the reference orientation) */}
           <div className="relative h-full min-h-[420px] overflow-visible">
             {/* Front / left card */}

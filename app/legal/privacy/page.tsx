@@ -1,7 +1,7 @@
 // app/legal/privacy/page.tsx
 export default function PrivacyPage() {
   return (
-    <div className="max-w-4xl mx-auto px-4 py-16">
+    <div className="max-w-4xl mx-auto px-4 pt-8 pb-16">
       <h1 className="text-4xl font-bold text-white mb-4">Privacy Policy - Realdealkickzsc</h1>
 
       <div className="prose prose-invert max-w-none">
