@@ -392,11 +392,11 @@ export function CheckoutStart() {
 
   return (
     // NOTE: pb-28 prevents the mobile fixed order-summary dock from covering content
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 pb-28 lg:pb-10">
-      <div className="flex items-center justify-between mb-6 sm:mb-8">
+    <div className="max-w-6xl mx-auto px-4 pt-0 sm:py-10 pb-28 lg:pb-10">
+      <div className="flex items-center justify-between mb-6 sm:mb-8 pt-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
-          <p className="text-sm sm:text-base text-gray-400">Complete payment securely with Stripe.</p>
+          <p className="text-sm sm:text-base text-gray-400">Secure checkout powered by Stripe</p>
         </div>
         <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
           Back to cart

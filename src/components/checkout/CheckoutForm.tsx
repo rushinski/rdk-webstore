@@ -381,8 +381,7 @@ export function CheckoutForm({
           <div className="mt-4 border border-zinc-800/70 bg-zinc-950/40 rounded p-4 text-sm text-gray-400 space-y-2">
             <p className="font-medium text-white mb-2">Shipping Information</p>
             <p>
-              We aim to ship within 24 hours (processing time, not delivery time). Shipping options
-              and rates are shown at checkout.
+              We aim to ship within 24 hours (processing time, not delivery time).
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
               <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
@@ -503,8 +502,6 @@ export function CheckoutForm({
           .
         </p>
       </div>
-
-      <p className="text-xs text-center text-gray-500">Secure checkout powered by Stripe</p>
     </form>
   );
 }
