@@ -210,9 +210,7 @@ export function OrderSummary({
           <ChevronPuller isOpen={isOpen} setIsOpen={setIsOpen} />
           {/* Handle + header row */}
           <div className="px-4 pt-3">
-            <div className="mx-auto h-1.5 w-12 rounded-full bg-zinc-700/70" />
-
-            <div className="mt-3 flex items-center justify-between">
+            <div className="mt-3 flex items-start justify-between">
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-gray-300" />
                 <div className="leading-tight">
@@ -224,34 +222,29 @@ export function OrderSummary({
                   </p>
                 </div>
               </div>
-            </div>
 
-            {/* Compact pricing row */}
-            <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-gray-300 pb-3">
-              <div className="rounded-lg bg-zinc-900/60 border border-zinc-800 px-2 py-2">
-                <p className="text-gray-400">Subtotal</p>
-                <p className="text-white font-semibold">{money(subtotal)}</p>
-              </div>
-              <div className="rounded-lg bg-zinc-900/60 border border-zinc-800 px-2 py-2">
-                <p className="text-gray-400">Shipping</p>
-                <p className="text-white font-semibold">
-                  {isUpdatingShipping
-                    ? "…"
-                    : fulfillment === "pickup"
-                    ? "Free"
-                    : money(shipping)}
+              <div className="text-right text-xs">
+                <p className="text-gray-400">
+                  Subtotal:{" "}
+                  <span className="text-white font-semibold">
+                    {money(subtotal)}
+                  </span>
                 </p>
-              </div>
-              <div className="rounded-lg bg-zinc-900/60 border border-zinc-800 px-2 py-2">
-                <p className="text-gray-400">Tax</p>
-                <p className="text-white font-semibold">
-                  {isUpdatingShipping ? "…" : money(tax)}
+                <p className="text-gray-400">
+                  Shipping:{" "}
+                  <span className="text-white font-semibold">
+                    {isUpdatingShipping
+                      ? "…"
+                      : fulfillment === "pickup"
+                      ? "Free"
+                      : money(shipping)}
+                  </span>
                 </p>
-              </div>
-              <div className="rounded-lg bg-zinc-900/60 border border-zinc-800 px-2 py-2">
-                <p className="text-gray-400">Total</p>
-                <p className="text-white font-semibold">
-                  {money(displayTotal)}
+                <p className="text-gray-400">
+                  Tax:{" "}
+                  <span className="text-white font-semibold">
+                    {isUpdatingShipping ? "…" : money(tax)}
+                  </span>
                 </p>
               </div>
             </div>

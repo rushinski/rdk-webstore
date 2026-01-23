@@ -12,7 +12,7 @@ export function ChevronPuller({ isOpen, setIsOpen }: ChevronPullerProps) {
     <button
       type="button"
       onClick={() => setIsOpen(!isOpen)}
-      className="absolute -top-4 right-4 z-10 inline-flex items-center justify-center w-10 h-10 rounded-full bg-zinc-800 border border-zinc-700/80"
+      className="absolute -top-3 right-1/2 translate-x-1/2 z-10 inline-flex items-center justify-center w-20 h-6 rounded-t-lg bg-zinc-950/95 border-t border-zinc-800"
       aria-label={isOpen ? "Collapse" : "Expand"}
     >
       <ChevronUp
