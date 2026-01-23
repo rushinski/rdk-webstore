@@ -442,7 +442,7 @@ export function Navbar({
               aria-expanded={mobileSection === "shop"}
             >
               <span className="flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4" />
+                <LayoutGrid className="w-4 h-4" />
                 Categories
               </span>
               <ChevronDown
@@ -523,7 +523,7 @@ export function Navbar({
 
             {mobileSection === "shoeSizes" && (
               <div className="border-b border-zinc-900 px-4 py-4">
-                <div className="pl-7 grid grid-cols-4 gap-2 max-h-72 overflow-auto">
+                <div className="pl-7 grid grid-cols-4 gap-2">
                   {SHOE_SIZES.map((size) => (
                     <Link
                       key={size}
