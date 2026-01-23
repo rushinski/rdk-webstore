@@ -75,6 +75,16 @@ body[data-route='admin'] main {
   height: 0;
 }
 
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 /* Add cursor pointer utility */
 @layer utilities {
   .cursor-pointer {

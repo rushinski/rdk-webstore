@@ -265,7 +265,7 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-3xl mx-auto px-3 sm:px-4 py-6 sm:py-8">
       {/* Delete All Confirmation Modal */}
       {confirmDeleteAllOpen && (
         <div className="fixed inset-0 z-[100]">
@@ -279,8 +279,10 @@ export default function AdminNotificationsPage() {
             <div className="w-full max-w-md bg-zinc-950 border border-zinc-800/70 shadow-2xl rounded-sm p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-white font-semibold text-lg">Delete all notifications?</h3>
-                  <p className="text-zinc-400 text-sm mt-1">
+                  <h3 className="text-white font-semibold text-base sm:text-lg">
+                    Delete all notifications?
+                  </h3>
+                  <p className="text-zinc-400 text-[12px] sm:text-sm mt-1">
                     This will permanently delete your entire notification history.
                   </p>
                 </div>
@@ -297,14 +299,14 @@ export default function AdminNotificationsPage() {
 
               <div className="mt-5 flex items-center justify-end gap-3">
                 <button
-                  className="text-xs text-zinc-400 hover:text-white"
+                  className="text-[11px] sm:text-xs text-zinc-400 hover:text-white"
                   onClick={() => setConfirmDeleteAllOpen(false)}
                   disabled={isDeletingAll}
                 >
                   Cancel
                 </button>
                 <button
-                  className="text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-sm px-4 py-2 disabled:opacity-60"
+                  className="text-[11px] sm:text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-sm px-4 py-2 disabled:opacity-60"
                   onClick={confirmDeleteAll}
                   disabled={isDeletingAll}
                 >
@@ -317,24 +319,29 @@ export default function AdminNotificationsPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Notification Center</h1>
-          <p className="text-xs text-zinc-500 mt-1">Unread: {unreadCount > 0 ? cap9(unreadCount) : '0'}</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Notification Center</h1>
+          <p className="text-[11px] sm:text-xs text-zinc-500 mt-1">
+            Unread: {unreadCount > 0 ? cap9(unreadCount) : '0'}
+          </p>
         </div>
 
         {selectMode ? (
-          <button onClick={cancelSelectMode} className="text-zinc-400 hover:text-white flex items-center gap-2">
-            <X className="w-4 h-4" />
+          <button
+            onClick={cancelSelectMode}
+            className="text-zinc-400 hover:text-white flex items-center gap-2 text-[11px] sm:text-xs"
+          >
+            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Cancel
           </button>
         ) : (
-          <div className="flex items-center gap-3">
-            <button onClick={() => load(page)} className="text-xs text-zinc-400 hover:text-white">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] sm:text-xs">
+            <button onClick={() => load(page)} className="text-zinc-400 hover:text-white">
               Refresh
             </button>
 
-            <button onClick={markAllRead} className="text-xs text-zinc-400 hover:text-white">
+            <button onClick={markAllRead} className="text-zinc-400 hover:text-white">
               Mark all as read
             </button>
 
@@ -342,21 +349,21 @@ export default function AdminNotificationsPage() {
             <div ref={headerDeleteRef} className="relative">
               <button
                 type="button"
-                className="text-xs text-red-400 hover:text-red-300 flex items-center gap-2"
+                className="text-red-400 hover:text-red-300 flex items-center gap-2"
                 aria-label="Delete menu"
                 onClick={() => {
                   setMenuOpenFor(null);
                   setDeleteMenuOpen((v) => !v);
                 }}
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 Delete
               </button>
 
               {deleteMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-zinc-950 border border-zinc-800/70 shadow-xl rounded-sm overflow-hidden z-50">
                   <button
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-900 text-white"
+                    className="w-full text-left px-3 py-2 text-[12px] sm:text-sm hover:bg-zinc-900 text-white"
                     onClick={() => {
                       setDeleteMenuOpen(false);
                       enterSelectMode([]);
@@ -366,7 +373,7 @@ export default function AdminNotificationsPage() {
                   </button>
 
                   <button
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-900 text-red-400"
+                    className="w-full text-left px-3 py-2 text-[12px] sm:text-sm hover:bg-zinc-900 text-red-400"
                     onClick={() => {
                       setDeleteMenuOpen(false);
                       setConfirmDeleteAllOpen(true);
@@ -383,17 +390,17 @@ export default function AdminNotificationsPage() {
 
       {/* Selected banner */}
       {selectMode && (
-        <div className="mb-4 flex items-center justify-between border border-zinc-800/70 bg-zinc-950 px-4 py-3 rounded-sm">
-          <div className="text-sm text-white">
+        <div className="mb-4 flex items-center justify-between border border-zinc-800/70 bg-zinc-950 px-3 sm:px-4 py-2.5 sm:py-3 rounded-sm">
+          <div className="text-[12px] sm:text-sm text-white">
             Selected: <span className="font-semibold">{selectedCount}</span>
           </div>
 
           <button
             onClick={deleteSelected}
             disabled={selectedCount === 0}
-            className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 flex items-center gap-2"
+            className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 disabled:opacity-50 flex items-center gap-2"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             Delete selected
           </button>
         </div>
@@ -401,9 +408,11 @@ export default function AdminNotificationsPage() {
 
       {/* Body */}
       {isLoading ? (
-        <div className="text-sm text-zinc-500 py-10 text-center">Loading...</div>
+        <div className="text-[12px] sm:text-sm text-zinc-500 py-10 text-center">Loading...</div>
       ) : notifications.length === 0 ? (
-        <div className="text-sm text-zinc-500 py-10 text-center">No notifications yet.</div>
+        <div className="text-[12px] sm:text-sm text-zinc-500 py-10 text-center">
+          No notifications yet.
+        </div>
       ) : (
         <div className="space-y-2">
           {notifications.map((n) => {
@@ -414,7 +423,7 @@ export default function AdminNotificationsPage() {
                 {/* group hover makes entire row change bg (including 3-dot area) */}
                 <div className="group flex items-stretch">
                   {selectMode && (
-                    <div className="flex items-center px-3 transition group-hover:bg-zinc-900">
+                    <div className="flex items-center px-2 sm:px-3 transition group-hover:bg-zinc-900">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -439,12 +448,16 @@ export default function AdminNotificationsPage() {
                       }
                       if (!n.read_at) markRead(n.id);
                     }}
-                    className={`block flex-1 min-w-0 px-4 py-3 transition group-hover:bg-zinc-900 ${
+                    className={`block flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-3 transition group-hover:bg-zinc-900 ${
                       n.read_at ? 'text-zinc-400' : 'text-white'
                     }`}
                   >
-                    <div className="text-sm font-medium break-words whitespace-pre-wrap">{n.message}</div>
-                    <div className="text-xs text-zinc-500 mt-1">{formatTime(n.created_at)}</div>
+                    <div className="text-[12px] sm:text-sm font-medium break-words whitespace-pre-wrap">
+                      {n.message}
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-zinc-500 mt-1">
+                      {formatTime(n.created_at)}
+                    </div>
                   </Link>
 
                   {/* 3-dot menu (click-to-open + click-outside-to-close) */}
@@ -464,13 +477,13 @@ export default function AdminNotificationsPage() {
                       className="text-zinc-500 hover:text-white px-2"
                       aria-label="More actions"
                     >
-                      <MoreVertical className="w-4 h-4" />
+                      <MoreVertical className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     </button>
 
                     {menuOpenFor === n.id && !selectMode && (
                       <div className="absolute right-2 top-10 z-50 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl rounded-sm overflow-hidden">
                         <button
-                          className="w-full text-left text-sm px-3 py-2 hover:bg-zinc-900 text-red-400"
+                          className="w-full text-left text-[12px] sm:text-sm px-3 py-2 hover:bg-zinc-900 text-red-400"
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -496,18 +509,18 @@ export default function AdminNotificationsPage() {
           type="button"
           onClick={() => load(page - 1)}
           disabled={page <= 1 || isLoading}
-          className="text-xs text-zinc-400 hover:text-white disabled:opacity-50"
+          className="text-[11px] sm:text-xs text-zinc-400 hover:text-white disabled:opacity-50"
         >
           Prev
         </button>
 
-        <div className="text-xs text-zinc-600">Page {page}</div>
+        <div className="text-[11px] sm:text-xs text-zinc-600">Page {page}</div>
 
         <button
           type="button"
           onClick={() => load(page + 1)}
           disabled={!data?.hasMore || isLoading}
-          className="text-xs text-zinc-400 hover:text-white disabled:opacity-50"
+          className="text-[11px] sm:text-xs text-zinc-400 hover:text-white disabled:opacity-50"
         >
           Next
         </button>

@@ -276,20 +276,26 @@ export default function AdminChatsPage() {
   return (
     <div className="bg-black">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white">Chats</h1>
-        <p className="text-gray-400">Respond to pickup questions and customer messages.</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Chats</h1>
+        <p className="text-sm sm:text-base text-gray-400">
+          Respond to pickup questions and customer messages.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 sm:gap-6">
         <div className="bg-zinc-900 border border-zinc-800/70">
-          <div className="p-4 border-b border-zinc-800/70 text-sm text-zinc-400">
+          <div className="p-3 sm:p-4 border-b border-zinc-800/70 text-[12px] sm:text-sm text-zinc-400">
             Active chats
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
             {isLoadingChats ? (
-              <div className="p-4 text-sm text-zinc-500">Loading chats...</div>
+              <div className="p-3 sm:p-4 text-[12px] sm:text-sm text-zinc-500">
+                Loading chats...
+              </div>
             ) : chats.length === 0 ? (
-              <div className="p-4 text-sm text-zinc-500">No active chats.</div>
+              <div className="p-3 sm:p-4 text-[12px] sm:text-sm text-zinc-500">
+                No active chats.
+              </div>
             ) : (
               chats.map((chat) => {
                 const preview = chat.messages?.[0]?.body ?? 'No messages yet.';
@@ -303,12 +309,16 @@ export default function AdminChatsPage() {
                   <button
                     key={chat.id}
                     onClick={() => setActiveChatId(chat.id)}
-                    className={`w-full text-left px-4 py-3 border-b border-zinc-800/70 transition min-w-0 ${
+                    className={`w-full text-left px-3 sm:px-4 py-2.5 sm:py-3 border-b border-zinc-800/70 transition min-w-0 ${
                       isActive ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:bg-zinc-800/60'
                     }`}
                   >
-                    <div className="text-sm font-semibold text-white truncate">{orderLabel}</div>
-                    <div className="text-xs text-zinc-500 mt-1 truncate">{preview}</div>
+                    <div className="text-[12px] sm:text-sm font-semibold text-white truncate">
+                      {orderLabel}
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-zinc-500 mt-1 truncate">
+                      {preview}
+                    </div>
                   </button>
                 );
               })
@@ -317,34 +327,34 @@ export default function AdminChatsPage() {
         </div>
 
         <div className="bg-zinc-900 border border-zinc-800/70 flex flex-col">
-          <div className="flex items-center justify-between gap-3 p-4 border-b border-zinc-800/70">
+          <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-b border-zinc-800/70">
             <div>
-              <div className="text-white font-semibold">
+              <div className="text-[12px] sm:text-sm text-white font-semibold">
                 {activeChat
                   ? activeChat.order_id
                     ? `${customerLabel(activeChat)} - Order #${activeChat.order_id.slice(0, 8)}`
                     : customerLabel(activeChat)
                   : 'Chat'}
               </div>
-              <div className="text-xs text-zinc-500">Customer conversation</div>
+              <div className="text-[11px] sm:text-xs text-zinc-500">Customer conversation</div>
             </div>
             {activeChat && (
               <button
                 type="button"
                 onClick={() => setConfirmClose(true)}
-                className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
               >
-                <XCircle className="w-4 h-4" />
+                <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 Close chat
               </button>
             )}
           </div>
 
-          <div className="flex-1 p-4 space-y-3 overflow-y-auto">
+          <div className="flex-1 p-3 sm:p-4 space-y-3 overflow-y-auto">
             {isLoadingMessages && !hasLoadedMessages.current ? (
-              <div className="text-sm text-zinc-500">Loading messages...</div>
+              <div className="text-[12px] sm:text-sm text-zinc-500">Loading messages...</div>
             ) : messages.length === 0 ? (
-              <div className="text-sm text-zinc-500">No messages yet.</div>
+              <div className="text-[12px] sm:text-sm text-zinc-500">No messages yet.</div>
             ) : (
               messages.map((message) => (
                 <div
@@ -356,20 +366,22 @@ export default function AdminChatsPage() {
                   }`}
                   data-testid="chat-message"
                 >
-                  <div className="text-xs text-zinc-500 mb-1">
+                  <div className="text-[11px] sm:text-xs text-zinc-500 mb-1">
                     {message.sender_role === 'admin'
                       ? 'Admin'
                       : activeChat
                         ? customerLabel(activeChat)
                         : 'Customer'}
                   </div>
-                  <div className="text-sm whitespace-pre-wrap break-words">{message.body}</div>
+                  <div className="text-[12px] sm:text-sm whitespace-pre-wrap break-words">
+                    {message.body}
+                  </div>
                 </div>
               ))
             )}
           </div>
 
-          <div className="border-t border-zinc-800/70 p-4">
+          <div className="border-t border-zinc-800/70 p-3 sm:p-4">
             <div className="flex items-center gap-2">
               <textarea
                 ref={draftRef}
@@ -384,15 +396,15 @@ export default function AdminChatsPage() {
                 }}
                 placeholder={activeChat ? "Type a reply..." : "Select a chat to reply"}
                 disabled={!activeChat}
-                className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-sm rounded
-                          disabled:opacity-60 resize-none overflow-y-auto max-h-32 whitespace-pre-wrap focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
+                className="flex-1 bg-zinc-800 text-white px-3 py-2 border border-zinc-700 text-[12px] sm:text-sm rounded
+                          disabled:opacity-60 resize-none overflow-y-auto no-scrollbar max-h-24 sm:max-h-32 whitespace-pre-wrap focus:outline-none focus:ring-1 focus:ring-red-500 focus:border-red-500"
                 data-testid="chat-message-input"
               />
               <button
                 type="button"
                 onClick={handleSend}
                 disabled={!activeChat}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm flex items-center gap-2"
+                className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 text-[12px] sm:text-sm flex items-center gap-2"
                 data-testid="chat-send-button"
               >
                 <Send className="w-4 h-4" />
@@ -407,22 +419,24 @@ export default function AdminChatsPage() {
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="absolute inset-0 bg-black/70" onClick={() => setConfirmClose(false)} />
           <div className="relative bg-zinc-950 border border-zinc-800/70 p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold text-white mb-2">Close this chat?</h3>
-            <p className="text-sm text-zinc-400 mb-4">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-2">
+              Close this chat?
+            </h3>
+            <p className="text-[12px] sm:text-sm text-zinc-400 mb-4">
               Closing will end the conversation for the customer.
             </p>
             <div className="flex gap-3">
               <button
                 type="button"
                 onClick={() => setConfirmClose(false)}
-                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 text-sm"
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 text-[12px] sm:text-sm"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleCloseChat}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 text-sm"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 text-[12px] sm:text-sm"
               >
                 Close chat
               </button>
