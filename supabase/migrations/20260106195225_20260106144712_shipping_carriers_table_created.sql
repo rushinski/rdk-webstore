@@ -83,13 +83,19 @@ grant truncate on table "public"."shipping_carriers" to "service_role";
 grant update on table "public"."shipping_carriers" to "service_role";
 
 
-  create policy "Admin can manage shipping carriers"
+create policy "Admin can manage shipping carriers"
   on "public"."shipping_carriers"
   as permissive
   for all
-  to public
-using (((auth.jwt() ->> 'role'::text) = 'admin'::text));
-
+  to authenticated
+  using (
+    exists (
+      select 1 
+      from public.profiles
+      where profiles.id = auth.uid()
+        and profiles.role = any(array['admin'::text, 'super_admin'::text, 'dev'::text])
+    )
+  );
 
 CREATE TRIGGER update_shipping_carriers_timestamp BEFORE UPDATE ON public.shipping_carriers FOR EACH ROW EXECUTE FUNCTION public.update_shipping_carriers_updated_at();
 
