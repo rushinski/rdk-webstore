@@ -8,7 +8,12 @@ export interface AdminSessionPayload extends JWTPayload {
   v: 1;
   sub: string;
 }
+
 let cachedKey: Uint8Array | null = null;
+
+type BufferLike = {
+  from(input: string, encoding: "base64"): Uint8Array;
+};
 
 function base64ToBytes(base64String: string): Uint8Array {
   if (typeof globalThis.atob === "function") {
@@ -22,10 +27,11 @@ function base64ToBytes(base64String: string): Uint8Array {
     return bytes;
   }
 
-  const NodeBuffer = (globalThis as any).Buffer;
+  // Node.js fallback (Edge runtimes won't have Buffer)
+  const nodeBuffer = (globalThis as unknown as { Buffer?: BufferLike }).Buffer;
 
-  if (NodeBuffer && typeof NodeBuffer.from === "function") {
-    return new Uint8Array(NodeBuffer.from(base64String, "base64"));
+  if (nodeBuffer && typeof nodeBuffer.from === "function") {
+    return new Uint8Array(nodeBuffer.from(base64String, "base64"));
   }
 
   throw new Error(
@@ -51,7 +57,6 @@ function getAdminSessionKey(): Uint8Array {
   }
 
   cachedKey = keyBytes;
-
   return keyBytes;
 }
 
@@ -89,19 +94,17 @@ export async function verifyAdminSessionToken(
     }
 
     const version = (payload as { v?: unknown }).v;
-
     if (version !== 1) {
       return null;
     }
 
     const userId = payload.sub;
-
     if (typeof userId !== "string" || userId.length === 0) {
       return null;
     }
 
     return payload as AdminSessionPayload;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

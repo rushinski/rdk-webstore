@@ -41,15 +41,17 @@ export async function POST(req: NextRequest) {
       { ok: true, nextPath },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     logError(err, {
       layer: "auth",
       requestId,
       route: "/api/auth/verify-email",
     });
 
+    const message = err instanceof Error ? err.message : "Could not verify code.";
+
     return NextResponse.json(
-      { ok: false, error: err?.message ?? "Could not verify code.", requestId },
+      { ok: false, error: message, requestId },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }

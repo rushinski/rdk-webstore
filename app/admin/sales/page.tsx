@@ -19,8 +19,39 @@ const SALES_TABS: Array<{ key: TabKey; label: string; statuses: string[] }> = [
   },
 ];
 
+type OrderItem = {
+  id: string;
+  quantity?: number | null;
+  line_total?: number | null;
+  unit_cost?: number | null;
+  product?: {
+    title_display?: string | null;
+    brand?: string | null;
+    name?: string | null;
+  } | null;
+  variant?: { cost_cents?: number | null; size_label?: string | null } | null;
+};
+
+type OrderCustomer = {
+  email?: string | null;
+};
+
+type SalesOrder = {
+  id: string;
+  status?: string | null;
+  total?: number | null;
+  subtotal?: number | null;
+  refund_amount?: number | null;
+  created_at?: string | null;
+  fulfillment?: string | null;
+  user_id?: string | null;
+  guest_email?: string | null;
+  customer?: OrderCustomer | null;
+  items?: OrderItem[] | null;
+};
+
 export default function SalesPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("paid");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -101,7 +132,6 @@ export default function SalesPage() {
     };
 
     loadCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken]);
 
   useEffect(() => {
@@ -110,7 +140,7 @@ export default function SalesPage() {
     }
   }, [page, totalPages]);
 
-  const getCustomerHandle = (order: any) => {
+  const getCustomerHandle = (order: SalesOrder) => {
     const email = order.customer?.email ?? null;
     if (email && email.includes("@")) {
       return email.split("@")[0];
@@ -118,10 +148,10 @@ export default function SalesPage() {
     return order.user_id ? order.user_id.slice(0, 6) : "Guest";
   };
 
-  const getCustomerEmail = (order: any) =>
+  const getCustomerEmail = (order: SalesOrder) =>
     order.customer?.email ?? order.guest_email ?? "-";
 
-  const getOrderTitle = (item: any) =>
+  const getOrderTitle = (item: OrderItem) =>
     (item.product?.title_display ??
       `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
     "Item";
@@ -143,7 +173,7 @@ export default function SalesPage() {
       const refundAmount = Number(order.refund_amount ?? 0) / 100;
       revenue += total - refundAmount;
 
-      const itemCost = (order.items || []).reduce((sum: number, item: any) => {
+      const itemCost = (order.items || []).reduce((sum: number, item: OrderItem) => {
         const unitCost = Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100);
         return sum + unitCost * Number(item.quantity ?? 0);
       }, 0);
@@ -218,7 +248,7 @@ export default function SalesPage() {
       } else {
         setToast({ message: data?.error ?? "Refund failed.", tone: "error" });
       }
-    } catch (error) {
+    } catch {
       setToast({ message: "Refund failed.", tone: "error" });
     }
   };
@@ -450,12 +480,15 @@ export default function SalesPage() {
             </thead>
             <tbody>
               {filteredOrders.map((order) => {
-                const itemCost = (order.items || []).reduce((sum: number, item: any) => {
-                  const unitCost = Number(
-                    item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100,
-                  );
-                  return sum + unitCost * Number(item.quantity ?? 0);
-                }, 0);
+                const itemCost = (order.items || []).reduce(
+                  (sum: number, item: OrderItem) => {
+                    const unitCost = Number(
+                      item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100,
+                    );
+                    return sum + unitCost * Number(item.quantity ?? 0);
+                  },
+                  0,
+                );
                 const refundAmount = Number(order.refund_amount ?? 0) / 100;
                 const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
                 const status = order.status ?? "paid";
@@ -547,7 +580,7 @@ export default function SalesPage() {
                       <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
                         <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
                           <div className="grid gap-3 sm:grid-cols-2">
-                            {(order.items ?? []).map((item: any) => (
+                            {(order.items ?? []).map((item: OrderItem) => (
                               <div
                                 key={item.id}
                                 className="flex items-center justify-between text-sm text-gray-400"
@@ -607,7 +640,7 @@ export default function SalesPage() {
                               Items
                             </div>
                             <div className="space-y-2">
-                              {(order.items ?? []).map((item: any) => (
+                              {(order.items ?? []).map((item: OrderItem) => (
                                 <div
                                   key={item.id}
                                   className="flex items-start justify-between gap-3 text-sm"
@@ -650,7 +683,9 @@ export default function SalesPage() {
             : undefined
         }
         confirmLabel="Refund"
-        onConfirm={confirmRefund}
+        onConfirm={() => {
+          void confirmRefund();
+        }}
         onCancel={() => setPendingRefundId(null)}
       />
       <Toast

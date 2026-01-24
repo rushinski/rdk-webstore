@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
@@ -122,8 +122,9 @@ export function EmailCodeFlow({
 
         await onVerifyCode(trimmedEmail, code.trim());
       }
-    } catch (err: any) {
-      setError(err?.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -145,8 +146,8 @@ export function EmailCodeFlow({
       await effectiveResendHandler(trimmedEmail);
       setResendSent(true);
       setResendCooldown(60);
-    } catch (err: any) {
-      const message = err?.message ?? "Could not resend code.";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not resend code.";
       setError(message);
       setResendError(message);
     } finally {
@@ -164,10 +165,16 @@ export function EmailCodeFlow({
         : verifyButtonLabel;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" data-flow-id={flowId}>
+    <form
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+      className="space-y-6"
+      data-flow-id={flowId}
+    >
       <AuthHeader title={title} description={descriptionText} />
 
-      {error && <div className={AuthStyles.errorBox}>{error}</div>}
+      {error && <div className={authStyles.errorBox}>{error}</div>}
 
       <div className="space-y-4">
         {canShowEmailInput && (
@@ -184,7 +191,7 @@ export function EmailCodeFlow({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isSubmitting || stage === "verify"}
-              className={stage === "verify" ? AuthStyles.inputDisabled : AuthStyles.input}
+              className={stage === "verify" ? authStyles.inputDisabled : authStyles.input}
             />
           </div>
         )}
@@ -202,7 +209,9 @@ export function EmailCodeFlow({
             length={codeLength}
             value={code}
             onChange={setCode}
-            onResend={handleResend}
+            onResend={() => {
+              void handleResend();
+            }}
             isSending={isSendingResend}
             cooldown={resendCooldown}
             disabled={isSubmitting}
@@ -216,7 +225,7 @@ export function EmailCodeFlow({
         <button
           type="submit"
           disabled={isSubmitting}
-          className={AuthStyles.primaryButton}
+          className={authStyles.primaryButton}
         >
           {submitLabel}
         </button>
@@ -224,11 +233,11 @@ export function EmailCodeFlow({
         {(backHref || onBack) && (
           <div className="flex justify-start">
             {backHref ? (
-              <Link href={backHref} className={AuthStyles.neutralLink}>
+              <Link href={backHref} className={authStyles.neutralLink}>
                 {backLabel ?? "Back"}
               </Link>
             ) : (
-              <button type="button" onClick={onBack} className={AuthStyles.neutralLink}>
+              <button type="button" onClick={onBack} className={authStyles.neutralLink}>
                 {backLabel ?? "Back"}
               </button>
             )}

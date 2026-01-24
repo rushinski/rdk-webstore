@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { isPasswordValid } from "@/lib/validation/password";
-import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/AuthStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 import { PasswordRequirements } from "../register/PasswordRequirements";
@@ -70,8 +70,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       setResendSent(false);
       setResendError(null);
       setResendCooldown(60);
-    } catch (err: any) {
-      setError(err?.message ?? "Could not send reset code.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not send reset code.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -102,8 +103,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       setInfoMessage("We've sent you a new reset code.");
       setResendSent(true);
       setResendCooldown(60);
-    } catch (err: any) {
-      const message = err?.message ?? "Could not resend reset code.";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Could not resend reset code.";
       setError(message);
       setResendError(message);
     } finally {
@@ -175,8 +176,10 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       setTimeout(() => {
         router.push("/auth/login");
       }, 1000);
-    } catch (err: any) {
-      setError(err?.message ?? "Reset failed. Please try again.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Reset failed. Please try again.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -193,11 +196,16 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         }
       />
 
-      {error && <div className={AuthStyles.errorBox}>{error}</div>}
-      {infoMessage && <div className={AuthStyles.infoBox}>{infoMessage}</div>}
+      {error && <div className={authStyles.errorBox}>{error}</div>}
+      {infoMessage && <div className={authStyles.infoBox}>{infoMessage}</div>}
 
       {step === "request" && (
-        <form onSubmit={handleRequestSubmit} className="space-y-4">
+        <form
+          onSubmit={(event) => {
+            void handleRequestSubmit(event);
+          }}
+          className="space-y-4"
+        >
           <div className="space-y-1.5">
             <label
               htmlFor="forgot-email"
@@ -212,14 +220,14 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={AuthStyles.input}
+              className={authStyles.input}
             />
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className={AuthStyles.primaryButton}
+            className={authStyles.primaryButton}
           >
             {isSubmitting ? "Sending code..." : "Send reset code"}
           </button>
@@ -228,7 +236,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             <button
               type="button"
               onClick={onBackToLogin}
-              className={AuthStyles.neutralLink}
+              className={authStyles.neutralLink}
             >
               Back to sign in
             </button>
@@ -237,7 +245,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       )}
 
       {step === "reset" && (
-        <form onSubmit={handleResetSubmit} className="space-y-4">
+        <form
+          onSubmit={(event) => {
+            void handleResetSubmit(event);
+          }}
+          className="space-y-4"
+        >
           <div className="space-y-1.5">
             <label
               htmlFor="reset-email"
@@ -249,7 +262,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
               id="reset-email"
               value={email}
               disabled
-              className={AuthStyles.inputDisabled}
+              className={authStyles.inputDisabled}
             />
           </div>
 
@@ -259,7 +272,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             length={6}
             value={code}
             onChange={setCode}
-            onResend={handleResendResetCode}
+            onResend={() => {
+              void handleResendResetCode();
+            }}
             isSending={isSendingResend}
             cooldown={resendCooldown}
             disabled={isSubmitting}
@@ -288,7 +303,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className={AuthStyles.primaryButton}
+            className={authStyles.primaryButton}
           >
             {isSubmitting ? "Updating password..." : "Update password"}
           </button>
@@ -297,7 +312,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             <button
               type="button"
               onClick={onBackToLogin}
-              className={AuthStyles.neutralLink}
+              className={authStyles.neutralLink}
             >
               Back to sign in
             </button>

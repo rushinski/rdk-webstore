@@ -4,7 +4,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/AuthStyles";
 
 import { EmailCodeFlow } from "./EmailCodeFlow";
 
@@ -88,14 +88,14 @@ export function OtpLoginForm({
           <button
             type="button"
             onClick={onBackToLogin}
-            className={AuthStyles.neutralLink}
+            className={authStyles.neutralLink}
           >
             Back to sign in
           </button>
         ) : (
           <Link
             href={`/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
-            className={AuthStyles.neutralLink}
+            className={authStyles.neutralLink}
           >
             Back to sign in
           </Link>

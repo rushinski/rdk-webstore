@@ -69,7 +69,9 @@ export function BankAccountManagementModal({
           <div className="mt-4 sm:mt-6 flex justify-end">
             <button
               type="button"
-              onClick={done}
+              onClick={() => {
+                void done();
+              }}
               className="px-4 sm:px-6 py-2 bg-green-600 text-white text-[12px] sm:text-sm font-medium hover:bg-green-500 rounded-sm"
             >
               Done

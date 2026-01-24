@@ -8,6 +8,7 @@ import {
   ConnectAccountOnboarding,
   ConnectNotificationBanner,
 } from "@stripe/react-connect-js";
+import type { StripeConnectInstance } from "@stripe/connect-js";
 
 import { initStripeConnect } from "@/lib/stripe/connect-client";
 import { connectAppearance } from "@/lib/stripe/connect-appearance";
@@ -28,7 +29,9 @@ export function StripeOnboardingModal({
 }: StripeOnboardingModalProps) {
   const [isBooting, setIsBooting] = useState(false);
   const [bootError, setBootError] = useState<string>("");
-  const [connectInstance, setConnectInstance] = useState<any>(null);
+  const [connectInstance, setConnectInstance] = useState<StripeConnectInstance | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!open) {
@@ -54,16 +57,18 @@ export function StripeOnboardingModal({
         throw new Error(await res.text());
       }
 
-      const { client_secret } = await res.json();
+      const { client_secret: clientSecret } = (await res.json()) as {
+        client_secret: string;
+      };
 
       const instance = await initStripeConnect({
         publishableKey,
-        clientSecret: client_secret,
+        clientSecret,
         appearance: connectAppearance,
       });
 
       setConnectInstance(instance);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logError(err, { layer: "frontend", event: "stripe_onboarding_boot_failed" });
       setBootError("Could not start Stripe onboarding. Please try again.");
     } finally {
@@ -143,7 +148,9 @@ export function StripeOnboardingModal({
 
                 <button
                   type="button"
-                  onClick={boot}
+                  onClick={() => {
+                    void boot();
+                  }}
                   disabled={isBooting}
                   className="w-full px-6 py-3 bg-red-600 text-white text-sm font-medium hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-sm"
                 >
@@ -186,7 +193,9 @@ export function StripeOnboardingModal({
                   </button>
                   <button
                     type="button"
-                    onClick={done}
+                    onClick={() => {
+                      void done();
+                    }}
                     className="px-6 py-2.5 bg-green-600 text-white text-sm font-medium hover:bg-green-500 rounded-sm"
                   >
                     Save & Continue

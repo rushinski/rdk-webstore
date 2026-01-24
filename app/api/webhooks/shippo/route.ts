@@ -183,8 +183,10 @@ export async function POST(req: NextRequest) {
 
         let orderUrl: string | null = null;
         if (!order.user_id && order.guest_email) {
-          const { token } = await accessTokenService.createToken({ orderId: order.id });
-          orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
+          const { token: orderToken } = await accessTokenService.createToken({
+            orderId: order.id,
+          });
+          orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(orderToken)}`;
         }
 
         if (emailTrigger === "in_transit") {
@@ -217,7 +219,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
     logError(e, { layer: "api", route: "/api/webhooks/shippo" });
     return NextResponse.json({ error: "webhook processing failed" }, { status: 500 });
   }

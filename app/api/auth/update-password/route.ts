@@ -34,15 +34,17 @@ export async function POST(req: NextRequest) {
 
     await authService.updatePassword(password);
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "auth",
       requestId,
       route: "/api/auth/update-password",
     });
 
+    const message = error instanceof Error ? error.message : "Password update failed";
+
     return NextResponse.json(
-      { ok: false, error: error.message ?? "Password update failed", requestId },
+      { ok: false, error: message, requestId },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }

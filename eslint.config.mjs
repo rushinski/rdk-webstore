@@ -2,6 +2,8 @@ import tseslint from "@typescript-eslint/eslint-plugin";
 import tsparser from "@typescript-eslint/parser";
 import importPlugin from "eslint-plugin-import";
 import prettierPlugin from "eslint-plugin-prettier";
+import reactHooksPlugin from "eslint-plugin-react-hooks";
+import nextPlugin from "@next/eslint-plugin-next";
 
 // Begins exporting a ESLint config object
 export default [
@@ -34,6 +36,8 @@ export default [
       "@typescript-eslint": tseslint,
       import: importPlugin,
       prettier: prettierPlugin,
+      "react-hooks": reactHooksPlugin,
+      "@next/next": nextPlugin,
     },
 
     rules: {

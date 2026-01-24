@@ -66,30 +66,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/checkout/session",
     });
 
+    const message = error instanceof Error ? error.message : "Unknown error";
+
     if (
-      error.message === "IDEMPOTENCY_KEY_EXPIRED" ||
-      error.message === "CART_MISMATCH" ||
-      error.message === "GUEST_EMAIL_REQUIRED" ||
-      error.message === "GUEST_CHECKOUT_DISABLED"
+      message === "IDEMPOTENCY_KEY_EXPIRED" ||
+      message === "CART_MISMATCH" ||
+      message === "GUEST_EMAIL_REQUIRED" ||
+      message === "GUEST_CHECKOUT_DISABLED"
     ) {
       return NextResponse.json(
         {
-          error: error.message,
-          code: error.message,
+          error: message,
+          code: message,
           requestId,
         },
         {
           status:
-            error.message === "GUEST_EMAIL_REQUIRED"
+            message === "GUEST_EMAIL_REQUIRED"
               ? 400
-              : error.message === "GUEST_CHECKOUT_DISABLED"
+              : message === "GUEST_CHECKOUT_DISABLED"
                 ? 403
                 : 409,
           headers: { "Cache-Control": "no-store" },
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to create checkout session",
-        message: error.message,
+        message,
         requestId,
       },
       { status: 500, headers: { "Cache-Control": "no-store" } },

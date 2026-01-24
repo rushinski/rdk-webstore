@@ -26,7 +26,7 @@ interface CartContextType {
   isReady: boolean;
 }
 
-const CartContext = createContext<CartContextType | null>(null);
+const cartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [cart] = useState(() => new CartService());
@@ -157,7 +157,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const total = items.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
 
   return (
-    <CartContext.Provider
+    <cartContext.Provider
       value={{
         items,
         addItem,
@@ -171,12 +171,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </CartContext.Provider>
+    </cartContext.Provider>
   );
 }
 
 export function useCart() {
-  const context = useContext(CartContext);
+  const context = useContext(cartContext);
   if (!context) {
     throw new Error("useCart must be used within CartProvider");
   }

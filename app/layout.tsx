@@ -1,7 +1,6 @@
 // app/layout.tsx
 
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 
 import { CartProvider } from "@/components/cart/CartProvider";
 import { ScrollHeader } from "@/components/shell/ScrollHeader";
@@ -9,8 +8,6 @@ import { ClientShell } from "@/components/shell/ClientShell";
 import { getServerSession } from "@/lib/auth/session";
 import { isAdminRole } from "@/config/constants/roles";
 import "@/styles/global.css";
-
-const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Realdealkickzsc - Premium Sneakers & Streetwear",

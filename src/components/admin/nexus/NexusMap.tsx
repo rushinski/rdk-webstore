@@ -107,7 +107,7 @@ export default function NexusMap({
 
   const stateMap = useMemo(() => new Map(states.map((s) => [s.stateCode, s])), [states]);
   const hoveredData = hoveredState ? stateMap.get(hoveredState) : null;
-  const [topology, setTopology] = useState<any>(null);
+  const [topology, setTopology] = useState<unknown | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -213,8 +213,8 @@ export default function NexusMap({
           projectionConfig={{ scale: 1000 }}
           className="w-full h-full"
           style={{ maxHeight: "560px" }}
-          ref={(node: any) => {
-            svgRef.current = node as SVGSVGElement | null;
+          ref={(node: SVGSVGElement | null) => {
+            svgRef.current = node;
           }}
         >
           <Geographies geography={topology}>

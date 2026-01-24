@@ -10,7 +10,7 @@ const categories = [
   { slug: "electronics", label: "Electronics", image: "/images/home/electronics.png" },
 ];
 
-export default async function HomePage() {
+export default function HomePage() {
   return (
     <div className="relative">
       <section className="relative bg-black overflow-hidden">

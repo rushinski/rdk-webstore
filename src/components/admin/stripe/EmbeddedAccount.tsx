@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Loader2 } from "lucide-react";
-import { loadConnectAndInitialize } from "@stripe/connect-js";
+import { loadConnectAndInitialize, type StripeConnectInstance } from "@stripe/connect-js";
 import {
   ConnectComponentsProvider,
   ConnectAccountOnboarding,
@@ -34,7 +34,8 @@ export function EmbeddedAccount({
   showAccountId = true,
   variant = "card",
 }: EmbeddedAccountProps) {
-  const [stripeConnectInstance, setStripeConnectInstance] = useState<any>(null);
+  const [stripeConnectInstance, setStripeConnectInstance] =
+    useState<StripeConnectInstance | null>(null);
   const [accountId, setAccountId] = useState<string>("");
   const [isCompact, setIsCompact] = useState(false);
 
@@ -56,8 +57,8 @@ export function EmbeddedAccount({
   }, []);
 
   const appearance = useMemo(() => {
-    const base = connectAppearance as any;
-    const variables = { ...(base?.variables ?? {}) };
+    const base = connectAppearance;
+    const variables = { ...(base.variables ?? {}) };
 
     if (isCompact) {
       variables.fontSizeBase = "11px";
@@ -80,16 +81,17 @@ export function EmbeddedAccount({
         throw new Error(`Failed to create account session: ${text}`);
       }
 
-      const { client_secret, account_id } = await response.json();
+      const { client_secret: clientSecret, account_id: accountIdValue } =
+        (await response.json()) as { client_secret: string; account_id: string };
       if (!cancelled) {
-        setAccountId(account_id);
+        setAccountId(accountIdValue);
       }
-      return client_secret;
+      return clientSecret;
     };
 
     const initializeStripeConnect = async () => {
       try {
-        const instance = loadConnectAndInitialize({
+        const instance = await loadConnectAndInitialize({
           publishableKey,
           fetchClientSecret,
           appearance,
@@ -98,7 +100,7 @@ export function EmbeddedAccount({
         if (!cancelled) {
           setStripeConnectInstance(instance);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         logError(err, { layer: "frontend", event: "stripe_connect_init_failed" });
       }
     };

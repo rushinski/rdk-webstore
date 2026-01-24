@@ -349,7 +349,7 @@ export function Navbar({
   );
 
   const brandIconClass = "object-contain transition-opacity duration-150";
-  const BrandIcon = ({ label }: { label: string }) => {
+  function BrandIcon({ label }: { label: string }) {
     const logo = BRAND_LOGOS[label];
     if (logo) {
       return (
@@ -376,7 +376,7 @@ export function Navbar({
         {label.slice(0, 2).toUpperCase()}
       </span>
     );
-  };
+  }
 
   const brandItems = useMemo(
     () => [
@@ -839,7 +839,9 @@ export function Navbar({
                   </Link>
 
                   <button
-                    onClick={handleLogout}
+                    onClick={() => {
+                      void handleLogout();
+                    }}
                     className="flex items-center gap-2 w-full text-left px-4 py-3 text-gray-300 hover:bg-zinc-900 hover:text-white text-sm border-t border-zinc-900 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />

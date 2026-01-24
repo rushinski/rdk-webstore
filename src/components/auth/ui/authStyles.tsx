@@ -1,5 +1,5 @@
 // src/components/auth/ui/AuthStyles.ts
-export const AuthStyles = {
+export const authStyles = {
   input:
     "h-11 w-full bg-zinc-900 border border-zinc-800 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
 

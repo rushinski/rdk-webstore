@@ -8,7 +8,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { isPasswordValid } from "@/lib/validation/password";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/AuthStyles";
 
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "../login/PasswordField";
@@ -66,8 +66,10 @@ export function RegisterForm() {
       // Pass the next URL through to the verification flow
       const verifyUrl = `/auth/login?flow=verify-email&verifyFlow=signup&email=${encodeURIComponent(email)}${nextUrl !== "/" ? `&next=${encodeURIComponent(nextUrl)}` : ""}`;
       router.push(verifyUrl);
-    } catch (err: any) {
-      setError(err?.message ?? "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -84,22 +86,27 @@ export function RegisterForm() {
         Back to shopping
       </Link>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form
+        onSubmit={(event) => {
+          void handleSubmit(event);
+        }}
+        className="space-y-6"
+      >
         <AuthHeader
           title="Create account"
           description="Join thousands of verified buyers"
         />
 
-        {error && <div className={AuthStyles.errorBox}>{error}</div>}
+        {error && <div className={authStyles.errorBox}>{error}</div>}
 
         <div className="space-y-3">
           <SocialButton provider="google" label="Continue with Google" />
         </div>
 
-        <div className={AuthStyles.divider}>
-          <div className={AuthStyles.dividerLine} />
+        <div className={authStyles.divider}>
+          <div className={authStyles.dividerLine} />
           <span>or</span>
-          <div className={AuthStyles.dividerLine} />
+          <div className={authStyles.dividerLine} />
         </div>
 
         <div className="space-y-4">
@@ -113,7 +120,7 @@ export function RegisterForm() {
               type="email"
               required
               autoComplete="email"
-              className={AuthStyles.input}
+              className={authStyles.input}
             />
           </div>
 
@@ -151,7 +158,7 @@ export function RegisterForm() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className={AuthStyles.primaryButton}
+          className={authStyles.primaryButton}
         >
           {isSubmitting ? "Creating account..." : "Create account"}
         </button>
@@ -171,7 +178,7 @@ export function RegisterForm() {
           Already have an account?{" "}
           <Link
             href={`/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
-            className={AuthStyles.inlineAccentLink}
+            className={authStyles.inlineAccentLink}
           >
             Sign in
           </Link>

@@ -126,7 +126,6 @@ export function SavedAddresses({
 
     return () => controller.abort();
     // Intentionally NOT including callbacks here; they are often unstable from parent
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isGuest]);
 
   const handleSelectAddress = (address: SavedAddress) => {
@@ -331,7 +330,9 @@ export function SavedAddresses({
       <ShippingAddressModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveAddress}
+        onSave={(address) => {
+          void handleSaveAddress(address);
+        }}
         initialAddress={editingAddress}
       />
     </>

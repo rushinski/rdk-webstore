@@ -23,15 +23,17 @@ export async function GET(request: NextRequest) {
     const address = await taxService.getHeadOfficeAddress();
 
     return NextResponse.json({ address });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/admin/nexus/head-office-address",
     });
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch head office address";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch head office address", requestId },
-      { status: error.message?.includes("not configured") ? 400 : 500 },
+      { error: message, requestId },
+      { status: message.includes("not configured") ? 400 : 500 },
     );
   }
 }

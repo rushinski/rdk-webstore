@@ -207,7 +207,7 @@ export function ContactForm({
           tone: "error",
         });
       }
-    } catch (error) {
+    } catch {
       setStatus("error");
       setToast({
         message: "Something went wrong. Please try again or email us directly.",
@@ -228,7 +228,13 @@ export function ContactForm({
       : undefined);
 
   return (
-    <form id="contact-form" onSubmit={handleSubmit} className="space-y-6">
+    <form
+      id="contact-form"
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+      className="space-y-6"
+    >
       <div>
         <label htmlFor="name" className="block text-sm font-semibold text-white mb-2">
           Name <span className="text-red-500">*</span>

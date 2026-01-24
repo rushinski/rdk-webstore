@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X, AlertCircle, CheckCircle2 } from "lucide-react";
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import type { ShippingAddress } from "@/types/domain/shipping";
 
 type ShippingAddressDraft = {
   name: string;
@@ -44,24 +45,29 @@ type EasyPostRate = {
   estimated_delivery_days?: number | null;
 };
 
+type OrderSummary = {
+  id: string;
+  shipping?: unknown;
+};
+
 type Props = {
   open: boolean;
-  order: any | null;
+  order: OrderSummary | null;
   originLine?: string | null;
   initialPackage?: ParcelDraft | null;
   onClose: () => void;
   onSuccess: () => void;
 };
 
-const resolveShippingAddress = (value: unknown): any | null => {
+const resolveShippingAddress = (value: unknown): ShippingAddress | null => {
   if (!value) {
     return null;
   }
   if (Array.isArray(value)) {
-    return value[0] ?? null;
+    return (value[0] ?? null) as ShippingAddress | null;
   }
   if (typeof value === "object") {
-    return value as any;
+    return value as ShippingAddress;
   }
   return null;
 };
@@ -644,7 +650,9 @@ export function CreateLabelForm({
 
               <button
                 type="button"
-                onClick={getRates}
+                onClick={() => {
+                  void getRates();
+                }}
                 disabled={isGettingRates || hasAddressErrors}
                 className="w-full md:w-auto px-4 py-2 bg-zinc-100 text-black text-sm font-semibold rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -730,7 +738,9 @@ export function CreateLabelForm({
             <div className="pt-2 space-y-3">
               <button
                 type="button"
-                onClick={purchase}
+                onClick={() => {
+                  void purchase();
+                }}
                 disabled={
                   isPurchasing ||
                   rates.length === 0 ||

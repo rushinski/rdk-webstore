@@ -50,6 +50,10 @@ type ListResponse = {
   limit: number;
 };
 
+type DeleteResponse = {
+  deletedCount?: number;
+};
+
 export default function AdminNotificationsPage() {
   const limit = 20;
 
@@ -106,7 +110,6 @@ export default function AdminNotificationsPage() {
 
   useEffect(() => {
     load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close popups on outside click + Esc
@@ -185,7 +188,7 @@ export default function AdminNotificationsPage() {
         body: JSON.stringify({ ids }),
       });
 
-      const json = await res.json().catch(() => ({}) as any);
+      const json = (await res.json().catch(() => ({}))) as DeleteResponse;
       if (!res.ok) {
         return;
       }
@@ -222,7 +225,7 @@ export default function AdminNotificationsPage() {
         body: JSON.stringify({ delete_all: true }),
       });
 
-      const json = await res.json().catch(() => ({}) as any);
+      const json = (await res.json().catch(() => ({}))) as DeleteResponse;
       if (!res.ok) {
         return;
       }
@@ -344,7 +347,9 @@ export default function AdminNotificationsPage() {
                 </button>
                 <button
                   className="text-[11px] sm:text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-sm px-4 py-2 disabled:opacity-60"
-                  onClick={confirmDeleteAll}
+                  onClick={() => {
+                    void confirmDeleteAll();
+                  }}
                   disabled={isDeletingAll}
                 >
                   {isDeletingAll ? "Deleting..." : "Delete all"}
@@ -376,11 +381,21 @@ export default function AdminNotificationsPage() {
           </button>
         ) : (
           <div className="flex flex-wrap items-center gap-3 text-[11px] sm:text-xs">
-            <button onClick={() => load(page)} className="text-zinc-400 hover:text-white">
+            <button
+              onClick={() => {
+                void load(page);
+              }}
+              className="text-zinc-400 hover:text-white"
+            >
               Refresh
             </button>
 
-            <button onClick={markAllRead} className="text-zinc-400 hover:text-white">
+            <button
+              onClick={() => {
+                void markAllRead();
+              }}
+              className="text-zinc-400 hover:text-white"
+            >
               Mark all as read
             </button>
 
@@ -435,7 +450,9 @@ export default function AdminNotificationsPage() {
           </div>
 
           <button
-            onClick={deleteSelected}
+            onClick={() => {
+              void deleteSelected();
+            }}
             disabled={selectedCount === 0}
             className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 disabled:opacity-50 flex items-center gap-2"
           >
@@ -555,7 +572,9 @@ export default function AdminNotificationsPage() {
       <div className="mt-6 flex items-center justify-between">
         <button
           type="button"
-          onClick={() => load(page - 1)}
+          onClick={() => {
+            void load(page - 1);
+          }}
           disabled={page <= 1 || isLoading}
           className="text-[11px] sm:text-xs text-zinc-400 hover:text-white disabled:opacity-50"
         >
@@ -566,7 +585,9 @@ export default function AdminNotificationsPage() {
 
         <button
           type="button"
-          onClick={() => load(page + 1)}
+          onClick={() => {
+            void load(page + 1);
+          }}
           disabled={!data?.hasMore || isLoading}
           className="text-[11px] sm:text-xs text-zinc-400 hover:text-white disabled:opacity-50"
         >

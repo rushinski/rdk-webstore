@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/AuthStyles";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
 
 import { QRDisplay } from "./QRDisplay";
@@ -101,13 +101,6 @@ export function EnrollmentForm() {
     }
   };
 
-  const manualCopyLabel =
-    manualCopyStatus === "copied"
-      ? "Copied"
-      : manualCopyStatus === "error"
-        ? "Copy failed"
-        : "Copy";
-
   useEffect(() => {
     if (
       process.env.NEXT_PUBLIC_E2E_TEST_MODE !== "1" &&
@@ -191,18 +184,18 @@ export function EnrollmentForm() {
               Generate a QR code and scan it with your authenticator app.
             </div>
 
-            {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
+            {msg && <div className={authStyles.errorBox}>{msg}</div>}
 
             <button
               type="button"
               onClick={() => void startEnroll()}
               disabled={isGenerating}
-              className={AuthStyles.primaryButton}
+              className={authStyles.primaryButton}
             >
               {isGenerating ? "Generating..." : "Generate QR code"}
             </button>
 
-            <Link href="/auth/login" className={AuthStyles.neutralLink}>
+            <Link href="/auth/login" className={authStyles.neutralLink}>
               Back to sign in
             </Link>
           </div>
@@ -276,18 +269,18 @@ export function EnrollmentForm() {
               disabled={isSubmitting}
             />
 
-            {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
+            {msg && <div className={authStyles.errorBox}>{msg}</div>}
 
             <button
               type="submit"
               disabled={!canVerify || isSubmitting}
-              className={AuthStyles.primaryButton}
+              className={authStyles.primaryButton}
             >
               {isSubmitting ? "Verifying..." : "Verify & continue"}
             </button>
 
             <div className="flex items-center justify-between text-sm">
-              <Link href="/auth/login" className={AuthStyles.neutralLink}>
+              <Link href="/auth/login" className={authStyles.neutralLink}>
                 Back to sign in
               </Link>
             </div>

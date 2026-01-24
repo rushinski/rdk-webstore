@@ -433,7 +433,9 @@ export default function AdminChatsPage() {
               />
               <button
                 type="button"
-                onClick={handleSend}
+                onClick={() => {
+                  void handleSend();
+                }}
                 disabled={!activeChat}
                 className="bg-red-600 hover:bg-red-700 text-white px-3 sm:px-4 py-2 text-[12px] sm:text-sm flex items-center gap-2"
                 data-testid="chat-send-button"
@@ -469,7 +471,9 @@ export default function AdminChatsPage() {
               </button>
               <button
                 type="button"
-                onClick={handleCloseChat}
+                onClick={() => {
+                  void handleCloseChat();
+                }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 text-[12px] sm:text-sm"
               >
                 Close chat

@@ -28,7 +28,7 @@ export default function CreateProductPage() {
         if (payload?.error) {
           message = payload.error;
         }
-      } catch (error) {
+      } catch {
         // ignore parse errors
       }
       throw new Error(message);

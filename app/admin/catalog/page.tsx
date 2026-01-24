@@ -12,7 +12,11 @@ import type {
   Brand,
   BrandGroup,
   Candidate,
+  EditDraft,
+  AliasEditDraft,
+  BrandEditDraft,
   EditTarget,
+  ModelEditDraft,
   Model,
 } from "./types";
 import { TagModals } from "./components/TagModals";
@@ -96,7 +100,7 @@ export default function TagsPage() {
   const [newAlias, setNewAlias] = useState(emptyDraft.alias);
 
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
-  const [editDraft, setEditDraft] = useState<any>(null);
+  const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<EditTarget | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showAddBrandModal, setShowAddBrandModal] = useState(false);
@@ -252,26 +256,29 @@ export default function TagsPage() {
     }
 
     if (editTarget.type === "brand") {
-      setEditDraft({
+      const draft: BrandEditDraft = {
         canonical_label: editTarget.item.canonical_label,
         is_active: editTarget.item.is_active,
         is_verified: editTarget.item.is_verified,
-      });
+      };
+      setEditDraft(draft);
     }
     if (editTarget.type === "model") {
-      setEditDraft({
+      const draft: ModelEditDraft = {
         canonical_label: editTarget.item.canonical_label,
         brand_id: editTarget.item.brand_id,
         is_active: editTarget.item.is_active,
         is_verified: editTarget.item.is_verified,
-      });
+      };
+      setEditDraft(draft);
     }
     if (editTarget.type === "alias") {
-      setEditDraft({
+      const draft: AliasEditDraft = {
         alias_label: editTarget.item.alias_label,
         priority: editTarget.item.priority ?? 0,
         is_active: editTarget.item.is_active,
-      });
+      };
+      setEditDraft(draft);
     }
   }, [editTarget]);
 
@@ -432,7 +439,8 @@ export default function TagsPage() {
     }
     setMessage("");
     if (editTarget.type === "brand") {
-      const normalizedLabel = normalizeLabel(editDraft.canonical_label ?? "");
+      const draft = editDraft as BrandEditDraft;
+      const normalizedLabel = normalizeLabel(draft.canonical_label ?? "");
       if (!normalizedLabel) {
         setMessage("Brand label is required.");
         return;
@@ -449,15 +457,16 @@ export default function TagsPage() {
     }
 
     if (editTarget.type === "model") {
-      const normalizedLabel = normalizeLabel(editDraft.canonical_label ?? "");
-      if (!normalizedLabel || !editDraft.brand_id) {
+      const draft = editDraft as ModelEditDraft;
+      const normalizedLabel = normalizeLabel(draft.canonical_label ?? "");
+      if (!normalizedLabel || !draft.brand_id) {
         setMessage("Brand and model label are required.");
         return;
       }
       const isDuplicate = models.some(
         (model) =>
           model.id !== editTarget.item.id &&
-          model.brand_id === editDraft.brand_id &&
+          model.brand_id === draft.brand_id &&
           normalizeLabel(model.canonical_label) === normalizedLabel,
       );
       if (isDuplicate) {
@@ -467,7 +476,8 @@ export default function TagsPage() {
     }
 
     if (editTarget.type === "alias") {
-      const normalizedLabel = normalizeLabel(editDraft.alias_label ?? "");
+      const draft = editDraft as AliasEditDraft;
+      const normalizedLabel = normalizeLabel(draft.alias_label ?? "");
       if (!normalizedLabel) {
         setMessage("Alias label is required.");
         return;
@@ -495,38 +505,41 @@ export default function TagsPage() {
     setIsSaving(true);
     try {
       if (editTarget.type === "brand") {
+        const draft = editDraft as BrandEditDraft;
         await fetch(`/api/admin/catalog/brands/${editTarget.item.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            canonicalLabel: editDraft.canonical_label,
-            isActive: editDraft.is_active,
-            isVerified: editDraft.is_verified,
+            canonicalLabel: draft.canonical_label,
+            isActive: draft.is_active,
+            isVerified: draft.is_verified,
           }),
         });
       }
 
       if (editTarget.type === "model") {
+        const draft = editDraft as ModelEditDraft;
         await fetch(`/api/admin/catalog/models/${editTarget.item.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            brandId: editDraft.brand_id,
-            canonicalLabel: editDraft.canonical_label,
-            isActive: editDraft.is_active,
-            isVerified: editDraft.is_verified,
+            brandId: draft.brand_id,
+            canonicalLabel: draft.canonical_label,
+            isActive: draft.is_active,
+            isVerified: draft.is_verified,
           }),
         });
       }
 
       if (editTarget.type === "alias") {
+        const draft = editDraft as AliasEditDraft;
         await fetch(`/api/admin/catalog/aliases/${editTarget.item.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            aliasLabel: editDraft.alias_label,
-            priority: editDraft.priority ?? 0,
-            isActive: editDraft.is_active,
+            aliasLabel: draft.alias_label,
+            priority: draft.priority ?? 0,
+            isActive: draft.is_active,
           }),
         });
       }
@@ -1010,7 +1023,9 @@ export default function TagsPage() {
                   className="bg-zinc-900 border border-zinc-800/70 text-white px-2.5 py-1.5 text-[12px] sm:text-sm w-full sm:w-28"
                 />
                 <button
-                  onClick={handleCreateAlias}
+                  onClick={() => {
+                    void handleCreateAlias();
+                  }}
                   className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded text-[12px] sm:text-sm"
                 >
                   Add Alias
@@ -1146,13 +1161,17 @@ export default function TagsPage() {
                       <td className="p-3 sm:p-4">
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
                           <button
-                            onClick={() => handleAcceptCandidate(candidate)}
+                            onClick={() => {
+                              void handleAcceptCandidate(candidate);
+                            }}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-semibold"
                           >
                             Accept
                           </button>
                           <button
-                            onClick={() => handleRejectCandidate(candidate)}
+                            onClick={() => {
+                              void handleRejectCandidate(candidate);
+                            }}
                             className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-semibold"
                           >
                             Reject
@@ -1187,10 +1206,18 @@ export default function TagsPage() {
         setEditTarget={setEditTarget}
         setEditDraft={setEditDraft}
         setConfirmTarget={setConfirmTarget}
-        onCreateBrand={handleCreateBrand}
-        onCreateModel={handleCreateModel}
-        onSaveEdit={handleSaveEdit}
-        onConfirmDelete={handleConfirmDelete}
+        onCreateBrand={() => {
+          void handleCreateBrand();
+        }}
+        onCreateModel={() => {
+          void handleCreateModel();
+        }}
+        onSaveEdit={() => {
+          void handleSaveEdit();
+        }}
+        onConfirmDelete={() => {
+          void handleConfirmDelete();
+        }}
         toTitleCase={toTitleCase}
       />
     </div>

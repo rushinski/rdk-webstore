@@ -43,12 +43,14 @@ export async function GET(request: NextRequest) {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/tax-settings" });
+    const message =
+      error instanceof Error ? error.message : "Failed to load tax settings";
     return NextResponse.json(
-      { error: error.message || "Failed to load tax settings", requestId },
+      { error: message, requestId },
       {
-        status: error.message?.includes("not found") ? 404 : 500,
+        status: message.includes("not found") ? 404 : 500,
         headers: { "Cache-Control": "no-store" },
       },
     );
@@ -117,12 +119,14 @@ export async function POST(request: NextRequest) {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/tax-settings" });
+    const message =
+      error instanceof Error ? error.message : "Failed to save tax settings";
     return NextResponse.json(
-      { error: error.message || "Failed to save tax settings", requestId },
+      { error: message, requestId },
       {
-        status: error.message?.includes("not configured") ? 400 : 500,
+        status: message.includes("not configured") ? 400 : 500,
         headers: { "Cache-Control": "no-store" },
       },
     );

@@ -13,6 +13,40 @@ import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 
 type ShippingProfile = Tables<"shipping_profiles">;
 
+type AccountOrderItem = {
+  id: string;
+  quantity?: number | null;
+  product?: {
+    title_display?: string | null;
+    brand?: string | null;
+    name?: string | null;
+  } | null;
+  variant?: { size_label?: string | null } | null;
+};
+
+type AccountOrder = {
+  id: string;
+  created_at: string;
+  status?: string | null;
+  total?: number | null;
+  fulfillment?: string | null;
+  shipping_carrier?: string | null;
+  tracking_number?: string | null;
+  items?: AccountOrderItem[] | null;
+};
+
+type AccountAddress = {
+  id: string;
+  name?: string | null;
+  phone?: string | null;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+};
+
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -25,10 +59,10 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     message: string;
     tone: "success" | "error" | "info";
   } | null>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<AccountOrder[]>([]);
   const [isOrdersLoading, setIsOrdersLoading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<AccountAddress[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
   const [chatNotificationsEnabled, setChatNotificationsEnabled] = useState(true);
   const [isChatSaving, setIsChatSaving] = useState(false);
@@ -103,7 +137,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       }
 
       setMessage("Chat notification preference updated.");
-    } catch (error) {
+    } catch {
       setMessage("Failed to update chat notifications");
     } finally {
       setIsChatSaving(false);
@@ -112,7 +146,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
 
   const formatField = (value?: string | null) => (value ?? "").trim().toLowerCase();
 
-  const isDefaultAddress = (address: any) => {
+  const isDefaultAddress = (address: AccountAddress) => {
     if (!profile.address_line1) {
       return false;
     }
@@ -126,7 +160,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     );
   };
 
-  const handleSetDefaultAddress = async (address: any, silent?: boolean) => {
+  const handleSetDefaultAddress = async (address: AccountAddress, silent?: boolean) => {
     setIsDefaultSaving(true);
     if (!silent) {
       setMessage("");
@@ -161,7 +195,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       if (!silent) {
         setMessage("Default shipping address updated successfully.");
       }
-    } catch (error) {
+    } catch {
       if (!silent) {
         setMessage("Error updating default shipping address");
       }
@@ -205,7 +239,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       if (!silent) {
         setMessage("Default shipping address cleared successfully.");
       }
-    } catch (error) {
+    } catch {
       if (!silent) {
         setMessage("Error clearing default shipping address");
       }
@@ -249,7 +283,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         setNewPasswordVisible(false);
         setConfirmPasswordVisible(false);
       }
-    } catch (error) {
+    } catch {
       setMessage("Error changing password");
     } finally {
       setIsLoading(false);
@@ -320,7 +354,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           ? "Address saved successfully and set as default shipping."
           : "Address saved successfully!",
       );
-    } catch (error) {
+    } catch {
       setMessage("Error saving address");
     } finally {
       setIsAddressSaving(false);
@@ -345,7 +379,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
       if (wasDefault) {
         await handleClearDefaultShipping(true);
       }
-    } catch (error) {
+    } catch {
       setMessage("Error removing address");
     }
   };
@@ -378,7 +412,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
       window.location.href = "/";
-    } catch (error) {
+    } catch {
       setMessage("Failed to log out. Please try again.");
     } finally {
       setIsSigningOut(false);
@@ -431,7 +465,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         </div>
         <button
           type="button"
-          onClick={handleSaveChatNotifications}
+          onClick={() => {
+            void handleSaveChatNotifications();
+          }}
           disabled={isChatSaving}
           className="mt-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
         >
@@ -478,7 +514,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             {profile.address_line1 && (
               <button
                 type="button"
-                onClick={() => handleClearDefaultShipping()}
+                onClick={() => {
+                  void handleClearDefaultShipping();
+                }}
                 disabled={isDefaultSaving}
                 className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
               >
@@ -518,7 +556,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleDeleteAddress(address.id)}
+                    onClick={() => {
+                      void handleDeleteAddress(address.id);
+                    }}
                     className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors"
                   >
                     Remove
@@ -527,7 +567,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 {!isDefaultAddress(address) && (
                   <button
                     type="button"
-                    onClick={() => handleSetDefaultAddress(address)}
+                    onClick={() => {
+                      void handleSetDefaultAddress(address);
+                    }}
                     disabled={isDefaultSaving}
                     className="mt-3 text-[11px] sm:text-xs text-zinc-300 hover:text-white transition-colors disabled:opacity-60"
                   >
@@ -539,7 +581,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           </div>
         )}
 
-        <form onSubmit={handleSaveAddress} className="space-y-4">
+        <form
+          onSubmit={(event) => {
+            void handleSaveAddress(event);
+          }}
+          className="space-y-4"
+        >
           <div>
             <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
               Full Name
@@ -708,7 +755,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {(order.items || []).map((item: any) => (
+                    {(order.items || []).map((item: AccountOrderItem) => (
                       <div
                         key={item.id}
                         className="flex items-center justify-between text-[12px] sm:text-sm"
@@ -755,7 +802,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
           Change Password
         </h2>
-        <form onSubmit={handleChangePassword} className="space-y-4">
+        <form
+          onSubmit={(event) => {
+            void handleChangePassword(event);
+          }}
+          className="space-y-4"
+        >
           <div>
             <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
               New Password
@@ -831,7 +883,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         </p>
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={() => {
+            void handleLogout();
+          }}
           disabled={isSigningOut}
           className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm transition cursor-pointer"
         >

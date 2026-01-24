@@ -23,15 +23,17 @@ export async function POST(request: Request) {
     res = clearAdminSessionCookie(res);
 
     return res; // IMPORTANT: return the response you mutated
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "auth",
       requestId,
       route: "/api/auth/logout",
     });
 
+    const message = error instanceof Error ? error.message : "Logout failed";
+
     return NextResponse.json(
-      { ok: false, error: error.message ?? "Logout failed", requestId },
+      { ok: false, error: message, requestId },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }

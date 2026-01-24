@@ -99,9 +99,11 @@ export function TaxSettingsPanel() {
         }),
       });
 
-      const data = (await response.json().catch(() => ({}))) as TaxSettingsResponse;
+      const data = (await response.json().catch(() => ({}))) as TaxSettingsResponse & {
+        error?: string;
+      };
       if (!response.ok) {
-        throw new Error((data as any)?.error ?? "Failed to save tax settings.");
+        throw new Error(data.error ?? "Failed to save tax settings.");
       }
 
       if (data.settings) {
@@ -109,9 +111,11 @@ export function TaxSettingsPanel() {
         setTaxCodeOverrides(data.settings.taxCodeOverrides ?? {});
       }
       setMessage("Tax settings updated.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       logError(error, { layer: "frontend", event: "admin_tax_settings_save" });
-      setMessage(error?.message ?? "Failed to save tax settings.");
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to save tax settings.";
+      setMessage(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -229,7 +233,9 @@ export function TaxSettingsPanel() {
       <div className="flex items-center gap-4">
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => {
+            void handleSave();
+          }}
           disabled={isSaving}
           className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
         >

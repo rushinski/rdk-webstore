@@ -1,6 +1,5 @@
 // app/account/page.tsx
 
-import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { requireUser } from "@/lib/auth/session";

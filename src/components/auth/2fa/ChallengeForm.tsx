@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { AuthStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/AuthStyles";
 import { mfaStartChallenge, mfaVerifyChallenge } from "@/services/mfa-service";
 
 export function ChallengeForm() {
@@ -100,12 +100,12 @@ export function ChallengeForm() {
           disabled={isSubmitting || isInitializing}
         />
 
-        {msg && <div className={AuthStyles.errorBox}>{msg}</div>}
+        {msg && <div className={authStyles.errorBox}>{msg}</div>}
 
         <button
           type="submit"
           disabled={!canSubmit || isSubmitting || isInitializing}
-          className={AuthStyles.primaryButton}
+          className={authStyles.primaryButton}
         >
           {isSubmitting ? "Verifying..." : "Verify"}
         </button>

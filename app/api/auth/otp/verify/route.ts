@@ -90,8 +90,10 @@ export async function POST(req: NextRequest) {
     res = await setAdminSessionCookie(res, user.id);
 
     return res;
-  } catch (error: any) {
-    if (error?.message?.includes("Email not confirmed")) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Login failed";
+
+    if (message.includes("Email not confirmed")) {
       return NextResponse.json(
         { ok: false, requiresEmailVerification: true, requestId },
         { status: 401, headers: { "Cache-Control": "no-store" } },
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { ok: false, error: error.message ?? "Login failed", requestId },
+      { ok: false, error: message, requestId },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }

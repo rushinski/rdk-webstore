@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       { chat_notifications_enabled: profile?.chat_notifications_enabled ?? true },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest) {
     await profileRepo.updateNotificationPreferences(session.user.id, parsed.data);
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

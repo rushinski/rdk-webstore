@@ -63,6 +63,21 @@ type ShippingPayload = {
   country: string;
 } | null;
 
+const getErrorMessage = (err: unknown, fallback: string) =>
+  err instanceof Error ? err.message : fallback;
+
+const isAbortError = (err: unknown): boolean => {
+  if (err instanceof DOMException) {
+    return err.name === "AbortError";
+  }
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "name" in err &&
+    (err as { name?: string }).name === "AbortError"
+  );
+};
+
 export function CheckoutStart() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -388,11 +403,11 @@ export function CheckoutStart() {
         setFulfillment(data.fulfillment ?? fulfillment);
 
         lastPricingKeyRef.current = null;
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (!isActive) {
           return;
         }
-        setError(err?.message ?? "Failed to start checkout.");
+        setError(getErrorMessage(err, "Failed to start checkout."));
       } finally {
         if (isActive) {
           setIsInitializing(false);
@@ -473,12 +488,12 @@ export function CheckoutStart() {
         if (dedupeKey) {
           lastPricingKeyRef.current = dedupeKey;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
           lastPricingKeyRef.current = null;
         }
-        if (err?.name !== "AbortError") {
-          setError(err?.message ?? "Failed to update fulfillment.");
+        if (!isAbortError(err)) {
+          setError(getErrorMessage(err, "Failed to update fulfillment."));
         }
       } finally {
         inFlightRef.current = false;
@@ -639,7 +654,9 @@ export function CheckoutStart() {
                 lastPricingKeyRef.current = null;
                 setShippingAddress(addr);
               }}
-              onFulfillmentChange={handleFulfillmentChange}
+              onFulfillmentChange={(next) => {
+                void handleFulfillmentChange(next);
+              }}
               isUpdatingFulfillment={isUpdatingFulfillment}
               canUseChat={isAuthenticated === true}
             />

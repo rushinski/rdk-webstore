@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(summary, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -45,9 +45,15 @@ export async function GET(request: NextRequest) {
     });
 
     const errorMessage =
-      error.raw?.message ||
-      error.message ||
-      "Failed to retrieve account details from Stripe.";
+      typeof error === "object" &&
+      error !== null &&
+      "raw" in error &&
+      typeof (error as { raw?: { message?: string } }).raw?.message === "string"
+        ? ((error as { raw?: { message?: string } }).raw?.message ??
+          "Failed to retrieve account details from Stripe.")
+        : error instanceof Error
+          ? error.message
+          : "Failed to retrieve account details from Stripe.";
 
     return NextResponse.json({ error: errorMessage, requestId }, { status: 500 });
   }

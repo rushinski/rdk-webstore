@@ -21,6 +21,12 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
 });
 
+type CheckoutItem = {
+  productId: string;
+  variantId: string;
+  quantity: number;
+};
+
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -53,7 +59,20 @@ export async function POST(request: NextRequest) {
     }
 
     const { items, idempotencyKey, fulfillment, guestEmail, shippingAddress } =
-      parsed.data;
+      parsed.data as {
+        items: CheckoutItem[];
+        idempotencyKey: string;
+        fulfillment?: "ship" | "pickup";
+        guestEmail?: string | null;
+        shippingAddress?: {
+          line1: string;
+          line2?: string | null;
+          city: string;
+          state: string;
+          postal_code: string;
+          country: string;
+        } | null;
+      };
 
     if (!userId && !guestEmail) {
       return NextResponse.json(
@@ -142,7 +161,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch products
     const productsRepo = new ProductRepository(adminSupabase);
-    const productIds = [...new Set(items.map((i: any) => i.productId))];
+    const productIds = [...new Set(items.map((i) => i.productId))];
     const products = await productsRepo.getProductsForCheckout(productIds);
 
     if (products.length === 0) {
@@ -201,7 +220,7 @@ export async function POST(request: NextRequest) {
       shippingDefaults.map((row) => [row.category, Number(row.shipping_cost_cents ?? 0)]),
     );
 
-    const lineItems = items.map((item: any) => {
+    const lineItems = items.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
         throw new Error("Product not found");
@@ -462,7 +481,7 @@ export async function POST(request: NextRequest) {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -470,7 +489,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { error: error.message || "Failed to create payment intent", requestId },
+      {
+        error: error instanceof Error ? error.message : "Failed to create payment intent",
+        requestId,
+      },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

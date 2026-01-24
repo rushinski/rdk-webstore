@@ -1,12 +1,19 @@
 import type { Dispatch, SetStateAction } from "react";
 
-import type { Brand, EditTarget } from "../types";
+import type {
+  AliasEditDraft,
+  Brand,
+  BrandEditDraft,
+  EditDraft,
+  EditTarget,
+  ModelEditDraft,
+} from "../types";
 
 type TagModalsProps = {
   showAddBrandModal: boolean;
   showAddModelModal: boolean;
   editTarget: EditTarget | null;
-  editDraft: any;
+  editDraft: EditDraft | null;
   confirmTarget: EditTarget | null;
   isSaving: boolean;
   brands: Brand[];
@@ -19,7 +26,7 @@ type TagModalsProps = {
   setShowAddModelModal: (value: boolean) => void;
   setModelTargetBrand: (value: Brand | null) => void;
   setEditTarget: (value: EditTarget | null) => void;
-  setEditDraft: (value: any) => void;
+  setEditDraft: Dispatch<SetStateAction<EditDraft | null>>;
   setConfirmTarget: (value: EditTarget | null) => void;
   onCreateBrand: () => void;
   onCreateModel: () => void;
@@ -189,120 +196,141 @@ export function TagModals({
 
             {editTarget.type === "brand" && (
               <div className="space-y-3">
-                <input
-                  value={editDraft.canonical_label}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, canonical_label: e.target.value })
-                  }
-                  placeholder="Brand label"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_active}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_active: e.target.checked })
-                      }
-                    />
-                    Active
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_verified}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_verified: e.target.checked })
-                      }
-                    />
-                    Verified
-                  </label>
-                </div>
+                {(() => {
+                  const draft = editDraft as BrandEditDraft;
+                  return (
+                    <>
+                      <input
+                        value={draft.canonical_label}
+                        onChange={(e) =>
+                          setEditDraft({ ...draft, canonical_label: e.target.value })
+                        }
+                        placeholder="Brand label"
+                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                      />
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="rdk-checkbox"
+                            checked={draft.is_active}
+                            onChange={(e) =>
+                              setEditDraft({ ...draft, is_active: e.target.checked })
+                            }
+                          />
+                          Active
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="rdk-checkbox"
+                            checked={draft.is_verified}
+                            onChange={(e) =>
+                              setEditDraft({ ...draft, is_verified: e.target.checked })
+                            }
+                          />
+                          Verified
+                        </label>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
             {editTarget.type === "model" && (
               <div className="space-y-3">
-                <select
-                  value={editDraft.brand_id}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, brand_id: e.target.value })
-                  }
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                >
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>
-                      {brand.canonical_label}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  value={editDraft.canonical_label}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, canonical_label: e.target.value })
-                  }
-                  placeholder="Model label"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_active}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_active: e.target.checked })
-                      }
-                    />
-                    Active
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="rdk-checkbox"
-                      checked={editDraft.is_verified}
-                      onChange={(e) =>
-                        setEditDraft({ ...editDraft, is_verified: e.target.checked })
-                      }
-                    />
-                    Verified
-                  </label>
-                </div>
+                {(() => {
+                  const draft = editDraft as ModelEditDraft;
+                  return (
+                    <>
+                      <select
+                        value={draft.brand_id}
+                        onChange={(e) =>
+                          setEditDraft({ ...draft, brand_id: e.target.value })
+                        }
+                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                      >
+                        {brands.map((brand) => (
+                          <option key={brand.id} value={brand.id}>
+                            {brand.canonical_label}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={draft.canonical_label}
+                        onChange={(e) =>
+                          setEditDraft({ ...draft, canonical_label: e.target.value })
+                        }
+                        placeholder="Model label"
+                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                      />
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="rdk-checkbox"
+                            checked={draft.is_active}
+                            onChange={(e) =>
+                              setEditDraft({ ...draft, is_active: e.target.checked })
+                            }
+                          />
+                          Active
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            className="rdk-checkbox"
+                            checked={draft.is_verified}
+                            onChange={(e) =>
+                              setEditDraft({ ...draft, is_verified: e.target.checked })
+                            }
+                          />
+                          Verified
+                        </label>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             )}
 
             {editTarget.type === "alias" && (
               <div className="space-y-3">
-                <input
-                  value={editDraft.alias_label}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, alias_label: e.target.value })
-                  }
-                  placeholder="Alias"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <input
-                  value={editDraft.priority ?? 0}
-                  onChange={(e) =>
-                    setEditDraft({ ...editDraft, priority: Number(e.target.value) })
-                  }
-                  placeholder="Priority"
-                  className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                />
-                <label className="flex items-center gap-2 text-sm text-gray-300">
-                  <input
-                    type="checkbox"
-                    className="rdk-checkbox"
-                    checked={editDraft.is_active}
-                    onChange={(e) =>
-                      setEditDraft({ ...editDraft, is_active: e.target.checked })
-                    }
-                  />
-                  Active
-                </label>
+                {(() => {
+                  const draft = editDraft as AliasEditDraft;
+                  return (
+                    <>
+                      <input
+                        value={draft.alias_label}
+                        onChange={(e) =>
+                          setEditDraft({ ...draft, alias_label: e.target.value })
+                        }
+                        placeholder="Alias"
+                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                      />
+                      <input
+                        value={draft.priority ?? 0}
+                        onChange={(e) =>
+                          setEditDraft({ ...draft, priority: Number(e.target.value) })
+                        }
+                        placeholder="Priority"
+                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
+                      />
+                      <label className="flex items-center gap-2 text-sm text-gray-300">
+                        <input
+                          type="checkbox"
+                          className="rdk-checkbox"
+                          checked={draft.is_active}
+                          onChange={(e) =>
+                            setEditDraft({ ...draft, is_active: e.target.checked })
+                          }
+                        />
+                        Active
+                      </label>
+                    </>
+                  );
+                })()}
               </div>
             )}
 

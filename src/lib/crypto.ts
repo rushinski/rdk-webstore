@@ -18,7 +18,13 @@ export function hashToken(token: string, secret: string): string {
   return crypto.createHmac("sha256", secret).update(token).digest("hex");
 }
 
-export function createCartHash(items: any[], fulfillment: string): string {
+type CartItemLike = {
+  productId?: string | number | null;
+  variantId?: string | number | null;
+  quantity?: number | string | null;
+};
+
+export function createCartHash(items: CartItemLike[], fulfillment: string): string {
   const normalizedItems = (items ?? [])
     .map((item) => ({
       productId: String(item?.productId ?? ""),

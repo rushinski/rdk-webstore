@@ -126,4 +126,4 @@ if (hasError) {
 }
 
 // If there is no errors this will print
-console.log("Env naming validated — casing/declaration OK.");
+console.info("Env naming validated — casing/declaration OK.");

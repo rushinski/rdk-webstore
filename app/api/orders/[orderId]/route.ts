@@ -70,16 +70,19 @@ export async function GET(
     return NextResponse.json(status, {
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/orders/:orderId",
     });
 
-    if (error.message === "Unauthorized" || error.message === "Order not found") {
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch order status";
+
+    if (message === "Unauthorized" || message === "Order not found") {
       return NextResponse.json(
-        { error: error.message, requestId },
+        { error: message, requestId },
         { status: 404, headers: { "Cache-Control": "no-store" } },
       );
     }

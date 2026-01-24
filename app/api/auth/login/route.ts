@@ -91,8 +91,10 @@ export async function POST(req: NextRequest) {
     res = await setAdminSessionCookie(res, user.id);
 
     return res;
-  } catch (error: any) {
-    if (error?.message?.includes("Email not confirmed")) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Login failed";
+
+    if (message.includes("Email not confirmed")) {
       try {
         const supabase = await createSupabaseServerClient();
         const authService = new AuthService(supabase);
@@ -113,7 +115,6 @@ export async function POST(req: NextRequest) {
       route: "/api/auth/login",
     });
 
-    const message = error?.message ?? "Login failed";
     const status = message.toLowerCase().includes("invalid login") ? 401 : 400;
 
     return NextResponse.json(

@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

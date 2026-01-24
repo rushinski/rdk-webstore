@@ -32,7 +32,7 @@ export async function POST(
     const chat = await chatService.closeChat(parsedParams.data.chatId, session.user.id);
 
     return NextResponse.json({ chat }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

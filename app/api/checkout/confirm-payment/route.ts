@@ -24,6 +24,18 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
 });
 
+type DetailedOrderItem = {
+  quantity?: number | null;
+  unit_price?: number | null;
+  line_total?: number | null;
+  product?: {
+    title_display?: string | null;
+    brand?: string | null;
+    name?: string | null;
+  } | null;
+  variant?: { size_label?: string | null } | null;
+};
+
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -231,7 +243,7 @@ export async function POST(request: NextRequest) {
     const paymentShipping = paymentIntent.shipping?.address
       ? {
           name: paymentIntent.shipping?.name ?? null,
-          phone: (paymentIntent.shipping as any)?.phone ?? null,
+          phone: paymentIntent.shipping?.phone ?? null,
           line1: paymentIntent.shipping.address?.line1 ?? null,
           line2: paymentIntent.shipping.address?.line2 ?? null,
           city: paymentIntent.shipping.address?.city ?? null,
@@ -372,7 +384,7 @@ export async function POST(request: NextRequest) {
       }
 
       const detailedItems = await ordersRepo.getOrderItemsDetailed(orderId);
-      const items = detailedItems.map((item: any) => {
+      const items = detailedItems.map((item: DetailedOrderItem) => {
         const product = item.product;
         const title =
           product?.title_display ??
@@ -506,7 +518,7 @@ export async function POST(request: NextRequest) {
       { success: true, alreadyPaid },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -514,7 +526,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json(
-      { error: error.message || "Failed to confirm payment", requestId },
+      {
+        error: error instanceof Error ? error.message : "Failed to confirm payment",
+        requestId,
+      },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

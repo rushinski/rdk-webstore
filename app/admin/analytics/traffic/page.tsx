@@ -22,6 +22,18 @@ function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+const isAbortError = (error: unknown): boolean => {
+  if (error instanceof DOMException) {
+    return error.name === "AbortError";
+  }
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: string }).name === "AbortError"
+  );
+};
+
 type DailySeriesPoint<K extends string> = { date: string } & Record<K, number>;
 
 function normalizeDailySeries<K extends string>(
@@ -93,8 +105,8 @@ export default function AnalyticsTrafficPage() {
         );
         setTrafficTrendRaw(data.trafficTrend || []);
       }
-    } catch (error: any) {
-      if (error?.name === "AbortError") {
+    } catch (error: unknown) {
+      if (isAbortError(error)) {
         return;
       }
       logError(error, { layer: "frontend", event: "admin_load_analytics_traffic" });
@@ -122,7 +134,6 @@ export default function AnalyticsTrafficPage() {
       document.removeEventListener("visibilitychange", onVisibility);
       abortRef.current?.abort();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
 
   const trafficTrend = useMemo(() => {

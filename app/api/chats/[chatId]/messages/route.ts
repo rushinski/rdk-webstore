@@ -33,7 +33,7 @@ export async function GET(
     const messages = await chatService.listMessages(parsedParams.data.chatId);
 
     return NextResponse.json({ messages }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -85,14 +85,14 @@ export async function POST(
     });
 
     return NextResponse.json({ message }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/chats/:chatId/messages",
     });
 
-    const message = error?.message ?? "Failed to send message";
+    const message = error instanceof Error ? error.message : "Failed to send message";
     const status = message.includes("Chat") || message.includes("Forbidden") ? 400 : 500;
 
     return NextResponse.json(

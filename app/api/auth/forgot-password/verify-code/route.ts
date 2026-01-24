@@ -76,17 +76,19 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "auth",
       requestId,
       route: "/api/auth/forgot-password/verify-code",
     });
 
+    const message = error instanceof Error ? error.message : "Invalid or expired code";
+
     return NextResponse.json(
       {
         ok: false,
-        error: error?.message ?? "Invalid or expired code",
+        error: message,
         requestId,
       },
       { status: 400, headers: { "Cache-Control": "no-store" } },

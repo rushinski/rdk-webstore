@@ -20,14 +20,23 @@ type ModelUpdate = TablesUpdate<"catalog_models">;
 type AliasUpdate = TablesUpdate<"catalog_aliases">;
 type CandidateUpdate = TablesUpdate<"catalog_candidates">;
 
+// Type for Supabase query builder with tenant_id filtering
+type QueryWithTenantScope = {
+  is: (column: string, value: null) => QueryWithTenantScope;
+  or: (filter: string) => QueryWithTenantScope;
+};
+
 export class CatalogRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
-  private withTenantScope<T>(query: T, tenantId?: string | null) {
+  private withTenantScope<T extends QueryWithTenantScope>(
+    query: T,
+    tenantId?: string | null,
+  ): T {
     if (!tenantId) {
-      return (query as any).is("tenant_id", null);
+      return query.is("tenant_id", null) as T;
     }
-    return (query as any).or(`tenant_id.is.null,tenant_id.eq.${tenantId}`);
+    return query.or(`tenant_id.is.null,tenant_id.eq.${tenantId}`) as T;
   }
 
   async listBrandGroups(

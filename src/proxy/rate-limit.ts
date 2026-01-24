@@ -309,8 +309,8 @@ export async function applyRateLimit(
   let pathResult: RateLimitResult;
 
   try {
-    const globalLimiter = getGlobalLimiter();
-    const pathLimiter = getPathLimiter(
+    const globalLimiterInstance = getGlobalLimiter();
+    const pathLimiterInstance = getPathLimiter(
       normalizedPath,
       pathConfig.maxRequests,
       pathConfig.window,
@@ -320,8 +320,8 @@ export async function applyRateLimit(
     const perPathKey = `host:${hostname}:ip:${clientIp}:path:${normalizedPath}`;
 
     const [g, p] = await Promise.all([
-      globalLimiter.limit(globalKey),
-      pathLimiter.limit(perPathKey),
+      globalLimiterInstance.limit(globalKey),
+      pathLimiterInstance.limit(perPathKey),
     ]);
 
     globalResult = g as RateLimitResult;

@@ -9,6 +9,10 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type {
+  StripeExpressCheckoutElementClickEvent,
+  StripeExpressCheckoutElementConfirmEvent,
+} from "@stripe/stripe-js";
 import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -126,8 +130,9 @@ export function CheckoutForm({
         if (e2eStatus === "canceled" || e2eStatus === "requires_payment_method") {
           throw new Error("Payment failed. Please try again.");
         }
-      } catch (err: any) {
-        const message = err.message || "Payment failed. Please try again.";
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Payment failed. Please try again.";
         setError(message);
         return { ok: false, error: message };
       } finally {
@@ -224,9 +229,10 @@ export function CheckoutForm({
       }
 
       throw new Error("Payment failed. Please try again.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Payment error:", err);
-      const message = err.message || "Payment failed. Please try again.";
+      const message =
+        err instanceof Error ? err.message : "Payment failed. Please try again.";
       setError(message);
       return { ok: false, error: message };
     } finally {
@@ -239,7 +245,9 @@ export function CheckoutForm({
     await handlePayment(true);
   };
 
-  const handleExpressConfirm = async (event: any) => {
+  const handleExpressConfirm = async (
+    event: StripeExpressCheckoutElementConfirmEvent,
+  ) => {
     if (isUpdatingFulfillment || isProcessing) {
       event.paymentFailed({
         reason: "fail",
@@ -253,7 +261,7 @@ export function CheckoutForm({
     }
   };
 
-  const handleExpressClick = (event: any) => {
+  const handleExpressClick = (event: StripeExpressCheckoutElementClickEvent) => {
     const lineItems = items.map((item) => ({
       name: item.titleDisplay,
       amount: item.priceCents * item.quantity,
@@ -275,7 +283,12 @@ export function CheckoutForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+      className="space-y-6"
+    >
       {error && (
         <div className="bg-red-900/20 border border-red-500 text-red-400 p-4 rounded text-sm sm:text-base">
           {error}
@@ -429,7 +442,9 @@ export function CheckoutForm({
                 overflow: "never",
               },
             }}
-            onConfirm={handleExpressConfirm}
+            onConfirm={(event) => {
+              void handleExpressConfirm(event);
+            }}
             onClick={handleExpressClick}
           />
         </div>

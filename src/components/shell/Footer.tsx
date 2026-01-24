@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Instagram, MapPin, Phone, Mail } from "lucide-react";
+import { Instagram, MapPin, Mail } from "lucide-react";
 
 export function Footer() {
   const [email, setEmail] = useState("");
@@ -40,7 +40,7 @@ export function Footer() {
 
       setMessage({ type: "success", text: "Thanks for subscribing!" });
       setEmail("");
-    } catch (err) {
+    } catch {
       setMessage({ type: "error", text: "Something went wrong. Please try again." });
     } finally {
       setIsSubmitting(false);
@@ -63,7 +63,12 @@ export function Footer() {
               <p className="text-white text-sm font-medium mb-3">
                 Get drop alerts & exclusives
               </p>
-              <form onSubmit={handleEmailSignup} className="space-y-2">
+              <form
+                onSubmit={(event) => {
+                  void handleEmailSignup(event);
+                }}
+                className="space-y-2"
+              >
                 <div className="flex gap-2">
                   <input
                     type="email"

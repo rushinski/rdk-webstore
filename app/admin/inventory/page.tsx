@@ -459,7 +459,6 @@ export default function InventoryPage() {
                       <td className="px-4 py-3">
                         <div className="w-12 h-12 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
                           {primaryImage?.url ? (
-                            // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={primaryImage.url}
                               alt={product.title_display ?? product.name}
@@ -519,7 +518,9 @@ export default function InventoryPage() {
                                 </Link>
                                 <button
                                   type="button"
-                                  onClick={() => handleDuplicate(product.id)}
+                                  onClick={() => {
+                                    void handleDuplicate(product.id);
+                                  }}
                                   className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
                                 >
                                   Duplicate
@@ -562,7 +563,6 @@ export default function InventoryPage() {
                   <div className="flex items-start gap-3">
                     <div className="w-14 h-14 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
                       {primaryImage?.url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={primaryImage.url}
                           alt={product.title_display ?? product.name}
@@ -620,7 +620,9 @@ export default function InventoryPage() {
                             </Link>
                             <button
                               type="button"
-                              onClick={() => handleDuplicate(product.id)}
+                              onClick={() => {
+                                void handleDuplicate(product.id);
+                              }}
                               className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
                             >
                               Duplicate
@@ -654,7 +656,9 @@ export default function InventoryPage() {
             : undefined
         }
         confirmLabel="Delete"
-        onConfirm={confirmDelete}
+        onConfirm={() => {
+          void confirmDelete();
+        }}
         onCancel={() => setPendingDelete(null)}
       />
 
@@ -663,7 +667,9 @@ export default function InventoryPage() {
         title="Delete selected products?"
         description={`This will permanently remove ${selectedIds.length} products and their variants.`}
         confirmLabel="Delete all"
-        onConfirm={confirmMassDelete}
+        onConfirm={() => {
+          void confirmMassDelete();
+        }}
         onCancel={() => setPendingMassDelete(false)}
       />
 

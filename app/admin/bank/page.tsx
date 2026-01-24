@@ -95,17 +95,17 @@ export default function BankPage() {
     }
   };
 
-  const refresh = async () => {
+  const refresh = () => {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const handleOnboardingComplete = async () => {
-    await refresh();
+  const handleOnboardingComplete = () => {
+    refresh();
     setToast({ message: "Verification completed", tone: "success" });
   };
 
-  const handleBankUpdated = async () => {
-    await refresh();
+  const handleBankUpdated = () => {
+    refresh();
     setToast({ message: "Bank accounts updated", tone: "success" });
   };
 
@@ -155,15 +155,19 @@ export default function BankPage() {
     if (!summary?.payout_schedule) {
       return "Not configured";
     }
-    const { interval, weekly_anchor, monthly_anchor } = summary.payout_schedule;
+    const {
+      interval,
+      weekly_anchor: weeklyAnchor,
+      monthly_anchor: monthlyAnchor,
+    } = summary.payout_schedule;
     if (interval === "daily") {
       return "Daily";
     }
     if (interval === "weekly") {
-      return `Weekly on ${weekly_anchor ?? "Monday"}`;
+      return `Weekly on ${weeklyAnchor ?? "Monday"}`;
     }
     if (interval === "monthly") {
-      return `Monthly on day ${monthly_anchor ?? 1}`;
+      return `Monthly on day ${monthlyAnchor ?? 1}`;
     }
     return interval;
   };

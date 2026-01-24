@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const chats = await chatService.listAdminChats(parsed.data);
 
     return NextResponse.json({ chats }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -74,14 +74,14 @@ export async function POST(request: NextRequest) {
       { chat: result.chat, created: result.created },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/chats",
     });
 
-    const message = error?.message ?? "Failed to create chat";
+    const message = error instanceof Error ? error.message : "Failed to create chat";
     const status = message.includes("Order") ? 400 : 500;
 
     return NextResponse.json(

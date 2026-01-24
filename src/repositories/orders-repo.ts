@@ -1,9 +1,10 @@
 // src/repositories/orders-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert } from "@/types/db/database.types";
+import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
 
 type OrderRow = Tables<"orders">;
+type OrderUpdate = TablesUpdate<"orders">;
 
 type OrderItemRow = Tables<"order_items">;
 type OrderItemInsert = TablesInsert<"order_items">;
@@ -431,7 +432,7 @@ export class OrdersRepository {
       actualShippingCost?: number | null;
     },
   ): Promise<OrderRow> {
-    const updateData: any = {
+    const updateData: OrderUpdate = {
       fulfillment_status: "ready_to_ship",
       shipping_carrier: input.carrier ?? null,
       tracking_number: input.trackingNumber ?? null,

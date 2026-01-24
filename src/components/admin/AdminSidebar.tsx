@@ -1,7 +1,7 @@
 // src/components/admin/AdminSidebar.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Landmark,
   Receipt,
+  type LucideIcon,
 } from "lucide-react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -32,16 +33,21 @@ type NavLinkItem = {
   type: "link";
   href: string;
   label: string;
-  icon: any;
+  icon: LucideIcon;
 };
 
 type NavGroupItem = {
   type: "group";
   label: string;
-  icon: any;
+  icon: LucideIcon;
   groupKey: "analytics" | "orders" | "settings";
   isActive: (pathname: string) => boolean;
   children: Array<{ href: string; label: string }>;
+};
+
+type ChatSummary = {
+  id: string;
+  messages?: Array<{ sender_role?: "customer" | "admin" | null }> | null;
 };
 
 const navItems: Array<NavLinkItem | NavGroupItem> = [
@@ -89,7 +95,7 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
 ];
 
 export function AdminSidebar({
-  userEmail,
+  userEmail: _userEmail,
   role,
 }: {
   userEmail?: string | null;
@@ -177,10 +183,10 @@ export function AdminSidebar({
       try {
         const response = await fetch("/api/chats?status=open", { cache: "no-store" });
         const data = await response.json();
-        const chats = data.chats ?? [];
+        const chats = (data.chats ?? []) as ChatSummary[];
         const nextMap = new Map<string, "customer" | "admin" | "none">();
 
-        chats.forEach((chat: any) => {
+        chats.forEach((chat) => {
           const lastMessage = chat.messages?.[0];
           if (!lastMessage) {
             nextMap.set(chat.id, "none");
@@ -192,7 +198,7 @@ export function AdminSidebar({
         chatLastSenderRef.current = nextMap;
 
         const count = Array.from(nextMap.values()).filter(
-          (role) => role !== "admin",
+          (senderRole) => senderRole !== "admin",
         ).length;
         if (isActive) {
           setChatBadgeCount(count);
@@ -221,7 +227,7 @@ export function AdminSidebar({
 
           if (isActive) {
             const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (role) => role !== "admin",
+              (senderRole) => senderRole !== "admin",
             ).length;
             setChatBadgeCount(count);
           }
@@ -240,7 +246,7 @@ export function AdminSidebar({
 
           if (isActive) {
             const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (role) => role !== "admin",
+              (senderRole) => senderRole !== "admin",
             ).length;
             setChatBadgeCount(count);
           }
@@ -262,7 +268,7 @@ export function AdminSidebar({
 
           if (isActive) {
             const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (role) => role !== "admin",
+              (senderRole) => senderRole !== "admin",
             ).length;
             setChatBadgeCount(count);
           }
@@ -276,7 +282,7 @@ export function AdminSidebar({
     };
   }, []);
 
-  const SidebarContent = () => {
+  function SidebarContent() {
     const canViewBankTab = canViewBank(role);
     const baseItemClass =
       "group flex items-center gap-3 px-4 py-3 border border-transparent bg-transparent " +
@@ -331,7 +337,7 @@ export function AdminSidebar({
                 if (item.href === "/admin/bank" && !canViewBankTab) {
                   return null;
                 }
-                const Icon = item.icon;
+                const icon = item.icon;
                 const isActive =
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
@@ -345,17 +351,17 @@ export function AdminSidebar({
                       item.href === "/admin/bank" ? "admin-nav-bank" : undefined
                     }
                   >
-                    <Icon className="w-5 h-5" />
+                    {createElement(icon, { className: "w-5 h-5" })}
                     <span className="text-[13px] sm:text-[15px]">{item.label}</span>
                   </Link>
                 );
               }
 
               // group
-              const Icon = item.icon;
+              const icon = item.icon;
               const isGroupActive = item.isActive(pathname);
-              const isOpen = openGroups[item.groupKey];
-              const Chevron = isOpen ? ChevronDown : ChevronRight;
+              const isGroupOpen = openGroups[item.groupKey];
+              const chevron = isGroupOpen ? ChevronDown : ChevronRight;
 
               const filteredChildren = item.children.filter(
                 (child) => child.href !== "/admin/settings/transfers" || canViewBankTab,
@@ -377,17 +383,17 @@ export function AdminSidebar({
                     className={`${baseItemClass} w-full justify-between ${
                       isGroupActive ? activeItemClass : inactiveItemClass
                     }`}
-                    aria-expanded={isOpen}
+                    aria-expanded={isGroupOpen}
                     aria-controls={`admin-${item.groupKey}-subnav`}
                   >
                     <span className="flex items-center gap-3">
-                      <Icon className="w-5 h-5" />
+                      {createElement(icon, { className: "w-5 h-5" })}
                       <span className="text-[13px] sm:text-[15px]">{item.label}</span>
                     </span>
-                    <Chevron className="w-4 h-4 opacity-80" />
+                    {createElement(chevron, { className: "w-4 h-4 opacity-80" })}
                   </button>
 
-                  {isOpen && (
+                  {isGroupOpen && (
                     <div
                       id={`admin-${item.groupKey}-subnav`}
                       className="ml-4 border-l border-zinc-800/70 pl-3 space-y-1"
@@ -494,7 +500,7 @@ export function AdminSidebar({
         </div>
       </div>
     );
-  };
+  }
 
   return (
     <>

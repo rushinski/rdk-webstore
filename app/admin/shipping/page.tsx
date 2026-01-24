@@ -37,6 +37,46 @@ const TABS: Array<{ key: TabKey; label: string; status: string }> = [
   { key: "delivered", label: "Delivered", status: "delivered" },
 ];
 
+type OrderItemImage = {
+  url?: string | null;
+  is_primary?: boolean | null;
+};
+
+type OrderItemProduct = {
+  images?: OrderItemImage[] | null;
+  category?: string | null;
+  title_display?: string | null;
+  brand?: string | null;
+  name?: string | null;
+};
+
+type OrderItemVariant = {
+  size_label?: string | null;
+};
+
+type OrderItem = {
+  id: string;
+  quantity?: number | null;
+  product?: OrderItemProduct | null;
+  variant?: OrderItemVariant | null;
+};
+
+type OrderProfile = {
+  email?: string | null;
+};
+
+type ShippingOrder = {
+  id: string;
+  created_at?: string | null;
+  shipping?: unknown;
+  profiles?: OrderProfile | null;
+  user_id?: string | null;
+  items?: OrderItem[] | null;
+  shipping_carrier?: string | null;
+  tracking_number?: string | null;
+  label_url?: string | null;
+};
+
 const getTrackingUrl = (carrier?: string | null, trackingNumber?: string | null) => {
   if (!trackingNumber) {
     return null;
@@ -118,7 +158,7 @@ const formatPlacedAt = (value?: string | null) => {
   };
 };
 
-const getCustomerHandle = (order: any) => {
+const getCustomerHandle = (order: ShippingOrder) => {
   const email = order.profiles?.email ?? null;
   if (email && email.includes("@")) {
     return email.split("@")[0];
@@ -131,15 +171,15 @@ const getCustomerHandle = (order: any) => {
   return order.user_id ? order.user_id.slice(0, 6) : "Guest";
 };
 
-const getPrimaryImage = (item: any) => {
+const getPrimaryImage = (item: OrderItem) => {
   const images = item.product?.images ?? [];
-  const primary = images.find((img: any) => img.is_primary) ?? images[0];
+  const primary = images.find((img) => img.is_primary) ?? images[0];
   return primary?.url ?? "/images/boxes.png";
 };
 
 export default function ShippingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("label");
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<ShippingOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
@@ -160,14 +200,16 @@ export default function ShippingPage() {
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [markingShippedId, setMarkingShippedId] = useState<string | null>(null);
-  const [confirmMarkShipped, setConfirmMarkShipped] = useState<any | null>(null);
+  const [confirmMarkShipped, setConfirmMarkShipped] = useState<ShippingOrder | null>(
+    null,
+  );
   const [originAddress, setOriginAddress] = useState<ShippingOrigin | null>(null);
   const [originModalOpen, setOriginModalOpen] = useState(false);
   const [originMessage, setOriginMessage] = useState("");
   const [originError, setOriginError] = useState("");
   const [savingOrigin, setSavingOrigin] = useState(false);
 
-  const [labelOrder, setLabelOrder] = useState<any | null>(null);
+  const [labelOrder, setLabelOrder] = useState<ShippingOrder | null>(null);
 
   const currentPage = pageByTab[activeTab];
   const activeCount = counts[activeTab] ?? 0;
@@ -232,13 +274,11 @@ export default function ShippingPage() {
     };
 
     loadCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken]);
 
   useEffect(() => {
     loadShippingDefaults();
     loadOriginAddress();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -248,7 +288,6 @@ export default function ShippingPage() {
     setOriginError("");
     setOriginMessage("");
     loadOriginAddress();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [originModalOpen]);
 
   useEffect(() => {
@@ -299,7 +338,7 @@ export default function ShippingPage() {
     setExpandedDetails((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
-  const getPackageProfile = (order: any) => {
+  const getPackageProfile = (order: ShippingOrder) => {
     const items = order.items ?? [];
     if (items.length === 0) {
       return {
@@ -317,7 +356,7 @@ export default function ShippingPage() {
     let maxHeight = 0;
     let maxCost = 0;
 
-    items.forEach((item: any) => {
+    items.forEach((item: OrderItem) => {
       const quantity = Math.max(1, Number(item.quantity ?? 0));
       const category = item.product?.category ?? null;
       const defaults = category ? shippingDefaults[category] : null;
@@ -343,7 +382,7 @@ export default function ShippingPage() {
     };
   };
 
-  const handleMarkShipped = async (order: any) => {
+  const handleMarkShipped = async (order: ShippingOrder) => {
     setMarkingShippedId(order.id);
     try {
       const response = await fetch(`/api/admin/orders/${order.id}/fulfill`, {
@@ -388,8 +427,9 @@ export default function ShippingPage() {
       setOriginAddress(data.origin ?? payload);
       setOriginMessage("Origin address updated.");
       setOriginModalOpen(false);
-    } catch (error: any) {
-      setOriginError(error?.message || "Failed to save origin.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to save origin.";
+      setOriginError(message);
     } finally {
       setSavingOrigin(false);
     }
@@ -402,7 +442,7 @@ export default function ShippingPage() {
     setActiveTab("ready");
   };
 
-  const viewLabel = (order: any) => {
+  const viewLabel = (order: ShippingOrder) => {
     // Get label URL - you'll need to add this to your order model
     const labelUrl = order.label_url ?? null;
     if (labelUrl) {
@@ -493,9 +533,9 @@ export default function ShippingPage() {
     );
   };
 
-  const renderOrderRow = (order: any) => {
+  const renderOrderRow = (order: ShippingOrder) => {
     const itemCount = (order.items ?? []).reduce(
-      (sum: number, item: any) => sum + Number(item.quantity ?? 0),
+      (sum: number, item: OrderItem) => sum + Number(item.quantity ?? 0),
       0,
     );
     const address = resolveShippingAddress(order.shipping);
@@ -622,7 +662,7 @@ export default function ShippingPage() {
           <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
             <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
               <div className="grid gap-3 sm:grid-cols-2">
-                {(order.items ?? []).map((item: any) => {
+                {(order.items ?? []).map((item: OrderItem) => {
                   const imageUrl = getPrimaryImage(item);
                   const title =
                     (item.product?.title_display ??
@@ -711,7 +751,7 @@ export default function ShippingPage() {
                   Items
                 </div>
                 <div className="space-y-2">
-                  {(order.items ?? []).map((item: any) => {
+                  {(order.items ?? []).map((item: OrderItem) => {
                     const imageUrl = getPrimaryImage(item);
                     const title =
                       (item.product?.title_display ??
@@ -750,7 +790,6 @@ export default function ShippingPage() {
       return null;
     }
     return getPackageProfile(labelOrder);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [labelOrder, shippingDefaults]);
 
   return (
@@ -878,7 +917,11 @@ export default function ShippingPage() {
         title="Mark as shipped manually?"
         description="Important: This should only be used if the carrier hasn't scanned the package yet. Normally, Shippo automatically updates tracking status and sends customer emails when the carrier scans the package. Using this button will manually update the status without waiting for carrier confirmation."
         confirmLabel="Mark shipped anyway"
-        onConfirm={() => confirmMarkShipped && handleMarkShipped(confirmMarkShipped)}
+        onConfirm={() => {
+          if (confirmMarkShipped) {
+            void handleMarkShipped(confirmMarkShipped);
+          }
+        }}
         onCancel={() => setConfirmMarkShipped(null)}
       />
 
@@ -891,7 +934,9 @@ export default function ShippingPage() {
         savingOrigin={savingOrigin}
         onClose={() => setOriginModalOpen(false)}
         onChange={handleOriginChange}
-        onSave={handleSaveOrigin}
+        onSave={() => {
+          void handleSaveOrigin();
+        }}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 // app/admin/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import {
   TrendingUp,
   TrendingDown,
@@ -15,6 +15,13 @@ import Link from "next/link";
 import { logError } from "@/lib/log";
 import { SalesChart } from "@/components/admin/charts/SalesChart";
 import { TrafficChart } from "@/components/admin/charts/TrafficChart";
+
+type RecentOrder = {
+  id: string;
+  user_id?: string | null;
+  total?: number | null;
+  subtotal?: number | null;
+};
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState({ revenue: 0, orders: 0 });
@@ -30,7 +37,7 @@ export default function DashboardPage() {
     Array<{ date: string; visits: number }>
   >([]);
   const [productsCount, setProductsCount] = useState(0);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -112,7 +119,7 @@ export default function DashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         {stats.map((stat) => {
-          const Icon = stat.icon;
+          const icon = stat.icon;
           return (
             <div
               key={stat.title}
@@ -120,7 +127,7 @@ export default function DashboardPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-400 text-sm">{stat.title}</span>
-                <Icon className="w-5 h-5 text-gray-400" />
+                {createElement(icon, { className: "w-5 h-5 text-gray-400" })}
               </div>
               <div className="flex items-end justify-between">
                 <span className="text-xl sm:text-3xl font-bold text-white">

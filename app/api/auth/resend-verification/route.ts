@@ -31,17 +31,20 @@ export async function POST(req: NextRequest) {
     await authService.resendVerification(normalizedEmail, verificationFlow);
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "auth",
       requestId,
       route: "/api/auth/resend-verification",
     });
 
+    const message =
+      error instanceof Error ? error.message : "Could not resend verification email.";
+
     return NextResponse.json(
       {
         ok: false,
-        error: error.message ?? "Could not resend verification email.",
+        error: message,
         requestId,
       },
       { status: 400, headers: { "Cache-Control": "no-store" } },

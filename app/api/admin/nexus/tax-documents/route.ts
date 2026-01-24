@@ -49,11 +49,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/tax-documents" });
-    return NextResponse.json(
-      { error: error.message || "Failed to download tax documents", requestId },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to download tax documents";
+    return NextResponse.json({ error: message, requestId }, { status: 500 });
   }
 }

@@ -16,6 +16,11 @@ type AdminLineChartProps<T extends Record<string, unknown>> = {
   emptyLabel?: string;
 };
 
+type NormalizedRow<T extends Record<string, unknown>> = T & {
+  __x: unknown;
+  __y: number;
+};
+
 function toNumber(v: unknown): number {
   if (typeof v === "number") {
     return Number.isFinite(v) ? v : 0;
@@ -146,11 +151,11 @@ export function AdminLineChart<T extends Record<string, unknown>>({
           1,
           Math.floor(el.clientWidth || rect.width || parentWidth),
         );
-        const height = Math.max(
+        const nextHeight = Math.max(
           1,
           Math.floor(el.clientHeight || rect.height || chartHeight),
         );
-        const next = { width, height };
+        const next = { width, height: nextHeight };
         setContainerSize((prev) =>
           prev.width === next.width && prev.height === next.height ? prev : next,
         );
@@ -179,7 +184,7 @@ export function AdminLineChart<T extends Record<string, unknown>>({
     };
   }, [chartHeight, data.length]);
 
-  const normalized = useMemo(() => {
+  const normalized = useMemo<NormalizedRow<T>[]>(() => {
     return (data || [])
       .map((row) => ({
         ...row,
@@ -187,13 +192,13 @@ export function AdminLineChart<T extends Record<string, unknown>>({
         __y: toNumber(row[yKey]),
       }))
       .sort((a, b) => {
-        const da = new Date(String((a as any).__x)).getTime();
-        const db = new Date(String((b as any).__x)).getTime();
+        const da = new Date(String(a.__x)).getTime();
+        const db = new Date(String(b.__x)).getTime();
         if (Number.isNaN(da) || Number.isNaN(db)) {
           return 0;
         }
         return da - db;
-      });
+      }) as NormalizedRow<T>[];
   }, [data, xKey, yKey]);
 
   const fmt = valueFormatter ?? ((v: number) => String(v));
@@ -210,7 +215,7 @@ export function AdminLineChart<T extends Record<string, unknown>>({
       };
     }
 
-    const yVals = normalized.map((r) => toNumber((r as any).__y));
+    const yVals = normalized.map((r) => toNumber(r.__y));
     const yMinData = yVals.length ? Math.min(...yVals) : 0;
     const yMaxData = yVals.length ? Math.max(...yVals) : 0;
 

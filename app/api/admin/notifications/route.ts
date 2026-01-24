@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const data = await svc.listCenter(session.user.id, { limit, page, unreadOnly });
 
     return NextResponse.json(data, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/notifications" });
     return NextResponse.json(
       { error: "Failed to load notifications", requestId },
@@ -86,7 +86,7 @@ export async function PATCH(request: NextRequest) {
       { notifications: updated },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/notifications" });
     return NextResponse.json(
       { error: "Failed to update notifications", requestId },
@@ -126,7 +126,7 @@ export async function DELETE(request: NextRequest) {
         : { deletedCount, noop: false },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/notifications" });
 
     return NextResponse.json(

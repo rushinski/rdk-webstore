@@ -83,7 +83,25 @@ export default function NexusTrackerClient() {
     [],
   );
 
-  const handleDownloadTaxDocs = async () => {
+  const nexusTypeOptions = useMemo(
+    () => [
+      { value: "all", label: "All Nexus Types" },
+      { value: "physical", label: "Physical" },
+      { value: "economic", label: "Economic" },
+    ],
+    [],
+  );
+
+  const windowOptions = useMemo(
+    () => [
+      { value: "all", label: "All Windows" },
+      { value: "calendar", label: "Calendar Year" },
+      { value: "rolling", label: "Rolling 12 Months" },
+    ],
+    [],
+  );
+
+  const handleDownloadTaxDocs = () => {
     window.open("https://dashboard.stripe.com/tax/reports", "_blank");
   };
 
@@ -176,9 +194,11 @@ export default function NexusTrackerClient() {
           setSelectedState({ ...updatedState, isRegistered: !currentRegistered });
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to toggle registration:", err);
-      alert(err.message || "Failed to update registration");
+      const message =
+        err instanceof Error ? err.message : "Failed to update registration";
+      alert(message);
     } finally {
       setIsUpdating(false);
     }
@@ -429,8 +449,12 @@ export default function NexusTrackerClient() {
         <StateDetailModal
           state={selectedState}
           onClose={() => setSelectedState(null)}
-          onRegisterToggle={handleRegisterToggle}
-          onNexusTypeChange={handleNexusTypeChange}
+          onRegisterToggle={(stateCode, currentRegistered, nexusType) => {
+            void handleRegisterToggle(stateCode, currentRegistered, nexusType);
+          }}
+          onNexusTypeChange={(stateCode, newType) => {
+            void handleNexusTypeChange(stateCode, newType);
+          }}
           isUpdating={isUpdating}
           formatCurrency={formatCurrency}
           isHomeOfficeConfigured={isHomeOfficeConfigured}
@@ -506,8 +530,28 @@ export default function NexusTrackerClient() {
 
             <RdkSelect
               value={filterRegistered}
-              onChange={(v) => setFilterRegistered(v as any)}
+              onChange={(v) =>
+                setFilterRegistered(v as "all" | "registered" | "unregistered")
+              }
               options={filterRegisteredOptions}
+              className="min-w-[160px]"
+              buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
+              menuClassName="text-[11px] sm:text-sm"
+            />
+
+            <RdkSelect
+              value={filterNexusType}
+              onChange={(v) => setFilterNexusType(v as "all" | "physical" | "economic")}
+              options={nexusTypeOptions}
+              className="min-w-[160px]"
+              buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
+              menuClassName="text-[11px] sm:text-sm"
+            />
+
+            <RdkSelect
+              value={filterWindow}
+              onChange={(v) => setFilterWindow(v as "all" | "calendar" | "rolling")}
+              options={windowOptions}
               className="min-w-[160px]"
               buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
               menuClassName="text-[11px] sm:text-sm"

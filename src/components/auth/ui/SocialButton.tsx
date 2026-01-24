@@ -68,7 +68,9 @@ export function SocialButton({ provider, label, nextOverride }: SocialButtonProp
   return (
     <button
       type="button"
-      onClick={handleClick}
+      onClick={() => {
+        void handleClick();
+      }}
       disabled={loading}
       className="h-11 w-full flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
     >

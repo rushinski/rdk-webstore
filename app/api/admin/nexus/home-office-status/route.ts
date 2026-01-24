@@ -23,15 +23,17 @@ export async function GET(request: NextRequest) {
     const isConfigured = await taxService.isHeadOfficeConfigured();
 
     return NextResponse.json({ configured: isConfigured });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/admin/nexus/home-office-status",
     });
+    const message =
+      error instanceof Error ? error.message : "Failed to check home office status";
     return NextResponse.json(
-      { error: error.message || "Failed to check home office status", requestId },
-      { status: error.message?.includes("not configured") ? 400 : 500 },
+      { error: message, requestId },
+      { status: message.includes("not configured") ? 400 : 500 },
     );
   }
 }

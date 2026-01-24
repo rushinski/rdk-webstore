@@ -49,11 +49,9 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(result);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/sales-log" });
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch sales log", requestId },
-      { status: 500 },
-    );
+    const message = error instanceof Error ? error.message : "Failed to fetch sales log";
+    return NextResponse.json({ error: message, requestId }, { status: 500 });
   }
 }

@@ -40,15 +40,17 @@ export async function POST(req: NextRequest) {
     await authService.signUp(email, password, updatesOptIn);
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "auth",
       requestId,
       route: "/api/auth/register",
     });
 
+    const message = error instanceof Error ? error.message : "Sign up failed";
+
     return NextResponse.json(
-      { ok: false, error: error.message ?? "Sign up failed", requestId },
+      { ok: false, error: message, requestId },
       { status: 400, headers: { "Cache-Control": "no-store" } },
     );
   }

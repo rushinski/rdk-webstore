@@ -48,11 +48,10 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/nexus-type" });
-    return NextResponse.json(
-      { error: error.message || "Failed to update nexus type", requestId },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to update nexus type";
+    return NextResponse.json({ error: message, requestId }, { status: 500 });
   }
 }

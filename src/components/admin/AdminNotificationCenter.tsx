@@ -51,8 +51,6 @@ export function AdminNotificationCenter({ placement = "top" }: Props) {
     [notifications],
   );
 
-  const badgeLabel = unreadCount > 9 ? "9+" : String(unreadCount);
-
   const loadNotifications = async () => {
     setIsLoading(true);
     try {
@@ -215,25 +213,8 @@ export function AdminNotificationCenter({ placement = "top" }: Props) {
             </Link>
             <button
               type="button"
-              onClick={async () => {
-                try {
-                  await fetch("/api/admin/notifications", {
-                    method: "PATCH",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ mark_all: true }),
-                  });
-                  setNotifications((prev) =>
-                    prev.map((item) => ({
-                      ...item,
-                      read_at: item.read_at ?? new Date().toISOString(),
-                    })),
-                  );
-                } catch (error) {
-                  logError(error, {
-                    layer: "frontend",
-                    event: "admin_mark_all_notifications",
-                  });
-                }
+              onClick={() => {
+                void handleMarkAllRead();
               }}
               className="text-xs text-zinc-400 hover:text-white"
             >
@@ -245,3 +226,23 @@ export function AdminNotificationCenter({ placement = "top" }: Props) {
     </div>
   );
 }
+const handleMarkAllRead = async () => {
+  try {
+    await fetch("/api/admin/notifications", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mark_all: true }),
+    });
+    setNotifications((prev) =>
+      prev.map((item) => ({
+        ...item,
+        read_at: item.read_at ?? new Date().toISOString(),
+      })),
+    );
+  } catch (error) {
+    logError(error, {
+      layer: "frontend",
+      event: "admin_mark_all_notifications",
+    });
+  }
+};

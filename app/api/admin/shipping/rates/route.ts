@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const recipientAddress = toShippoAddress(recipientSource as any);
+    const recipientAddress = toShippoAddress(recipientSource);
     if (!recipientAddress) {
       return NextResponse.json(
         { error: "Recipient address is incomplete.", requestId },
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const shipperAddress = toShippoAddress(shipper as any);
+    const shipperAddress = toShippoAddress(shipper);
     if (!shipperAddress) {
       return NextResponse.json(
         { error: "Shipping origin address is incomplete.", requestId },
@@ -208,11 +208,14 @@ export async function POST(request: NextRequest) {
       },
       { headers: noStoreHeaders },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/shipping/rates" });
 
     return NextResponse.json(
-      { error: error.message || "Failed to fetch shipping rates.", requestId },
+      {
+        error: error instanceof Error ? error.message : "Failed to fetch shipping rates.",
+        requestId,
+      },
       { status: 500, headers: noStoreHeaders },
     );
   }

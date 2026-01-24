@@ -30,11 +30,13 @@ export async function GET(request: NextRequest) {
     const summary = await summaryService.buildSummary(context.tenantId);
 
     return NextResponse.json(summary);
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: "/api/admin/nexus/summary" });
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch nexus summary";
     return NextResponse.json(
-      { error: error.message || "Failed to fetch nexus summary", requestId },
-      { status: error.message?.includes("not found") ? 404 : 500 },
+      { error: message, requestId },
+      { status: message.includes("not found") ? 404 : 500 },
     );
   }
 }

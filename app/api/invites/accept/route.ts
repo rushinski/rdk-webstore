@@ -38,14 +38,14 @@ export async function POST(request: NextRequest) {
       { ok: true, role: result.role },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/invites/accept",
     });
 
-    const message = error?.message ?? "Failed to accept invite";
+    const message = error instanceof Error ? error.message : "Failed to accept invite";
     const status = message.includes("Invite") ? 400 : 500;
 
     return NextResponse.json(

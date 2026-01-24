@@ -34,6 +34,17 @@ type CatalogOption = {
   groupKey?: string | null;
 };
 
+type BrandCatalogEntry = {
+  id: string;
+  canonical_label: string;
+  group?: { key?: string | null } | null;
+};
+
+type ModelCatalogEntry = {
+  id: string;
+  canonical_label: string;
+};
+
 type TitleParseResult = {
   titleRaw: string;
   titleDisplay: string;
@@ -93,7 +104,9 @@ const getSizeTypeForCategory = (category: Category): SizeType => {
 const getTagKey = (tag: { label: string; group_key: string }) =>
   `${tag.group_key}:${tag.label}`;
 
-const RequiredMark = () => <span className="text-red-500">*</span>;
+function RequiredMark() {
+  return <span className="text-red-500">*</span>;
+}
 
 export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -118,8 +131,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const [description, setDescription] = useState(initialData?.description || "");
 
   const [shippingPrice, setShippingPrice] = useState(() => {
-    if (initialData?.shipping_override_cents != null) {
-      return formatMoney(initialData.shipping_override_cents / 100);
+    const shippingOverrideCents = initialData?.shipping_override_cents;
+    if (shippingOverrideCents !== null && shippingOverrideCents !== undefined) {
+      return formatMoney(shippingOverrideCents / 100);
     }
     return "";
   });
@@ -304,7 +318,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         const response = await fetch("/api/admin/catalog/brands");
         const data = await response.json();
         if (response.ok) {
-          const options = (data.brands || []).map((brand: any) => ({
+          const options = (data.brands || []).map((brand: BrandCatalogEntry) => ({
             id: brand.id,
             label: brand.canonical_label,
             groupKey: brand.group?.key ?? null,
@@ -334,7 +348,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         );
         const data = await response.json();
         if (response.ok) {
-          const options = (data.models || []).map((model: any) => ({
+          const options = (data.models || []).map((model: ModelCatalogEntry) => ({
             id: model.id,
             label: model.canonical_label,
           }));
@@ -367,7 +381,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(async () => {
+    const parseTitle = async () => {
       setParseStatus("loading");
       try {
         const response = await fetch("/api/admin/catalog/parse-title", {
@@ -387,13 +401,23 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         }
         setParseResult(data);
         setParseStatus("idle");
-      } catch (error) {
-        if ((error as any)?.name === "AbortError") {
+      } catch (error: unknown) {
+        const isAbort =
+          error instanceof DOMException
+            ? error.name === "AbortError"
+            : typeof error === "object" &&
+              error !== null &&
+              "name" in error &&
+              (error as { name?: string }).name === "AbortError";
+        if (isAbort) {
           return;
         }
         logError(error, { layer: "frontend", event: "inventory_parse_title" });
         setParseStatus("error");
       }
+    };
+    const timeout = setTimeout(() => {
+      void parseTitle();
     }, 250);
 
     return () => {
@@ -739,7 +763,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      onSubmit={(event) => {
+        void handleSubmit(event);
+      }}
+      className="space-y-6"
+    >
       {/* Basic Info */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
         <h2 className="text-xl font-semibold text-white mb-4">Basic Information</h2>
@@ -1076,7 +1105,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           type="file"
           accept="image/*"
           multiple
-          onChange={(e) => handleUploadFiles(e.target.files)}
+          onChange={(e) => {
+            void handleUploadFiles(e.target.files);
+          }}
           className="hidden"
         />
 
@@ -1152,7 +1183,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 >
                   <div className="aspect-square bg-zinc-900 overflow-hidden">
                     {image.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={image.url}
                         alt="Preview"

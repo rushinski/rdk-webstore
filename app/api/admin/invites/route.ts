@@ -40,17 +40,18 @@ export async function POST(request: NextRequest) {
       { invite: result.invite, inviteUrl },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/admin/invites",
     });
 
-    const status = error?.message === "Forbidden" ? 403 : 500;
+    const message = error instanceof Error ? error.message : "Failed to create invite";
+    const status = message === "Forbidden" ? 403 : 500;
 
     return NextResponse.json(
-      { error: error?.message ?? "Failed to create invite", requestId },
+      { error: message, requestId },
       { status, headers: { "Cache-Control": "no-store" } },
     );
   }

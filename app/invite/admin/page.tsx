@@ -10,7 +10,7 @@ type InviteState = "idle" | "accepting" | "accepted" | "error" | "missing";
 
 type MeResponse = {
   user: { id: string; email: string } | null;
-  profile: any;
+  profile: Record<string, unknown> | null;
 };
 
 export default function AdminInvitePage() {
@@ -72,7 +72,7 @@ export default function AdminInvitePage() {
 
         setState("accepted");
         setMessage("Invite accepted. Your account now has admin access.");
-      } catch (error) {
+      } catch {
         setState("error");
         setMessage("Failed to accept invite.");
       }

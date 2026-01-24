@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       { client_secret: clientSecret, account_id: accountId },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

@@ -24,8 +24,11 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
 
 // Helper: some Stripe SDK typings show retrieve() as Response<Session>
 function unwrapStripe<T>(value: unknown): T {
-  const v = value as any;
-  return (v && typeof v === "object" && "data" in v ? v.data : v) as T;
+  if (value && typeof value === "object" && "data" in value) {
+    const maybe = value as { data?: unknown };
+    return maybe.data as T;
+  }
+  return value as T;
 }
 
 // Helper: normalize tax from order record (supports a few common column names)
@@ -43,6 +46,42 @@ function getOrderTax(
   const n = Number(raw);
   return Number.isFinite(n) ? n : 0;
 }
+
+// Stripe typings can differ by API version; support a legacy field safely.
+type ShippingDetailsLike = {
+  name?: string | null;
+  address?: {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postal_code?: string | null;
+    country?: string | null;
+  } | null;
+};
+
+type LegacyShippingDetails = {
+  shipping_details?: ShippingDetailsLike | null;
+};
+
+// Some versions include phone on shipping; read it safely.
+type ShippingWithPhone = Stripe.PaymentIntent.Shipping & { phone?: string | null };
+
+// Minimal shape used from getOrderItemsDetailed()
+type DetailedOrderItemLike = {
+  unit_price?: unknown;
+  line_total?: unknown;
+  quantity?: unknown;
+  product?: {
+    title_display?: string | null;
+    brand?: string | null;
+    name?: string | null;
+  } | null;
+  variant?: {
+    size_label?: string | null;
+  } | null;
+  product_id?: string;
+};
 
 export class StripeOrderJob {
   private ordersRepo: OrdersRepository;
@@ -255,7 +294,10 @@ export class StripeOrderJob {
     if (this.adminSupabase && order.fulfillment === "pickup" && order.user_id) {
       try {
         const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
-        await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
+        await chatService.createChatForUser({
+          userId: order.user_id,
+          orderId: order.id,
+        });
       } catch (chatError) {
         log({
           level: "warn",
@@ -270,11 +312,13 @@ export class StripeOrderJob {
 
     // Save shipping snapshot (ship orders only)
     if (fulfillment === "ship") {
+      const legacyShippingDetails =
+        (fullSession as LegacyShippingDetails).shipping_details ?? null;
+
       // Stripe wants you using collected_information.shipping_details (new)
       const shippingDetails =
         fullSession.collected_information?.shipping_details ??
-        // fallback for older API versions, if present
-        (fullSession as any).shipping_details ??
+        legacyShippingDetails ??
         null;
 
       if (shippingDetails) {
@@ -401,11 +445,13 @@ export class StripeOrderJob {
       let orderUrl: string | null = null;
       if (!order.user_id && email && this.orderAccessTokens) {
         const { token } = await this.orderAccessTokens.createToken({ orderId: order.id });
-        orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
+        orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(
+          token,
+        )}`;
       }
 
       const detailedItems = await this.ordersRepo.getOrderItemsDetailed(orderId);
-      const items = detailedItems.map((item: any) => {
+      const items = (detailedItems as DetailedOrderItemLike[]).map((item) => {
         const product = item.product;
         const title =
           product?.title_display ??
@@ -644,7 +690,7 @@ export class StripeOrderJob {
       if (address) {
         const addressInput = {
           name: shipping?.name ?? null,
-          phone: (shipping as any)?.phone ?? null,
+          phone: (shipping as ShippingWithPhone | null | undefined)?.phone ?? null,
           line1: address.line1 ?? null,
           line2: address.line2 ?? null,
           city: address.city ?? null,
@@ -668,7 +714,10 @@ export class StripeOrderJob {
     if (this.adminSupabase && fulfillment === "pickup" && order.user_id) {
       try {
         const chatService = new ChatService(this.adminSupabase, this.adminSupabase);
-        await chatService.createChatForUser({ userId: order.user_id, orderId: order.id });
+        await chatService.createChatForUser({
+          userId: order.user_id,
+          orderId: order.id,
+        });
       } catch (chatError) {
         log({
           level: "warn",
@@ -775,11 +824,13 @@ export class StripeOrderJob {
       let orderUrl: string | null = null;
       if (!order.user_id && email && this.orderAccessTokens) {
         const { token } = await this.orderAccessTokens.createToken({ orderId: order.id });
-        orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
+        orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(
+          token,
+        )}`;
       }
 
       const detailedItems = await this.ordersRepo.getOrderItemsDetailed(orderId);
-      const items = detailedItems.map((item: any) => {
+      const items = (detailedItems as DetailedOrderItemLike[]).map((item) => {
         const product = item.product;
         const title =
           product?.title_display ??

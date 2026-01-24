@@ -93,8 +93,10 @@ function SuccessContent() {
           clearInterval(pollInterval);
           clearTimeout(timeoutId);
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to fetch order status");
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Failed to fetch order status";
+        setError(message);
         setIsPolling(false);
         clearInterval(pollInterval);
         clearTimeout(timeoutId);
@@ -104,7 +106,9 @@ function SuccessContent() {
     setIsPolling(true);
     pollOrderStatus();
 
-    pollInterval = setInterval(pollOrderStatus, 2000);
+    pollInterval = setInterval(() => {
+      void pollOrderStatus();
+    }, 2000);
     timeoutId = setTimeout(() => {
       setIsPolling(false);
       clearInterval(pollInterval);

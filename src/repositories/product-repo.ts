@@ -55,6 +55,71 @@ type ImageInsert = TablesInsert<"product_images">;
 
 type TagInsert = TablesInsert<"tags">;
 
+// Helper types for query results
+type FilterDataRow = {
+  brand: string | null;
+  model: string | null;
+  brand_is_verified: boolean | null;
+  model_is_verified: boolean | null;
+  category: string | null;
+};
+
+type ProductWithRelations = ProductRow & {
+  variants?: VariantRow[];
+  images?: ImageRow[];
+  tags?: Array<{ tag: TagRow }>;
+};
+
+type VariantWithProduct = {
+  product_id: string;
+  price_cents: number;
+  product?: {
+    id: string;
+  };
+};
+
+type CheckoutProductRow = {
+  id: string;
+  name: string;
+  brand: string;
+  model: string | null;
+  title_display: string;
+  category: string;
+  tenant_id: string | null;
+  default_shipping_price: number | null;
+  shipping_override_cents: number | null;
+  variants?: Array<{
+    id: string;
+    size_label: string;
+    price_cents: number;
+    cost_cents: number | null;
+    stock: number;
+  }>;
+};
+
+type CartVariantRow = {
+  id: string;
+  product_id: string;
+  size_label: string;
+  price_cents: number;
+  stock: number;
+  product?: {
+    id: string;
+    brand: string;
+    name: string;
+    title_display: string;
+    is_active: boolean;
+    is_out_of_stock: boolean;
+  };
+};
+
+type ProductImageRow = {
+  product_id: string;
+  url: string;
+  is_primary: boolean;
+  sort_order: number;
+};
+
 export class ProductRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
@@ -203,7 +268,10 @@ export class ProductRepository {
     }
 
     const byId = new Map(
-      (details ?? []).map((raw) => [raw.id, this.transformProduct(raw)]),
+      (details ?? []).map((raw) => [
+        raw.id,
+        this.transformProduct(raw as ProductWithRelations),
+      ]),
     );
 
     return {
@@ -250,7 +318,7 @@ export class ProductRepository {
       return null;
     }
 
-    return this.transformProduct(data);
+    return this.transformProduct(data as ProductWithRelations);
   }
 
   async findByTitleAndCategory(
@@ -390,7 +458,7 @@ export class ProductRepository {
       .from("product_tags")
       .insert({ product_id: productId, tag_id: tagId });
 
-    if (error && (error as any).code !== "23505") {
+    if (error && (error as { code?: string }).code !== "23505") {
       throw error;
     }
   }
@@ -426,15 +494,7 @@ export class ProductRepository {
     return brands.sort();
   }
 
-  async listFilterData(opts?: { includeOutOfStock?: boolean }): Promise<
-    Array<{
-      brand: string | null;
-      model: string | null;
-      brand_is_verified: boolean | null;
-      model_is_verified: boolean | null;
-      category: string | null;
-    }>
-  > {
+  async listFilterData(opts?: { includeOutOfStock?: boolean }): Promise<FilterDataRow[]> {
     const includeOutOfStock = Boolean(opts?.includeOutOfStock);
     let query = this.supabase
       .from("products")
@@ -450,7 +510,7 @@ export class ProductRepository {
     if (error) {
       throw error;
     }
-    return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row) => ({
       brand: row.brand ?? null,
       model: row.model ?? null,
       brand_is_verified: row.brand_is_verified ?? null,
@@ -459,14 +519,25 @@ export class ProductRepository {
     }));
   }
 
-  private transformProduct(raw: any): ProductWithDetails {
+  private transformProduct(raw: ProductWithRelations): ProductWithDetails {
+    const variants = Array.isArray(raw.variants) ? raw.variants : [];
+    const images = Array.isArray(raw.images) ? raw.images : [];
+    const tags = Array.isArray(raw.tags) ? raw.tags : [];
+
     return {
-      ...raw,
-      variants: raw.variants ?? [],
-      images: (raw.images ?? []).sort(
-        (a: ImageRow, b: ImageRow) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+      ...(raw as ProductRow),
+      variants: variants as VariantRow[],
+      images: (images as ImageRow[]).sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
       ),
-      tags: (raw.tags ?? []).map((pt: any) => pt.tag).filter(Boolean),
+      tags: tags
+        .map((pt) => {
+          if (pt && typeof pt === "object" && "tag" in pt) {
+            return pt.tag;
+          }
+          return null;
+        })
+        .filter((tag): tag is TagRow => tag !== null && tag !== undefined),
     };
   }
 
@@ -644,12 +715,14 @@ export class ProductRepository {
         break;
       }
 
-      for (const row of data as Array<{ product_id: string | null }>) {
-        if (!row.product_id || seen.has(row.product_id)) {
+      for (const row of data ?? []) {
+        const variantRow = row as VariantWithProduct;
+        const productId = variantRow.product_id;
+        if (!productId || seen.has(productId)) {
           continue;
         }
-        seen.add(row.product_id);
-        orderedIds.push(row.product_id);
+        seen.add(productId);
+        orderedIds.push(productId);
         if (orderedIds.length >= targetCount) {
           break;
         }
@@ -693,7 +766,7 @@ export class ProductRepository {
     return [
       ...new Set(
         (data ?? [])
-          .map((row: { product_id: string | null }) => row.product_id)
+          .map((row) => row.product_id)
           .filter((id): id is string => Boolean(id)),
       ),
     ];
@@ -732,7 +805,7 @@ export class ProductRepository {
       throw error;
     }
 
-    return (data ?? []).map((p: any) => ({
+    return (data ?? []).map((p: CheckoutProductRow) => ({
       id: p.id,
       name: p.name,
       brand: p.brand,
@@ -742,7 +815,7 @@ export class ProductRepository {
       tenantId: p.tenant_id ?? null,
       defaultShippingPrice: p.default_shipping_price ?? 0,
       shippingOverrideCents: p.shipping_override_cents ?? null,
-      variants: (p.variants ?? []).map((v: any) => ({
+      variants: (p.variants ?? []).map((v) => ({
         id: v.id,
         sizeLabel: v.size_label,
         priceCents: v.price_cents,
@@ -772,7 +845,7 @@ export class ProductRepository {
     const productIds = [
       ...new Set(
         rows
-          .map((row: any) => row.product?.id ?? row.product_id)
+          .map((row: CartVariantRow) => row.product?.id ?? row.product_id)
           .filter((id: string | null): id is string => Boolean(id)),
       ),
     ];
@@ -791,13 +864,14 @@ export class ProductRepository {
       }
 
       for (const image of images ?? []) {
-        if (!imageMap.has(image.product_id)) {
-          imageMap.set(image.product_id, image.url);
+        const img = image as ProductImageRow;
+        if (!imageMap.has(img.product_id)) {
+          imageMap.set(img.product_id, img.url);
         }
       }
     }
 
-    return rows.map((row: any) => {
+    return rows.map((row: CartVariantRow) => {
       const product = row.product;
       return {
         variantId: row.id,

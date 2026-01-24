@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
       { subtotal, shipping, tax, total, fulfillment, requestId },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

@@ -161,8 +161,9 @@ export default function HomeOfficeSetupModal({
         throw new Error(result.error || "Failed to setup home office");
       }
       onSuccess();
-    } catch (err: any) {
-      setError(err.message || "Failed to setup home office");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to setup home office";
+      setError(message);
       setShowOldHomeAction(false);
     } finally {
       setIsSubmitting(false);
@@ -313,7 +314,9 @@ export default function HomeOfficeSetupModal({
 
             <div className="flex gap-3 pt-2">
               <button
-                onClick={handleOldHomeActionSubmit}
+                onClick={() => {
+                  void handleOldHomeActionSubmit();
+                }}
                 disabled={isSubmitting}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -385,7 +388,12 @@ export default function HomeOfficeSetupModal({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={(event) => {
+              void handleSubmit(event);
+            }}
+            className="space-y-4"
+          >
             <div>
               <label className="block text-sm text-zinc-300 mb-2">
                 Business Name (Optional)

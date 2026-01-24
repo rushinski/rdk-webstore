@@ -3,25 +3,32 @@
 
 import { loadConnectAndInitialize } from "@stripe/connect-js";
 
-export async function initStripeConnect(params: {
+type InitStripeConnectParams = {
   publishableKey: string;
   clientSecret: string;
-  appearance?: any; // Connect appearance object
-}) {
+  // connect-js version you're on doesn't export Appearance, so avoid `any`
+  // Keep it flexible but typed.
+  appearance?: Record<string, unknown>;
+};
+
+export function initStripeConnect(params: InitStripeConnectParams) {
   if (typeof window === "undefined") {
     throw new Error("initStripeConnect must be called on the client side");
   }
 
-  if (!params.publishableKey) {
+  const { publishableKey, clientSecret, appearance } = params;
+
+  if (!publishableKey) {
     throw new Error("Missing Stripe publishable key");
   }
-  if (!params.clientSecret) {
+  if (!clientSecret) {
     throw new Error("Missing Stripe account session client secret");
   }
 
   return loadConnectAndInitialize({
-    publishableKey: params.publishableKey,
-    fetchClientSecret: async () => params.clientSecret,
-    appearance: params.appearance,
+    publishableKey,
+    // types require Promise<string>
+    fetchClientSecret: () => Promise.resolve(clientSecret),
+    appearance,
   });
 }

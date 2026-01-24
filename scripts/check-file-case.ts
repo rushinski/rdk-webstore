@@ -147,5 +147,5 @@ if (invalid.length > 0) {
   process.exit(1);
 }
 
-console.log("File naming validated — OK.");
+console.info("File naming validated — OK.");
 process.exit(0);

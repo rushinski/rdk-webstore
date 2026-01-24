@@ -13,10 +13,19 @@ interface SearchOverlayProps {
   onClose: () => void;
 }
 
+type SearchResult = {
+  id: string;
+  title_display?: string | null;
+  name?: string | null;
+  brand?: string | null;
+  images?: Array<{ url?: string | null }> | null;
+  variants?: Array<{ price_cents?: number | null }> | null;
+};
+
 export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -25,7 +34,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       return;
     }
 
-    const timer = setTimeout(async () => {
+    const runSearch = async () => {
       setIsLoading(true);
       try {
         const response = await fetch(
@@ -38,6 +47,10 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       } finally {
         setIsLoading(false);
       }
+    };
+
+    const timer = setTimeout(() => {
+      void runSearch();
     }, 300);
 
     return () => clearTimeout(timer);
@@ -100,7 +113,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
               >
                 <div className="w-16 h-16 relative flex-shrink-0">
                   <Image
-                    src={product.images[0]?.url || "/placeholder.png"}
+                    src={product.images?.[0]?.url || "/placeholder.png"}
                     alt={product.title_display ?? product.name}
                     fill
                     sizes="64px"
@@ -114,7 +127,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   </h3>
                 </div>
                 <div className="text-white font-bold">
-                  ${(product.variants[0]?.price_cents / 100).toFixed(2)}
+                  ${(Number(product.variants?.[0]?.price_cents ?? 0) / 100).toFixed(2)}
                 </div>
               </button>
             ))}

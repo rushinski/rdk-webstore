@@ -94,7 +94,7 @@ export async function POST(
         { expand: ["latest_charge", "latest_charge.transfer"] },
       );
       retrievedOnAccount = "platform";
-    } catch (platformError: any) {
+    } catch (platformError: unknown) {
       if (stripeAccountId) {
         try {
           paymentIntent = await stripe.paymentIntents.retrieve(
@@ -103,13 +103,17 @@ export async function POST(
             { stripeAccount: stripeAccountId },
           );
           retrievedOnAccount = "connect";
-        } catch (connectError: any) {
+        } catch (connectError: unknown) {
+          const platformMessage =
+            platformError instanceof Error ? platformError.message : "Unknown error";
+          const connectMessage =
+            connectError instanceof Error ? connectError.message : "Unknown error";
           logError(new Error("Payment intent not found on either account"), {
             layer: "api",
             requestId,
             orderId,
-            platformError: platformError.message,
-            connectError: connectError.message,
+            platformError: platformMessage,
+            connectError: connectMessage,
           });
 
           return NextResponse.json(
@@ -235,7 +239,7 @@ export async function POST(
       { success: true, refundId: refund.id },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -244,7 +248,15 @@ export async function POST(
     });
 
     const errorMessage =
-      error.raw?.message || error.message || "Failed to process refund";
+      error instanceof Error
+        ? error.message
+        : typeof error === "object" &&
+            error !== null &&
+            "raw" in error &&
+            typeof (error as { raw?: { message?: string } }).raw?.message === "string"
+          ? ((error as { raw?: { message?: string } }).raw?.message ??
+            "Failed to process refund")
+          : "Failed to process refund";
 
     return NextResponse.json(
       { error: errorMessage, requestId },

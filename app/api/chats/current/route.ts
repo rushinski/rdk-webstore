@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const chat = await chatService.getOpenChatForUser(session.user.id);
 
     return NextResponse.json({ chat }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

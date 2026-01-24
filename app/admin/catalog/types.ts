@@ -46,3 +46,12 @@ export type EditTarget =
   | { type: "brand"; item: Brand }
   | { type: "model"; item: Model }
   | { type: "alias"; item: Alias };
+
+export type BrandEditDraft = Pick<Brand, "canonical_label" | "is_active" | "is_verified">;
+export type ModelEditDraft = Pick<
+  Model,
+  "canonical_label" | "brand_id" | "is_active" | "is_verified"
+>;
+export type AliasEditDraft = Pick<Alias, "alias_label" | "priority" | "is_active">;
+
+export type EditDraft = BrandEditDraft | ModelEditDraft | AliasEditDraft;

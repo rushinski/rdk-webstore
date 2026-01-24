@@ -38,8 +38,10 @@ export default function OrderStatusPage() {
           throw new Error(data?.error || "Unable to load order status.");
         }
         setStatus(data);
-      } catch (err: any) {
-        setError(err?.message ?? "Unable to load order status.");
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Unable to load order status.";
+        setError(message);
       }
     };
 

@@ -22,7 +22,14 @@ const labelsSchema = z
   })
   .strict();
 
-const isAlreadyLabeledOrPast = (order: any) => {
+type OrderSummary = {
+  fulfillment_status?: string | null;
+  tracking_number?: string | null;
+};
+
+type ReadyToShipInput = Parameters<OrdersRepository["markReadyToShip"]>[1];
+
+const isAlreadyLabeledOrPast = (order: OrderSummary) => {
   const status = String(order?.fulfillment_status ?? "").toLowerCase();
   if (order?.tracking_number) {
     return true;
@@ -106,8 +113,10 @@ export async function POST(request: NextRequest) {
     let transaction;
     try {
       transaction = await shippoService.purchaseLabel(rateId);
-    } catch (shippoError: any) {
-      const mappedError = mapShippoError(shippoError?.message || "Label purchase failed");
+    } catch (shippoError: unknown) {
+      const message =
+        shippoError instanceof Error ? shippoError.message : "Label purchase failed";
+      const mappedError = mapShippoError(message);
 
       // Log for monitoring
       logError(shippoError, {
@@ -156,7 +165,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update order with full audit trail
-    const updateData: any = {
+    const updateData: ReadyToShipInput = {
       carrier,
       trackingNumber,
       labelUrl,
@@ -215,7 +224,7 @@ export async function POST(request: NextRequest) {
       cost: shippingCostCents,
       message: "Label purchased successfully. Customer has been notified via email.",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -224,7 +233,7 @@ export async function POST(request: NextRequest) {
     });
 
     const userMessage = mapShippoError(
-      error.message || "Failed to create shipping label.",
+      error instanceof Error ? error.message : "Failed to create shipping label.",
     );
 
     return NextResponse.json({ error: userMessage, requestId }, { status: 500 });

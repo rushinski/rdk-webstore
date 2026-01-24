@@ -97,7 +97,6 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
     if (isOpen) {
       load();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   useEffect(() => {
@@ -199,7 +198,9 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
           <div className="flex items-center justify-between border-b border-zinc-800/70 pb-3 mb-4">
             <button
               type="button"
-              onClick={load}
+              onClick={() => {
+                void load();
+              }}
               className="text-xs text-zinc-400 hover:text-white"
             >
               Refresh
@@ -216,7 +217,9 @@ export function AdminNotificationsDrawer({ isOpen, onClose }: Props) {
 
               <button
                 type="button"
-                onClick={markAll}
+                onClick={() => {
+                  void markAll();
+                }}
                 className="text-xs text-zinc-400 hover:text-white"
               >
                 Mark all as read

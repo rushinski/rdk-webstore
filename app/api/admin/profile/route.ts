@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       { profile, payoutSettings },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest) {
     const profile = await profileRepo.getByUserId(session.user.id);
 
     return NextResponse.json({ profile }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

@@ -17,7 +17,7 @@ export function setGuestShippingAddress(address: unknown) {
   }
 }
 
-export function getGuestShippingAddress<T = any>(): T | null {
+export function getGuestShippingAddress<T = unknown>(): T | null {
   try {
     const raw = sessionStorage.getItem(GUEST_ADDRESS_STORAGE_KEY);
     return raw ? (JSON.parse(raw) as T) : null;

@@ -12,6 +12,6 @@ const respondDisabled = (request: NextRequest) => {
   );
 };
 
-export async function POST(request: NextRequest) {
+export function POST(request: NextRequest) {
   return respondDisabled(request);
 }

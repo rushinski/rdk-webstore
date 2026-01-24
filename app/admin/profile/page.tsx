@@ -76,7 +76,7 @@ export default function AdminProfilePage() {
       }
 
       setMessage("Preferences updated.");
-    } catch (error) {
+    } catch {
       setMessage("Failed to update preferences.");
     } finally {
       setIsSaving(false);
@@ -101,7 +101,7 @@ export default function AdminProfilePage() {
       }
 
       setInviteUrl(data.inviteUrl ?? "");
-    } catch (error) {
+    } catch {
       setMessage("Failed to create invite.");
     }
   };
@@ -113,7 +113,7 @@ export default function AdminProfilePage() {
     try {
       await navigator.clipboard.writeText(inviteUrl);
       setMessage("Invite link copied.");
-    } catch (error) {
+    } catch {
       setMessage("Failed to copy invite link.");
     }
   };
@@ -174,7 +174,9 @@ export default function AdminProfilePage() {
 
         <button
           type="button"
-          onClick={handleSavePreferences}
+          onClick={() => {
+            void handleSavePreferences();
+          }}
           disabled={isSaving}
           className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
         >
@@ -209,7 +211,9 @@ export default function AdminProfilePage() {
 
             <button
               type="button"
-              onClick={handleGenerateInvite}
+              onClick={() => {
+                void handleGenerateInvite();
+              }}
               className="bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 text-[12px] sm:text-sm"
             >
               Generate Link
@@ -225,7 +229,9 @@ export default function AdminProfilePage() {
               />
               <button
                 type="button"
-                onClick={handleCopyInvite}
+                onClick={() => {
+                  void handleCopyInvite();
+                }}
                 className="text-[11px] sm:text-xs text-zinc-400 hover:text-white transition-colors self-start"
               >
                 Copy link

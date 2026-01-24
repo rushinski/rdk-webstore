@@ -295,7 +295,7 @@ export default function ShippingSettingsPage() {
         const errorData = await response.json();
         setMessage(`Failed to update defaults: ${errorData.error}`);
       }
-    } catch (error) {
+    } catch {
       setMessage("An unexpected error occurred.");
     } finally {
       setIsSavingDefaults(false);
@@ -320,7 +320,7 @@ export default function ShippingSettingsPage() {
         const errorData = await response.json();
         setOriginMessage(`Failed to save address: ${errorData.error}`);
       }
-    } catch (error) {
+    } catch {
       setOriginMessage("An unexpected error occurred.");
     } finally {
       setIsSavingOrigin(false);
@@ -346,7 +346,7 @@ export default function ShippingSettingsPage() {
       } else {
         setCarriersMessage(`Failed to save carriers: ${data.error}`);
       }
-    } catch (error) {
+    } catch {
       setCarriersMessage("An unexpected error occurred.");
     } finally {
       setIsSavingCarriers(false);
@@ -449,7 +449,9 @@ export default function ShippingSettingsPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={saveCarriers}
+              onClick={() => {
+                void saveCarriers();
+              }}
               disabled={isSavingCarriers}
               className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
             >
@@ -624,7 +626,9 @@ export default function ShippingSettingsPage() {
               </button>
               <button
                 type="button"
-                onClick={saveDefaults}
+                onClick={() => {
+                  void saveDefaults();
+                }}
                 disabled={isSavingDefaults}
                 className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
               >
@@ -756,7 +760,9 @@ export default function ShippingSettingsPage() {
               </button>
               <button
                 type="button"
-                onClick={saveOrigin}
+                onClick={() => {
+                  void saveOrigin();
+                }}
                 disabled={isSavingOrigin}
                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white text-[11px] sm:text-sm hover:bg-red-500 disabled:bg-zinc-700"
               >

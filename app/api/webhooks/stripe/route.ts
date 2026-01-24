@@ -4,12 +4,14 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { StripeOrderJob } from "@/jobs/stripe-order-job";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/log";
 import { env } from "@/config/env";
+import type { TablesUpdate } from "@/types/db/database.types";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
-    } catch (err: any) {
+    } catch (err: unknown) {
       logError(err, {
         layer: "api",
         requestId,
@@ -220,7 +222,7 @@ export async function POST(request: NextRequest) {
       { received: true },
       { headers: { "Cache-Control": "no-store" } },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -237,7 +239,7 @@ export async function POST(request: NextRequest) {
 async function handleRefundEvent(
   event: Stripe.Event,
   requestId: string,
-  adminSupabase: any,
+  adminSupabase: AdminSupabaseClient,
 ) {
   try {
     const refund = event.data.object as Stripe.Refund;
@@ -295,7 +297,7 @@ async function handleRefundEvent(
 
     const order = orders[0];
 
-    const updateData: any = {
+    const updateData: TablesUpdate<"orders"> = {
       refund_amount: refund.amount,
       refund_reason: refund.reason || "requested_by_customer",
       refunded_at: new Date(refund.created * 1000).toISOString(),
@@ -328,7 +330,7 @@ async function handleRefundEvent(
       amount: refund.amount,
       refund_status: refund.status,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "stripe",
       requestId,

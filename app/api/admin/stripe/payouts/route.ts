@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ payouts }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

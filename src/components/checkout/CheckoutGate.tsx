@@ -107,14 +107,18 @@ export function CheckoutGate() {
               </button>
 
               <button
-                onClick={() => handleAuthRedirect("/auth/login?next=/checkout")}
+                onClick={() => {
+                  void handleAuthRedirect("/auth/login?next=/checkout");
+                }}
                 className="w-full px-5 py-3 rounded font-semibold border border-zinc-700 text-white hover:border-white transition"
               >
                 Sign in
               </button>
 
               <button
-                onClick={() => handleAuthRedirect("/auth/register?next=/checkout")}
+                onClick={() => {
+                  void handleAuthRedirect("/auth/register?next=/checkout");
+                }}
                 className="w-full px-5 py-3 rounded font-semibold bg-zinc-800 text-white hover:bg-zinc-700 transition"
               >
                 Create account
@@ -149,7 +153,9 @@ export function CheckoutGate() {
                 </div>
 
                 <button
-                  onClick={handleGuestContinue}
+                  onClick={() => {
+                    void handleGuestContinue();
+                  }}
                   disabled={isSubmitting}
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded transition"
                 >

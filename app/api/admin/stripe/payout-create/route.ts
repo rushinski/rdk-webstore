@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ payout }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,
@@ -71,7 +71,16 @@ export async function POST(request: NextRequest) {
       message: "Failed to create payout",
     });
 
-    const message = error?.raw?.message || error?.message || "Failed to create payout.";
+    const message =
+      typeof error === "object" &&
+      error !== null &&
+      "raw" in error &&
+      typeof (error as { raw?: { message?: string } }).raw?.message === "string"
+        ? ((error as { raw?: { message?: string } }).raw?.message ??
+          "Failed to create payout.")
+        : error instanceof Error
+          ? error.message
+          : "Failed to create payout.";
     return NextResponse.json({ error: message, requestId }, { status: 500 });
   }
 }

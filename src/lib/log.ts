@@ -7,18 +7,18 @@ export type LogLevel =
   | "error"; // Failures that break correctness or availability
 
 export type LogLayer =
-  | "proxy" // Canonicalize, bot, csrf, rate-limit, admin guard
-  | "auth" // Sessions, login, 2FA, Supabase auth
-  | "api" // Next.js route handlers (controllers)
-  | "service" // Domain logic (OrderService, ProductService)
-  | "repository" // DB queries + RLS checks
-  | "job" // Async work, Stripe webhooks, cache invalidation
-  | "stripe" // Payments, webhook validation, checkout flow
-  | "cache" // ISR, revalidateTag, stale cache behavior
-  | "infra" // Migrations, env validation, CI/CD, config issues
-  | "observability" // Sentry/PostHog events & ingestion
-  | "frontend" // Client-side logs (hydration, UI errors)
-  | "unknown"; // Fallback for uncategorized logs
+  | "proxy"
+  | "auth"
+  | "api"
+  | "service"
+  | "repository"
+  | "job"
+  | "stripe"
+  | "cache"
+  | "infra"
+  | "observability"
+  | "frontend"
+  | "unknown";
 
 export interface LogEntry {
   level: LogLevel;
@@ -31,7 +31,7 @@ export interface LogEntry {
   route?: string | null;
   method?: string | null;
   status?: number | null;
-  latency_ms?: number | null;
+  latencyMs?: number | null; // ✅ camelCase
   stripeSessionId?: string | null;
 
   // extended metadata
@@ -49,7 +49,8 @@ const RESERVED_KEYS = new Set([
   "route",
   "method",
   "status",
-  "latency_ms",
+  "latency_ms", // keep reserved to protect output schema
+  "latencyMs", // also protect the camelCase input key
   "stripeSessionId",
 ]);
 
@@ -74,10 +75,12 @@ function maskEmail(value: string) {
   if (!domain) {
     return value;
   }
+
   const safeLocal =
     local.length <= 2
       ? `${local[0] ?? "*"}*`
       : `${local[0]}***${local[local.length - 1]}`;
+
   return `${safeLocal}@${domain}`;
 }
 
@@ -105,12 +108,10 @@ function maskEmailsDeep(value: unknown): unknown {
 function sanitizeExtended(extended: Record<string, unknown>) {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(extended)) {
-    // prevent overriding canonical keys
     if (RESERVED_KEYS.has(k)) {
       continue;
     }
 
-    // simple redaction guardrail
     if (SENSITIVE_KEYS.has(k.toLowerCase())) {
       out[k] = "[REDACTED]";
       continue;
@@ -139,12 +140,13 @@ function safeStringify(payload: unknown): string {
 
 function write(level: LogLevel, output: unknown) {
   const line = safeStringify(output);
+
   if (level === "error") {
     console.error(line);
   } else if (level === "warn") {
     console.warn(line);
   } else {
-    console.log(line);
+    console.info(line); // ✅ allowed instead of console.log
   }
 }
 
@@ -158,7 +160,7 @@ export function log(entry: LogEntry) {
     route = null,
     method = null,
     status = null,
-    latency_ms = null,
+    latencyMs = null,
     stripeSessionId = null,
     ...extendedRaw
   } = entry;
@@ -176,7 +178,7 @@ export function log(entry: LogEntry) {
     route,
     method,
     status,
-    latency_ms,
+    latency_ms: latencyMs, // ✅ keep output schema snake_case if you want
     stripeSessionId,
     ...extended,
   });
@@ -192,7 +194,7 @@ export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
     route = null,
     method = null,
     status = null,
-    latency_ms = null,
+    latencyMs = null,
     stripeSessionId = null,
     ...extendedRaw
   } = entry;
@@ -211,7 +213,7 @@ export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
     route,
     method,
     status,
-    latency_ms,
+    latency_ms: latencyMs, // ✅ keep output schema snake_case
     stripeSessionId,
     ...extended,
   });

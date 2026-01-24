@@ -9,12 +9,6 @@ import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";
 
-type PayoutSchedule = {
-  interval?: string | null;
-  weekly_anchor?: string | null;
-  monthly_anchor?: number | null;
-};
-
 type BankAccount = {
   id: string;
   bank_name: string | null;
@@ -34,6 +28,11 @@ const WEEKLY_ANCHORS = [
   { value: "saturday", label: "Saturday" },
 ] as const;
 
+const PAYOUT_INTERVALS = ["manual", "daily", "weekly", "monthly"] as const;
+
+type PayoutInterval = (typeof PAYOUT_INTERVALS)[number];
+type WeeklyAnchor = (typeof WEEKLY_ANCHORS)[number]["value"];
+
 const PAYOUT_INTERVAL_OPTIONS = [
   { value: "manual", label: "Manual - Payout when I choose" },
   { value: "daily", label: "Automatic - Every day" },
@@ -47,7 +46,6 @@ export default function TransferSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [payoutSchedule, setPayoutSchedule] = useState<PayoutSchedule | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [toast, setToast] = useState<{
     message: string;
@@ -57,10 +55,18 @@ export default function TransferSettingsPage() {
   const [bankModalOpen, setBankModalOpen] = useState(false);
 
   const [scheduleForm, setScheduleForm] = useState<{
-    interval: "manual" | "daily" | "weekly" | "monthly";
-    weekly_anchor: (typeof WEEKLY_ANCHORS)[number]["value"];
+    interval: PayoutInterval;
+    weekly_anchor: WeeklyAnchor;
     monthly_anchor: number;
   }>({ interval: "daily", weekly_anchor: "monday", monthly_anchor: 1 });
+
+  const isPayoutInterval = (value: string): value is PayoutInterval =>
+    PAYOUT_INTERVALS.includes(value as PayoutInterval);
+
+  const resolveWeeklyAnchor = (value: string): WeeklyAnchor | null => {
+    const match = WEEKLY_ANCHORS.find((anchor) => anchor.value === value);
+    return match?.value ?? null;
+  };
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -71,20 +77,26 @@ export default function TransferSettingsPage() {
       }
       const data = await response.json();
 
-      setPayoutSchedule(data.payout_schedule ?? null);
       setBankAccounts(data.bank_accounts ?? []);
 
-      const interval = data.payout_schedule?.interval || "daily";
-      const validInterval = ["manual", "daily", "weekly", "monthly"].includes(interval)
-        ? interval
-        : "daily";
+      const rawInterval =
+        typeof data.payout_schedule?.interval === "string"
+          ? data.payout_schedule.interval
+          : "daily";
+      const validInterval = isPayoutInterval(rawInterval) ? rawInterval : "daily";
       const weeklyAnchor =
-        WEEKLY_ANCHORS.find((a) => a.value === data.payout_schedule?.weekly_anchor)
-          ?.value ?? "monday";
-      const monthlyAnchor = data.payout_schedule?.monthly_anchor ?? 1;
+        resolveWeeklyAnchor(String(data.payout_schedule?.weekly_anchor ?? "")) ??
+        "monday";
+      const monthlyAnchorRaw = Number(data.payout_schedule?.monthly_anchor ?? 1);
+      const monthlyAnchor =
+        Number.isFinite(monthlyAnchorRaw) &&
+        monthlyAnchorRaw >= 1 &&
+        monthlyAnchorRaw <= 31
+          ? monthlyAnchorRaw
+          : 1;
 
       setScheduleForm({
-        interval: validInterval as any,
+        interval: validInterval,
         weekly_anchor: weeklyAnchor,
         monthly_anchor: monthlyAnchor,
       });
@@ -116,8 +128,6 @@ export default function TransferSettingsPage() {
         throw new Error(data?.error ?? "Failed to update schedule");
       }
 
-      const data = await response.json();
-      setPayoutSchedule(data.schedule ?? scheduleForm);
       setToast({ message: "Bank settings saved successfully", tone: "success" });
     } catch (error) {
       logError(error, { layer: "frontend", event: "save_payout_schedule" });
@@ -207,7 +217,7 @@ export default function TransferSettingsPage() {
               onChange={(value) =>
                 setScheduleForm((prev) => ({
                   ...prev,
-                  interval: value as any,
+                  interval: isPayoutInterval(value) ? value : prev.interval,
                 }))
               }
               options={PAYOUT_INTERVAL_OPTIONS}
@@ -227,7 +237,7 @@ export default function TransferSettingsPage() {
                 onChange={(value) =>
                   setScheduleForm((prev) => ({
                     ...prev,
-                    weekly_anchor: value as any,
+                    weekly_anchor: resolveWeeklyAnchor(value) ?? prev.weekly_anchor,
                   }))
                 }
                 options={WEEKLY_ANCHORS.map((anchor) => ({
@@ -272,7 +282,9 @@ export default function TransferSettingsPage() {
           <div className="pt-4">
             <button
               type="button"
-              onClick={handleSaveSchedule}
+              onClick={() => {
+                void handleSaveSchedule();
+              }}
               disabled={isSaving}
               className="inline-flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white text-[12px] sm:text-sm hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >

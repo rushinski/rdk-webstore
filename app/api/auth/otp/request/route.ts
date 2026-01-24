@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
     // Important: always respond with ok=true so we don't leak whether the email exists.
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "auth",
       requestId,

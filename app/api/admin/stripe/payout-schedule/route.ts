@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     await service.updatePayoutSchedule({ accountId: summary.account.id, schedule });
 
     return NextResponse.json({ schedule }, { headers: { "Cache-Control": "no-store" } });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logError(error, {
       layer: "api",
       requestId,

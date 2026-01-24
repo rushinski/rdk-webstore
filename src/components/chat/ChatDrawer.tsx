@@ -245,7 +245,7 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
       if (data.chat?.id) {
         await loadMessages(data.chat.id);
       }
-    } catch (error) {
+    } catch {
       setErrorMessage("Failed to start chat.");
     } finally {
       setIsLoading(false);
@@ -357,7 +357,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
               <p className="text-zinc-400">Start a chat to reach our admin team.</p>
               <button
                 type="button"
-                onClick={handleStartChat}
+                onClick={() => {
+                  void handleStartChat();
+                }}
                 className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2"
               >
                 Start chat
@@ -410,7 +412,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
                   />
                   <button
                     type="button"
-                    onClick={handleSend}
+                    onClick={() => {
+                      void handleSend();
+                    }}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 text-sm flex items-center gap-2"
                   >
                     <Send className="w-4 h-4" />
@@ -452,7 +456,9 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
               </button>
               <button
                 type="button"
-                onClick={handleCloseChat}
+                onClick={() => {
+                  void handleCloseChat();
+                }}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 text-sm"
               >
                 Close chat

@@ -6,6 +6,6 @@ export const metadata = {
   description: "Monitor and manage sales tax obligations across US states",
 };
 
-export default async function NexusPage() {
+export default function NexusPage() {
   return <NexusTrackerClient />;
 }

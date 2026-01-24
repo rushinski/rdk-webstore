@@ -145,7 +145,9 @@ export default function ViewTransfersPage() {
 
         <button
           type="button"
-          onClick={() => fetchPayouts(true)}
+          onClick={() => {
+            void fetchPayouts(true);
+          }}
           disabled={isRefreshing}
           className="inline-flex items-center gap-2 px-4 py-2 border border-zinc-800/70 text-sm text-zinc-300 hover:border-zinc-700 disabled:opacity-50"
         >
