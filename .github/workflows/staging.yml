@@ -114,6 +114,10 @@ jobs:
       - name: Push Migrations to Staging
         run: supabase db push --db-url "$SUPABASE_DB_URL"
 
+      # Seed the Staging Database
+      - name: Seed Staging Database
+        run: supabase db seed --db-url "$SUPABASE_DB_URL"
+
       # Deploy to Vercel
       - name: Install Vercel CLI
         run: npm i -g vercel
