@@ -25,7 +25,7 @@ export default function HomePage() {
               priority
               sizes="100vw"
               quality={90}
-              className="object-cover object-[0%_45%] sm:object-[60%_20%] lg:object-[45%_25%]"
+              className="object-cover object-[45%_45%] sm:object-[60%_20%] lg:object-[45%_25%]"
               style={{ filter: "contrast(1.06) brightness(0.82)" }}
             />
 
