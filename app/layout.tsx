@@ -1,13 +1,13 @@
 // app/layout.tsx
 
 import type { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { CartProvider } from "@/components/cart/CartProvider";
 import { ScrollHeader } from "@/components/shell/ScrollHeader";
 import { ClientShell } from "@/components/shell/ClientShell";
 import { getServerSession } from "@/lib/auth/session";
 import { isAdminRole } from "@/config/constants/roles";
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import "@/styles/global.css";
 
 export const metadata: Metadata = {

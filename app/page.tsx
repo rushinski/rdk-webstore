@@ -92,8 +92,8 @@ export default function HomePage() {
 
                 {/* Copy moved below CTAs on mobile */}
                 <p className="mt-4 sm:mt-6 text-sm sm:text-lg md:text-xl text-gray-300 max-w-xl">
-                  Sneakers &amp; streetwear you can trust: curated inventory, clear condition,
-                  and a straight-to-the-point buying experience.
+                  Sneakers &amp; streetwear you can trust: curated inventory, clear
+                  condition, and a straight-to-the-point buying experience.
                 </p>
 
                 <div className="mt-3 sm:mt-4">
