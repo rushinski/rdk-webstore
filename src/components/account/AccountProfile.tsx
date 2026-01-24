@@ -47,6 +47,8 @@ type AccountAddress = {
   country: string;
 };
 
+type AddressInput = Omit<AccountAddress, "id"> & { id?: string };
+
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -160,7 +162,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     );
   };
 
-  const handleSetDefaultAddress = async (address: AccountAddress, silent?: boolean) => {
+  const handleSetDefaultAddress = async (address: AddressInput, silent?: boolean) => {
     setIsDefaultSaving(true);
     if (!silent) {
       setMessage("");

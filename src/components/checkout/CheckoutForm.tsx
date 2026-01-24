@@ -64,11 +64,7 @@ export function CheckoutForm({
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentElementError, setPaymentElementError] = useState<string | null>(null);
 
-  const canBypassStripe =
-    (process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test") &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("e2e_payment_status");
-  const isStripeReady = Boolean(stripe) || canBypassStripe;
+  const isStripeReady = Boolean(stripe);
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>
     address
@@ -104,41 +100,6 @@ export function CheckoutForm({
   };
 
   const handlePayment = async (withSubmit: boolean) => {
-    const e2eStatus =
-      process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test"
-        ? new URLSearchParams(window.location.search).get("e2e_payment_status")
-        : null;
-
-    if (e2eStatus) {
-      setIsProcessing(true);
-      setError(null);
-      const params = new URLSearchParams(window.location.search);
-      const intentId = params.get("e2e_payment_intent_id") ?? "pi_test_e2e";
-      try {
-        if (e2eStatus === "success") {
-          await confirmBackendPayment(intentId);
-          router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
-          return { ok: true };
-        }
-        if (e2eStatus === "processing" || e2eStatus === "requires_action") {
-          const statusParam = e2eStatus === "processing" ? "processing" : "processing";
-          router.push(
-            `/checkout/processing?orderId=${orderId}&e2e_status=${statusParam}&fulfillment=${fulfillment}`,
-          );
-          return { ok: true };
-        }
-        if (e2eStatus === "canceled" || e2eStatus === "requires_payment_method") {
-          throw new Error("Payment failed. Please try again.");
-        }
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : "Payment failed. Please try again.";
-        setError(message);
-        return { ok: false, error: message };
-      } finally {
-        setIsProcessing(false);
-      }
-    }
 
     if (!stripe || !elements) {
       setError("Stripe is still loading. Please wait a moment.");

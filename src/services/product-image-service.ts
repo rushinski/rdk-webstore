@@ -3,11 +3,6 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { StorageRepository } from "@/repositories/storage-repo";
 import { DEFAULT_MAX_BYTES, ALLOWED_MIME } from "@/config/constants/uploads";
 
-function bytesFromEnv(value: string | undefined, fallback: number) {
-  const n = Number(value);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-}
-
 function toHex(buffer: ArrayBuffer) {
   return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -32,7 +27,7 @@ export class ProductImageService {
   }) {
     const bucket = "products"; // recommended bucket name for storefront product images
 
-    const maxBytes = bytesFromEnv(process.env.PRODUCT_IMAGE_MAX_BYTES, DEFAULT_MAX_BYTES);
+    const maxBytes = DEFAULT_MAX_BYTES;
 
     if (!input.file) {
       throw new Error("Missing file");

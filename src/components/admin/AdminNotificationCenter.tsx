@@ -120,6 +120,27 @@ export function AdminNotificationCenter({ placement = "top" }: Props) {
     }
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+      await fetch("/api/admin/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mark_all: true }),
+      });
+      setNotifications((prev) =>
+        prev.map((item) => ({
+          ...item,
+          read_at: item.read_at ?? new Date().toISOString(),
+        })),
+      );
+    } catch (error) {
+      logError(error, {
+        layer: "frontend",
+        event: "admin_mark_all_notifications",
+      });
+    }
+  };
+
   const panelClass =
     placement === "top"
       ? "absolute right-0 bottom-full mb-3"
@@ -226,23 +247,3 @@ export function AdminNotificationCenter({ placement = "top" }: Props) {
     </div>
   );
 }
-const handleMarkAllRead = async () => {
-  try {
-    await fetch("/api/admin/notifications", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mark_all: true }),
-    });
-    setNotifications((prev) =>
-      prev.map((item) => ({
-        ...item,
-        read_at: item.read_at ?? new Date().toISOString(),
-      })),
-    );
-  } catch (error) {
-    logError(error, {
-      layer: "frontend",
-      event: "admin_mark_all_notifications",
-    });
-  }
-};

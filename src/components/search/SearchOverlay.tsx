@@ -114,7 +114,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                 <div className="w-16 h-16 relative flex-shrink-0">
                   <Image
                     src={product.images?.[0]?.url || "/placeholder.png"}
-                    alt={product.title_display ?? product.name}
+                    alt={product.title_display ?? product.name ?? "Product image"}
                     fill
                     sizes="64px"
                     loading="lazy"

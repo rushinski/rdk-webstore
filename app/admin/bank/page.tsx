@@ -10,6 +10,7 @@ import {
   ExternalLink,
   AlertTriangle,
 } from "lucide-react";
+import { clientEnv } from "@/config/client-env";
 
 import { logError } from "@/lib/log";
 import { StripeOnboardingModal } from "@/components/admin/stripe/StripeOnboardingModal";
@@ -75,7 +76,7 @@ export default function BankPage() {
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+  const STRIPE_PUBLISHABLE_KEY = clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
 
   useEffect(() => {
     loadSummary();

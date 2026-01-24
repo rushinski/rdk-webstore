@@ -8,6 +8,8 @@ import { logError } from "@/lib/log";
 import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";
+import { clientEnv } from "@/config/client-env";
+
 
 type BankAccount = {
   id: string;
@@ -41,7 +43,7 @@ const PAYOUT_INTERVAL_OPTIONS = [
 ];
 
 export default function TransferSettingsPage() {
-  const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+  const publishableKey = clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

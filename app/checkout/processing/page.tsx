@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
+import { clientEnv } from "@/config/client-env";
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+const stripePromise = loadStripe(clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CheckoutProcessingPage() {
   const router = useRouter();
@@ -28,20 +30,10 @@ export default function CheckoutProcessingPage() {
   useEffect(() => {
     const paymentIntentClientSecret = searchParams.get("payment_intent_client_secret");
     const paymentIntentId = searchParams.get("payment_intent");
-    const e2eStatus =
-      process.env.NEXT_PUBLIC_E2E_TEST_MODE === "1" || process.env.NODE_ENV === "test"
-        ? searchParams.get("e2e_status")
-        : null;
 
     if (!orderId) {
       setStatus("error");
       setMessage("Invalid payment information");
-      return;
-    }
-
-    if (e2eStatus === "success" || e2eStatus === "error" || e2eStatus === "processing") {
-      setStatus(e2eStatus);
-      setMessage(`E2E forced status: ${e2eStatus}`);
       return;
     }
 

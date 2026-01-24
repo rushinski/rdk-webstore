@@ -273,7 +273,7 @@ async function handleRefundEvent(
 
     const { data: orders, error: queryError } = await adminSupabase
       .from("orders")
-      .select("id, status, refund_amount, refund_reason")
+      .select("id, status, refund_amount")
       .or(
         `stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`,
       )
@@ -299,7 +299,6 @@ async function handleRefundEvent(
 
     const updateData: TablesUpdate<"orders"> = {
       refund_amount: refund.amount,
-      refund_reason: refund.reason || "requested_by_customer",
       refunded_at: new Date(refund.created * 1000).toISOString(),
     };
 

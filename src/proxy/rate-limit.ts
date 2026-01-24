@@ -68,7 +68,7 @@ function getGlobalLimiter(): Ratelimit {
 
   const redisInstance = getRedis();
   const rateLimit = security.proxy.rateLimit;
-  const envLabel = process.env.NODE_ENV ?? "unknown";
+  const envLabel = env.NODE_ENV ?? "unknown";
 
   globalLimiter = new Ratelimit({
     redis: redisInstance,
@@ -87,7 +87,7 @@ function getPathLimiter(
   maxRequests: number,
   window: string,
 ): Ratelimit {
-  const envLabel = process.env.NODE_ENV ?? "unknown";
+  const envLabel = env.NODE_ENV ?? "unknown";
   const cacheKey = `${pathname}:${maxRequests}:${window}`;
 
   if (pathLimiters.has(cacheKey)) {

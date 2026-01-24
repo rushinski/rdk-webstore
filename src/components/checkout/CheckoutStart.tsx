@@ -84,7 +84,7 @@ export function CheckoutStart() {
   const { items, isReady, setCartItems } = useCart();
 
   const stripePromise = useMemo(
-    () => loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!),
+    () => loadStripe(clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!),
     [],
   );
   const snapshotService = useMemo(() => new CartSnapshotService(), []);

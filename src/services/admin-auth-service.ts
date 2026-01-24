@@ -48,9 +48,6 @@ export class AdminAuthService {
     requiresTwoFASetup: boolean;
     requiresTwoFAChallenge: boolean;
   }> {
-    if (process.env.NODE_ENV === "test" || process.env.E2E_TEST_MODE === "1") {
-      return { requiresTwoFASetup: false, requiresTwoFAChallenge: false };
-    }
 
     const { data: factorData } = await this.supabase.auth.mfa.listFactors();
     const totpFactors: Factor[] = factorData?.totp ?? [];
