@@ -7,6 +7,7 @@ import { ScrollHeader } from "@/components/shell/ScrollHeader";
 import { ClientShell } from "@/components/shell/ClientShell";
 import { getServerSession } from "@/lib/auth/session";
 import { isAdminRole } from "@/config/constants/roles";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import "@/styles/global.css";
 
 export const metadata: Metadata = {
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
           </ClientShell>
         </CartProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
