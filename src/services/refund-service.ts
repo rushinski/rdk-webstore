@@ -1,6 +1,4 @@
-// src/services/refund-service.ts (OPTIONAL - Only if you want bulk refund capability)
-import Stripe from "stripe";
-
+// src/services/refund-service.ts
 import { stripe } from "@/lib/stripe/stripe-server";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -88,8 +86,9 @@ export class RefundService {
       });
 
       return { success: true };
-    } catch (error: any) {
-      logError(error, {
+    } catch (error) {
+      const err = error as Error & { message?: string };
+      logError(err, {
         layer: "service",
         event: "refund_failed",
         orderId,
@@ -97,7 +96,7 @@ export class RefundService {
 
       return {
         success: false,
-        error: error.message || "Refund failed",
+        error: err.message || "Refund failed",
       };
     }
   }

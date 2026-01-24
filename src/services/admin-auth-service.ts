@@ -1,9 +1,12 @@
-// src/services/admin-auth-service.ts
 import type { Factor } from "@supabase/supabase-js";
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
+
+interface AuthError extends Error {
+  code?: string;
+}
 
 export class AdminAuthService {
   private profileRepo: ProfileRepository;
@@ -19,22 +22,22 @@ export class AdminAuthService {
     } = await this.supabase.auth.getUser();
 
     if (error) {
-      const err = new Error("AUTH_ERROR");
-      (err as any).code = "AUTH_ERROR";
+      const err: AuthError = new Error("AUTH_ERROR");
+      err.code = "AUTH_ERROR";
       throw err;
     }
 
     if (!user) {
-      const err = new Error("UNAUTHORIZED");
-      (err as any).code = "UNAUTHORIZED";
+      const err: AuthError = new Error("UNAUTHORIZED");
+      err.code = "UNAUTHORIZED";
       throw err;
     }
 
     const profile = await this.profileRepo.getByUserId(user.id);
     const role = isProfileRole(profile?.role) ? profile.role : "customer";
     if (!profile || !isAdminRole(role)) {
-      const err = new Error("FORBIDDEN");
-      (err as any).code = "FORBIDDEN";
+      const err: AuthError = new Error("FORBIDDEN");
+      err.code = "FORBIDDEN";
       throw err;
     }
 

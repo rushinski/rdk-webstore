@@ -1,11 +1,9 @@
 // src/repositories/orders-repo.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type OrderRow = Tables<"orders">;
-type OrderInsert = TablesInsert<"orders">;
-type OrderUpdate = TablesUpdate<"orders">;
 
 type OrderItemRow = Tables<"order_items">;
 type OrderItemInsert = TablesInsert<"order_items">;

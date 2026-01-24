@@ -102,7 +102,7 @@ export class NexusRepository {
       registration.stateCode,
     );
 
-    const tracking_started_at = existing?.tracking_started_at ?? new Date().toISOString(); // set once (first time row is created)
+    const trackingStartedAt = existing?.tracking_started_at ?? new Date().toISOString(); // set once (first time row is created)
 
     const { data, error } = await this.supabase
       .from("nexus_registrations")
@@ -114,7 +114,7 @@ export class NexusRepository {
           is_registered: registration.isRegistered,
           registered_at: registration.registeredAt ?? null,
           stripe_registration_id: registration.stripeRegistrationId ?? null,
-          tracking_started_at, // ✅ always present after first write
+          tracking_started_at: registration.isRegistered ? trackingStartedAt : null,
           updated_at: new Date().toISOString(),
         },
         {

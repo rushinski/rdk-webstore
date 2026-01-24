@@ -17,7 +17,7 @@ export class ChatService {
   private profilesRepo: ProfileRepository;
   private chatEmailService: ChatEmailService;
 
-  private ensureGuestChatDisabled() {
+  private ensureGuestChatDisabled(): never {
     throw new Error("Guest chat disabled");
   }
 
@@ -75,9 +75,6 @@ export class ChatService {
       orderId = order.id;
     }
 
-    const profile = await this.profilesRepo.getByUserId(input.userId);
-    const customerLabel = this.formatEmailPrefix(profile?.email);
-
     const chat = await this.chatsRepo.createChat({
       userId: input.userId,
       orderId,
@@ -87,15 +84,15 @@ export class ChatService {
     return { chat, created: true };
   }
 
-  async getChatForGuest(input: { orderId: string; publicToken: string }) {
+  getChatForGuest(_input: { orderId: string; publicToken: string }): never {
     this.ensureGuestChatDisabled();
   }
 
-  async createChatForGuest(input: {
+  createChatForGuest(_input: {
     orderId: string;
     publicToken: string;
     guestEmail?: string | null;
-  }) {
+  }): never {
     this.ensureGuestChatDisabled();
   }
 
@@ -123,11 +120,11 @@ export class ChatService {
     return this.messagesRepo.listByChatId(chatId);
   }
 
-  async listMessagesForGuest(input: {
+  listMessagesForGuest(_input: {
     chatId: string;
     orderId: string;
     publicToken: string;
-  }) {
+  }): never {
     this.ensureGuestChatDisabled();
   }
 
@@ -239,12 +236,12 @@ export class ChatService {
     return message;
   }
 
-  async sendGuestMessage(input: {
+  sendGuestMessage(_input: {
     chatId: string;
     orderId: string;
     publicToken: string;
     body: string;
-  }) {
+  }): never {
     this.ensureGuestChatDisabled();
   }
 
@@ -252,11 +249,11 @@ export class ChatService {
     return this.chatsRepo.closeChat(chatId, closedBy ?? null);
   }
 
-  async closeChatForGuest(input: {
+  closeChatForGuest(_input: {
     chatId: string;
     orderId: string;
     publicToken: string;
-  }) {
+  }): never {
     this.ensureGuestChatDisabled();
   }
 }

@@ -1,14 +1,30 @@
-// src/services/analytics-service.ts
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { SitePageviewsRepository } from "@/repositories/site-pageviews-repo";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 
-const RANGE_DAYS: Record<string, number> = {
+const rangeDays: Record<string, number> = {
   today: 1,
   "7d": 7,
   "30d": 30,
   "90d": 90,
 };
+
+interface OrderForAnalytics {
+  created_at: string | null;
+  total: string | number | null;
+  refund_amount: string | number | null;
+  subtotal: string | number | null;
+  items: Array<{
+    unit_cost: string | number | null;
+    quantity: string | number | null;
+  }> | null;
+}
+
+interface PageviewRow {
+  created_at: string | null;
+  visitor_id: string | null;
+  session_id: string | null;
+}
 
 const toDateKey = (value: string | null) => {
   if (!value) {
@@ -31,15 +47,7 @@ const buildDateRange = (startDate: Date, days: number) => {
   return dates;
 };
 
-const computeTraffic = (
-  rows: Array<{
-    created_at: string | null;
-    visitor_id: string | null;
-    session_id: string | null;
-  }>,
-  startDate: Date,
-  days: number,
-) => {
+const computeTraffic = (rows: PageviewRow[], startDate: Date, days: number) => {
   const visitors = new Set<string>();
   const sessions = new Set<string>();
   const dailySessions = new Map<string, Set<string>>();
@@ -106,7 +114,7 @@ export class AnalyticsService {
   }
 
   async getAdminAnalytics(rangeKey: string) {
-    const days = RANGE_DAYS[rangeKey] ?? 30;
+    const days = rangeDays[rangeKey] ?? 30;
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - (days - 1));
     startDate.setHours(0, 0, 0, 0);
@@ -118,7 +126,7 @@ export class AnalyticsService {
 
     const pageviewRows = await this.pageviewsRepo.listSince(startDate.toISOString());
 
-    const filtered = orders.filter((order: any) => {
+    const filtered = (orders as OrderForAnalytics[]).filter((order) => {
       if (!order.created_at) {
         return false;
       }
@@ -130,12 +138,12 @@ export class AnalyticsService {
     let orderCount = 0;
     const trendMap = new Map<string, number>();
 
-    filtered.forEach((order: any) => {
+    filtered.forEach((order) => {
       orderCount += 1;
       const total = Number(order.total ?? 0);
       const refundAmount = Number(order.refund_amount ?? 0) / 100;
 
-      const itemCost = (order.items || []).reduce((sum: number, item: any) => {
+      const itemCost = (order.items || []).reduce((sum, item) => {
         const unitCost = Number(item.unit_cost ?? 0);
         return sum + unitCost * Number(item.quantity ?? 0);
       }, 0);
@@ -151,15 +159,7 @@ export class AnalyticsService {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, value]) => ({ date, revenue: Math.round(value * 100) / 100 }));
 
-    const traffic = computeTraffic(
-      pageviewRows as Array<{
-        created_at: string | null;
-        visitor_id: string | null;
-        session_id: string | null;
-      }>,
-      startDate,
-      days,
-    );
+    const traffic = computeTraffic(pageviewRows as PageviewRow[], startDate, days);
 
     return {
       summary: {

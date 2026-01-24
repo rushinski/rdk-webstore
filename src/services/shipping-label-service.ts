@@ -53,9 +53,51 @@ export interface NormalizedTransaction {
   trackingNumber: string | null;
   trackingUrl: string | null;
   labelUrl: string | null;
-  rate: string | null; // Actual cost in dollars (e.g., "5.50")
+  rate: string | null;
   currency: string | null;
   messages: Array<{ text: string }>;
+}
+
+// Type definitions for Shippo API responses
+interface ShippoRate {
+  objectId?: string;
+  object_id?: string;
+  provider?: string;
+  carrier?: string;
+  servicelevel?: {
+    name?: string;
+  };
+  service?: string;
+  amount?: string | number;
+  rate?: string | number;
+  currency?: string;
+  estimatedDays?: number;
+  estimated_days?: number;
+}
+
+interface ShippoShipment {
+  objectId?: string;
+  object_id?: string;
+  rates?: ShippoRate[];
+}
+
+interface ShippoTransaction {
+  status?: string;
+  rate?: {
+    provider?: string;
+    amount?: string | number;
+    currency?: string;
+  };
+  provider?: string;
+  amount?: string | number;
+  currency?: string;
+  trackingNumber?: string;
+  tracking_number?: string;
+  trackingUrlProvider?: string;
+  tracking_url_provider?: string;
+  labelUrl?: string;
+  label_url?: string;
+  messages?: Array<{ text: string }>;
 }
 
 export class ShippoService {
@@ -86,7 +128,7 @@ export class ShippoService {
     };
   }
 
-  private normalizeRate(rate: any): NormalizedRate | null {
+  private normalizeRate(rate: ShippoRate): NormalizedRate | null {
     const id = rate?.objectId ?? rate?.object_id ?? null;
     if (!id) {
       return null;
@@ -121,35 +163,38 @@ export class ShippoService {
         async: false,
       });
 
-      const shipmentId = (shipment as any)?.objectId ?? (shipment as any)?.object_id;
+      const shipmentData = shipment as unknown as ShippoShipment;
+      const shipmentId = shipmentData?.objectId ?? shipmentData?.object_id;
+
       if (!shipmentId) {
         logError(new Error("Shippo shipment missing objectId"), {
           layer: "service",
           event: "shippo_shipment_no_id",
-          shipmentKeys: shipment ? Object.keys(shipment) : [],
+          shipmentKeys: shipmentData ? Object.keys(shipmentData) : [],
         });
         throw new Error(
           "Shippo shipment creation returned invalid response (missing ID)",
         );
       }
 
-      const rawRates = (shipment as any)?.rates ?? [];
+      const rawRates = shipmentData?.rates ?? [];
       const normalizedRates = rawRates
-        .map((r: any) => this.normalizeRate(r))
-        .filter((r: NormalizedRate | null): r is NormalizedRate => r !== null);
+        .map((r) => this.normalizeRate(r))
+        .filter((r): r is NormalizedRate => r !== null);
 
       return {
         id: String(shipmentId),
         rates: normalizedRates,
       };
-    } catch (error: any) {
-      logError(error, {
+    } catch (error) {
+      const err = error as Error & { message?: string };
+      logError(err, {
         layer: "service",
         event: "shippo_create_shipment_failed",
-        errorMessage: error?.message,
+        errorMessage: err?.message,
       });
       throw new Error(
-        `Shippo shipment creation failed: ${error?.message ?? "unknown error"}`,
+        `Shippo shipment creation failed: ${err?.message ?? "unknown error"}`,
       );
     }
   }
@@ -162,7 +207,7 @@ export class ShippoService {
         async: false,
       });
 
-      const txn = transaction as any;
+      const txn = transaction as unknown as ShippoTransaction;
 
       // Extract rate information from the transaction
       const rate = txn?.rate?.amount ?? txn?.amount ?? null;
@@ -178,15 +223,14 @@ export class ShippoService {
         currency: currency ? String(currency) : null,
         messages: Array.isArray(txn?.messages) ? txn.messages : [],
       };
-    } catch (error: any) {
-      logError(error, {
+    } catch (error) {
+      const err = error as Error & { message?: string };
+      logError(err, {
         layer: "service",
         event: "shippo_purchase_label_failed",
-        errorMessage: error?.message,
+        errorMessage: err?.message,
       });
-      throw new Error(
-        `Shippo label purchase failed: ${error?.message ?? "unknown error"}`,
-      );
+      throw new Error(`Shippo label purchase failed: ${err?.message ?? "unknown error"}`);
     }
   }
 }

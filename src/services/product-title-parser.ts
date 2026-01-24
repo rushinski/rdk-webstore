@@ -78,6 +78,20 @@ type Token = {
   normalized: string;
 };
 
+type MatchResult<T> = {
+  alias: T;
+  start: number;
+  length: number;
+  score: number;
+};
+
+type FuzzyMatchResult<T> = {
+  alias: T;
+  start: number;
+  length: number;
+  similarity: number;
+};
+
 const PARSE_VERSION = "v1";
 const HIGH_CONFIDENCE = 0.93;
 const MEDIUM_CONFIDENCE = 0.85;
@@ -109,11 +123,11 @@ function tokenizeWithRaw(value: string): Token[] {
   }));
 }
 
-function findExactMatch(
+function findExactMatch<T extends CatalogBrandAlias | CatalogModelAlias>(
   tokens: string[],
-  aliases: CatalogBrandAlias[] | CatalogModelAlias[],
-) {
-  let best: { alias: any; start: number; length: number; score: number } | null = null;
+  aliases: T[],
+): MatchResult<T> | null {
+  let best: MatchResult<T> | null = null;
 
   for (const alias of aliases) {
     const aliasTokens = alias.aliasNormalized.split(" ").filter(Boolean);
@@ -196,12 +210,11 @@ function computeSimilarity(a: string, b: string): number {
   return maxLen === 0 ? 1 : 1 - distance / maxLen;
 }
 
-function findFuzzyMatch(
+function findFuzzyMatch<T extends CatalogBrandAlias | CatalogModelAlias>(
   tokens: string[],
-  aliases: CatalogBrandAlias[] | CatalogModelAlias[],
-) {
-  let best: { alias: any; start: number; length: number; similarity: number } | null =
-    null;
+  aliases: T[],
+): FuzzyMatchResult<T> | null {
+  let best: FuzzyMatchResult<T> | null = null;
 
   for (const alias of aliases) {
     const aliasTokens = alias.aliasNormalized.split(" ").filter(Boolean);

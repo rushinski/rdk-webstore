@@ -1,14 +1,7 @@
 // src/services/contact-attachment-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { StorageRepository } from "@/repositories/storage-repo";
-
-const DEFAULT_MAX_BYTES = 50 * 1024 * 1024;
-
-const ALLOWED_MIME: Record<string, { ext: string }> = {
-  "image/png": { ext: "png" },
-  "image/jpeg": { ext: "jpg" },
-  "image/webp": { ext: "webp" },
-};
+import { DEFAULT_MAX_BYTES, ALLOWED_MIME } from "@/config/constants/uploads";
 
 function bytesFromEnv(value: string | undefined, fallback: number) {
   const n = Number(value);

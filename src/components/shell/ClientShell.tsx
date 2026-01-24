@@ -14,9 +14,6 @@ import type { ProfileRole } from "@/config/constants/roles";
 
 export function ClientShell({
   children,
-  isAdmin = false,
-  userEmail,
-  role,
 }: {
   children: React.ReactNode;
   isAdmin?: boolean;

@@ -1,5 +1,3 @@
-// src/services/orders-service.ts
-
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -8,6 +6,12 @@ import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { env } from "@/config/env";
 import { PICKUP_INSTRUCTIONS } from "@/config/pickup";
+
+interface OrderEvent {
+  type: string;
+  message: string | null;
+  created_at: string;
+}
 
 export class OrdersService {
   private ordersRepo: OrdersRepository;
@@ -37,7 +41,7 @@ export class OrdersService {
     accessToken: string | null,
   ): Promise<OrderStatusResponse> {
     let order = null;
-    let events = [];
+    let events: OrderEvent[] = [];
 
     if (userId) {
       order = await this.ordersRepo.getByIdAndUser(orderId, userId);
@@ -79,7 +83,7 @@ export class OrdersService {
       total: parseFloat(order.total?.toString() ?? "0"),
       fulfillment: order.fulfillment as "ship" | "pickup",
       updatedAt: order.updated_at?.toString() ?? order.created_at?.toString() ?? "",
-      events: events.map((event: any) => ({
+      events: events.map((event) => ({
         type: event.type,
         message: event.message ?? null,
         createdAt: event.created_at,

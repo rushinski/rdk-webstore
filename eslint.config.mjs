@@ -41,26 +41,34 @@ export default [
       "@typescript-eslint/naming-convention": [
         "error",
 
-        // Regular variables
+        // Supabase-generated export uses PascalCase: `export const Constants = ...`
+        {
+          selector: "variable",
+          modifiers: ["exported", "const"],
+          filter: { regex: "^Constants$", match: true },
+          format: ["PascalCase"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow",
+        },
+
+        // UPPER_CASE constants (must come before regular variables rule)
+        // Matches any const variable that is all uppercase with underscores
+        {
+          selector: "variable",
+          modifiers: ["const"],
+          format: ["UPPER_CASE"],
+          filter: {
+            regex: "^[A-Z][A-Z0-9_]*$",
+            match: true,
+          },
+        },
+
+        // Regular variables (this will now only catch non-UPPER_CASE variables)
         {
           selector: "variable",
           format: ["camelCase"],
           leadingUnderscore: "allow",
           trailingUnderscore: "allow",
-        },
-
-        // TRUE CONSTANTS (semantic constants only)
-        //  - numeric, boolean, string literals
-        //  - never runtime-derived
-        {
-          selector: "variable",
-          modifiers: ["const"],
-          types: ["string", "number", "boolean"],
-          format: ["UPPER_CASE"],
-          filter: {
-            regex: "^[A-Z_0-9]+$",
-            match: true,
-          },
         },
 
         // React Components (functions starting with a capital letter)
@@ -91,7 +99,7 @@ export default [
           format: ["camelCase"],
         },
 
-        // Object properties (don’t enforce — avoid breaking API responses)
+        // Object properties (don't enforce — avoid breaking API responses)
         {
           selector: "property",
           format: null,

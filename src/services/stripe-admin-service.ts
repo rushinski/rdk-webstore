@@ -192,13 +192,18 @@ export class StripeAdminService {
     schedule: Stripe.Account.Settings.Payouts.Schedule | null,
   ): Promise<StripeAccountSummary["upcoming_payout"]> {
     // First, try to find actual scheduled payouts
+    const pendingParams = {
+      limit: 20,
+      status: "pending",
+    } satisfies Stripe.PayoutListParams;
+    const inTransitParams = {
+      limit: 20,
+      status: "in_transit",
+    } satisfies Stripe.PayoutListParams;
+
     const [pendingList, inTransitList] = await Promise.all([
-      stripe.payouts.list({ limit: 20, status: "pending" } as any, {
-        stripeAccount: stripeAccountId,
-      }),
-      stripe.payouts.list({ limit: 20, status: "in_transit" } as any, {
-        stripeAccount: stripeAccountId,
-      }),
+      stripe.payouts.list(pendingParams, { stripeAccount: stripeAccountId }),
+      stripe.payouts.list(inTransitParams, { stripeAccount: stripeAccountId }),
     ]);
 
     const combined: Stripe.Payout[] = [

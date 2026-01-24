@@ -66,7 +66,7 @@ export class ProductService {
       tenantId: ctx.tenantId,
     });
 
-    const sku = this.generateSKU(parsed.brand.label, parsed.name);
+    const sku = this.generateSKU(parsed.brand.label);
     const productCost = this.getProductCost(input.variants);
 
     const product = await this.repo.create({
@@ -277,7 +277,7 @@ export class ProductService {
     await this.repo.delete(productId);
   }
 
-  private generateSKU(brand: string, name: string): string {
+  private generateSKU(brand: string): string {
     const prefix = brand.substring(0, 3).toUpperCase();
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.random().toString(36).substring(2, 5).toUpperCase();

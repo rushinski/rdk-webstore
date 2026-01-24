@@ -13,6 +13,16 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
 });
 
+function normalizeError(error: unknown): { message: string; details?: unknown } {
+  if (error instanceof Error) {
+    return { message: error.message, details: { name: error.name, stack: error.stack } };
+  }
+  if (typeof error === "string") {
+    return { message: error };
+  }
+  return { message: "Unknown error", details: error };
+}
+
 export class StripeTaxService {
   private nexusRepo: NexusRepository;
   private taxSettingsRepo: TaxSettingsRepository;
@@ -125,12 +135,13 @@ export class StripeTaxService {
         tenantId: params.tenantId,
         state: params.stateCode,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const normalized = normalizeError(error);
       logError(error, {
         layer: "service",
         message: "head_office_setup_failed",
       });
-      throw new Error(`Failed to set head office: ${error.message}`);
+      throw new Error(`Failed to set head office: ${normalized.message}`);
     }
   }
 
@@ -147,12 +158,13 @@ export class StripeTaxService {
         taxCodeOverrides:
           (existingSettings?.tax_code_overrides as Record<string, string> | null) ?? {},
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const normalized = normalizeError(error);
       logError(error, {
         layer: "service",
         message: "set_home_state_failed",
       });
-      throw new Error(`Failed to set home state: ${error.message}`);
+      throw new Error(`Failed to set home state: ${normalized.message}`);
     }
   }
 
@@ -291,7 +303,7 @@ export class StripeTaxService {
         totalAmount,
         taxCalculationId: calculation.id,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       logError(error, {
         layer: "service",
         message: "tax_calculation_failed",
@@ -325,7 +337,7 @@ export class StripeTaxService {
       });
 
       return transaction.id;
-    } catch (error: any) {
+    } catch (error: unknown) {
       logError(error, {
         layer: "service",
         message: "tax_transaction_failed",
@@ -367,8 +379,9 @@ export class StripeTaxService {
           active_from: "now",
         });
         stripeRegistrationId = registration.id;
-      } catch (error: any) {
-        if (error.message?.includes("already added a registration")) {
+      } catch (error: unknown) {
+        const normalized = normalizeError(error);
+        if (normalized.message?.includes("already added a registration")) {
           const regs = await this.stripeClient.tax.registrations.list({ limit: 100 });
           const existing = regs.data.find(
             (r) =>
@@ -425,8 +438,9 @@ export class StripeTaxService {
         await this.stripeClient.tax.registrations.update(stripeRegistrationId, {
           expires_at: "now",
         });
-      } catch (error: any) {
-        const msg = String(error?.message ?? "");
+      } catch (error: unknown) {
+        const normalized = normalizeError(error);
+        const msg = String(normalized?.message ?? "");
         if (
           !msg.toLowerCase().includes("no such") &&
           !msg.toLowerCase().includes("resource")
@@ -523,16 +537,19 @@ export class StripeTaxService {
       });
 
       return deactivated;
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const normalized = normalizeError(error);
       logError(error, {
         layer: "service",
         message: "tax_deactivation_failed",
       });
-      throw new Error(error?.message ?? "Failed to deactivate Stripe Tax registrations");
+      throw new Error(
+        normalized?.message ?? "Failed to deactivate Stripe Tax registrations",
+      );
     }
   }
 
-    async downloadTaxDocuments(params: {
+  async downloadTaxDocuments(params: {
     year: number;
     month?: number;
   }): Promise<{ url: string; expiresAt: number } | null> {
@@ -597,7 +614,9 @@ export class StripeTaxService {
       let current = reportRun;
 
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        if (current.status === "succeeded") break;
+        if (current.status === "succeeded") {
+          break;
+        }
         if (current.status === "failed") {
           logError(new Error("Report run failed"), {
             layer: "service",
@@ -628,7 +647,8 @@ export class StripeTaxService {
         return null;
       }
 
-      const fileId = typeof current.result === "string" ? current.result : current.result.id;
+      const fileId =
+        typeof current.result === "string" ? current.result : current.result.id;
 
       // Create an expiring, unauthenticated link (keep TTL short)
       const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes

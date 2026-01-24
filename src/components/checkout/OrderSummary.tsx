@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Loader2, ShoppingBag, ChevronUp } from "lucide-react";
+import { Loader2, ShoppingBag } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { CartItem } from "@/types/domain/cart";
@@ -23,7 +23,6 @@ export function OrderSummary({
   subtotal,
   shipping,
   tax,
-  total,
   fulfillment,
   isUpdatingShipping = false,
 }: OrderSummaryProps) {
@@ -42,7 +41,7 @@ export function OrderSummary({
 
   const money = (n: number) => `$${n.toFixed(2)}`;
 
-  const ShippingValue = (
+  const shippingValue = (
     <span className="text-xs sm:text-sm">
       {isUpdatingShipping ? (
         <span
@@ -60,7 +59,7 @@ export function OrderSummary({
     </span>
   );
 
-  const TaxValue = (
+  const taxValue = (
     <span>
       {isUpdatingShipping ? (
         <span
@@ -76,7 +75,7 @@ export function OrderSummary({
     </span>
   );
 
-  const TotalValue = (
+  const totalValue = (
     <span>
       {isUpdatingShipping ? (
         <span
@@ -95,7 +94,7 @@ export function OrderSummary({
   // -----------------------------
   // Desktop sidebar (lg+)
   // -----------------------------
-  const DesktopSummary = (
+  const desktopSummary = (
     <div className="hidden lg:block sticky top-8">
       <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
         <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -145,18 +144,18 @@ export function OrderSummary({
 
           <div className="flex justify-between text-gray-400">
             <span>Shipping</span>
-            {ShippingValue}
+            {shippingValue}
           </div>
 
           <div className="flex justify-between text-gray-400">
             <span>Tax</span>
-            {TaxValue}
+            {taxValue}
           </div>
 
           <div className="border-t border-zinc-800 pt-2 mt-2">
             <div className="flex justify-between text-lg font-bold text-white">
               <span>Total</span>
-              {TotalValue}
+              {totalValue}
             </div>
           </div>
         </div>
@@ -180,7 +179,7 @@ export function OrderSummary({
   // Mobile dock + drawer ( < lg )
   // -----------------------------
   const DOCK_PULL_HEIGHT = 84;
-  const MobileDock = (
+  const mobileDock = (
     <div className="lg:hidden">
       {/* Drawer overlay */}
       {isOpen && (
@@ -215,7 +214,7 @@ export function OrderSummary({
                 <ShoppingBag className="w-5 h-5 text-gray-300" />
                 <div className="leading-tight">
                   <p className="text-base font-semibold text-white">
-                    Total: {TotalValue}
+                    Total: {totalValue}
                   </p>
                   <p className="text-xs text-gray-400">
                     {itemCount} {itemCount === 1 ? "item" : "items"}
@@ -312,8 +311,8 @@ export function OrderSummary({
 
   return (
     <>
-      {DesktopSummary}
-      {MobileDock}
+      {desktopSummary}
+      {mobileDock}
     </>
   );
 }

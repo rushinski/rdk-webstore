@@ -1,10 +1,9 @@
 // src/repositories/shipping-origins-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
+import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type ShippingOriginRow = Tables<"shipping_origins">;
 type ShippingOriginInsert = TablesInsert<"shipping_origins">;
-type ShippingOriginUpdate = TablesUpdate<"shipping_origins">;
 
 export class ShippingOriginsRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
