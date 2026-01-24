@@ -1,6 +1,5 @@
-// src/repositories/contact-messages-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { TablesInsert } from "@/types/db/database.types";
+import type { TablesInsert, Json } from "@/types/db/database.types";
 
 export type ContactMessageInsert = TablesInsert<"contact_messages">;
 
@@ -20,10 +19,10 @@ export class ContactMessagesRepository {
     return data.id as string;
   }
 
-  async setAttachments(params: { id: string; attachments: unknown }) {
+  async setAttachments(params: { id: string; attachments: Json }) {
     const { error } = await this.supabase
       .from("contact_messages")
-      .update({ attachments: params.attachments as any })
+      .update({ attachments: params.attachments })
       .eq("id", params.id);
 
     if (error) {

@@ -1,4 +1,4 @@
-// src/repositories/addresses-repo.ts
+import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert } from "@/types/db/database.types";
@@ -40,14 +40,12 @@ export class AddressesRepository {
 
     const { error } = await this.supabase.from("order_shipping").insert(insert);
 
-    if (error && (error as any).code !== "23505") {
-      // ignore duplicate key
+    if (error && !this.isDuplicateKeyError(error)) {
       throw error;
     }
   }
 
   async upsertUserAddress(userId: string, address: AddressInput): Promise<void> {
-    // Check if user already has this exact address
     const { data: existing } = await this.supabase
       .from("user_addresses")
       .select("id")
@@ -57,7 +55,6 @@ export class AddressesRepository {
       .maybeSingle();
 
     if (existing) {
-      // Address already exists, update it
       const { error } = await this.supabase
         .from("user_addresses")
         .update({
@@ -74,7 +71,6 @@ export class AddressesRepository {
         throw error;
       }
     } else {
-      // Insert new address
       const insert: UserAddressInsert = {
         user_id: userId,
         name: address.name ?? null,
@@ -131,5 +127,9 @@ export class AddressesRepository {
       throw error;
     }
     return data ?? null;
+  }
+
+  private isDuplicateKeyError(error: PostgrestError): boolean {
+    return "code" in error && error.code === "23505";
   }
 }

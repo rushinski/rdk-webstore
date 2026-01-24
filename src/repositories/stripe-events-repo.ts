@@ -1,4 +1,4 @@
-// src/repositories/stripe-events-repo.ts (NEW)
+import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/types/db/database.types";
@@ -26,7 +26,7 @@ export class StripeEventsRepository {
     stripeEventId: string,
     type: string,
     created: number,
-    payload: any,
+    payload: unknown, // Accept any Stripe object type
     orderId?: string,
   ): Promise<void> {
     const payloadHash = hashString(JSON.stringify(payload));
@@ -41,9 +41,13 @@ export class StripeEventsRepository {
 
     const { error } = await this.supabase.from("stripe_events").insert(insert);
 
-    if (error && (error as any).code !== "23505") {
-      // ignore duplicate key
+    // Type guard for PostgrestError with code property
+    if (error && !this.isDuplicateKeyError(error)) {
       throw error;
     }
+  }
+
+  private isDuplicateKeyError(error: PostgrestError): boolean {
+    return "code" in error && error.code === "23505";
   }
 }
