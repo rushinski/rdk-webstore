@@ -17,6 +17,7 @@ export class StripeTaxService {
   private nexusRepo: NexusRepository;
   private taxSettingsRepo: TaxSettingsRepository;
   private stripeClient: Stripe;
+  private readonly stripeAccountId?: string;
 
   constructor(
     private readonly supabase: TypedSupabaseClient,
@@ -24,6 +25,7 @@ export class StripeTaxService {
   ) {
     this.nexusRepo = new NexusRepository(supabase);
     this.taxSettingsRepo = new TaxSettingsRepository(supabase);
+    this.stripeAccountId = stripeAccountId ?? undefined;
     this.stripeClient = stripeAccountId
       ? new Stripe(env.STRIPE_SECRET_KEY, {
           apiVersion: "2025-10-29.clover",
@@ -530,16 +532,136 @@ export class StripeTaxService {
     }
   }
 
-  async downloadTaxDocuments(params: {
+    async downloadTaxDocuments(params: {
     year: number;
     month?: number;
   }): Promise<{ url: string; expiresAt: number } | null> {
-    try {
+    const { year, month } = params;
+
+    // Enforce connected account context (per your requirement)
+    if (!this.stripeAccountId) {
+      logError(new Error("Missing stripeAccountId"), {
+        layer: "service",
+        message: "tax_document_download_missing_connected_account",
+      });
       return null;
+    }
+
+    // Validate inputs
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      logError(new Error("Invalid year"), {
+        layer: "service",
+        message: "tax_document_download_invalid_year",
+        year,
+      });
+      return null;
+    }
+    if (month !== undefined && (!Number.isInteger(month) || month < 1 || month > 12)) {
+      logError(new Error("Invalid month"), {
+        layer: "service",
+        message: "tax_document_download_invalid_month",
+        year,
+        month,
+      });
+      return null;
+    }
+
+    // Build interval in UTC (Stripe expects unix seconds; interval_end is exclusive)
+    const start = month
+      ? new Date(Date.UTC(year, month - 1, 1, 0, 0, 0))
+      : new Date(Date.UTC(year, 0, 1, 0, 0, 0));
+    const end = month
+      ? new Date(Date.UTC(year, month, 1, 0, 0, 0))
+      : new Date(Date.UTC(year + 1, 0, 1, 0, 0, 0));
+
+    const intervalStart = Math.floor(start.getTime() / 1000);
+    const intervalEnd = Math.floor(end.getTime() / 1000);
+
+    try {
+      // Tax report type (CSV): tax.transactions.itemized.2 requires interval_start/interval_end
+      // Docs: https://docs.stripe.com/reports/report-types/tax
+      const reportRun = await this.stripeClient.reporting.reportRuns.create({
+        report_type: "tax.transactions.itemized.2",
+        parameters: {
+          interval_start: intervalStart,
+          interval_end: intervalEnd,
+          timezone: "America/New_York",
+          // If you ever switch to a platform-scoped Stripe client (no stripeAccount header),
+          // you can also filter with:
+          // connected_account: this.stripeAccountId,
+        },
+      });
+
+      // Poll until the report finishes (short, bounded wait)
+      const maxAttempts = 10;
+      let current = reportRun;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (current.status === "succeeded") break;
+        if (current.status === "failed") {
+          logError(new Error("Report run failed"), {
+            layer: "service",
+            message: "tax_document_report_run_failed",
+            reportRunId: current.id,
+            year,
+            month,
+          });
+          return null;
+        }
+
+        // backoff: 500ms, 750ms, 1125ms...
+        const delayMs = Math.round(500 * Math.pow(1.5, attempt));
+        await new Promise((r) => setTimeout(r, delayMs));
+
+        current = await this.stripeClient.reporting.reportRuns.retrieve(current.id);
+      }
+
+      if (current.status !== "succeeded" || !current.result) {
+        logError(new Error("Report run not ready"), {
+          layer: "service",
+          message: "tax_document_report_run_not_ready",
+          reportRunId: current.id,
+          statuss: current.status,
+          year,
+          month,
+        });
+        return null;
+      }
+
+      const fileId = typeof current.result === "string" ? current.result : current.result.id;
+
+      // Create an expiring, unauthenticated link (keep TTL short)
+      const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes
+      const fileLink = await this.stripeClient.fileLinks.create({
+        file: fileId,
+        expires_at: expiresAt,
+        metadata: {
+          kind: "tax_transactions_itemized",
+          year: String(year),
+          month: month ? String(month) : "",
+        },
+      });
+
+      // ✅ TS fix: Stripe types allow url to be null
+      if (!fileLink.url) {
+        logError(new Error("Stripe fileLink.url is null"), {
+          layer: "service",
+          message: "tax_document_download_link_missing_url",
+          fileId,
+          reportRunId: current.id,
+          year,
+          month,
+        });
+        return null;
+      }
+
+      return { url: fileLink.url, expiresAt };
     } catch (error) {
       logError(error, {
         layer: "service",
         message: "tax_document_download_failed",
+        year,
+        month,
       });
       return null;
     }
