@@ -7,7 +7,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { authStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/authStyles";
 
 import { SocialButton } from "../ui/SocialButton";
 

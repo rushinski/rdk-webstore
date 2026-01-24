@@ -3,11 +3,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { authStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/authStyles";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
 
 import { QRDisplay } from "./QRDisplay";
@@ -16,7 +16,6 @@ type CopyStatus = "idle" | "copied" | "error";
 
 export function EnrollmentForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [factorId, setFactorId] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);

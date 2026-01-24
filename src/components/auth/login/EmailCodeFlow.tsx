@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { authStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/authStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";

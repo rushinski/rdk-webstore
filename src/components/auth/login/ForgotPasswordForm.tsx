@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 import { isPasswordValid } from "@/lib/validation/password";
-import { authStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/authStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 import { PasswordRequirements } from "../register/PasswordRequirements";

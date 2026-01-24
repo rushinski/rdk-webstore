@@ -10,8 +10,8 @@ import {
   ExternalLink,
   AlertTriangle,
 } from "lucide-react";
-import { clientEnv } from "@/config/client-env";
 
+import { clientEnv } from "@/config/client-env";
 import { logError } from "@/lib/log";
 import { StripeOnboardingModal } from "@/components/admin/stripe/StripeOnboardingModal";
 import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";

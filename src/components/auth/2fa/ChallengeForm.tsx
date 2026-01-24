@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-import { authStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/authStyles";
 import { mfaStartChallenge, mfaVerifyChallenge } from "@/services/mfa-service";
 
 export function ChallengeForm() {

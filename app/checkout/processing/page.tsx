@@ -5,8 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
-import { clientEnv } from "@/config/client-env";
 
+import { clientEnv } from "@/config/client-env";
 
 const stripePromise = loadStripe(clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 

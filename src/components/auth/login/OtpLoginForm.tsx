@@ -4,7 +4,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-import { authStyles } from "@/components/auth/ui/AuthStyles";
+import { authStyles } from "@/components/auth/ui/authStyles";
 
 import { EmailCodeFlow } from "./EmailCodeFlow";
 

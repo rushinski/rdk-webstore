@@ -10,7 +10,6 @@ import { RdkSelect } from "@/components/ui/Select";
 import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";
 import { clientEnv } from "@/config/client-env";
 
-
 type BankAccount = {
   id: string;
   bank_name: string | null;

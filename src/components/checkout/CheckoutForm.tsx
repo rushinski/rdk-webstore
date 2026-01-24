@@ -100,7 +100,6 @@ export function CheckoutForm({
   };
 
   const handlePayment = async (withSubmit: boolean) => {
-
     if (!stripe || !elements) {
       setError("Stripe is still loading. Please wait a moment.");
       return { ok: false, error: "Stripe not ready" };
