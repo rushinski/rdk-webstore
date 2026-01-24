@@ -9,6 +9,8 @@ const prodConnectSrc = [
   "https://api.stripe.com",
   "https://connect-js.stripe.com",
   "https://*.stripe.com",
+  "https://vitals.vercel-insights.com", 
+  "https://*.vercel-scripts.com", 
 
   // ✅ only when explicitly enabled (for local prod-mode testing)
   ...(allowLocalSupabaseInProd
@@ -206,7 +208,7 @@ export const security = {
           "default-src 'self'",
           "img-src 'self' data: https: blob: https://*.stripe.com",
           "style-src 'self' 'unsafe-inline'",
-          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
+          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com",
           [
             "connect-src",
             "'self'",
@@ -227,7 +229,7 @@ export const security = {
           "default-src 'self'",
           "img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com https://*.openstreetmap.org",
           "style-src 'self' 'unsafe-inline'",
-          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
+          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com",
           "object-src 'none'",
           "base-uri 'self'",
 
