@@ -1,4 +1,5 @@
 // app/api/admin/uploads/product-image/route.ts
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -36,10 +37,16 @@ export async function POST(request: NextRequest) {
 
     const form = await request.formData();
 
-    const file = form.get("file");
-    if (!(file instanceof File)) {
+    // Support both single file upload and multiple files
+    const fileEntries = form.getAll("file").filter((entry): entry is File => entry instanceof File);
+    const filesEntries = form.getAll("files").filter((entry): entry is File => entry instanceof File);
+    
+    // Combine both "file" and "files" fields
+    const allFiles = [...fileEntries, ...filesEntries];
+
+    if (allFiles.length === 0) {
       return NextResponse.json(
-        { error: "Missing file field 'file'", requestId },
+        { error: "No files provided. Use 'file' or 'files' field", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -56,17 +63,25 @@ export async function POST(request: NextRequest) {
     }
 
     const service = new ProductImageService(supabase);
-    const result = await service.uploadProductImage({
-      tenantId,
-      file,
-      productId: parsedMeta.data.productId ?? null,
-    });
+    
+    // Upload all files
+    const uploadResults = await Promise.all(
+      allFiles.map((file) =>
+        service.uploadProductImage({
+          tenantId,
+          file,
+          productId: parsedMeta.data.productId ?? null,
+        })
+      )
+    );
+
+    // Return array of results for multiple files, or single result for backward compatibility
+    const responseData = allFiles.length === 1 
+      ? { ...uploadResults[0], requestId }
+      : { uploads: uploadResults, count: uploadResults.length, requestId };
 
     return NextResponse.json(
-      {
-        ...result,
-        requestId,
-      },
+      responseData,
       { status: 201, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -76,7 +91,7 @@ export async function POST(request: NextRequest) {
       route: "/api/admin/uploads/product-image",
     });
     return NextResponse.json(
-      { error: "Failed to upload product image", requestId },
+      { error: "Failed to upload product image(s)", requestId },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
