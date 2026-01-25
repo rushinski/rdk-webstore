@@ -38,9 +38,13 @@ export async function POST(request: NextRequest) {
     const form = await request.formData();
 
     // Support both single file upload and multiple files
-    const fileEntries = form.getAll("file").filter((entry): entry is File => entry instanceof File);
-    const filesEntries = form.getAll("files").filter((entry): entry is File => entry instanceof File);
-    
+    const fileEntries = form
+      .getAll("file")
+      .filter((entry): entry is File => entry instanceof File);
+    const filesEntries = form
+      .getAll("files")
+      .filter((entry): entry is File => entry instanceof File);
+
     // Combine both "file" and "files" fields
     const allFiles = [...fileEntries, ...filesEntries];
 
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     const service = new ProductImageService(supabase);
-    
+
     // Upload all files
     const uploadResults = await Promise.all(
       allFiles.map((file) =>
@@ -71,19 +75,20 @@ export async function POST(request: NextRequest) {
           tenantId,
           file,
           productId: parsedMeta.data.productId ?? null,
-        })
-      )
+        }),
+      ),
     );
 
     // Return array of results for multiple files, or single result for backward compatibility
-    const responseData = allFiles.length === 1 
-      ? { ...uploadResults[0], requestId }
-      : { uploads: uploadResults, count: uploadResults.length, requestId };
+    const responseData =
+      allFiles.length === 1
+        ? { ...uploadResults[0], requestId }
+        : { uploads: uploadResults, count: uploadResults.length, requestId };
 
-    return NextResponse.json(
-      responseData,
-      { status: 201, headers: { "Cache-Control": "no-store" } },
-    );
+    return NextResponse.json(responseData, {
+      status: 201,
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     logError(error, {
       layer: "api",
