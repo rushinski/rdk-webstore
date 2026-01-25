@@ -29,7 +29,7 @@ export default function TermsPage() {
             <p>
               Your use of the Services is also subject to our Privacy Policy, available at{" "}
               <a href="/privacy" className="text-red-400 hover:underline">
-                /privacy
+                privacy
               </a>
               . By using the Services, you acknowledge that we may collect, use, and share
               information as described in the Privacy Policy.
@@ -64,7 +64,7 @@ export default function TermsPage() {
             </h2>
             <p>
               We sell products in the condition described on the product page (for
-              example, new, used, pre-owned). Product photos and descriptions are provided
+              example: new, used, pre-owned). Product photos and descriptions are provided
               for informational purposes. Minor variations (including manufacturer
               variations) may occur. We reserve the right to correct errors in product
               descriptions, pricing, or availability at any time.
@@ -78,7 +78,7 @@ export default function TermsPage() {
               item you received is not authentic, you must follow the instructions in our
               Return &amp; Refund Policy at{" "}
               <a href="/refunds" className="text-red-400 hover:underline">
-                /refunds
+                refunds
               </a>
               .
             </p>
@@ -140,7 +140,7 @@ export default function TermsPage() {
               All returns and refunds are governed by our Return &amp; Refund Policy
               available at{" "}
               <a href="/refunds" className="text-red-400 hover:underline">
-                /refunds
+                refunds
               </a>
               , which is incorporated by reference into these Terms. If there is a
               conflict between these Terms and the Return &amp; Refund Policy regarding

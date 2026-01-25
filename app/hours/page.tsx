@@ -4,7 +4,7 @@ export default function HoursPage() {
     <div className="max-w-6xl mx-auto px-4 pt-8 pb-16">
       <h1 className="text-4xl font-bold text-white mb-4">Hours</h1>
       <p className="text-zinc-400 mb-4">
-        Pickup and meetup availability for Simpsonville, South Carolina. Local pickups are
+        Pickup and meetup available in Simpsonville, South Carolina. Local pickups are
         available and you can select local pickup at checkout.
       </p>
       <p className="text-zinc-400 mb-10">

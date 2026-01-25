@@ -46,7 +46,7 @@ export default function TooManyRequestsPage() {
           </h1>
 
           <p className="mt-4 text-center sm:text-left text-zinc-300 max-w-2xl">
-            You’re moving fast. Take a quick breather and try again in a moment.
+            You’ve sent too many requests in a short period. Please try again shortly.
           </p>
 
           <div className="mt-7 flex flex-wrap items-center justify-center sm:justify-start gap-3">

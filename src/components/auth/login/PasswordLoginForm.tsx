@@ -176,7 +176,7 @@ export function PasswordLoginForm({
             href={`/auth/register${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}
             className={authStyles.inlineAccentLink}
           >
-            Create one
+            Create account
           </Link>
         </p>
       </form>
