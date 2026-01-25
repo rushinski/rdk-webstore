@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { SearchOverlay } from "@/components/search/SearchOverlay";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { ChatDrawer } from "@/components/chat/ChatDrawer";
@@ -14,6 +15,9 @@ import type { ProfileRole } from "@/config/constants/roles";
 
 export function ClientShell({
   children,
+  isAdmin = false,
+  userEmail = null,
+  role = null,
 }: {
   children: React.ReactNode;
   isAdmin?: boolean;
@@ -112,9 +116,14 @@ export function ClientShell({
     }
   }, [pathname, searchParams]);
 
+  const showAdminSidebar = isAdmin && isStoreRoute && Boolean(role);
+
   return (
     <>
-      <div>{children}</div>
+      {showAdminSidebar && (
+        <AdminSidebar userEmail={userEmail} role={role as ProfileRole} />
+      )}
+      <div className={showAdminSidebar ? "md:ml-64" : undefined}>{children}</div>
 
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
