@@ -12,7 +12,7 @@ import { buildContactSubmissionEmail } from "@/lib/email/contact";
 import { ContactMessagesRepository } from "@/repositories/contact-messages-repo";
 import { ContactAttachmentService } from "@/services/contact-attachment-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
 import { security } from "@/config/security";
 import { BUG_REPORT_EMAIL, SUPPORT_EMAIL } from "@/config/constants/contact";

@@ -7,7 +7,7 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",

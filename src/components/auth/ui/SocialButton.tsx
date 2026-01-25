@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 type Provider = "google";
 

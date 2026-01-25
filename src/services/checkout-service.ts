@@ -11,13 +11,13 @@ import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-rep
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { env } from "@/config/env";
-import { createCartHash } from "@/lib/crypto";
+import { createCartHash } from "@/lib/utils/crypto";
 import type {
   CheckoutSessionRequest,
   CheckoutSessionResponse,
 } from "@/types/domain/checkout";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",

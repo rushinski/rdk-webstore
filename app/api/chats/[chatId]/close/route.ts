@@ -7,7 +7,7 @@ import { requireUserApi } from "@/lib/auth/session";
 import { ChatService } from "@/services/chat-service";
 import { chatIdParamsSchema } from "@/lib/validation/chat";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function POST(
   request: NextRequest,

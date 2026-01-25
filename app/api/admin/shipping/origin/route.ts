@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingOriginsRepository } from "@/repositories/shipping-origins-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const originSchema = z.object({
   name: z.string().trim().min(1),

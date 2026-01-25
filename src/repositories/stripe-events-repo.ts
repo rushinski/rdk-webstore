@@ -2,7 +2,7 @@ import type { PostgrestError } from "@supabase/supabase-js";
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { TablesInsert } from "@/types/db/database.types";
-import { hashString } from "@/lib/crypto";
+import { hashString } from "@/lib/utils/crypto";
 
 type StripeEventInsert = TablesInsert<"stripe_events">;
 

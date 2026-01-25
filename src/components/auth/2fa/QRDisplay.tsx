@@ -1,11 +1,9 @@
 // src/components/auth/2fa/QRDisplay.tsx
 export function QRDisplay({
   qrCode,
-  copyValue: _copyValue,
   onQrError,
 }: {
   qrCode: string;
-  copyValue?: string | null;
   onQrError?: () => void;
 }) {
   return (
@@ -15,6 +13,7 @@ export function QRDisplay({
           src={qrCode}
           alt="2FA QR Code"
           className="h-48 w-48 bg-white p-3"
+          loading="lazy"
           onError={() => onQrError?.()}
         />
       </div>

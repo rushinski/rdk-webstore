@@ -8,7 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
 import { ShippingService } from "@/services/shipping-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import type { TablesInsert } from "@/types/db/database.types";
 
 type ShippingProfileUpsert = TablesInsert<"shipping_profiles">;

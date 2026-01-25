@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Ratelimit, type Duration } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 import { env } from "@/config/env";
 import { security, getRateLimitConfigForPath } from "@/config/security";
 

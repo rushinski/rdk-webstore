@@ -10,7 +10,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderEmailService } from "@/services/order-email-service";
 import { env } from "@/config/env";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",

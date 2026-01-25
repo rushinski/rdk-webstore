@@ -1,3 +1,4 @@
+// src/services/auth-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -23,9 +24,7 @@ export class AuthService {
       },
     });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
   }
 
   async signIn(email: string, password: string) {
@@ -34,31 +33,24 @@ export class AuthService {
       password,
     });
 
-    if (error) {
-      throw error;
-    }
-    if (!data.user) {
-      return { user: null, profile: null };
-    }
+    if (error) throw error;
+    if (!data.user) return { user: null, profile: null };
 
     const repo = new ProfileRepository(this.supabase);
-    const profile = await repo.getByUserId(data.user.id);
+    // ✅ Use minimal select for auth
+    const profile = await repo.getAuthViewByUserId(data.user.id);
 
     return { user: data.user, profile };
   }
 
   async signOut() {
     const { error } = await this.supabase.auth.signOut();
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
   }
 
   async sendPasswordReset(email: string) {
     const { error } = await this.supabase.auth.resetPasswordForEmail(email);
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
   }
 
   async verifyPasswordResetCode(email: string, code: string) {
@@ -68,9 +60,7 @@ export class AuthService {
       type: "recovery",
     });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
     return data;
   }
 
@@ -79,9 +69,7 @@ export class AuthService {
       password: newPassword,
     });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
   }
 
   async resendVerification(email: string, _flow: VerificationFlow = "signup") {
@@ -90,9 +78,7 @@ export class AuthService {
       email,
     });
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
   }
 
   async requestEmailOtpForSignIn(email: string) {
@@ -113,15 +99,12 @@ export class AuthService {
       type: "email",
     });
 
-    if (error) {
-      throw error;
-    }
-    if (!data.user) {
-      return { user: null, profile: null };
-    }
+    if (error) throw error;
+    if (!data.user) return { user: null, profile: null };
 
     const repo = new ProfileRepository(this.supabase);
-    const profile = await repo.getByUserId(data.user.id);
+    // ✅ Use minimal select
+    const profile = await repo.getAuthViewByUserId(data.user.id);
 
     return { user: data.user, profile };
   }
@@ -133,15 +116,10 @@ export class AuthService {
       type: "signup",
     });
 
-    if (error) {
-      throw error;
-    }
-    if (!data.user) {
-      return { user: null, profile: null };
-    }
+    if (error) throw error;
+    if (!data.user) return { user: null, profile: null };
 
     const user = data.user;
-
     const raw = (user.user_metadata as UserMetadata)?.updatesOptIn;
     const updatesOptIn = raw === true || raw === "true";
 
@@ -154,25 +132,19 @@ export class AuthService {
       .limit(1)
       .maybeSingle();
 
-    if (tenantError) {
-      throw new Error(`Failed to get tenant: ${tenantError.message}`);
-    }
-
-    if (!firstTenant) {
-      throw new Error("No tenant found in database. Please run seed script.");
-    }
+    if (tenantError) throw new Error(`Failed to get tenant: ${tenantError.message}`);
+    if (!firstTenant) throw new Error("No tenant found in database. Please run seed script.");
 
     const profileRepo = new ProfileRepository(adminClient);
     await profileRepo.ensureProfile(user.id, user.email!, firstTenant.id);
 
     if (updatesOptIn) {
       const emailRepo = new EmailSubscriberRepository(adminClient);
-      await emailRepo.subscribe(user.email!, "signup").catch(() => {
-        // don't fail verification if subscription fails
-      });
+      await emailRepo.subscribe(user.email!, "signup").catch(() => {});
     }
 
-    const profile = await profileRepo.getByUserId(user.id);
+    // ✅ Use minimal select
+    const profile = await profileRepo.getAuthViewByUserId(user.id);
     return { user, profile };
   }
 
@@ -180,10 +152,7 @@ export class AuthService {
     const {
       data: { user },
     } = await this.supabase.auth.getUser();
-
-    if (!user || !user.email) {
-      return { user: null, profile: null };
-    }
+    if (!user || !user.email) return { user: null, profile: null };
 
     const adminClient = createSupabaseAdminClient();
     const { data: firstTenant } = await adminClient
@@ -205,21 +174,19 @@ export class AuthService {
       await emailRepo.subscribe(user.email, "oauth").catch(() => {});
     }
 
-    const profile = await repo.getByUserId(user.id);
+    const profile = await repo.getAuthViewByUserId(user.id);
     return { user, profile };
   }
 
   async getCurrentUserProfile() {
     const {
-      data: { user },
+    data: { user },
     } = await this.supabase.auth.getUser();
-
-    if (!user) {
-      return { user: null, profile: null };
-    }
+    if (!user) return { user: null, profile: null };
 
     const repo = new ProfileRepository(this.supabase);
-    const profile = await repo.getByUserId(user.id);
+    // ✅ Use minimal select
+    const profile = await repo.getAuthViewByUserId(user.id);
 
     return { user, profile };
   }

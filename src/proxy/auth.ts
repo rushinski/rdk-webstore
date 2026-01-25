@@ -7,7 +7,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 import { security } from "@/config/security";
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 
 export async function protectAdminRoute(
   request: NextRequest,

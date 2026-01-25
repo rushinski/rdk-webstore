@@ -8,7 +8,7 @@ import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const paramsSchema = z.object({
   orderId: z.string().uuid(),

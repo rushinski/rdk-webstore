@@ -12,7 +12,7 @@ import type { StripeConnectInstance } from "@stripe/connect-js";
 
 import { initStripeConnect } from "@/lib/stripe/connect-client";
 import { connectAppearance } from "@/lib/stripe/connect-appearance";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 interface StripeOnboardingModalProps {
   open: boolean;

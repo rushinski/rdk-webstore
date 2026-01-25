@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AnalyticsService } from "@/services/analytics-service";
 import { analyticsTrackSchema } from "@/lib/validation/analytics";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const BLOCKED_PREFIXES = ["/admin", "/auth", "/api", "/_next", "/too-many-requests"];
 

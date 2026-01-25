@@ -1,3 +1,4 @@
+// app/api/auth/2fa/challenge/verify/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -5,7 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { twoFactorChallengeVerifySchema } from "@/lib/validation/auth";
 
 export async function POST(req: NextRequest) {

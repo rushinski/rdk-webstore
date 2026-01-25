@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { emailOnlySchema } from "@/lib/validation/auth";
 
 export async function POST(req: NextRequest) {

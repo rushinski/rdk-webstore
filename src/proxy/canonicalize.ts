@@ -1,7 +1,7 @@
 // src/proxy/canonicalize.ts
 import { NextResponse, type NextRequest } from "next/server";
 
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 import { security } from "@/config/security";
 
 export function canonicalizePath(

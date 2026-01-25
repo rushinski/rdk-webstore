@@ -4,7 +4,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
 

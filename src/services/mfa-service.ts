@@ -1,6 +1,8 @@
 // src/services/mfa-service.ts
-export async function mfaEnroll() {
-  const res = await fetch("/api/auth/2fa/enroll", { method: "POST" });
+export async function mfaEnroll(skipQR = false) {
+  const res = await fetch(`/api/auth/2fa/enroll${skipQR ? "?skipQR=true" : ""}`, { 
+    method: "POST" 
+  });
   return res.json();
 }
 
@@ -10,15 +12,6 @@ export async function mfaVerifyEnrollment(factorId: string, code: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ factorId, code }),
   });
-
-  return res.json();
-}
-
-export async function mfaStartChallenge() {
-  const res = await fetch("/api/auth/2fa/challenge/start", {
-    method: "POST",
-  });
-
   return res.json();
 }
 
@@ -28,6 +21,5 @@ export async function mfaVerifyChallenge(code: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
   });
-
   return res.json();
 }

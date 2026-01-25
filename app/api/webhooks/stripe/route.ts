@@ -9,7 +9,7 @@ import { StripeOrderJob } from "@/jobs/stripe-order-job";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
 import type { TablesUpdate } from "@/types/db/database.types";
 

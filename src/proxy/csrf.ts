@@ -1,7 +1,7 @@
 // src/proxy/csrf.ts
 import { NextResponse, type NextRequest } from "next/server";
 
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 import { security, isCsrfUnsafeMethod } from "@/config/security";
 
 const matchesBypassPrefix = (pathname: string, prefixes: readonly string[]): boolean =>

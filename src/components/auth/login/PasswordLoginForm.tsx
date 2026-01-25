@@ -1,22 +1,47 @@
 // src/components/auth/login/PasswordLoginForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { authStyles } from "@/components/auth/ui/authStyles";
-
 import { SocialButton } from "../ui/SocialButton";
-
 import { PasswordField } from "./PasswordField";
 
 interface PasswordLoginFormProps {
   onRequiresEmailVerification: (email: string) => void;
   onSwitchToOtp: () => void;
   onForgotPassword: () => void;
+}
+
+type State = {
+  password: string;
+  isSubmitting: boolean;
+  error: string | null;
+};
+
+type Action =
+  | { type: "SET_PASSWORD"; password: string }
+  | { type: "START_SUBMIT" }
+  | { type: "ERROR"; error: string }
+  | { type: "RESET" };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "SET_PASSWORD":
+      return { ...state, password: action.password };
+    case "START_SUBMIT":
+      return { ...state, isSubmitting: true, error: null };
+    case "ERROR":
+      return { ...state, isSubmitting: false, error: action.error };
+    case "RESET":
+      return { ...state, isSubmitting: false, error: null };
+    default:
+      return state;
+  }
 }
 
 export function PasswordLoginForm({
@@ -26,16 +51,17 @@ export function PasswordLoginForm({
 }: PasswordLoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(reducer, {
+    password: "",
+    isSubmitting: false,
+    error: null,
+  });
 
   const nextUrl = searchParams.get("next") || "/";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
+    dispatch({ type: "START_SUBMIT" });
 
     const form = e.currentTarget as HTMLFormElement;
     const formData = new FormData(form);
@@ -46,6 +72,7 @@ export function PasswordLoginForm({
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: passwordValue }),
       });
 
@@ -53,13 +80,12 @@ export function PasswordLoginForm({
 
       if (json.requiresEmailVerification) {
         onRequiresEmailVerification(email);
-        setIsSubmitting(false);
+        dispatch({ type: "RESET" });
         return;
       }
 
       if (!json.ok) {
-        setError(json.error ?? "Login failed");
-        setIsSubmitting(false);
+        dispatch({ type: "ERROR", error: json.error ?? "Login failed" });
         return;
       }
 
@@ -70,19 +96,16 @@ export function PasswordLoginForm({
         return router.push("/auth/2fa/challenge");
       }
 
-      // Redirect to where they came from or admin/home
       const destination = json.isAdmin ? "/admin" : nextUrl;
       router.push(destination);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
-      setError(message);
-      setIsSubmitting(false);
+      dispatch({ type: "ERROR", error: message });
     }
   }
 
   return (
     <div className="space-y-6">
-      {/* Back to shopping link */}
       <Link
         href={nextUrl}
         className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
@@ -91,15 +114,10 @@ export function PasswordLoginForm({
         Back to shopping
       </Link>
 
-      <form
-        onSubmit={(event) => {
-          void handleSubmit(event);
-        }}
-        className="space-y-6"
-      >
+      <form onSubmit={handleSubmit} className="space-y-6">
         <AuthHeader title="Sign in" />
 
-        {error && <div className={authStyles.errorBox}>{error}</div>}
+        {state.error && <div className={authStyles.errorBox}>{state.error}</div>}
 
         <div className="space-y-3">
           <SocialButton provider="google" label="Continue with Google" />
@@ -124,6 +142,7 @@ export function PasswordLoginForm({
               autoComplete="email"
               className={authStyles.input}
               data-testid="login-email"
+              disabled={state.isSubmitting}
             />
           </div>
 
@@ -143,8 +162,8 @@ export function PasswordLoginForm({
             <PasswordField
               name="password"
               label=""
-              value={password}
-              onChange={setPassword}
+              value={state.password}
+              onChange={(password) => dispatch({ type: "SET_PASSWORD", password })}
               autoComplete="current-password"
               dataTestId="login-password"
             />
@@ -154,11 +173,11 @@ export function PasswordLoginForm({
         <div className="space-y-3">
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={state.isSubmitting}
             className={authStyles.primaryButton}
             data-testid="login-submit"
           >
-            {isSubmitting ? "Signing in..." : "Sign in"}
+            {state.isSubmitting ? "Signing in..." : "Sign in"}
           </button>
 
           <button

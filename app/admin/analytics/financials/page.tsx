@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DollarSign, TrendingUp, ShoppingCart } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { SalesChart } from "@/components/admin/charts/SalesChart";
 import { RdkSelect } from "@/components/ui/Select";
 

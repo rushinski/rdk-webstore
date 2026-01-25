@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { CheckoutService } from "@/services/checkout-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 import { env } from "@/config/env";
 

@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
 import type { Tables } from "@/types/db/database.types";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { PasswordRequirements } from "@/components/auth/register/PasswordRequirements";
 import { isPasswordValid } from "@/lib/validation/password";
 import { Toast } from "@/components/ui/Toast";

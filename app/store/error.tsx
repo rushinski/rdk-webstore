@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export default function Error({
   error,

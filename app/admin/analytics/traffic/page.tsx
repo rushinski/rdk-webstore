@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Users, Eye } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { TrafficChart } from "@/components/admin/charts/TrafficChart";
 import { RdkSelect } from "@/components/ui/Select";
 

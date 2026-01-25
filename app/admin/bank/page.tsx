@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { clientEnv } from "@/config/client-env";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { StripeOnboardingModal } from "@/components/admin/stripe/StripeOnboardingModal";
 import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";
 import { PayoutsModal } from "@/components/admin/stripe/PayoutsModal";

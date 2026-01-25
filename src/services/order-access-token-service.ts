@@ -1,7 +1,7 @@
 // src/services/order-access-token-service.ts
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import { generateOrderAccessToken, hashToken } from "@/lib/crypto";
+import { generateOrderAccessToken, hashToken } from "@/lib/utils/crypto";
 import { OrderAccessTokensRepository } from "@/repositories/order-access-tokens-repo";
 import { env } from "@/config/env";
 

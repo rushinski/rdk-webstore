@@ -8,7 +8,7 @@ import {
 } from "shippo/models/components";
 
 import { env } from "@/config/env";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const shippo = new Shippo({
   apiKeyHeader: env.SHIPPO_API_TOKEN,

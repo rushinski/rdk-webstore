@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { RdkSelect } from "@/components/ui/Select";
 import {

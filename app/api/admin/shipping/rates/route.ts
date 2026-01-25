@@ -10,7 +10,7 @@ import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-rep
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { ShippoService } from "@/services/shipping-label-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export const dynamic = "force-dynamic";
 

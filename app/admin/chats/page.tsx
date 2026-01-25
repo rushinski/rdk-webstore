@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Send, XCircle } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ChatSummary = {

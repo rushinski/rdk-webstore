@@ -9,7 +9,7 @@ import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService } from "@/services/product-service";
 import { adminProductsQuerySchema, productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);

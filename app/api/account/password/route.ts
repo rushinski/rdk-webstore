@@ -10,7 +10,7 @@ import { sendEmail } from "@/lib/email/mailer";
 import { buildPasswordUpdatedEmail } from "@/lib/email/account/password-updated";
 import { emailSubjects } from "@/config/constants/email";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { isPasswordValid } from "@/lib/validation/password";
 import { env } from "@/config/env";
 

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { CartService } from "@/services/cart-service";
 import { isAdminRole, type ProfileRole } from "@/config/constants/roles";
 

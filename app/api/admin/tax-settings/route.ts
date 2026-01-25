@@ -6,7 +6,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { TenantContextService } from "@/services/tenant-context-service";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";

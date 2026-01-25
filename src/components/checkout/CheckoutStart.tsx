@@ -17,7 +17,7 @@ import {
   generateIdempotencyKey,
   getIdempotencyKeyFromStorage,
   setIdempotencyKeyInStorage,
-} from "@/lib/idempotency";
+} from "@/lib/checkout/idempotency";
 import { CartSnapshotService } from "@/services/cart-snapshot-service";
 import { clientEnv } from "@/config/client-env";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";

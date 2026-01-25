@@ -2,43 +2,96 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 
 import { authStyles } from "@/components/auth/ui/authStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
-
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 type Stage = "request" | "verify";
 
 export interface EmailCodeFlowProps {
   flowId?: string;
-
   title: string;
   codeLabel: string;
   emailLabel?: string;
   getDescription: (stage: Stage, hasError: boolean) => string;
-
   initialStage?: Stage;
   initialEmail?: string;
   emailReadOnly?: boolean;
   showEmailInput?: boolean;
-
   sendButtonLabel?: string;
   sendButtonSendingLabel?: string;
   verifyButtonLabel?: string;
   verifyButtonSubmittingLabel?: string;
-
   onRequestCode?: (email: string) => Promise<void>;
   onVerifyCode: (email: string, code: string) => Promise<void>;
   onResendCode?: (email: string) => Promise<void>;
-
   initialCooldown?: number;
   codeLength?: number;
-
   backLabel?: string;
   backHref?: string;
   onBack?: () => void;
+}
+
+type State = {
+  stage: Stage;
+  email: string;
+  code: string;
+  error: string | null;
+  isSubmitting: boolean;
+  resendCooldown: number;
+  resendSent: boolean;
+  resendError: string | null;
+  isSendingResend: boolean;
+};
+
+type Action =
+  | { type: "SET_EMAIL"; email: string }
+  | { type: "SET_CODE"; code: string }
+  | { type: "START_SUBMIT" }
+  | { type: "SUBMIT_ERROR"; error: string }
+  | { type: "ADVANCE_TO_VERIFY"; cooldown: number }
+  | { type: "START_RESEND" }
+  | { type: "RESEND_SUCCESS"; cooldown: number }
+  | { type: "RESEND_ERROR"; error: string }
+  | { type: "TICK_COOLDOWN" };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case "SET_EMAIL":
+      return { ...state, email: action.email };
+    case "SET_CODE":
+      return { ...state, code: action.code };
+    case "START_SUBMIT":
+      return { ...state, isSubmitting: true, error: null, resendError: null };
+    case "SUBMIT_ERROR":
+      return { ...state, isSubmitting: false, error: action.error };
+    case "ADVANCE_TO_VERIFY":
+      return {
+        ...state,
+        isSubmitting: false,
+        stage: "verify",
+        resendSent: false,
+        resendError: null,
+        resendCooldown: action.cooldown,
+      };
+    case "START_RESEND":
+      return { ...state, isSendingResend: true, error: null, resendError: null };
+    case "RESEND_SUCCESS":
+      return {
+        ...state,
+        isSendingResend: false,
+        resendSent: true,
+        resendCooldown: action.cooldown,
+      };
+    case "RESEND_ERROR":
+      return { ...state, isSendingResend: false, error: action.error, resendError: action.error };
+    case "TICK_COOLDOWN":
+      return { ...state, resendCooldown: Math.max(0, state.resendCooldown - 1) };
+    default:
+      return state;
+  }
 }
 
 export function EmailCodeFlow({
@@ -64,117 +117,89 @@ export function EmailCodeFlow({
   backHref,
   onBack,
 }: EmailCodeFlowProps) {
-  const [stage, setStage] = useState<Stage>(
-    initialStage ?? (onRequestCode ? "request" : "verify"),
-  );
-
-  const [email, setEmail] = useState(initialEmail ?? "");
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [resendCooldown, setResendCooldown] = useState(initialCooldown);
-  const [resendSent, setResendSent] = useState(false);
-  const [resendError, setResendError] = useState<string | null>(null);
-  const [isSendingResend, setIsSendingResend] = useState(false);
+  const [state, dispatch] = useReducer(reducer, {
+    stage: initialStage ?? (onRequestCode ? "request" : "verify"),
+    email: initialEmail ?? "",
+    code: "",
+    error: null,
+    isSubmitting: false,
+    resendCooldown: initialCooldown,
+    resendSent: false,
+    resendError: null,
+    isSendingResend: false,
+  });
 
   useEffect(() => {
-    if (resendCooldown <= 0) {
-      return;
-    }
-    const id = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
+    if (state.resendCooldown <= 0) return;
+    const id = setTimeout(() => dispatch({ type: "TICK_COOLDOWN" }), 1000);
     return () => clearTimeout(id);
-  }, [resendCooldown]);
+  }, [state.resendCooldown]);
 
-  const trimmedEmail = email.trim();
-  const hasError = Boolean(error);
-  const descriptionText = getDescription(stage, hasError);
-
+  const trimmedEmail = state.email.trim();
+  const hasError = Boolean(state.error);
+  const descriptionText = getDescription(state.stage, hasError);
   const canShowEmailInput = !emailReadOnly && showEmailInput;
   const effectiveResendHandler = onResendCode ?? onRequestCode ?? null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    setResendError(null);
-    setIsSubmitting(true);
+    dispatch({ type: "START_SUBMIT" });
 
     try {
       if (!trimmedEmail) {
         throw new Error("Email is required.");
       }
 
-      if (stage === "request") {
+      if (state.stage === "request") {
         if (!onRequestCode) {
           throw new Error("Requesting a code is not supported for this flow.");
         }
 
         await onRequestCode(trimmedEmail);
-
-        setStage("verify");
-        setResendSent(false);
-        setResendError(null);
-        setResendCooldown(60);
+        dispatch({ type: "ADVANCE_TO_VERIFY", cooldown: 60 });
       } else {
-        if (!code || code.length !== codeLength) {
+        if (!state.code || state.code.length !== codeLength) {
           throw new Error(`Please enter the ${codeLength}-digit code from your email.`);
         }
 
-        await onVerifyCode(trimmedEmail, code.trim());
+        await onVerifyCode(trimmedEmail, state.code.trim());
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
-      setError(message);
-    } finally {
-      setIsSubmitting(false);
+      dispatch({ type: "SUBMIT_ERROR", error: message });
     }
   }
 
   async function handleResend() {
-    if (!effectiveResendHandler) {
-      return;
-    }
-    if (!trimmedEmail || isSendingResend || resendCooldown > 0) {
+    if (!effectiveResendHandler || !trimmedEmail || state.isSendingResend || state.resendCooldown > 0) {
       return;
     }
 
-    setError(null);
-    setResendError(null);
-    setIsSendingResend(true);
+    dispatch({ type: "START_RESEND" });
 
     try {
       await effectiveResendHandler(trimmedEmail);
-      setResendSent(true);
-      setResendCooldown(60);
+      dispatch({ type: "RESEND_SUCCESS", cooldown: 60 });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Could not resend code.";
-      setError(message);
-      setResendError(message);
-    } finally {
-      setIsSendingResend(false);
+      dispatch({ type: "RESEND_ERROR", error: message });
     }
   }
 
   const submitLabel =
-    stage === "request"
-      ? isSubmitting
+    state.stage === "request"
+      ? state.isSubmitting
         ? sendButtonSendingLabel
         : sendButtonLabel
-      : isSubmitting
+      : state.isSubmitting
         ? verifyButtonSubmittingLabel
         : verifyButtonLabel;
 
   return (
-    <form
-      onSubmit={(event) => {
-        void handleSubmit(event);
-      }}
-      className="space-y-6"
-      data-flow-id={flowId}
-    >
+    <form onSubmit={handleSubmit} className="space-y-6" data-flow-id={flowId}>
       <AuthHeader title={title} description={descriptionText} />
 
-      {error && <div className={authStyles.errorBox}>{error}</div>}
+      {state.error && <div className={authStyles.errorBox}>{state.error}</div>}
 
       <div className="space-y-4">
         {canShowEmailInput && (
@@ -188,45 +213,39 @@ export function EmailCodeFlow({
               type="email"
               required
               autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isSubmitting || stage === "verify"}
-              className={stage === "verify" ? authStyles.inputDisabled : authStyles.input}
+              value={state.email}
+              onChange={(e) => dispatch({ type: "SET_EMAIL", email: e.target.value })}
+              disabled={state.isSubmitting || state.stage === "verify"}
+              className={state.stage === "verify" ? authStyles.inputDisabled : authStyles.input}
             />
           </div>
         )}
 
         {emailReadOnly && !canShowEmailInput && (
           <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
-            {email || "Unknown email"}
+            {state.email || "Unknown email"}
           </div>
         )}
 
-        {stage === "verify" && (
+        {state.stage === "verify" && (
           <SplitCodeInputWithResend
             id="email-code"
             label={codeLabel}
             length={codeLength}
-            value={code}
-            onChange={setCode}
-            onResend={() => {
-              void handleResend();
-            }}
-            isSending={isSendingResend}
-            cooldown={resendCooldown}
-            disabled={isSubmitting}
-            resendSent={resendSent}
-            resendError={resendError}
+            value={state.code}
+            onChange={(code) => dispatch({ type: "SET_CODE", code })}
+            onResend={() => void handleResend()}
+            isSending={state.isSendingResend}
+            cooldown={state.resendCooldown}
+            disabled={state.isSubmitting}
+            resendSent={state.resendSent}
+            resendError={state.resendError}
           />
         )}
       </div>
 
       <div className="space-y-3">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className={authStyles.primaryButton}
-        >
+        <button type="submit" disabled={state.isSubmitting} className={authStyles.primaryButton}>
           {submitLabel}
         </button>
 

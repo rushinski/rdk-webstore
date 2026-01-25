@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { XCircle } from "lucide-react";
 
-import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
+import { clearIdempotencyKeyFromStorage } from "@/lib/checkout/idempotency";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 
 export default function CheckoutCancelPage() {

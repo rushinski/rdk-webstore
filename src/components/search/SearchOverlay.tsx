@@ -6,7 +6,7 @@ import { X, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 interface SearchOverlayProps {
   isOpen: boolean;

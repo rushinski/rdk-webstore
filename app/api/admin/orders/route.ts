@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersService } from "@/services/orders-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const statusSchema = z.array(z.string().trim().min(1));
 const fulfillmentSchema = z.enum(["ship", "pickup"]).optional();

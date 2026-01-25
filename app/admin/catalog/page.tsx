@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, MoreVertical, Search } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { RdkSelect } from "@/components/ui/Select";
 
 import type {

@@ -7,7 +7,7 @@ import { requireUserApi } from "@/lib/auth/session";
 import { AdminInviteService } from "@/services/admin-invite-service";
 import { adminInviteAcceptSchema } from "@/lib/validation/admin";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);

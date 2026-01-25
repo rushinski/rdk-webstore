@@ -8,7 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getServerSession } from "@/lib/auth/session";
 import { StorefrontService } from "@/services/storefront-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const paramsSchema = z.object({
   id: z.string().uuid(),

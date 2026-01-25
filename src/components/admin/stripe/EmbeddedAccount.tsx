@@ -12,7 +12,7 @@ import {
   ConnectPayouts,
 } from "@stripe/react-connect-js";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { connectAppearance } from "@/lib/stripe/connect-appearance";
 
 interface EmbeddedAccountProps {

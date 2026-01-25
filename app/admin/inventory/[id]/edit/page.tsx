@@ -8,7 +8,7 @@ import Link from "next/link";
 import { ProductForm } from "@/components/inventory/ProductForm";
 import type { ProductCreateInput } from "@/services/product-service";
 import type { ProductWithDetails } from "@/types/domain/product";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export default function EditProductPage() {
   const params = useParams<{ id: string }>();

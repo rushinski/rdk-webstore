@@ -8,7 +8,7 @@ import { buildSubscriptionConfirmedEmail } from "@/lib/email/subscription";
 import { emailSubjects } from "@/config/constants/email";
 import { emailConfirmTokenSchema } from "@/lib/validation/email";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
 
 const buildRedirect = (status: string) =>

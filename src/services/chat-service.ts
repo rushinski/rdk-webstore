@@ -8,7 +8,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import { ChatEmailService } from "@/services/chat-email-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 
 export class ChatService {
   private chatsRepo: ChatsRepository;

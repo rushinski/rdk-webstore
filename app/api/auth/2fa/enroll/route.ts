@@ -5,10 +5,14 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
+  
+  // Check if client wants to skip QR (mobile)
+  const { searchParams } = new URL(req.url);
+  const skipQR = searchParams.get("skipQR") === "true";
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -16,7 +20,6 @@ export async function POST(req: NextRequest) {
 
     await adminAuthService.requireAdminUser();
 
-    // Start MFA enrollment (TOTP) via Supabase
     const { data, error } = await adminAuthService.enrollTotp();
 
     if (error || !data) {
@@ -28,7 +31,18 @@ export async function POST(req: NextRequest) {
 
     const { id: factorId, totp } = data;
 
-    // totp.qr_code is an SVG data URL, totp.uri is the otpauth URL
+    // For mobile, only send the URI (smaller payload)
+    if (skipQR) {
+      return NextResponse.json(
+        {
+          factorId,
+          uri: totp.uri,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    // For desktop, send both QR and URI
     return NextResponse.json(
       {
         factorId,

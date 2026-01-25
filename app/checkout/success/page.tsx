@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle, Loader2, Mail } from "lucide-react";
 
-import { clearIdempotencyKeyFromStorage } from "@/lib/idempotency";
+import { clearIdempotencyKeyFromStorage } from "@/lib/checkout/idempotency";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { useCart } from "@/components/cart/CartProvider";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";

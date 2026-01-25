@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 type InviteState = "idle" | "accepting" | "accepted" | "error" | "missing";
 

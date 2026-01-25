@@ -15,7 +15,7 @@ import { ChatService } from "@/services/chat-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
 import { AdminOrderEmailService } from "@/services/admin-order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
-import { log } from "@/lib/log";
+import { log } from "@/lib/utils/log";
 import { env } from "@/config/env";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {

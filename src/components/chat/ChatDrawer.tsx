@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Send, X } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 interface ChatDrawerProps {

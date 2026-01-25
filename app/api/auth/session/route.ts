@@ -1,8 +1,9 @@
+// app/api/auth/session/route.ts
 import { NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth/session";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function GET(request: Request) {
   const requestId = getRequestIdFromHeaders(request.headers);

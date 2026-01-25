@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const TAX_CATEGORIES = [
   { key: "sneakers", label: "Sneakers" },

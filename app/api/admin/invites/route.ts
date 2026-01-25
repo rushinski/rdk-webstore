@@ -8,7 +8,7 @@ import { AdminInviteService } from "@/services/admin-invite-service";
 import { adminInviteCreateSchema } from "@/lib/validation/admin";
 import { env } from "@/config/env";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);

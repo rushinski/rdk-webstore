@@ -8,7 +8,7 @@ import { getServerSession } from "@/lib/auth/session";
 import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 
 export async function GET(request: NextRequest) {

@@ -10,7 +10,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderEmailService } from "@/services/order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { SHIPPO_TRACKING_STATUS_MAP } from "@/config/constants/shipping";
 import {
   shippoTrackingUpdateSchema,

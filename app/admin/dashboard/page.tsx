@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { SalesChart } from "@/components/admin/charts/SalesChart";
 import { TrafficChart } from "@/components/admin/charts/TrafficChart";
 

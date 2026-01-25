@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import { X, ExternalLink, Loader2 } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type Payout = {

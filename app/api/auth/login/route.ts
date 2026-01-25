@@ -7,7 +7,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { loginSchema } from "@/lib/validation/auth";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 

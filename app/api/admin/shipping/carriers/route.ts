@@ -7,7 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ShippingCarriersRepository } from "@/repositories/shipping-carriers-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export const dynamic = "force-dynamic";
 

@@ -5,7 +5,7 @@ import { AdminInvitesRepository } from "@/repositories/admin-invites-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import type { ProfileRole } from "@/config/constants/roles";
 import { canInviteAdmins, isProfileRole } from "@/config/constants/roles";
-import { generatePublicToken, hashString } from "@/lib/crypto";
+import { generatePublicToken, hashString } from "@/lib/utils/crypto";
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 

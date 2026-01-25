@@ -17,7 +17,7 @@ import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { ChatService } from "@/services/chat-service";
 import { confirmPaymentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {

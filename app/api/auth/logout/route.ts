@@ -5,7 +5,7 @@ import { AuthService } from "@/services/auth-service";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { clearAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 export async function POST(request: Request) {
   const requestId = getRequestIdFromHeaders(request.headers);

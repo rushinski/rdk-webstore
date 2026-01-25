@@ -9,7 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { EmailSubscriptionService } from "@/services/email-subscription-service";
 import { emailSubscribeSchema } from "@/lib/validation/email";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { sendEmail } from "@/lib/email/mailer";
 import {
   buildSubscriptionConfirmationEmail,

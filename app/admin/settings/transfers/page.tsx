@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, Save } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 import { BankAccountManagementModal } from "@/components/admin/stripe/BankAccountManagementModal";

@@ -3,7 +3,7 @@ import { stripe } from "@/lib/stripe/stripe-server";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 
 /**
  * RefundService - Handles order refunds via tenant Stripe Connect accounts

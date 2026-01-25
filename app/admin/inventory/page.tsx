@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Plus, Trash2, MoreVertical, Search } from "lucide-react";
 
 import type { ProductWithDetails, Category, Condition } from "@/types/domain/product";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";

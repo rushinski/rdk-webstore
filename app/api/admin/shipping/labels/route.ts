@@ -12,7 +12,7 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippoService } from "@/services/shipping-label-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const labelsSchema = z
   .object({

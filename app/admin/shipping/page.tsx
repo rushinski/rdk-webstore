@@ -4,7 +4,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ExternalLink, AlertCircle } from "lucide-react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { CreateLabelForm } from "@/components/admin/shipping/CreateLabelForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 

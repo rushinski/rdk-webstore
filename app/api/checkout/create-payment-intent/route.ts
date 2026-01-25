@@ -11,10 +11,10 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
 import { StripeTaxService } from "@/services/stripe-tax-service";
-import { createCartHash } from "@/lib/crypto";
+import { createCartHash } from "@/lib/utils/crypto";
 import { checkoutSessionSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { log, logError } from "@/lib/log";
+import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {

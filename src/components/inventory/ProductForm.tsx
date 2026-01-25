@@ -7,7 +7,7 @@ import { ImagePlus, Plus, Trash2, X } from "lucide-react";
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
 import type { ProductCreateInput } from "@/services/product-service";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 

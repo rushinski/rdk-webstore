@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 const SHIPPING_CATEGORIES = [

@@ -7,7 +7,7 @@ import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { CatalogService } from "@/services/catalog-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 
 const querySchema = z.object({
   status: z.string().trim().min(1).optional(),

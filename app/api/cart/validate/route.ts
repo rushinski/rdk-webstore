@@ -5,7 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProductRepository } from "@/repositories/product-repo";
 import { cartValidateSchema } from "@/lib/validation/cart";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
-import { logError } from "@/lib/log";
+import { logError } from "@/lib/utils/log";
 import type { CartItem } from "@/types/domain/cart";
 
 const PLACEHOLDER_IMAGE = "/placeholder.png";
