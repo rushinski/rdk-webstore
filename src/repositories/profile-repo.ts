@@ -6,7 +6,10 @@ import { ADMIN_ROLES } from "@/config/constants/roles";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
-export type ProfileAuthView = Pick<Profile, "id" | "email" | "role" | "full_name" | "tenant_id">;
+export type ProfileAuthView = Pick<
+  Profile,
+  "id" | "email" | "role" | "full_name" | "tenant_id"
+>;
 
 export class ProfileRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
@@ -18,7 +21,9 @@ export class ProfileRepository {
       .eq("id", userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -30,7 +35,9 @@ export class ProfileRepository {
       .eq("id", userId)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -41,7 +48,7 @@ export class ProfileRepository {
       .select("id")
       .eq("id", userId)
       .maybeSingle();
-    
+
     if (existing) {
       // Profile exists, fetch full data only if needed
       return this.getByUserId(userId);
@@ -57,8 +64,12 @@ export class ProfileRepository {
         .limit(1)
         .maybeSingle();
 
-      if (error) throw new Error(`Failed to query tenants: ${error.message}`);
-      if (!firstTenant) throw new Error("No tenant found in database. Please run seed script.");
+      if (error) {
+        throw new Error(`Failed to query tenants: ${error.message}`);
+      }
+      if (!firstTenant) {
+        throw new Error("No tenant found in database. Please run seed script.");
+      }
 
       assignedTenantId = firstTenant.id;
     }
@@ -74,7 +85,9 @@ export class ProfileRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
@@ -83,7 +96,9 @@ export class ProfileRepository {
       .from("profiles")
       .update({ role })
       .eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async updateNotificationPreferences(
@@ -94,16 +109,22 @@ export class ProfileRepository {
     },
   ) {
     const { error } = await this.supabase.from("profiles").update(input).eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async listStaffProfiles() {
     const { data, error } = await this.supabase
       .from("profiles")
-      .select("id, email, role, chat_notifications_enabled, admin_order_notifications_enabled")
+      .select(
+        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled",
+      )
       .in("role", ADMIN_ROLES as unknown as string[]);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data ?? [];
   }
 
@@ -117,7 +138,9 @@ export class ProfileRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data?.stripe_account_id ?? null;
   }
 
@@ -126,7 +149,9 @@ export class ProfileRepository {
       .from("profiles")
       .update({ stripe_customer_id: stripeCustomerId })
       .eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async setStripeAccountId(userId: string, stripeAccountId: string) {
@@ -134,7 +159,9 @@ export class ProfileRepository {
       .from("profiles")
       .update({ stripe_account_id: stripeAccountId })
       .eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async setTenantId(userId: string, tenantId: string) {
@@ -142,6 +169,8 @@ export class ProfileRepository {
       .from("profiles")
       .update({ tenant_id: tenantId })
       .eq("id", userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 }

@@ -12,6 +12,7 @@ import { authStyles } from "@/components/auth/ui/authStyles";
 
 import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "../login/PasswordField";
+
 import { PasswordRequirements } from "./PasswordRequirements";
 
 type State = {
@@ -95,7 +96,11 @@ export function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password: passwordValue, updatesOptIn: state.updatesOptIn }),
+        body: JSON.stringify({
+          email,
+          password: passwordValue,
+          updatesOptIn: state.updatesOptIn,
+        }),
       });
 
       const json = await res.json();
@@ -107,7 +112,8 @@ export function RegisterForm() {
       const verifyUrl = `/auth/login?flow=verify-email&verifyFlow=signup&email=${encodeURIComponent(email)}${nextUrl !== "/" ? `&next=${encodeURIComponent(nextUrl)}` : ""}`;
       router.push(verifyUrl);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
       dispatch({ type: "ERROR", error: message });
     }
   }
@@ -122,8 +128,11 @@ export function RegisterForm() {
         Back to shopping
       </Link>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <AuthHeader title="Create account" description="Join thousands of verified buyers" />
+      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
+        <AuthHeader
+          title="Create account"
+          description="Join thousands of verified buyers"
+        />
 
         {state.error && <div className={authStyles.errorBox}>{state.error}</div>}
 
@@ -165,7 +174,9 @@ export function RegisterForm() {
             name="confirmPassword"
             label="Confirm password"
             value={state.confirmPassword}
-            onChange={(confirmPassword) => dispatch({ type: "SET_CONFIRM_PASSWORD", confirmPassword })}
+            onChange={(confirmPassword) =>
+              dispatch({ type: "SET_CONFIRM_PASSWORD", confirmPassword })
+            }
             autoComplete="new-password"
           />
 
@@ -176,14 +187,22 @@ export function RegisterForm() {
           <input
             type="checkbox"
             checked={state.updatesOptIn}
-            onChange={(e) => dispatch({ type: "SET_UPDATES_OPT_IN", value: e.target.checked })}
+            onChange={(e) =>
+              dispatch({ type: "SET_UPDATES_OPT_IN", value: e.target.checked })
+            }
             className="rdk-checkbox mt-0.5"
             disabled={state.isSubmitting}
           />
-          <span className="text-sm text-zinc-400">Send me drop alerts and exclusive offers</span>
+          <span className="text-sm text-zinc-400">
+            Send me drop alerts and exclusive offers
+          </span>
         </label>
 
-        <button type="submit" disabled={state.isSubmitting} className={authStyles.primaryButton}>
+        <button
+          type="submit"
+          disabled={state.isSubmitting}
+          className={authStyles.primaryButton}
+        >
           {state.isSubmitting ? "Creating account..." : "Create account"}
         </button>
 

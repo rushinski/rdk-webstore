@@ -6,6 +6,7 @@ import { useEffect, useReducer } from "react";
 
 import { authStyles } from "@/components/auth/ui/authStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
+
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 
 type Stage = "request" | "verify";
@@ -86,7 +87,12 @@ function reducer(state: State, action: Action): State {
         resendCooldown: action.cooldown,
       };
     case "RESEND_ERROR":
-      return { ...state, isSendingResend: false, error: action.error, resendError: action.error };
+      return {
+        ...state,
+        isSendingResend: false,
+        error: action.error,
+        resendError: action.error,
+      };
     case "TICK_COOLDOWN":
       return { ...state, resendCooldown: Math.max(0, state.resendCooldown - 1) };
     default:
@@ -130,7 +136,9 @@ export function EmailCodeFlow({
   });
 
   useEffect(() => {
-    if (state.resendCooldown <= 0) return;
+    if (state.resendCooldown <= 0) {
+      return;
+    }
     const id = setTimeout(() => dispatch({ type: "TICK_COOLDOWN" }), 1000);
     return () => clearTimeout(id);
   }, [state.resendCooldown]);
@@ -171,7 +179,12 @@ export function EmailCodeFlow({
   }
 
   async function handleResend() {
-    if (!effectiveResendHandler || !trimmedEmail || state.isSendingResend || state.resendCooldown > 0) {
+    if (
+      !effectiveResendHandler ||
+      !trimmedEmail ||
+      state.isSendingResend ||
+      state.resendCooldown > 0
+    ) {
       return;
     }
 
@@ -196,7 +209,11 @@ export function EmailCodeFlow({
         : verifyButtonLabel;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6" data-flow-id={flowId}>
+    <form
+      onSubmit={(e) => void handleSubmit(e)}
+      className="space-y-6"
+      data-flow-id={flowId}
+    >
       <AuthHeader title={title} description={descriptionText} />
 
       {state.error && <div className={authStyles.errorBox}>{state.error}</div>}
@@ -216,7 +233,9 @@ export function EmailCodeFlow({
               value={state.email}
               onChange={(e) => dispatch({ type: "SET_EMAIL", email: e.target.value })}
               disabled={state.isSubmitting || state.stage === "verify"}
-              className={state.stage === "verify" ? authStyles.inputDisabled : authStyles.input}
+              className={
+                state.stage === "verify" ? authStyles.inputDisabled : authStyles.input
+              }
             />
           </div>
         )}
@@ -245,7 +264,11 @@ export function EmailCodeFlow({
       </div>
 
       <div className="space-y-3">
-        <button type="submit" disabled={state.isSubmitting} className={authStyles.primaryButton}>
+        <button
+          type="submit"
+          disabled={state.isSubmitting}
+          className={authStyles.primaryButton}
+        >
           {submitLabel}
         </button>
 

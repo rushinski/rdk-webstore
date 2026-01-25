@@ -1,7 +1,7 @@
 // src/services/mfa-service.ts
 export async function mfaEnroll(skipQR = false) {
-  const res = await fetch(`/api/auth/2fa/enroll${skipQR ? "?skipQR=true" : ""}`, { 
-    method: "POST" 
+  const res = await fetch(`/api/auth/2fa/enroll${skipQR ? "?skipQR=true" : ""}`, {
+    method: "POST",
   });
   return res.json();
 }

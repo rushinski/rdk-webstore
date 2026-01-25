@@ -9,7 +9,7 @@ import { logError } from "@/lib/utils/log";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
-  
+
   // Check if client wants to skip QR (mobile)
   const { searchParams } = new URL(req.url);
   const skipQR = searchParams.get("skipQR") === "true";

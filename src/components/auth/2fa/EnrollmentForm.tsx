@@ -2,9 +2,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useReducer, useRef } from "react";
+import { createElement, lazy, Suspense, useEffect, useReducer, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { lazy, Suspense } from "react";
 
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
@@ -12,10 +11,19 @@ import { authStyles } from "@/components/auth/ui/authStyles";
 import { mfaEnroll, mfaVerifyEnrollment } from "@/services/mfa-service";
 import { isMobileDevice } from "@/lib/utils/device";
 
+type QrDisplayProps = {
+  qrCode: string;
+  onQrError?: () => void;
+};
+
 // Lazy load QR component for desktop only
-const QRDisplay = lazy(() => 
-  import("./QRDisplay").then(mod => ({ default: mod.QRDisplay }))
+const qrDisplay = lazy(() =>
+  import("./QRDisplay").then((mod) => ({ default: mod.QRDisplay })),
 );
+
+function QrDisplay(props: QrDisplayProps) {
+  return createElement(qrDisplay, props);
+}
 
 type EnrollState = {
   factorId: string | null;
@@ -33,7 +41,10 @@ type EnrollState = {
 type Action =
   | { type: "SET_MOBILE"; isMobile: boolean }
   | { type: "START_GENERATING" }
-  | { type: "ENROLL_SUCCESS"; data: { factorId: string; qrCode?: string; uri: string; secret: string } }
+  | {
+      type: "ENROLL_SUCCESS";
+      data: { factorId: string; qrCode?: string; uri: string; secret: string };
+    }
   | { type: "ENROLL_ERROR"; error: string }
   | { type: "SET_CODE"; code: string }
   | { type: "START_VERIFYING" }
@@ -121,8 +132,12 @@ export function EnrollmentForm() {
 
   useEffect(() => {
     return () => {
-      if (copyResetTimer.current) window.clearTimeout(copyResetTimer.current);
-      if (qrExpiryTimer.current) window.clearTimeout(qrExpiryTimer.current);
+      if (copyResetTimer.current) {
+        window.clearTimeout(copyResetTimer.current);
+      }
+      if (qrExpiryTimer.current) {
+        window.clearTimeout(qrExpiryTimer.current);
+      }
     };
   }, []);
 
@@ -134,9 +149,12 @@ export function EnrollmentForm() {
     }
 
     if (state.factorId && state.qrCode && !state.isMobile) {
-      qrExpiryTimer.current = window.setTimeout(() => {
-        dispatch({ type: "QR_EXPIRED" });
-      }, 5 * 60 * 1000);
+      qrExpiryTimer.current = window.setTimeout(
+        () => {
+          dispatch({ type: "QR_EXPIRED" });
+        },
+        5 * 60 * 1000,
+      );
     }
 
     return () => {
@@ -177,7 +195,7 @@ export function EnrollmentForm() {
           secret: extractSecret(res.uri ?? ""),
         },
       });
-    } catch (err) {
+    } catch {
       dispatch({ type: "ENROLL_ERROR", error: "Failed to generate enrollment data" });
     }
   }
@@ -214,7 +232,9 @@ export function EnrollmentForm() {
   }
 
   async function handleCopyManualKey() {
-    if (!state.manualSecret) return;
+    if (!state.manualSecret) {
+      return;
+    }
 
     try {
       if (navigator.clipboard?.writeText) {
@@ -227,14 +247,21 @@ export function EnrollmentForm() {
         el.select();
         const ok = document.execCommand("copy");
         document.body.removeChild(el);
-        if (!ok) throw new Error();
+        if (!ok) {
+          throw new Error();
+        }
       }
       dispatch({ type: "COPY_SUCCESS" });
     } catch {
       dispatch({ type: "COPY_ERROR" });
     } finally {
-      if (copyResetTimer.current) window.clearTimeout(copyResetTimer.current);
-      copyResetTimer.current = window.setTimeout(() => dispatch({ type: "RESET_COPY" }), 2000);
+      if (copyResetTimer.current) {
+        window.clearTimeout(copyResetTimer.current);
+      }
+      copyResetTimer.current = window.setTimeout(
+        () => dispatch({ type: "RESET_COPY" }),
+        2000,
+      );
     }
   }
 
@@ -267,7 +294,11 @@ export function EnrollmentForm() {
               disabled={state.isGenerating}
               className={authStyles.primaryButton}
             >
-              {state.isGenerating ? "Generating..." : state.isMobile ? "Generate setup key" : "Generate QR code"}
+              {state.isGenerating
+                ? "Generating..."
+                : state.isMobile
+                  ? "Generate setup key"
+                  : "Generate QR code"}
             </button>
 
             <Link href="/auth/login" className={authStyles.neutralLink}>
@@ -317,14 +348,16 @@ export function EnrollmentForm() {
 
             {/* Desktop: Show QR code */}
             {!state.isMobile && state.qrCode && (
-              <Suspense fallback={
-                <div className="border border-zinc-800 bg-zinc-900/50 p-6">
-                  <div className="flex justify-center">
-                    <div className="h-48 w-48 bg-zinc-800 animate-pulse" />
+              <Suspense
+                fallback={
+                  <div className="border border-zinc-800 bg-zinc-900/50 p-6">
+                    <div className="flex justify-center">
+                      <div className="h-48 w-48 bg-zinc-800 animate-pulse" />
+                    </div>
                   </div>
-                </div>
-              }>
-                <QRDisplay
+                }
+              >
+                <QrDisplay
                   qrCode={state.qrCode}
                   onQrError={() => {
                     dispatch({
@@ -356,7 +389,11 @@ export function EnrollmentForm() {
                   />
 
                   <div className="mt-2 text-xs text-zinc-500">
-                    Tap the key to copy. {state.isMobile ? "Paste this" : "If you cannot scan the QR, paste this"} key into your authenticator app.
+                    Tap the key to copy.{" "}
+                    {state.isMobile
+                      ? "Paste this"
+                      : "If you cannot scan the QR, paste this"}{" "}
+                    key into your authenticator app.
                   </div>
 
                   {state.copyStatus !== "idle" && (

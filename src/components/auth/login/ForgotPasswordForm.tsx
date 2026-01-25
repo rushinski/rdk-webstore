@@ -1,7 +1,7 @@
 // src/components/auth/login/ForgotPasswordForm.tsx
 "use client";
 
-import { useState, useEffect, useReducer } from "react";
+import { useEffect, useReducer } from "react";
 import { useRouter } from "next/navigation";
 
 import { isPasswordValid } from "@/lib/validation/password";
@@ -9,6 +9,7 @@ import { authStyles } from "@/components/auth/ui/authStyles";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 
 import { PasswordRequirements } from "../register/PasswordRequirements";
+
 import { SplitCodeInputWithResend } from "./SplitCodeInputWithResend";
 import { PasswordField } from "./PasswordField";
 
@@ -74,7 +75,13 @@ function reducer(state: State, action: Action): State {
         resendError: null,
       };
     case "START_RESEND":
-      return { ...state, isSendingResend: true, error: null, infoMessage: null, resendError: null };
+      return {
+        ...state,
+        isSendingResend: true,
+        error: null,
+        infoMessage: null,
+        resendError: null,
+      };
     case "RESEND_SUCCESS":
       return {
         ...state,
@@ -84,7 +91,12 @@ function reducer(state: State, action: Action): State {
         infoMessage: "We've sent you a new reset code.",
       };
     case "RESEND_ERROR":
-      return { ...state, isSendingResend: false, error: action.error, resendError: action.error };
+      return {
+        ...state,
+        isSendingResend: false,
+        error: action.error,
+        resendError: action.error,
+      };
     case "TICK_COOLDOWN":
       return { ...state, resendCooldown: Math.max(0, state.resendCooldown - 1) };
     case "RESET_SUCCESS":
@@ -112,7 +124,9 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   });
 
   useEffect(() => {
-    if (state.resendCooldown <= 0) return;
+    if (state.resendCooldown <= 0) {
+      return;
+    }
     const id = setTimeout(() => dispatch({ type: "TICK_COOLDOWN" }), 1000);
     return () => clearTimeout(id);
   }, [state.resendCooldown]);
@@ -134,7 +148,10 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         throw new Error(json.error ?? "Could not send reset code.");
       }
 
-      dispatch({ type: "INFO", message: "If an account exists for that email, we've sent a reset code." });
+      dispatch({
+        type: "INFO",
+        message: "If an account exists for that email, we've sent a reset code.",
+      });
       dispatch({ type: "ADVANCE_TO_RESET" });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Could not send reset code.";
@@ -143,7 +160,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   }
 
   async function handleResendResetCode() {
-    if (!state.email || state.step !== "reset" || state.isSendingResend || state.resendCooldown > 0) {
+    if (
+      !state.email ||
+      state.step !== "reset" ||
+      state.isSendingResend ||
+      state.resendCooldown > 0
+    ) {
       return;
     }
 
@@ -172,7 +194,10 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     e.preventDefault();
 
     if (!state.code || state.code.length !== 6) {
-      dispatch({ type: "ERROR", error: "Please enter the 6-digit reset code from your email." });
+      dispatch({
+        type: "ERROR",
+        error: "Please enter the 6-digit reset code from your email.",
+      });
       return;
     }
 
@@ -228,7 +253,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         router.push("/auth/login");
       }, 1000);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Reset failed. Please try again.";
+      const message =
+        err instanceof Error ? err.message : "Reset failed. Please try again.";
       dispatch({ type: "ERROR", error: message });
     }
   }
@@ -248,9 +274,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       {state.infoMessage && <div className={authStyles.infoBox}>{state.infoMessage}</div>}
 
       {state.step === "request" && (
-        <form onSubmit={handleRequestSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleRequestSubmit(e)} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="forgot-email" className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200">
+            <label
+              htmlFor="forgot-email"
+              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+            >
               Email
             </label>
             <input
@@ -264,12 +293,20 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             />
           </div>
 
-          <button type="submit" disabled={state.isSubmitting} className={authStyles.primaryButton}>
+          <button
+            type="submit"
+            disabled={state.isSubmitting}
+            className={authStyles.primaryButton}
+          >
             {state.isSubmitting ? "Sending code..." : "Send reset code"}
           </button>
 
           <div className="flex justify-start">
-            <button type="button" onClick={onBackToLogin} className={authStyles.neutralLink}>
+            <button
+              type="button"
+              onClick={onBackToLogin}
+              className={authStyles.neutralLink}
+            >
               Back to sign in
             </button>
           </div>
@@ -277,12 +314,20 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
       )}
 
       {state.step === "reset" && (
-        <form onSubmit={handleResetSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleResetSubmit(e)} className="space-y-4">
           <div className="space-y-1.5">
-            <label htmlFor="reset-email" className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200">
+            <label
+              htmlFor="reset-email"
+              className="block text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-200"
+            >
               Email
             </label>
-            <input id="reset-email" value={state.email} disabled className={authStyles.inputDisabled} />
+            <input
+              id="reset-email"
+              value={state.email}
+              disabled
+              className={authStyles.inputDisabled}
+            />
           </div>
 
           <SplitCodeInputWithResend
@@ -311,18 +356,28 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             name="confirm-password"
             label="Confirm password"
             value={state.confirmPassword}
-            onChange={(confirmPassword) => dispatch({ type: "SET_CONFIRM_PASSWORD", confirmPassword })}
+            onChange={(confirmPassword) =>
+              dispatch({ type: "SET_CONFIRM_PASSWORD", confirmPassword })
+            }
             autoComplete="new-password"
           />
 
           <PasswordRequirements password={state.password} />
 
-          <button type="submit" disabled={state.isSubmitting} className={authStyles.primaryButton}>
+          <button
+            type="submit"
+            disabled={state.isSubmitting}
+            className={authStyles.primaryButton}
+          >
             {state.isSubmitting ? "Updating password..." : "Update password"}
           </button>
 
           <div className="flex justify-start">
-            <button type="button" onClick={onBackToLogin} className={authStyles.neutralLink}>
+            <button
+              type="button"
+              onClick={onBackToLogin}
+              className={authStyles.neutralLink}
+            >
               Back to sign in
             </button>
           </div>

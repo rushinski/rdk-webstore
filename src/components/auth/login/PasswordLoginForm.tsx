@@ -8,7 +8,9 @@ import { ArrowLeft } from "lucide-react";
 
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { authStyles } from "@/components/auth/ui/authStyles";
+
 import { SocialButton } from "../ui/SocialButton";
+
 import { PasswordField } from "./PasswordField";
 
 interface PasswordLoginFormProps {
@@ -114,7 +116,7 @@ export function PasswordLoginForm({
         Back to shopping
       </Link>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-6">
         <AuthHeader title="Sign in" />
 
         {state.error && <div className={authStyles.errorBox}>{state.error}</div>}
