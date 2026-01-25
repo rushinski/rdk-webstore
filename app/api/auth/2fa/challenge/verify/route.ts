@@ -1,4 +1,3 @@
-// app/api/auth/2fa/challenge/verify/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -22,16 +21,39 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { factorId, challengeId, code } = parsed.data;
     const supabase = await createSupabaseServerClient();
     const adminAuthService = new AdminAuthService(supabase);
 
     const { userId } = await adminAuthService.requireAdminUser();
 
+    // Always choose the enrolled TOTP factor
+    const totpFactors = await adminAuthService.listTotpFactors();
+    if (totpFactors.length === 0) {
+      return NextResponse.json(
+        { error: "No enrolled MFA factors", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const totp = totpFactors[0];
+
+    // Create challenge + verify in the SAME request (prevents IP mismatch)
+    const { data: challengeData, error: challengeErr } =
+      await adminAuthService.startChallenge(totp.id);
+
+    if (challengeErr || !challengeData) {
+      return NextResponse.json(
+        { error: challengeErr?.message ?? "Failed to start challenge", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const cleaned = parsed.data.code.replace(/\D/g, "").slice(0, 6);
+
     const { error: verifyError } = await adminAuthService.verifyChallenge(
-      factorId,
-      challengeId,
-      code,
+      totp.id,
+      challengeData.id,
+      cleaned,
     );
 
     if (verifyError) {
@@ -42,15 +64,11 @@ export async function POST(req: NextRequest) {
     }
 
     let res = NextResponse.json<{ ok: true; isAdmin: true }>(
-      {
-        ok: true,
-        isAdmin: true,
-      },
+      { ok: true, isAdmin: true },
       { headers: { "Cache-Control": "no-store" } },
     );
 
     res = await setAdminSessionCookie(res, userId);
-
     return res;
   } catch (error) {
     logError(error, {
