@@ -9,8 +9,8 @@ const prodConnectSrc = [
   "https://api.stripe.com",
   "https://connect-js.stripe.com",
   "https://*.stripe.com",
-  "https://vitals.vercel-insights.com", 
-  "https://*.vercel-scripts.com", 
+  "https://vitals.vercel-insights.com",
+  "https://*.vercel-scripts.com",
 
   // ✅ only when explicitly enabled (for local prod-mode testing)
   ...(allowLocalSupabaseInProd
