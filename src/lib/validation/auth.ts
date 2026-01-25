@@ -59,14 +59,13 @@ export const otpVerifySchema = z
 
 export const twoFactorVerifyEnrollmentSchema = z
   .object({
+    factorId: z.string().trim().min(1),
     code: otpCodeSchema,
   })
   .strict();
 
 export const twoFactorChallengeVerifySchema = z
   .object({
-    factorId: z.string().trim().min(1),
-    challengeId: z.string().trim().min(1),
     code: otpCodeSchema,
   })
   .strict();
