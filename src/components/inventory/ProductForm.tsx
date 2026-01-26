@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import imageCompression from "browser-image-compression";
 
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
@@ -188,6 +189,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     completed: number;
     failed: number;
     isUploading: boolean;
+    currentStatus?: string;
   }>({
     total: 0,
     completed: 0,
@@ -578,6 +580,53 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     );
   };
 
+  // ADD THE compressImage FUNCTION HERE
+  const compressImage = async (file: File): Promise<File> => {
+    // Don't compress if already small enough
+    if (file.size < 1 * 1024 * 1024) {
+      // Less than 1MB
+      console.info(
+        "[compressImage] File already small, skipping compression:",
+        file.size,
+      );
+      return file;
+    }
+
+    console.info("[compressImage] Compressing file:", {
+      name: file.name,
+      originalSize: file.size,
+      originalType: file.type,
+    });
+
+    try {
+      const options = {
+        maxSizeMB: 2, // Target max 2MB
+        maxWidthOrHeight: 1920, // Max dimension
+        useWebWorker: true, // Use web worker for better performance
+        fileType: file.type || "image/jpeg", // Preserve type or default to JPEG
+      };
+
+      const compressedFile = await imageCompression(file, options);
+
+      console.info("[compressImage] Compression successful:", {
+        originalSize: file.size,
+        compressedSize: compressedFile.size,
+        reduction: `${Math.round((1 - compressedFile.size / file.size) * 100)}%`,
+      });
+
+      return compressedFile;
+    } catch (error) {
+      console.error("[compressImage] Compression failed, using original:", error);
+      logError(error, {
+        layer: "frontend",
+        event: "image_compression_failed",
+        fileName: file.name,
+        fileSize: file.size,
+      });
+      return file; // Return original if compression fails
+    }
+  };
+
   const validateAndPrepareFiles = (
     fileList: FileList,
   ): {
@@ -700,8 +749,20 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           size: file.size,
         });
 
+        // ADD THESE LINES - Compress the image before uploading
+        const compressedFile = await compressImage(file);
+
+        console.info(
+          `[ProductForm] Uploading compressed file ${i + 1}/${valid.length}:`,
+          {
+            name: compressedFile.name,
+            type: compressedFile.type,
+            size: compressedFile.size,
+          },
+        );
+
         const fd = new FormData();
-        fd.append("file", file, file.name); // Single file upload
+        fd.append("file", compressedFile, file.name); // CHANGE: use compressedFile instead of file
 
         if (initialData?.id) {
           fd.append("productId", initialData.id);
@@ -1343,7 +1404,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           <div className="mb-4 bg-blue-900/20 border border-blue-800/50 rounded p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-blue-200 font-semibold">
-                Uploading images...
+                {uploadQueue.currentStatus || "Uploading images..."}
               </span>
               <span className="text-xs text-blue-300">
                 {uploadQueue.completed} / {uploadQueue.total}
