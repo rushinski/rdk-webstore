@@ -15,7 +15,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const formSchema = z.object({
-  // optional: allow UI to pass productId so we can place into that folder immediately
   productId: z.string().uuid().optional(),
 });
 
@@ -29,13 +28,29 @@ export async function POST(request: NextRequest) {
 
     const contentType = request.headers.get("content-type") ?? "";
     if (!contentType.toLowerCase().includes("multipart/form-data")) {
+      console.error("[Product Upload] Invalid content type:", contentType);
       return NextResponse.json(
         { error: "Content-Type must be multipart/form-data", requestId },
         { status: 415, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    const form = await request.formData();
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch (formError) {
+      console.error("[Product Upload] FormData parsing failed:", formError);
+      logError(formError, {
+        layer: "api",
+        requestId,
+        route: "/api/admin/uploads/product-image",
+        message: "formdata_parse_failed",
+      });
+      return NextResponse.json(
+        { error: "Failed to parse form data", requestId },
+        { status: 400, headers: { "Cache-Control": "no-store" } },
+      );
+    }
 
     // Support both single file upload and multiple files
     const fileEntries = form
@@ -45,10 +60,17 @@ export async function POST(request: NextRequest) {
       .getAll("files")
       .filter((entry): entry is File => entry instanceof File);
 
-    // Combine both "file" and "files" fields
     const allFiles = [...fileEntries, ...filesEntries];
 
+    console.info("[Product Upload] Files received:", {
+      fileCount: fileEntries.length,
+      filesCount: filesEntries.length,
+      total: allFiles.length,
+      formKeys: Array.from(form.keys()),
+    });
+
     if (allFiles.length === 0) {
+      console.error("[Product Upload] No files found in form data");
       return NextResponse.json(
         { error: "No files provided. Use 'file' or 'files' field", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
@@ -60,6 +82,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!parsedMeta.success) {
+      console.error("[Product Upload] Invalid form fields:", parsedMeta.error);
       return NextResponse.json(
         { error: "Invalid form fields", issues: parsedMeta.error.format(), requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
@@ -68,35 +91,99 @@ export async function POST(request: NextRequest) {
 
     const service = new ProductImageService(supabase);
 
-    // Upload all files
-    const uploadResults = await Promise.all(
-      allFiles.map((file) =>
-        service.uploadProductImage({
+    // Upload files one by one with detailed error tracking
+    const uploadResults = [];
+    const uploadErrors = [];
+
+    for (let i = 0; i < allFiles.length; i++) {
+      const file = allFiles[i];
+      try {
+        console.info(`[Product Upload] Processing file ${i + 1}/${allFiles.length}:`, {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+
+        const result = await service.uploadProductImage({
           tenantId,
           file,
           productId: parsedMeta.data.productId ?? null,
-        }),
-      ),
-    );
+        });
 
-    // Return array of results for multiple files, or single result for backward compatibility
+        uploadResults.push(result);
+        console.info(
+          `[Product Upload] File ${i + 1} uploaded successfully:`,
+          result.path,
+        );
+      } catch (uploadError) {
+        console.error(`[Product Upload] File ${i + 1} upload failed:`, uploadError);
+        logError(uploadError, {
+          layer: "api",
+          requestId,
+          route: "/api/admin/uploads/product-image",
+          message: `file_upload_failed_${i}`,
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type,
+        });
+
+        uploadErrors.push({
+          index: i,
+          fileName: file.name,
+          error: uploadError instanceof Error ? uploadError.message : "Unknown error",
+        });
+      }
+    }
+
+    // If all uploads failed, return error
+    if (uploadResults.length === 0) {
+      console.error("[Product Upload] All uploads failed:", uploadErrors);
+      return NextResponse.json(
+        {
+          error: "All file uploads failed",
+          details: uploadErrors,
+          requestId,
+        },
+        { status: 500, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    // If some uploads failed, include partial success info
+    if (uploadErrors.length > 0) {
+      console.warn("[Product Upload] Partial success:", {
+        successful: uploadResults.length,
+        failed: uploadErrors.length,
+      });
+    }
+
+    // Return results
     const responseData =
       allFiles.length === 1
         ? { ...uploadResults[0], requestId }
-        : { uploads: uploadResults, count: uploadResults.length, requestId };
+        : {
+            uploads: uploadResults,
+            count: uploadResults.length,
+            failures: uploadErrors.length > 0 ? uploadErrors : undefined,
+            requestId,
+          };
 
     return NextResponse.json(responseData, {
       status: 201,
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
+    console.error("[Product Upload] Unexpected error:", error);
     logError(error, {
       layer: "api",
       requestId,
       route: "/api/admin/uploads/product-image",
     });
     return NextResponse.json(
-      { error: "Failed to upload product image(s)", requestId },
+      {
+        error: "Failed to upload product image(s)",
+        message: error instanceof Error ? error.message : "Unknown error",
+        requestId,
+      },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

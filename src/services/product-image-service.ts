@@ -25,9 +25,16 @@ export class ProductImageService {
     file: File;
     productId?: string | null;
   }) {
-    const bucket = "products"; // recommended bucket name for storefront product images
-
+    const bucket = "products";
     const maxBytes = DEFAULT_MAX_BYTES;
+
+    console.info("[ProductImageService] Starting upload:", {
+      fileName: input.file.name,
+      fileType: input.file.type,
+      fileSize: input.file.size,
+      tenantId: input.tenantId,
+      productId: input.productId,
+    });
 
     if (!input.file) {
       throw new Error("Missing file");
@@ -36,34 +43,86 @@ export class ProductImageService {
       throw new Error("Empty file");
     }
     if (input.file.size > maxBytes) {
-      throw new Error(`File too large. Max ${maxBytes} bytes`);
+      throw new Error(
+        `File too large. Max ${maxBytes} bytes (${Math.round(maxBytes / 1024 / 1024)}MB)`,
+      );
     }
 
-    const meta = ALLOWED_MIME[input.file.type];
+    // Check MIME type - handle empty/undefined types from iOS
+    let mimeType = input.file.type;
+    let meta = ALLOWED_MIME[mimeType];
+
+    // If no MIME type provided (common on iOS), try to detect from file extension
+    if (!meta && input.file.name) {
+      const ext = input.file.name.toLowerCase().split(".").pop();
+      console.info("[ProductImageService] No MIME type, detecting from extension:", ext);
+
+      if (ext === "jpg" || ext === "jpeg") {
+        mimeType = "image/jpeg";
+        meta = ALLOWED_MIME["image/jpeg"];
+      } else if (ext === "png") {
+        mimeType = "image/png";
+        meta = ALLOWED_MIME["image/png"];
+      } else if (ext === "webp") {
+        mimeType = "image/webp";
+        meta = ALLOWED_MIME["image/webp"];
+      } else if (ext === "heic" || ext === "heif") {
+        // iOS HEIC images - need to tell user to convert or handle server-side
+        throw new Error(
+          `HEIC/HEIF format not supported. Please convert to JPG or PNG first.`,
+        );
+      }
+    }
+
     if (!meta) {
-      throw new Error(`Unsupported mime type: ${input.file.type}`);
+      console.error("[ProductImageService] Unsupported MIME type:", {
+        provided: input.file.type,
+        detected: mimeType,
+        fileName: input.file.name,
+      });
+      throw new Error(
+        `Unsupported file type: ${input.file.type || "unknown"}. Supported: JPG, PNG, WebP`,
+      );
     }
 
-    const hash = await sha256Hex(input.file);
+    let hash: string;
+    try {
+      hash = await sha256Hex(input.file);
+      console.info("[ProductImageService] Hash computed:", hash);
+    } catch (hashError) {
+      console.error("[ProductImageService] Hash computation failed:", hashError);
+      throw new Error("Failed to process file");
+    }
 
-    // Store under a tenant/product scoped prefix. Hash-based filename enables immutable caching.
     const productPart = input.productId ? input.productId : "unassigned";
     const path = `${input.tenantId}/products/${productPart}/${hash}.${meta.ext}`;
 
-    await this.storageRepo.uploadObject({
+    console.info("[ProductImageService] Uploading to storage:", {
       bucket,
       path,
-      file: input.file,
-      contentType: input.file.type,
-      upsert: true, // Changed to true to allow re-uploading same file
+      contentType: mimeType,
     });
+
+    try {
+      await this.storageRepo.uploadObject({
+        bucket,
+        path,
+        file: input.file,
+        contentType: mimeType,
+        upsert: true,
+      });
+      console.info("[ProductImageService] Upload successful:", path);
+    } catch (storageError) {
+      console.error("[ProductImageService] Storage upload failed:", storageError);
+      throw storageError;
+    }
 
     const url = this.storageRepo.getPublicUrl({ bucket, path });
 
     return {
       url,
       path,
-      mimeType: input.file.type,
+      mimeType,
       bytes: input.file.size,
       hash,
       bucket,
