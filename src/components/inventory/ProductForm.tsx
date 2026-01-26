@@ -88,6 +88,13 @@ type UploadsResponse = {
   requestId?: string;
 };
 
+type UploadErrorResponse = {
+  error?: string;
+  message?: string;
+  requestId?: string;
+  details?: unknown;
+};
+
 const isUploadResult = (value: unknown): value is UploadResult => {
   if (!value || typeof value !== "object") {
     return false;
@@ -176,6 +183,18 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     return "";
   });
 
+  const [uploadQueue, setUploadQueue] = useState<{
+    total: number;
+    completed: number;
+    failed: number;
+    isUploading: boolean;
+  }>({
+    total: 0,
+    completed: 0,
+    failed: 0,
+    isUploading: false,
+  });
+
   const [shippingDefaults, setShippingDefaults] = useState<Record<string, number>>({});
   const [shippingDefaultsStatus, setShippingDefaultsStatus] = useState<
     "loading" | "ready" | "error"
@@ -234,6 +253,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const parsedBrandLabel = parseResult?.brand?.label?.trim() ?? "";
   const parsedBrandGroup = parseResult?.brand?.groupKey ?? null;
   const parsedModelLabel = parseResult?.model?.label?.trim() ?? "";
+
+  const isUploadErrorResponse = (value: unknown): value is UploadErrorResponse => {
+    if (!value || typeof value !== "object") {
+      return false;
+    }
+    const record = value as Record<string, unknown>;
+    return typeof record.error === "string" || typeof record.message === "string";
+  };
 
   const autoTags = useMemo<TagChip[]>(() => {
     const tags: TagChip[] = [];
@@ -560,17 +587,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     const valid: File[] = [];
     const errors: string[] = [];
     const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
-    Array.from(fileList).forEach((file) => {
-      console.info("[ProductForm] Validating file:", {
+    // Convert to array immediately - iOS Safari can lose FileList references
+    const filesArray = Array.from(fileList);
+    console.info("[validateAndPrepareFiles] Validating", filesArray.length, "files");
+
+    filesArray.forEach((file, index) => {
+      console.info(`[validateAndPrepareFiles] File ${index + 1}:`, {
         name: file.name,
         type: file.type || "NO TYPE",
         size: file.size,
       });
 
-      // Check for HEIC/HEIF (iOS default format)
       const fileName = file.name.toLowerCase();
+
       if (fileName.endsWith(".heic") || fileName.endsWith(".heif")) {
         errors.push(
           `${file.name}: HEIC/HEIF not supported. Please convert to JPG in Photos app first.`,
@@ -578,7 +609,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         return;
       }
 
-      // Check file size
       if (file.size === 0) {
         errors.push(`${file.name}: File is empty`);
         return;
@@ -589,8 +619,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         return;
       }
 
-      // Check MIME type
-      // iOS sometimes doesn't provide file.type, so we check extension too
       const hasValidType = file.type && ALLOWED_TYPES.includes(file.type);
       const hasValidExtension = /\.(jpe?g|png|webp)$/i.test(fileName);
 
@@ -599,14 +627,18 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         return;
       }
 
-      // If type is missing but extension is valid, it's likely iOS
       if (!file.type && hasValidExtension) {
         console.info(
-          "[ProductForm] iOS file detected (no MIME type), accepting based on extension",
+          `[validateAndPrepareFiles] iOS file detected (no MIME type), accepting based on extension`,
         );
       }
 
       valid.push(file);
+    });
+
+    console.info("[validateAndPrepareFiles] Result:", {
+      valid: valid.length,
+      errors: errors.length,
     });
 
     return { valid, errors };
@@ -619,6 +651,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
 
     console.info("[ProductForm] Received", files.length, "file(s) for upload");
+    console.info("[ProductForm] User agent:", navigator.userAgent);
+
+    // Convert FileList to Array IMMEDIATELY - iOS Safari can lose references
+    const fileArray = Array.from(files);
+    console.info("[ProductForm] Converted to array, length:", fileArray.length);
 
     const { valid, errors } = validateAndPrepareFiles(files);
 
@@ -638,16 +675,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }
     }
 
-    // Show progress
-    setToast({
-      message: `Uploading ${valid.length} image(s)...`,
-      tone: "info",
+    // Initialize queue
+    setUploadQueue({
+      total: valid.length,
+      completed: 0,
+      failed: 0,
+      isUploading: true,
     });
 
-    let successCount = 0;
-    let failCount = 0;
+    console.info(
+      "[ProductForm] Starting queue upload for",
+      valid.length,
+      "valid file(s)",
+    );
 
-    // Upload ONE AT A TIME to avoid payload limits
+    // Upload files sequentially to avoid payload limits
     for (let i = 0; i < valid.length; i++) {
       const file = valid[i];
 
@@ -658,11 +700,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           size: file.size,
         });
 
-        // Compress image before upload (optional but recommended)
-        // const compressedFile = await compressImage(file);
-
         const fd = new FormData();
-        fd.append("file", file); // Single file
+        fd.append("file", file, file.name); // Single file upload
 
         if (initialData?.id) {
           fd.append("productId", initialData.id);
@@ -674,51 +713,85 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         });
 
         const responseText = await res.text();
-        const json = JSON.parse(responseText);
+        console.info(`[ProductForm] Response for file ${i + 1}:`, res.status);
 
-        if (!res.ok) {
-          throw new Error(json.error || json.message || "Upload failed");
+        let json: unknown = null;
+        try {
+          json = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("[ProductForm] JSON parse error:", parseError);
+          throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
         }
 
-        // Handle both single and multi-response formats
+        if (!res.ok) {
+          const errorMsg = isUploadErrorResponse(json)
+            ? json.error || json.message
+            : "Image upload failed";
+          throw new Error(errorMsg);
+        }
+
+        // Handle both response formats
         if (isUploadsResponse(json)) {
           json.uploads.forEach((upload) => {
             if (isUploadResult(upload)) {
               addImageEntry(upload.url);
-              successCount++;
             }
           });
         } else if (isUploadResult(json)) {
           addImageEntry(json.url);
-          successCount++;
         }
 
         // Update progress
-        setToast({
-          message: `Uploaded ${i + 1}/${valid.length} images...`,
-          tone: "info",
-        });
+        setUploadQueue((prev) => ({
+          ...prev,
+          completed: prev.completed + 1,
+        }));
       } catch (error) {
         console.error(`[ProductForm] Upload failed for ${file.name}:`, error);
-        failCount++;
 
-        // Continue with remaining files
-        continue;
+        logError(error, {
+          layer: "frontend",
+          event: "inventory_image_upload_queue",
+          fileName: file.name,
+          fileIndex: i,
+          userAgent: navigator.userAgent,
+        });
+
+        // Update failed count
+        setUploadQueue((prev) => ({
+          ...prev,
+          failed: prev.failed + 1,
+          completed: prev.completed + 1, // Still count as completed (processed)
+        }));
       }
     }
 
-    // Final message
-    if (failCount === 0) {
-      setToast({
-        message: `${successCount} image(s) uploaded successfully`,
-        tone: "success",
-      });
-    } else {
-      setToast({
-        message: `${successCount} succeeded, ${failCount} failed`,
-        tone: "info",
-      });
-    }
+    // Finalize queue
+    setUploadQueue((prev) => {
+      const successCount = prev.total - prev.failed;
+
+      if (prev.failed === 0) {
+        setToast({
+          message: `${successCount} image(s) uploaded successfully`,
+          tone: "success",
+        });
+      } else if (successCount === 0) {
+        setToast({
+          message: `All ${prev.failed} upload(s) failed`,
+          tone: "error",
+        });
+      } else {
+        setToast({
+          message: `${successCount} succeeded, ${prev.failed} failed`,
+          tone: "info",
+        });
+      }
+
+      return {
+        ...prev,
+        isUploading: false,
+      };
+    });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -1265,6 +1338,32 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           </h2>
           <span className="text-xs text-gray-500">{images.length} total</span>
         </div>
+
+        {uploadQueue.isUploading && (
+          <div className="mb-4 bg-blue-900/20 border border-blue-800/50 rounded p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-blue-200 font-semibold">
+                Uploading images...
+              </span>
+              <span className="text-xs text-blue-300">
+                {uploadQueue.completed} / {uploadQueue.total}
+              </span>
+            </div>
+            <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-full transition-all duration-300"
+                style={{
+                  width: `${(uploadQueue.completed / uploadQueue.total) * 100}%`,
+                }}
+              />
+            </div>
+            {uploadQueue.failed > 0 && (
+              <p className="text-xs text-red-400 mt-2">
+                {uploadQueue.failed} upload(s) failed
+              </p>
+            )}
+          </div>
+        )}
 
         <input
           ref={fileInputRef}
