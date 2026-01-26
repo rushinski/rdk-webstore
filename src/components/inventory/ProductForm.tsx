@@ -88,13 +88,6 @@ type UploadsResponse = {
   requestId?: string;
 };
 
-type UploadErrorResponse = {
-  error?: string;
-  message?: string;
-  requestId?: string;
-  details?: unknown;
-};
-
 const isUploadResult = (value: unknown): value is UploadResult => {
   if (!value || typeof value !== "object") {
     return false;
@@ -109,14 +102,6 @@ const isUploadsResponse = (value: unknown): value is UploadsResponse => {
   }
   const record = value as Record<string, unknown>;
   return Array.isArray(record.uploads);
-};
-
-const isUploadErrorResponse = (value: unknown): value is UploadErrorResponse => {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return typeof record.error === "string" || typeof record.message === "string";
 };
 
 const normalizeImages = (items: ImageDraft[]) => {
@@ -634,9 +619,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     }
 
     console.info("[ProductForm] Received", files.length, "file(s) for upload");
-    console.info("[ProductForm] User agent:", navigator.userAgent);
 
-    // Validate files first
     const { valid, errors } = validateAndPrepareFiles(files);
 
     if (errors.length > 0) {
@@ -655,142 +638,92 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }
     }
 
-    console.info("[ProductForm] Starting upload for", valid.length, "valid file(s)");
+    // Show progress
+    setToast({
+      message: `Uploading ${valid.length} image(s)...`,
+      tone: "info",
+    });
 
-    try {
-      const fd = new FormData();
+    let successCount = 0;
+    let failCount = 0;
 
-      // Add ALL valid files to FormData with 'files' field name for batch upload
-      valid.forEach((file, idx) => {
-        fd.append("files", file);
-        console.info(`[ProductForm] Added file ${idx + 1} to FormData:`, {
+    // Upload ONE AT A TIME to avoid payload limits
+    for (let i = 0; i < valid.length; i++) {
+      const file = valid[i];
+
+      try {
+        console.info(`[ProductForm] Uploading file ${i + 1}/${valid.length}:`, {
           name: file.name,
-          type: file.type || "detected from extension",
+          type: file.type,
           size: file.size,
         });
-      });
 
-      // If editing an existing product, pass productId for folder placement
-      if (initialData?.id) {
-        fd.append("productId", initialData.id);
-        console.info("[ProductForm] Added productId to FormData:", initialData.id);
-      }
+        // Compress image before upload (optional but recommended)
+        // const compressedFile = await compressImage(file);
 
-      console.info(
-        "[ProductForm] Sending batch upload request to /api/admin/uploads/product-image",
-      );
-      console.info("[ProductForm] FormData keys:", Array.from(fd.keys()));
-      console.info("[ProductForm] FormData files count:", fd.getAll("files").length);
+        const fd = new FormData();
+        fd.append("file", file); // Single file
 
-      const res = await fetch("/api/admin/uploads/product-image", {
-        method: "POST",
-        body: fd,
-        // Don't set Content-Type header - let browser set it with boundary
-      });
-
-      console.info("[ProductForm] Upload response status:", res.status);
-      console.info("[ProductForm] Upload response headers:", {
-        contentType: res.headers.get("content-type"),
-        contentLength: res.headers.get("content-length"),
-      });
-
-      // Get the raw response text first for debugging
-      const responseText = await res.text();
-      console.info("[ProductForm] Raw response text:", responseText.substring(0, 500));
-
-      let json: unknown = null;
-      try {
-        json = JSON.parse(responseText);
-        console.info("[ProductForm] Parsed JSON response:", json);
-      } catch (parseError) {
-        console.error("[ProductForm] Failed to parse response JSON:", parseError);
-        console.error("[ProductForm] Response was:", responseText);
-        throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
-      }
-
-      if (!res.ok) {
-        const errorMsg = isUploadErrorResponse(json)
-          ? json.error || json.message
-          : "Image upload failed";
-        console.error(
-          "[ProductForm] Upload failed with status",
-          res.status,
-          ":",
-          errorMsg,
-        );
-        throw new Error(errorMsg);
-      }
-
-      // Handle response - could be single image or multiple
-      let uploadedCount = 0;
-
-      if (isUploadsResponse(json)) {
-        // Multiple images response
-        console.info("[ProductForm] Processing", json.uploads.length, "uploaded images");
-        const uploads = json.uploads.filter(isUploadResult);
-        if (uploads.length !== json.uploads.length) {
-          console.error("[ProductForm] Some uploads had invalid format:", json.uploads);
-          throw new Error("Unexpected response format from server");
+        if (initialData?.id) {
+          fd.append("productId", initialData.id);
         }
 
-        uploads.forEach((upload) => {
-          addImageEntry(upload.url);
-          uploadedCount++;
+        const res = await fetch("/api/admin/uploads/product-image", {
+          method: "POST",
+          body: fd,
         });
 
-        const failures = Array.isArray(json.failures) ? json.failures : [];
-        if (failures.length > 0) {
-          console.warn("[ProductForm] Some uploads failed:", failures);
-          setToast({
-            message: `${uploadedCount} uploaded successfully, ${failures.length} failed`,
-            tone: "info",
-          });
-        } else {
-          setToast({
-            message: `${uploadedCount} image(s) uploaded successfully`,
-            tone: "success",
-          });
+        const responseText = await res.text();
+        const json = JSON.parse(responseText);
+
+        if (!res.ok) {
+          throw new Error(json.error || json.message || "Upload failed");
         }
-      } else if (isUploadResult(json)) {
-        // Single image response (backward compatibility)
-        console.info("[ProductForm] Adding single image:", json.url);
-        addImageEntry(json.url);
-        uploadedCount = 1;
+
+        // Handle both single and multi-response formats
+        if (isUploadsResponse(json)) {
+          json.uploads.forEach((upload) => {
+            if (isUploadResult(upload)) {
+              addImageEntry(upload.url);
+              successCount++;
+            }
+          });
+        } else if (isUploadResult(json)) {
+          addImageEntry(json.url);
+          successCount++;
+        }
+
+        // Update progress
         setToast({
-          message: "Image uploaded successfully",
-          tone: "success",
+          message: `Uploaded ${i + 1}/${valid.length} images...`,
+          tone: "info",
         });
-      } else {
-        console.error("[ProductForm] Unexpected response format:", json);
-        throw new Error("Unexpected response format from server");
-      }
+      } catch (error) {
+        console.error(`[ProductForm] Upload failed for ${file.name}:`, error);
+        failCount++;
 
-      if (uploadedCount === 0) {
-        throw new Error("No images were successfully uploaded");
+        // Continue with remaining files
+        continue;
       }
-    } catch (error) {
-      console.error("[ProductForm] Upload error:", error);
-      console.error(
-        "[ProductForm] Error stack:",
-        error instanceof Error ? error.stack : "N/A",
-      );
-      logError(error, {
-        layer: "frontend",
-        event: "inventory_image_upload",
-        fileCount: valid.length,
-        userAgent: navigator.userAgent,
-        platform: navigator.platform,
-      });
-
-      const message =
-        error instanceof Error ? error.message : "Failed to upload image(s)";
-      setToast({ message, tone: "error" });
-    } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      setIsDragging(false);
     }
+
+    // Final message
+    if (failCount === 0) {
+      setToast({
+        message: `${successCount} image(s) uploaded successfully`,
+        tone: "success",
+      });
+    } else {
+      setToast({
+        message: `${successCount} succeeded, ${failCount} failed`,
+        tone: "info",
+      });
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    setIsDragging(false);
   };
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
