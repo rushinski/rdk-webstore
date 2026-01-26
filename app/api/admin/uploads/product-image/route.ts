@@ -11,6 +11,31 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 import { ProductImageService } from "@/services/product-image-service";
 
+type UploadSuccess = {
+  status: "success";
+  result: {
+    url: string;
+    path: string;
+    mimeType: string;
+    bytes: number;
+    hash: string;
+    bucket: string;
+  };
+  index: number;
+};
+
+type UploadError = {
+  status: "error";
+  error: {
+    index: number;
+    fileName: string;
+    error: string;
+  };
+  index: number;
+};
+
+type UploadResult = UploadSuccess | UploadError;
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -52,7 +77,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Support both single file upload and multiple files
     const fileEntries = form
       .getAll("file")
       .filter((entry): entry is File => entry instanceof File);
@@ -91,18 +115,17 @@ export async function POST(request: NextRequest) {
 
     const service = new ProductImageService(supabase);
 
-    // Upload files one by one with detailed error tracking
-    const uploadResults = [];
-    const uploadErrors = [];
-
-    for (let i = 0; i < allFiles.length; i++) {
-      const file = allFiles[i];
+    // CHANGED: Process all files in parallel with Promise.allSettled
+    const uploadPromises = allFiles.map(async (file, index): Promise<UploadResult> => {
       try {
-        console.info(`[Product Upload] Processing file ${i + 1}/${allFiles.length}:`, {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-        });
+        console.info(
+          `[Product Upload] Processing file ${index + 1}/${allFiles.length}:`,
+          {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          },
+        );
 
         const result = await service.uploadProductImage({
           tenantId,
@@ -110,30 +133,61 @@ export async function POST(request: NextRequest) {
           productId: parsedMeta.data.productId ?? null,
         });
 
-        uploadResults.push(result);
         console.info(
-          `[Product Upload] File ${i + 1} uploaded successfully:`,
+          `[Product Upload] File ${index + 1} uploaded successfully:`,
           result.path,
         );
+        return { status: "success", result, index };
       } catch (uploadError) {
-        console.error(`[Product Upload] File ${i + 1} upload failed:`, uploadError);
+        console.error(`[Product Upload] File ${index + 1} upload failed:`, uploadError);
         logError(uploadError, {
           layer: "api",
           requestId,
           route: "/api/admin/uploads/product-image",
-          message: `file_upload_failed_${i}`,
+          message: `file_upload_failed_${index}`,
           fileName: file.name,
           fileSize: file.size,
           fileType: file.type,
         });
 
-        uploadErrors.push({
-          index: i,
-          fileName: file.name,
-          error: uploadError instanceof Error ? uploadError.message : "Unknown error",
-        });
+        return {
+          status: "error",
+          error: {
+            index,
+            fileName: file.name,
+            error: uploadError instanceof Error ? uploadError.message : "Unknown error",
+          },
+          index,
+        };
       }
-    }
+    });
+
+    // Wait for all uploads to complete
+    const results = await Promise.allSettled(uploadPromises);
+
+    // Separate successes and failures
+    const uploadResults = results
+      .filter(
+        (r): r is PromiseFulfilledResult<UploadSuccess> =>
+          r.status === "fulfilled" && r.value.status === "success",
+      )
+      .map((r) => r.value.result);
+
+    const uploadErrors = results
+      .filter(
+        (r): r is PromiseFulfilledResult<UploadError> =>
+          r.status === "fulfilled" && r.value.status === "error",
+      )
+      .map((r) => r.value.error)
+      .concat(
+        results
+          .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+          .map((r, idx) => ({
+            index: idx,
+            fileName: allFiles[idx]?.name ?? "unknown",
+            error: r.reason instanceof Error ? r.reason.message : "Unknown error",
+          })),
+      );
 
     // If all uploads failed, return error
     if (uploadResults.length === 0) {
@@ -156,16 +210,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Return results
-    const responseData =
-      allFiles.length === 1
-        ? { ...uploadResults[0], requestId }
-        : {
-            uploads: uploadResults,
-            count: uploadResults.length,
-            failures: uploadErrors.length > 0 ? uploadErrors : undefined,
-            requestId,
-          };
+    // ALWAYS return in the multiple-file format for consistency
+    const responseData = {
+      uploads: uploadResults,
+      count: uploadResults.length,
+      failures: uploadErrors.length > 0 ? uploadErrors : undefined,
+      requestId,
+    };
 
     return NextResponse.json(responseData, {
       status: 201,
