@@ -48,8 +48,15 @@ export class ProductImageService {
       );
     }
 
-    // Check MIME type - handle empty/undefined types from iOS
+    // Normalize MIME type - handle both image/jpg and image/jpeg
     let mimeType = input.file.type;
+
+    // Normalize image/jpg to image/jpeg (some browsers/devices use image/jpg)
+    if (mimeType === "image/jpg") {
+      mimeType = "image/jpeg";
+      console.info("[ProductImageService] Normalized image/jpg to image/jpeg");
+    }
+
     let meta = ALLOWED_MIME[mimeType];
 
     // If no MIME type provided (common on iOS), try to detect from file extension
@@ -67,7 +74,6 @@ export class ProductImageService {
         mimeType = "image/webp";
         meta = ALLOWED_MIME["image/webp"];
       } else if (ext === "heic" || ext === "heif") {
-        // iOS HEIC images - need to tell user to convert or handle server-side
         throw new Error(
           `HEIC/HEIF format not supported. Please convert to JPG or PNG first.`,
         );
@@ -79,6 +85,7 @@ export class ProductImageService {
         provided: input.file.type,
         detected: mimeType,
         fileName: input.file.name,
+        allowedTypes: Object.keys(ALLOWED_MIME),
       });
       throw new Error(
         `Unsupported file type: ${input.file.type || "unknown"}. Supported: JPG, PNG, WebP`,
@@ -101,6 +108,8 @@ export class ProductImageService {
       bucket,
       path,
       contentType: mimeType,
+      extension: meta.ext,
+      originalMimeType: input.file.type,
     });
 
     try {
@@ -108,7 +117,7 @@ export class ProductImageService {
         bucket,
         path,
         file: input.file,
-        contentType: mimeType,
+        contentType: mimeType, // Use normalized MIME type
         upsert: true,
       });
       console.info("[ProductImageService] Upload successful:", path);

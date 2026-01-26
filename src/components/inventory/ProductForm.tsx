@@ -628,13 +628,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   };
 
   // Then update handleUploadFiles to use this:
-
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
     }
 
     console.info("[ProductForm] Received", files.length, "file(s) for upload");
+    console.info("[ProductForm] User agent:", navigator.userAgent);
 
     // Validate files first
     const { valid, errors } = validateAndPrepareFiles(files);
@@ -646,7 +646,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         tone: "error",
       });
 
-      // If some files are valid, continue with those
       if (valid.length === 0) {
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
@@ -662,9 +661,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       const fd = new FormData();
 
       // Add ALL valid files to FormData with 'files' field name for batch upload
-      valid.forEach((file) => {
+      valid.forEach((file, idx) => {
         fd.append("files", file);
-        console.info("[ProductForm] Added file to FormData:", {
+        console.info(`[ProductForm] Added file ${idx + 1} to FormData:`, {
           name: file.name,
           type: file.type || "detected from extension",
           size: file.size,
@@ -674,26 +673,39 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       // If editing an existing product, pass productId for folder placement
       if (initialData?.id) {
         fd.append("productId", initialData.id);
+        console.info("[ProductForm] Added productId to FormData:", initialData.id);
       }
 
       console.info(
         "[ProductForm] Sending batch upload request to /api/admin/uploads/product-image",
       );
+      console.info("[ProductForm] FormData keys:", Array.from(fd.keys()));
+      console.info("[ProductForm] FormData files count:", fd.getAll("files").length);
 
       const res = await fetch("/api/admin/uploads/product-image", {
         method: "POST",
         body: fd,
+        // Don't set Content-Type header - let browser set it with boundary
       });
 
       console.info("[ProductForm] Upload response status:", res.status);
+      console.info("[ProductForm] Upload response headers:", {
+        contentType: res.headers.get("content-type"),
+        contentLength: res.headers.get("content-length"),
+      });
+
+      // Get the raw response text first for debugging
+      const responseText = await res.text();
+      console.info("[ProductForm] Raw response text:", responseText.substring(0, 500));
 
       let json: unknown = null;
       try {
-        json = await res.json();
-        console.info("[ProductForm] Upload response body:", json);
+        json = JSON.parse(responseText);
+        console.info("[ProductForm] Parsed JSON response:", json);
       } catch (parseError) {
         console.error("[ProductForm] Failed to parse response JSON:", parseError);
-        throw new Error("Invalid server response");
+        console.error("[ProductForm] Response was:", responseText);
+        throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
       }
 
       if (!res.ok) {
@@ -717,6 +729,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         console.info("[ProductForm] Processing", json.uploads.length, "uploaded images");
         const uploads = json.uploads.filter(isUploadResult);
         if (uploads.length !== json.uploads.length) {
+          console.error("[ProductForm] Some uploads had invalid format:", json.uploads);
           throw new Error("Unexpected response format from server");
         }
 
@@ -757,11 +770,16 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }
     } catch (error) {
       console.error("[ProductForm] Upload error:", error);
+      console.error(
+        "[ProductForm] Error stack:",
+        error instanceof Error ? error.stack : "N/A",
+      );
       logError(error, {
         layer: "frontend",
         event: "inventory_image_upload",
         fileCount: valid.length,
         userAgent: navigator.userAgent,
+        platform: navigator.platform,
       });
 
       const message =
@@ -1318,14 +1336,24 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/jpg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp"
           multiple
-          capture={undefined} // Don't force camera, allow gallery selection
+          // Remove capture attribute entirely - it causes issues on iOS
           onChange={(e) => {
             console.info(
               "[ProductForm] File input changed, files:",
               e.target.files?.length || 0,
             );
+            if (e.target.files) {
+              console.info(
+                "[ProductForm] File details:",
+                Array.from(e.target.files).map((f) => ({
+                  name: f.name,
+                  type: f.type,
+                  size: f.size,
+                })),
+              );
+            }
             void handleUploadFiles(e.target.files);
           }}
           className="hidden"
