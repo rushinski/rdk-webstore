@@ -66,6 +66,59 @@ type TitleParseResult = {
   };
 };
 
+type UploadResult = {
+  url: string;
+  path?: string;
+  mimeType?: string;
+  bytes?: number;
+  hash?: string;
+  bucket?: string;
+};
+
+type UploadFailure = {
+  index?: number;
+  fileName?: string;
+  error?: string;
+};
+
+type UploadsResponse = {
+  uploads: UploadResult[];
+  count?: number;
+  failures?: UploadFailure[];
+  requestId?: string;
+};
+
+type UploadErrorResponse = {
+  error?: string;
+  message?: string;
+  requestId?: string;
+  details?: unknown;
+};
+
+const isUploadResult = (value: unknown): value is UploadResult => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.url === "string";
+};
+
+const isUploadsResponse = (value: unknown): value is UploadsResponse => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return Array.isArray(record.uploads);
+};
+
+const isUploadErrorResponse = (value: unknown): value is UploadErrorResponse => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.error === "string" || typeof record.message === "string";
+};
+
 const normalizeImages = (items: ImageDraft[]) => {
   const hasPrimary = items.some((item) => item.is_primary);
   return items.map((item, index) => ({
@@ -513,44 +566,206 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     );
   };
 
+  const validateAndPrepareFiles = (
+    fileList: FileList,
+  ): {
+    valid: File[];
+    errors: string[];
+  } => {
+    const valid: File[] = [];
+    const errors: string[] = [];
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+    Array.from(fileList).forEach((file) => {
+      console.info("[ProductForm] Validating file:", {
+        name: file.name,
+        type: file.type || "NO TYPE",
+        size: file.size,
+      });
+
+      // Check for HEIC/HEIF (iOS default format)
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith(".heic") || fileName.endsWith(".heif")) {
+        errors.push(
+          `${file.name}: HEIC/HEIF not supported. Please convert to JPG in Photos app first.`,
+        );
+        return;
+      }
+
+      // Check file size
+      if (file.size === 0) {
+        errors.push(`${file.name}: File is empty`);
+        return;
+      }
+
+      if (file.size > MAX_SIZE) {
+        errors.push(`${file.name}: File too large (max 10MB)`);
+        return;
+      }
+
+      // Check MIME type
+      // iOS sometimes doesn't provide file.type, so we check extension too
+      const hasValidType = file.type && ALLOWED_TYPES.includes(file.type);
+      const hasValidExtension = /\.(jpe?g|png|webp)$/i.test(fileName);
+
+      if (!hasValidType && !hasValidExtension) {
+        errors.push(`${file.name}: Not a supported image type (use JPG, PNG, or WebP)`);
+        return;
+      }
+
+      // If type is missing but extension is valid, it's likely iOS
+      if (!file.type && hasValidExtension) {
+        console.info(
+          "[ProductForm] iOS file detected (no MIME type), accepting based on extension",
+        );
+      }
+
+      valid.push(file);
+    });
+
+    return { valid, errors };
+  };
+
+  // Then update handleUploadFiles to use this:
+
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
     }
 
-    const uploads = Array.from(files).filter((file) => file.type.startsWith("image/"));
-    if (uploads.length === 0) {
-      return;
+    console.info("[ProductForm] Received", files.length, "file(s) for upload");
+
+    // Validate files first
+    const { valid, errors } = validateAndPrepareFiles(files);
+
+    if (errors.length > 0) {
+      console.error("[ProductForm] Validation errors:", errors);
+      setToast({
+        message: errors.join("; "),
+        tone: "error",
+      });
+
+      // If some files are valid, continue with those
+      if (valid.length === 0) {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        setIsDragging(false);
+        return;
+      }
     }
 
-    try {
-      // Upload sequentially (simpler, avoids overwhelming local stack)
-      for (const file of uploads) {
-        const fd = new FormData();
-        fd.append("file", file);
+    console.info("[ProductForm] Starting upload for", valid.length, "valid file(s)");
 
-        // If editing an existing product, you can pass productId for folder placement:
-        if (initialData?.id) {
-          fd.append("productId", initialData.id);
+    try {
+      const fd = new FormData();
+
+      // Add ALL valid files to FormData with 'files' field name for batch upload
+      valid.forEach((file) => {
+        fd.append("files", file);
+        console.info("[ProductForm] Added file to FormData:", {
+          name: file.name,
+          type: file.type || "detected from extension",
+          size: file.size,
+        });
+      });
+
+      // If editing an existing product, pass productId for folder placement
+      if (initialData?.id) {
+        fd.append("productId", initialData.id);
+      }
+
+      console.info(
+        "[ProductForm] Sending batch upload request to /api/admin/uploads/product-image",
+      );
+
+      const res = await fetch("/api/admin/uploads/product-image", {
+        method: "POST",
+        body: fd,
+      });
+
+      console.info("[ProductForm] Upload response status:", res.status);
+
+      let json: unknown = null;
+      try {
+        json = await res.json();
+        console.info("[ProductForm] Upload response body:", json);
+      } catch (parseError) {
+        console.error("[ProductForm] Failed to parse response JSON:", parseError);
+        throw new Error("Invalid server response");
+      }
+
+      if (!res.ok) {
+        const errorMsg = isUploadErrorResponse(json)
+          ? json.error || json.message
+          : "Image upload failed";
+        console.error(
+          "[ProductForm] Upload failed with status",
+          res.status,
+          ":",
+          errorMsg,
+        );
+        throw new Error(errorMsg);
+      }
+
+      // Handle response - could be single image or multiple
+      let uploadedCount = 0;
+
+      if (isUploadsResponse(json)) {
+        // Multiple images response
+        console.info("[ProductForm] Processing", json.uploads.length, "uploaded images");
+        const uploads = json.uploads.filter(isUploadResult);
+        if (uploads.length !== json.uploads.length) {
+          throw new Error("Unexpected response format from server");
         }
 
-        const res = await fetch("/api/admin/uploads/product-image", {
-          method: "POST",
-          body: fd,
+        uploads.forEach((upload) => {
+          addImageEntry(upload.url);
+          uploadedCount++;
         });
 
-        const json = await res.json().catch(() => ({}));
-
-        if (!res.ok) {
-          throw new Error(json?.error || "Image upload failed");
+        const failures = Array.isArray(json.failures) ? json.failures : [];
+        if (failures.length > 0) {
+          console.warn("[ProductForm] Some uploads failed:", failures);
+          setToast({
+            message: `${uploadedCount} uploaded successfully, ${failures.length} failed`,
+            tone: "info",
+          });
+        } else {
+          setToast({
+            message: `${uploadedCount} image(s) uploaded successfully`,
+            tone: "success",
+          });
         }
+      } else if (isUploadResult(json)) {
+        // Single image response (backward compatibility)
+        console.info("[ProductForm] Adding single image:", json.url);
+        addImageEntry(json.url);
+        uploadedCount = 1;
+        setToast({
+          message: "Image uploaded successfully",
+          tone: "success",
+        });
+      } else {
+        console.error("[ProductForm] Unexpected response format:", json);
+        throw new Error("Unexpected response format from server");
+      }
 
-        // IMPORTANT: store the returned Storage URL, not base64
-        addImageEntry(String(json.url || ""));
+      if (uploadedCount === 0) {
+        throw new Error("No images were successfully uploaded");
       }
     } catch (error) {
-      logError(error, { layer: "frontend", event: "inventory_image_upload" });
-      const message = error instanceof Error ? error.message : "Failed to upload image";
+      console.error("[ProductForm] Upload error:", error);
+      logError(error, {
+        layer: "frontend",
+        event: "inventory_image_upload",
+        fileCount: valid.length,
+        userAgent: navigator.userAgent,
+      });
+
+      const message =
+        error instanceof Error ? error.message : "Failed to upload image(s)";
       setToast({ message, tone: "error" });
     } finally {
       if (fileInputRef.current) {
@@ -1103,9 +1318,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/jpg,image/png,image/webp"
           multiple
+          capture={undefined} // Don't force camera, allow gallery selection
           onChange={(e) => {
+            console.info(
+              "[ProductForm] File input changed, files:",
+              e.target.files?.length || 0,
+            );
             void handleUploadFiles(e.target.files);
           }}
           className="hidden"
