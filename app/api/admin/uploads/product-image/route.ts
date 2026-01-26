@@ -38,6 +38,7 @@ type UploadResult = UploadSuccess | UploadError;
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const formSchema = z.object({
   productId: z.string().uuid().optional(),
