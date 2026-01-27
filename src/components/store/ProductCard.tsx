@@ -27,6 +27,17 @@ export function ProductCard({ product }: ProductCardProps) {
         : variants[0].size_label
       : "Multiple sizes";
 
+  const conditionBadge =
+    product.condition === "new" ? (
+      <span className="bg-green-600/20 text-green-200 text-[10px] px-2 py-0.5 rounded-full border border-green-500/20">
+        NEW
+      </span>
+    ) : product.condition === "used" ? (
+      <span className="bg-amber-500/20 text-amber-200 text-[10px] px-2 py-0.5 rounded-full border border-amber-400/20">
+        USED
+      </span>
+    ) : null;
+
   return (
     <Link
       href={`/store/${product.id}`}
@@ -46,23 +57,19 @@ export function ProductCard({ product }: ProductCardProps) {
               className="object-cover group-hover:scale-105 transition-transform duration-300"
             />
           )}
+
+          {conditionBadge && (
+            <div className="absolute top-2 right-2 z-10">{conditionBadge}</div>
+          )}
         </div>
+
         <div className="p-3 flex flex-col flex-1">
           <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
             <h3 className="text-white font-bold text-sm truncate flex-1">
               {product.title_display ?? `${product.brand} ${product.name}`.trim()}
             </h3>
-            {product.condition === "new" && (
-              <span className="shrink-0 bg-green-600/20 text-green-200 text-[10px] px-2 py-0.5 rounded-full">
-                NEW
-              </span>
-            )}
-            {product.condition === "used" && (
-              <span className="shrink-0 bg-amber-500/20 text-amber-200 text-[10px] px-2 py-0.5 rounded-full">
-                USED
-              </span>
-            )}
           </div>
+
           <div className="flex items-center justify-between mt-auto pt-2">
             <span className="text-gray-400 text-xs">Size: {sizeDisplay}</span>
             <span className="text-white font-bold text-sm">{priceDisplay}</span>

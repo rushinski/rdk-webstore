@@ -1,4 +1,4 @@
-// app/(main)/legal/terms/page.tsx
+// app/legal/terms/page.tsx
 export default function TermsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 pt-8 pb-16">

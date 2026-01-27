@@ -64,6 +64,11 @@ type FilterDataRow = {
   category: string | null;
 };
 
+type SizeAvailabilityRow = {
+  size_label: string | null;
+  size_type: string | null;
+};
+
 type ProductWithRelations = ProductRow & {
   variants?: VariantRow[];
   images?: ImageRow[];
@@ -519,6 +524,193 @@ export class ProductRepository {
     }));
   }
 
+  async listAvailableSizes(filters?: ProductFilters) {
+    const includeOutOfStock = Boolean(filters?.includeOutOfStock);
+    let query = this.supabase
+      .from("product_variants")
+      .select("size_label, size_type, product:products!inner(is_active, is_out_of_stock)")
+      .gt("stock", 0)
+      .eq("product.is_active", true);
+
+    if (filters?.tenantId) {
+      query = query.eq("product.tenant_id", filters.tenantId);
+    }
+    if (filters?.sellerId) {
+      query = query.eq("product.seller_id", filters.sellerId);
+    }
+    if (filters?.marketplaceId) {
+      query = query.eq("product.marketplace_id", filters.marketplaceId);
+    }
+
+    if (filters?.stockStatus === "out_of_stock") {
+      query = query.eq("product.is_out_of_stock", true);
+    } else if (filters?.stockStatus === "in_stock") {
+      query = query.eq("product.is_out_of_stock", false);
+    } else if (!includeOutOfStock) {
+      query = query.eq("product.is_out_of_stock", false);
+    }
+
+    if (filters?.q) {
+      query = query.or(
+        [
+          `brand.ilike.%${filters.q}%`,
+          `name.ilike.%${filters.q}%`,
+          `model.ilike.%${filters.q}%`,
+          `title_raw.ilike.%${filters.q}%`,
+          `title_display.ilike.%${filters.q}%`,
+        ].join(","),
+        { foreignTable: "product" },
+      );
+    }
+
+    if (filters?.category?.length) {
+      query = query.in("product.category", filters.category);
+    }
+    if (filters?.brand?.length) {
+      query = query.in("product.brand", filters.brand);
+    }
+    if (filters?.model?.length) {
+      query = query.in("product.model", filters.model);
+    }
+    if (filters?.condition?.length) {
+      query = query.in("product.condition", filters.condition);
+    }
+
+    if (filters?.sizeShoe?.length || filters?.sizeClothing?.length) {
+      const sizeFilters: string[] = [];
+      if (filters.sizeShoe?.length) {
+        sizeFilters.push(
+          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
+        );
+      }
+      if (filters.sizeClothing?.length) {
+        sizeFilters.push(
+          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(
+            filters.sizeClothing,
+          )}))`,
+        );
+      }
+      if (sizeFilters.length > 0) {
+        query = query.or(sizeFilters.join(","));
+      }
+    }
+
+    const { data, error } = await query.limit(5000);
+
+    if (error) {
+      throw error;
+    }
+
+    const shoe = new Set<string>();
+    const clothing = new Set<string>();
+
+    for (const row of (data ?? []) as SizeAvailabilityRow[]) {
+      const sizeLabel = row.size_label?.trim();
+      if (!sizeLabel) {
+        continue;
+      }
+      if (row.size_type === "shoe") {
+        shoe.add(sizeLabel);
+      } else if (row.size_type === "clothing") {
+        clothing.add(sizeLabel);
+      }
+    }
+
+    return { shoe: Array.from(shoe), clothing: Array.from(clothing) };
+  }
+
+  async listAvailableConditions(filters?: ProductFilters) {
+    const includeOutOfStock = Boolean(filters?.includeOutOfStock);
+    let query = this.supabase
+      .from("product_variants")
+      .select(
+        "size_label, size_type, product:products!inner(condition, is_active, is_out_of_stock)",
+      )
+      .gt("stock", 0)
+      .eq("product.is_active", true);
+
+    if (filters?.tenantId) {
+      query = query.eq("product.tenant_id", filters.tenantId);
+    }
+    if (filters?.sellerId) {
+      query = query.eq("product.seller_id", filters.sellerId);
+    }
+    if (filters?.marketplaceId) {
+      query = query.eq("product.marketplace_id", filters.marketplaceId);
+    }
+
+    if (filters?.stockStatus === "out_of_stock") {
+      query = query.eq("product.is_out_of_stock", true);
+    } else if (filters?.stockStatus === "in_stock") {
+      query = query.eq("product.is_out_of_stock", false);
+    } else if (!includeOutOfStock) {
+      query = query.eq("product.is_out_of_stock", false);
+    }
+
+    if (filters?.q) {
+      query = query.or(
+        [
+          `brand.ilike.%${filters.q}%`,
+          `name.ilike.%${filters.q}%`,
+          `model.ilike.%${filters.q}%`,
+          `title_raw.ilike.%${filters.q}%`,
+          `title_display.ilike.%${filters.q}%`,
+        ].join(","),
+        { foreignTable: "product" },
+      );
+    }
+
+    if (filters?.category?.length) {
+      query = query.in("product.category", filters.category);
+    }
+    if (filters?.brand?.length) {
+      query = query.in("product.brand", filters.brand);
+    }
+    if (filters?.model?.length) {
+      query = query.in("product.model", filters.model);
+    }
+    if (filters?.condition?.length) {
+      query = query.in("product.condition", filters.condition);
+    }
+
+    if (filters?.sizeShoe?.length || filters?.sizeClothing?.length) {
+      const sizeFilters: string[] = [];
+      if (filters.sizeShoe?.length) {
+        sizeFilters.push(
+          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
+        );
+      }
+      if (filters.sizeClothing?.length) {
+        sizeFilters.push(
+          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(
+            filters.sizeClothing,
+          )}))`,
+        );
+      }
+      if (sizeFilters.length > 0) {
+        query = query.or(sizeFilters.join(","));
+      }
+    }
+
+    const { data, error } = await query.limit(5000);
+
+    if (error) {
+      throw error;
+    }
+
+    const conditions = new Set<string>();
+    for (const row of (data ?? []) as Array<{
+      product?: { condition?: string | null };
+    }>) {
+      const condition = row?.product?.condition;
+      if (condition) {
+        conditions.add(condition);
+      }
+    }
+
+    return Array.from(conditions);
+  }
+
   private transformProduct(raw: ProductWithRelations): ProductWithDetails {
     const variants = Array.isArray(raw.variants) ? raw.variants : [];
     const images = Array.isArray(raw.images) ? raw.images : [];
@@ -640,6 +832,10 @@ export class ProductRepository {
         .order("product_id", { ascending: true })
         .range(rangeStart, rangeStart + batchSize - 1);
 
+      if (!includeOutOfStock) {
+        query = query.gt("stock", 0);
+      }
+
       if (filters.sizeShoe?.length || filters.sizeClothing?.length) {
         const sizeFilters: string[] = [];
         if (filters.sizeShoe?.length) {
@@ -757,7 +953,8 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("product_variants")
       .select("product_id")
-      .or(sizeFilters.join(","));
+      .or(sizeFilters.join(","))
+      .gt("stock", 0);
 
     if (error) {
       throw error;

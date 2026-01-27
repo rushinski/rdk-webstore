@@ -23,7 +23,26 @@ export const SHOE_SIZES = [
   "13.5M / 15W",
   "14M / 15.5W",
   "15M / 16M",
+  "EU 36",
+  "EU 37",
+  "EU 38",
+  "EU 39",
+  "EU 40",
+  "EU 41",
+  "EU 42",
+  "EU 43",
+  "EU 44",
+  "EU 45",
+  "EU 46",
+  "EU 47",
+  "EU 48",
 ] as const;
+
+export const SHOE_SIZE_GROUPS = {
+  youth: SHOE_SIZES.filter((size) => size.includes("Y")),
+  mens: SHOE_SIZES.filter((size) => size.includes("M") && !size.includes("Y")),
+  eu: SHOE_SIZES.filter((size) => size.startsWith("EU")),
+} as const;
 
 export const CLOTHING_SIZES = [
   "XS",

@@ -22,10 +22,30 @@ export class StorefrontService {
     });
   }
 
-  async listFilters(opts?: { includeOutOfStock?: boolean }) {
-    const data = await this.productRepo.listFilterData({
-      includeOutOfStock: opts?.includeOutOfStock,
-    });
+  async listFilters(opts?: {
+    includeOutOfStock?: boolean;
+    filters?: ProductFilters;
+  }) {
+    const sizeFilters = opts?.filters ? { ...opts.filters } : undefined;
+    if (sizeFilters) {
+      sizeFilters.includeOutOfStock = opts?.includeOutOfStock;
+      sizeFilters.sizeShoe = [];
+      sizeFilters.sizeClothing = [];
+    }
+
+    const conditionFilters = opts?.filters ? { ...opts.filters } : undefined;
+    if (conditionFilters) {
+      conditionFilters.includeOutOfStock = opts?.includeOutOfStock;
+      conditionFilters.condition = [];
+    }
+
+    const [data, sizeData, availableConditions] = await Promise.all([
+      this.productRepo.listFilterData({
+        includeOutOfStock: opts?.includeOutOfStock,
+      }),
+      this.productRepo.listAvailableSizes(sizeFilters),
+      this.productRepo.listAvailableConditions(conditionFilters),
+    ]);
 
     const brandMap = new Map<string, { label: string; isVerified: boolean }>();
     const modelsByBrand: Record<string, string[]> = {};
@@ -109,7 +129,16 @@ export class StorefrontService {
       return aIndex - bIndex;
     });
 
-    return { brands, models, modelsByBrand, brandsByCategory, categories };
+    return {
+      brands,
+      models,
+      modelsByBrand,
+      brandsByCategory,
+      categories,
+      availableShoeSizes: sizeData.shoe,
+      availableClothingSizes: sizeData.clothing,
+      availableConditions,
+    };
   }
 
   async listBrandGroupsByKeys(keys: Set<string>) {

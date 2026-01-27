@@ -89,7 +89,7 @@ export default async function StorePage({
     pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
   }
 
-  const filterData = await service.listFilters();
+  const filterData = await service.listFilters({ filters });
   const brandOptions = filterData.brands.map((brand) => ({
     value: brand.label,
     label: brand.label,
@@ -199,6 +199,9 @@ export default async function StorePage({
               brands={brandOptions}
               modelsByBrand={filterData.modelsByBrand}
               brandsByCategory={filterData.brandsByCategory}
+              availableShoeSizes={filterData.availableShoeSizes}
+              availableClothingSizes={filterData.availableClothingSizes}
+              availableConditions={filterData.availableConditions}
             />
           </div>
         </div>
@@ -220,6 +223,9 @@ export default async function StorePage({
           brands={brandOptions}
           modelsByBrand={filterData.modelsByBrand}
           brandsByCategory={filterData.brandsByCategory}
+          availableShoeSizes={filterData.availableShoeSizes}
+          availableClothingSizes={filterData.availableClothingSizes}
+          availableConditions={filterData.availableConditions}
         />
       </div>
 

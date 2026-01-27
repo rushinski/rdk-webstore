@@ -1,13 +1,14 @@
 // src/components/store/ProductDetail.tsx
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 
 import type { ProductWithDetails } from "@/types/domain/product";
 import { useCart } from "@/components/cart/CartProvider";
 import { Toast } from "@/components/ui/Toast";
+import { RdkSelect, type RdkSelectOption } from "@/components/ui/Select";
 
 interface ProductDetailProps {
   product: ProductWithDetails;
@@ -15,7 +16,10 @@ interface ProductDetailProps {
 
 export function ProductDetail({ product }: ProductDetailProps) {
   const { addItem, items } = useCart();
-  const [selectedVariantId, setSelectedVariantId] = useState(product.variants[0]?.id);
+
+  const [selectedVariantId, setSelectedVariantId] = useState<string>(
+    product.variants[0]?.id ?? "",
+  );
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showShipping, setShowShipping] = useState(false);
   const [toast, setToast] = useState<{
@@ -24,15 +28,29 @@ export function ProductDetail({ product }: ProductDetailProps) {
   } | null>(null);
 
   const selectedVariant =
-    product.variants.find((v) => v.id === selectedVariantId) || product.variants[0];
+    product.variants.find((v) => v.id === selectedVariantId) ?? product.variants[0];
+
   const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
+
   const inCartItem = selectedVariant
     ? items.find(
         (item) => item.productId === product.id && item.variantId === selectedVariant.id,
       )
     : undefined;
+
   const inCartQuantity = inCartItem?.quantity ?? 0;
   const canAddMore = selectedVariant ? selectedVariant.stock > inCartQuantity : false;
+
+  const sizeOptions: RdkSelectOption[] = useMemo(() => {
+    return product.variants.map((variant) => ({
+      value: variant.id,
+      label: `${variant.size_label} - $${(variant.price_cents / 100).toFixed(2)} (${variant.stock} in stock)`,
+      disabled: variant.stock === 0,
+    }));
+  }, [product.variants]);
+
+  const sizeDisplay =
+    selectedVariant?.size_label === "N/A" ? "No size" : (selectedVariant?.size_label ?? "");
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
@@ -84,6 +102,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 className={`aspect-square relative bg-zinc-900 rounded overflow-hidden border-2 ${
                   selectedImageIndex === index ? "border-red-600" : "border-transparent"
                 }`}
+                type="button"
               >
                 <Image
                   src={image.url}
@@ -103,48 +122,44 @@ export function ProductDetail({ product }: ProductDetailProps) {
           <h1 className="text-3xl font-bold text-white mb-2">
             {product.title_display ?? `${product.brand} ${product.name}`.trim()}
           </h1>
-          {product.model && (
-            <p className="text-sm text-gray-500 mb-2">Model: {product.model}</p>
-          )}
+          {product.model && <p className="text-sm text-gray-500 mb-2">Model: {product.model}</p>}
 
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-bold text-white">
-              ${(selectedVariant.price_cents / 100).toFixed(2)}
+              ${(((selectedVariant?.price_cents ?? 0) as number) / 100).toFixed(2)}
             </span>
             <span
               className={`px-3 py-1 rounded text-sm font-semibold ${
-                product.condition === "new"
-                  ? "bg-green-600 text-white"
-                  : "bg-yellow-600 text-white"
+                product.condition === "new" ? "bg-green-600 text-white" : "bg-yellow-600 text-white"
               }`}
             >
               {product.condition.toUpperCase()}
             </span>
           </div>
 
-          {/* Size Selection */}
-          {product.variants.length > 1 && (
-            <div className="mb-6">
-              <label className="block text-white font-semibold mb-2">Size</label>
-              <select
+          {/* Size */}
+          <div className="mb-6">
+            <label className="block text-white font-semibold mb-2">Size</label>
+
+            {product.variants.length <= 1 ? (
+              <div className="w-full bg-zinc-900 text-white px-4 py-3 rounded border border-zinc-800/70">
+                {sizeDisplay || "No size"}
+              </div>
+            ) : (
+              <RdkSelect
                 value={selectedVariantId}
-                onChange={(e) => setSelectedVariantId(e.target.value)}
-                className="w-full bg-zinc-900 text-white px-4 py-3 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-              >
-                {product.variants.map((variant) => (
-                  <option key={variant.id} value={variant.id}>
-                    {variant.size_label} - ${(variant.price_cents / 100).toFixed(2)} (
-                    {variant.stock} in stock)
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+                onChange={setSelectedVariantId}
+                options={sizeOptions}
+                className="w-full"
+                buttonClassName="px-4 py-3"
+              />
+            )}
+          </div>
 
           {/* Stock Info */}
           <div className="mb-6">
             <p className="text-gray-400 text-sm">
-              {selectedVariant.stock > 0 ? (
+              {selectedVariant && selectedVariant.stock > 0 ? (
                 <span className="text-green-400">{selectedVariant.stock} in stock</span>
               ) : (
                 <span className="text-red-400">Out of stock</span>
@@ -155,10 +170,11 @@ export function ProductDetail({ product }: ProductDetailProps) {
           {/* Add to Cart */}
           <button
             onClick={handleAddToCart}
-            disabled={selectedVariant.stock === 0 || !canAddMore}
+            disabled={!selectedVariant || selectedVariant.stock === 0 || !canAddMore}
             className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded transition mb-6"
+            type="button"
           >
-            {selectedVariant.stock === 0
+            {!selectedVariant || selectedVariant.stock === 0
               ? "Out of Stock"
               : inCartQuantity > 0
                 ? canAddMore
@@ -166,19 +182,16 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   : "In Cart (Max)"
                 : "Add to Cart"}
           </button>
+
           {inCartQuantity > 0 && (
-            <p className="text-xs text-gray-500 mb-6">
-              This size is already in your cart.
-            </p>
+            <p className="text-xs text-gray-500 mb-6">This size is already in your cart.</p>
           )}
 
           {/* Description */}
           {product.description && (
             <div className="mb-6">
               <h3 className="text-white font-semibold mb-2">Description</h3>
-              <p className="text-gray-400 text-sm whitespace-pre-wrap">
-                {product.description}
-              </p>
+              <p className="text-gray-400 text-sm whitespace-pre-wrap">{product.description}</p>
             </div>
           )}
 
@@ -195,21 +208,22 @@ export function ProductDetail({ product }: ProductDetailProps) {
             <button
               onClick={() => setShowShipping(!showShipping)}
               className="flex items-center justify-between w-full text-white font-semibold mb-2"
+              type="button"
             >
               Shipping & Returns
               <ChevronDown
                 className={`w-4 h-4 transition-transform ${showShipping ? "rotate-180" : ""}`}
               />
             </button>
+
             {showShipping && (
               <div className="text-gray-400 text-sm space-y-2">
                 <p>
-                  We aim to ship within 24 hours (processing time, not delivery time).
-                  Shipping options and rates are shown at checkout.
+                  We aim to ship within 24 hours (processing time, not delivery time). Shipping
+                  options and rates are shown at checkout.
                 </p>
                 <p>
-                  All sales are final except as outlined in our Returns &amp; Refunds
-                  policy.
+                  All sales are final except as outlined in our Returns &amp; Refunds policy.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a href="/shipping" className="text-red-500 hover:underline">
@@ -224,6 +238,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </div>
         </div>
       </div>
+
       <Toast
         open={Boolean(toast)}
         message={toast?.message ?? ""}

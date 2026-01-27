@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X, ChevronDown, Filter } from "lucide-react";
 
-import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
+import { SHOE_SIZE_GROUPS, CLOTHING_SIZES } from "@/config/constants/sizes";
 
 type BrandOption = { label: string; value: string };
 
@@ -22,6 +22,9 @@ interface FilterPanelProps {
   brands: BrandOption[];
   modelsByBrand: Record<string, string[]>;
   brandsByCategory: Record<string, string[]>;
+  availableShoeSizes: string[];
+  availableClothingSizes: string[];
+  availableConditions: string[];
 }
 
 export function FilterPanel({
@@ -35,6 +38,9 @@ export function FilterPanel({
   modelsByBrand,
   brandsByCategory,
   categories,
+  availableShoeSizes,
+  availableClothingSizes,
+  availableConditions,
 }: FilterPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,6 +63,34 @@ export function FilterPanel({
 
   const conditions = ["new", "used"];
   const toTestId = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
+  const availableShoeSizeSet = useMemo(
+    () => new Set(availableShoeSizes),
+    [availableShoeSizes],
+  );
+  const availableClothingSizeSet = useMemo(
+    () => new Set(availableClothingSizes),
+    [availableClothingSizes],
+  );
+  const shoeSizeGroups = useMemo(
+    () => ({
+      youth: SHOE_SIZE_GROUPS.youth.filter((size) => availableShoeSizeSet.has(size)),
+      mens: SHOE_SIZE_GROUPS.mens.filter((size) => availableShoeSizeSet.has(size)),
+      eu: SHOE_SIZE_GROUPS.eu.filter((size) => availableShoeSizeSet.has(size)),
+    }),
+    [availableShoeSizeSet],
+  );
+  const filteredClothingSizes = useMemo(
+    () => CLOTHING_SIZES.filter((size) => availableClothingSizeSet.has(size)),
+    [availableClothingSizeSet],
+  );
+  const availableConditionSet = useMemo(
+    () => new Set(availableConditions),
+    [availableConditions],
+  );
+  const filteredConditions = useMemo(
+    () => conditions.filter((cond) => availableConditionSet.has(cond)),
+    [availableConditionSet, conditions],
+  );
 
   const hasSneakers = categories.includes("sneakers");
   const hasClothing = categories.includes("clothing");
@@ -436,31 +470,92 @@ export function FilterPanel({
             <div className="space-y-4">
               {showShoeFilter && (
                 <div>
-                  <h4 className="text-sm text-gray-400 mb-2">Shoe Sizes</h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SHOE_SIZES.map((size) => (
-                      <label
-                        key={size}
-                        className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedShoeSizes.includes(size)}
-                          onChange={() => handleShoeSizeChange(size)}
-                          className="rdk-checkbox mr-2"
-                          data-testid={`filter-size-shoe-${toTestId(size)}`}
-                        />
-                        <span>{size}</span>
-                      </label>
-                    ))}
+                  <h4 className="text-base font-semibold text-gray-200 mb-3">
+                    Shoe Sizes
+                  </h4>
+                  <div className="space-y-4">
+                    {shoeSizeGroups.youth.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                          Youth
+                        </h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          {shoeSizeGroups.youth.map((size) => (
+                            <label
+                              key={size}
+                              className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedShoeSizes.includes(size)}
+                                onChange={() => handleShoeSizeChange(size)}
+                                className="rdk-checkbox mr-2"
+                                data-testid={`filter-size-shoe-${toTestId(size)}`}
+                              />
+                              <span>{size}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {shoeSizeGroups.mens.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                          Men&apos;s
+                        </h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          {shoeSizeGroups.mens.map((size) => (
+                            <label
+                              key={size}
+                              className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedShoeSizes.includes(size)}
+                                onChange={() => handleShoeSizeChange(size)}
+                                className="rdk-checkbox mr-2"
+                                data-testid={`filter-size-shoe-${toTestId(size)}`}
+                              />
+                              <span>{size}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {shoeSizeGroups.eu.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                          EU
+                        </h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          {shoeSizeGroups.eu.map((size) => (
+                            <label
+                              key={size}
+                              className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedShoeSizes.includes(size)}
+                                onChange={() => handleShoeSizeChange(size)}
+                                className="rdk-checkbox mr-2"
+                                data-testid={`filter-size-shoe-${toTestId(size)}`}
+                              />
+                              <span>{size}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
               {showClothingFilter && (
                 <div>
-                  <h4 className="text-sm text-gray-400 mb-2">Clothing Sizes</h4>
+                  <h4 className="text-base font-semibold text-gray-200 mb-3">
+                    Clothing Sizes
+                  </h4>
                   <div className="grid grid-cols-2 gap-2">
-                    {CLOTHING_SIZES.map((size) => (
+                    {filteredClothingSizes.map((size) => (
                       <label
                         key={size}
                         className="flex items-center text-gray-300 hover:text-white cursor-pointer text-sm"
@@ -484,36 +579,38 @@ export function FilterPanel({
       )}
 
       {/* Condition Filter */}
-      <div>
-        <button
-          onClick={() => toggleSection("condition")}
-          className="flex items-center justify-between w-full text-white font-semibold mb-2"
-        >
-          Condition
-          <ChevronDown
-            className={`w-4 h-4 transition-transform ${expandedSections.condition ? "rotate-180" : ""}`}
-          />
-        </button>
-        {expandedSections.condition && (
-          <div className="space-y-2">
-            {conditions.map((cond) => (
-              <label
-                key={cond}
-                className="flex items-center text-gray-300 hover:text-white cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedConditions.includes(cond)}
-                  onChange={() => handleConditionChange(cond)}
-                  className="rdk-checkbox mr-2"
-                  data-testid={`filter-condition-${toTestId(cond)}`}
-                />
-                <span className="capitalize">{cond}</span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
+      {filteredConditions.length > 0 && (
+        <div>
+          <button
+            onClick={() => toggleSection("condition")}
+            className="flex items-center justify-between w-full text-white font-semibold mb-2"
+          >
+            Condition
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${expandedSections.condition ? "rotate-180" : ""}`}
+            />
+          </button>
+          {expandedSections.condition && (
+            <div className="space-y-2">
+              {filteredConditions.map((cond) => (
+                <label
+                  key={cond}
+                  className="flex items-center text-gray-300 hover:text-white cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedConditions.includes(cond)}
+                    onChange={() => handleConditionChange(cond)}
+                    className="rdk-checkbox mr-2"
+                    data-testid={`filter-condition-${toTestId(cond)}`}
+                  />
+                  <span className="capitalize">{cond}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 
