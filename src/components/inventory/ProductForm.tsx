@@ -1031,7 +1031,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       });
 
       const preparedImages = normalizeImages(images)
-        .map((image) => ({ ...image, url: image.url.trim() }))
+        .map((image) => ({
+          url: image.url.trim(),
+          sort_order: image.sort_order,
+          is_primary: image.is_primary,
+        }))
         .filter((image) => image.url);
 
       if (preparedImages.length === 0) {
@@ -1290,9 +1294,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     <RdkSelect
                       value={variant.size_label}
                       onChange={(v) => updateVariant(index, "size_label", v)}
-                      placeholder="Select…"
+                      placeholder="Select..."
+                      searchable
+                      searchPlaceholder="Search sizes..."
                       options={[
-                        { value: "", label: "Select…" },
+                        { value: "", label: "Select..." },
                         ...SHOE_SIZES.map((size) => ({ value: size, label: size })),
                       ]}
                       buttonClassName="bg-zinc-900"
@@ -1303,9 +1309,11 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     <RdkSelect
                       value={variant.size_label}
                       onChange={(v) => updateVariant(index, "size_label", v)}
-                      placeholder="Select…"
+                      placeholder="Select..."
+                      searchable
+                      searchPlaceholder="Search sizes..."
                       options={[
-                        { value: "", label: "Select…" },
+                        { value: "", label: "Select..." },
                         ...CLOTHING_SIZES.map((size) => ({ value: size, label: size })),
                       ]}
                       buttonClassName="bg-zinc-900"

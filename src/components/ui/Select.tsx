@@ -16,6 +16,8 @@ type Props = {
   options: RdkSelectOption[];
   placeholder?: string;
   disabled?: boolean;
+  searchable?: boolean;
+  searchPlaceholder?: string;
   className?: string;
   buttonClassName?: string;
   menuClassName?: string;
@@ -27,11 +29,14 @@ export function RdkSelect({
   options,
   placeholder = "Select…",
   disabled = false,
+  searchable = false,
+  searchPlaceholder = "Search…",
   className = "",
   buttonClassName = "",
   menuClassName = "",
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState<number>(() => {
     const idx = options.findIndex((o) => o.value === value);
     return idx >= 0 ? idx : 0;
@@ -39,6 +44,22 @@ export function RdkSelect({
 
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  const filteredOptions = useMemo(() => {
+    if (!searchable) {
+      return options;
+    }
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) {
+      return options;
+    }
+    return options.filter((opt) => {
+      const label = opt.label.toLowerCase();
+      const valueText = opt.value.toLowerCase();
+      return label.includes(query) || valueText.includes(query);
+    });
+  }, [options, searchable, searchQuery]);
 
   const selected = useMemo(
     () => options.find((o) => o.value === value) ?? null,
@@ -74,12 +95,18 @@ export function RdkSelect({
       }
 
       if (event.key === "ArrowDown") {
+        if (filteredOptions.length === 0) {
+          return;
+        }
         event.preventDefault();
-        setActiveIndex((prev) => Math.min(prev + 1, options.length - 1));
+        setActiveIndex((prev) => Math.min(prev + 1, filteredOptions.length - 1));
         return;
       }
 
       if (event.key === "ArrowUp") {
+        if (filteredOptions.length === 0) {
+          return;
+        }
         event.preventDefault();
         setActiveIndex((prev) => Math.max(prev - 1, 0));
         return;
@@ -87,7 +114,7 @@ export function RdkSelect({
 
       if (event.key === "Enter") {
         event.preventDefault();
-        const opt = options[activeIndex];
+        const opt = filteredOptions[activeIndex];
         if (opt && !opt.disabled) {
           onChange(opt.value);
           setOpen(false);
@@ -102,14 +129,29 @@ export function RdkSelect({
       document.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [open, activeIndex, onChange, options]);
+  }, [open, activeIndex, onChange, filteredOptions]);
 
   useEffect(() => {
-    const idx = options.findIndex((o) => o.value === value);
+    if (!open) {
+      return;
+    }
+    const idx = filteredOptions.findIndex((o) => o.value === value);
     if (idx >= 0) {
       setActiveIndex(idx);
+    } else if (filteredOptions.length > 0) {
+      setActiveIndex(0);
     }
-  }, [options, value]);
+  }, [filteredOptions, value, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery("");
+      return;
+    }
+    if (searchable) {
+      searchRef.current?.focus();
+    }
+  }, [open, searchable]);
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
@@ -146,7 +188,22 @@ export function RdkSelect({
             menuClassName,
           ].join(" ")}
         >
-          {options.map((opt, idx) => {
+          {searchable && (
+            <div className="p-2 border-b border-zinc-800/70 bg-black">
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full bg-zinc-900 text-white text-sm px-3 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              />
+            </div>
+          )}
+          {filteredOptions.length === 0 && (
+            <div className="px-3 py-2 text-sm text-gray-500">No matches</div>
+          )}
+          {filteredOptions.map((opt, idx) => {
             const isSelected = opt.value === value;
             const isActive = idx === activeIndex;
 

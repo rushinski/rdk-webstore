@@ -25,7 +25,7 @@ export function ProductCard({ product }: ProductCardProps) {
       ? variants[0].size_label === "N/A"
         ? "No size"
         : variants[0].size_label
-      : "Multiple sizes";
+      : "Multiple";
 
   const conditionBadge =
     product.condition === "new" ? (
