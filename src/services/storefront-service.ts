@@ -22,10 +22,7 @@ export class StorefrontService {
     });
   }
 
-  async listFilters(opts?: {
-    includeOutOfStock?: boolean;
-    filters?: ProductFilters;
-  }) {
+  async listFilters(opts?: { includeOutOfStock?: boolean; filters?: ProductFilters }) {
     const sizeFilters = opts?.filters ? { ...opts.filters } : undefined;
     if (sizeFilters) {
       sizeFilters.includeOutOfStock = opts?.includeOutOfStock;

@@ -53,7 +53,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
   }, [product.variants]);
 
   const sizeDisplay =
-    selectedVariant?.size_label === "N/A" ? "No size" : (selectedVariant?.size_label ?? "");
+    selectedVariant?.size_label === "N/A"
+      ? "No size"
+      : (selectedVariant?.size_label ?? "");
 
   useEffect(() => {
     const current = product.variants.find((v) => v.id === selectedVariantId);
@@ -143,7 +145,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
           <h1 className="text-3xl font-bold text-white mb-2">
             {product.title_display ?? `${product.brand} ${product.name}`.trim()}
           </h1>
-          {product.model && <p className="text-sm text-gray-500 mb-2">Model: {product.model}</p>}
+          {product.model && (
+            <p className="text-sm text-gray-500 mb-2">Model: {product.model}</p>
+          )}
 
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-bold text-white">
@@ -151,7 +155,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
             </span>
             <span
               className={`px-3 py-1 rounded text-sm font-semibold ${
-                product.condition === "new" ? "bg-green-600 text-white" : "bg-yellow-600 text-white"
+                product.condition === "new"
+                  ? "bg-green-600 text-white"
+                  : "bg-yellow-600 text-white"
               }`}
             >
               {product.condition.toUpperCase()}
@@ -205,14 +211,18 @@ export function ProductDetail({ product }: ProductDetailProps) {
           </button>
 
           {inCartQuantity > 0 && (
-            <p className="text-xs text-gray-500 mb-6">This size is already in your cart.</p>
+            <p className="text-xs text-gray-500 mb-6">
+              This size is already in your cart.
+            </p>
           )}
 
           {/* Description */}
           {product.description && (
             <div className="mb-6">
               <h3 className="text-white font-semibold mb-2">Description</h3>
-              <p className="text-gray-400 text-sm whitespace-pre-wrap">{product.description}</p>
+              <p className="text-gray-400 text-sm whitespace-pre-wrap">
+                {product.description}
+              </p>
             </div>
           )}
 
@@ -240,11 +250,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
             {showShipping && (
               <div className="text-gray-400 text-sm space-y-2">
                 <p>
-                  We aim to ship within 24 hours (processing time, not delivery time). Shipping
-                  options and rates are shown at checkout.
+                  We aim to ship within 24 hours (processing time, not delivery time).
+                  Shipping options and rates are shown at checkout.
                 </p>
                 <p>
-                  All sales are final except as outlined in our Returns &amp; Refunds policy.
+                  All sales are final except as outlined in our Returns &amp; Refunds
+                  policy.
                 </p>
                 <div className="flex flex-wrap gap-4">
                   <a href="/shipping" className="text-red-500 hover:underline">
