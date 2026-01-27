@@ -15,10 +15,16 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const priceMin = Math.min(...variants.map((v) => v.price_cents));
   const priceMax = Math.max(...variants.map((v) => v.price_cents));
-  const priceDisplay =
+  const isRange = priceMin !== priceMax;
+
+  const fullPriceDisplay =
     priceMin === priceMax
       ? `$${(priceMin / 100).toFixed(2)}`
       : `$${(priceMin / 100).toFixed(2)} - $${(priceMax / 100).toFixed(2)}`;
+
+  const priceDisplay = isRange
+    ? `From $${(priceMin / 100).toFixed(2)}`
+    : fullPriceDisplay;
 
   const sizeDisplay =
     variants.length === 1
@@ -70,9 +76,16 @@ export function ProductCard({ product }: ProductCardProps) {
             </h3>
           </div>
 
-          <div className="flex items-center justify-between mt-auto pt-2">
-            <span className="text-gray-400 text-xs">Size: {sizeDisplay}</span>
-            <span className="text-white font-bold text-sm">{priceDisplay}</span>
+          <div className="flex items-center justify-between mt-auto pt-2 gap-2">
+            <span className="text-gray-400 text-xs truncate min-w-0">
+              Size: {sizeDisplay}
+            </span>
+            <span
+              className="text-white font-bold text-sm whitespace-nowrap tabular-nums"
+              title={fullPriceDisplay}
+            >
+              {priceDisplay}
+            </span>
           </div>
         </div>
       </div>

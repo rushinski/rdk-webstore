@@ -1,7 +1,7 @@
 // src/components/store/ProductDetail.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { ChevronDown } from "lucide-react";
 
@@ -19,6 +19,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     product.variants[0]?.id ?? "",
+  );
+  const selectedSizeLabelRef = useRef<string | null>(
+    product.variants[0]?.size_label ?? null,
   );
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showShipping, setShowShipping] = useState(false);
@@ -51,6 +54,24 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
   const sizeDisplay =
     selectedVariant?.size_label === "N/A" ? "No size" : (selectedVariant?.size_label ?? "");
+
+  useEffect(() => {
+    const current = product.variants.find((v) => v.id === selectedVariantId);
+    if (current) {
+      selectedSizeLabelRef.current = current.size_label;
+      return;
+    }
+
+    const fallbackLabel = selectedSizeLabelRef.current;
+    const byLabel = fallbackLabel
+      ? product.variants.find((v) => v.size_label === fallbackLabel)
+      : undefined;
+    const next = byLabel ?? product.variants[0];
+    if (next && next.id !== selectedVariantId) {
+      selectedSizeLabelRef.current = next.size_label;
+      setSelectedVariantId(next.id);
+    }
+  }, [product.variants, selectedVariantId]);
 
   const handleAddToCart = () => {
     if (!selectedVariant) {

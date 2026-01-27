@@ -215,12 +215,12 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
 
   const [excludedAutoTagKeys, setExcludedAutoTagKeys] = useState<string[]>([]);
   const hasInitializedTags = useRef(false);
-  const hasInitializedVariants = useRef(false);
+  const previousSizeType = useRef<SizeType | null>(null);
 
   const [variants, setVariants] = useState<VariantDraft[]>(() => {
     const sizeType = getSizeTypeForCategory(initialData?.category || "sneakers");
     const mapped = initialData?.variants?.map((variant) => ({
-      size_label: variant.size_label,
+      size_label: variant.size_label?.trim() ?? "",
       price: formatMoney(variant.price_cents / 100),
       cost: formatMoney((variant.cost_cents ?? 0) / 100),
       stock: String(variant.stock ?? 0),
@@ -494,10 +494,16 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   }, [titleRaw, category, brandOverrideId, modelOverrideId]);
 
   useEffect(() => {
-    if (!hasInitializedVariants.current) {
-      hasInitializedVariants.current = true;
+    if (previousSizeType.current === null) {
+      previousSizeType.current = sizeType;
       return;
     }
+
+    if (previousSizeType.current === sizeType) {
+      return;
+    }
+
+    previousSizeType.current = sizeType;
 
     setVariants((current) =>
       current.map((variant) => {
@@ -546,6 +552,21 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     const updated = [...variants];
     updated[index] = { ...updated[index], [field]: value };
     setVariants(updated);
+  };
+
+  const buildSizeOptions = (
+    sizes: readonly string[],
+    selectedValue: string,
+  ): { value: string; label: string }[] => {
+    const trimmedValue = selectedValue.trim();
+    const base = sizes.map((size) => ({ value: size, label: size }));
+    const hasValue = trimmedValue.length > 0;
+    const inList = hasValue && sizes.includes(trimmedValue);
+    const withSelected =
+      !hasValue || inList
+        ? base
+        : [{ value: trimmedValue, label: trimmedValue }, ...base];
+    return [{ value: "", label: "Select..." }, ...withSelected];
   };
 
   const addImageEntry = (url: string) => {
@@ -1297,10 +1318,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       placeholder="Select..."
                       searchable
                       searchPlaceholder="Search sizes..."
-                      options={[
-                        { value: "", label: "Select..." },
-                        ...SHOE_SIZES.map((size) => ({ value: size, label: size })),
-                      ]}
+                      options={buildSizeOptions(SHOE_SIZES, variant.size_label)}
                       buttonClassName="bg-zinc-900"
                     />
                   )}
@@ -1312,10 +1330,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       placeholder="Select..."
                       searchable
                       searchPlaceholder="Search sizes..."
-                      options={[
-                        { value: "", label: "Select..." },
-                        ...CLOTHING_SIZES.map((size) => ({ value: size, label: size })),
-                      ]}
+                      options={buildSizeOptions(CLOTHING_SIZES, variant.size_label)}
                       buttonClassName="bg-zinc-900"
                     />
                   )}

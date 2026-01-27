@@ -67,6 +67,21 @@ export class ProductTitleParserService {
       });
     }
 
+    const PREFERRED_BRANDS = new Set(["nike"]);
+    const DEPRIORITIZED_BRANDS = new Set(["off white", "off-white"]);
+
+    for (const entry of brandAliasEntries) {
+      const label = normalizeLabel(entry.brandLabel);
+
+      if (PREFERRED_BRANDS.has(label)) {
+        entry.priority = Math.max(entry.priority ?? 0, 50);
+      }
+
+      if (DEPRIORITIZED_BRANDS.has(label)) {
+        entry.priority = Math.min(entry.priority ?? 0, -10);
+      }
+    }
+
     const modelAliasEntries: CatalogModelAlias[] = [];
     const modelAliasKeys = new Set<string>();
 
