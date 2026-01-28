@@ -1,3 +1,3 @@
 export const BRAND_NAME = "Realdealkickzsc";
 export const BRAND_LOGO_URL =
-  "https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/public/assets/rdk-logo.png";
+  "https://fbwosmpjzbpojsftydwn.supabase.co/storage/v1/object/sign/images/rdk-logo.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9iOWIwMmE3OS1mNDBmLTRkZDgtYTMxMC0wNTBjYzY2ZTIyYzAiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJpbWFnZXMvcmRrLWxvZ28ucG5nIiwiaWF0IjoxNzY5NjE3NDA3LCJleHAiOjE4MDExNTM0MDd9.Pg1JG25UnRJDOI7LhboPQVKd5k0eJ7wjS6kUtFbtKBI";
