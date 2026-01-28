@@ -165,6 +165,15 @@ function normalizePathForRateLimit(pathname: string): string {
 /**
  * Detect Next.js prefetch and App Router flight requests
  */
+function isTruthyHeader(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 && normalized !== "0" && normalized !== "false";
+}
+
 function getPrefetchSignals(request: NextRequest): string[] {
   const signals: string[] = [];
   const h = (name: string) => request.headers.get(name);
@@ -172,10 +181,10 @@ function getPrefetchSignals(request: NextRequest): string[] {
   const rawUrl = request.url;
 
   // App Router flight query param
-  if (url.searchParams.has("_rsc")) {
+  if (url.searchParams.has("_rsc") || url.searchParams.has("__rsc")) {
     signals.push("q:_rsc(nextUrl)");
   }
-  if (rawUrl.includes("_rsc=")) {
+  if (rawUrl.includes("_rsc=") || rawUrl.includes("__rsc=")) {
     signals.push("q:_rsc(rawUrl)");
   }
 
@@ -185,14 +194,19 @@ function getPrefetchSignals(request: NextRequest): string[] {
     signals.push("hdr:rsc");
   }
 
-  if (h("next-router-prefetch") === "1") {
-    signals.push("hdr:next-router-prefetch=1");
+  const nextRouterPrefetch = h("next-router-prefetch");
+  if (isTruthyHeader(nextRouterPrefetch)) {
+    signals.push(`hdr:next-router-prefetch=${nextRouterPrefetch}`);
   }
-  if (h("next-router-segment-prefetch")) {
-    signals.push("hdr:next-router-segment-prefetch");
+
+  const nextRouterSegmentPrefetch = h("next-router-segment-prefetch");
+  if (nextRouterSegmentPrefetch) {
+    signals.push(`hdr:next-router-segment-prefetch=${nextRouterSegmentPrefetch}`);
   }
-  if (h("x-middleware-prefetch") === "1") {
-    signals.push("hdr:x-middleware-prefetch=1");
+
+  const middlewarePrefetch = h("x-middleware-prefetch");
+  if (isTruthyHeader(middlewarePrefetch)) {
+    signals.push(`hdr:x-middleware-prefetch=${middlewarePrefetch}`);
   }
 
   // Flight payload content-type

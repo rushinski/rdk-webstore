@@ -1,4 +1,5 @@
 // src/config/constants/sizes.ts
+
 export const SHOE_SIZES = [
   "3.5Y / 5W",
   "4Y / 5.5W",
@@ -38,18 +39,14 @@ export const SHOE_SIZES = [
   "EU 48 (US 14-15M)",
 ] as const;
 
+const isUsMens = (size: string) => /^\d+(\.\d+)?M\b/.test(size);
+const isYouth = (size: string) => /^\d+(\.\d+)?Y\b/.test(size);
+const isEu = (size: string) => size.startsWith("EU");
+
 export const SHOE_SIZE_GROUPS = {
-  youth: SHOE_SIZES.filter((size) => size.includes("Y")),
-  mens: SHOE_SIZES.filter((size) => size.includes("M") && !size.includes("Y")),
-  eu: SHOE_SIZES.filter((size) => size.startsWith("EU")),
+  youth: SHOE_SIZES.filter(isYouth),
+  mens: SHOE_SIZES.filter(isUsMens), // ✅ only "7.5M / 9W", etc.
+  eu: SHOE_SIZES.filter(isEu),
 } as const;
 
-export const CLOTHING_SIZES = [
-  "XS",
-  "SMALL",
-  "MEDIUM",
-  "LARGE",
-  "XL",
-  "2XL",
-  "3XL",
-] as const;
+export const CLOTHING_SIZES = ["XS", "SMALL", "MEDIUM", "LARGE", "XL", "2XL", "3XL"] as const;

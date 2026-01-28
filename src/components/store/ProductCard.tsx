@@ -10,7 +10,8 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
+  const primaryImage =
+    product.images.find((img) => img.is_primary) || product.images[0];
   const variants = product.variants;
 
   const priceMin = Math.min(...variants.map((v) => v.price_cents));
@@ -70,18 +71,22 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="p-3 flex flex-col flex-1">
+          {/* Title */}
           <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
             <h3 className="text-white font-bold text-sm truncate flex-1">
               {product.title_display ?? `${product.brand} ${product.name}`.trim()}
             </h3>
           </div>
 
-          <div className="flex items-center justify-between mt-auto pt-2 gap-2">
-            <span className="text-gray-400 text-xs truncate min-w-0">
-              Size: {sizeDisplay}
-            </span>
+          {/* Size under title */}
+          <p className="mt-1 text-gray-400 text-xs truncate" title={`Size: ${sizeDisplay}`}>
+            {sizeDisplay}
+          </p>
+
+          {/* Price at bottom, bigger */}
+          <div className="mt-auto pt-3">
             <span
-              className="text-white font-bold text-sm whitespace-nowrap tabular-nums"
+              className="text-white font-extrabold text-lg whitespace-nowrap tabular-nums"
               title={fullPriceDisplay}
             >
               {priceDisplay}

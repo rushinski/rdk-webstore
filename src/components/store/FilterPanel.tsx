@@ -61,6 +61,14 @@ export function FilterPanel({
     return [...ordered, ...remaining];
   }, [categories]);
 
+  // Put near the top of FilterPanel.tsx (below imports), or in a shared util.
+  const naturalCollator = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+  const naturalCompare = (a: string, b: string) => naturalCollator.compare(a, b);
+
   const conditions = ["new", "used"];
   const toTestId = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
   const availableShoeSizeSet = useMemo(
@@ -391,9 +399,11 @@ export function FilterPanel({
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {filteredBrands.map((brand) => {
                 const brandKey = brand.value;
-                const brandModels = showModelFilter
-                  ? (modelsByBrand[brandKey] ?? [])
-                  : [];
+                const brandModelsRaw = showModelFilter ? (modelsByBrand[brandKey] ?? []) : [];
+                const brandModels = useMemo(
+                  () => [...brandModelsRaw].sort(naturalCompare),
+                  [brandModelsRaw],
+                );
                 const hasModels = brandModels.length > 0;
                 const isExpanded =
                   Boolean(expandedBrands[brandKey]) || selectedBrands.includes(brandKey);
@@ -522,12 +532,14 @@ export function FilterPanel({
                         </div>
                       </div>
                     )}
+                    {/* EU */}
                     {shoeSizeGroups.eu.length > 0 && (
                       <div>
                         <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                           EU
                         </h5>
-                        <div className="grid grid-cols-2 gap-2">
+                        {/* was: grid grid-cols-2 gap-2 */}
+                        <div className="grid grid-cols-1 gap-2">
                           {shoeSizeGroups.eu.map((size) => (
                             <label
                               key={size}
