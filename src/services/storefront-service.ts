@@ -1,5 +1,6 @@
 // src/services/storefront-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import { expandShoeSizeSelection } from "@/config/constants/sizes";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";
 
@@ -13,7 +14,10 @@ export class StorefrontService {
   }
 
   async listProducts(filters: ProductFilters) {
-    return this.productRepo.list(filters);
+    const expandedFilters = filters.sizeShoe?.length
+      ? { ...filters, sizeShoe: expandShoeSizeSelection(filters.sizeShoe) }
+      : filters;
+    return this.productRepo.list(expandedFilters);
   }
 
   async getProductById(id: string, opts?: { includeOutOfStock?: boolean }) {

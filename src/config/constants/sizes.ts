@@ -43,6 +43,57 @@ const isUsMens = (size: string) => /^\d+(\.\d+)?M\b/.test(size);
 const isYouth = (size: string) => /^\d+(\.\d+)?Y\b/.test(size);
 const isEu = (size: string) => size.startsWith("EU");
 
+const US_SIZE_TOKEN_REGEX = /\b\d+(?:\.\d+)?[MW]\b/g;
+const EU_US_RANGE_REGEX = /\(US\s+([^)]+)\)/;
+
+const normalizeUsToken = (raw: string, fallbackSuffix?: "M" | "W") => {
+  const trimmed = raw.trim();
+  const suffixMatch = trimmed.match(/[MW]$/);
+  const suffix = (suffixMatch?.[0] as "M" | "W" | undefined) ?? fallbackSuffix;
+  if (!suffix) {
+    return trimmed;
+  }
+  const numeric = suffixMatch ? trimmed.slice(0, -1) : trimmed;
+  return `${numeric}${suffix}`;
+};
+
+const extractUsTokensFromEu = (size: string) => {
+  const match = size.match(EU_US_RANGE_REGEX);
+  if (!match) {
+    return [];
+  }
+  const rangeRaw = match[1].replace(/\s+/g, "");
+  const parts = rangeRaw.split("-");
+  if (parts.length === 1) {
+    return [normalizeUsToken(parts[0])].filter(Boolean);
+  }
+  const secondSuffixMatch = parts[1].match(/[MW]$/);
+  const suffix = secondSuffixMatch?.[0] as "M" | "W" | undefined;
+  return [
+    normalizeUsToken(parts[0], suffix),
+    normalizeUsToken(parts[1], suffix),
+  ].filter(Boolean);
+};
+
+const buildUsTokenMap = (sizes: readonly string[]) => {
+  const tokenMap: Record<string, string[]> = {};
+  sizes.forEach((size) => {
+    if (isEu(size)) {
+      return;
+    }
+    const tokens = size.match(US_SIZE_TOKEN_REGEX) ?? [];
+    tokens.forEach((token) => {
+      if (!tokenMap[token]) {
+        tokenMap[token] = [];
+      }
+      if (!tokenMap[token].includes(size)) {
+        tokenMap[token].push(size);
+      }
+    });
+  });
+  return tokenMap;
+};
+
 export const SHOE_SIZE_GROUPS = {
   youth: SHOE_SIZES.filter(isYouth),
   mens: SHOE_SIZES.filter(isUsMens), // ✅ only "7.5M / 9W", etc.
@@ -50,3 +101,49 @@ export const SHOE_SIZE_GROUPS = {
 } as const;
 
 export const CLOTHING_SIZES = ["XS", "SMALL", "MEDIUM", "LARGE", "XL", "2XL", "3XL"] as const;
+
+const US_TOKEN_TO_SIZES = buildUsTokenMap(SHOE_SIZES);
+
+export const EU_SIZE_ALIASES = SHOE_SIZES.filter(isEu).reduce<Record<string, string[]>>(
+  (acc, size) => {
+    const tokens = extractUsTokensFromEu(size);
+    const mapped = tokens.flatMap((token) => US_TOKEN_TO_SIZES[token] ?? []);
+    acc[size] = Array.from(new Set(mapped));
+    return acc;
+  },
+  {},
+);
+
+export const US_SIZE_EU_ALIASES = Object.entries(EU_SIZE_ALIASES).reduce<
+  Record<string, string[]>
+>((acc, [euSize, usSizes]) => {
+  usSizes.forEach((usSize) => {
+    if (!acc[usSize]) {
+      acc[usSize] = [];
+    }
+    if (!acc[usSize].includes(euSize)) {
+      acc[usSize].push(euSize);
+    }
+  });
+  return acc;
+}, {});
+
+export const isEuShoeSize = (size: string) => isEu(size);
+
+export const expandShoeSizeSelection = (sizes: string[]) => {
+  const expanded: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string) => {
+    if (!seen.has(value)) {
+      seen.add(value);
+      expanded.push(value);
+    }
+  };
+  sizes.forEach((size) => {
+    push(size);
+    if (!isEu(size)) {
+      (US_SIZE_EU_ALIASES[size] ?? []).forEach(push);
+    }
+  });
+  return expanded;
+};

@@ -5,7 +5,13 @@ import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X, ChevronDown, Filter } from "lucide-react";
 
-import { SHOE_SIZE_GROUPS, CLOTHING_SIZES } from "@/config/constants/sizes";
+import {
+  SHOE_SIZE_GROUPS,
+  CLOTHING_SIZES,
+  EU_SIZE_ALIASES,
+  expandShoeSizeSelection,
+  isEuShoeSize,
+} from "@/config/constants/sizes";
 
 type BrandOption = { label: string; value: string };
 
@@ -74,6 +80,14 @@ export function FilterPanel({
   const availableShoeSizeSet = useMemo(
     () => new Set(availableShoeSizes),
     [availableShoeSizes],
+  );
+  const expandedSelectedShoeSizes = useMemo(
+    () => expandShoeSizeSelection(selectedShoeSizes),
+    [selectedShoeSizes],
+  );
+  const expandedSelectedShoeSizeSet = useMemo(
+    () => new Set(expandedSelectedShoeSizes),
+    [expandedSelectedShoeSizes],
   );
   const availableClothingSizeSet = useMemo(
     () => new Set(availableClothingSizes),
@@ -193,9 +207,26 @@ export function FilterPanel({
   };
 
   const handleShoeSizeChange = (size: string) => {
-    const newSizes = selectedShoeSizes.includes(size)
-      ? selectedShoeSizes.filter((s) => s !== size)
-      : [...selectedShoeSizes, size];
+    const isExplicit = selectedShoeSizes.includes(size);
+    const isExpanded = expandedSelectedShoeSizeSet.has(size);
+
+    let newSizes = selectedShoeSizes;
+
+    if (isEuShoeSize(size)) {
+      if (isExplicit) {
+        newSizes = selectedShoeSizes.filter((s) => s !== size);
+      } else if (isExpanded) {
+        const usParents = EU_SIZE_ALIASES[size] ?? [];
+        newSizes = selectedShoeSizes.filter((s) => !usParents.includes(s));
+      } else {
+        newSizes = [...selectedShoeSizes, size];
+      }
+    } else {
+      newSizes = isExplicit
+        ? selectedShoeSizes.filter((s) => s !== size)
+        : [...selectedShoeSizes, size];
+    }
+
     updateFilters({ ...getFilters(), sizeShoe: newSizes });
   };
 
@@ -311,7 +342,7 @@ export function FilterPanel({
                 />
               </span>
             ))}
-            {selectedShoeSizes.map((size) => (
+            {expandedSelectedShoeSizes.map((size) => (
               <span
                 key={size}
                 className="inline-flex items-center gap-1 bg-red-900/30 text-white text-xs px-2 py-1 rounded"
@@ -497,7 +528,7 @@ export function FilterPanel({
                             >
                               <input
                                 type="checkbox"
-                                checked={selectedShoeSizes.includes(size)}
+                                checked={expandedSelectedShoeSizeSet.has(size)}
                                 onChange={() => handleShoeSizeChange(size)}
                                 className="rdk-checkbox mr-2"
                                 data-testid={`filter-size-shoe-${toTestId(size)}`}
@@ -521,7 +552,7 @@ export function FilterPanel({
                             >
                               <input
                                 type="checkbox"
-                                checked={selectedShoeSizes.includes(size)}
+                                checked={expandedSelectedShoeSizeSet.has(size)}
                                 onChange={() => handleShoeSizeChange(size)}
                                 className="rdk-checkbox mr-2"
                                 data-testid={`filter-size-shoe-${toTestId(size)}`}
@@ -547,7 +578,7 @@ export function FilterPanel({
                             >
                               <input
                                 type="checkbox"
-                                checked={selectedShoeSizes.includes(size)}
+                                checked={expandedSelectedShoeSizeSet.has(size)}
                                 onChange={() => handleShoeSizeChange(size)}
                                 className="rdk-checkbox mr-2"
                                 data-testid={`filter-size-shoe-${toTestId(size)}`}
