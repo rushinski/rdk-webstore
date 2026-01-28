@@ -11,8 +11,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, storeHref }: ProductCardProps) {
-  const primaryImage =
-    product.images.find((img) => img.is_primary) || product.images[0];
+  const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
   const variants = product.variants;
 
   const priceMin = Math.min(...variants.map((v) => v.price_cents));
@@ -84,7 +83,10 @@ export function ProductCard({ product, storeHref }: ProductCardProps) {
           </div>
 
           {/* Size under title */}
-          <p className="mt-1 text-gray-400 text-xs truncate" title={`Size: ${sizeDisplay}`}>
+          <p
+            className="mt-1 text-gray-400 text-xs truncate"
+            title={`Size: ${sizeDisplay}`}
+          >
             {sizeDisplay}
           </p>
 

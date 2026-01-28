@@ -26,10 +26,7 @@ export function BackToStoreLink() {
   const searchParams = useSearchParams();
   const fromParam = searchParams.get("from");
 
-  const backHref = useMemo(
-    () => normalizeStoreHref(fromParam) ?? "/store",
-    [fromParam],
-  );
+  const backHref = useMemo(() => normalizeStoreHref(fromParam) ?? "/store", [fromParam]);
 
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
     if (backHref !== "/store") {

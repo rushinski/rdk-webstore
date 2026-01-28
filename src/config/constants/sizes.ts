@@ -69,10 +69,9 @@ const extractUsTokensFromEu = (size: string) => {
   }
   const secondSuffixMatch = parts[1].match(/[MW]$/);
   const suffix = secondSuffixMatch?.[0] as "M" | "W" | undefined;
-  return [
-    normalizeUsToken(parts[0], suffix),
-    normalizeUsToken(parts[1], suffix),
-  ].filter(Boolean);
+  return [normalizeUsToken(parts[0], suffix), normalizeUsToken(parts[1], suffix)].filter(
+    Boolean,
+  );
 };
 
 const buildUsTokenMap = (sizes: readonly string[]) => {
@@ -100,7 +99,15 @@ export const SHOE_SIZE_GROUPS = {
   eu: SHOE_SIZES.filter(isEu),
 } as const;
 
-export const CLOTHING_SIZES = ["XS", "SMALL", "MEDIUM", "LARGE", "XL", "2XL", "3XL"] as const;
+export const CLOTHING_SIZES = [
+  "XS",
+  "SMALL",
+  "MEDIUM",
+  "LARGE",
+  "XL",
+  "2XL",
+  "3XL",
+] as const;
 
 const US_TOKEN_TO_SIZES = buildUsTokenMap(SHOE_SIZES);
 

@@ -436,7 +436,9 @@ export function FilterPanel({
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {filteredBrands.map((brand) => {
                 const brandKey = brand.value;
-                const brandModelsRaw = showModelFilter ? (modelsByBrand[brandKey] ?? []) : [];
+                const brandModelsRaw = showModelFilter
+                  ? (modelsByBrand[brandKey] ?? [])
+                  : [];
                 const brandModels = useMemo(
                   () => [...brandModelsRaw].sort(naturalCompare),
                   [brandModelsRaw],
@@ -517,9 +519,7 @@ export function FilterPanel({
             <div className="space-y-4">
               {showShoeFilter && (
                 <div>
-                  <h4 className="text-sm font-medium text-gray-300 mb-2">
-                    Shoe Sizes
-                  </h4>
+                  <h4 className="text-sm font-medium text-gray-300 mb-2">Shoe Sizes</h4>
                   <div className="space-y-4">
                     {shoeSizeGroups.youth.length > 0 && (
                       <div>

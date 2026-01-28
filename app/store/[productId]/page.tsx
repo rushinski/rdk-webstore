@@ -2,6 +2,7 @@
 
 import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
+
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ProductDetail } from "@/components/store/ProductDetail";
