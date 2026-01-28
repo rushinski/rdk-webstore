@@ -48,7 +48,21 @@ export default async function ProductDetailPage({
 
   const fromParam = searchParams?.from;
   const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
-  const backHref = fromValue && fromValue.startsWith("/store") ? fromValue : "/store";
+  const decodedFrom = (() => {
+    if (!fromValue) {
+      return undefined;
+    }
+    if (fromValue.startsWith("/store")) {
+      return fromValue;
+    }
+    try {
+      return decodeURIComponent(fromValue);
+    } catch {
+      return fromValue;
+    }
+  })();
+  const backHref =
+    decodedFrom && decodedFrom.startsWith("/store") ? decodedFrom : "/store";
 
   return (
     <div>

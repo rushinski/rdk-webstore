@@ -37,17 +37,17 @@ export function ProductCard({ product, storeHref }: ProductCardProps) {
 
   const conditionBadge =
     product.condition === "new" ? (
-      <span className="bg-green-600/20 text-green-200 text-[10px] px-2 py-0.5 rounded-full border border-green-500/20">
+      <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full border border-zinc-900 shadow-sm">
         NEW
       </span>
     ) : product.condition === "used" ? (
-      <span className="bg-amber-500/20 text-amber-200 text-[10px] px-2 py-0.5 rounded-full border border-amber-400/20">
+      <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full border border-zinc-900 shadow-sm">
         USED
       </span>
     ) : null;
 
   const productHref = storeHref
-    ? { pathname: `/store/${product.id}`, query: { from: storeHref } }
+    ? `/store/${product.id}?from=${encodeURIComponent(storeHref)}`
     : `/store/${product.id}`;
 
   return (
