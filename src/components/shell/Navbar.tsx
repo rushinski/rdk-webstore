@@ -107,9 +107,11 @@ function MegaLink({
   );
 }
 
+const MENU_SHOE_SIZES = SHOE_SIZES.filter((s) => !s.trim().startsWith("EU"));
+
 const SHOE_SIZE_GROUPS = {
-  youth: SHOE_SIZES.filter((s) => s.includes("Y")),
-  mens: SHOE_SIZES.filter((s) => s.includes("M") && !s.includes("Y")),
+  youth: MENU_SHOE_SIZES.filter((s) => s.includes("Y")),
+  mens: MENU_SHOE_SIZES.filter((s) => s.includes("M") && !s.includes("Y")),
 };
 
 const BRAND_LOGOS: Record<string, { default: string; hover: string }> = {
@@ -541,7 +543,7 @@ export function Navbar({
             {mobileSection === "shoeSizes" && (
               <div className="border-b border-zinc-900 px-4 py-4">
                 <div className="pl-7 grid grid-cols-4 gap-2">
-                  {SHOE_SIZES.map((size) => (
+                  {MENU_SHOE_SIZES.map((size) => (
                     <Link
                       key={size}
                       href={buildStoreHref({ category: "sneakers", sizeShoe: size })}
