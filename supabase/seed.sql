@@ -75,6 +75,11 @@ from (
     ('Dior'),
     ('Amiri'),
     ('Gallery Dept.'),
+    ('Essentials Fear of God '),
+    ('Hellstar'),
+    ('Burberry'),
+    ('Versace'),
+    ('Distant Studios'),
     ('Other')
 ) as input(brand_label);
 
@@ -224,7 +229,10 @@ from (
     ('Dior', 'B23'),
     ('Amiri', 'Skel'),
     ('Amiri', 'Classic'),
-    ('Amiri', 'Arigato')
+    ('Amiri', 'Arigato'),
+    ('Burberry', 'Union Check'),
+    ('Versace', 'Chain Reaction')
+
 ) as input(brand_label, model_label)
 join public.catalog_brands brand
   on brand.canonical_label = input.brand_label and brand.tenant_id is null;
@@ -258,7 +266,8 @@ from (
     ('Bravest Studios', 'Claw Mules'),
     ('Vans', 'Old Skool'),
     ('Palm Angels', 'Ramones'),
-    ('A Bathing Ape', 'BAPE STA')
+    ('A Bathing Ape', 'BAPE STA'),
+    ('A Bathing Ape', 'BAPE SK8')
 ) as input(brand_label, model_label)
 join public.catalog_brands brand
   on brand.canonical_label = input.brand_label and brand.tenant_id is null;
@@ -282,8 +291,9 @@ from (
     ('New Balance', 'NB', 10),
     ('Air Jordan', 'Jordan', 1),
     ('Maison Mihara Yasuhiro', 'Maison Mihara', 5),
-    ('Rick Owens', 'Rich Owens', 1),
-    ('Timberland', 'Timberlands', 1)
+    ('Timberland', 'Timberlands', 1),
+    ('Distant Studios', 'Distant', 1),
+    ('A Bathing Ape', 'Bape', 5)
 ) as input(brand_label, alias_label, priority)
 join public.catalog_brands brand
   on brand.canonical_label = input.brand_label and brand.tenant_id is null;
@@ -311,7 +321,9 @@ from (
     ('Dunk Low', 'Dunk', 1),
     ('P-6000', 'P6000', 1),
     ('Kobe', 'Nike Kobe', 1),
-    ('Air Foamposite', 'Foamposite', 1)
+    ('Air Foamposite', 'Foamposite', 1),
+    ('BAPE STA', 'BAPESTA', 1),
+    ('BAPE SK8', 'SK8', 1)
 ) as input(model_label, alias_label, priority)
 join public.catalog_models model on model.canonical_label = input.model_label and model.tenant_id is null
 join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'Nike';

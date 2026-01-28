@@ -7,9 +7,10 @@ import type { ProductWithDetails } from "@/types/domain/product";
 
 interface ProductCardProps {
   product: ProductWithDetails;
+  storeHref?: string;
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, storeHref }: ProductCardProps) {
   const primaryImage =
     product.images.find((img) => img.is_primary) || product.images[0];
   const variants = product.variants;
@@ -45,9 +46,13 @@ export function ProductCard({ product }: ProductCardProps) {
       </span>
     ) : null;
 
+  const productHref = storeHref
+    ? { pathname: `/store/${product.id}`, query: { from: storeHref } }
+    : `/store/${product.id}`;
+
   return (
     <Link
-      href={`/store/${product.id}`}
+      href={productHref}
       className="group block h-full"
       data-testid="product-card"
       data-product-id={product.id}

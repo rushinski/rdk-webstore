@@ -6,9 +6,10 @@ import { ProductCard } from "./ProductCard";
 
 interface ProductGridProps {
   products: ProductWithDetails[];
+  storeHref?: string;
 }
 
-export function ProductGrid({ products }: ProductGridProps) {
+export function ProductGrid({ products, storeHref }: ProductGridProps) {
   if (products.length === 0) {
     return (
       <div className="text-center py-12">
@@ -23,7 +24,7 @@ export function ProductGrid({ products }: ProductGridProps) {
       data-testid="product-grid"
     >
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <ProductCard key={product.id} product={product} storeHref={storeHref} />
       ))}
     </div>
   );

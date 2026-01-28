@@ -25,8 +25,10 @@ const getCachedProduct = (productId: string) =>
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ productId: string }>;
+  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const { productId } = await params;
   const isUuid =
@@ -44,11 +46,15 @@ export default async function ProductDetailPage({
     notFound();
   }
 
+  const fromParam = searchParams?.from;
+  const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
+  const backHref = fromValue && fromValue.startsWith("/store") ? fromValue : "/store";
+
   return (
     <div>
       <div className="max-w-7xl mx-auto px-4 py-4">
         <Link
-          href="/store"
+          href={backHref}
           className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition text-sm"
         >
           <ArrowLeft className="w-4 h-4" />

@@ -77,6 +77,25 @@ export default async function StorePage({
         includeOutOfStock: false,
       };
 
+  const storeQueryParams = new URLSearchParams();
+  if (resolvedSearchParams) {
+    Object.entries(resolvedSearchParams).forEach(([key, value]) => {
+      if (!value || key === "from") {
+        return;
+      }
+      if (Array.isArray(value)) {
+        value.filter(Boolean).forEach((entry) => storeQueryParams.append(key, entry));
+        return;
+      }
+      if (typeof value === "string" && value.trim().length > 0) {
+        storeQueryParams.append(key, value);
+      }
+    });
+  }
+  const storeHref = storeQueryParams.toString()
+    ? `/store?${storeQueryParams.toString()}`
+    : "/store";
+
   const supabase = createSupabasePublicClient();
   const service = new StorefrontService(supabase);
 
@@ -207,7 +226,7 @@ export default async function StorePage({
         </div>
 
         <div className="lg:col-span-3">
-          <ProductGrid products={productsResult.products} />
+          <ProductGrid products={productsResult.products} storeHref={storeHref} />
         </div>
       </div>
 
