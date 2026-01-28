@@ -77,10 +77,16 @@ export function FilterPanel({
 
   const conditions = ["new", "used"];
   const toTestId = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
-  const availableShoeSizeSet = useMemo(
-    () => new Set(availableShoeSizes),
-    [availableShoeSizes],
-  );
+  const availableShoeSizeSet = useMemo(() => {
+    const expanded = new Set(availableShoeSizes);
+    availableShoeSizes.forEach((size) => {
+      if (!isEuShoeSize(size)) {
+        return;
+      }
+      (EU_SIZE_ALIASES[size] ?? []).forEach((usSize) => expanded.add(usSize));
+    });
+    return expanded;
+  }, [availableShoeSizes]);
   const expandedSelectedShoeSizes = useMemo(
     () => expandShoeSizeSelection(selectedShoeSizes),
     [selectedShoeSizes],

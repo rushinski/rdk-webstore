@@ -180,7 +180,8 @@ from (
     ('Yeezy 700'),
     ('Yeezy 700 V2'),
     ('Yeezy 700 V3'),
-    ('Yeezy Foam Runner')
+    ('Yeezy Foam Runner'),
+    ('Yeezy Desert Boot')
 ) as input(model_label);
 
 -- Designer Brand Models
