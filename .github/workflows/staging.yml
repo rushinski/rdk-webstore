@@ -27,6 +27,8 @@ jobs:
     env:
       # Vercel
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }} 
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_STAGING_PROJECT_ID }}
 
       # Supabase
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -125,11 +127,25 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel
 
-      - name: Deploy to Vercel Staging
+      - name: Pull Vercel Environment
         run: |
+          echo "Pulling Vercel environment configuration..."
           vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+          echo "Environment pulled successfully"
+
+      - name: Build Production Bundle
+        run: |
+          echo "Building production bundle for staging environment..."
           vercel build --prod --token=$VERCEL_TOKEN
-          vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          echo "Bundle built successfully"
+
+      - name: Deploy to Staging
+        id: deploy
+        run: |
+          echo "Deploying to staging..."
+          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN)
+          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $DEPLOYMENT_URL"
 
       # Basic Health Check
       - name: Health Check
