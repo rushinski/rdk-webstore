@@ -2,12 +2,10 @@
 
 import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { ProductRepository } from "@/repositories/product-repo";
 import { ProductDetail } from "@/components/store/ProductDetail";
+import { BackToStoreLink } from "@/components/store/BackToStoreLink";
 
 const PRODUCT_REVALIDATE_SECONDS = 60;
 export const revalidate = 60;
@@ -25,10 +23,8 @@ const getCachedProduct = (productId: string) =>
 
 export default async function ProductDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ productId: string }>;
-  searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const { productId } = await params;
   const isUuid =
@@ -46,34 +42,10 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  const fromParam = searchParams?.from;
-  const fromValue = Array.isArray(fromParam) ? fromParam[0] : fromParam;
-  const decodedFrom = (() => {
-    if (!fromValue) {
-      return undefined;
-    }
-    if (fromValue.startsWith("/store")) {
-      return fromValue;
-    }
-    try {
-      return decodeURIComponent(fromValue);
-    } catch {
-      return fromValue;
-    }
-  })();
-  const backHref =
-    decodedFrom && decodedFrom.startsWith("/store") ? decodedFrom : "/store";
-
   return (
     <div>
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition text-sm"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Store
-        </Link>
+        <BackToStoreLink />
       </div>
       <ProductDetail product={product} />
     </div>

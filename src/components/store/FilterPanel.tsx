@@ -517,7 +517,7 @@ export function FilterPanel({
             <div className="space-y-4">
               {showShoeFilter && (
                 <div>
-                  <h4 className="text-base font-semibold text-gray-200 mb-3">
+                  <h4 className="text-sm font-medium text-gray-300 mb-2">
                     Shoe Sizes
                   </h4>
                   <div className="space-y-4">
@@ -600,7 +600,7 @@ export function FilterPanel({
               )}
               {showClothingFilter && (
                 <div>
-                  <h4 className="text-base font-semibold text-gray-200 mb-3">
+                  <h4 className="text-sm font-medium text-gray-300 mb-2">
                     Clothing Sizes
                   </h4>
                   <div className="grid grid-cols-2 gap-2">
