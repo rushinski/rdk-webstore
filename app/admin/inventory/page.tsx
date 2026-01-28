@@ -14,6 +14,8 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type StockStatus = "in_stock" | "out_of_stock";
 
+const PAGE_SIZE = 100;
+
 export default function InventoryPage() {
   const [products, setProducts] = useState<ProductWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,6 +24,8 @@ export default function InventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState<Category | "all">("all");
   const [conditionFilter, setConditionFilter] = useState<Condition | "all">("all");
   const [stockStatusFilter, setStockStatusFilter] = useState<StockStatus>("in_stock");
+  const [page, setPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
@@ -37,8 +41,12 @@ export default function InventoryPage() {
     category?: Category | "all";
     condition?: Condition | "all";
     stockStatus?: StockStatus;
+    page?: number;
   }>({});
   const refreshTimerRef = useRef<number | null>(null);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const showingStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const showingEnd = totalCount === 0 ? 0 : Math.min(page * PAGE_SIZE, totalCount);
 
   const loadProducts = useCallback(
     async (
@@ -47,6 +55,7 @@ export default function InventoryPage() {
         category?: Category | "all";
         condition?: Condition | "all";
         stockStatus?: StockStatus;
+        page?: number;
       },
       showLoading = true,
     ) => {
@@ -55,7 +64,11 @@ export default function InventoryPage() {
       }
       try {
         // Admin list must include out-of-stock so the admin tabs can display them.
-        const params = new URLSearchParams({ limit: "100", includeOutOfStock: "1" });
+        const params = new URLSearchParams({
+          limit: String(PAGE_SIZE),
+          page: String(filters?.page ?? 1),
+          includeOutOfStock: "1",
+        });
 
         if (filters?.q) {
           params.set("q", filters.q.trim());
@@ -66,27 +79,16 @@ export default function InventoryPage() {
         if (filters?.condition && filters.condition !== "all") {
           params.append("condition", filters.condition);
         }
+        if (filters?.stockStatus) {
+          params.set("stockStatus", filters.stockStatus);
+        }
 
         const response = await fetch(`/api/admin/products?${params.toString()}`);
         const data = await response.json();
 
         const loaded: ProductWithDetails[] = data.products || [];
-
-        // Client-side tab filter based on actual variant stock (authoritative for admin UI)
-        const filtered = filters?.stockStatus
-          ? loaded.filter((product: ProductWithDetails) => {
-              const totalStock = product.variants.reduce(
-                (sum, v) => sum + (v.stock ?? 0),
-                0,
-              );
-              if (filters.stockStatus === "out_of_stock") {
-                return totalStock <= 0;
-              }
-              return totalStock > 0;
-            })
-          : loaded;
-
-        setProducts(filtered);
+        setProducts(loaded);
+        setTotalCount(Number(data.total ?? 0));
       } catch (error) {
         logError(error, { layer: "frontend", event: "admin_load_inventory_products" });
       } finally {
@@ -99,11 +101,26 @@ export default function InventoryPage() {
   );
 
   useEffect(() => {
+    setPage(1);
+  }, [searchQuery, categoryFilter, conditionFilter, stockStatusFilter]);
+
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [page, searchQuery, categoryFilter, conditionFilter, stockStatusFilter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  useEffect(() => {
     filtersRef.current = {
       q: searchQuery,
       category: categoryFilter,
       condition: conditionFilter,
       stockStatus: stockStatusFilter,
+      page,
     };
 
     const timeout = setTimeout(() => {
@@ -111,7 +128,14 @@ export default function InventoryPage() {
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery, categoryFilter, conditionFilter, stockStatusFilter, loadProducts]);
+  }, [
+    searchQuery,
+    categoryFilter,
+    conditionFilter,
+    stockStatusFilter,
+    page,
+    loadProducts,
+  ]);
 
   useEffect(() => {
     if (!openMenuId) {
@@ -190,6 +214,7 @@ export default function InventoryPage() {
           category: categoryFilter,
           condition: conditionFilter,
           stockStatus: stockStatusFilter,
+          page,
         });
       } else {
         showToast("Failed to delete product.", "error");
@@ -226,6 +251,7 @@ export default function InventoryPage() {
         category: categoryFilter,
         condition: conditionFilter,
         stockStatus: stockStatusFilter,
+        page,
       });
     } catch {
       showToast("Error deleting selected items.", "error");
@@ -245,6 +271,7 @@ export default function InventoryPage() {
           category: categoryFilter,
           condition: conditionFilter,
           stockStatus: stockStatusFilter,
+          page,
         });
       } else {
         showToast("Failed to duplicate product.", "error");
@@ -267,6 +294,84 @@ export default function InventoryPage() {
     setPendingMassDelete(true);
   };
 
+  const renderPagination = () => {
+    if (totalPages <= 1) {
+      return null;
+    }
+
+    const pages: number[] = [];
+    const start = Math.max(1, page - 2);
+    const end = Math.min(totalPages, page + 2);
+
+    for (let p = start; p <= end; p += 1) {
+      pages.push(p);
+    }
+
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-sm text-gray-400">
+          Showing {showingStart}-{showingEnd} of {totalCount}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={page === 1 || isLoading}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+          >
+            Previous
+          </button>
+
+          {start > 1 && (
+            <button
+              type="button"
+              onClick={() => setPage(1)}
+              className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+            >
+              1
+            </button>
+          )}
+          {start > 2 && <span className="text-gray-500">...</span>}
+
+          {pages.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPage(p)}
+              className={`px-3 py-2 rounded-sm border text-sm ${
+                p === page
+                  ? "border-red-600 text-white"
+                  : "border-zinc-800/70 text-gray-300"
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+
+          {end < totalPages - 1 && <span className="text-gray-500">...</span>}
+          {end < totalPages && (
+            <button
+              type="button"
+              onClick={() => setPage(totalPages)}
+              className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+            >
+              {totalPages}
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            disabled={page === totalPages || isLoading}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -282,7 +387,15 @@ export default function InventoryPage() {
             </Link>
           </div>
         </div>
-        <p className="text-gray-400">{products.length} products</p>
+        <p className="text-gray-400">
+          {totalCount} products
+          {totalCount > 0 && (
+            <span className="text-gray-500">
+              {" "}
+              (Showing {showingStart}-{showingEnd})
+            </span>
+          )}
+        </p>
       </div>
 
       <div className="border-b border-zinc-800/70 flex space-x-6">
@@ -646,6 +759,8 @@ export default function InventoryPage() {
           </div>
         </>
       )}
+
+      {!isLoading && renderPagination()}
 
       <ConfirmDialog
         isOpen={Boolean(pendingDelete)}

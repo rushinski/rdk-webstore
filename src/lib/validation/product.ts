@@ -3,6 +3,7 @@ import { z } from "zod";
 
 const CATEGORY_VALUES = ["sneakers", "clothing", "accessories", "electronics"] as const;
 const CONDITION_VALUES = ["new", "used"] as const;
+const STOCK_STATUS_VALUES = ["in_stock", "out_of_stock", "all"] as const;
 
 const variantSchema = z
   .object({
@@ -77,5 +78,6 @@ export const adminProductsQuerySchema = z
     limit: z.coerce.number().int().min(1).max(500).default(100),
     page: z.coerce.number().int().min(1).default(1),
     includeOutOfStock: includeOutOfStockSchema,
+    stockStatus: z.enum(STOCK_STATUS_VALUES).optional(),
   })
   .strict();
