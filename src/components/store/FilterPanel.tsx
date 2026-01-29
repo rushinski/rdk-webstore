@@ -75,7 +75,7 @@ export function FilterPanel({
 
   const naturalCompare = (a: string, b: string) => naturalCollator.compare(a, b);
 
-  const conditions = ["new", "used"];
+  const CONDITIONS = ["new", "used"] as const;
   const toTestId = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
   const availableShoeSizeSet = useMemo(() => {
     const expanded = new Set(availableShoeSizes);
@@ -116,8 +116,8 @@ export function FilterPanel({
     [availableConditions],
   );
   const filteredConditions = useMemo(
-    () => conditions.filter((cond) => availableConditionSet.has(cond)),
-    [availableConditionSet, conditions],
+    () => CONDITIONS.filter((cond) => availableConditionSet.has(cond)),
+    [availableConditionSet, CONDITIONS],
   );
 
   const hasSneakers = categories.includes("sneakers");
@@ -151,6 +151,17 @@ export function FilterPanel({
     });
     return values;
   }, [brands, brandsByCategory, selectedCategories, hasBrandableCategory]);
+
+  // near other useMemo's in FilterPanel component (top-level)
+  const sortedModelsByBrand = useMemo(() => {
+    if (!showModelFilter) return {} as Record<string, string[]>;
+    const out: Record<string, string[]> = {};
+    for (const [brandKey, models] of Object.entries(modelsByBrand)) {
+      out[brandKey] = [...(models ?? [])].sort(naturalCompare);
+    }
+    return out;
+  }, [modelsByBrand, showModelFilter]); 
+
 
   const filteredBrands = useMemo(
     () => brands.filter((brand) => availableBrandValues.has(brand.value)),
@@ -420,6 +431,40 @@ export function FilterPanel({
         )}
       </div>
 
+      {/* Condition Filter */}
+      {filteredConditions.length > 0 && (
+        <div>
+          <button
+            onClick={() => toggleSection("condition")}
+            className="flex items-center justify-between w-full text-white font-semibold mb-2"
+          >
+            Condition
+            <ChevronDown
+              className={`w-4 h-4 transition-transform ${expandedSections.condition ? "rotate-180" : ""}`}
+            />
+          </button>
+          {expandedSections.condition && (
+            <div className="space-y-2">
+              {filteredConditions.map((cond) => (
+                <label
+                  key={cond}
+                  className="flex items-center text-gray-300 hover:text-white cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedConditions.includes(cond)}
+                    onChange={() => handleConditionChange(cond)}
+                    className="rdk-checkbox mr-2"
+                    data-testid={`filter-condition-${toTestId(cond)}`}
+                  />
+                  <span className="capitalize">{cond}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Brand Filter */}
       {hasBrandableCategory && filteredBrands.length > 0 && (
         <div>
@@ -436,13 +481,7 @@ export function FilterPanel({
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {filteredBrands.map((brand) => {
                 const brandKey = brand.value;
-                const brandModelsRaw = showModelFilter
-                  ? (modelsByBrand[brandKey] ?? [])
-                  : [];
-                const brandModels = useMemo(
-                  () => [...brandModelsRaw].sort(naturalCompare),
-                  [brandModelsRaw],
-                );
+                const brandModels = showModelFilter ? (sortedModelsByBrand[brandKey] ?? []) : [];
                 const hasModels = brandModels.length > 0;
                 const isExpanded =
                   Boolean(expandedBrands[brandKey]) || selectedBrands.includes(brandKey);
@@ -627,39 +666,7 @@ export function FilterPanel({
         </div>
       )}
 
-      {/* Condition Filter */}
-      {filteredConditions.length > 0 && (
-        <div>
-          <button
-            onClick={() => toggleSection("condition")}
-            className="flex items-center justify-between w-full text-white font-semibold mb-2"
-          >
-            Condition
-            <ChevronDown
-              className={`w-4 h-4 transition-transform ${expandedSections.condition ? "rotate-180" : ""}`}
-            />
-          </button>
-          {expandedSections.condition && (
-            <div className="space-y-2">
-              {filteredConditions.map((cond) => (
-                <label
-                  key={cond}
-                  className="flex items-center text-gray-300 hover:text-white cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedConditions.includes(cond)}
-                    onChange={() => handleConditionChange(cond)}
-                    className="rdk-checkbox mr-2"
-                    data-testid={`filter-condition-${toTestId(cond)}`}
-                  />
-                  <span className="capitalize">{cond}</span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      
     </div>
   );
 
