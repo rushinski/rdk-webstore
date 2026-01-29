@@ -293,7 +293,11 @@ export function parseTitleWithCatalog(
     source: "catalog" | "fuzzy";
   } = null;
 
-  if (input.category === "sneakers" && tokens.length > 0 && globalModelAliases.length > 0) {
+  if (
+    input.category === "sneakers" &&
+    tokens.length > 0 &&
+    globalModelAliases.length > 0
+  ) {
     const exactGlobal = findExactMatch(tokens, globalModelAliases);
     if (exactGlobal) {
       globalModelMatch = { alias: exactGlobal.alias, confidence: 1, source: "catalog" };
@@ -375,11 +379,15 @@ export function parseTitleWithCatalog(
 
     const currentBrandId = brandMatch?.alias.brandId ?? null;
     const inferredIsPreferred = preferredBrandIds.has(inferredBrandId);
-    const currentIsPreferred = currentBrandId ? preferredBrandIds.has(currentBrandId) : false;
+    const currentIsPreferred = currentBrandId
+      ? preferredBrandIds.has(currentBrandId)
+      : false;
 
     // If no brand found, adopt inferred brand
     if (!brandMatch) {
-      const inferredBrandAlias = catalog.brandAliases.find((b) => b.brandId === inferredBrandId);
+      const inferredBrandAlias = catalog.brandAliases.find(
+        (b) => b.brandId === inferredBrandId,
+      );
       if (inferredBrandAlias) {
         brandMatch = {
           alias: inferredBrandAlias,
@@ -393,7 +401,9 @@ export function parseTitleWithCatalog(
 
     // If brand found but inferred preferred brand exists (Nike models present), override
     if (brandMatch && inferredIsPreferred && !currentIsPreferred) {
-      const inferredBrandAlias = catalog.brandAliases.find((b) => b.brandId === inferredBrandId);
+      const inferredBrandAlias = catalog.brandAliases.find(
+        (b) => b.brandId === inferredBrandId,
+      );
       if (inferredBrandAlias) {
         brandMatch = {
           alias: inferredBrandAlias,

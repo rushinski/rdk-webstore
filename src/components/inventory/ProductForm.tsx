@@ -216,7 +216,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const [excludedAutoTagKeys, setExcludedAutoTagKeys] = useState<string[]>(
     () => initialData?.excluded_auto_tag_keys ?? [],
   );
-  const hasInitializedTags = useRef(false);
   const previousSizeType = useRef<SizeType | null>(null);
 
   const [variants, setVariants] = useState<VariantDraft[]>(() => {
@@ -346,8 +345,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       return true;
     });
   }, [visibleAutoTags, customTags]);
-
-  console.log("TagInput tags (allTags)", allTags);
 
   useEffect(() => {
     const loadDefaults = async () => {

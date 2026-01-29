@@ -154,14 +154,15 @@ export function FilterPanel({
 
   // near other useMemo's in FilterPanel component (top-level)
   const sortedModelsByBrand = useMemo(() => {
-    if (!showModelFilter) return {} as Record<string, string[]>;
+    if (!showModelFilter) {
+      return {} as Record<string, string[]>;
+    }
     const out: Record<string, string[]> = {};
     for (const [brandKey, models] of Object.entries(modelsByBrand)) {
       out[brandKey] = [...(models ?? [])].sort(naturalCompare);
     }
     return out;
-  }, [modelsByBrand, showModelFilter]); 
-
+  }, [modelsByBrand, showModelFilter]);
 
   const filteredBrands = useMemo(
     () => brands.filter((brand) => availableBrandValues.has(brand.value)),
@@ -481,7 +482,9 @@ export function FilterPanel({
             <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {filteredBrands.map((brand) => {
                 const brandKey = brand.value;
-                const brandModels = showModelFilter ? (sortedModelsByBrand[brandKey] ?? []) : [];
+                const brandModels = showModelFilter
+                  ? (sortedModelsByBrand[brandKey] ?? [])
+                  : [];
                 const hasModels = brandModels.length > 0;
                 const isExpanded =
                   Boolean(expandedBrands[brandKey]) || selectedBrands.includes(brandKey);
@@ -665,8 +668,6 @@ export function FilterPanel({
           )}
         </div>
       )}
-
-      
     </div>
   );
 

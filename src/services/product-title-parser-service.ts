@@ -72,8 +72,9 @@ export class ProductTitleParserService {
 
     const nikeBrand = brands.find((b) => normalizeLabel(b.canonical_label) === "nike");
     const preferredBrandIds = new Set<string>();
-    if (nikeBrand) preferredBrandIds.add(nikeBrand.id);
-
+    if (nikeBrand) {
+      preferredBrandIds.add(nikeBrand.id);
+    }
 
     for (const entry of brandAliasEntries) {
       const label = normalizeLabel(entry.brandLabel);
