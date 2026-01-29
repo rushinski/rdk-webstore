@@ -275,11 +275,39 @@ export function parseTitleWithCatalog(
   catalog: {
     brandAliases: CatalogBrandAlias[];
     modelAliasesByBrand: Record<string, CatalogModelAlias[]>;
+    modelAliasesAll?: CatalogModelAlias[];
+    preferredBrandIds?: Set<string>;
   },
 ): TitleParseResult {
   const titleRaw = input.titleRaw?.trim() ?? "";
   const tokensWithRaw = tokenizeWithRaw(titleRaw);
   const tokens = tokensWithRaw.map((token) => token.normalized).filter(Boolean);
+
+  const preferredBrandIds = catalog.preferredBrandIds ?? new Set<string>();
+  const globalModelAliases = catalog.modelAliasesAll ?? [];
+
+  // 1) Try to detect a model globally (even if brand not found yet)
+  let globalModelMatch: null | {
+    alias: CatalogModelAlias;
+    confidence: number;
+    source: "catalog" | "fuzzy";
+  } = null;
+
+  if (input.category === "sneakers" && tokens.length > 0 && globalModelAliases.length > 0) {
+    const exactGlobal = findExactMatch(tokens, globalModelAliases);
+    if (exactGlobal) {
+      globalModelMatch = { alias: exactGlobal.alias, confidence: 1, source: "catalog" };
+    } else {
+      const fuzzyGlobal = findFuzzyMatch(tokens, globalModelAliases);
+      if (fuzzyGlobal && fuzzyGlobal.similarity >= MEDIUM_CONFIDENCE) {
+        globalModelMatch = {
+          alias: fuzzyGlobal.alias,
+          confidence: fuzzyGlobal.similarity,
+          source: "fuzzy",
+        };
+      }
+    }
+  }
 
   const suggestions: TitleParseResult["suggestions"] = {};
   const candidates: TitleParseResult["candidates"] = {};
@@ -337,6 +365,43 @@ export function parseTitleWithCatalog(
             confidence: fuzzyBrand.similarity,
           };
         }
+      }
+    }
+  }
+
+  // 2) If we found a strong model match, we can infer/override brand
+  if (globalModelMatch) {
+    const inferredBrandId = globalModelMatch.alias.brandId;
+
+    const currentBrandId = brandMatch?.alias.brandId ?? null;
+    const inferredIsPreferred = preferredBrandIds.has(inferredBrandId);
+    const currentIsPreferred = currentBrandId ? preferredBrandIds.has(currentBrandId) : false;
+
+    // If no brand found, adopt inferred brand
+    if (!brandMatch) {
+      const inferredBrandAlias = catalog.brandAliases.find((b) => b.brandId === inferredBrandId);
+      if (inferredBrandAlias) {
+        brandMatch = {
+          alias: inferredBrandAlias,
+          start: -1,
+          length: 0,
+          confidence: globalModelMatch.confidence,
+          source: globalModelMatch.source,
+        };
+      }
+    }
+
+    // If brand found but inferred preferred brand exists (Nike models present), override
+    if (brandMatch && inferredIsPreferred && !currentIsPreferred) {
+      const inferredBrandAlias = catalog.brandAliases.find((b) => b.brandId === inferredBrandId);
+      if (inferredBrandAlias) {
+        brandMatch = {
+          alias: inferredBrandAlias,
+          start: brandMatch.start,
+          length: brandMatch.length,
+          confidence: Math.max(brandMatch.confidence, globalModelMatch.confidence),
+          source: "catalog",
+        };
       }
     }
   }

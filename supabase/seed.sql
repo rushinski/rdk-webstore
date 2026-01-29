@@ -80,6 +80,9 @@ from (
     ('Burberry'),
     ('Versace'),
     ('Distant Studios'),
+    ('Dolce and Gabbana'),
+    ('Chanel'),
+    ('Lanvin'),
     ('Other')
 ) as input(brand_label);
 
@@ -115,7 +118,8 @@ from (
     ('Kobe'),
     ('Air Foamposite'),
     ('KD'),
-    ('LeBron')
+    ('LeBron'),
+    ('Air DT Max')
 ) as input(model_label);
 
 -- Air Jordan Models (1-40)
@@ -231,7 +235,10 @@ from (
     ('Amiri', 'Classic'),
     ('Amiri', 'Arigato'),
     ('Burberry', 'Union Check'),
-    ('Versace', 'Chain Reaction')
+    ('Versace', 'Chain Reaction'),
+    ('Dolce and Gabbana', 'Stretch Mesh Fast Sneaker'),
+    ('Lanvin', 'Curb')
+
 
 ) as input(brand_label, model_label)
 join public.catalog_brands brand
@@ -293,7 +300,11 @@ from (
     ('Maison Mihara Yasuhiro', 'Maison Mihara', 5),
     ('Timberland', 'Timberlands', 1),
     ('Distant Studios', 'Distant', 1),
+    ('A Bathing Ape', 'BAPE', 10),
+    ('A Bathing Ape', 'Bathing Ape', 5),
+    ('A Bathing Ape', 'A Bathing Ape', 5),
     ('A Bathing Ape', 'Bape', 5)
+
 ) as input(brand_label, alias_label, priority)
 join public.catalog_brands brand
   on brand.canonical_label = input.brand_label and brand.tenant_id is null;
@@ -322,8 +333,15 @@ from (
     ('P-6000', 'P6000', 1),
     ('Kobe', 'Nike Kobe', 1),
     ('Air Foamposite', 'Foamposite', 1),
-    ('BAPE STA', 'BAPESTA', 1),
-    ('BAPE SK8', 'SK8', 1)
+    ('Air Force 1', 'Air Force', 5),
+    ('Air Force 1', 'Airforce', 5),
+
+    ('Kobe', 'Zoom Kobe', 5),
+    ('Kobe', 'Kobe VI', 8),
+    ('Kobe', 'Kobe 6', 8),
+    ('Kobe', 'Kobe VI Protro', 10),
+    ('Kobe', 'Kobe 6 Protro', 10)
+
 ) as input(model_label, alias_label, priority)
 join public.catalog_models model on model.canonical_label = input.model_label and model.tenant_id is null
 join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'Nike';
@@ -425,5 +443,31 @@ from (
 ) as input(model_label, alias_label, brand_label)
 join public.catalog_brands brand on brand.canonical_label = input.brand_label and brand.tenant_id is null
 join public.catalog_models model on model.canonical_label = input.model_label and model.brand_id = brand.id and model.tenant_id is null;
+
+-- A Bathing Ape Model Aliases (BAPE STA / BAPESTA variations)
+insert into public.catalog_aliases (
+  tenant_id, entity_type, model_id, alias_label, alias_normalized, priority, is_active
+)
+select
+  null,
+  'model',
+  model.id,
+  input.alias_label,
+  regexp_replace(lower(input.alias_label), '[^a-z0-9]+', ' ', 'g'),
+  input.priority,
+  true
+from (
+  values
+    ('BAPE STA', 'BAPESTA', 10),
+    ('BAPE STA', 'BAPE STA', 8),
+    ('BAPE STA', 'BAPE-STA', 8),
+    ('BAPE STA', 'BAPE STA™', 6)
+) as input(model_label, alias_label, priority)
+join public.catalog_brands brand
+  on brand.canonical_label = 'A Bathing Ape' and brand.tenant_id is null
+join public.catalog_models model
+  on model.brand_id = brand.id
+ and model.canonical_label = input.model_label
+ and model.tenant_id is null;
 
 commit;

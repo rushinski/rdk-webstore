@@ -70,6 +70,11 @@ export class ProductTitleParserService {
     const PREFERRED_BRANDS = new Set(["nike"]);
     const DEPRIORITIZED_BRANDS = new Set(["off white", "off-white"]);
 
+    const nikeBrand = brands.find((b) => normalizeLabel(b.canonical_label) === "nike");
+    const preferredBrandIds = new Set<string>();
+    if (nikeBrand) preferredBrandIds.add(nikeBrand.id);
+
+
     for (const entry of brandAliasEntries) {
       const label = normalizeLabel(entry.brandLabel);
 
@@ -131,6 +136,8 @@ export class ProductTitleParserService {
     return parseTitleWithCatalog(input, {
       brandAliases: brandAliasEntries,
       modelAliasesByBrand,
+      modelAliasesAll: modelAliasEntries,
+      preferredBrandIds,
     });
   }
 }
