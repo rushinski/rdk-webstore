@@ -24,10 +24,15 @@ export const SHOE_SIZES = [
   "13.5M / 15W",
   "14M / 15.5W",
   "15M / 16M",
+  "EU 35 (US 4.5-5W)",
   "EU 36 (US 5.5-6W)",
+  "EU 36.5 (US 6W)",
   "EU 37 (US 6.5-7W)",
+  "EU 37.5 (US 7W)",
   "EU 38 (US 7.5W)",
+  "EU 38.5 (US 8W)",
   "EU 39 (US 8-8.5W)",
+  "EU 39.5 (US 9W)",
   "EU 40 (US 9-9.5W)",
   "EU 41 (US 7.5-8M)",
   "EU 42 (US 8.5-9M)",
@@ -37,6 +42,7 @@ export const SHOE_SIZES = [
   "EU 46 (US 12-12.5M)",
   "EU 47 (US 13M)",
   "EU 48 (US 14-15M)",
+  "EU 49 (US 15.5-16M)",
 ] as const;
 
 const isUsMens = (size: string) => /^\d+(\.\d+)?M\b/.test(size);
