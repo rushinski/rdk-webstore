@@ -14,13 +14,17 @@ export interface TagInputItem {
 
 interface UpsertTagsInput {
   tags: TagInputItem[];
-  tenantId?: string | null;
+  tenantId: string; // required
 }
 
 export async function upsertTags(
   supabase: TypedSupabaseClient,
   input: UpsertTagsInput,
 ): Promise<TagRow[]> {
+  if (!input.tenantId) {
+    throw new Error("upsertTags: tenantId is required");
+  }
+
   const repo = new ProductRepository(supabase);
   const tags: TagRow[] = [];
 
@@ -40,7 +44,7 @@ export async function upsertTags(
     const row = await repo.upsertTag({
       label: tag.label,
       group_key: tag.group_key,
-      tenant_id: input.tenantId ?? null,
+      tenant_id: input.tenantId, // ✅ never null
     });
     tags.push(row);
   }

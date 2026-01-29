@@ -213,7 +213,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }));
   });
 
-  const [excludedAutoTagKeys, setExcludedAutoTagKeys] = useState<string[]>([]);
+  const [excludedAutoTagKeys, setExcludedAutoTagKeys] = useState<string[]>(
+    () => initialData?.excluded_auto_tag_keys ?? [],
+  );
   const hasInitializedTags = useRef(false);
   const previousSizeType = useRef<SizeType | null>(null);
 
@@ -344,6 +346,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       return true;
     });
   }, [visibleAutoTags, customTags]);
+
+  console.log("TagInput tags (allTags)", allTags);
 
   useEffect(() => {
     const loadDefaults = async () => {
@@ -517,18 +521,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }),
     );
   }, [sizeType]);
-
-  useEffect(() => {
-    if (hasInitializedTags.current || !initialData?.tags) {
-      return;
-    }
-
-    const existingKeys = new Set(initialData.tags.map(getTagKey));
-    const missing = autoTags.map(getTagKey).filter((key) => !existingKeys.has(key));
-
-    setExcludedAutoTagKeys(missing);
-    hasInitializedTags.current = true;
-  }, [autoTags, initialData?.tags]);
 
   const addVariant = () => {
     setVariants([
@@ -1075,6 +1067,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         variants: preparedVariants,
         images: preparedImages,
         tags: allTags.map((tag) => ({ label: tag.label, group_key: tag.group_key })),
+        excluded_auto_tag_keys: excludedAutoTagKeys,
       };
 
       await onSubmit(data);

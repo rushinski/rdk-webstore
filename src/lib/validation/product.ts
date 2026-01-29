@@ -67,6 +67,7 @@ export const productCreateSchema = z
     variants: z.array(variantSchema).min(1),
     images: z.array(imageSchema).min(1),
     tags: z.array(tagSchema).optional(),
+    excluded_auto_tag_keys: z.array(z.string()).optional(),
   })
   .strict();
 

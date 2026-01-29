@@ -81,7 +81,7 @@ export const security = {
 
     rateLimit: {
       store: "upstash",
-      enabled: true,
+      enabled: false,
       ignorePrefetch: true,
       applyInLocalDev: true,
 

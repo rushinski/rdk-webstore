@@ -31,6 +31,7 @@ export interface ProductCreateInput {
   variants: VariantInput[];
   images: ImageInput[];
   tags?: TagInputItem[];
+  excluded_auto_tag_keys?: string[];
 }
 
 export class ProductService {
@@ -92,6 +93,7 @@ export class ProductService {
       shipping_override_cents: input.shipping_override_cents ?? null,
       is_active: true,
       created_by: ctx.userId,
+      excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
     });
 
     for (const variant of input.variants) {
@@ -164,6 +166,7 @@ export class ProductService {
       description: input.description || null,
       cost_cents: productCost,
       shipping_override_cents: input.shipping_override_cents ?? null,
+      excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
     });
 
     await this.repo.deleteVariantsByProduct(productId);

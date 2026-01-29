@@ -78,7 +78,7 @@ export function ProductCard({ product, storeHref }: ProductCardProps) {
           {/* Title */}
           <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
             <h3 className="text-white font-bold text-sm truncate flex-1">
-              {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+              {product.title_raw ?? `${product.brand} ${product.name}`.trim()}
             </h3>
           </div>
 
