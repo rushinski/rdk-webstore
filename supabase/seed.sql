@@ -83,6 +83,13 @@ from (
     ('Dolce and Gabbana'),
     ('Chanel'),
     ('Lanvin'),
+    ('Saint Vanity'),
+    ('Mes Amis'),
+    ('GW'),
+    ('RetroVert'),
+    ('Prestige'),
+    ('Righteous'),
+    ('Bottega Desires'),
     ('Other')
 ) as input(brand_label);
 
@@ -119,7 +126,9 @@ from (
     ('Air Foamposite'),
     ('KD'),
     ('LeBron'),
-    ('Air DT Max')
+    ('Air DT Max'),
+    ('Air More Uptempo'),
+    ('AIR ZOOM FLIGHT 95')
 ) as input(model_label);
 
 -- Air Jordan Models (1-40)
@@ -206,6 +215,7 @@ from (
     ('Gucci', 'Ace'),
     ('Gucci', 'Rhyton'),
     ('Gucci', 'Tennis 1977'),
+    ('Gucci', 'GG Supreme'),
     ('Balenciaga', 'Triple S'),
     ('Balenciaga', 'Runner'),
     ('Balenciaga', 'Defender'),
@@ -340,7 +350,11 @@ from (
     ('Kobe', 'Kobe VI', 8),
     ('Kobe', 'Kobe 6', 8),
     ('Kobe', 'Kobe VI Protro', 10),
-    ('Kobe', 'Kobe 6 Protro', 10)
+    ('Kobe', 'Kobe 6 Protro', 10),
+
+    ('Air More Uptempo', 'More Uptempo', 5),
+    ('Air More Uptempo', 'Air More Uptempo', 10),
+    ('Air More Uptempo', 'Uptempo', 2)
 
 ) as input(model_label, alias_label, priority)
 join public.catalog_models model on model.canonical_label = input.model_label and model.tenant_id is null
@@ -469,5 +483,31 @@ join public.catalog_models model
   on model.brand_id = brand.id
  and model.canonical_label = input.model_label
  and model.tenant_id is null;
+
+-- Gucci GG Supreme model aliases
+insert into public.catalog_aliases (
+  tenant_id, entity_type, model_id, alias_label, alias_normalized, priority, is_active
+)
+select
+  null,
+  'model',
+  model.id,
+  input.alias_label,
+  regexp_replace(lower(input.alias_label), '[^a-z0-9]+', ' ', 'g'),
+  input.priority,
+  true
+from (
+  values
+    ('GG Supreme', 'GG Supreme', 10),
+    ('GG Supreme', 'GG SUPREME', 10),
+    ('GG Supreme', 'GG Supreme Canvas', 6)
+) as input(model_label, alias_label, priority)
+join public.catalog_brands brand
+  on brand.canonical_label = 'Gucci' and brand.tenant_id is null
+join public.catalog_models model
+  on model.brand_id = brand.id
+ and model.canonical_label = input.model_label
+ and model.tenant_id is null;
+
 
 commit;

@@ -143,7 +143,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
         {/* Product Info */}
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">
-            {product.title_display ?? `${product.brand} ${product.name}`.trim()}
+            {product.title_raw ?? `${product.brand} ${product.name}`.trim()}
           </h1>
           {product.model && (
             <p className="text-sm text-gray-500 mb-2">Model: {product.model}</p>
