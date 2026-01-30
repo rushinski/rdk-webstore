@@ -1,6 +1,6 @@
 // app/layout.tsx
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { CartProvider } from "@/components/cart/CartProvider";
@@ -13,6 +13,21 @@ import "@/styles/global.css";
 export const metadata: Metadata = {
   title: "Realdealkickzsc - Premium Sneakers & Streetwear",
   description: "Authentic sneakers and streetwear. Quality guaranteed.",
+};
+
+// OPTIMIZATION: Proper viewport configuration for mobile performance
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5, // Allow zooming for accessibility
+  minimumScale: 1,
+  userScalable: true,
+  viewportFit: 'cover', // Safe area insets on iOS
+  // Theme color for mobile browsers
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
