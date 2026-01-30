@@ -7,12 +7,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 const normalizeStoreHref = (value: string | null) => {
-  if (!value) {
-    return undefined;
-  }
-  if (value.startsWith("/store")) {
-    return value;
-  }
+  if (!value) return undefined;
+  if (value.startsWith("/store")) return value;
+
   try {
     const decoded = decodeURIComponent(value);
     return decoded.startsWith("/store") ? decoded : undefined;
@@ -29,10 +26,7 @@ export function BackToStoreLink() {
   const backHref = useMemo(() => normalizeStoreHref(fromParam) ?? "/store", [fromParam]);
 
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (event) => {
-    if (backHref !== "/store") {
-      return;
-    }
-
+    // If we have history, use it — this is the best path for restoring state/scroll.
     if (typeof window !== "undefined" && window.history.length > 1) {
       event.preventDefault();
       router.back();

@@ -1,18 +1,18 @@
 // app/store/page.tsx
-// FIXED VERSION - Removed duplicate product count, proper filter behavior
+// OPTIMIZED VERSION - Page navigation with improved filter visuals
 
 import Link from "next/link";
-import { Suspense } from "react";
 
 import { FilterPanel } from "@/components/store/FilterPanel";
-import { InfiniteProductGrid } from "@/components/store/InfiniteProductGrid";
+import { ProductGrid } from "@/components/store/ProductGrid";
 import { StoreControls } from "@/components/store/StoreControls";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import type { ProductFilters } from "@/repositories/product-repo";
 
-export const revalidate = 60;
+// OPTIMIZATION: Enable ISR with longer revalidation
+export const revalidate = 60; // Revalidate every 60 seconds
 
 const getArrayParam = (
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -39,50 +39,33 @@ const getStringParam = (
   return typeof value === "string" ? value : undefined;
 };
 
-function LoadingGrid() {
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      {Array.from({ length: 12 }).map((_, i) => (
-        <div
-          key={i}
-          className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden animate-pulse"
-        >
-          <div className="aspect-square bg-zinc-800" />
-          <div className="p-3 space-y-2">
-            <div className="h-4 bg-zinc-800 rounded w-3/4" />
-            <div className="h-3 bg-zinc-800 rounded w-1/2" />
-            <div className="h-6 bg-zinc-800 rounded w-1/3 mt-3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-async function StoreContent({
+export default async function StorePage({
   searchParams,
 }: {
-  searchParams: Record<string, string | string[] | undefined> | undefined;
+  searchParams?:
+    | Promise<Record<string, string | string[] | undefined>>
+    | Record<string, string | string[] | undefined>;
 }) {
-  const qParam = getStringParam(searchParams, "q");
-  const sortParam = getStringParam(searchParams, "sort");
-  const pageParam = getStringParam(searchParams, "page");
-  const limitParam = getStringParam(searchParams, "limit");
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const qParam = getStringParam(resolvedSearchParams, "q");
+  const sortParam = getStringParam(resolvedSearchParams, "sort");
+  const pageParam = getStringParam(resolvedSearchParams, "page");
+  const limitParam = getStringParam(resolvedSearchParams, "limit");
 
   const pageValue = Number.parseInt(pageParam ?? "", 10);
   const limitValue = Number.parseInt(limitParam ?? "", 10);
 
   const rawFilters = {
     q: qParam && qParam.trim().length > 0 ? qParam : undefined,
-    category: getArrayParam(searchParams, "category"),
-    brand: getArrayParam(searchParams, "brand"),
-    model: getArrayParam(searchParams, "model"),
-    sizeShoe: getArrayParam(searchParams, "sizeShoe"),
-    sizeClothing: getArrayParam(searchParams, "sizeClothing"),
-    condition: getArrayParam(searchParams, "condition"),
+    category: getArrayParam(resolvedSearchParams, "category"),
+    brand: getArrayParam(resolvedSearchParams, "brand"),
+    model: getArrayParam(resolvedSearchParams, "model"),
+    sizeShoe: getArrayParam(resolvedSearchParams, "sizeShoe"),
+    sizeClothing: getArrayParam(resolvedSearchParams, "sizeClothing"),
+    condition: getArrayParam(resolvedSearchParams, "condition"),
     sort: sortParam && sortParam.trim().length > 0 ? sortParam : "newest",
     page: Number.isFinite(pageValue) ? pageValue : 1,
-    limit: Number.isFinite(limitValue) ? limitValue : 12,
+    limit: Number.isFinite(limitValue) ? limitValue : 20,
   };
 
   const parsed = storeProductsQuerySchema.safeParse(rawFilters);
@@ -92,13 +75,13 @@ async function StoreContent({
         ...rawFilters,
         sort: "newest",
         page: 1,
-        limit: 12,
+        limit: 20,
         includeOutOfStock: false,
       };
 
   const storeQueryParams = new URLSearchParams();
-  if (searchParams) {
-    Object.entries(searchParams).forEach(([key, value]) => {
+  if (resolvedSearchParams) {
+    Object.entries(resolvedSearchParams).forEach(([key, value]) => {
       if (!value || key === "from") {
         return;
       }
@@ -118,10 +101,20 @@ async function StoreContent({
   const supabase = createSupabasePublicClient();
   const service = new StorefrontService(supabase);
 
+  // OPTIMIZATION: Parallel data fetching
   const [productsResult, filterData] = await Promise.all([
     service.listProducts(filters),
     service.listFilters({ filters }),
   ]);
+
+  let pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
+
+  // Handle page overflow
+  if (productsResult.total > 0 && productsResult.page > pageCount) {
+    const adjustedFilters = { ...filters, page: pageCount };
+    const adjustedResult = await service.listProducts(adjustedFilters);
+    pageCount = Math.max(1, Math.ceil(adjustedResult.total / adjustedResult.limit));
+  }
 
   const brandOptions = filterData.brands.map((brand) => ({
     value: brand.label,
@@ -182,19 +175,42 @@ async function StoreContent({
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-5 lg:mb-6">
-        {/* breadcrumbs unchanged */}
+      <div className="mb-8">
+        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">
+          {breadcrumbItems.map((item, index) => {
+            const isLast = index === breadcrumbItems.length - 1;
+            return (
+              <div key={`${item.label}-${index}`} className="flex items-center gap-2">
+                {item.href && !isLast ? (
+                  <Link href={item.href} className="hover:text-white transition-colors">
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span className={isLast ? "text-zinc-300" : ""}>{item.label}</span>
+                )}
+                {!isLast && <span className="text-zinc-700">/</span>}
+              </div>
+            );
+          })}
+        </div>
         <h1 className="text-4xl font-bold text-white mb-2">
           {query ? `Search: "${query}"` : "Shop All"}
         </h1>
       </div>
 
-      <StoreControls total={productsResult.total} sort={filters.sort ?? "newest"} showSortControls />
+      <StoreControls
+        total={productsResult.total}
+        page={productsResult.page}
+        pageCount={pageCount}
+        limit={productsResult.limit}
+        sort={filters.sort ?? "newest"}
+        showPagination={false}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="hidden lg:block">
           <div
-            className="sticky"
+            className="sticky transition-[top] duration-300"
             style={{ top: "var(--rdk-header-offset, 0px)" }}
           >
             <FilterPanel
@@ -216,19 +232,11 @@ async function StoreContent({
           </div>
         </div>
 
-        {/* Infinite Scroll Product Grid */}
         <div className="lg:col-span-3">
-          <InfiniteProductGrid
-            initialProducts={productsResult.products}
-            total={productsResult.total}
-            initialPage={productsResult.page}
-            limit={productsResult.limit}
-            storeHref={storeHref}
-          />
+          <ProductGrid products={productsResult.products} storeHref={storeHref} />
         </div>
       </div>
 
-      {/* Mobile Filter Panel */}
       <div className="lg:hidden">
         <FilterPanel
           selectedCategories={selectedCategories}
@@ -247,22 +255,17 @@ async function StoreContent({
           totalProducts={productsResult.total}
         />
       </div>
+
+      <div className="mt-10">
+        <StoreControls
+          total={productsResult.total}
+          page={productsResult.page}
+          pageCount={pageCount}
+          limit={productsResult.limit}
+          sort={filters.sort ?? "newest"}
+          showSortControls={false}
+        />
+      </div>
     </div>
-  );
-}
-
-export default async function StorePage({
-  searchParams,
-}: {
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>;
-}) {
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-
-  return (
-    <Suspense fallback={<LoadingGrid />}>
-      <StoreContent searchParams={resolvedSearchParams} />
-    </Suspense>
   );
 }
