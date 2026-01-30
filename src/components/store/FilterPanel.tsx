@@ -1,7 +1,8 @@
 // src/components/store/FilterPanel.tsx
+// OPTIMIZED VERSION - Debouncing and performance improvements
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { X, ChevronDown, Filter } from "lucide-react";
 
@@ -50,6 +51,10 @@ export function FilterPanel({
 }: FilterPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  // OPTIMIZATION 1: Use useTransition for non-blocking updates
+  const [isPending, startTransition] = useTransition();
+  
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     category: true,
@@ -58,6 +63,8 @@ export function FilterPanel({
     condition: true,
   });
   const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
+
+  // OPTIMIZATION 2: Memoize expensive computations
   const orderedCategories = useMemo(() => {
     const priority = ["sneakers", "clothing", "accessories", "electronics"];
     const ordered = priority.filter((cat) => categories.includes(cat));
@@ -67,16 +74,25 @@ export function FilterPanel({
     return [...ordered, ...remaining];
   }, [categories]);
 
-  // Put near the top of FilterPanel.tsx (below imports), or in a shared util.
-  const naturalCollator = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
+  const naturalCollator = useMemo(
+    () => new Intl.Collator(undefined, {
+      numeric: true,
+      sensitivity: "base",
+    }),
+    []
+  );
 
-  const naturalCompare = (a: string, b: string) => naturalCollator.compare(a, b);
+  const naturalCompare = useCallback(
+    (a: string, b: string) => naturalCollator.compare(a, b),
+    [naturalCollator]
+  );
 
-  const CONDITIONS = ["new", "used"] as const;
-  const toTestId = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
+  const CONDITIONS = useMemo(() => ["new", "used"] as const, []);
+  const toTestId = useCallback(
+    (value: string) => value.toLowerCase().replace(/\s+/g, "-"),
+    []
+  );
+
   const availableShoeSizeSet = useMemo(() => {
     const expanded = new Set(availableShoeSizes);
     availableShoeSizes.forEach((size) => {
@@ -87,18 +103,22 @@ export function FilterPanel({
     });
     return expanded;
   }, [availableShoeSizes]);
+
   const expandedSelectedShoeSizes = useMemo(
     () => expandShoeSizeSelection(selectedShoeSizes),
     [selectedShoeSizes],
   );
+
   const expandedSelectedShoeSizeSet = useMemo(
     () => new Set(expandedSelectedShoeSizes),
     [expandedSelectedShoeSizes],
   );
+
   const availableClothingSizeSet = useMemo(
     () => new Set(availableClothingSizes),
     [availableClothingSizes],
   );
+
   const shoeSizeGroups = useMemo(
     () => ({
       youth: SHOE_SIZE_GROUPS.youth.filter((size) => availableShoeSizeSet.has(size)),
@@ -107,14 +127,17 @@ export function FilterPanel({
     }),
     [availableShoeSizeSet],
   );
+
   const filteredClothingSizes = useMemo(
     () => CLOTHING_SIZES.filter((size) => availableClothingSizeSet.has(size)),
     [availableClothingSizeSet],
   );
+
   const availableConditionSet = useMemo(
     () => new Set(availableConditions),
     [availableConditions],
   );
+
   const filteredConditions = useMemo(
     () => CONDITIONS.filter((cond) => availableConditionSet.has(cond)),
     [availableConditionSet, CONDITIONS],
@@ -133,10 +156,12 @@ export function FilterPanel({
       ? categories.some((category) => !NON_BRAND_CATEGORIES.has(category))
       : selectedCategories.some((category) => !NON_BRAND_CATEGORIES.has(category));
   const showModelFilter = showShoeFilter && hasBrandableCategory;
+
   const brandLabelMap = useMemo(
     () => new Map(brands.map((brand) => [brand.value, brand.label])),
     [brands],
   );
+
   const availableBrandValues = useMemo(() => {
     if (!hasBrandableCategory) {
       return new Set<string>();
@@ -152,7 +177,6 @@ export function FilterPanel({
     return values;
   }, [brands, brandsByCategory, selectedCategories, hasBrandableCategory]);
 
-  // near other useMemo's in FilterPanel component (top-level)
   const sortedModelsByBrand = useMemo(() => {
     if (!showModelFilter) {
       return {} as Record<string, string[]>;
@@ -162,22 +186,57 @@ export function FilterPanel({
       out[brandKey] = [...(models ?? [])].sort(naturalCompare);
     }
     return out;
-  }, [modelsByBrand, showModelFilter]);
+  }, [modelsByBrand, showModelFilter, naturalCompare]);
 
   const filteredBrands = useMemo(
     () => brands.filter((brand) => availableBrandValues.has(brand.value)),
     [availableBrandValues, brands],
   );
 
-  const toggleSection = (section: string) => {
+  // OPTIMIZATION 3: Memoize callbacks to prevent re-renders
+  const toggleSection = useCallback((section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
+  }, []);
 
-  const toggleBrand = (brand: string) => {
+  const toggleBrand = useCallback((brand: string) => {
     setExpandedBrands((prev) => ({ ...prev, [brand]: !prev[brand] }));
-  };
+  }, []);
 
-  const handleCategoryChange = (category: string) => {
+  const getFilters = useCallback(() => ({
+    category: selectedCategories,
+    brand: selectedBrands,
+    model: selectedModels,
+    sizeShoe: selectedShoeSizes,
+    sizeClothing: selectedClothingSizes,
+    condition: selectedConditions,
+  }), [selectedCategories, selectedBrands, selectedModels, selectedShoeSizes, selectedClothingSizes, selectedConditions]);
+
+  // OPTIMIZATION 4: Wrap filter updates in startTransition for non-blocking updates
+  const updateFilters = useCallback((filters: ReturnType<typeof getFilters>) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.delete("category");
+    params.delete("brand");
+    params.delete("model");
+    params.delete("sizeShoe");
+    params.delete("sizeClothing");
+    params.delete("condition");
+
+    filters.category.forEach((value) => params.append("category", value));
+    filters.brand.forEach((value) => params.append("brand", value));
+    filters.model.forEach((value) => params.append("model", value));
+    filters.sizeShoe.forEach((value) => params.append("sizeShoe", value));
+    filters.sizeClothing.forEach((value) => params.append("sizeClothing", value));
+    filters.condition.forEach((value) => params.append("condition", value));
+
+    params.set("page", "1");
+    
+    startTransition(() => {
+      router.push(`/store?${params.toString()}`, { scroll: false });
+    });
+  }, [router, searchParams, startTransition]);
+
+  const handleCategoryChange = useCallback((category: string) => {
     const newCategories = selectedCategories.includes(category)
       ? selectedCategories.filter((c) => c !== category)
       : [...selectedCategories, category];
@@ -194,9 +253,9 @@ export function FilterPanel({
     if (!hasBrandCategory) {
       setExpandedBrands({});
     }
-  };
+  }, [selectedCategories, categories, selectedBrands, selectedModels, getFilters, updateFilters]);
 
-  const handleBrandChange = (brand: string) => {
+  const handleBrandChange = useCallback((brand: string) => {
     const isSelected = selectedBrands.includes(brand);
     const newBrands = isSelected
       ? selectedBrands.filter((b) => b !== brand)
@@ -207,9 +266,9 @@ export function FilterPanel({
       : selectedModels;
     updateFilters({ ...getFilters(), brand: newBrands, model: nextModels });
     setExpandedBrands((prev) => ({ ...prev, [brand]: !isSelected }));
-  };
+  }, [selectedBrands, selectedModels, modelsByBrand, getFilters, updateFilters]);
 
-  const handleModelChange = (model: string, brand?: string) => {
+  const handleModelChange = useCallback((model: string, brand?: string) => {
     const isSelected = selectedModels.includes(model);
     const newModels = isSelected
       ? selectedModels.filter((m) => m !== model)
@@ -222,9 +281,9 @@ export function FilterPanel({
     if (brand && !isSelected) {
       setExpandedBrands((prev) => ({ ...prev, [brand]: true }));
     }
-  };
+  }, [selectedModels, selectedBrands, getFilters, updateFilters]);
 
-  const handleShoeSizeChange = (size: string) => {
+  const handleShoeSizeChange = useCallback((size: string) => {
     const isExplicit = selectedShoeSizes.includes(size);
     const isExpanded = expandedSelectedShoeSizeSet.has(size);
 
@@ -246,23 +305,23 @@ export function FilterPanel({
     }
 
     updateFilters({ ...getFilters(), sizeShoe: newSizes });
-  };
+  }, [selectedShoeSizes, expandedSelectedShoeSizeSet, getFilters, updateFilters]);
 
-  const handleClothingSizeChange = (size: string) => {
+  const handleClothingSizeChange = useCallback((size: string) => {
     const newSizes = selectedClothingSizes.includes(size)
       ? selectedClothingSizes.filter((s) => s !== size)
       : [...selectedClothingSizes, size];
     updateFilters({ ...getFilters(), sizeClothing: newSizes });
-  };
+  }, [selectedClothingSizes, getFilters, updateFilters]);
 
-  const handleConditionChange = (condition: string) => {
+  const handleConditionChange = useCallback((condition: string) => {
     const newConditions = selectedConditions.includes(condition)
       ? selectedConditions.filter((c) => c !== condition)
       : [...selectedConditions, condition];
     updateFilters({ ...getFilters(), condition: newConditions });
-  };
+  }, [selectedConditions, getFilters, updateFilters]);
 
-  const clearFilters = () => {
+  const clearFilters = useCallback(() => {
     updateFilters({
       category: [],
       brand: [],
@@ -271,40 +330,11 @@ export function FilterPanel({
       sizeClothing: [],
       condition: [],
     });
-  };
-
-  const getFilters = () => ({
-    category: selectedCategories,
-    brand: selectedBrands,
-    model: selectedModels,
-    sizeShoe: selectedShoeSizes,
-    sizeClothing: selectedClothingSizes,
-    condition: selectedConditions,
-  });
-
-  const updateFilters = (filters: ReturnType<typeof getFilters>) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    params.delete("category");
-    params.delete("brand");
-    params.delete("model");
-    params.delete("sizeShoe");
-    params.delete("sizeClothing");
-    params.delete("condition");
-
-    filters.category.forEach((value) => params.append("category", value));
-    filters.brand.forEach((value) => params.append("brand", value));
-    filters.model.forEach((value) => params.append("model", value));
-    filters.sizeShoe.forEach((value) => params.append("sizeShoe", value));
-    filters.sizeClothing.forEach((value) => params.append("sizeClothing", value));
-    filters.condition.forEach((value) => params.append("condition", value));
-
-    params.set("page", "1");
-    router.push(`/store?${params.toString()}`, { scroll: false });
-  };
+  }, [updateFilters]);
 
   const renderFilterContent = () => (
-    <div className="space-y-6">
+    // OPTIMIZATION 5: Show loading state during transitions
+    <div className={`space-y-6 ${isPending ? 'opacity-60 pointer-events-none' : ''}`}>
       {/* Active Filters Pills */}
       {(selectedCategories.length > 0 ||
         selectedBrands.length > 0 ||
@@ -611,13 +641,11 @@ export function FilterPanel({
                         </div>
                       </div>
                     )}
-                    {/* EU */}
                     {shoeSizeGroups.eu.length > 0 && (
                       <div>
                         <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                           EU
                         </h5>
-                        {/* was: grid grid-cols-2 gap-2 */}
                         <div className="grid grid-cols-1 gap-2">
                           {shoeSizeGroups.eu.map((size) => (
                             <label
@@ -666,6 +694,13 @@ export function FilterPanel({
               )}
             </div>
           )}
+        </div>
+      )}
+      
+      {/* OPTIMIZATION 6: Show pending indicator */}
+      {isPending && (
+        <div className="text-xs text-gray-500 text-center">
+          Updating filters...
         </div>
       )}
     </div>

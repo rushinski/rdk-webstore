@@ -1,4 +1,5 @@
 // app/api/store/products/[id]/route.ts
+// OPTIMIZED VERSION - Strong caching for individual products
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -14,6 +15,10 @@ const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
+// OPTIMIZATION 1: Product details change infrequently, cache for 5 minutes
+export const revalidate = 300;
+export const dynamic = 'force-static';
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -25,7 +30,10 @@ export async function GET(
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid params", issues: parsed.error.format(), requestId },
-      { status: 400, headers: { "Cache-Control": "no-store" } },
+      { 
+        status: 400, 
+        headers: { "Cache-Control": "no-store" } 
+      },
     );
   }
 
@@ -45,12 +53,27 @@ export async function GET(
     if (!product) {
       return NextResponse.json(
         { error: "Product not found", requestId },
-        { status: 404, headers: { "Cache-Control": "no-store" } },
+        { 
+          status: 404, 
+          // Cache 404s for a short time to prevent hammering
+          headers: { 
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" 
+          } 
+        },
       );
     }
 
+    // OPTIMIZATION 2: Cache product details aggressively
+    // Products don't change often (price/stock updates are less frequent)
     return NextResponse.json(product, {
-      headers: { "Cache-Control": "no-store" },
+      headers: { 
+        // Cache for 5 minutes, serve stale for 10 minutes while revalidating
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        'CDN-Cache-Control': 'public, s-maxage=300',
+        'Vercel-CDN-Cache-Control': 'public, s-maxage=300',
+        // Add ETag for better cache validation
+        'ETag': `"${product.id}-${product.updated_at || product.created_at}"`,
+      },
     });
   } catch (error) {
     logError(error, {
@@ -60,7 +83,10 @@ export async function GET(
     });
     return NextResponse.json(
       { error: "Failed to fetch product", requestId },
-      { status: 500, headers: { "Cache-Control": "no-store" } },
+      { 
+        status: 500, 
+        headers: { "Cache-Control": "no-store" } 
+      },
     );
   }
 }

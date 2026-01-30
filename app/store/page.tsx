@@ -1,4 +1,5 @@
 // app/store/page.tsx
+// OPTIMIZED VERSION - Improved Caching & Performance
 
 import Link from "next/link";
 
@@ -10,7 +11,11 @@ import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import type { ProductFilters } from "@/repositories/product-repo";
 
-export const revalidate = 0;
+// OPTIMIZATION 1: Enable ISR with longer revalidation
+export const revalidate = 60; // Revalidate every 60 seconds
+
+// OPTIMIZATION 2: Consider edge runtime for faster response
+// export const runtime = 'edge'; // Uncomment if compatible
 
 const getArrayParam = (
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -99,16 +104,23 @@ export default async function StorePage({
   const supabase = createSupabasePublicClient();
   const service = new StorefrontService(supabase);
 
-  let productsResult = await service.listProducts(filters);
+  // OPTIMIZATION 3: Parallel data fetching
+  const [productsResult, filterData] = await Promise.all([
+    service.listProducts(filters),
+    // OPTIMIZATION 4: Only fetch filter data with current filters applied
+    // This reduces the size of filter options shown
+    service.listFilters({ filters }),
+  ]);
+
   let pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
 
+  // Handle page overflow
   if (productsResult.total > 0 && productsResult.page > pageCount) {
     const adjustedFilters = { ...filters, page: pageCount };
-    productsResult = await service.listProducts(adjustedFilters);
-    pageCount = Math.max(1, Math.ceil(productsResult.total / productsResult.limit));
+    const adjustedResult = await service.listProducts(adjustedFilters);
+    pageCount = Math.max(1, Math.ceil(adjustedResult.total / adjustedResult.limit));
   }
 
-  const filterData = await service.listFilters({ filters });
   const brandOptions = filterData.brands.map((brand) => ({
     value: brand.label,
     label: brand.label,
