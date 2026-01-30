@@ -86,7 +86,7 @@ const BrandItem = memo(function BrandItem({
   return (
     <div className="w-full min-w-0">
       {/* FIXED: Exact same structure for ALL brands - py-2.5 spacing */}
-      <div className="flex items-start gap-2 w-full min-w-0 py-2.5">
+      <div className="flex items-start gap-2 w-full min-w-0 py-1">
         <label className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer flex-1 min-w-0">
           <input
             type="checkbox"
