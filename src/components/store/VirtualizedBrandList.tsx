@@ -1,5 +1,5 @@
 // src/components/store/VirtualizedBrandList.tsx
-// FIXED VERSION - Width constraints, numerical sorting
+// FIXED VERSION - Truly consistent spacing, all brands aligned
 "use client";
 
 import { useMemo, useCallback, memo } from "react";
@@ -58,7 +58,7 @@ function naturalSort(a: string, b: string): number {
   return 0;
 }
 
-// Memoized brand item
+// Memoized brand item - FIXED: Exact same height for all brands
 const BrandItem = memo(function BrandItem({
   brand,
   isSelected,
@@ -84,8 +84,9 @@ const BrandItem = memo(function BrandItem({
   const toTestId = useCallback((value: string) => value.toLowerCase().replace(/\s+/g, "-"), []);
 
   return (
-    <div className="py-1 w-full">
-      <div className="flex items-start gap-2 w-full">
+    <div className="w-full min-w-0">
+      {/* FIXED: Exact same structure for ALL brands - py-2.5 spacing */}
+      <div className="flex items-start gap-2 w-full min-w-0 py-2.5">
         <label className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer flex-1 min-w-0">
           <input
             type="checkbox"
@@ -94,27 +95,32 @@ const BrandItem = memo(function BrandItem({
             className="rdk-checkbox flex-shrink-0 mt-0.5"
             data-testid={`filter-brand-${toTestId(brand.value)}`}
           />
-          <span className="flex-1 break-words">{brand.label}</span>
+          <span className="flex-1 break-words min-w-0">{brand.label}</span>
         </label>
 
-        {hasModels && showModels && (
-          <button
-            type="button"
-            onClick={() => onToggleBrand(brand.value)}
-            className="text-zinc-500 hover:text-white transition-colors flex-shrink-0 p-1 mt-0.5"
-            aria-label={`Toggle ${brand.label} models`}
-          >
-            <ToggleIcon open={isExpanded} />
-          </button>
-        )}
+        {/* FIXED: Always render button container with exact same dimensions */}
+        <button
+          type="button"
+          onClick={hasModels && showModels ? () => onToggleBrand(brand.value) : undefined}
+          className={`flex-shrink-0 w-6 h-6 flex items-center justify-center ${
+            hasModels && showModels 
+              ? 'text-zinc-500 hover:text-white transition-colors cursor-pointer' 
+              : 'invisible pointer-events-none'
+          }`}
+          aria-label={hasModels && showModels ? `Toggle ${brand.label} models` : undefined}
+          disabled={!hasModels || !showModels}
+        >
+          {hasModels && showModels && <ToggleIcon open={isExpanded} />}
+        </button>
       </div>
 
+      {/* Models dropdown */}
       {hasModels && showModels && isExpanded && (
-        <div className="mt-2 ml-7 space-y-2 border-l border-zinc-800/70 pl-3 w-full">
+        <div className="ml-7 mb-2 space-y-2 border-l border-zinc-800/70 pl-3 w-full min-w-0">
           {models.map((model) => (
             <label
               key={model}
-              className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full"
+              className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full min-w-0"
             >
               <input
                 type="checkbox"
@@ -123,7 +129,7 @@ const BrandItem = memo(function BrandItem({
                 className="rdk-checkbox flex-shrink-0 mt-0.5"
                 data-testid={`filter-model-${toTestId(model)}`}
               />
-              <span className="flex-1 text-xs break-words">{model}</span>
+              <span className="flex-1 text-xs break-words min-w-0">{model}</span>
             </label>
           ))}
         </div>
@@ -154,32 +160,34 @@ export const VirtualizedBrandList = memo(function VirtualizedBrandList({
   }, [modelsByBrand, showModelFilter]);
 
   return (
-    <div className="space-y-2 w-full">
+    <div className="w-full min-w-0">
       {brands.length > 50 && (
-        <div className="text-xs text-gray-500 mb-2">
+        <div className="text-xs text-gray-500 mb-2 px-1">
           {brands.length} brands available
         </div>
       )}
-      {brands.map((brand) => {
-        const brandKey = brand.value;
-        const models = showModelFilter ? (sortedModelsByBrand[brandKey] ?? []) : [];
-        const isExpanded = expandedBrands[brandKey] || selectedBrands.includes(brandKey);
+      <div className="w-full min-w-0">
+        {brands.map((brand) => {
+          const brandKey = brand.value;
+          const models = showModelFilter ? (sortedModelsByBrand[brandKey] ?? []) : [];
+          const isExpanded = expandedBrands[brandKey] || selectedBrands.includes(brandKey);
 
-        return (
-          <BrandItem
-            key={brandKey}
-            brand={brand}
-            isSelected={selectedBrands.includes(brandKey)}
-            isExpanded={isExpanded}
-            models={models}
-            selectedModels={selectedModels}
-            onBrandChange={onBrandChange}
-            onModelChange={onModelChange}
-            onToggleBrand={onToggleBrand}
-            showModels={showModelFilter}
-          />
-        );
-      })}
+          return (
+            <BrandItem
+              key={brandKey}
+              brand={brand}
+              isSelected={selectedBrands.includes(brandKey)}
+              isExpanded={isExpanded}
+              models={models}
+              selectedModels={selectedModels}
+              onBrandChange={onBrandChange}
+              onModelChange={onModelChange}
+              onToggleBrand={onToggleBrand}
+              showModels={showModelFilter}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 });

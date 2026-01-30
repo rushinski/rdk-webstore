@@ -24,7 +24,8 @@ const nextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920], // Responsive breakpoints
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Icon/thumbnail sizes
     minimumCacheTTL: 60, // Cache images for 60 seconds minimum
-    qualities: [75, 90], // Lower quality for faster loading
+    // FIXED: Added all qualities used in components
+    qualities: [60, 75, 85, 90], // Product detail uses 75 (thumbnails) and 90 (main), product cards use 75
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     remotePatterns: [

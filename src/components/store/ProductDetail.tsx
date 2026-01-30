@@ -1,4 +1,5 @@
 // src/components/store/ProductDetail.tsx
+// FIXED VERSION - No Suspense wrapper, proper image qualities
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -105,7 +106,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Image Gallery */}
+        {/* Image Gallery - NO Suspense wrapper */}
         <div>
           <div className="aspect-square relative bg-zinc-900 rounded overflow-hidden mb-4">
             <Image
@@ -115,29 +116,38 @@ export function ProductDetail({ product }: ProductDetailProps) {
               sizes="(min-width: 1024px) 50vw, 100vw"
               priority
               className="object-cover"
+              quality={90}
             />
           </div>
-          <div className="grid grid-cols-4 gap-2">
-            {product.images.map((image, index) => (
-              <button
-                key={image.id}
-                onClick={() => setSelectedImageIndex(index)}
-                className={`aspect-square relative bg-zinc-900 rounded overflow-hidden border-2 ${
-                  selectedImageIndex === index ? "border-red-600" : "border-transparent"
-                }`}
-                type="button"
-              >
-                <Image
-                  src={image.url}
-                  alt={`${product.name} ${index + 1}`}
-                  fill
-                  sizes="(min-width: 1024px) 10vw, 20vw"
-                  loading="lazy"
-                  className="object-cover"
-                />
-              </button>
-            ))}
-          </div>
+          
+          {/* FIXED: All thumbnails load immediately */}
+          {product.images.length > 1 && (
+            <div className="grid grid-cols-4 gap-2">
+              {product.images.map((image, index) => (
+                <button
+                  key={image.id}
+                  onClick={() => setSelectedImageIndex(index)}
+                  className={`aspect-square relative bg-zinc-900 rounded overflow-hidden border-2 ${
+                    selectedImageIndex === index ? "border-red-600" : "border-transparent"
+                  }`}
+                  type="button"
+                  aria-label={`View image ${index + 1}`}
+                >
+                  <Image
+                    src={image.url}
+                    alt={`${product.name} ${index + 1}`}
+                    fill
+                    sizes="(min-width: 1024px) 10vw, 20vw"
+                    // FIXED: Load all thumbnails immediately
+                    loading="eager"
+                    priority={index < 4}
+                    className="object-cover"
+                    quality={75}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Product Info */}

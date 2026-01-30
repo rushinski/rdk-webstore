@@ -1,5 +1,5 @@
 // src/components/store/FilterPanel.tsx
-// FIXED VERSION - Proper width constraints, no content-based resizing
+// FIXED VERSION - Smaller size text, consistent spacing
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
@@ -349,7 +349,7 @@ export function FilterPanel({
   }, [updateFilters]);
 
   const renderFilterContent = () => (
-    <div className="flex flex-col h-full w-full">
+    <div className="flex flex-col h-full w-full min-w-0">
       {/* Header */}
       <div className="px-6 py-4 border-b border-zinc-800/70 flex-shrink-0">
         <div className="flex items-center justify-between mb-2">
@@ -373,24 +373,24 @@ export function FilterPanel({
         )}
       </div>
 
-      {/* Scrollable Content - FIXED: width constraints */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-4">
+      {/* Scrollable Content */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4 space-y-4 min-w-0">
         {/* Category */}
-        <div className="pb-4 border-b border-zinc-800/70 w-full">
+        <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
           <button
             onClick={() => toggleSection("category")}
-            className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors"
+            className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
           >
-            <span className="flex-1 text-left">Category</span>
+            <span className="flex-1 text-left truncate">Category</span>
             <ToggleIcon open={!!expandedSections.category} size={16} />
           </button>
 
           {expandedSections.category && (
-            <div className="space-y-2.5 w-full">
+            <div className="space-y-2.5 w-full min-w-0">
               {orderedCategories.map((cat) => (
                 <label
                   key={cat}
-                  className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full"
+                  className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full min-w-0"
                 >
                   <input
                     type="checkbox"
@@ -399,7 +399,7 @@ export function FilterPanel({
                     className="rdk-checkbox flex-shrink-0 mt-0.5"
                     data-testid={`filter-category-${toTestId(cat)}`}
                   />
-                  <span className="capitalize flex-1 break-words">{cat}</span>
+                  <span className="capitalize flex-1 break-words min-w-0">{cat}</span>
                 </label>
               ))}
             </div>
@@ -408,21 +408,21 @@ export function FilterPanel({
 
         {/* Condition */}
         {filteredConditions.length > 0 && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full">
+          <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
             <button
               onClick={() => toggleSection("condition")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors"
+              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
             >
-              <span className="flex-1 text-left">Condition</span>
+              <span className="flex-1 text-left truncate">Condition</span>
               <ToggleIcon open={!!expandedSections.condition} size={16} />
             </button>
 
             {expandedSections.condition && (
-              <div className="space-y-2.5 w-full">
+              <div className="space-y-2.5 w-full min-w-0">
                 {filteredConditions.map((cond) => (
                   <label
                     key={cond}
-                    className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full"
+                    className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full min-w-0"
                   >
                     <input
                       type="checkbox"
@@ -431,7 +431,7 @@ export function FilterPanel({
                       className="rdk-checkbox flex-shrink-0 mt-0.5"
                       data-testid={`filter-condition-${toTestId(cond)}`}
                     />
-                    <span className="capitalize flex-1 break-words">{cond}</span>
+                    <span className="capitalize flex-1 break-words min-w-0">{cond}</span>
                   </label>
                 ))}
               </div>
@@ -441,17 +441,17 @@ export function FilterPanel({
 
         {/* Brand */}
         {hasBrandableCategory && filteredBrands.length > 0 && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full">
+          <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
             <button
               onClick={() => toggleSection("brand")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors"
+              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
             >
-              <span className="flex-1 text-left">Brand</span>
+              <span className="flex-1 text-left truncate">Brand</span>
               <ToggleIcon open={!!expandedSections.brand} size={16} />
             </button>
 
             {expandedSections.brand && (
-              <div className="space-y-2.5 w-full">
+              <div className="w-full min-w-0">
                 <VirtualizedBrandList
                   brands={filteredBrands}
                   selectedBrands={selectedBrands}
@@ -468,35 +468,35 @@ export function FilterPanel({
           </div>
         )}
 
-        {/* Shoe Sizes */}
+        {/* Shoe Sizes - FIXED: Smaller text */}
         {showShoeFilter && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full">
+          <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
             <button
               onClick={() => toggleSection("shoeSize")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors"
+              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
             >
-              <span className="flex-1 text-left">Shoe Sizes</span>
+              <span className="flex-1 text-left truncate">Shoe Sizes</span>
               <ToggleIcon open={!!expandedSections.shoeSize} size={16} />
             </button>
 
             {expandedSections.shoeSize && (
-              <div className="space-y-3 w-full">
+              <div className="space-y-3 w-full min-w-0">
                 {shoeSizeGroups.youth.length > 0 && (
-                  <div className="w-full">
+                  <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleSizeGroup("youth")}
-                      className="flex items-center justify-between w-full text-sm font-medium text-gray-400 hover:text-white mb-2 transition-colors"
+                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
                     >
-                      <span className="uppercase tracking-wide flex-1 text-left">Youth</span>
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">Youth</span>
                       <ToggleIcon open={!!expandedSizeGroups.youth} size={14} />
                     </button>
 
                     {expandedSizeGroups.youth && (
-                      <div className="grid grid-cols-2 gap-2 ml-2 w-full">
+                      <div className="grid grid-cols-2 gap-2 ml-2 w-full min-w-0">
                         {shoeSizeGroups.youth.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2.5 text-sm text-gray-300 hover:text-white cursor-pointer"
+                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
                           >
                             <input
                               type="checkbox"
@@ -505,7 +505,7 @@ export function FilterPanel({
                               className="rdk-checkbox flex-shrink-0 mt-0.5"
                               data-testid={`filter-size-shoe-${toTestId(size)}`}
                             />
-                            <span className="flex-1 break-words">{size}</span>
+                            <span className="flex-1 break-words min-w-0">{size}</span>
                           </label>
                         ))}
                       </div>
@@ -514,21 +514,21 @@ export function FilterPanel({
                 )}
 
                 {shoeSizeGroups.mens.length > 0 && (
-                  <div className="w-full">
+                  <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleSizeGroup("mens")}
-                      className="flex items-center justify-between w-full text-sm font-medium text-gray-400 hover:text-white mb-2 transition-colors"
+                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
                     >
-                      <span className="uppercase tracking-wide flex-1 text-left">Men&apos;s</span>
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">Men&apos;s</span>
                       <ToggleIcon open={!!expandedSizeGroups.mens} size={14} />
                     </button>
 
                     {expandedSizeGroups.mens && (
-                      <div className="grid grid-cols-2 gap-2 ml-2 w-full">
+                      <div className="grid grid-cols-2 gap-2 ml-2 w-full min-w-0">
                         {shoeSizeGroups.mens.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2.5 text-sm text-gray-300 hover:text-white cursor-pointer"
+                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
                           >
                             <input
                               type="checkbox"
@@ -537,7 +537,7 @@ export function FilterPanel({
                               className="rdk-checkbox flex-shrink-0 mt-0.5"
                               data-testid={`filter-size-shoe-${toTestId(size)}`}
                             />
-                            <span className="flex-1 break-words">{size}</span>
+                            <span className="flex-1 break-words min-w-0">{size}</span>
                           </label>
                         ))}
                       </div>
@@ -546,21 +546,21 @@ export function FilterPanel({
                 )}
 
                 {shoeSizeGroups.eu.length > 0 && (
-                  <div className="w-full">
+                  <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleSizeGroup("eu")}
-                      className="flex items-center justify-between w-full text-sm font-medium text-gray-400 hover:text-white mb-2 transition-colors"
+                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
                     >
-                      <span className="uppercase tracking-wide flex-1 text-left">EU</span>
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">EU</span>
                       <ToggleIcon open={!!expandedSizeGroups.eu} size={14} />
                     </button>
 
                     {expandedSizeGroups.eu && (
-                      <div className="grid grid-cols-1 gap-2 ml-2 w-full">
+                      <div className="grid grid-cols-1 gap-2 ml-2 w-full min-w-0">
                         {shoeSizeGroups.eu.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2.5 text-sm text-gray-300 hover:text-white cursor-pointer"
+                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
                           >
                             <input
                               type="checkbox"
@@ -569,7 +569,7 @@ export function FilterPanel({
                               className="rdk-checkbox flex-shrink-0 mt-0.5"
                               data-testid={`filter-size-shoe-${toTestId(size)}`}
                             />
-                            <span className="flex-1 break-words">{size}</span>
+                            <span className="flex-1 break-words min-w-0">{size}</span>
                           </label>
                         ))}
                       </div>
@@ -581,23 +581,23 @@ export function FilterPanel({
           </div>
         )}
 
-        {/* Clothing Sizes */}
+        {/* Clothing Sizes - FIXED: Smaller text */}
         {showClothingFilter && filteredClothingSizes.length > 0 && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full">
+          <div className="pb-4 w-full min-w-0">
             <button
               onClick={() => toggleSection("clothingSize")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors"
+              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
             >
-              <span className="flex-1 text-left">Clothing Sizes</span>
+              <span className="flex-1 text-left truncate">Clothing Sizes</span>
               <ToggleIcon open={!!expandedSections.clothingSize} size={16} />
             </button>
 
             {expandedSections.clothingSize && (
-              <div className="grid grid-cols-2 gap-2 w-full">
+              <div className="grid grid-cols-2 gap-2 w-full min-w-0">
                 {filteredClothingSizes.map((size) => (
                   <label
                     key={size}
-                    className="flex items-start gap-2.5 text-sm text-gray-300 hover:text-white cursor-pointer"
+                    className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
                   >
                     <input
                       type="checkbox"
@@ -606,7 +606,7 @@ export function FilterPanel({
                       className="rdk-checkbox flex-shrink-0 mt-0.5"
                       data-testid={`filter-size-clothing-${toTestId(size)}`}
                     />
-                    <span className="flex-1 break-words">{size}</span>
+                    <span className="flex-1 break-words min-w-0">{size}</span>
                   </label>
                 ))}
               </div>
@@ -617,7 +617,8 @@ export function FilterPanel({
     </div>
   );
 
-  const desktopHeight = "calc(100svh - var(--rdk-header-offset, 0px) - 2rem)";
+  const desktopHeight = "calc(100svh - var(--rdk-header-offset, 0px))";
+  const desktopTop = "var(--rdk-header-offset, 0px)";
 
   return (
     <>
@@ -640,7 +641,6 @@ export function FilterPanel({
       {isOpen && (
         <div className="lg:hidden fixed inset-0 z-50 bg-zinc-900">
           <div className="flex flex-col h-full">
-            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/70 flex-shrink-0">
               <h2 className="text-xl font-bold text-white">Filters</h2>
               <button
@@ -651,12 +651,10 @@ export function FilterPanel({
               </button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto">
               {renderFilterContent()}
             </div>
 
-            {/* Footer */}
             <div className="px-6 py-4 border-t border-zinc-800/70 flex-shrink-0">
               <button
                 onClick={() => setIsOpen(false)}
@@ -669,13 +667,15 @@ export function FilterPanel({
         </div>
       )}
 
-      {/* Desktop Boxed Filter Panel - FIXED: Force consistent width */}
+      {/* Desktop Filter Panel */}
       <div
-        className="hidden md:flex md:flex-col bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden"
+        className="hidden lg:flex lg:flex-col bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden sticky"
         style={{ 
-          height: desktopHeight, 
-          minHeight: desktopHeight, 
-          maxHeight: desktopHeight,
+          height: desktopHeight,
+          top: desktopTop,
+          minWidth: '280px',
+          maxWidth: '280px',
+          width: '280px',
         }}
         data-testid="filter-panel"
       >
