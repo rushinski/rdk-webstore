@@ -90,6 +90,7 @@ from (
     ('Prestige'),
     ('Righteous'),
     ('Bottega Desires'),
+    ('Hellstar'),
     ('Other')
 ) as input(brand_label);
 

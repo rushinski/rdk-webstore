@@ -39,7 +39,7 @@ export const security = {
   proxy: {
     requestIdHeader: "x-request-id",
     botCheckPrefixes: ["/admin", "/api", "/auth", "/products"],
-    rateLimitPrefixes: ["/"],
+    rateLimitPrefixes: ["/api"],
     adminGuard: {
       protectedPrefixes: ["/admin", "/api/admin"],
       exemptPrefixes: ["/api/auth/2fa"],
@@ -82,106 +82,10 @@ export const security = {
     rateLimit: {
       store: "upstash",
       enabled: false,
-      ignorePrefetch: true,
       applyInLocalDev: true,
-
-      // Default window for all limits
-      window: "1 m",
-
-      // Global per-IP limit (applies across all routes)
-      maxRequestsGlobal: 300,
-
-      // Default per-path limit (fallback for routes not specified below)
-      maxRequests: 60,
 
       blockStatus: 429,
       tooManyRequestsPath: "/too-many-requests",
-      redirectStatus: 302,
-
-      // Per-route rate limit configurations
-      routeLimits: [
-        // Storefront routes - very permissive since they have heavy prefetching
-        {
-          pathPrefix: "/store",
-          maxRequests: 200, // Much higher limit for store browsing
-          window: "1 m",
-        },
-        {
-          pathPrefix: "/brands",
-          maxRequests: 100,
-          window: "1 m",
-        },
-
-        // API routes - moderate limits
-        {
-          pathPrefix: "/api/store",
-          maxRequests: 100,
-          window: "1 m",
-        },
-        {
-          pathPrefix: "/api/account",
-          maxRequests: 60,
-          window: "1 m",
-        },
-
-        // Auth routes - stricter limits
-        {
-          pathPrefix: "/api/auth/login",
-          maxRequests: 10,
-          window: "5 m",
-        },
-        {
-          pathPrefix: "/api/auth/register",
-          maxRequests: 5,
-          window: "5 m",
-        },
-        {
-          pathPrefix: "/api/auth/forgot-password",
-          maxRequests: 3,
-          window: "15 m",
-        },
-
-        // Checkout - moderate limits
-        {
-          pathPrefix: "/api/checkout",
-          maxRequests: 30,
-          window: "1 m",
-        },
-        {
-          pathPrefix: "/checkout",
-          maxRequests: 50,
-          window: "1 m",
-        },
-
-        // Admin routes - strict limits
-        {
-          pathPrefix: "/admin",
-          maxRequests: 100,
-          window: "1 m",
-        },
-        {
-          pathPrefix: "/api/admin",
-          maxRequests: 60,
-          window: "1 m",
-        },
-
-        // Contact form - very strict
-        {
-          pathPrefix: "/api/contact",
-          maxRequests: 5,
-          window: "10 m",
-        },
-      ],
-
-      // Routes that bypass rate limiting entirely
-      bypassPrefixes: [
-        "/api/webhooks/stripe",
-        "/api/webhooks/shippo",
-        "/_next/",
-        "/favicon.ico",
-        "/robots.txt",
-        "/sitemap.xml",
-      ],
     },
 
     admin: {
@@ -255,26 +159,4 @@ export type CsrfUnsafeMethod = (typeof security.proxy.csrf.unsafeMethods)[number
 export function isCsrfUnsafeMethod(method: string): method is CsrfUnsafeMethod {
   const methodUpper = method.toUpperCase();
   return (security.proxy.csrf.unsafeMethods as readonly string[]).includes(methodUpper);
-}
-
-// Helper to get the appropriate rate limit config for a path
-export function getRateLimitConfigForPath(pathname: string) {
-  const { routeLimits, maxRequests, window } = security.proxy.rateLimit;
-
-  // Find the most specific matching route (longest prefix match)
-  let matchedConfig = null;
-  let longestMatch = 0;
-
-  for (const config of routeLimits) {
-    if (
-      pathname.startsWith(config.pathPrefix) &&
-      config.pathPrefix.length > longestMatch
-    ) {
-      matchedConfig = config;
-      longestMatch = config.pathPrefix.length;
-    }
-  }
-
-  // Return matched config or default
-  return matchedConfig || { maxRequests, window, pathPrefix: pathname };
 }
