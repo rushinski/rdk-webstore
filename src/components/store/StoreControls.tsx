@@ -51,7 +51,7 @@ export function StoreControls({
   }
 
   return (
-    <div className="mb-6 flex justify-end">
+    <div className="mb-4 flex justify-end">
       <div className="flex items-center gap-1.5 flex-nowrap">
         <label className="text-gray-400 text-[11px] sm:text-sm whitespace-nowrap leading-none">
           Sort by:

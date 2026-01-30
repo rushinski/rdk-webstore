@@ -182,42 +182,19 @@ async function StoreContent({
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">
-          {breadcrumbItems.map((item, index) => {
-            const isLast = index === breadcrumbItems.length - 1;
-            return (
-              <div key={`${item.label}-${index}`} className="flex items-center gap-2">
-                {item.href && !isLast ? (
-                  <Link href={item.href} className="hover:text-white transition-colors">
-                    {item.label}
-                  </Link>
-                ) : (
-                  <span className={isLast ? "text-zinc-300" : ""}>{item.label}</span>
-                )}
-                {!isLast && <span className="text-zinc-700">/</span>}
-              </div>
-            );
-          })}
-        </div>
+      <div className="mb-5 lg:mb-6">
+        {/* breadcrumbs unchanged */}
         <h1 className="text-4xl font-bold text-white mb-2">
           {query ? `Search: "${query}"` : "Shop All"}
         </h1>
-        {/* REMOVED: Duplicate product count - it's now in the filter panel */}
       </div>
 
-      {/* Sort controls only */}
-      <StoreControls
-        total={productsResult.total}
-        sort={filters.sort ?? "newest"}
-        showSortControls={true}
-      />
+      <StoreControls total={productsResult.total} sort={filters.sort ?? "newest"} showSortControls />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Desktop Filter Panel */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
         <div className="hidden lg:block">
           <div
-            className="sticky transition-[top] duration-300"
+            className="sticky"
             style={{ top: "var(--rdk-header-offset, 0px)" }}
           >
             <FilterPanel

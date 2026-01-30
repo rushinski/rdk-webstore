@@ -2,7 +2,7 @@
 "use client";
 
 import { useMemo, useCallback, memo } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 
 interface Brand {
   value: string;
@@ -21,6 +21,14 @@ interface VirtualizedBrandListProps {
   showModelFilter: boolean;
 }
 
+function ToggleIcon({ open }: { open: boolean }) {
+  return (
+    <span className="inline-flex items-center justify-center w-4 h-4" aria-hidden="true">
+      {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+    </span>
+  );
+}
+
 // Memoized brand item to prevent unnecessary re-renders
 const BrandItem = memo(function BrandItem({
   brand,
@@ -33,7 +41,7 @@ const BrandItem = memo(function BrandItem({
   onToggleBrand,
   showModels,
 }: {
-  brand: Brand;
+  brand: { value: string; label: string };
   isSelected: boolean;
   isExpanded: boolean;
   models: string[];
@@ -44,24 +52,22 @@ const BrandItem = memo(function BrandItem({
   showModels: boolean;
 }) {
   const hasModels = models.length > 0;
-  const toTestId = useCallback(
-    (value: string) => value.toLowerCase().replace(/\s+/g, "-"),
-    []
-  );
+  const toTestId = useCallback((value: string) => value.toLowerCase().replace(/\s+/g, "-"), []);
 
   return (
     <div className="py-1">
       <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center text-sm text-gray-300 hover:text-white cursor-pointer flex-1 min-w-0 group">
+        <label className="flex items-center gap-3 text-sm text-gray-300 hover:text-white cursor-pointer flex-1 min-w-0">
           <input
             type="checkbox"
             checked={isSelected}
             onChange={() => onBrandChange(brand.value)}
-            className="rdk-checkbox mr-3 flex-shrink-0"
+            className="rdk-checkbox flex-shrink-0"
             data-testid={`filter-brand-${toTestId(brand.value)}`}
           />
           <span className="truncate">{brand.label}</span>
         </label>
+
         {hasModels && showModels && (
           <button
             type="button"
@@ -69,24 +75,23 @@ const BrandItem = memo(function BrandItem({
             className="text-zinc-500 hover:text-white transition-colors flex-shrink-0 p-1"
             aria-label={`Toggle ${brand.label} models`}
           >
-            <ChevronRight
-              className={`w-3 h-3 transition-transform ${isExpanded ? "rotate-90" : ""}`}
-            />
+            <ToggleIcon open={isExpanded} />
           </button>
         )}
       </div>
+
       {hasModels && showModels && isExpanded && (
         <div className="mt-2 ml-6 space-y-2 border-l border-zinc-800/70 pl-3">
           {models.map((model) => (
             <label
               key={model}
-              className="flex items-center text-sm text-gray-300 hover:text-white cursor-pointer"
+              className="flex items-center gap-2.5 text-sm text-gray-300 hover:text-white cursor-pointer"
             >
               <input
                 type="checkbox"
                 checked={selectedModels.includes(model)}
                 onChange={() => onModelChange(model, brand.value)}
-                className="rdk-checkbox mr-2 flex-shrink-0"
+                className="rdk-checkbox flex-shrink-0"
                 data-testid={`filter-model-${toTestId(model)}`}
               />
               <span className="truncate text-xs">{model}</span>
