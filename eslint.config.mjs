@@ -67,6 +67,17 @@ export default [
           },
         },
 
+        // React component consts (PascalCase)
+        {
+          selector: "variable",
+          modifiers: ["const"],
+          format: ["PascalCase"],
+          filter: {
+            regex: "^[A-Z]",
+            match: true,
+          },
+        },
+
         // Regular variables (this will now only catch non-UPPER_CASE variables)
         {
           selector: "variable",

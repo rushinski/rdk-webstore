@@ -43,7 +43,9 @@ function getRedis(): Redis {
     throw new Error("rate_limit_missing_upstash_config");
   }
 
-  if (redis) return redis;
+  if (redis) {
+    return redis;
+  }
 
   redis = new Redis({
     url: env.UPSTASH_REDIS_REST_URL!,
@@ -58,7 +60,9 @@ function getLimiter(bucket: string, maxRequests: number, window: string): Rateli
   const cacheKey = `${envLabel}:${bucket}:${maxRequests}:${window}`;
 
   const cached = limiterCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached) {
+    return cached;
+  }
 
   const instance = new Ratelimit({
     redis: getRedis(),
@@ -74,75 +78,41 @@ function getClientIp(request: NextRequest): string {
   const forwardedFor = request.headers.get("x-forwarded-for");
   if (forwardedFor) {
     const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) return firstIp;
+    if (firstIp) {
+      return firstIp;
+    }
   }
 
   const realIp = request.headers.get("x-real-ip");
-  if (realIp) return realIp;
+  if (realIp) {
+    return realIp;
+  }
 
   return "unknown";
 }
 
 function maskIpForLog(ip: string): string {
-  if (ip === "unknown") return ip;
+  if (ip === "unknown") {
+    return ip;
+  }
 
   if (ip.includes(".")) {
     const parts = ip.split(".");
-    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.${parts[2]}.xxx`;
+    }
     return ip;
   }
 
   if (ip.includes(":")) {
     const parts = ip.split(":").filter(Boolean);
-    if (parts.length >= 2) return `${parts[0]}:${parts[1]}::/??`;
+    if (parts.length >= 2) {
+      return `${parts[0]}:${parts[1]}::/??`;
+    }
     return ip;
   }
 
   return ip;
-}
-
-// Optional: keep your prefetch detector (harmless). Since we only limit /api,
-// this mostly matters if Next is prefetching /api for some reason.
-function isTruthyHeader(value: string | null): boolean {
-  if (!value) return false;
-  const normalized = value.trim().toLowerCase();
-  return normalized.length > 0 && normalized !== "0" && normalized !== "false";
-}
-
-function getPrefetchSignals(request: NextRequest): string[] {
-  const signals: string[] = [];
-  const h = (name: string) => request.headers.get(name);
-  const url = request.nextUrl;
-  const rawUrl = request.url;
-
-  if (url.searchParams.has("_rsc") || url.searchParams.has("__rsc")) signals.push("q:_rsc");
-  if (rawUrl.includes("_rsc=") || rawUrl.includes("__rsc=")) signals.push("q:_rsc(raw)");
-
-  const rsc = (h("rsc") ?? "").toLowerCase();
-  if (rsc === "1" || rsc === "true") signals.push("hdr:rsc");
-
-  const nextRouterPrefetch = h("next-router-prefetch");
-  if (isTruthyHeader(nextRouterPrefetch)) signals.push("hdr:next-router-prefetch");
-
-  const middlewarePrefetch = h("x-middleware-prefetch");
-  if (isTruthyHeader(middlewarePrefetch)) signals.push("hdr:x-middleware-prefetch");
-
-  const accept = (h("accept") ?? "").toLowerCase();
-  if (accept.includes("text/x-component")) signals.push("hdr:accept=text/x-component");
-
-  const purpose = (
-    h("purpose") ??
-    h("sec-purpose") ??
-    h("sec-fetch-purpose") ??
-    ""
-  ).toLowerCase();
-  if (purpose.includes("prefetch")) signals.push("hdr:purpose=prefetch");
-
-  return signals;
-}
-
-function isPrefetchLike(request: NextRequest): boolean {
-  return getPrefetchSignals(request).length > 0;
 }
 
 type Policy = { bucket: string; maxRequests: number; window: string };
@@ -161,7 +131,9 @@ type Policy = { bucket: string; maxRequests: number; window: string };
  */
 function getPolicyForRequest(pathname: string, method: string): Policy | null {
   // Only rate limit /api (we set prefixes too, but keep this safe)
-  if (!pathname.startsWith("/api")) return null;
+  if (!pathname.startsWith("/api")) {
+    return null;
+  }
 
   // Auth endpoints (exact match or prefix)
   if (pathname.startsWith("/api/auth/login")) {
@@ -198,18 +170,26 @@ export async function applyRateLimit(
   const { pathname, hostname } = request.nextUrl;
   const { rateLimit } = security.proxy;
 
-  if (!rateLimit.enabled) return null;
+  if (!rateLimit.enabled) {
+    return null;
+  }
 
   // Never rate-limit the too-many page (mostly irrelevant now)
-  if (pathname === rateLimit.tooManyRequestsPath) return null;
+  if (pathname === rateLimit.tooManyRequestsPath) {
+    return null;
+  }
 
   // Local dev behavior
   const isLocalhost =
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  if (!rateLimit.applyInLocalDev && isLocalhost) return null;
+  if (!rateLimit.applyInLocalDev && isLocalhost) {
+    return null;
+  }
 
   const policy = getPolicyForRequest(pathname, request.method);
-  if (!policy) return null;
+  if (!policy) {
+    return null;
+  }
 
   const clientIp = getClientIp(request);
   if (!clientIp || clientIp === "unknown") {
@@ -234,7 +214,9 @@ export async function applyRateLimit(
     const key = `host:${hostname}:ip:${clientIp}:bucket:${policy.bucket}`;
     const result = (await limiter.limit(key)) as RateLimitResult;
 
-    if (result.success) return null;
+    if (result.success) {
+      return null;
+    }
 
     log({
       level: "warn",

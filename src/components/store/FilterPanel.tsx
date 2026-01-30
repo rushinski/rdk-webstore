@@ -13,6 +13,7 @@ import {
   expandShoeSizeSelection,
   isEuShoeSize,
 } from "@/config/constants/sizes";
+
 import { VirtualizedBrandList } from "./VirtualizedBrandList";
 
 type BrandOption = { label: string; value: string };
@@ -70,7 +71,7 @@ export function FilterPanel({
 }: FilterPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     category: true,
@@ -97,7 +98,7 @@ export function FilterPanel({
 
   const toTestId = useCallback(
     (value: string) => value.toLowerCase().replace(/\s+/g, "-"),
-    []
+    [],
   );
 
   const CONDITIONS = useMemo(() => ["new", "used"] as const, []);
@@ -166,11 +167,6 @@ export function FilterPanel({
       : selectedCategories.some((category) => !NON_BRAND_CATEGORIES.has(category));
   const showModelFilter = showShoeFilter && hasBrandableCategory;
 
-  const brandLabelMap = useMemo(
-    () => new Map(brands.map((brand) => [brand.value, brand.label])),
-    [brands],
-  );
-
   const availableBrandValues = useMemo(() => {
     if (!hasBrandableCategory) {
       return new Set<string>();
@@ -221,121 +217,159 @@ export function FilterPanel({
     setExpandedBrands((prev) => ({ ...prev, [brand]: !prev[brand] }));
   }, []);
 
-  const getFilters = useCallback(() => ({
-    category: selectedCategories,
-    brand: selectedBrands,
-    model: selectedModels,
-    sizeShoe: selectedShoeSizes,
-    sizeClothing: selectedClothingSizes,
-    condition: selectedConditions,
-  }), [selectedCategories, selectedBrands, selectedModels, selectedShoeSizes, selectedClothingSizes, selectedConditions]);
+  const getFilters = useCallback(
+    () => ({
+      category: selectedCategories,
+      brand: selectedBrands,
+      model: selectedModels,
+      sizeShoe: selectedShoeSizes,
+      sizeClothing: selectedClothingSizes,
+      condition: selectedConditions,
+    }),
+    [
+      selectedCategories,
+      selectedBrands,
+      selectedModels,
+      selectedShoeSizes,
+      selectedClothingSizes,
+      selectedConditions,
+    ],
+  );
 
-  const updateFilters = useCallback((filters: ReturnType<typeof getFilters>) => {
-    const params = new URLSearchParams(searchParams.toString());
+  const updateFilters = useCallback(
+    (filters: ReturnType<typeof getFilters>) => {
+      const params = new URLSearchParams(searchParams.toString());
 
-    params.delete("category");
-    params.delete("brand");
-    params.delete("model");
-    params.delete("sizeShoe");
-    params.delete("sizeClothing");
-    params.delete("condition");
+      params.delete("category");
+      params.delete("brand");
+      params.delete("model");
+      params.delete("sizeShoe");
+      params.delete("sizeClothing");
+      params.delete("condition");
 
-    filters.category.forEach((value) => params.append("category", value));
-    filters.brand.forEach((value) => params.append("brand", value));
-    filters.model.forEach((value) => params.append("model", value));
-    filters.sizeShoe.forEach((value) => params.append("sizeShoe", value));
-    filters.sizeClothing.forEach((value) => params.append("sizeClothing", value));
-    filters.condition.forEach((value) => params.append("condition", value));
+      filters.category.forEach((value) => params.append("category", value));
+      filters.brand.forEach((value) => params.append("brand", value));
+      filters.model.forEach((value) => params.append("model", value));
+      filters.sizeShoe.forEach((value) => params.append("sizeShoe", value));
+      filters.sizeClothing.forEach((value) => params.append("sizeClothing", value));
+      filters.condition.forEach((value) => params.append("condition", value));
 
-    params.set("page", "1");
-    
-    router.push(`/store?${params.toString()}`, { scroll: true });
-  }, [router, searchParams]);
+      params.set("page", "1");
 
-  const handleCategoryChange = useCallback((category: string) => {
-    const newCategories = selectedCategories.includes(category)
-      ? selectedCategories.filter((c) => c !== category)
-      : [...selectedCategories, category];
-    const hasBrandCategory =
-      newCategories.length === 0
-        ? categories.some((cat) => !NON_BRAND_CATEGORIES.has(cat))
-        : newCategories.some((cat) => !NON_BRAND_CATEGORIES.has(cat));
-    updateFilters({
-      ...getFilters(),
-      category: newCategories,
-      brand: hasBrandCategory ? selectedBrands : [],
-      model: hasBrandCategory ? selectedModels : [],
-    });
-    if (!hasBrandCategory) {
-      setExpandedBrands({});
-    }
-  }, [selectedCategories, categories, selectedBrands, selectedModels, getFilters, updateFilters]);
+      router.push(`/store?${params.toString()}`, { scroll: true });
+    },
+    [router, searchParams],
+  );
 
-  const handleBrandChange = useCallback((brand: string) => {
-    const isSelected = selectedBrands.includes(brand);
-    const newBrands = isSelected
-      ? selectedBrands.filter((b) => b !== brand)
-      : [...selectedBrands, brand];
-    const brandModels = modelsByBrand[brand] ?? [];
-    const nextModels = isSelected
-      ? selectedModels.filter((model) => !brandModels.includes(model))
-      : selectedModels;
-    updateFilters({ ...getFilters(), brand: newBrands, model: nextModels });
-    setExpandedBrands((prev) => ({ ...prev, [brand]: !isSelected }));
-  }, [selectedBrands, selectedModels, modelsByBrand, getFilters, updateFilters]);
-
-  const handleModelChange = useCallback((model: string, brand?: string) => {
-    const isSelected = selectedModels.includes(model);
-    const newModels = isSelected
-      ? selectedModels.filter((m) => m !== model)
-      : [...selectedModels, model];
-    const newBrands =
-      brand && !selectedBrands.includes(brand)
-        ? [...selectedBrands, brand]
-        : selectedBrands;
-    updateFilters({ ...getFilters(), brand: newBrands, model: newModels });
-    if (brand && !isSelected) {
-      setExpandedBrands((prev) => ({ ...prev, [brand]: true }));
-    }
-  }, [selectedModels, selectedBrands, getFilters, updateFilters]);
-
-  const handleShoeSizeChange = useCallback((size: string) => {
-    const isExplicit = selectedShoeSizes.includes(size);
-    const isExpanded = expandedSelectedShoeSizeSet.has(size);
-
-    let newSizes = selectedShoeSizes;
-
-    if (isEuShoeSize(size)) {
-      if (isExplicit) {
-        newSizes = selectedShoeSizes.filter((s) => s !== size);
-      } else if (isExpanded) {
-        const usParents = EU_SIZE_ALIASES[size] ?? [];
-        newSizes = selectedShoeSizes.filter((s) => !usParents.includes(s));
-      } else {
-        newSizes = [...selectedShoeSizes, size];
+  const handleCategoryChange = useCallback(
+    (category: string) => {
+      const newCategories = selectedCategories.includes(category)
+        ? selectedCategories.filter((c) => c !== category)
+        : [...selectedCategories, category];
+      const hasBrandCategory =
+        newCategories.length === 0
+          ? categories.some((cat) => !NON_BRAND_CATEGORIES.has(cat))
+          : newCategories.some((cat) => !NON_BRAND_CATEGORIES.has(cat));
+      updateFilters({
+        ...getFilters(),
+        category: newCategories,
+        brand: hasBrandCategory ? selectedBrands : [],
+        model: hasBrandCategory ? selectedModels : [],
+      });
+      if (!hasBrandCategory) {
+        setExpandedBrands({});
       }
-    } else {
-      newSizes = isExplicit
-        ? selectedShoeSizes.filter((s) => s !== size)
-        : [...selectedShoeSizes, size];
-    }
+    },
+    [
+      selectedCategories,
+      categories,
+      selectedBrands,
+      selectedModels,
+      getFilters,
+      updateFilters,
+    ],
+  );
 
-    updateFilters({ ...getFilters(), sizeShoe: newSizes });
-  }, [selectedShoeSizes, expandedSelectedShoeSizeSet, getFilters, updateFilters]);
+  const handleBrandChange = useCallback(
+    (brand: string) => {
+      const isSelected = selectedBrands.includes(brand);
+      const newBrands = isSelected
+        ? selectedBrands.filter((b) => b !== brand)
+        : [...selectedBrands, brand];
+      const brandModels = modelsByBrand[brand] ?? [];
+      const nextModels = isSelected
+        ? selectedModels.filter((model) => !brandModels.includes(model))
+        : selectedModels;
+      updateFilters({ ...getFilters(), brand: newBrands, model: nextModels });
+      setExpandedBrands((prev) => ({ ...prev, [brand]: !isSelected }));
+    },
+    [selectedBrands, selectedModels, modelsByBrand, getFilters, updateFilters],
+  );
 
-  const handleClothingSizeChange = useCallback((size: string) => {
-    const newSizes = selectedClothingSizes.includes(size)
-      ? selectedClothingSizes.filter((s) => s !== size)
-      : [...selectedClothingSizes, size];
-    updateFilters({ ...getFilters(), sizeClothing: newSizes });
-  }, [selectedClothingSizes, getFilters, updateFilters]);
+  const handleModelChange = useCallback(
+    (model: string, brand?: string) => {
+      const isSelected = selectedModels.includes(model);
+      const newModels = isSelected
+        ? selectedModels.filter((m) => m !== model)
+        : [...selectedModels, model];
+      const newBrands =
+        brand && !selectedBrands.includes(brand)
+          ? [...selectedBrands, brand]
+          : selectedBrands;
+      updateFilters({ ...getFilters(), brand: newBrands, model: newModels });
+      if (brand && !isSelected) {
+        setExpandedBrands((prev) => ({ ...prev, [brand]: true }));
+      }
+    },
+    [selectedModels, selectedBrands, getFilters, updateFilters],
+  );
 
-  const handleConditionChange = useCallback((condition: string) => {
-    const newConditions = selectedConditions.includes(condition)
-      ? selectedConditions.filter((c) => c !== condition)
-      : [...selectedConditions, condition];
-    updateFilters({ ...getFilters(), condition: newConditions });
-  }, [selectedConditions, getFilters, updateFilters]);
+  const handleShoeSizeChange = useCallback(
+    (size: string) => {
+      const isExplicit = selectedShoeSizes.includes(size);
+      const isExpanded = expandedSelectedShoeSizeSet.has(size);
+
+      let newSizes = selectedShoeSizes;
+
+      if (isEuShoeSize(size)) {
+        if (isExplicit) {
+          newSizes = selectedShoeSizes.filter((s) => s !== size);
+        } else if (isExpanded) {
+          const usParents = EU_SIZE_ALIASES[size] ?? [];
+          newSizes = selectedShoeSizes.filter((s) => !usParents.includes(s));
+        } else {
+          newSizes = [...selectedShoeSizes, size];
+        }
+      } else {
+        newSizes = isExplicit
+          ? selectedShoeSizes.filter((s) => s !== size)
+          : [...selectedShoeSizes, size];
+      }
+
+      updateFilters({ ...getFilters(), sizeShoe: newSizes });
+    },
+    [selectedShoeSizes, expandedSelectedShoeSizeSet, getFilters, updateFilters],
+  );
+
+  const handleClothingSizeChange = useCallback(
+    (size: string) => {
+      const newSizes = selectedClothingSizes.includes(size)
+        ? selectedClothingSizes.filter((s) => s !== size)
+        : [...selectedClothingSizes, size];
+      updateFilters({ ...getFilters(), sizeClothing: newSizes });
+    },
+    [selectedClothingSizes, getFilters, updateFilters],
+  );
+
+  const handleConditionChange = useCallback(
+    (condition: string) => {
+      const newConditions = selectedConditions.includes(condition)
+        ? selectedConditions.filter((c) => c !== condition)
+        : [...selectedConditions, condition];
+      updateFilters({ ...getFilters(), condition: newConditions });
+    },
+    [selectedConditions, getFilters, updateFilters],
+  );
 
   const clearFilters = useCallback(() => {
     updateFilters({
@@ -487,7 +521,9 @@ export function FilterPanel({
                       onClick={() => toggleSizeGroup("youth")}
                       className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
                     >
-                      <span className="uppercase tracking-wide flex-1 text-left truncate">Youth</span>
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">
+                        Youth
+                      </span>
                       <ToggleIcon open={!!expandedSizeGroups.youth} size={14} />
                     </button>
 
@@ -519,7 +555,9 @@ export function FilterPanel({
                       onClick={() => toggleSizeGroup("mens")}
                       className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
                     >
-                      <span className="uppercase tracking-wide flex-1 text-left truncate">Men&apos;s</span>
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">
+                        Men&apos;s
+                      </span>
                       <ToggleIcon open={!!expandedSizeGroups.mens} size={14} />
                     </button>
 
@@ -551,7 +589,9 @@ export function FilterPanel({
                       onClick={() => toggleSizeGroup("eu")}
                       className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
                     >
-                      <span className="uppercase tracking-wide flex-1 text-left truncate">EU</span>
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">
+                        EU
+                      </span>
                       <ToggleIcon open={!!expandedSizeGroups.eu} size={14} />
                     </button>
 
@@ -651,9 +691,7 @@ export function FilterPanel({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-              {renderFilterContent()}
-            </div>
+            <div className="flex-1 overflow-y-auto">{renderFilterContent()}</div>
 
             <div className="px-6 py-4 border-t border-zinc-800/70 flex-shrink-0">
               <button
@@ -670,12 +708,12 @@ export function FilterPanel({
       {/* Desktop Filter Panel */}
       <div
         className="hidden lg:flex lg:flex-col bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden sticky"
-        style={{ 
+        style={{
           height: desktopHeight,
           top: desktopTop,
-          minWidth: '280px',
-          maxWidth: '280px',
-          width: '280px',
+          minWidth: "280px",
+          maxWidth: "280px",
+          width: "280px",
         }}
         data-testid="filter-panel"
       >

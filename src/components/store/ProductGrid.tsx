@@ -1,6 +1,7 @@
 // src/components/store/ProductGrid.tsx
 // OPTIMIZED VERSION - Priority loading for visible products
 import type { ProductWithDetails } from "@/types/domain/product";
+
 import { ProductCard } from "./ProductCard";
 
 interface ProductGridProps {
@@ -26,9 +27,9 @@ export function ProductGrid({ products, storeHref }: ProductGridProps) {
       data-testid="product-grid"
     >
       {products.map((product, index) => (
-        <ProductCard 
-          key={product.id} 
-          product={product} 
+        <ProductCard
+          key={product.id}
+          product={product}
           storeHref={storeHref}
           priority={index < PRIORITY_CARDS_COUNT}
         />

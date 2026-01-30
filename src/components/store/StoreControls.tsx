@@ -39,19 +39,19 @@ export function StoreControls({
 }: StoreControlsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   // OPTIMIZATION: Use useTransition for smoother page transitions
   const [isPending, startTransition] = useTransition();
 
   // OPTIMIZATION: Memoize calculations
   const showingStart = useMemo(
     () => (total === 0 ? 0 : (page - 1) * limit + 1),
-    [total, page, limit]
+    [total, page, limit],
   );
-  
+
   const showingEnd = useMemo(
     () => (total === 0 ? 0 : Math.min(page * limit, total)),
-    [total, page, limit]
+    [total, page, limit],
   );
 
   const pageNumbers = useMemo(() => {
@@ -76,11 +76,12 @@ export function StoreControls({
 
   // OPTIMIZATION: Memoize page size options
   const pageSizeOptions = useMemo(
-    () => PAGE_SIZE_OPTIONS.map((size) => ({
-      value: String(size),
-      label: String(size),
-    })),
-    []
+    () =>
+      PAGE_SIZE_OPTIONS.map((size) => ({
+        value: String(size),
+        label: String(size),
+      })),
+    [],
   );
 
   // OPTIMIZATION: Use useCallback for event handlers
@@ -102,21 +103,21 @@ export function StoreControls({
         router.push(`/store?${params.toString()}`);
       });
     },
-    [router, searchParams, startTransition]
+    [router, searchParams, startTransition],
   );
 
   const handleSortChange = useCallback(
     (value: string) => {
       updateParams({ sort: value, page: 1 });
     },
-    [updateParams]
+    [updateParams],
   );
 
   const handleLimitChange = useCallback(
     (value: number) => {
       updateParams({ limit: value, page: 1 });
     },
-    [updateParams]
+    [updateParams],
   );
 
   const goToPage = useCallback(
@@ -126,11 +127,11 @@ export function StoreControls({
       }
       updateParams({ page: nextPage });
     },
-    [page, pageCount, updateParams]
+    [page, pageCount, updateParams],
   );
 
   return (
-    <div className={`mb-6 space-y-4 ${isPending ? 'opacity-60' : ''}`}>
+    <div className={`mb-6 space-y-4 ${isPending ? "opacity-60" : ""}`}>
       {showSortControls && (
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="text-gray-400 text-[12px] sm:text-sm">
@@ -226,13 +227,9 @@ export function StoreControls({
           </div>
         </div>
       )}
-      
+
       {/* OPTIMIZATION: Show loading indicator */}
-      {isPending && (
-        <div className="text-xs text-gray-500 text-center">
-          Loading...
-        </div>
-      )}
+      {isPending && <div className="text-xs text-gray-500 text-center">Loading...</div>}
     </div>
   );
 }

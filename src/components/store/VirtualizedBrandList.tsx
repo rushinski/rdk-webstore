@@ -24,7 +24,10 @@ interface VirtualizedBrandListProps {
 
 function ToggleIcon({ open }: { open: boolean }) {
   return (
-    <span className="inline-flex items-center justify-center w-4 h-4 flex-shrink-0" aria-hidden="true">
+    <span
+      className="inline-flex items-center justify-center w-4 h-4 flex-shrink-0"
+      aria-hidden="true"
+    >
       {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
     </span>
   );
@@ -35,14 +38,14 @@ function naturalSort(a: string, b: string): number {
   const regex = /(\d+)|(\D+)/g;
   const aParts = a.match(regex) || [];
   const bParts = b.match(regex) || [];
-  
+
   for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-    const aPart = aParts[i] || '';
-    const bPart = bParts[i] || '';
-    
+    const aPart = aParts[i] || "";
+    const bPart = bParts[i] || "";
+
     const aNum = parseInt(aPart, 10);
     const bNum = parseInt(bPart, 10);
-    
+
     if (!isNaN(aNum) && !isNaN(bNum)) {
       if (aNum !== bNum) {
         return aNum - bNum;
@@ -54,7 +57,7 @@ function naturalSort(a: string, b: string): number {
       }
     }
   }
-  
+
   return 0;
 }
 
@@ -81,7 +84,10 @@ const BrandItem = memo(function BrandItem({
   showModels: boolean;
 }) {
   const hasModels = models.length > 0;
-  const toTestId = useCallback((value: string) => value.toLowerCase().replace(/\s+/g, "-"), []);
+  const toTestId = useCallback(
+    (value: string) => value.toLowerCase().replace(/\s+/g, "-"),
+    [],
+  );
 
   return (
     <div className="w-full min-w-0">
@@ -103,11 +109,13 @@ const BrandItem = memo(function BrandItem({
           type="button"
           onClick={hasModels && showModels ? () => onToggleBrand(brand.value) : undefined}
           className={`flex-shrink-0 w-6 h-6 flex items-center justify-center ${
-            hasModels && showModels 
-              ? 'text-zinc-500 hover:text-white transition-colors cursor-pointer' 
-              : 'invisible pointer-events-none'
+            hasModels && showModels
+              ? "text-zinc-500 hover:text-white transition-colors cursor-pointer"
+              : "invisible pointer-events-none"
           }`}
-          aria-label={hasModels && showModels ? `Toggle ${brand.label} models` : undefined}
+          aria-label={
+            hasModels && showModels ? `Toggle ${brand.label} models` : undefined
+          }
           disabled={!hasModels || !showModels}
         >
           {hasModels && showModels && <ToggleIcon open={isExpanded} />}
@@ -151,7 +159,9 @@ export const VirtualizedBrandList = memo(function VirtualizedBrandList({
 }: VirtualizedBrandListProps) {
   // Sort models with natural/numerical sorting
   const sortedModelsByBrand = useMemo(() => {
-    if (!showModelFilter) return {};
+    if (!showModelFilter) {
+      return {};
+    }
     const out: Record<string, string[]> = {};
     for (const [brandKey, models] of Object.entries(modelsByBrand)) {
       out[brandKey] = [...(models ?? [])].sort(naturalSort);
@@ -170,7 +180,8 @@ export const VirtualizedBrandList = memo(function VirtualizedBrandList({
         {brands.map((brand) => {
           const brandKey = brand.value;
           const models = showModelFilter ? (sortedModelsByBrand[brandKey] ?? []) : [];
-          const isExpanded = expandedBrands[brandKey] || selectedBrands.includes(brandKey);
+          const isExpanded =
+            expandedBrands[brandKey] || selectedBrands.includes(brandKey);
 
           return (
             <BrandItem

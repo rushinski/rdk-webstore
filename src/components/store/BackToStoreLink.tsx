@@ -7,8 +7,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
 const normalizeStoreHref = (value: string | null) => {
-  if (!value) return undefined;
-  if (value.startsWith("/store")) return value;
+  if (!value) {
+    return undefined;
+  }
+  if (value.startsWith("/store")) {
+    return value;
+  }
 
   try {
     const decoded = decodeURIComponent(value);

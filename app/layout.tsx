@@ -17,16 +17,16 @@ export const metadata: Metadata = {
 
 // OPTIMIZATION: Proper viewport configuration for mobile performance
 export const viewport: Viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 5, // Allow zooming for accessibility
   minimumScale: 1,
   userScalable: true,
-  viewportFit: 'cover', // Safe area insets on iOS
+  viewportFit: "cover", // Safe area insets on iOS
   // Theme color for mobile browsers
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
 };
 

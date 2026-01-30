@@ -119,7 +119,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
               quality={90}
             />
           </div>
-          
+
           {/* FIXED: All thumbnails load immediately */}
           {product.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
