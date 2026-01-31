@@ -1,6 +1,6 @@
 begin;
 
--- Create tenants and marketplaces
+-- Create tenants and marketplaces (idempotent - only if not exists)
 insert into public.tenants (name)
 select 'Realdealkickzsc'
 where not exists (
@@ -18,23 +18,20 @@ where t.name = 'Realdealkickzsc'
   );
 
 -- ============================================================================
--- CLEAR EXISTING CATALOG DATA
--- ============================================================================
-DELETE FROM catalog_aliases;
-DELETE FROM catalog_models;
-DELETE FROM catalog_brands;
-DELETE FROM catalog_brand_groups;
-
--- ============================================================================
 -- CATALOG SEED DATA (global, tenant_id null)
+-- Only insert if not already exists
 -- ============================================================================
 
--- Single brand group for all brands
+-- Single brand group for all brands (idempotent)
 insert into public.catalog_brand_groups (tenant_id, key, label)
-values (null, 'all_brands', 'All Brands');
+select null, 'all_brands', 'All Brands'
+where not exists (
+  select 1 from public.catalog_brand_groups 
+  where key = 'all_brands' and tenant_id is null
+);
 
 -- ============================================================================
--- SEED BRANDS
+-- SEED BRANDS (only insert new ones)
 -- ============================================================================
 insert into public.catalog_brands (tenant_id, group_id, canonical_label, is_active, is_verified)
 select
@@ -75,7 +72,7 @@ from (
     ('Dior'),
     ('Amiri'),
     ('Gallery Dept.'),
-    ('Essentials Fear of God '),
+    ('Essentials Fear of God'),
     ('Hellstar'),
     ('Burberry'),
     ('Versace'),
@@ -91,15 +88,19 @@ from (
     ('Righteous'),
     ('Bottega Desires'),
     ('Other')
-) as input(brand_label);
+) as input(brand_label)
+where not exists (
+  select 1 from public.catalog_brands
+  where canonical_label = input.brand_label and tenant_id is null
+);
 
--- Set "Other" brand to unverified
+-- Set "Other" brand to unverified (update if exists)
 update public.catalog_brands
 set is_verified = false
 where canonical_label = 'Other' and tenant_id is null;
 
 -- ============================================================================
--- SEED MODELS
+-- SEED MODELS (only insert new ones)
 -- ============================================================================
 
 -- Nike Models
@@ -129,7 +130,14 @@ from (
     ('Air DT Max'),
     ('Air More Uptempo'),
     ('AIR ZOOM FLIGHT 95')
-) as input(model_label);
+) as input(model_label)
+where not exists (
+  select 1 from public.catalog_models m
+  join public.catalog_brands b on b.id = m.brand_id
+  where m.canonical_label = input.model_label 
+    and b.canonical_label = 'Nike'
+    and m.tenant_id is null
+);
 
 -- Air Jordan Models (1-40)
 with jordan_numbers as (
@@ -142,7 +150,14 @@ select
   number_value::text,
   true,
   true
-from jordan_numbers;
+from jordan_numbers
+where not exists (
+  select 1 from public.catalog_models m
+  join public.catalog_brands b on b.id = m.brand_id
+  where m.canonical_label = jordan_numbers.number_value::text
+    and b.canonical_label = 'Air Jordan'
+    and m.tenant_id is null
+);
 
 -- New Balance Models
 insert into public.catalog_models (tenant_id, brand_id, canonical_label, is_active, is_verified)
@@ -161,7 +176,14 @@ from (
     ('991'),
     ('1906R'),
     ('9060')
-) as input(model_label);
+) as input(model_label)
+where not exists (
+  select 1 from public.catalog_models m
+  join public.catalog_brands b on b.id = m.brand_id
+  where m.canonical_label = input.model_label 
+    and b.canonical_label = 'New Balance'
+    and m.tenant_id is null
+);
 
 -- ASICS Models (with capital GEL)
 insert into public.catalog_models (tenant_id, brand_id, canonical_label, is_active, is_verified)
@@ -180,7 +202,14 @@ from (
     ('GEL-DS Trainer'),
     ('GEL-NYC'),
     ('GEL-K1011')
-) as input(model_label);
+) as input(model_label)
+where not exists (
+  select 1 from public.catalog_models m
+  join public.catalog_brands b on b.id = m.brand_id
+  where m.canonical_label = input.model_label 
+    and b.canonical_label = 'ASICS'
+    and m.tenant_id is null
+);
 
 -- Adidas Models (Yeezy line)
 insert into public.catalog_models (tenant_id, brand_id, canonical_label, is_active, is_verified)
@@ -200,7 +229,14 @@ from (
     ('Yeezy 700 V3'),
     ('Yeezy Foam Runner'),
     ('Yeezy Desert Boot')
-) as input(model_label);
+) as input(model_label)
+where not exists (
+  select 1 from public.catalog_models m
+  join public.catalog_brands b on b.id = m.brand_id
+  where m.canonical_label = input.model_label 
+    and b.canonical_label = 'Adidas'
+    and m.tenant_id is null
+);
 
 -- Designer Brand Models
 insert into public.catalog_models (tenant_id, brand_id, canonical_label, is_active, is_verified)
@@ -248,11 +284,15 @@ from (
     ('Versace', 'Chain Reaction'),
     ('Dolce and Gabbana', 'Stretch Mesh Fast Sneaker'),
     ('Lanvin', 'Curb')
-
-
 ) as input(brand_label, model_label)
 join public.catalog_brands brand
-  on brand.canonical_label = input.brand_label and brand.tenant_id is null;
+  on brand.canonical_label = input.brand_label and brand.tenant_id is null
+where not exists (
+  select 1 from public.catalog_models m
+  where m.canonical_label = input.model_label 
+    and m.brand_id = brand.id
+    and m.tenant_id is null
+);
 
 -- Timberland Models
 insert into public.catalog_models (tenant_id, brand_id, canonical_label, is_active, is_verified)
@@ -268,7 +308,14 @@ from (
     ('Euro Hiker'),
     ('Field Boot'),
     ('Authentic 3-Eye Lug Boat Shoe')
-) as input(model_label);
+) as input(model_label)
+where not exists (
+  select 1 from public.catalog_models m
+  join public.catalog_brands b on b.id = m.brand_id
+  where m.canonical_label = input.model_label 
+    and b.canonical_label = 'Timberland'
+    and m.tenant_id is null
+);
 
 -- Other Brand Models
 insert into public.catalog_models (tenant_id, brand_id, canonical_label, is_active, is_verified)
@@ -287,10 +334,16 @@ from (
     ('A Bathing Ape', 'BAPE SK8')
 ) as input(brand_label, model_label)
 join public.catalog_brands brand
-  on brand.canonical_label = input.brand_label and brand.tenant_id is null;
+  on brand.canonical_label = input.brand_label and brand.tenant_id is null
+where not exists (
+  select 1 from public.catalog_models m
+  where m.canonical_label = input.model_label 
+    and m.brand_id = brand.id
+    and m.tenant_id is null
+);
 
 -- ============================================================================
--- BRAND ALIASES
+-- BRAND ALIASES (only insert new ones)
 -- ============================================================================
 insert into public.catalog_aliases (
   tenant_id, entity_type, brand_id, alias_label, alias_normalized, priority, is_active
@@ -314,13 +367,18 @@ from (
     ('A Bathing Ape', 'Bathing Ape', 5),
     ('A Bathing Ape', 'A Bathing Ape', 5),
     ('A Bathing Ape', 'Bape', 5)
-
 ) as input(brand_label, alias_label, priority)
 join public.catalog_brands brand
-  on brand.canonical_label = input.brand_label and brand.tenant_id is null;
+  on brand.canonical_label = input.brand_label and brand.tenant_id is null
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.brand_id = brand.id
+    and a.alias_label = input.alias_label
+    and a.tenant_id is null
+);
 
 -- ============================================================================
--- MODEL ALIASES
+-- MODEL ALIASES (only insert new ones)
 -- ============================================================================
 
 -- Nike Model Aliases
@@ -345,20 +403,23 @@ from (
     ('Air Foamposite', 'Foamposite', 1),
     ('Air Force 1', 'Air Force', 5),
     ('Air Force 1', 'Airforce', 5),
-
     ('Kobe', 'Zoom Kobe', 5),
     ('Kobe', 'Kobe VI', 8),
     ('Kobe', 'Kobe 6', 8),
     ('Kobe', 'Kobe VI Protro', 10),
     ('Kobe', 'Kobe 6 Protro', 10),
-
     ('Air More Uptempo', 'More Uptempo', 5),
     ('Air More Uptempo', 'Air More Uptempo', 10),
     ('Air More Uptempo', 'Uptempo', 2)
-
 ) as input(model_label, alias_label, priority)
 join public.catalog_models model on model.canonical_label = input.model_label and model.tenant_id is null
-join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'Nike';
+join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'Nike'
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.model_id = model.id
+    and a.alias_label = input.alias_label
+    and a.tenant_id is null
+);
 
 -- New Balance Model Aliases
 insert into public.catalog_aliases (
@@ -374,7 +435,13 @@ select
   true
 from public.catalog_models model
 join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'New Balance'
-where model.canonical_label = '990v6' and model.tenant_id is null;
+where model.canonical_label = '990v6' and model.tenant_id is null
+  and not exists (
+    select 1 from public.catalog_aliases a
+    where a.model_id = model.id
+      and a.alias_label = '990 v6'
+      and a.tenant_id is null
+  );
 
 -- ASICS Model Aliases
 insert into public.catalog_aliases (
@@ -394,7 +461,13 @@ from (
     ('GEL-Kayano 14', 'Gel Kayano 14')
 ) as input(model_label, alias_label)
 join public.catalog_models model on model.canonical_label = input.model_label and model.tenant_id is null
-join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'ASICS';
+join public.catalog_brands brand on brand.id = model.brand_id and brand.canonical_label = 'ASICS'
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.model_id = model.id
+    and a.alias_label = input.alias_label
+    and a.tenant_id is null
+);
 
 -- Air Jordan Aliases (numeric, "Jordan X", "Air Jordan X", "AJX")
 with jordan_numbers as (
@@ -437,7 +510,13 @@ cross join lateral (
     (concat('AJ', jm.num)),
     (concat('Air Jordan ', jm.num)),
     (concat('Jordan ', rn.roman))
-) as aliases(alias_label);
+) as aliases(alias_label)
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.model_id = jm.model_id
+    and a.alias_label = aliases.alias_label
+    and a.tenant_id is null
+);
 
 -- Designer Model Aliases
 insert into public.catalog_aliases (
@@ -456,7 +535,13 @@ from (
     ('Out Of Office', 'OOO', 'Off-White')
 ) as input(model_label, alias_label, brand_label)
 join public.catalog_brands brand on brand.canonical_label = input.brand_label and brand.tenant_id is null
-join public.catalog_models model on model.canonical_label = input.model_label and model.brand_id = brand.id and model.tenant_id is null;
+join public.catalog_models model on model.canonical_label = input.model_label and model.brand_id = brand.id and model.tenant_id is null
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.model_id = model.id
+    and a.alias_label = input.alias_label
+    and a.tenant_id is null
+);
 
 -- A Bathing Ape Model Aliases (BAPE STA / BAPESTA variations)
 insert into public.catalog_aliases (
@@ -482,7 +567,13 @@ join public.catalog_brands brand
 join public.catalog_models model
   on model.brand_id = brand.id
  and model.canonical_label = input.model_label
- and model.tenant_id is null;
+ and model.tenant_id is null
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.model_id = model.id
+    and a.alias_label = input.alias_label
+    and a.tenant_id is null
+);
 
 -- Gucci GG Supreme model aliases
 insert into public.catalog_aliases (
@@ -507,7 +598,12 @@ join public.catalog_brands brand
 join public.catalog_models model
   on model.brand_id = brand.id
  and model.canonical_label = input.model_label
- and model.tenant_id is null;
-
+ and model.tenant_id is null
+where not exists (
+  select 1 from public.catalog_aliases a
+  where a.model_id = model.id
+    and a.alias_label = input.alias_label
+    and a.tenant_id is null
+);
 
 commit;
