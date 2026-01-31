@@ -1,3 +1,4 @@
+// app/api/admin/catalog/brand-groups/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";

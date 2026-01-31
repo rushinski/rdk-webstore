@@ -1,9 +1,8 @@
 // src/components/inventory/ProductForm.tsx
 "use client";
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { ImagePlus, Plus, Trash2, X } from "lucide-react";
-import imageCompression from "browser-image-compression";
 
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
@@ -14,10 +13,26 @@ import { RdkSelect } from "@/components/ui/Select";
 
 import { TagInput, type TagChip } from "./TagInput";
 
+// OPTIMIZATION: Lazy load image compression library
+const loadImageCompression = () => import("browser-image-compression");
+
 interface ProductFormProps {
   initialData?: Partial<ProductCreateInput> & { id?: string };
   onSubmit: (data: ProductCreateInput) => Promise<void>;
   onCancel: () => void;
+
+  // NEW: Server-side data props
+  initialShippingDefaults?: Array<{
+    category: string;
+    shipping_cost_cents?: number;
+    default_price_cents?: number;
+    default_price?: number;
+  }>;
+  initialBrands?: Array<{
+    id: string;
+    label: string;
+    groupKey?: string | null;
+  }>;
 }
 
 type VariantDraft = {
@@ -154,7 +169,13 @@ function RequiredMark() {
   return <span className="text-red-500">*</span>;
 }
 
-export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProps) {
+export function ProductForm({
+  initialData,
+  onSubmit,
+  onCancel,
+  initialShippingDefaults, // NEW
+  initialBrands, // NEW
+}: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const initialTitle = initialData?.title_raw ?? "";
@@ -168,7 +189,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   const [modelOverrideId, setModelOverrideId] = useState<string | null>(null);
   const [modelOverrideInput, setModelOverrideInput] = useState("");
 
-  const [brandOptions, setBrandOptions] = useState<CatalogOption[]>([]);
+  // UPDATED: Use server data if provided
+  const [brandOptions, setBrandOptions] = useState<CatalogOption[]>(initialBrands || []);
   const [modelOptions, setModelOptions] = useState<CatalogOption[]>([]);
 
   const [category, setCategory] = useState<Category>(initialData?.category || "sneakers");
@@ -197,10 +219,30 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     isUploading: false,
   });
 
-  const [shippingDefaults, setShippingDefaults] = useState<Record<string, number>>({});
+  // UPDATED: Use server data to initialize shipping defaults
+  const [shippingDefaults, setShippingDefaults] = useState<Record<string, number>>(() => {
+    if (!initialShippingDefaults) {
+      return {};
+    }
+
+    const map: Record<string, number> = {};
+    for (const entry of initialShippingDefaults) {
+      const cents =
+        Number(
+          entry.shipping_cost_cents ??
+            entry.default_price_cents ??
+            entry.default_price ??
+            0,
+        ) || 0;
+      map[entry.category] = cents / 100;
+    }
+    return map;
+  });
+
+  // UPDATED: Start as ready if server data provided
   const [shippingDefaultsStatus, setShippingDefaultsStatus] = useState<
     "loading" | "ready" | "error"
-  >("loading");
+  >(initialShippingDefaults ? "ready" : "loading");
 
   const [customTags, setCustomTags] = useState<TagChip[]>(() => {
     const tags = initialData?.tags ?? [];
@@ -346,60 +388,72 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     });
   }, [visibleAutoTags, customTags]);
 
-  useEffect(() => {
-    const loadDefaults = async () => {
-      setShippingDefaultsStatus("loading");
-      try {
-        const response = await fetch("/api/admin/shipping/defaults");
-        const data = await response.json();
+  // OPTIMIZATION: Memoize shipping defaults loader
+  const loadShippingDefaults = useCallback(async () => {
+    setShippingDefaultsStatus("loading");
+    try {
+      const response = await fetch("/api/admin/shipping/defaults");
+      const data = await response.json();
 
-        if (response.ok && data?.defaults) {
-          const map: Record<string, number> = {};
-          for (const entry of data.defaults) {
-            const cents =
-              Number(
-                entry.shipping_cost_cents ??
-                  entry.default_price_cents ??
-                  entry.default_price ??
-                  0,
-              ) || 0;
-            map[entry.category] = cents / 100;
-          }
-          setShippingDefaults(map);
-          setShippingDefaultsStatus("ready");
-          return;
+      if (response.ok && data?.defaults) {
+        const map: Record<string, number> = {};
+        for (const entry of data.defaults) {
+          const cents =
+            Number(
+              entry.shipping_cost_cents ??
+                entry.default_price_cents ??
+                entry.default_price ??
+                0,
+            ) || 0;
+          map[entry.category] = cents / 100;
         }
-
-        setShippingDefaultsStatus("error");
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "inventory_load_shipping_defaults" });
-        setShippingDefaultsStatus("error");
+        setShippingDefaults(map);
+        setShippingDefaultsStatus("ready");
+        return;
       }
-    };
 
-    loadDefaults();
+      setShippingDefaultsStatus("error");
+    } catch (error) {
+      logError(error, { layer: "frontend", event: "inventory_load_shipping_defaults" });
+      setShippingDefaultsStatus("error");
+    }
   }, []);
 
+  // UPDATED: Skip loading if data already provided from server
   useEffect(() => {
-    const loadBrands = async () => {
-      try {
-        const response = await fetch("/api/admin/catalog/brands");
-        const data = await response.json();
-        if (response.ok) {
-          const options = (data.brands || []).map((brand: BrandCatalogEntry) => ({
-            id: brand.id,
-            label: brand.canonical_label,
-            groupKey: brand.group?.key ?? null,
-          }));
-          setBrandOptions(options);
-        }
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "inventory_load_brand_catalog" });
-      }
-    };
+    if (initialShippingDefaults) {
+      // Data already loaded from server
+      return;
+    }
+    loadShippingDefaults();
+  }, [initialShippingDefaults, loadShippingDefaults]);
 
+  // OPTIMIZATION: Memoize brand catalog loader
+  const loadBrands = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/catalog/brands");
+      const data = await response.json();
+      if (response.ok) {
+        const options = (data.brands || []).map((brand: BrandCatalogEntry) => ({
+          id: brand.id,
+          label: brand.canonical_label,
+          groupKey: brand.group?.key ?? null,
+        }));
+        setBrandOptions(options);
+      }
+    } catch (error) {
+      logError(error, { layer: "frontend", event: "inventory_load_brand_catalog" });
+    }
+  }, []);
+
+  // UPDATED: Skip loading if data already provided from server
+  useEffect(() => {
+    if (initialBrands) {
+      // Data already loaded from server
+      return;
+    }
     loadBrands();
-  }, []);
+  }, [initialBrands, loadBrands]);
 
   const effectiveBrandId = brandOverrideId ?? parseResult?.brand?.id ?? null;
 
@@ -590,11 +644,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     );
   };
 
-  // ADD THE compressImage FUNCTION HERE
-  const compressImage = async (file: File): Promise<File> => {
-    // Don't compress if already small enough
+  // OPTIMIZATION: Lazy load compression and memoize function
+  const compressImage = useCallback(async (file: File): Promise<File> => {
     if (file.size < 1 * 1024 * 1024) {
-      // Less than 1MB
       console.info(
         "[compressImage] File already small, skipping compression:",
         file.size,
@@ -609,14 +661,15 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     });
 
     try {
+      const imageCompression = await loadImageCompression();
       const options = {
-        maxSizeMB: 2, // Target max 2MB
-        maxWidthOrHeight: 1920, // Max dimension
-        useWebWorker: true, // Use web worker for better performance
-        fileType: file.type || "image/jpeg", // Preserve type or default to JPEG
+        maxSizeMB: 2,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        fileType: file.type || "image/jpeg",
       };
 
-      const compressedFile = await imageCompression(file, options);
+      const compressedFile = await imageCompression.default(file, options);
 
       console.info("[compressImage] Compression successful:", {
         originalSize: file.size,
@@ -633,9 +686,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         fileName: file.name,
         fileSize: file.size,
       });
-      return file; // Return original if compression fails
+      return file;
     }
-  };
+  }, []);
 
   const validateAndPrepareFiles = (
     fileList: FileList,
@@ -645,10 +698,9 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
   } => {
     const valid: File[] = [];
     const errors: string[] = [];
-    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const MAX_SIZE = 10 * 1024 * 1024;
     const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
-    // Convert to array immediately - iOS Safari can lose FileList references
     const filesArray = Array.from(fileList);
     console.info("[validateAndPrepareFiles] Validating", filesArray.length, "files");
 
@@ -703,7 +755,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     return { valid, errors };
   };
 
-  // Then update handleUploadFiles to use this:
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
@@ -712,7 +763,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
     console.info("[ProductForm] Received", files.length, "file(s) for upload");
     console.info("[ProductForm] User agent:", navigator.userAgent);
 
-    // Convert FileList to Array IMMEDIATELY - iOS Safari can lose references
     const fileArray = Array.from(files);
     console.info("[ProductForm] Converted to array, length:", fileArray.length);
 
@@ -734,7 +784,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       }
     }
 
-    // Initialize queue
     setUploadQueue({
       total: valid.length,
       completed: 0,
@@ -748,7 +797,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       "valid file(s)",
     );
 
-    // Upload files sequentially to avoid payload limits
     for (let i = 0; i < valid.length; i++) {
       const file = valid[i];
 
@@ -759,7 +807,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           size: file.size,
         });
 
-        // ADD THESE LINES - Compress the image before uploading
         const compressedFile = await compressImage(file);
 
         console.info(
@@ -772,7 +819,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         );
 
         const fd = new FormData();
-        fd.append("file", compressedFile, file.name); // CHANGE: use compressedFile instead of file
+        fd.append("file", compressedFile, file.name);
 
         if (initialData?.id) {
           fd.append("productId", initialData.id);
@@ -801,7 +848,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           throw new Error(errorMsg);
         }
 
-        // Handle both response formats
         if (isUploadsResponse(json)) {
           json.uploads.forEach((upload) => {
             if (isUploadResult(upload)) {
@@ -812,7 +858,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           addImageEntry(json.url);
         }
 
-        // Update progress
         setUploadQueue((prev) => ({
           ...prev,
           completed: prev.completed + 1,
@@ -828,16 +873,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           userAgent: navigator.userAgent,
         });
 
-        // Update failed count
         setUploadQueue((prev) => ({
           ...prev,
           failed: prev.failed + 1,
-          completed: prev.completed + 1, // Still count as completed (processed)
+          completed: prev.completed + 1,
         }));
       }
     }
 
-    // Finalize queue
     setUploadQueue((prev) => {
       const successCount = prev.total - prev.failed;
 
@@ -1082,14 +1125,17 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
       onSubmit={(event) => {
         void handleSubmit(event);
       }}
-      className="space-y-6"
+      className="space-y-4 md:space-y-6"
     >
-      {/* Basic Info */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Basic Information</h2>
+      {/* MOBILE OPTIMIZATION: Improved mobile layout */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">
+          Basic Information
+        </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2">
+        <div className="space-y-4">
+          {/* Full width title on mobile */}
+          <div>
             <label className="block text-gray-400 text-sm mb-1">
               Full Title <RequiredMark />
             </label>
@@ -1098,47 +1144,51 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={titleRaw}
               onChange={(e) => setTitleRaw(e.target.value)}
               required
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
             />
             <p className="text-xs text-gray-500 mt-2">
               One input only. We parse brand, model (sneakers), and name automatically.
             </p>
           </div>
 
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">
-              Category <RequiredMark />
-            </label>
-            <RdkSelect
-              value={category}
-              onChange={(v) => setCategory(v as Category)}
-              options={[
-                { value: "sneakers", label: "Sneakers" },
-                { value: "clothing", label: "Clothing" },
-                { value: "accessories", label: "Accessories" },
-                { value: "electronics", label: "Electronics" },
-              ]}
-              buttonClassName="bg-zinc-800"
-            />
-          </div>
+          {/* Stack category/condition on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">
+                Category <RequiredMark />
+              </label>
+              <RdkSelect
+                value={category}
+                onChange={(v) => setCategory(v as Category)}
+                options={[
+                  { value: "sneakers", label: "Sneakers" },
+                  { value: "clothing", label: "Clothing" },
+                  { value: "accessories", label: "Accessories" },
+                  { value: "electronics", label: "Electronics" },
+                ]}
+                buttonClassName="bg-zinc-800"
+              />
+            </div>
 
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">
-              Condition <RequiredMark />
-            </label>
-            <RdkSelect
-              value={condition}
-              onChange={(v) => setCondition(v as Condition)}
-              options={[
-                { value: "new", label: "New" },
-                { value: "used", label: "Used" },
-              ]}
-              buttonClassName="bg-zinc-800"
-            />
+            <div>
+              <label className="block text-gray-400 text-sm mb-1">
+                Condition <RequiredMark />
+              </label>
+              <RdkSelect
+                value={condition}
+                onChange={(v) => setCondition(v as Condition)}
+                options={[
+                  { value: "new", label: "New" },
+                  { value: "used", label: "Used" },
+                ]}
+                buttonClassName="bg-zinc-800"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 bg-zinc-950/40 border border-zinc-800/70 rounded p-4 space-y-3">
+        {/* Parsed Preview - Collapsible on mobile */}
+        <div className="mt-4 bg-zinc-950/40 border border-zinc-800/70 rounded p-3 md:p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm text-gray-300 font-semibold">Parsed Preview</h3>
             {parseStatus === "loading" && (
@@ -1149,7 +1199,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 text-sm">
             <div className="text-gray-400">
               <span className="block text-xs uppercase text-gray-500">Brand</span>
               <span className="text-white">{parseResult?.brand?.label || "-"}</span>
@@ -1196,7 +1246,8 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           )}
         </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Stack overrides on mobile */}
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-gray-400 text-sm mb-1">Override Brand</label>
             <input
@@ -1205,7 +1256,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={brandOverrideInput}
               onChange={(e) => handleBrandOverrideChange(e.target.value)}
               placeholder="Search brands..."
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-zinc-700/40"
+              className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-zinc-700/40 text-sm md:text-base"
             />
             <datalist id="brand-options">
               {brandOptions.map((brand) => (
@@ -1235,7 +1286,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                   effectiveBrandId ? "Search models..." : "Select a brand first"
                 }
                 disabled={!effectiveBrandId}
-                className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-700/40"
+                className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-700/40 text-sm md:text-base"
               />
               <datalist id="model-options">
                 {modelOptions.map((model) => (
@@ -1262,7 +1313,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
               value={conditionNote}
               onChange={(e) => setConditionNote(e.target.value)}
               rows={2}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
             />
           </div>
         )}
@@ -1273,30 +1324,34 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+            className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
           />
         </div>
       </div>
 
-      {/* Variants */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">Variants</h2>
+      {/* Variants - Better mobile layout */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
+          <h2 className="text-lg md:text-xl font-semibold text-white">Variants</h2>
           <button
             type="button"
             onClick={addVariant}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition"
+            className="flex items-center gap-1 md:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm transition"
           >
-            <Plus className="w-4 h-4" />
-            Add Variant
+            <Plus className="w-3 h-3 md:w-4 md:h-4" />
+            <span className="hidden sm:inline">Add Variant</span>
+            <span className="sm:hidden">Add</span>
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {variants.map((variant, index) => (
-            <div key={index} className="bg-zinc-800 p-4 rounded flex gap-4">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
+            <div
+              key={index}
+              className="bg-zinc-800 p-3 md:p-4 rounded flex flex-col sm:flex-row gap-3 md:gap-4"
+            >
+              <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4">
+                <div className="col-span-2 sm:col-span-1">
                   <label className="block text-gray-400 text-xs mb-1">
                     Size <RequiredMark />
                   </label>
@@ -1332,7 +1387,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       onChange={(e) => updateVariant(index, "size_label", e.target.value)}
                       required
                       placeholder="e.g., One Size"
-                      className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                      className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                     />
                   )}
 
@@ -1341,14 +1396,14 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       type="text"
                       value="N/A"
                       disabled
-                      className="w-full bg-zinc-900 text-gray-500 px-3 py-2 rounded text-sm border border-zinc-800/70"
+                      className="w-full bg-zinc-900 text-gray-500 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70"
                     />
                   )}
                 </div>
 
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Selling for Price ($) <RequiredMark />
+                    Price ($) <RequiredMark />
                   </label>
                   <input
                     type="text"
@@ -1356,13 +1411,13 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     value={variant.price}
                     onChange={(e) => updateVariant(index, "price", e.target.value)}
                     required
-                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                    className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
 
                 <div>
                   <label className="block text-gray-400 text-xs mb-1">
-                    Bought for Price ($) <RequiredMark />
+                    Cost ($) <RequiredMark />
                   </label>
                   <input
                     type="text"
@@ -1370,7 +1425,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     value={variant.cost}
                     onChange={(e) => updateVariant(index, "cost", e.target.value)}
                     required
-                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                    className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
 
@@ -1384,7 +1439,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     value={variant.stock}
                     onChange={(e) => updateVariant(index, "stock", e.target.value)}
                     required
-                    className="w-full bg-zinc-900 text-white px-3 py-2 rounded text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                    className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
               </div>
@@ -1393,7 +1448,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                 <button
                   type="button"
                   onClick={() => removeVariant(index)}
-                  className="text-red-500 hover:text-red-400 p-2 rounded hover:bg-zinc-900"
+                  className="text-red-500 hover:text-red-400 p-2 rounded hover:bg-zinc-900 self-start sm:self-center"
                   aria-label="Remove variant"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1404,19 +1459,19 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         </div>
       </div>
 
-      {/* Images */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">
+      {/* Images - Mobile optimized */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
+        <div className="flex items-center justify-between mb-3 md:mb-4">
+          <h2 className="text-lg md:text-xl font-semibold text-white">
             Images <RequiredMark />
           </h2>
           <span className="text-xs text-gray-500">{images.length} total</span>
         </div>
 
         {uploadQueue.isUploading && (
-          <div className="mb-4 bg-blue-900/20 border border-blue-800/50 rounded p-4">
+          <div className="mb-4 bg-blue-900/20 border border-blue-800/50 rounded p-3 md:p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-blue-200 font-semibold">
+              <span className="text-xs md:text-sm text-blue-200 font-semibold">
                 {uploadQueue.currentStatus || "Uploading images..."}
               </span>
               <span className="text-xs text-blue-300">
@@ -1444,7 +1499,6 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
-          // Remove capture attribute entirely - it causes issues on iOS
           onChange={(e) => {
             console.info(
               "[ProductForm] File input changed, files:",
@@ -1465,55 +1519,38 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           className="hidden"
         />
 
-        {/* Full-width Dropzone */}
+        {/* Mobile-friendly dropzone */}
         <div
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={[
-            "w-full h-44 border border-dashed cursor-pointer transition",
-            "rounded",
-            "px-4 py-3 flex items-center gap-3",
+            "w-full h-32 md:h-44 border border-dashed cursor-pointer transition",
+            "rounded px-3 md:px-4 py-3 flex flex-col sm:flex-row items-center gap-2 md:gap-3",
             isDragging
               ? "border-red-500 bg-red-900/10"
               : "border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-950/50",
           ].join(" ")}
         >
-          <div className="h-10 w-10 bg-zinc-900 border border-zinc-800/70 flex items-center justify-center shrink-0 rounded">
-            <ImagePlus className="w-5 h-5 text-gray-400" />
+          <div className="h-8 w-8 md:h-10 md:w-10 bg-zinc-900 border border-zinc-800/70 flex items-center justify-center shrink-0 rounded">
+            <ImagePlus className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
           </div>
 
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-white font-semibold truncate">
-              Drag & drop images
+          <div className="min-w-0 flex-1 text-center sm:text-left">
+            <p className="text-xs md:text-sm text-white font-semibold">
+              Tap to add images
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Or click to browse. PNG, JPG, WEBP.
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              First image becomes primary (you can change it below).
-            </p>
+            <p className="text-xs text-gray-500 mt-1">PNG, JPG, WEBP. Max 10MB each.</p>
           </div>
-
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              fileInputRef.current?.click();
-            }}
-            className="text-xs font-semibold bg-zinc-900 border border-zinc-800/70 px-3 py-2 rounded hover:bg-zinc-800"
-          >
-            Browse
-          </button>
         </div>
 
-        {/* Thumbnails BELOW primary */}
-        <div className="mt-4">
+        {/* Mobile-friendly image grid */}
+        <div className="mt-3 md:mt-4">
           {images.length === 0 ? (
-            <div className="text-gray-500 text-sm">No images yet.</div>
+            <div className="text-gray-500 text-xs md:text-sm">No images yet.</div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
               {images.map((image, index) => (
                 <div
                   key={index}
@@ -1533,7 +1570,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                       ? "border-red-500"
                       : "border-zinc-800/70 hover:border-zinc-700",
                   ].join(" ")}
-                  title="Click to set primary"
+                  title="Tap to set primary"
                 >
                   <div className="aspect-square bg-zinc-900 overflow-hidden">
                     {image.url ? (
@@ -1552,8 +1589,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                   <div className="absolute top-1 left-1">
                     <span
                       className={[
-                        "text-[10px] px-2 py-0.5 border",
-                        "rounded",
+                        "text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 border rounded",
                         image.is_primary
                           ? "bg-red-600 border-red-500 text-white"
                           : "bg-black/50 border-white/10 text-gray-200",
@@ -1563,17 +1599,17 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
                     </span>
                   </div>
 
-                  <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition">
+                  <div className="absolute top-1 right-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         removeImage(index);
                       }}
-                      className="bg-black/60 hover:bg-black/80 text-white p-1.5 rounded"
+                      className="bg-black/60 hover:bg-black/80 text-white p-1 md:p-1.5 rounded"
                       aria-label="Remove image"
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3 md:w-3.5 md:h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -1582,59 +1618,54 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
           )}
         </div>
 
-        <div className="mt-3 text-xs text-gray-500">
-          Add at least one image. Click any thumbnail to promote it to primary.
+        <div className="mt-2 md:mt-3 text-xs text-gray-500">
+          Add at least one image. Tap any thumbnail to set as primary.
         </div>
       </div>
 
-      {/* Pricing & Shipping */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Pricing & Shipping</h2>
+      {/* Pricing & Shipping - Simplified */}
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">
+          Pricing & Shipping
+        </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Shipping Price ($)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={shippingPrice}
-              onChange={(e) => setShippingPrice(e.target.value)}
-              className="w-full bg-zinc-800 text-white px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
+        <div>
+          <label className="block text-gray-400 text-sm mb-1">Shipping Price ($)</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={shippingPrice}
+            onChange={(e) => setShippingPrice(e.target.value)}
+            className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
+          />
 
-            {shippingDefaultsStatus === "loading" ? (
-              <p className="text-gray-500 text-xs mt-1">
-                Loading default shipping prices…
-              </p>
-            ) : shippingDefaultsStatus === "error" ? (
-              <p className="text-red-400 text-xs mt-1">
-                Could not load default shipping prices. (You can still set an override.)
-              </p>
-            ) : (
-              <p className="text-gray-500 text-xs mt-1">
-                Leave blank to use the {category} default:{" "}
-                <span className="text-gray-200">
-                  ${formatMoney(defaultShippingPrice)}
-                </span>
-                .
-              </p>
-            )}
-          </div>
+          {shippingDefaultsStatus === "loading" ? (
+            <p className="text-gray-500 text-xs mt-1">Loading default shipping prices…</p>
+          ) : shippingDefaultsStatus === "error" ? (
+            <p className="text-red-400 text-xs mt-1">
+              Could not load defaults. You can still set an override.
+            </p>
+          ) : (
+            <p className="text-gray-500 text-xs mt-1">
+              Leave blank to use {category} default:{" "}
+              <span className="text-gray-200">${formatMoney(defaultShippingPrice)}</span>
+            </p>
+          )}
         </div>
       </div>
 
       {/* Tags */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Tags</h2>
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">Tags</h2>
         <TagInput tags={allTags} onAddTag={handleAddTag} onRemoveTag={handleRemoveTag} />
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-4">
+      {/* Actions - Mobile friendly */}
+      <div className="flex flex-col sm:flex-row gap-3 md:gap-4 sticky bottom-0 sm:static bg-black sm:bg-transparent p-4 sm:p-0 -mx-4 sm:mx-0 border-t sm:border-0 border-zinc-800">
         <button
           type="submit"
           disabled={isLoading}
-          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-3 rounded transition"
+          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-3 rounded transition text-sm md:text-base"
         >
           {isLoading
             ? "Saving..."
@@ -1645,7 +1676,7 @@ export function ProductForm({ initialData, onSubmit, onCancel }: ProductFormProp
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-3 rounded transition"
+          className="px-6 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-3 rounded transition text-sm md:text-base"
         >
           Cancel
         </button>

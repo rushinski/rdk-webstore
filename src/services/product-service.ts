@@ -3,7 +3,7 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { log } from "@/lib/utils/log";
 import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/db/database.types";
-import type { Category, Condition } from "@/types/domain/product";
+import type { Category, Condition, ProductWithDetails } from "@/types/domain/product";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 
@@ -43,6 +43,29 @@ export class ProductService {
 
   async listProducts(filters: ProductFilters) {
     return this.repo.list(filters);
+  }
+
+  /**
+   * Get a single product by ID with all related data
+   */
+  async getProductById(
+    productId: string,
+    options: { tenantId: string; includeOutOfStock?: boolean },
+  ): Promise<ProductWithDetails | null> {
+    const product = await this.repo.getById(productId, {
+      includeOutOfStock: options.includeOutOfStock,
+    });
+
+    if (!product) {
+      return null;
+    }
+
+    // Verify tenant ownership
+    if (product.tenant_id !== options.tenantId) {
+      return null;
+    }
+
+    return product;
   }
 
   async createProduct(

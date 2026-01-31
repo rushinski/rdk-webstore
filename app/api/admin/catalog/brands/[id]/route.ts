@@ -1,3 +1,4 @@
+// app/api/admin/catalog/brands/[id]/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";

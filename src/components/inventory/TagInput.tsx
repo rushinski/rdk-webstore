@@ -18,12 +18,7 @@ interface TagInputProps {
   placeholder?: string;
 }
 
-export function TagInput({
-  tags,
-  onAddTag,
-  onRemoveTag,
-  placeholder = "Add tag...",
-}: TagInputProps) {
+export function TagInput({ tags, onAddTag, onRemoveTag, placeholder }: TagInputProps) {
   const [input, setInput] = useState("");
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -40,7 +35,7 @@ export function TagInput({
         {tags.map((tag) => (
           <span
             key={`${tag.group_key}:${tag.label}`}
-            className={`inline-flex items-center gap-1 text-sm px-2 py-1 rounded ${
+            className={`inline-flex items-center gap-1 text-xs md:text-sm px-2 py-1 rounded ${
               tag.source === "auto"
                 ? "bg-red-900/30 text-white"
                 : "bg-zinc-700 text-white"
@@ -50,7 +45,7 @@ export function TagInput({
             <button
               type="button"
               onClick={() => onRemoveTag(tag)}
-              className="hover:text-red-400"
+              className="hover:text-red-400 p-1"
             >
               <X className="w-3 h-3" />
             </button>
@@ -62,12 +57,11 @@ export function TagInput({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={tags.length === 0 ? placeholder : ""}
-          className="flex-1 min-w-[120px] bg-transparent text-white outline-none"
+          className="flex-1 min-w-[120px] bg-transparent text-white outline-none text-sm md:text-base"
         />
       </div>
       <p className="text-gray-400 text-xs mt-1">
-        Brand, model, category, condition, and size tags are auto-generated. You can
-        remove them or add custom tags.
+        Brand, model, category, condition, and size tags are auto-generated.
       </p>
     </div>
   );

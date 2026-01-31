@@ -1,60 +1,36 @@
-// app/admin/inventory/create/page.tsx
+// app/admin/inventory/create/page.tsx (SERVER-SIDE VERSION)
 
-"use client";
-
-import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-import { ProductForm } from "@/components/inventory/ProductForm";
-import type { ProductCreateInput } from "@/services/product-service";
+import { getFormInitialData } from "./actions";
+import { CreateProductClient } from "./client";
 
-export default function CreateProductPage() {
-  const router = useRouter();
-
-  const handleSubmit = async (data: ProductCreateInput) => {
-    const response = await fetch("/api/admin/products", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-
-    if (response.ok) {
-      router.push("/admin/inventory");
-    } else {
-      let message = "Failed to create product";
-      try {
-        const payload = await response.json();
-        if (payload?.error) {
-          message = payload.error;
-        }
-      } catch {
-        // ignore parse errors
-      }
-      throw new Error(message);
-    }
-  };
-
-  const handleCancel = () => {
-    router.push("/admin/inventory");
-  };
+export default async function CreateProductPage() {
+  // SERVER-SIDE: Load data before rendering
+  const initialData = await getFormInitialData();
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex items-center gap-3 md:gap-4">
         <Link
           href="/admin/inventory"
           className="text-gray-400 hover:text-white transition"
         >
-          <ArrowLeft className="w-6 h-6" />
+          <ArrowLeft className="w-5 h-5 md:w-6 md:h-6" />
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-white">Create Product</h1>
-          <p className="text-gray-400">Add a new product to your inventory</p>
+          <h1 className="text-xl md:text-3xl font-bold text-white">Create Product</h1>
+          <p className="text-sm md:text-base text-gray-400">
+            Add a new product to your inventory
+          </p>
         </div>
       </div>
 
-      <ProductForm onSubmit={handleSubmit} onCancel={handleCancel} />
+      <CreateProductClient
+        initialShippingDefaults={initialData.shippingDefaults}
+        initialBrands={initialData.brands}
+      />
     </div>
   );
 }

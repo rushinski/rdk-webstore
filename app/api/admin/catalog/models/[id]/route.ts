@@ -1,3 +1,4 @@
+// app/api/admin/catalog/models/[id]/route.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
