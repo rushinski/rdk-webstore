@@ -55,7 +55,7 @@ CREATE POLICY "Admins can manage featured items"
   WITH CHECK (
     auth.uid() IN (
       SELECT id FROM public.profiles
-      WHERE role IN ('owner', 'admin')
+      WHERE role IN ('admin', 'super_admin', 'dev')
     )
   );
 

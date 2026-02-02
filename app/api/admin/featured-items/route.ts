@@ -54,7 +54,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ item }, { status: 201 });
   } catch (error) {
-    logError(error, { layer: "api", endpoint: "POST /api/admin/featured-items" });
+    logError(error, { 
+      layer: "api", 
+      endpoint: "POST /api/admin/featured-items"
+    });
     
     if (error instanceof AuthError) {
       return NextResponse.json(
@@ -63,8 +66,12 @@ export async function POST(request: Request) {
       );
     }
     
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to add featured item";
+      
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to add featured item" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -90,7 +97,10 @@ export async function DELETE(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    logError(error, { layer: "api", endpoint: "DELETE /api/admin/featured-items" });
+    logError(error, { 
+      layer: "api", 
+      endpoint: "DELETE /api/admin/featured-items" 
+    });
     
     if (error instanceof AuthError) {
       return NextResponse.json(
@@ -99,8 +109,12 @@ export async function DELETE(request: Request) {
       );
     }
     
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : "Failed to remove featured item";
+      
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to remove featured item" },
+      { error: errorMessage },
       { status: 500 }
     );
   }

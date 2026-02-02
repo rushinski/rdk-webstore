@@ -61,8 +61,10 @@ export function FeaturedItemsManager() {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim().length < 2) {
+    const query = searchQuery.trim();
+    if (query.length === 0) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
 
@@ -70,14 +72,20 @@ export function FeaturedItemsManager() {
     const searchProducts = async () => {
       setIsSearching(true);
       try {
-        const response = await fetch(
-          `/api/admin/inventory?q=${encodeURIComponent(searchQuery)}&limit=20&includeOutOfStock=true`,
-          { signal: controller.signal }
-        );
-        const data = await response.json();
-        if (response.ok) {
-          setSearchResults(data.products || []);
+        const params = new URLSearchParams({
+          limit: "20",
+          includeOutOfStock: "1",
+        });
+        params.set("q", query);
+
+        const response = await fetch(`/api/admin/products?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(data?.error || "Failed to search products");
         }
+        setSearchResults(data?.products || []);
       } catch (error: unknown) {
         const isAbort =
           error instanceof DOMException
@@ -87,7 +95,13 @@ export function FeaturedItemsManager() {
               "name" in error &&
               (error as { name?: string }).name === "AbortError";
         if (!isAbort) {
+          setSearchResults([]);
           logError(error, { layer: "frontend", event: "featured_items_search" });
+          setToast({
+            message:
+              error instanceof Error ? error.message : "Failed to search products",
+            tone: "error",
+          });
         }
       } finally {
         setIsSearching(false);
@@ -96,7 +110,7 @@ export function FeaturedItemsManager() {
 
     const timeout = setTimeout(() => {
       void searchProducts();
-    }, 300);
+    }, 150);
 
     return () => {
       controller.abort();
@@ -310,7 +324,7 @@ export function FeaturedItemsManager() {
           )}
         </div>
 
-        {searchQuery.trim().length >= 2 && filteredSearchResults.length === 0 && !isSearching && (
+        {searchQuery.trim().length > 0 && filteredSearchResults.length === 0 && !isSearching && (
           <div className="mt-4 text-center text-gray-400 text-sm">
             No products found matching "{searchQuery}"
           </div>
