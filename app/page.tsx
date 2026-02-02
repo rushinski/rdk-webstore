@@ -1,7 +1,8 @@
-// app/page.tsx
+// app/page.tsx (Updated with Featured Items)
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { FeaturedItems } from "@/components/home/FeaturedItems";
 
 const categories = [
   { slug: "sneakers", label: "Sneakers", image: "/images/home/sneakers.png" },
@@ -161,6 +162,9 @@ export default function HomePage() {
 
       {/* Spacer so overlay doesn't collide with next sections */}
       <div className="h-10 md:h-14" />
+
+      {/* FEATURED ITEMS SECTION */}
+      <FeaturedItems />
     </div>
   );
 }
