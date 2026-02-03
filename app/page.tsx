@@ -30,7 +30,7 @@ export default function HomePage() {
               style={{ filter: "contrast(1.06) brightness(0.82)" }}
             />
 
-            {/* Left content column (makes text readable + avoids overlapping the client visually) */}
+            {/* Left content column */}
             <div
               className="absolute inset-0"
               style={{
@@ -68,7 +68,6 @@ export default function HomePage() {
                   READY.
                 </h1>
 
-                {/* Mobile: buttons come BEFORE paragraph to reduce "text blanket" */}
                 <div className="mt-6 sm:mt-10 grid grid-cols-2 gap-3 sm:flex sm:flex-row">
                   <Link
                     href="/store"
@@ -91,7 +90,6 @@ export default function HomePage() {
                   </Link>
                 </div>
 
-                {/* Copy moved below CTAs on mobile */}
                 <p className="mt-4 sm:mt-6 text-sm sm:text-lg md:text-xl text-gray-300 max-w-xl">
                   Sneakers &amp; streetwear you can trust: curated inventory, clear
                   condition, and a straight-to-the-point buying experience.
@@ -134,17 +132,13 @@ export default function HomePage() {
                     transition-shadow
                   "
                 >
-                  {/* Full color default, grayscale on hover */}
                   <div
                     className="absolute inset-0 bg-center bg-cover transition-all duration-500 ease-out
                                group-hover:scale-110 grayscale-0 group-hover:grayscale group-hover:brightness-75"
                     style={{ backgroundImage: `url(${c.image})` }}
                   />
 
-                  {/* Readability overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/10" />
-
-                  {/* Red baseline accent on hover */}
                   <div className="absolute left-0 right-0 bottom-0 h-px bg-red-600/0 group-hover:bg-red-600/70 transition-colors" />
 
                   <div className="absolute bottom-4 left-4 right-4">
@@ -161,7 +155,7 @@ export default function HomePage() {
       </section>
 
       {/* Spacer so overlay doesn't collide with next sections */}
-      <div className="h-10 md:h-14" />
+      <div className="h-10 md:h-14 bg-black" />
 
       {/* FEATURED ITEMS SECTION */}
       <FeaturedItems />

@@ -55,6 +55,7 @@
     "recharts": "^3.6.0",
     "shippo": "^2.15.0",
     "stripe": "^19.3.1",
+    "tailwind-scrollbar-hide": "^4.0.0",
     "uuid": "^13.0.0",
     "zod": "^4.1.12"
   },
@@ -63,7 +64,7 @@
     "@babel/preset-typescript": "^7.28.5",
     "@next/eslint-plugin-next": "^16.0.3",
     "@playwright/test": "^1.56.1",
-    "@redocly/cli": "^2.11.1",
+    "@redocly/cli": "^1.31.0",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.1",

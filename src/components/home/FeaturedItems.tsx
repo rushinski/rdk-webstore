@@ -1,43 +1,79 @@
 // src/components/home/FeaturedItems.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { logError } from "@/lib/utils/log";
 
 type FeaturedProduct = {
   id: string;
   name: string;
   brand: string;
-  model: string | null;
   titleDisplay: string;
   category: string;
   primaryImage: string | null;
   minPrice: number;
   sortOrder: number;
+  variants?: Array<{
+    size_label: string;
+    stock: number;
+  }>;
 };
 
 export function FeaturedItems() {
   const [featured, setFeatured] = useState<FeaturedProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
+
+  // Always render arrows, but disable when you can't scroll.
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    loadFeaturedItems();
+  const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+  const checkScrollButtons = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+
+    // If content doesn't overflow, both should be false.
+    if (maxScrollLeft <= 1) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+
+    setCanScrollLeft(container.scrollLeft > 10);
+    setCanScrollRight(container.scrollLeft < maxScrollLeft - 10);
   }, []);
 
   useEffect(() => {
+    loadFeaturedItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Re-check after data renders
     checkScrollButtons();
+
     const container = scrollRef.current;
-    if (container) {
-      container.addEventListener("scroll", checkScrollButtons);
-      return () => container.removeEventListener("scroll", checkScrollButtons);
-    }
-  }, [featured]);
+    if (!container) return;
+
+    const onScroll = () => checkScrollButtons();
+    container.addEventListener("scroll", onScroll, { passive: true });
+
+    const onResize = () => checkScrollButtons();
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      container.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [featured, checkScrollButtons]);
 
   const loadFeaturedItems = async () => {
     try {
@@ -53,42 +89,25 @@ export function FeaturedItems() {
     }
   };
 
-  const checkScrollButtons = () => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    setShowLeftArrow(container.scrollLeft > 10);
-    setShowRightArrow(
-      container.scrollLeft < container.scrollWidth - container.clientWidth - 10
-    );
-  };
-
   const scroll = (direction: "left" | "right") => {
     const container = scrollRef.current;
     if (!container) return;
 
-    const scrollAmount = container.clientWidth * 0.8;
-    const targetScroll =
+    const scrollAmount = Math.max(240, Math.floor(container.clientWidth * 0.85));
+    const target =
       direction === "left"
         ? container.scrollLeft - scrollAmount
         : container.scrollLeft + scrollAmount;
 
-    container.scrollTo({
-      left: targetScroll,
-      behavior: "smooth",
-    });
+    container.scrollTo({ left: target, behavior: "smooth" });
   };
 
-  const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
-
   // Don't show section if no featured items
-  if (!isLoading && featured.length === 0) {
-    return null;
-  }
+  if (!isLoading && featured.length === 0) return null;
 
   if (isLoading) {
     return (
-      <section className="bg-white py-8 md:py-12">
+      <section className="bg-black py-8 md:py-12 border-t border-zinc-900">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-center py-12">
             <div className="text-gray-400">Loading featured items...</div>
@@ -99,106 +118,143 @@ export function FeaturedItems() {
   }
 
   return (
-    <section className="bg-white py-8 md:py-12 border-b border-gray-200">
+    <section className="bg-black py-8 md:py-12 border-t border-zinc-900">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-red-600 flex items-center gap-2">
-            <Star className="w-6 h-6 md:w-7 md:h-7" />
+          <h2 className="text-2xl md:text-3xl font-bold text-white-500 flex items-center gap-2">
             Featured Items
           </h2>
+
           <Link
             href="/store"
-            className="text-sm md:text-base text-gray-600 hover:text-red-600 transition font-medium"
+            className="text-sm md:text-base text-gray-300 hover:text-white transition font-medium"
           >
             View All Products →
           </Link>
         </div>
 
-        <div className="relative group">
+        {/* Arrows OUTSIDE the scroll area + ALWAYS visible */}
+        <div className="flex items-stretch gap-3">
           {/* Left Arrow */}
-          {showLeftArrow && (
-            <button
-              onClick={() => scroll("left")}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/95 hover:bg-white shadow-lg rounded-full p-2 md:p-3 transition opacity-0 group-hover:opacity-100"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-gray-800" />
-            </button>
-          )}
-
-          {/* Right Arrow */}
-          {showRightArrow && (
-            <button
-              onClick={() => scroll("right")}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/95 hover:bg-white shadow-lg rounded-full p-2 md:p-3 transition opacity-0 group-hover:opacity-100"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-gray-800" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => canScrollLeft && scroll("left")}
+            disabled={!canScrollLeft}
+            aria-label="Scroll left"
+            className={[
+              "shrink-0 self-center rounded-full p-2 md:p-3 shadow-lg transition",
+              "bg-zinc-900 border border-zinc-800",
+              "hover:bg-zinc-800",
+              !canScrollLeft ? "opacity-35 cursor-not-allowed hover:bg-zinc-900" : "opacity-100",
+            ].join(" ")}
+          >
+            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
+          </button>
 
           {/* Scrollable Container */}
           <div
             ref={scrollRef}
-            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-2"
-            style={{
-              scrollbarWidth: "none",
+            className="flex-1 flex gap-4 md:gap-5 overflow-x-auto scroll-smooth pb-2"
+            style={{ 
+              scrollbarWidth: "none", 
               msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch"
             }}
           >
-            {featured.map((product) => (
-              <Link
-                key={product.id}
-                href={`/store/${product.id}`}
-                className="flex-shrink-0 w-64 md:w-72 group/card"
-              >
-                <div className="bg-white border border-gray-200 rounded overflow-hidden hover:shadow-lg transition-all duration-300 hover:border-red-600">
-                  {/* Image */}
-                  <div className="relative aspect-square bg-gray-100 overflow-hidden">
-                    {product.primaryImage ? (
-                      <Image
-                        src={product.primaryImage}
-                        alt={product.titleDisplay}
-                        fill
-                        className="object-cover group-hover/card:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        No Image
-                      </div>
-                    )}
-                  </div>
+            {featured.map((product) => {
+              // Get available sizes from variants
+              const sizes = product.variants
+                ?.filter((v) => v.stock > 0)
+                .map((v) => v.size_label)
+                .slice(0, 3); // Show max 3 sizes
 
-                  {/* Content */}
-                  <div className="p-4">
-                    <div className="text-xs uppercase tracking-wider text-gray-500 mb-1">
-                      {product.brand}
+              return (
+                <Link
+                  key={product.id}
+                  href={`/store/${product.id}`}
+                  className="flex-shrink-0 w-48 sm:w-52 md:w-56 group"
+                >
+                  {/* Match ProductCard vibe */}
+                  <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
+                    {/* Image */}
+                    <div className="aspect-square relative bg-zinc-800">
+                      {product.primaryImage ? (
+                        <Image
+                          src={product.primaryImage}
+                          alt={product.titleDisplay}
+                          fill
+                          sizes="(min-width: 1024px) 18vw, (min-width: 640px) 30vw, 45vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          quality={75}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                          No Image
+                        </div>
+                      )}
                     </div>
-                    <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2 min-h-[2.5rem]">
-                      {product.titleDisplay}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm text-gray-600 capitalize">
-                        {product.category}
+
+                    {/* Content */}
+                    <div className="p-3 flex flex-col flex-1">
+                      {/* Brand */}
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">
+                        {product.brand}
                       </div>
-                      <div className="text-lg font-bold text-red-600">
-                        {formatPrice(product.minPrice)}
+
+                      {/* Title - smaller font */}
+                      <h3 className="text-white font-bold text-xs line-clamp-2 min-h-[2rem] leading-tight">
+                        {product.titleDisplay}
+                      </h3>
+
+                      {/* Sizes */}
+                      {sizes && sizes.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {sizes.map((size, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-gray-300 rounded"
+                            >
+                              {size}
+                            </span>
+                          ))}
+                          {(product.variants?.filter((v) => v.stock > 0).length ?? 0) > 3 && (
+                            <span className="text-[10px] px-1.5 py-0.5 text-gray-400">
+                              +{(product.variants?.filter((v) => v.stock > 0).length ?? 0) - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Price bottom (ProductCard style) */}
+                      <div className="mt-auto pt-3">
+                        <span className="text-white font-extrabold text-base whitespace-nowrap tabular-nums">
+                          From {formatPrice(product.minPrice)}
+                        </span>
                       </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
+
+          {/* Right Arrow */}
+          <button
+            type="button"
+            onClick={() => canScrollRight && scroll("right")}
+            disabled={!canScrollRight}
+            aria-label="Scroll right"
+            className={[
+              "shrink-0 self-center rounded-full p-2 md:p-3 shadow-lg transition",
+              "bg-zinc-900 border border-zinc-800",
+              "hover:bg-zinc-800",
+              !canScrollRight ? "opacity-35 cursor-not-allowed hover:bg-zinc-900" : "opacity-100",
+            ].join(" ")}
+          >
+            <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
+          </button>
         </div>
       </div>
-
-      {/* Hide scrollbar globally for this component */}
-      <style jsx>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </section>
   );
 }
