@@ -78,4 +78,4 @@ Non-trivial constants are centralized under `src/config/constants/**`.
 - Unit and integration tests are in `tests/unit` and `tests/integration`.
 - RLS tests are in `tests/rls`.
 - Playwright E2E tests are in `tests/e2e`.
-- Coverage matrix: `docs/testing/PASS5_COVERAGE_MATRIX.md`.
+- See `package.json` scripts for test entry points.

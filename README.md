@@ -63,14 +63,16 @@ E2E configuration flags:
 - `E2E_SEED_STRATEGY=cli|remote|none`
 - `E2E_TEST_MODE=1` and `NEXT_PUBLIC_E2E_TEST_MODE=1` enable test-only bypasses
 
-See `docs/testing/PASS5_COVERAGE_MATRIX.md` for coverage details.
+See `package.json` and `tests/` for test entry points and coverage areas.
 
 ## Documentation
+- `docs/PROJECT_OVERVIEW.md` (full system overview for rebuild planning)
 - `docs/ARCHITECTURE.md`
 - `docs/API_SPEC.md`
 - `docs/SECURITY.md`
 - `docs/DEPLOYMENT_PIPELINE.md`
 - `docs/INFRA_GUIDE.md`
 - `docs/MONITORING_GUIDE.md`
+- `docs/PROXY_PIPELINE.md`
 - `docs/RUNBOOK.md`
 - `docs/SYSTEM_DESIGN.md`

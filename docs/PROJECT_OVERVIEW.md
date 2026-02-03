@@ -1,300 +1,260 @@
-﻿# PROJECT_OVERVIEW.md â€” Realdealkickz
-
-> Purpose: Single authoritative overview of the Real Deal Kickz platform â€” architecture, environments, processes, and ownership. This document maps the entire system at a high level and links into deeper docs (Architecture, Security, Infra Guide, Runbook, Deployment Pipeline).
-> 
-
----
-
-## 1) Project Summary
-
-**Project Name:** Real Deal Kickz (RDK)
-
-**Mission:** Build a production-grade resale platform with **predictable reliability**, **strict security**, and **scalable architecture**.
-
-**Core Stack:** Next.js (App Router) Â· Supabase Â· Stripe Checkout Â· Vercel Â· Docker Â· GitHub Actions
-
-**Architecture Principles:**
-
-- Enforce correctness through **explicit versioned migrations** and **tag-gated deployments**.
-- Guarantee config safety via the **central env validator**.
-- Adopt a clean **layered application architecture** (repositories â†’ services â†’ jobs â†’ route handlers).
-- Treat staging as a **production-like test bed**.
-- Every workflow and component passes the **Critical Validation Loop (CVL)**.
-
----
-
-## 2) Documentation Map (Authoritative Sources)
-
-| Document | Purpose |
-| --- | --- |
-| **ARCHITECTURE.md** | Full system architecture, environment design, runtime model |
-| **SECURITY.md** | Secrets, RLS, 2FA, access control, security posture |
-| **INFRA_GUIDE.md** | Infra layout, Docker, Vercel, Supabase, networking |
-| **SYSTEM_PLAN.md** | Project phases and business/system roadmap |
-| **RUNBOOK.md** | Operational playbooks for incidents, deploys, backups |
-| **DEPLOYMENT_PIPELINE.md** | CI/CD, tag-based release model, migration flow |
-| **MONITORING_GUIDE.md** | Observability, dashboards, alerting, SLOs |
-| **API_SPEC.yaml** | OpenAPI contract for backend routes |
-
----
-
-## 3) Environment Model (New 3-Tier Architecture)
-
-### **Local Development**
-
-- Fast iteration.
-- Supabase: local instance or staging DB.
-- Stripe test keys only.
-- Zero risk: no production data or money.
-
-### **Staging (Production-Like)**
-
-- Full integration & load testing.
-- All migrations applied before production.
-- Rate limiting, caching, RLS validation.
-- Stripe sandbox flows.
-- Security scanning & QA.
-
-### **Production**
-
-- Only deployed via **signed Git tags**.
-- Observability, SLOs, monitoring, alerts enforced.
-- Schema, env, and build parity with staging.
-
-**Why this matters:**
-
-No more â€œworks locally, breaks in prod.â€ Staging guarantees runtime parity, reduces unknowns, and prevents last-minute deploy failures.
-
----
-
-## 4) Repository Structure (Updated)
-
-```
-/
-|-- app/                     # Next.js (App Router)
-|   |-- api/                 # Route Handlers (thin controllers)
-|   |-- (store)/...          # Pages
-|   `-- admin/...
-|-- src/
-|   |-- repositories/        # Data access (Supabase queries)
-|   |-- services/            # Domain logic
-|   |-- jobs/                # Background workflows
-|   |-- config/              # env.ts, caching, rate limits, runtime config
-|   |-- lib/                 # supabase client, stripe, logging, helpers
-|   `-- types/
-|-- supabase/
-|   |-- migrations/          # Versioned SQL migrations
-|   `-- seed.sql
-|-- infra/                   # Docker, Caddy, local env
-|-- docs/                    # All documentation
-|-- .github/workflows/       # CI/CD
-`-- .env.example
-```
-
----
-
-## 5) Application Layering Model
-
-The application is now structured as a **professional multi-layered architecture**:
-
-### **Repositories (Data Layer)**
-
-- All database access centralized.
-- Index-aware queries.
-- Enforced RLS context.
-- Future-ready for multi-tenant injection.
-
-### **Services (Domain Logic Layer)**
-
-- Business rules, validation.
-- Order flows, pricing rules.
-- Inventory coordination.
-
-### **Jobs (Background Workflow Layer)**
-
-- Stripe webhook processing.
-- Cache revalidation & invalidation.
-- Email sending.
-- Inventory lifecycle operations.
-
-### **Route Handlers (I/O Layer)**
-
-- Thin controllers.
-- Input validation â†’ call service â†’ return response.
-
-**Why this matters:**
-
-Massive reduction in complexity, clean refactoring, easier testing, and scalable long-term architecture.
-
----
-
-## 6) Data Model (Multi-Tenant Ready)
-
-All core tables are structured with optional **tenant_id / seller_id** fields (not used yet, but safe for future expansion).
-
-Indexes exist to support multi-seller queries with zero schema rewrite.
-
-RLS is validated through CI + staging tests.
-
----
-
-## 7) Caching Strategy (Explicit Rules)
-
-| Category | Behavior |
-| --- | --- |
-| Catalog (public) | ISR (60s), `force-static`, tag revalidation |
-| Product detail | ISR with `revalidateTag('products')` |
-| Images & assets | `max-age=86400, immutable`, hashed filenames |
-| User pages | `force-dynamic`, no-store |
-| Public API | Short TTL (30s) |
-| Private API | no-store |
-
-No accidental caching of private data.
-
-Cache invalidation triggered from both **admin actions** and **Stripe events**.
-
----
-
-## 8) Rate Limiting (Edge Proxy)
-
-Global by default (`rateLimitPrefixes = ["/"]`), with webhook bypasses:
-
-- `/api/webhooks/stripe`
-- `/api/webhooks/shippo`
-
-Default: **30 requests/min per IP**.
-
-Uses Upstash in production and an in-memory limiter in local/dev/test.
-
----
-
-## 9) Structured Logging + Request IDs
-
-Each request includes:
-
-- `x-request-id`
-- JSON logs with contextual metadata:
-    - userId
-    - stripeSessionId
-    - route
-    - duration
-
-Correlates across:
-
-- Vercel logs
-- Supabase logs
-- Sentry traces
-- Stripe events
-
-Critical for high-fidelity debugging.
-
----
-
-## 10) Migrations & Release Discipline
-
-### Versioned Migrations
-
-- Every schema change created via `supabase db diff`.
-- All SQL stored in `supabase/migrations/*`.
-- Staging always receives migrations before prod.
-
-### Deployments
-
-- Only via **signed tags**: `vMAJOR.MINOR.PATCH`.
-- CI/CD enforces:
-    - Lint
-    - Type checks
-    - Tests
-    - OpenAPI validation
-    - Migration dry-run
-    - Preview + e2e tests (PRs)
-    - Staging â†’ Production release path
-
-No untagged deploys allowed.
-
----
-
-## 11) Load Testing & RLS Testing
-
-Staging environment supports:
-
-### Load Testing
-
-- Catalog pages
-- Product pages
-- Checkout flows
-- Admin APIs
-- Rate limit response
-
-### RLS Testing
-
-- Validate tenant isolation (when activated)
-- Validate user ownership rules
-- Validate admin override logic
-
-Guarantees safety under real load.
-
----
-
-## 12) Observability & Monitoring (Updated)
-
-- Sentry (errors)
-- PostHog (events)
-- Vercel Analytics (performance)
-- Request-ID tracing
-- Stripe dashboard monitoring
-- Supabase audit logs
-
-**SLO Targets**
-
-- 99.9% uptime
-- <200ms p95 DB latency
-- â‰¥98% checkout success rate
-
----
-
-## 13) Failure Modes & Mitigations (Expanded)
-
-| Failure Mode | Mitigation |
-| --- | --- |
-| Schema drift | Versioned migrations + staging verification |
-| Webhook replay | Stripe signature verification + idempotency |
-| Cache staleness | Tag revalidation from jobs & services |
-| Abuse traffic | IP-based rate limiting at edge |
-| Env misconfig | Centralized env validator (`src/config/env.ts`) |
-| RLS leaks | Staging RLS tests + CI policy checks |
-| Load spikes | ISR + CDN + rate limits |
-| Missing admin safety | Mandatory 2FA + short-lived sessions |
-
----
-
-## 14) Roadmap (Phase Summary)
-
-| Phase | Focus |
-| --- | --- |
-| MVP | Core platform, secure checkout, admin CRUD |
-| Post-MVP | Sentry, analytics, audit logs, SEO |
-| Scaling | Staging env, workers, R2, dashboards |
-| Intelligence | Advanced analytics, ML-ready schema |
-| Maintenance | Stability, audits, upgrades |
-
----
-
-## 15) Handoff Expectations
-
-**New Engineer:**
-
-Read ARCHITECTURE.md â†’ INFRA_GUIDE.md â†’ SYSTEM_PLAN.md.
-
-**Ops & Admin:**
-
-Read RUNBOOK.md â†’ MONITORING_GUIDE.md â†’ SECURITY.md.
-
-**Integrators:**
-
-Read API_SPEC.yaml (version linked to deployment tag).
-
----
-
-**Real Deal Kickz â€” Modern, defensible, scalable system architecture.
-Built for correctness today and flexibility tomorrow.**
+# Project Overview - Real Deal Kickz (RDK)
+
+This is the high-level, full-system reference for the RDK codebase. It summarizes
+the stack, system boundaries, core flows, data model, integrations, and operational
+posture. Use this when planning a backend rebuild.
+
+RDK is currently single-tenant. The schema and layering are structured to support
+multi-tenant expansion, but tenant scoping is not enabled in this release.
+
+## 1) System at a glance
+
+RDK is a full-stack ecommerce storefront and admin console built on Next.js App Router,
+with Supabase as the database and auth provider. Payments are handled by Stripe
+(Checkout and Connect payouts). Shipping is handled by Shippo. Rate limiting is
+Upstash Redis in production and in-memory in local/dev/test. Transactional email
+is sent via AWS SES. Deployments run on Vercel via GitHub Actions.
+
+## 2) Core stack and services
+
+Application:
+- Next.js 16 App Router, React 19, TypeScript
+- Tailwind CSS
+
+Data and auth:
+- Supabase Postgres (primary data store)
+- Supabase Auth (user sessions, MFA)
+- Supabase Storage (product images)
+
+Payments and shipping:
+- Stripe Checkout (payments)
+- Stripe Connect (admin payouts)
+- Shippo (rates and labels)
+
+Infra and ops:
+- Vercel (hosting)
+- Upstash Redis (rate limiting)
+- AWS SES (transactional email)
+
+Observability:
+- Structured JSON logs with request IDs
+- Health and readiness endpoints
+
+## 3) Repository layout and boundaries
+
+Top-level structure:
+- `app/`         Next.js App Router pages and API route handlers
+- `src/`         business logic, config, helpers, and infra glue
+- `supabase/`    migrations and seed data
+- `docs/`        system documentation
+- `infra/`       local infrastructure (Caddy, etc.)
+- `tests/`       unit, integration, RLS, and E2E tests
+
+Layering rules (enforced by convention):
+- Route handlers are thin (validation + orchestration).
+- Services contain domain logic.
+- Repositories are the only layer that queries the database.
+- Services do not create Supabase clients; callers pass them in.
+- UI components do not import server-only modules.
+
+Key entry points:
+- `app/api/**/route.ts`         API routes
+- `src/services/**`             domain logic
+- `src/repositories/**`         data access
+- `src/jobs/**`                 async workflows
+- `src/lib/**`                  shared helpers
+- `src/config/**`               env validation, security, constants
+- `proxy.ts` and `src/proxy/**` request proxy pipeline
+
+## 4) Runtime request flow (high level)
+
+1) Request enters `proxy.ts` for canonicalization, security checks, and rate limiting.
+2) Route handler validates input (zod schemas under `src/lib/validation/**`).
+3) Route creates a Supabase client and calls services.
+4) Services coordinate repositories and external APIs.
+5) Repositories execute typed Supabase queries.
+6) Response is finalized with security headers and `x-request-id`.
+
+## 5) Core domains and capabilities
+
+Storefront and catalog:
+- Product listing and filtering (`/store`, `/api/store/*`)
+- Catalog normalization and parsing tools for admin
+
+Cart and checkout:
+- Cart validation (`/api/cart/validate`)
+- Stripe Checkout session creation (server-side totals)
+- Confirm-payment flow for server verification
+
+Orders:
+- Orders and order items persisted in Postgres
+- Stripe event idempotency with `stripe_events`
+
+Shipping:
+- Shipping defaults, carriers, and origins
+- Shippo rate lookup and label purchase
+- Shippo webhook processing
+
+Accounts and auth:
+- Supabase Auth sessions
+- Account management (addresses, password, preferences)
+- Admin MFA requirements (Supabase AAL policies)
+
+Admin:
+- Product CRUD and catalog tooling
+- Order refunds and fulfillment
+- Shipping configuration and label purchase
+- Stripe Connect payouts
+- Admin invites and notifications
+
+Messaging:
+- Chats and messages stored in `chats` and `chat_messages`
+- Admin notifications for chat events
+
+Analytics and email:
+- Basic event tracking endpoint
+- Email subscriptions and contact form
+
+Full API list:
+- See `docs/API_SPEC.md` for every route and method.
+
+## 6) Data model summary (public schema)
+
+Core entities:
+- Tenancy: `tenants`, `marketplaces` (present for future multi-tenant use)
+- Catalog: `products`, `product_variants`, `product_images`, `tags`, `catalog_*`
+- Orders: `orders`, `order_items`, `order_shipping`
+- Users: `profiles`, `user_addresses`, `shipping_profiles`
+- Admin: `admin_invites`, `admin_notifications`, `admin_audit_log`
+- Messaging: `chats`, `chat_messages`
+- Payments: `stripe_events` (idempotency)
+- Email: `email_subscribers`, `email_subscription_tokens`
+- Support: `contact_messages`
+
+Typed DB schema lives in `src/types/db/database.types.ts`.
+
+## 7) Security model
+
+Authentication:
+- Supabase Auth for user sessions
+- Admin access requires role checks plus an admin session cookie
+- MFA is enforced via Supabase AAL policies
+
+Authorization:
+- RLS enforced in Supabase for user data
+- Server-side role checks for admin routes
+- Admin roles: `admin`, `super_admin`, `dev`
+
+Proxy pipeline (in `proxy.ts`):
+- Canonicalization (lowercase, no duplicate slashes)
+- Bot filtering
+- CSRF protection for unsafe methods
+- Rate limiting (Upstash in prod, memory in dev/test)
+- Admin guard for `/admin` and `/api/admin`
+- Security headers (CSP, HSTS, etc.)
+
+Webhooks:
+- Stripe signature verification is required
+- Shippo webhook token verification is required
+
+Guest access:
+- Order status links use expiring tokens
+- Only HMAC hashes are stored (peppered with `ORDER_ACCESS_TOKEN_SECRET`)
+
+## 8) Configuration and environment
+
+Env validation:
+- `src/config/env.ts` validates server env vars
+- `src/config/client-env.ts` validates public env vars
+- `src/config/ci-env.ts` defines CI requirements
+
+Security config:
+- `src/config/security.ts` centralizes proxy behavior and CSP
+
+Public vs private:
+- Only `NEXT_PUBLIC_*` variables are client-exposed
+- Secrets must never be in client envs
+
+## 9) CI/CD and environments
+
+Environments:
+- Local development
+- Staging (production-like)
+- Production
+
+Staging pipeline (see `docs/DEPLOYMENT_PIPELINE.md`):
+- Lint, typecheck, unit/integration tests
+- Supabase migration validation and linting
+- Build verification
+- Deploy via Vercel CLI
+- Smoke tests plus RLS and E2E tests
+
+Production pipeline:
+- Tag-gated releases (`vMAJOR.MINOR.PATCH`)
+- Migration validation on a local Postgres service
+- Build, migrate, deploy via Vercel CLI
+- Post-deploy health check (`/api/healthz`)
+
+## 10) Testing strategy
+
+Test types:
+- Unit tests and integration tests (Jest)
+- RLS tests (custom script)
+- E2E tests (Playwright)
+
+Coverage guidance:
+- See `package.json` and `tests/` for test entry points and coverage areas.
+
+## 11) Observability and operations
+
+Logging:
+- Structured JSON logs with request IDs
+- PII masking for sensitive fields
+
+Health:
+- `GET /api/healthz` liveness
+- `GET /api/readyz` readiness
+
+Operational guidance:
+- See `docs/RUNBOOK.md` and `docs/MONITORING_GUIDE.md`.
+
+## 12) Backend rebuild considerations
+
+If you rebuild the backend, preserve these contracts and behaviors:
+- API surface in `docs/API_SPEC.md` (routes, shapes, auth assumptions)
+- Stripe Checkout and confirm-payment flow (server-side totals and verification)
+- Stripe and Shippo webhook verification and idempotency
+- Order lifecycle transitions and inventory decrement logic
+- Admin role checks and MFA enforcement
+- Guest order access token hashing and expiry
+- Rate limiting and CSRF protection at the edge or gateway
+- RLS or equivalent data isolation for user data
+- Environment validation and strict secret handling
+
+Recommended module boundaries in the new backend:
+- API layer (routing and input validation)
+- Service layer (business logic and orchestration)
+- Repository/data layer (DB access and transactions)
+- Job/worker layer (webhooks, email, async tasks)
+- Integration layer (Stripe, Shippo, SES, Supabase)
+
+Suggested data ownership:
+- Orders and order_items are source of truth for fulfillment
+- Stripe events are the source of idempotency truth
+- Catalog tables drive storefront visibility and filtering
+
+## 13) Document map
+
+Primary references:
+- `docs/ARCHITECTURE.md`
+- `docs/API_SPEC.md`
+- `docs/SECURITY.md`
+- `docs/INFRA_GUIDE.md`
+- `docs/DEPLOYMENT_PIPELINE.md`
+- `docs/MONITORING_GUIDE.md`
+- `docs/PROXY_PIPELINE.md`
+- `docs/RUNBOOK.md`
+- `docs/SYSTEM_DESIGN.md`
+
+Start here for rebuild planning:
+- `docs/PROJECT_OVERVIEW.md`
