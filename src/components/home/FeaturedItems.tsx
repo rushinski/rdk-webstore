@@ -1,4 +1,3 @@
-// src/components/home/FeaturedItems.tsx
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -23,7 +22,15 @@ type FeaturedProduct = {
   }>;
 };
 
-export function FeaturedItems() {
+type FeaturedItemsProps = {
+  /**
+   * When true: renders only the inner content (no outer <section> wrapper).
+   * Intended for hero-overlay use on the home page.
+   */
+  embedded?: boolean;
+};
+
+export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
   const [featured, setFeatured] = useState<FeaturedProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,9 +44,7 @@ export function FeaturedItems() {
 
   const checkScrollButtons = useCallback(() => {
     const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     const maxScrollLeft = container.scrollWidth - container.clientWidth;
 
@@ -56,6 +61,7 @@ export function FeaturedItems() {
 
   useEffect(() => {
     loadFeaturedItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -63,9 +69,7 @@ export function FeaturedItems() {
     checkScrollButtons();
 
     const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     const onScroll = () => checkScrollButtons();
     container.addEventListener("scroll", onScroll, { passive: true });
@@ -95,11 +99,9 @@ export function FeaturedItems() {
 
   const scroll = (direction: "left" | "right") => {
     const container = scrollRef.current;
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
-    // ✅ page-by-viewport; snap will land on the nearest card boundary
+    // page-by-viewport; snap will land on the nearest card boundary
     const scrollAmount = container.clientWidth;
 
     const target =
@@ -115,7 +117,183 @@ export function FeaturedItems() {
     return null;
   }
 
+  const headerShadow = embedded
+    ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]"
+    : "";
+
+  const Content = (
+    <>
+      <div
+        className={[
+          "flex items-center justify-between",
+          embedded ? "mb-3 sm:mb-4 md:mb-5" : "mb-6",
+        ].join(" ")}
+      >
+        <h2
+          className={[
+            "text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2",
+            headerShadow,
+          ].join(" ")}
+        >
+          Featured Items
+        </h2>
+
+        <Link
+          href="/store"
+          className={[
+            "text-[10px] sm:text-xs md:text-sm text-gray-200 hover:text-white transition font-medium whitespace-nowrap",
+            headerShadow,
+          ].join(" ")}
+        >
+          View All →
+        </Link>
+      </div>
+
+      {/* Arrows OUTSIDE the scroll area + ALWAYS visible */}
+      <div className="flex items-stretch gap-2 sm:gap-3">
+        {/* Left Arrow */}
+        <button
+          type="button"
+          onClick={() => canScrollLeft && scroll("left")}
+          disabled={!canScrollLeft}
+          aria-label="Scroll left"
+          className={[
+            "shrink-0 self-center rounded-full shadow-lg transition",
+            "p-1 sm:p-1.5 md:p-2 lg:p-3",
+            "bg-zinc-900/80 border border-zinc-800/70",
+            "hover:bg-zinc-800/80",
+            !canScrollLeft
+              ? "opacity-35 cursor-not-allowed hover:bg-zinc-900/80"
+              : "opacity-100",
+          ].join(" ")}
+        >
+          <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-white" />
+        </button>
+
+        {/* Scrollable Container */}
+        <div
+          ref={scrollRef}
+          className={[
+            "flex-1 flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto scroll-smooth",
+            embedded ? "pb-0" : "pb-2",
+            "snap-x snap-mandatory",
+          ].join(" ")}
+          style={{
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            WebkitOverflowScrolling: "touch",
+            scrollSnapType: "x mandatory",
+            scrollPaddingLeft: "8px",
+            scrollPaddingRight: "8px",
+          }}
+        >
+          {featured.map((product) => {
+            const availableCount =
+              product.variants?.filter((v) => v.stock > 0).length ?? 0;
+
+            const sizes = product.variants
+              ?.filter((v) => v.stock > 0)
+              .map((v) => v.size_label)
+              .slice(0, 3);
+
+            return (
+              <Link
+                key={product.id}
+                href={`/store/${product.id}`}
+                className="flex-shrink-0 w-40 sm:w-48 md:w-52 lg:w-56 group snap-start"
+                style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+              >
+                <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
+                  <div className="aspect-square relative bg-zinc-800">
+                    {product.primaryImage ? (
+                      <Image
+                        src={product.primaryImage}
+                        alt={product.titleDisplay}
+                        fill
+                        sizes="(min-width: 1024px) 18vw, (min-width: 640px) 30vw, 45vw"
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        quality={75}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                        No Image
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-2 sm:p-3 flex flex-col flex-1">
+                    <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">
+                      {product.brand}
+                    </div>
+
+                    <h3 className="text-white font-bold text-[11px] sm:text-xs line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-tight">
+                      {product.titleDisplay}
+                    </h3>
+
+                    {sizes && sizes.length > 0 && (
+                      <div className="mt-1.5 sm:mt-2 flex flex-wrap gap-1">
+                        {sizes.map((size, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-zinc-800 text-gray-300 rounded"
+                          >
+                            {size}
+                          </span>
+                        ))}
+
+                        {availableCount > 3 && (
+                          <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 text-gray-400">
+                            +{availableCount - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-auto pt-2 sm:pt-3">
+                      <span className="text-white font-extrabold text-sm sm:text-base whitespace-nowrap tabular-nums">
+                        From {formatPrice(product.minPrice)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Right Arrow */}
+        <button
+          type="button"
+          onClick={() => canScrollRight && scroll("right")}
+          disabled={!canScrollRight}
+          aria-label="Scroll right"
+          className={[
+            "shrink-0 self-center rounded-full shadow-lg transition",
+            "p-1 sm:p-1.5 md:p-2 lg:p-3",
+            "bg-zinc-900/80 border border-zinc-800/70",
+            "hover:bg-zinc-800/80",
+            !canScrollRight
+              ? "opacity-35 cursor-not-allowed hover:bg-zinc-900/80"
+              : "opacity-100",
+          ].join(" ")}
+        >
+          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-white" />
+        </button>
+      </div>
+    </>
+  );
+
   if (isLoading) {
+    if (embedded) {
+      return (
+        <div className="flex items-center justify-center py-10">
+          <div className="text-gray-200 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
+            Loading featured items...
+          </div>
+        </div>
+      );
+    }
+
     return (
       <section className="bg-black py-8 md:py-12 border-t border-zinc-900">
         <div className="max-w-7xl mx-auto px-4">
@@ -127,162 +305,13 @@ export function FeaturedItems() {
     );
   }
 
+  if (embedded) {
+    return <div>{Content}</div>;
+  }
+
   return (
     <section className="bg-black py-8 md:py-12 border-t border-zinc-900">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl md:text-3xl font-bold text-white-500 flex items-center gap-2">
-            Featured Items
-          </h2>
-
-          <Link
-            href="/store"
-            className="text-xs sm:text-sm md:text-base text-gray-300 hover:text-white transition font-medium"
-          >
-            View All Products →
-          </Link>
-        </div>
-
-        {/* Arrows OUTSIDE the scroll area + ALWAYS visible */}
-        <div className="flex items-stretch gap-3">
-          {/* Left Arrow */}
-          <button
-            type="button"
-            onClick={() => canScrollLeft && scroll("left")}
-            disabled={!canScrollLeft}
-            aria-label="Scroll left"
-            className={[
-              "shrink-0 self-center rounded-full shadow-lg transition",
-              "p-1.5 sm:p-2 md:p-3", // ✅ smaller on mobile
-              "bg-zinc-900 border border-zinc-800",
-              "hover:bg-zinc-800",
-              !canScrollLeft
-                ? "opacity-35 cursor-not-allowed hover:bg-zinc-900"
-                : "opacity-100",
-            ].join(" ")}
-          >
-            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />{" "}
-            {/* ✅ smaller on mobile */}
-          </button>
-
-          {/* Scrollable Container */}
-          <div
-            ref={scrollRef}
-            className={[
-              "flex-1 flex gap-4 md:gap-5 overflow-x-auto scroll-smooth pb-2",
-              "snap-x snap-mandatory", // ✅ snap on x axis
-            ].join(" ")}
-            style={{
-              scrollbarWidth: "none",
-              msOverflowStyle: "none",
-              WebkitOverflowScrolling: "touch",
-              scrollSnapType: "x mandatory", // ✅ explicit snap type
-              scrollPaddingLeft: "8px", // ✅ prevents weird “between cards” landings
-              scrollPaddingRight: "8px",
-            }}
-          >
-            {featured.map((product) => {
-              // Get available sizes from variants
-              const sizes = product.variants
-                ?.filter((v) => v.stock > 0)
-                .map((v) => v.size_label)
-                .slice(0, 3); // Show max 3 sizes
-
-              return (
-                <Link
-                  key={product.id}
-                  href={`/store/${product.id}`}
-                  className="flex-shrink-0 w-48 sm:w-52 md:w-56 group snap-start"
-                  style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }} // ✅ always land cleanly
-                >
-                  {/* Match ProductCard vibe */}
-                  <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
-                    {/* Image */}
-                    <div className="aspect-square relative bg-zinc-800">
-                      {product.primaryImage ? (
-                        <Image
-                          src={product.primaryImage}
-                          alt={product.titleDisplay}
-                          fill
-                          sizes="(min-width: 1024px) 18vw, (min-width: 640px) 30vw, 45vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                          quality={75}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                          No Image
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-3 flex flex-col flex-1">
-                      {/* Brand */}
-                      <div className="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">
-                        {product.brand}
-                      </div>
-
-                      {/* Title - smaller font */}
-                      <h3 className="text-white font-bold text-xs line-clamp-2 min-h-[2rem] leading-tight">
-                        {product.titleDisplay}
-                      </h3>
-
-                      {/* Sizes */}
-                      {sizes && sizes.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {sizes.map((size, idx) => (
-                            <span
-                              key={idx}
-                              className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-gray-300 rounded"
-                            >
-                              {size}
-                            </span>
-                          ))}
-                          {(product.variants?.filter((v) => v.stock > 0).length ?? 0) >
-                            3 && (
-                            <span className="text-[10px] px-1.5 py-0.5 text-gray-400">
-                              +
-                              {(product.variants?.filter((v) => v.stock > 0).length ??
-                                0) - 3}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Price bottom (ProductCard style) */}
-                      <div className="mt-auto pt-3">
-                        <span className="text-white font-extrabold text-base whitespace-nowrap tabular-nums">
-                          From {formatPrice(product.minPrice)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-
-          {/* Right Arrow */}
-          <button
-            type="button"
-            onClick={() => canScrollRight && scroll("right")}
-            disabled={!canScrollRight}
-            aria-label="Scroll right"
-            className={[
-              "shrink-0 self-center rounded-full shadow-lg transition",
-              "p-1.5 sm:p-2 md:p-3", // ✅ smaller on mobile
-              "bg-zinc-900 border border-zinc-800",
-              "hover:bg-zinc-800",
-              !canScrollRight
-                ? "opacity-35 cursor-not-allowed hover:bg-zinc-900"
-                : "opacity-100",
-            ].join(" ")}
-          >
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />{" "}
-            {/* ✅ smaller on mobile */}
-          </button>
-        </div>
-      </div>
+      <div className="max-w-7xl mx-auto px-4">{Content}</div>
     </section>
   );
 }
