@@ -2,6 +2,7 @@
 
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next"
 
 import { CartProvider } from "@/components/cart/CartProvider";
 import { ScrollHeader } from "@/components/shell/ScrollHeader";
