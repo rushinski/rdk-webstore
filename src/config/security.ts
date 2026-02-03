@@ -81,8 +81,8 @@ export const security = {
 
     rateLimit: {
       store: "upstash",
-      enabled: false,
-      applyInLocalDev: true,
+      enabled: true,
+      applyInLocalDev: false,
 
       blockStatus: 429,
       tooManyRequestsPath: "/too-many-requests",
