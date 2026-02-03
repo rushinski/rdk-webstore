@@ -93,7 +93,9 @@ export function FeaturedItems() {
     const container = scrollRef.current;
     if (!container) return;
 
-    const scrollAmount = Math.max(240, Math.floor(container.clientWidth * 0.85));
+    // ✅ page-by-viewport; snap will land on the nearest card boundary
+    const scrollAmount = container.clientWidth;
+
     const target =
       direction === "left"
         ? container.scrollLeft - scrollAmount
@@ -127,7 +129,7 @@ export function FeaturedItems() {
 
           <Link
             href="/store"
-            className="text-sm md:text-base text-gray-300 hover:text-white transition font-medium"
+            className="text-xs sm:text-sm md:text-base text-gray-300 hover:text-white transition font-medium"
           >
             View All Products →
           </Link>
@@ -142,23 +144,30 @@ export function FeaturedItems() {
             disabled={!canScrollLeft}
             aria-label="Scroll left"
             className={[
-              "shrink-0 self-center rounded-full p-2 md:p-3 shadow-lg transition",
+              "shrink-0 self-center rounded-full shadow-lg transition",
+              "p-1.5 sm:p-2 md:p-3",               // ✅ smaller on mobile
               "bg-zinc-900 border border-zinc-800",
               "hover:bg-zinc-800",
               !canScrollLeft ? "opacity-35 cursor-not-allowed hover:bg-zinc-900" : "opacity-100",
             ].join(" ")}
           >
-            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" /> {/* ✅ smaller on mobile */}
           </button>
 
           {/* Scrollable Container */}
           <div
             ref={scrollRef}
-            className="flex-1 flex gap-4 md:gap-5 overflow-x-auto scroll-smooth pb-2"
-            style={{ 
-              scrollbarWidth: "none", 
+            className={[
+              "flex-1 flex gap-4 md:gap-5 overflow-x-auto scroll-smooth pb-2",
+              "snap-x snap-mandatory",          // ✅ snap on x axis
+            ].join(" ")}
+            style={{
+              scrollbarWidth: "none",
               msOverflowStyle: "none",
-              WebkitOverflowScrolling: "touch"
+              WebkitOverflowScrolling: "touch",
+              scrollSnapType: "x mandatory",    // ✅ explicit snap type
+              scrollPaddingLeft: "8px",         // ✅ prevents weird “between cards” landings
+              scrollPaddingRight: "8px",
             }}
           >
             {featured.map((product) => {
@@ -172,7 +181,8 @@ export function FeaturedItems() {
                 <Link
                   key={product.id}
                   href={`/store/${product.id}`}
-                  className="flex-shrink-0 w-48 sm:w-52 md:w-56 group"
+                  className="flex-shrink-0 w-48 sm:w-52 md:w-56 group snap-start"
+                  style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }} // ✅ always land cleanly
                 >
                   {/* Match ProductCard vibe */}
                   <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
@@ -245,13 +255,14 @@ export function FeaturedItems() {
             disabled={!canScrollRight}
             aria-label="Scroll right"
             className={[
-              "shrink-0 self-center rounded-full p-2 md:p-3 shadow-lg transition",
+              "shrink-0 self-center rounded-full shadow-lg transition",
+              "p-1.5 sm:p-2 md:p-3",               // ✅ smaller on mobile
               "bg-zinc-900 border border-zinc-800",
               "hover:bg-zinc-800",
               !canScrollRight ? "opacity-35 cursor-not-allowed hover:bg-zinc-900" : "opacity-100",
             ].join(" ")}
           >
-            <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-white" />
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" /> {/* ✅ smaller on mobile */}
           </button>
         </div>
       </div>
