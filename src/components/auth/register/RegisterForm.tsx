@@ -10,7 +10,7 @@ import { isPasswordValid } from "@/lib/validation/password";
 import { AuthHeader } from "@/components/auth/ui/AuthHeader";
 import { authStyles } from "@/components/auth/ui/authStyles";
 
-import { SocialButton } from "../ui/SocialButton";
+// import { SocialButton } from "../ui/SocialButton";
 import { PasswordField } from "../login/PasswordField";
 
 import { PasswordRequirements } from "./PasswordRequirements";
