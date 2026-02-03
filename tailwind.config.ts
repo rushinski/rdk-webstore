@@ -7,9 +7,7 @@ const config: Config = {
   theme: {
     extend: {},
   },
-  plugins: [
-    require('tailwind-scrollbar-hide')
-  ],
+  plugins: [require("tailwind-scrollbar-hide")],
 };
 
 export default config;

@@ -26,8 +26,12 @@ export class FeaturedItemsService {
       product: {
         ...item.product,
         images: (item.product.images ?? []).sort((a, b) => {
-          if (a.is_primary && !b.is_primary) return -1;
-          if (!a.is_primary && b.is_primary) return 1;
+          if (a.is_primary && !b.is_primary) {
+            return -1;
+          }
+          if (!a.is_primary && b.is_primary) {
+            return 1;
+          }
           return (a.sort_order ?? 0) - (b.sort_order ?? 0);
         }),
       },
@@ -37,11 +41,7 @@ export class FeaturedItemsService {
   /**
    * Add a product to featured items
    */
-  async addFeaturedItem(input: {
-    productId: string;
-    tenantId?: string;
-    userId: string;
-  }) {
+  async addFeaturedItem(input: { productId: string; tenantId?: string; userId: string }) {
     // Verify product exists and is eligible
     const product = await this.productRepo.getById(input.productId, {
       includeOutOfStock: true,
@@ -95,7 +95,7 @@ export class FeaturedItemsService {
   async reorderFeaturedItems(
     updates: Array<{ id: string; sortOrder: number }>,
     tenantId?: string,
-    userId?: string
+    userId?: string,
   ) {
     await this.repo.updateOrder(updates, tenantId);
 

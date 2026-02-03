@@ -4,6 +4,10 @@ import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type FeaturedItemRow = Tables<"featured_items">;
 type FeaturedItemInsert = TablesInsert<"featured_items">;
+type TenantFilterQuery<TQuery> = {
+  eq: (column: string, value: string) => TQuery;
+  is: (column: string, value: null) => TQuery;
+};
 
 export type FeaturedItemWithProduct = FeaturedItemRow & {
   product: {
@@ -37,8 +41,13 @@ export class FeaturedItemsRepository {
    * If tenantId is provided: tenant_id = tenantId
    * Else: tenant_id IS NULL (global featured items)
    */
-  private applyTenantFilter<TQuery>(query: any, tenantId?: string): TQuery {
-    if (tenantId) return query.eq("tenant_id", tenantId);
+  private applyTenantFilter<TQuery extends TenantFilterQuery<TQuery>>(
+    query: TQuery,
+    tenantId?: string,
+  ): TQuery {
+    if (tenantId) {
+      return query.eq("tenant_id", tenantId);
+    }
     return query.is("tenant_id", null);
   }
 
@@ -64,7 +73,7 @@ export class FeaturedItemsRepository {
           images:product_images(url, is_primary, sort_order),
           variants:product_variants(id, size_label, price_cents, stock)
         )
-      `
+      `,
       )
       .eq("product.is_active", true)
       .eq("product.is_out_of_stock", false)
@@ -74,7 +83,9 @@ export class FeaturedItemsRepository {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return (data ?? []) as FeaturedItemWithProduct[];
   }
@@ -92,13 +103,14 @@ export class FeaturedItemsRepository {
       .from("featured_items")
       .select("sort_order")
       .order("sort_order", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
 
     maxOrderQuery = this.applyTenantFilter(maxOrderQuery, input.tenantId);
 
-    const { data: maxOrder, error: maxOrderError } = await maxOrderQuery;
-    if (maxOrderError) throw maxOrderError;
+    const { data: maxOrder, error: maxOrderError } = await maxOrderQuery.maybeSingle();
+    if (maxOrderError) {
+      throw maxOrderError;
+    }
 
     const nextOrder = (maxOrder?.sort_order ?? -1) + 1;
 
@@ -115,7 +127,9 @@ export class FeaturedItemsRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return data as FeaturedItemRow;
   }
@@ -124,15 +138,14 @@ export class FeaturedItemsRepository {
    * Remove a product from featured items
    */
   async remove(productId: string, tenantId?: string): Promise<void> {
-    let query = this.supabase
-      .from("featured_items")
-      .delete()
-      .eq("product_id", productId);
+    let query = this.supabase.from("featured_items").delete().eq("product_id", productId);
 
     query = this.applyTenantFilter(query, tenantId);
 
     const { error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   /**
@@ -140,7 +153,7 @@ export class FeaturedItemsRepository {
    */
   async updateOrder(
     updates: Array<{ id: string; sortOrder: number }>,
-    tenantId?: string
+    tenantId?: string,
   ): Promise<void> {
     for (const update of updates) {
       let query = this.supabase
@@ -151,7 +164,9 @@ export class FeaturedItemsRepository {
       query = this.applyTenantFilter(query, tenantId);
 
       const { error } = await query;
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
     }
   }
 
@@ -168,7 +183,9 @@ export class FeaturedItemsRepository {
     query = this.applyTenantFilter(query, tenantId);
 
     const { data, error } = await query.maybeSingle();
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return Boolean(data);
   }
@@ -184,7 +201,9 @@ export class FeaturedItemsRepository {
     query = this.applyTenantFilter(query, tenantId);
 
     const { count, error } = await query;
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     return count ?? 0;
   }

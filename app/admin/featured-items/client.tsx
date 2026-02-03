@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Star, GripVertical, X, Plus, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+
 import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
 
@@ -98,8 +99,7 @@ export function FeaturedItemsManager() {
           setSearchResults([]);
           logError(error, { layer: "frontend", event: "featured_items_search" });
           setToast({
-            message:
-              error instanceof Error ? error.message : "Failed to search products",
+            message: error instanceof Error ? error.message : "Failed to search products",
             tone: "error",
           });
         }
@@ -168,10 +168,9 @@ export function FeaturedItemsManager() {
 
   const removeFeaturedItem = async (productId: string) => {
     try {
-      const response = await fetch(
-        `/api/admin/featured-items?productId=${productId}`,
-        { method: "DELETE" }
-      );
+      const response = await fetch(`/api/admin/featured-items?productId=${productId}`, {
+        method: "DELETE",
+      });
 
       if (!response.ok) {
         const data = await response.json();
@@ -196,7 +195,9 @@ export function FeaturedItemsManager() {
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+    if (draggedIndex === null || draggedIndex === index) {
+      return;
+    }
 
     const newItems = [...featuredItems];
     const draggedItem = newItems[draggedIndex];
@@ -208,7 +209,9 @@ export function FeaturedItemsManager() {
   };
 
   const handleDragEnd = async () => {
-    if (draggedIndex === null) return;
+    if (draggedIndex === null) {
+      return;
+    }
 
     const updates = featuredItems.map((item, index) => ({
       id: item.id,
@@ -239,13 +242,15 @@ export function FeaturedItemsManager() {
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   const getMinPrice = (variants?: Array<{ price_cents: number }>) => {
-    if (!variants || variants.length === 0) return 0;
+    if (!variants || variants.length === 0) {
+      return 0;
+    }
     return Math.min(...variants.map((v) => v.price_cents));
   };
 
   const featuredProductIds = new Set(featuredItems.map((item) => item.product_id));
   const filteredSearchResults = searchResults.filter(
-    (product) => !featuredProductIds.has(product.id)
+    (product) => !featuredProductIds.has(product.id),
   );
 
   if (isLoading) {
@@ -275,9 +280,7 @@ export function FeaturedItemsManager() {
               placeholder="Search products by name, brand, or SKU..."
               className="flex-1 bg-transparent text-white focus:outline-none"
             />
-            {isSearching && (
-              <div className="text-xs text-gray-400">Searching...</div>
-            )}
+            {isSearching && <div className="text-xs text-gray-400">Searching...</div>}
           </div>
 
           {filteredSearchResults.length > 0 && (
@@ -324,11 +327,13 @@ export function FeaturedItemsManager() {
           )}
         </div>
 
-        {searchQuery.trim().length > 0 && filteredSearchResults.length === 0 && !isSearching && (
-          <div className="mt-4 text-center text-gray-400 text-sm">
-            No products found matching "{searchQuery}"
-          </div>
-        )}
+        {searchQuery.trim().length > 0 &&
+          filteredSearchResults.length === 0 &&
+          !isSearching && (
+            <div className="mt-4 text-center text-gray-400 text-sm">
+              No products found matching "{searchQuery}"
+            </div>
+          )}
       </div>
 
       {/* Featured Items List */}
@@ -363,8 +368,9 @@ export function FeaturedItemsManager() {
 
             <div className="space-y-3">
               {featuredItems.map((item, index) => {
-                const primaryImage = item.product.images?.find((img) => img.is_primary)
-                  ?.url || item.product.images?.[0]?.url;
+                const primaryImage =
+                  item.product.images?.find((img) => img.is_primary)?.url ||
+                  item.product.images?.[0]?.url;
                 const minPrice = getMinPrice(item.product.variants);
 
                 return (

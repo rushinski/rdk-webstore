@@ -2,6 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+
 import { FeaturedItems } from "@/components/home/FeaturedItems";
 
 const categories = [

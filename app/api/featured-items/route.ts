@@ -1,5 +1,6 @@
 // app/api/featured-items/route.ts
 import { NextResponse } from "next/server";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { FeaturedItemsService } from "@/services/featured-items-service";
 import { logError } from "@/lib/utils/log";
@@ -10,7 +11,7 @@ export async function GET() {
   try {
     const supabase = await createSupabaseServerClient();
     const service = new FeaturedItemsService(supabase);
-    
+
     const items = await service.getFeaturedItems();
 
     // Transform to a simpler format for the frontend
@@ -22,15 +23,14 @@ export async function GET() {
       titleDisplay: item.product.title_display,
       category: item.product.category,
       primaryImage: item.product.images?.[0]?.url ?? null,
-      minPrice: Math.min(
-        ...(item.product.variants?.map((v) => v.price_cents) ?? [0])
-      ),
+      minPrice: Math.min(...(item.product.variants?.map((v) => v.price_cents) ?? [0])),
       sortOrder: item.sort_order,
       // Include variant info for size display
-      variants: item.product.variants?.map((v) => ({
-        size_label: v.size_label,
-        stock: v.stock,
-      })) ?? [],
+      variants:
+        item.product.variants?.map((v) => ({
+          size_label: v.size_label,
+          stock: v.stock,
+        })) ?? [],
     }));
 
     return NextResponse.json({ featured });
@@ -38,7 +38,7 @@ export async function GET() {
     logError(error, { layer: "api", endpoint: "GET /api/featured-items" });
     return NextResponse.json(
       { error: "Failed to fetch featured items", featured: [] },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

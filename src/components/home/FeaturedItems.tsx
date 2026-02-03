@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import { logError } from "@/lib/utils/log";
 
 type FeaturedProduct = {
@@ -36,7 +37,9 @@ export function FeaturedItems() {
 
   const checkScrollButtons = useCallback(() => {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const maxScrollLeft = container.scrollWidth - container.clientWidth;
 
@@ -53,7 +56,6 @@ export function FeaturedItems() {
 
   useEffect(() => {
     loadFeaturedItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -61,7 +63,9 @@ export function FeaturedItems() {
     checkScrollButtons();
 
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const onScroll = () => checkScrollButtons();
     container.addEventListener("scroll", onScroll, { passive: true });
@@ -91,7 +95,9 @@ export function FeaturedItems() {
 
   const scroll = (direction: "left" | "right") => {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     // ✅ page-by-viewport; snap will land on the nearest card boundary
     const scrollAmount = container.clientWidth;
@@ -105,7 +111,9 @@ export function FeaturedItems() {
   };
 
   // Don't show section if no featured items
-  if (!isLoading && featured.length === 0) return null;
+  if (!isLoading && featured.length === 0) {
+    return null;
+  }
 
   if (isLoading) {
     return (
@@ -145,13 +153,16 @@ export function FeaturedItems() {
             aria-label="Scroll left"
             className={[
               "shrink-0 self-center rounded-full shadow-lg transition",
-              "p-1.5 sm:p-2 md:p-3",               // ✅ smaller on mobile
+              "p-1.5 sm:p-2 md:p-3", // ✅ smaller on mobile
               "bg-zinc-900 border border-zinc-800",
               "hover:bg-zinc-800",
-              !canScrollLeft ? "opacity-35 cursor-not-allowed hover:bg-zinc-900" : "opacity-100",
+              !canScrollLeft
+                ? "opacity-35 cursor-not-allowed hover:bg-zinc-900"
+                : "opacity-100",
             ].join(" ")}
           >
-            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" /> {/* ✅ smaller on mobile */}
+            <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />{" "}
+            {/* ✅ smaller on mobile */}
           </button>
 
           {/* Scrollable Container */}
@@ -159,14 +170,14 @@ export function FeaturedItems() {
             ref={scrollRef}
             className={[
               "flex-1 flex gap-4 md:gap-5 overflow-x-auto scroll-smooth pb-2",
-              "snap-x snap-mandatory",          // ✅ snap on x axis
+              "snap-x snap-mandatory", // ✅ snap on x axis
             ].join(" ")}
             style={{
               scrollbarWidth: "none",
               msOverflowStyle: "none",
               WebkitOverflowScrolling: "touch",
-              scrollSnapType: "x mandatory",    // ✅ explicit snap type
-              scrollPaddingLeft: "8px",         // ✅ prevents weird “between cards” landings
+              scrollSnapType: "x mandatory", // ✅ explicit snap type
+              scrollPaddingLeft: "8px", // ✅ prevents weird “between cards” landings
               scrollPaddingRight: "8px",
             }}
           >
@@ -227,9 +238,12 @@ export function FeaturedItems() {
                               {size}
                             </span>
                           ))}
-                          {(product.variants?.filter((v) => v.stock > 0).length ?? 0) > 3 && (
+                          {(product.variants?.filter((v) => v.stock > 0).length ?? 0) >
+                            3 && (
                             <span className="text-[10px] px-1.5 py-0.5 text-gray-400">
-                              +{(product.variants?.filter((v) => v.stock > 0).length ?? 0) - 3}
+                              +
+                              {(product.variants?.filter((v) => v.stock > 0).length ??
+                                0) - 3}
                             </span>
                           )}
                         </div>
@@ -256,13 +270,16 @@ export function FeaturedItems() {
             aria-label="Scroll right"
             className={[
               "shrink-0 self-center rounded-full shadow-lg transition",
-              "p-1.5 sm:p-2 md:p-3",               // ✅ smaller on mobile
+              "p-1.5 sm:p-2 md:p-3", // ✅ smaller on mobile
               "bg-zinc-900 border border-zinc-800",
               "hover:bg-zinc-800",
-              !canScrollRight ? "opacity-35 cursor-not-allowed hover:bg-zinc-900" : "opacity-100",
+              !canScrollRight
+                ? "opacity-35 cursor-not-allowed hover:bg-zinc-900"
+                : "opacity-100",
             ].join(" ")}
           >
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" /> {/* ✅ smaller on mobile */}
+            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" />{" "}
+            {/* ✅ smaller on mobile */}
           </button>
         </div>
       </div>
