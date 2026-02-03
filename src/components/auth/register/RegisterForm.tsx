@@ -136,7 +136,7 @@ export function RegisterForm() {
 
         {state.error && <div className={authStyles.errorBox}>{state.error}</div>}
 
-        <div className="space-y-3">
+        {/* <div className="space-y-3">
           <SocialButton provider="google" label="Continue with Google" />
         </div>
 
@@ -144,7 +144,7 @@ export function RegisterForm() {
           <div className={authStyles.dividerLine} />
           <span>or</span>
           <div className={authStyles.dividerLine} />
-        </div>
+        </div> */}
 
         <div className="space-y-4">
           <div className="space-y-2">
