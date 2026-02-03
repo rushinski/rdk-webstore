@@ -170,23 +170,27 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
           <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-white" />
         </button>
 
-        {/* Scrollable Container */}
-        <div
-          ref={scrollRef}
-          className={[
-            "flex-1 flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto scroll-smooth",
-            embedded ? "pb-0" : "pb-2",
-            "snap-x snap-mandatory",
-          ].join(" ")}
-          style={{
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            WebkitOverflowScrolling: "touch",
-            scrollSnapType: "x mandatory",
-            scrollPaddingLeft: "8px",
-            scrollPaddingRight: "8px",
-          }}
-        >
+        {/* Wrapper to hide partial cards */}
+        <div className="flex-1 overflow-hidden">
+          {/* Scrollable Container */}
+          <div
+            ref={scrollRef}
+            className={[
+              "flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto scroll-smooth",
+              embedded ? "pb-0" : "pb-2",
+              "snap-x snap-mandatory",
+              // Hide scrollbar
+              "[&::-webkit-scrollbar]:hidden",
+            ].join(" ")}
+            style={{
+              scrollbarWidth: "none",
+              msOverflowStyle: "none",
+              WebkitOverflowScrolling: "touch",
+              scrollSnapType: "x mandatory",
+              scrollPaddingLeft: "0px",
+              scrollPaddingRight: "0px",
+            }}
+          >
           {featured.map((product) => {
             const availableCount =
               product.variants?.filter((v) => v.stock > 0).length ?? 0;
@@ -259,6 +263,7 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
               </Link>
             );
           })}
+        </div>
         </div>
 
         {/* Right Arrow */}

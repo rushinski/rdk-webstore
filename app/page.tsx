@@ -127,13 +127,34 @@ export default function HomePage() {
       {/* Spacer so the overlay (translated down) doesn't collide with next section */}
       <div className="h-[280px] sm:h-[340px] md:h-[380px] lg:h-[420px] bg-black" />
 
-      {/* SHOP BY CATEGORY (below) */}
-      <section className="bg-black py-8 md:py-12">
+      {/* Decorative Divider - closer to Featured Items */}
+      <div className="bg-black md:pt-6 pb-16 md:pb-24">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-end justify-between mb-6">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">
-              Shop by Category
-            </h2>
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-zinc-800"></div>
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-black px-6 text-sm text-gray-400 uppercase tracking-wider">
+                Explore Our Collection
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SHOP BY CATEGORY (below) */}
+      <section className="bg-black pb-12 md:pb-16">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-end justify-between mb-6 md:mb-8">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
+                Shop by Category
+              </h2>
+              <p className="text-gray-400 text-sm md:text-base">
+                Browse our curated collections
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -144,7 +165,7 @@ export default function HomePage() {
                 aria-label={`Shop ${c.label}`}
                 className="
                   group relative overflow-hidden bg-black border border-zinc-800
-                  h-36 sm:h-44 lg:h-52
+                  h-48 sm:h-56 lg:h-64
                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 cursor-pointer
                   shadow-[0_18px_40px_rgba(0,0,0,0.55)]
                   hover:shadow-[0_22px_55px_rgba(0,0,0,0.70)]
