@@ -44,7 +44,9 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
 
   const checkScrollButtons = useCallback(() => {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const maxScrollLeft = container.scrollWidth - container.clientWidth;
 
@@ -61,7 +63,6 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
 
   useEffect(() => {
     loadFeaturedItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -69,7 +70,9 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     checkScrollButtons();
 
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const onScroll = () => checkScrollButtons();
     container.addEventListener("scroll", onScroll, { passive: true });
@@ -99,7 +102,9 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
 
   const scroll = (direction: "left" | "right") => {
     const container = scrollRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     // page-by-viewport; snap will land on the nearest card boundary
     const scrollAmount = container.clientWidth;
@@ -117,9 +122,7 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     return null;
   }
 
-  const headerShadow = embedded
-    ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]"
-    : "";
+  const headerShadow = embedded ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]" : "";
 
   const Content = (
     <>
@@ -191,79 +194,79 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
               scrollPaddingRight: "0px",
             }}
           >
-          {featured.map((product) => {
-            const availableCount =
-              product.variants?.filter((v) => v.stock > 0).length ?? 0;
+            {featured.map((product) => {
+              const availableCount =
+                product.variants?.filter((v) => v.stock > 0).length ?? 0;
 
-            const sizes = product.variants
-              ?.filter((v) => v.stock > 0)
-              .map((v) => v.size_label)
-              .slice(0, 3);
+              const sizes = product.variants
+                ?.filter((v) => v.stock > 0)
+                .map((v) => v.size_label)
+                .slice(0, 3);
 
-            return (
-              <Link
-                key={product.id}
-                href={`/store/${product.id}`}
-                className="flex-shrink-0 w-40 sm:w-48 md:w-52 lg:w-56 group snap-start"
-                style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
-              >
-                <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
-                  <div className="aspect-square relative bg-zinc-800">
-                    {product.primaryImage ? (
-                      <Image
-                        src={product.primaryImage}
-                        alt={product.titleDisplay}
-                        fill
-                        sizes="(min-width: 1024px) 18vw, (min-width: 640px) 30vw, 45vw"
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        quality={75}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
-                        No Image
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-2 sm:p-3 flex flex-col flex-1">
-                    <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">
-                      {product.brand}
+              return (
+                <Link
+                  key={product.id}
+                  href={`/store/${product.id}`}
+                  className="flex-shrink-0 w-40 sm:w-48 md:w-52 lg:w-56 group snap-start"
+                  style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
+                >
+                  <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
+                    <div className="aspect-square relative bg-zinc-800">
+                      {product.primaryImage ? (
+                        <Image
+                          src={product.primaryImage}
+                          alt={product.titleDisplay}
+                          fill
+                          sizes="(min-width: 1024px) 18vw, (min-width: 640px) 30vw, 45vw"
+                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          quality={75}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                          No Image
+                        </div>
+                      )}
                     </div>
 
-                    <h3 className="text-white font-bold text-[11px] sm:text-xs line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-tight">
-                      {product.titleDisplay}
-                    </h3>
-
-                    {sizes && sizes.length > 0 && (
-                      <div className="mt-1.5 sm:mt-2 flex flex-wrap gap-1">
-                        {sizes.map((size, idx) => (
-                          <span
-                            key={idx}
-                            className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-zinc-800 text-gray-300 rounded"
-                          >
-                            {size}
-                          </span>
-                        ))}
-
-                        {availableCount > 3 && (
-                          <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 text-gray-400">
-                            +{availableCount - 3}
-                          </span>
-                        )}
+                    <div className="p-2 sm:p-3 flex flex-col flex-1">
+                      <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">
+                        {product.brand}
                       </div>
-                    )}
 
-                    <div className="mt-auto pt-2 sm:pt-3">
-                      <span className="text-white font-extrabold text-sm sm:text-base whitespace-nowrap tabular-nums">
-                        From {formatPrice(product.minPrice)}
-                      </span>
+                      <h3 className="text-white font-bold text-[11px] sm:text-xs line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-tight">
+                        {product.titleDisplay}
+                      </h3>
+
+                      {sizes && sizes.length > 0 && (
+                        <div className="mt-1.5 sm:mt-2 flex flex-wrap gap-1">
+                          {sizes.map((size, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-zinc-800 text-gray-300 rounded"
+                            >
+                              {size}
+                            </span>
+                          ))}
+
+                          {availableCount > 3 && (
+                            <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 text-gray-400">
+                              +{availableCount - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="mt-auto pt-2 sm:pt-3">
+                        <span className="text-white font-extrabold text-sm sm:text-base whitespace-nowrap tabular-nums">
+                          From {formatPrice(product.minPrice)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
 
         {/* Right Arrow */}
