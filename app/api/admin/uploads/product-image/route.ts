@@ -17,6 +17,7 @@ import { ensureTenantId } from "@/lib/auth/tenant";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 import { ProductImageService } from "@/services/product-image-service";
+import type { ProcessingStrategy } from "@/services/product-image-service";
 
 type UploadSuccess = {
   status: "success";
@@ -30,7 +31,7 @@ type UploadSuccess = {
     hash: string;
     bucket: string;
     qualityScore: number;
-    processingStrategy: "contain_solid" | "cover_smartcrop";
+    processingStrategy: ProcessingStrategy;
     needsReview: boolean;
   };
   index: number;

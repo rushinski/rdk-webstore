@@ -22,11 +22,13 @@
     "supabase:start": "npx supabase start",
     "supabase:stop": "npx supabase stop",
     "caddy:start": "caddy run --config ./infra/Caddyfile --adapter caddyfile --watch",
-    "caddy:stop": "caddy stop"
+    "caddy:stop": "caddy stop",
+    "build:workers": "tsup src/workers/bg-remove-worker.ts --format cjs --platform node --outDir dist/workers --clean false"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.964.0",
     "@aws-sdk/client-sesv2": "^3.964.0",
+    "@imgly/background-removal-node": "^1.4.5",
     "@stripe/connect-js": "^3.3.31",
     "@stripe/react-connect-js": "^3.3.31",
     "@stripe/react-stripe-js": "^5.4.1",
@@ -92,6 +94,7 @@
     "prettier-plugin-tailwindcss": "^0.7.1",
     "tailwindcss": "^3.4.18",
     "ts-jest": "^29.4.5",
+    "tsup": "^8.5.1",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "whatwg-url": "^15.1.0"
