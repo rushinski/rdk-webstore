@@ -98,11 +98,22 @@ export function CheckoutStart() {
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
 
+  // Calculate initial subtotal from cart items
+  useEffect(() => {
+    if (items.length > 0 && subtotal === 0) {
+      const calculated = items.reduce((sum, item) => {
+        return sum + (item.priceCents * item.quantity) / 100;
+      }, 0);
+      setSubtotal(calculated);
+      setTotal(calculated);
+    }
+  }, [items, subtotal]);
+
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
 
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
-  const [guestEmailChecked, setGuestEmailChecked] = useState(false);
+  const [guestEmailConfirmed, setGuestEmailConfirmed] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   const [isRestoring, setIsRestoring] = useState(false);
@@ -186,21 +197,6 @@ export function CheckoutStart() {
   }, [isReady, items.length, router, setCartItems, snapshotService]);
 
   useEffect(() => {
-    if (!isReady || !isGuestFlow) {
-      return;
-    }
-
-    try {
-      const stored = localStorage.getItem("rdk_guest_email");
-      setGuestEmail(stored ? stored.trim() : null);
-    } catch {
-      setGuestEmail(null);
-    } finally {
-      setGuestEmailChecked(true);
-    }
-  }, [isReady, isGuestFlow]);
-
-  useEffect(() => {
     if (isAuthenticated === null) {
       return;
     }
@@ -212,24 +208,6 @@ export function CheckoutStart() {
       router.push("/checkout");
     }
   }, [isAuthenticated, isGuestFlow, router]);
-
-  useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-    if (isAuthenticated !== false) {
-      return;
-    }
-    if (!isGuestFlow || !guestEnabled) {
-      return;
-    }
-    if (!guestEmailChecked) {
-      return;
-    }
-    if (!guestEmail) {
-      router.push("/checkout");
-    }
-  }, [guestEmail, guestEmailChecked, isAuthenticated, isGuestFlow, isReady, router]);
 
   useEffect(() => {
     if (!isReady || items.length === 0) {
@@ -333,7 +311,9 @@ export function CheckoutStart() {
     if (!isAuthenticated && !guestEnabled) {
       return;
     }
-    if (!isAuthenticated && !guestEmail) {
+    // For guest checkout, wait until email is confirmed
+    if (!isAuthenticated && isGuestFlow && !guestEmailConfirmed) {
+      setIsInitializing(false);
       return;
     }
     if (clientSecret && orderId) {
@@ -347,20 +327,36 @@ export function CheckoutStart() {
       setError(null);
 
       try {
+        const payload: {
+          idempotencyKey: string;
+          fulfillment: "ship" | "pickup";
+          guestEmail?: string;
+          shippingAddress: typeof shippingPayload;
+          items: Array<{
+            productId: string;
+            variantId: string;
+            quantity: number;
+          }>;
+        } = {
+          idempotencyKey,
+          fulfillment,
+          shippingAddress: fulfillment === "ship" ? shippingPayload : null,
+          items: items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })),
+        };
+
+        // Only include guestEmail if we have one
+        if (!isAuthenticated && guestEmail) {
+          payload.guestEmail = guestEmail;
+        }
+
         const response = await fetch("/api/checkout/create-payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            idempotencyKey,
-            fulfillment,
-            guestEmail: isAuthenticated ? undefined : (guestEmail ?? undefined),
-            shippingAddress: fulfillment === "ship" ? shippingPayload : null,
-            items: items.map((item) => ({
-              productId: item.productId,
-              variantId: item.variantId,
-              quantity: item.quantity,
-            })),
-          }),
+          body: JSON.stringify(payload),
         });
 
         const data = await response.json().catch(() => null);
@@ -401,6 +397,9 @@ export function CheckoutStart() {
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
+        
+        // Reset confirmation flag so user can change email if needed
+        setGuestEmailConfirmed(false);
 
         lastPricingKeyRef.current = null;
       } catch (err: unknown) {
@@ -422,6 +421,7 @@ export function CheckoutStart() {
     };
   }, [
     clientSecret,
+    guestEmailConfirmed,
     guestEmail,
     fulfillment,
     idempotencyKey,
@@ -584,7 +584,10 @@ export function CheckoutStart() {
     );
   }
 
-  if (!clientSecret || !orderId || isInitializing) {
+  // For guest checkout, show the form immediately so they can enter email
+  const showCheckoutForm = isGuestFlow || (clientSecret && orderId);
+
+  if (!showCheckoutForm || isInitializing) {
     if (error) {
       return (
         <div className="max-w-3xl mx-auto px-4 py-20 text-center">
@@ -610,10 +613,12 @@ export function CheckoutStart() {
     );
   }
 
-  const elementsOptions: StripeElementsOptions = {
-    clientSecret,
-    appearance: stripeAppearance,
-  };
+  const elementsOptions: StripeElementsOptions | undefined = clientSecret
+    ? {
+        clientSecret,
+        appearance: stripeAppearance,
+      }
+    : undefined;
 
   return (
     <div className="max-w-6xl mx-auto px-4 pt-0 sm:py-10 pb-28 lg:pb-10">
@@ -635,17 +640,35 @@ export function CheckoutStart() {
         </div>
       )}
 
-      {!isAuthenticated && guestEmail && (
-        <div className="mb-6 bg-zinc-900 border border-zinc-800/70 rounded p-4 text-sm text-gray-400">
-          Guest checkout as <span className="text-white font-medium">{guestEmail}</span>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          <Elements stripe={stripePromise} options={elementsOptions}>
+          {elementsOptions ? (
+            <Elements stripe={stripePromise} options={elementsOptions}>
+              <CheckoutForm
+                orderId={orderId ?? "pending"}
+                items={items}
+                total={total}
+                fulfillment={fulfillment}
+                shippingAddress={shippingAddress}
+                onShippingAddressChange={(addr) => {
+                  lastPricingKeyRef.current = null;
+                  setShippingAddress(addr);
+                }}
+                onFulfillmentChange={(next) => {
+                  void handleFulfillmentChange(next);
+                }}
+                isUpdatingFulfillment={isUpdatingFulfillment}
+                canUseChat={isAuthenticated === true}
+                guestEmail={guestEmail}
+                onGuestEmailChange={setGuestEmail}
+                onGuestEmailConfirm={() => setGuestEmailConfirmed(true)}
+                isGuestCheckout={isGuestFlow}
+                guestEmailConfirmed={guestEmailConfirmed}
+              />
+            </Elements>
+          ) : (
             <CheckoutForm
-              orderId={orderId}
+              orderId={orderId ?? "pending"}
               items={items}
               total={total}
               fulfillment={fulfillment}
@@ -659,8 +682,13 @@ export function CheckoutStart() {
               }}
               isUpdatingFulfillment={isUpdatingFulfillment}
               canUseChat={isAuthenticated === true}
+              guestEmail={guestEmail}
+              onGuestEmailChange={setGuestEmail}
+              onGuestEmailConfirm={() => setGuestEmailConfirmed(true)}
+              isGuestCheckout={isGuestFlow}
+              guestEmailConfirmed={guestEmailConfirmed}
             />
-          </Elements>
+          )}
         </div>
 
         <div className="lg:col-span-1">

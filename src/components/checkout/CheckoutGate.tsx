@@ -13,19 +13,10 @@ const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
 const benefits = ["Quicker checkout", "Order history", "Built-in messaging system"];
 
-const disclosureItems = [
-  "You are responsible for entering a valid email address you can access. This does not opt you into marketing; we will only send order-related communications unless you separately opt in.",
-];
-
-const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-
 export function CheckoutGate() {
   const router = useRouter();
   const { items, isReady } = useCart();
-  const [showGuestForm, setShowGuestForm] = useState(false);
-  const [guestEmail, setGuestEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const snapshotService = useMemo(() => new CartSnapshotService(), []);
 
@@ -50,23 +41,11 @@ export function CheckoutGate() {
 
   const handleGuestContinue = async () => {
     setError(null);
-    const trimmed = guestEmail.trim().toLowerCase();
-    if (!isValidEmail(trimmed)) {
-      setError("Enter a valid email address to continue.");
-      return;
-    }
-
-    setIsSubmitting(true);
     try {
       await snapshotService.backupCart(items);
-      try {
-        localStorage.setItem("rdk_guest_email", trimmed);
-      } catch {
-        // ignore storage errors
-      }
       router.push("/checkout/start?guest=1");
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      setError("Failed to continue. Please try again.");
     }
   };
 
@@ -95,7 +74,9 @@ export function CheckoutGate() {
 
             <div className="space-y-3">
               <button
-                onClick={() => setShowGuestForm(true)}
+                onClick={() => {
+                  void handleGuestContinue();
+                }}
                 disabled={!guestEnabled}
                 className={`w-full px-5 py-3 rounded font-semibold transition ${
                   guestEnabled
@@ -132,38 +113,6 @@ export function CheckoutGate() {
               )}
             </div>
           </div>
-
-          {showGuestForm && guestEnabled && (
-            <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">Guest email</h3>
-              <div className="space-y-3">
-                <input
-                  type="email"
-                  value={guestEmail}
-                  onChange={(event) => setGuestEmail(event.target.value)}
-                  placeholder="you@email.com"
-                  className="w-full px-4 py-3 rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                  required
-                />
-
-                <div className="text-xs text-zinc-400 space-y-2">
-                  {disclosureItems.map((item) => (
-                    <p key={item}>{item}</p>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() => {
-                    void handleGuestContinue();
-                  }}
-                  disabled={isSubmitting}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded transition"
-                >
-                  {isSubmitting ? "Continuing..." : "Continue to checkout"}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="hidden lg:block bg-zinc-900 border border-zinc-800/70 rounded p-6 h-fit">

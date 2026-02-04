@@ -13,7 +13,7 @@ import type {
   StripeExpressCheckoutElementClickEvent,
   StripeExpressCheckoutElementConfirmEvent,
 } from "@stripe/stripe-js";
-import { Loader2, Lock, Package, TruckIcon } from "lucide-react";
+import { Loader2, Lock, Package, TruckIcon, Mail } from "lucide-react";
 import Link from "next/link";
 
 import type { CartItem } from "@/types/domain/cart";
@@ -30,6 +30,11 @@ interface CheckoutFormProps {
   onFulfillmentChange: (fulfillment: "ship" | "pickup") => void;
   isUpdatingFulfillment?: boolean;
   canUseChat?: boolean;
+  guestEmail?: string | null;
+  onGuestEmailChange?: (email: string) => void;
+  onGuestEmailConfirm?: () => void;
+  isGuestCheckout?: boolean;
+  guestEmailConfirmed?: boolean;
 }
 
 export interface ShippingAddress {
@@ -43,6 +48,8 @@ export interface ShippingAddress {
   country: string;
 }
 
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+
 export function CheckoutForm({
   orderId,
   items,
@@ -53,18 +60,54 @@ export function CheckoutForm({
   onFulfillmentChange,
   isUpdatingFulfillment = false,
   canUseChat = false,
+  guestEmail,
+  onGuestEmailChange,
+  onGuestEmailConfirm,
+  isGuestCheckout = false,
+  guestEmailConfirmed = false,
 }: CheckoutFormProps) {
   const router = useRouter();
-  const stripe = useStripe();
-  const elements = useElements();
+  
+  // Only call Stripe hooks when we're actually wrapped in Elements
+  // This prevents errors when rendering the form before payment intent is created
+  let stripe = null;
+  let elements = null;
+  try {
+    stripe = useStripe();
+    elements = useElements();
+  } catch {
+    // Not wrapped in Elements provider yet - this is expected for guest checkout
+    // before email is entered
+  }
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentElementError, setPaymentElementError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [lastSavedEmail, setLastSavedEmail] = useState<string | null>(null);
 
+  // For guest checkout, Stripe might not be ready yet
   const isStripeReady = Boolean(stripe);
+  const hasStripeElements = Boolean(elements);
+
+  const handleGuestEmailConfirm = () => {
+    const trimmedEmail = guestEmail?.trim() || "";
+    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
+    
+    if (!isValid) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+    
+    // Only trigger confirmation if email has changed
+    if (trimmedEmail !== lastSavedEmail) {
+      setEmailError(null);
+      setLastSavedEmail(trimmedEmail);
+      onGuestEmailConfirm?.();
+    }
+  };
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>
     address
@@ -103,6 +146,24 @@ export function CheckoutForm({
     if (!stripe || !elements) {
       setError("Stripe is still loading. Please wait a moment.");
       return { ok: false, error: "Stripe not ready" };
+    }
+
+    // Validate guest email if in guest checkout
+    if (isGuestCheckout) {
+      const trimmedEmail = guestEmail?.trim() || "";
+      if (!trimmedEmail) {
+        const message = "Please enter your email address";
+        setEmailError(message);
+        setError(message);
+        return { ok: false, error: message };
+      }
+      if (!isValidEmail(trimmedEmail)) {
+        const message = "Please enter a valid email address";
+        setEmailError(message);
+        setError(message);
+        return { ok: false, error: message };
+      }
+      setEmailError(null);
     }
 
     if (fulfillment === "ship" && !shippingAddress) {
@@ -242,6 +303,16 @@ export function CheckoutForm({
     onShippingAddressChange(address);
   };
 
+  const handleGuestEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    onGuestEmailChange?.(value);
+    
+    // Clear error when user starts typing
+    if (emailError) {
+      setEmailError(null);
+    }
+  };
+
   return (
     <form
       onSubmit={(event) => {
@@ -252,6 +323,54 @@ export function CheckoutForm({
       {error && (
         <div className="bg-red-900/20 border border-red-500 text-red-400 p-4 rounded text-sm sm:text-base">
           {error}
+        </div>
+      )}
+
+      {/* Guest Email */}
+      {isGuestCheckout && (
+        <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-4 sm:p-6">
+          <h2 className="text-sm sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
+            <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+            Contact Information
+          </h2>
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1 min-w-0">
+                <input
+                  id="guest-email"
+                  type="email"
+                  value={guestEmail || ""}
+                  onChange={handleGuestEmailChange}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleGuestEmailConfirm();
+                    }
+                  }}
+                  placeholder="you@email.com"
+                  className={`w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border ${
+                    emailError ? "border-red-500" : "border-zinc-800"
+                  } text-white focus:outline-none focus:ring-2 focus:ring-red-600`}
+                  required
+                  disabled={isProcessing}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleGuestEmailConfirm}
+                disabled={isProcessing}
+                className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold rounded transition whitespace-nowrap"
+              >
+                Save
+              </button>
+            </div>
+            {emailError && (
+              <p className="text-xs sm:text-sm text-red-400">{emailError}</p>
+            )}
+            <p className="text-xs text-zinc-500">
+              We'll send your order confirmation and updates to this email.
+            </p>
+          </div>
         </div>
       )}
 
@@ -395,53 +514,62 @@ export function CheckoutForm({
           Payment Information
         </h2>
 
-        <div className="mb-4">
-          <ExpressCheckoutElement
-            options={{
-              layout: {
-                overflow: "never",
-              },
-            }}
-            onConfirm={(event) => {
-              void handleExpressConfirm(event);
-            }}
-            onClick={handleExpressClick}
-          />
-        </div>
+        {hasStripeElements ? (
+          <>
+            <div className="mb-4">
+              <ExpressCheckoutElement
+                options={{
+                  layout: {
+                    overflow: "never",
+                  },
+                }}
+                onConfirm={(event) => {
+                  void handleExpressConfirm(event);
+                }}
+                onClick={handleExpressClick}
+              />
+            </div>
 
-        <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
-          Or pay with card
-        </div>
+            <div className="text-xs uppercase tracking-widest text-center text-gray-500 mb-4">
+              Or pay with card
+            </div>
 
-        <PaymentElement
-          onChange={(event) => {
-            setPaymentComplete(event.complete);
-            if (event.complete) {
-              setPaymentElementError(null);
-            } else if (event.empty) {
-              setPaymentElementError(null);
-            } else {
-              setPaymentElementError(null);
-            }
-          }}
-        />
+            <PaymentElement
+              onChange={(event) => {
+                setPaymentComplete(event.complete);
+                if (event.complete) {
+                  setPaymentElementError(null);
+                } else if (event.empty) {
+                  setPaymentElementError(null);
+                } else {
+                  setPaymentElementError(null);
+                }
+              }}
+            />
 
-        <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
-          <p className="flex items-center gap-2">
-            <Lock className="w-4 h-4" />
-            All payment information is securely processed by Stripe. We never store your
-            card details.
-          </p>
-        </div>
-        {paymentElementError && (
-          <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>
+            <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
+              <p className="flex items-center gap-2">
+                <Lock className="w-4 h-4" />
+                All payment information is securely processed by Stripe. We never store your
+                card details.
+              </p>
+            </div>
+            {paymentElementError && (
+              <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>
+            )}
+          </>
+        ) : (
+          <div className="p-8 text-center border border-zinc-800 rounded bg-zinc-950/40">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-red-600" />
+            <p className="text-gray-400 text-sm">Loading payment options...</p>
+          </div>
         )}
       </div>
 
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={!isStripeReady || isProcessing || isUpdatingFulfillment}
+        disabled={isProcessing || isUpdatingFulfillment}
         className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-base sm:text-lg flex items-center justify-center gap-2"
         data-testid="checkout-submit"
       >
