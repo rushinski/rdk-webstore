@@ -102,6 +102,8 @@ export function FilterPanel({
   );
 
   const CONDITIONS = useMemo(() => ["new", "used"] as const, []);
+  const formatConditionLabel = (condition: string) =>
+    condition === "used" ? "Pre-owned" : condition === "new" ? "New" : condition;
 
   const availableShoeSizeSet = useMemo(() => {
     const expanded = new Set(availableShoeSizes);
@@ -461,11 +463,13 @@ export function FilterPanel({
                     <input
                       type="checkbox"
                       checked={selectedConditions.includes(cond)}
-                      onChange={() => handleConditionChange(cond)}
-                      className="rdk-checkbox flex-shrink-0 mt-0.5"
-                      data-testid={`filter-condition-${toTestId(cond)}`}
-                    />
-                    <span className="capitalize flex-1 break-words min-w-0">{cond}</span>
+                    onChange={() => handleConditionChange(cond)}
+                    className="rdk-checkbox flex-shrink-0 mt-0.5"
+                    data-testid={`filter-condition-${toTestId(cond)}`}
+                  />
+                    <span className="flex-1 break-words min-w-0">
+                      {formatConditionLabel(cond)}
+                    </span>
                   </label>
                 ))}
               </div>

@@ -57,6 +57,12 @@ export function ProductDetail({ product }: ProductDetailProps) {
     selectedVariant?.size_label === "N/A"
       ? "No size"
       : (selectedVariant?.size_label ?? "");
+  const conditionLabel =
+    product.condition === "used"
+      ? "Pre-owned"
+      : product.condition === "new"
+        ? "New"
+        : product.condition;
 
   useEffect(() => {
     const current = product.variants.find((v) => v.id === selectedVariantId);
@@ -167,7 +173,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                   : "bg-yellow-600 text-white"
               }`}
             >
-              {product.condition.toUpperCase()}
+              {conditionLabel.toUpperCase()}
             </span>
           </div>
 

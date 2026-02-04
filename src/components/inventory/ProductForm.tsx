@@ -1179,7 +1179,7 @@ export function ProductForm({
                 onChange={(v) => setCondition(v as Condition)}
                 options={[
                   { value: "new", label: "New" },
-                  { value: "used", label: "Used" },
+                  { value: "used", label: "Pre-owned" },
                 ]}
                 buttonClassName="bg-zinc-800"
               />

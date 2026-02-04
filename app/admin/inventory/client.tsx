@@ -525,7 +525,7 @@ export function InventoryClient({
               options={[
                 { value: "all", label: "All conditions" },
                 { value: "new", label: "New" },
-                { value: "used", label: "Used" },
+                { value: "used", label: "Pre-owned" },
               ]}
             />
           </div>

@@ -43,7 +43,7 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
       </span>
     ) : product.condition === "used" ? (
       <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full border border-zinc-900 shadow-sm">
-        USED
+        PRE-OWNED
       </span>
     ) : null;
 
