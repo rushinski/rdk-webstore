@@ -32,11 +32,11 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
 
       <div className="absolute inset-x-0 bottom-0 h-[90vh] max-h-[90vh] w-full bg-black border-t border-zinc-800/70 overflow-y-auto no-scrollbar rounded-t-2xl md:rounded-none md:inset-y-0 md:right-0 md:left-auto md:h-auto md:max-h-none md:max-w-2xl md:border-t-0 md:border-l">
-        <div className="p-6 md:p-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Cart</h2>
+        <div className="p-4 sm:p-6 md:p-8">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Cart</h2>
             <button onClick={onClose} className="text-gray-400 hover:text-white">
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
 
@@ -44,7 +44,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <p className="text-gray-400 text-center py-12">Your cart is empty</p>
           ) : (
             <>
-              <div className="space-y-4 mb-6">
+              <div className="space-y-3 sm:space-y-4 mb-6">
                 {items.map((item) => {
                   const canIncrease =
                     typeof item.maxStock === "number"
@@ -53,15 +53,15 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   return (
                     <div
                       key={`${item.productId}-${item.variantId}`}
-                      className="bg-zinc-900 p-4 rounded"
+                      className="bg-zinc-900 p-3 sm:p-4 rounded"
                     >
-                      <div className="flex items-start gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
                         <Link
                           href={`/store/${item.productId}`}
                           onClick={onClose}
-                          className="flex items-start gap-4 flex-1 min-w-0"
+                          className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0"
                         >
-                          <div className="w-20 h-20 relative flex-shrink-0">
+                          <div className="w-16 h-16 sm:w-20 sm:h-20 relative flex-shrink-0">
                             <Image
                               src={item.imageUrl}
                               alt={item.titleDisplay}
@@ -70,21 +70,21 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-white font-semibold">
+                            <h3 className="text-white font-semibold text-sm sm:text-base">
                               {item.titleDisplay}
                             </h3>
                             <p className="text-xs text-gray-500 mt-1">
                               {item.brand} - {item.name}
                             </p>
-                            <p className="text-sm text-gray-400 mt-2">
+                            <p className="text-xs sm:text-sm text-gray-400 mt-2">
                               Size: {item.sizeLabel}
                             </p>
-                            <p className="text-sm text-gray-300 mt-1">
+                            <p className="text-xs sm:text-sm text-gray-300 mt-1">
                               Price: ${(item.priceCents / 100).toFixed(2)}
                             </p>
                           </div>
                         </Link>
-                        <div className="flex flex-col items-end gap-3">
+                        <div className="flex w-full sm:w-auto items-center justify-between sm:flex-col sm:items-end gap-2 sm:gap-3">
                           <button
                             onClick={() => removeItem(item.productId, item.variantId)}
                             className="text-gray-400 hover:text-red-500"
@@ -104,7 +104,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             >
                               <Minus className="w-3 h-3 text-white" />
                             </button>
-                            <span className="text-white w-8 text-center">
+                            <span className="text-white text-sm w-8 text-center">
                               {item.quantity}
                             </span>
                             <button
@@ -125,7 +125,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                               <Plus className="w-3 h-3 text-white" />
                             </button>
                           </div>
-                          <div className="text-sm font-semibold text-white">
+                          <div className="text-sm sm:text-base font-semibold text-white">
                             ${((item.priceCents * item.quantity) / 100).toFixed(2)}
                           </div>
                         </div>
@@ -135,7 +135,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 })}
               </div>
 
-              <div className="border-t border-zinc-800/70 pt-4 mb-4 space-y-2 text-sm text-gray-400">
+              <div className="border-t border-zinc-800/70 pt-4 mb-4 space-y-2 text-xs sm:text-sm text-gray-400">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
                   <span>${(total / 100).toFixed(2)}</span>
@@ -148,7 +148,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   <span>Tax</span>
                   <span>Calculated at checkout</span>
                 </div>
-                <div className="flex justify-between text-lg font-bold text-white pt-2">
+                <div className="flex justify-between text-base sm:text-lg font-bold text-white pt-2">
                   <span>Total</span>
                   <span>${(total / 100).toFixed(2)}+</span>
                 </div>
@@ -157,7 +157,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               <div className="grid grid-cols-1 gap-3">
                 <button
                   onClick={handleCheckout}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 sm:py-3 rounded transition text-sm sm:text-base"
                 >
                   Checkout
                 </button>

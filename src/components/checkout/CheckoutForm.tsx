@@ -64,10 +64,9 @@ export function CheckoutForm({
   onGuestEmailChange,
   onGuestEmailConfirm,
   isGuestCheckout = false,
-  guestEmailConfirmed = false,
 }: CheckoutFormProps) {
   const router = useRouter();
-  
+
   // Only call Stripe hooks when we're actually wrapped in Elements
   // This prevents errors when rendering the form before payment intent is created
   let stripe = null;
@@ -89,18 +88,17 @@ export function CheckoutForm({
   const [lastSavedEmail, setLastSavedEmail] = useState<string | null>(null);
 
   // For guest checkout, Stripe might not be ready yet
-  const isStripeReady = Boolean(stripe);
   const hasStripeElements = Boolean(elements);
 
   const handleGuestEmailConfirm = () => {
     const trimmedEmail = guestEmail?.trim() || "";
     const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
-    
+
     if (!isValid) {
       setEmailError("Please enter a valid email address");
       return;
     }
-    
+
     // Only trigger confirmation if email has changed
     if (trimmedEmail !== lastSavedEmail) {
       setEmailError(null);
@@ -306,7 +304,7 @@ export function CheckoutForm({
   const handleGuestEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     onGuestEmailChange?.(value);
-    
+
     // Clear error when user starts typing
     if (emailError) {
       setEmailError(null);
@@ -550,8 +548,8 @@ export function CheckoutForm({
             <div className="mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
               <p className="flex items-center gap-2">
                 <Lock className="w-4 h-4" />
-                All payment information is securely processed by Stripe. We never store your
-                card details.
+                All payment information is securely processed by Stripe. We never store
+                your card details.
               </p>
             </div>
             {paymentElementError && (

@@ -397,7 +397,7 @@ export function CheckoutStart() {
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
-        
+
         // Reset confirmation flag so user can change email if needed
         setGuestEmailConfirmed(false);
 
