@@ -512,18 +512,6 @@ export function Navbar({
               </div>
             )}
 
-            {/* Shop All */}
-            <Link
-              href="/store"
-              onClick={closeMobileMenu}
-              className="flex items-center justify-between px-4 py-3 text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900"
-            >
-              <span className="flex items-center gap-3">
-                <ShoppingBag className="w-4 h-4" />
-                Shop All
-              </span>
-            </Link>
-
             {/* Categories */}
             <button
               className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
@@ -592,6 +580,18 @@ export function Navbar({
                 ))}
               </div>
             )}
+
+            {/* Shop All */}
+            <Link
+              href="/store"
+              onClick={closeMobileMenu}
+              className="flex items-center justify-between px-4 py-3 text-gray-200 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900"
+            >
+              <span className="flex items-center gap-3">
+                <ShoppingBag className="w-4 h-4" />
+                Shop All
+              </span>
+            </Link>
           </div>
         </div>
       </div>
