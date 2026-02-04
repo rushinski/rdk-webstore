@@ -11,7 +11,7 @@ export default function HoursPage() {
         We are always looking to buy sneakers no matter the condition and no matter the
         quantity. If you are interested in selling, reach out on{" "}
         <a
-          href="https://instagram.com/realdealkickzllc"
+          href="https://instagram.com/realdealkickzsc"
           target="_blank"
           rel="noopener noreferrer"
           className="text-red-400 hover:underline"

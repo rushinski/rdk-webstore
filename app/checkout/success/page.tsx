@@ -159,12 +159,12 @@ function SuccessContent() {
             <p className="text-sm text-gray-400">
               You can also DM us on Instagram{" "}
               <a
-                href="https://instagram.com/realdealkickzllc"
+                href="https://instagram.com/realdealkickzsc"
                 className="text-red-400 hover:text-red-300"
                 target="_blank"
                 rel="noreferrer"
               >
-                @realdealkickzllc
+                @realdealkickzsc
               </a>{" "}
               to schedule pickup.
             </p>
@@ -252,12 +252,12 @@ function SuccessContent() {
           <p className="text-sm text-gray-400 mb-2">
             You can also DM us on{" "}
             <a
-              href="https://instagram.com/realdealkickzllc"
+              href="https://instagram.com/realdealkickzsc"
               className="text-red-400 hover:text-red-300"
               target="_blank"
               rel="noreferrer"
             >
-              Instagram @realdealkickzllc
+              Instagram @realdealkickzsc
             </a>
             .
           </p>

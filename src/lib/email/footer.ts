@@ -25,7 +25,7 @@ export const emailFooterHtml = () => `
           <a href="${siteUrl}/refunds" style="${emailStyles.link}">Returns &amp; Refunds</a>
         </div>
         <div style="margin-top:6px;color:${EMAIL_COLORS.muted};">
-          Instagram: <a href="https://instagram.com/realdealkickzllc" style="${emailStyles.link}">@realdealkickzllc</a>
+          Instagram: <a href="https://instagram.com/realdealkickzsc" style="${emailStyles.link}">@realdealkickzsc</a>
         </div>
       </div>
     </td>
@@ -40,5 +40,5 @@ export const emailFooterText = () =>
     `Contact: ${siteUrl}/contact`,
     `Shipping: ${siteUrl}/shipping`,
     `Returns & Refunds: ${siteUrl}/refunds`,
-    "Instagram: @realdealkickzllc",
+    "Instagram: @realdealkickzsc",
   ].join("\n");

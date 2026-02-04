@@ -113,12 +113,12 @@ export function Footer() {
               <li className="flex items-start gap-2 text-zinc-500 text-sm">
                 <Instagram className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <a
-                  href="https://instagram.com/realdealkickzllc"
+                  href="https://instagram.com/realdealkickzsc"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors"
                 >
-                  @realdealkickzllc
+                  @realdealkickzsc
                 </a>
               </li>
               <li className="flex items-start gap-2 text-zinc-500 text-sm">

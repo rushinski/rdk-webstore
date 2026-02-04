@@ -12,8 +12,8 @@ export const buildPickupInstructionsEmail = (input: PickupInstructionsEmailInput
   const locationSummary = input.locationSummary ?? PICKUP_LOCATION_SUMMARY;
 
   // Inline IG link only (no button)
-  const instagramUrl = "https://www.instagram.com/realdealkickzllc/";
-  const instagramHandle = "@realdealkickzllc";
+  const instagramUrl = "https://www.instagram.com/realdealkickzsc/";
+  const instagramHandle = "@realdealkickzsc";
   const instagramLinkHtml = `<a href="${instagramUrl}" style="color:${EMAIL_COLORS.text};text-decoration:underline;">${instagramHandle}</a>`;
 
   const rawInstructions = input.instructions ?? PICKUP_INSTRUCTIONS;

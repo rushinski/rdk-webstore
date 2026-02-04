@@ -30,12 +30,12 @@ export default function ContactPage() {
           </a>
           , or by sending us a DM on Instagram at{" "}
           <a
-            href="https://instagram.com/realdealkickzllc"
+            href="https://instagram.com/realdealkickzsc"
             target="_blank"
             rel="noopener noreferrer"
             className="text-red-400 hover:underline"
           >
-            @realdealkickzllc
+            @realdealkickzsc
           </a>
           .
         </p>
