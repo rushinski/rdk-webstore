@@ -442,6 +442,76 @@ export function Navbar({
               </Link>
             )}
 
+            {/* Sneaker Sizes */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
+              onClick={() =>
+                setMobileSection(mobileSection === "shoeSizes" ? null : "shoeSizes")
+              }
+              aria-expanded={mobileSection === "shoeSizes"}
+            >
+              <span className="flex items-center gap-3">
+                <Ruler className="w-4 h-4" />
+                Sneaker Sizes
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileSection === "shoeSizes" ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {mobileSection === "shoeSizes" && (
+              <div className="border-b border-zinc-900 px-4 py-4">
+                <div className="pl-7 grid grid-cols-4 gap-2">
+                  {MENU_SHOE_SIZES.map((size) => (
+                    <Link
+                      key={size}
+                      href={buildStoreHref({ category: "sneakers", sizeShoe: size })}
+                      onClick={closeMobileMenu}
+                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
+                    >
+                      {size}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Clothing Sizes */}
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
+              onClick={() =>
+                setMobileSection(
+                  mobileSection === "clothingSizes" ? null : "clothingSizes",
+                )
+              }
+              aria-expanded={mobileSection === "clothingSizes"}
+            >
+              <span className="flex items-center gap-3">
+                <Shirt className="w-4 h-4" />
+                Clothing Sizes
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${mobileSection === "clothingSizes" ? "rotate-180" : ""}`}
+              />
+            </button>
+
+            {mobileSection === "clothingSizes" && (
+              <div className="border-b border-zinc-900 px-4 py-4">
+                <div className="pl-7 grid grid-cols-4 gap-2">
+                  {CLOTHING_SIZES.map((size) => (
+                    <Link
+                      key={size}
+                      href={buildStoreHref({ category: "clothing", sizeClothing: size })}
+                      onClick={closeMobileMenu}
+                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
+                    >
+                      {size}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Shop All */}
             <Link
               href="/store"
@@ -520,76 +590,6 @@ export function Navbar({
                     {group.label}
                   </Link>
                 ))}
-              </div>
-            )}
-
-            {/* Sneaker Sizes */}
-            <button
-              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
-              onClick={() =>
-                setMobileSection(mobileSection === "shoeSizes" ? null : "shoeSizes")
-              }
-              aria-expanded={mobileSection === "shoeSizes"}
-            >
-              <span className="flex items-center gap-3">
-                <Ruler className="w-4 h-4" />
-                Sneaker Sizes
-              </span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${mobileSection === "shoeSizes" ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {mobileSection === "shoeSizes" && (
-              <div className="border-b border-zinc-900 px-4 py-4">
-                <div className="pl-7 grid grid-cols-4 gap-2">
-                  {MENU_SHOE_SIZES.map((size) => (
-                    <Link
-                      key={size}
-                      href={buildStoreHref({ category: "sneakers", sizeShoe: size })}
-                      onClick={closeMobileMenu}
-                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
-                    >
-                      {size}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Clothing Sizes */}
-            <button
-              className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:text-white hover:bg-zinc-900 transition-colors border-b border-zinc-900 text-left"
-              onClick={() =>
-                setMobileSection(
-                  mobileSection === "clothingSizes" ? null : "clothingSizes",
-                )
-              }
-              aria-expanded={mobileSection === "clothingSizes"}
-            >
-              <span className="flex items-center gap-3">
-                <Shirt className="w-4 h-4" />
-                Clothing Sizes
-              </span>
-              <ChevronDown
-                className={`w-4 h-4 transition-transform ${mobileSection === "clothingSizes" ? "rotate-180" : ""}`}
-              />
-            </button>
-
-            {mobileSection === "clothingSizes" && (
-              <div className="border-b border-zinc-900 px-4 py-4">
-                <div className="pl-7 grid grid-cols-4 gap-2">
-                  {CLOTHING_SIZES.map((size) => (
-                    <Link
-                      key={size}
-                      href={buildStoreHref({ category: "clothing", sizeClothing: size })}
-                      onClick={closeMobileMenu}
-                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
-                    >
-                      {size}
-                    </Link>
-                  ))}
-                </div>
               </div>
             )}
           </div>
