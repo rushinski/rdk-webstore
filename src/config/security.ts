@@ -113,6 +113,7 @@ export const security = {
           "img-src 'self' data: https: blob: https://*.stripe.com",
           "style-src 'self' 'unsafe-inline'",
           "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com",
+          "worker-src 'self' blob:",
           [
             "connect-src",
             "'self'",
@@ -134,6 +135,7 @@ export const security = {
           "img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com https://*.openstreetmap.org",
           "style-src 'self' 'unsafe-inline'",
           "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com",
+          "worker-src 'self' blob:",
           "object-src 'none'",
           "base-uri 'self'",
 

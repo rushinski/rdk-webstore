@@ -1,7 +1,7 @@
 // src/services/product-image-service.ts
 /**
  * Product Image Service — ML via Hugging Face Space (Free)
- * FIXED: Truly centers the subject by cropping to bounds first
+ * FIXED: Preserves background texture instead of replacing with solid color
  */
 
 import sharp from "sharp";
@@ -124,8 +124,8 @@ async function detectUniformBackground(
   const bl = await patchStats(buffer, 0, h - patch, patch, patch);
   const br = await patchStats(buffer, w - patch, h - patch, patch, patch);
 
-  const maxVar = 10;
-  const maxCornerDist = 60;
+  const maxVar = 5;  // Stricter: only truly flat backgrounds (was 10)
+  const maxCornerDist = 30;  // Stricter: corners must be very similar (was 60)
 
   const varsOk = [tl, tr, bl, br].every((p) => p.variation <= maxVar);
 
@@ -277,21 +277,33 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
   const { isUniform, color } = await detectUniformBackground(base);
 
   if (isUniform) {
-    // FIXED: Crop to subject bounds FIRST, then resize with padding
-    // This ensures the subject itself is centered, not just the canvas
+    // For uniform backgrounds, the cleanest approach is to use the detected color
+    // This avoids: blur, double images, voids, and upscaling artifacts
+    // Trade-off: Lose texture for consistency (acceptable for uniform backgrounds)
     
-    // Add padding around the subject bounds (20% margin)
+    // Step 1: Create clean uniform background
+    const bg = await sharp({
+      create: {
+        width: targetSize,
+        height: targetSize,
+        channels: 3,
+        background: color,
+      },
+    })
+      .png()
+      .toBuffer();
+    
+    // Step 2: Crop cutout to subject bounds with padding
     const padding = 0.2;
     const paddedWidth = Math.round(bounds.width * (1 + padding));
     const paddedHeight = Math.round(bounds.height * (1 + padding));
     
-    // Calculate crop coordinates (centered on subject)
     const cropLeft = Math.max(0, Math.round(bounds.left - (paddedWidth - bounds.width) / 2));
     const cropTop = Math.max(0, Math.round(bounds.top - (paddedHeight - bounds.height) / 2));
     const cropWidth = Math.min(paddedWidth, bounds.imageW - cropLeft);
     const cropHeight = Math.min(paddedHeight, bounds.imageH - cropTop);
     
-    // Crop to subject with padding, then resize to target
+    // Step 3: Resize cropped subject to fit in target
     const fg = await sharp(cutoutPng)
       .extract({ 
         left: cropLeft, 
@@ -307,17 +319,7 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
       .png()
       .toBuffer();
 
-    const bg = await sharp({
-      create: {
-        width: targetSize,
-        height: targetSize,
-        channels: 3,
-        background: color,
-      },
-    })
-      .png()
-      .toBuffer();
-
+    // Step 4: Composite centered subject over uniform background
     const processedBuffer = await sharp(bg)
       .composite([{ input: fg }])
       .webp({ quality: 85, effort: 4 })
