@@ -1,6 +1,7 @@
 // src/services/product-image-service.ts
 /**
  * Product Image Service — ML via Hugging Face Space (Free)
+ * FIXED: Validates background removal actually created transparency
  */
 
 import sharp from "sharp";
@@ -32,19 +33,12 @@ type SubjectBounds = {
   coverageRatio: number;
 };
 
-// CHANGE THIS to your Hugging Face Space URL
 const HF_SPACE_URL = env.HF_SPACE_URL;
 
-/**
- * Call Hugging Face Space to remove background
- */
 async function callHFBackgroundRemoval(imageBuffer: Buffer): Promise<Buffer> {
   const formData = new FormData();
-  
-  // FIX: Convert Buffer to Uint8Array first, then to Blob
   const uint8Array = new Uint8Array(imageBuffer);
   const blob = new Blob([uint8Array], { type: "image/png" });
-  
   formData.append("file", blob, "image.png");
 
   const response = await fetch(`${HF_SPACE_URL}/remove-background`, {
@@ -153,17 +147,30 @@ async function detectUniformBackground(
 async function mlCutoutAndBounds(
   inputBuffer: Buffer,
 ): Promise<{ cutoutPng: Buffer; bounds: SubjectBounds | null }> {
-  // Normalize input
   const normalizedPng = await sharp(inputBuffer)
     .rotate()
     .png({ compressionLevel: 9, palette: false })
     .toBuffer();
 
-  // Call Hugging Face Space API
+  console.log("[mlCutoutAndBounds] Calling HF background removal API...");
   const cutoutPng = await callHFBackgroundRemoval(normalizedPng);
+  console.log("[mlCutoutAndBounds] Received response, size:", cutoutPng.length);
 
-  // Scan for bounds
-  const img = sharp(cutoutPng).ensureAlpha();
+  // CRITICAL: Verify the cutout actually has transparency
+  const cutoutMeta = await sharp(cutoutPng).metadata();
+  console.log("[mlCutoutAndBounds] Cutout metadata:", {
+    width: cutoutMeta.width,
+    height: cutoutMeta.height,
+    channels: cutoutMeta.channels,
+    hasAlpha: cutoutMeta.hasAlpha,
+  });
+
+  if (!cutoutMeta.hasAlpha) {
+    console.warn("[mlCutoutAndBounds] WARNING: Cutout has no alpha channel! Background removal may have failed.");
+    return { cutoutPng: normalizedPng, bounds: null };
+  }
+
+  const img = sharp(cutoutPng);
   const meta = await img.metadata();
   if (!meta.width || !meta.height) return { cutoutPng, bounds: null };
 
@@ -183,6 +190,7 @@ async function mlCutoutAndBounds(
     maxY = 0;
   let found = false;
   let alphaCount = 0;
+  let transparentCount = 0;
 
   const aThresh = 12;
 
@@ -197,11 +205,31 @@ async function mlCutoutAndBounds(
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
         if (y > maxY) maxY = y;
+      } else {
+        transparentCount++;
       }
     }
   }
 
-  if (!found) return { cutoutPng, bounds: null };
+  const coverageRatio = alphaCount / Math.max(1, info.width * info.height);
+  const transparencyRatio = transparentCount / Math.max(1, info.width * info.height);
+
+  console.log("[mlCutoutAndBounds] Alpha scan results:", {
+    coverage: `${(coverageRatio * 100).toFixed(1)}%`,
+    transparency: `${(transparencyRatio * 100).toFixed(1)}%`,
+    found,
+  });
+
+  // VALIDATION: If coverage is >95%, background removal probably failed
+  if (coverageRatio > 0.95) {
+    console.warn("[mlCutoutAndBounds] Coverage >95% - background removal likely failed!");
+    return { cutoutPng: normalizedPng, bounds: null };
+  }
+
+  if (!found) {
+    console.warn("[mlCutoutAndBounds] No opaque pixels found in cutout");
+    return { cutoutPng, bounds: null };
+  }
 
   const scaleX = meta.width / info.width;
   const scaleY = meta.height / info.height;
@@ -211,7 +239,7 @@ async function mlCutoutAndBounds(
   const width = Math.min(meta.width - left, Math.ceil((maxX - minX + 1) * scaleX));
   const height = Math.min(meta.height - top, Math.ceil((maxY - minY + 1) * scaleY));
 
-  const coverageRatio = alphaCount / Math.max(1, info.width * info.height);
+  console.log("[mlCutoutAndBounds] Detected bounds:", { left, top, width, height });
 
   return {
     cutoutPng,
@@ -268,7 +296,7 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
   }
 
   if (!bounds) {
-    console.warn("[ML] Bounds not found");
+    console.warn("[ML] Bounds not found - using fallback");
     const processedBuffer = await rotated
       .resize(targetSize, targetSize, { fit: "cover", position: "center" })
       .webp({ quality: 85, effort: 4 })
@@ -286,7 +314,27 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
   const { isUniform, color } = await detectUniformBackground(base);
 
   if (isUniform) {
+    console.log("[ML] Uniform background detected, using subject-centered approach");
+    
+    // Crop to subject bounds first, then resize with padding
+    const padding = 0.15; // 15% padding around subject
+    const paddedWidth = Math.round(bounds.width * (1 + padding * 2));
+    const paddedHeight = Math.round(bounds.height * (1 + padding * 2));
+    
+    const cropLeft = Math.max(0, Math.round(bounds.left - bounds.width * padding));
+    const cropTop = Math.max(0, Math.round(bounds.top - bounds.height * padding));
+    const cropWidth = Math.min(paddedWidth, bounds.imageW - cropLeft);
+    const cropHeight = Math.min(paddedHeight, bounds.imageH - cropTop);
+    
+    console.log("[ML] Cropping to subject with padding:", { cropLeft, cropTop, cropWidth, cropHeight });
+    
     const fg = await sharp(cutoutPng)
+      .extract({ 
+        left: cropLeft, 
+        top: cropTop, 
+        width: cropWidth, 
+        height: cropHeight 
+      })
       .resize(targetSize, targetSize, {
         fit: "contain",
         position: "center",
@@ -318,7 +366,7 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
     };
   }
 
-  // Scene background: FIXED - just crop and reframe around subject (no composite)
+  console.log("[ML] Scene background detected, using crop-based approach");
   const sq = squareFromBounds(bounds);
 
   const processedBuffer = await rotated
