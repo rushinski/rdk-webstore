@@ -1,4 +1,4 @@
-# app.py - Deploy this to Hugging Face Spaces
+# app.py - Deploy this to Hugging Face Space
 # Run: gradio app.py or use FastAPI mode
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
