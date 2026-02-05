@@ -1,28 +1,12 @@
 // src/services/product-image-service.ts
 /**
- * Product Image Service — ML Subject-Centered (Free, Local)
- *
- * Goals:
- * - 1200x1200 square outputs
- * - Center the product (shoe) even if user photo is low/off-center
- * - Preserve natural look (no blur plates)
- * - Deterministic, consistent strategy:
- *   - Uniform studio background -> solid snapped padding (true black/white)
- *   - Non-uniform scene background -> reframe original background around subject + composite centered cutout
- *
- * Requires:
- *   npm install @imgly/background-removal-node
+ * Product Image Service — ML via Hugging Face Space (Free)
  */
 
 import sharp from "sharp";
-import { removeBackground, type Config as ImglyConfig } from "@imgly/background-removal-node";
-
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { StorageRepository } from "@/repositories/storage-repo";
 import { DEFAULT_MAX_BYTES, ALLOWED_MIME } from "@/config/constants/uploads";
-
-import { spawn } from "node:child_process";
-import path from "node:path";
 
 type RGB = { r: number; g: number; b: number };
 
@@ -44,69 +28,35 @@ type SubjectBounds = {
   height: number;
   imageW: number;
   imageH: number;
-  coverageRatio: number; // subject area / image area (approx)
+  coverageRatio: number;
 };
 
-async function spawnRemoveBgWorker(pngBytes: Buffer, timeoutMs = 12000): Promise<Buffer> {
-  // IMPORTANT: This file must run unbundled by Next.
-  // In dev, it's easiest to point to the TS file via tsx, OR compile it.
-  // Recommended: compile worker to JS (see below).
-  const workerPath = path.join(process.cwd(), "dist", "workers", "bg-remove-worker.js");
+// CHANGE THIS to your Hugging Face Space URL
+const HF_SPACE_URL = process.env.HF_SPACE_URL || "https://YOUR-USERNAME-YOUR-SPACE.hf.space";
 
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [workerPath], {
-      stdio: ["pipe", "pipe", "pipe"],
-      env: process.env,
-    });
+/**
+ * Call Hugging Face Space to remove background
+ */
+async function callHFBackgroundRemoval(imageBuffer: Buffer): Promise<Buffer> {
+  const formData = new FormData();
+  
+  // FIX: Convert Buffer to Uint8Array first, then to Blob
+  const uint8Array = new Uint8Array(imageBuffer);
+  const blob = new Blob([uint8Array], { type: "image/png" });
+  
+  formData.append("file", blob, "image.png");
 
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error(`bg-remove worker timeout after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    let out = "";
-    let err = "";
-
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (d) => (out += d));
-
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (d) => (err += d));
-
-    child.on("close", () => {
-      clearTimeout(timer);
-      try {
-        const parsed = JSON.parse(out || "{}") as { cutoutBase64?: string; error?: string };
-        if (parsed.error) return reject(new Error(parsed.error));
-        if (!parsed.cutoutBase64) return reject(new Error(`worker returned no cutout. stderr=${err}`));
-        resolve(Buffer.from(parsed.cutoutBase64, "base64"));
-      } catch (e) {
-        reject(new Error(`worker JSON parse failed: ${(e as Error).message}. stderr=${err}`));
-      }
-    });
-
-    child.stdin.write(JSON.stringify({ imageBase64: pngBytes.toString("base64") }));
-    child.stdin.end();
+  const response = await fetch(`${HF_SPACE_URL}/remove-background`, {
+    method: "POST",
+    body: formData,
   });
-}
 
-function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
-  // Create a true ArrayBuffer copy (not SharedArrayBuffer / ArrayBufferLike)
-  const ab = new ArrayBuffer(buf.byteLength);
-  new Uint8Array(ab).set(buf);
-  return ab;
-}
+  if (!response.ok) {
+    throw new Error(`HF Space API failed: ${response.statusText}`);
+  }
 
-function toHex(buffer: ArrayBuffer) {
-  return [...new Uint8Array(buffer)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function sha256Hex(file: File) {
-  const buf = await file.arrayBuffer();
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return toHex(digest);
+  const arrayBuffer = await response.arrayBuffer();
+  return Buffer.from(arrayBuffer);
 }
 
 function median(nums: number[]) {
@@ -119,9 +69,6 @@ function dist(a: RGB, b: RGB) {
   return Math.abs(a.r - b.r) + Math.abs(a.g - b.g) + Math.abs(a.b - b.b);
 }
 
-/**
- * Snap near-black and near-white to true black/white to fix JPEG/lighting drift.
- */
 function snapBW(c: RGB, snap = 18): RGB {
   const isNearBlack = c.r <= snap && c.g <= snap && c.b <= snap;
   const isNearWhite = c.r >= 255 - snap && c.g >= 255 - snap && c.b >= 255 - snap;
@@ -157,7 +104,6 @@ async function patchStats(
   const mg = median(g);
   const mb = median(b);
 
-  // mean absolute deviation from median (cheap variation proxy)
   const mad = (arr: number[], m: number) =>
     arr.reduce((acc, v) => acc + Math.abs(v - m), 0) / Math.max(1, arr.length);
 
@@ -166,12 +112,6 @@ async function patchStats(
   return { color: { r: mr, g: mg, b: mb }, variation };
 }
 
-/**
- * Detect whether background is "uniform" (studio-like) by checking corner patches.
- * Returns:
- * - isUniform: boolean
- * - color: snapped median corner color (true black/white when near)
- */
 async function detectUniformBackground(
   buffer: Buffer,
 ): Promise<{ isUniform: boolean; color: RGB }> {
@@ -189,9 +129,8 @@ async function detectUniformBackground(
   const bl = await patchStats(buffer, 0, h - patch, patch, patch);
   const br = await patchStats(buffer, w - patch, h - patch, patch, patch);
 
-  // Tuneable thresholds
-  const maxVar = 10; // 6–14 typical
-  const maxCornerDist = 60; // 40–90 typical
+  const maxVar = 10;
+  const maxCornerDist = 60;
 
   const varsOk = [tl, tr, bl, br].every((p) => p.variation <= maxVar);
 
@@ -210,22 +149,19 @@ async function detectUniformBackground(
   return { isUniform: varsOk && cornersOk, color: snapBW(medColor) };
 }
 
-/**
- * ML cutout and subject bounds detection (bbox) by scanning alpha.
- * Uses @imgly/background-removal-node to produce a PNG with alpha.
- */
 async function mlCutoutAndBounds(
   inputBuffer: Buffer,
 ): Promise<{ cutoutPng: Buffer; bounds: SubjectBounds | null }> {
-  // Normalize to a very standard PNG first (orientation + decode/encode)
+  // Normalize input
   const normalizedPng = await sharp(inputBuffer)
     .rotate()
     .png({ compressionLevel: 9, palette: false })
     .toBuffer();
 
-  const cutoutPng = await spawnRemoveBgWorker(normalizedPng);
+  // Call Hugging Face Space API
+  const cutoutPng = await callHFBackgroundRemoval(normalizedPng);
 
-  // --- bbox scan (same as you already had) ---
+  // Scan for bounds
   const img = sharp(cutoutPng).ensureAlpha();
   const meta = await img.metadata();
   if (!meta.width || !meta.height) return { cutoutPng, bounds: null };
@@ -282,18 +218,13 @@ async function mlCutoutAndBounds(
   };
 }
 
-/**
- * Compute a subject-centered square crop window (in original image coords).
- * margin: gives breathing room so we don't crop too tight.
- */
 function squareFromBounds(bounds: SubjectBounds) {
   const cx = bounds.left + bounds.width / 2;
   const cy = bounds.top + bounds.height / 2;
 
-  const margin = 1.28; // tune 1.15–1.45
+  const margin = 1.28;
   let side = Math.max(bounds.width, bounds.height) * margin;
 
-  // Clamp side so we don't exceed image
   side = Math.min(side, Math.min(bounds.imageW, bounds.imageH));
   side = Math.max(64, side);
 
@@ -311,16 +242,10 @@ function squareFromBounds(bounds: SubjectBounds) {
   return { left, top, size };
 }
 
-/**
- * ML subject-centered square creation.
- * - Uniform bg: solid snapped padding + centered ML cutout
- * - Scene bg: reframe original background around subject center (cover), composite centered cutout on top
- */
 async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<ResizeResult> {
-  const base = await sharp(buffer).rotate().png().toBuffer(); // normalized base
-  const rotated = sharp(base); // now everything uses same coords
+  const base = await sharp(buffer).rotate().png().toBuffer();
+  const rotated = sharp(base);
 
-  // segmentation now uses base (not original)
   let cutoutPng: Buffer;
   let bounds: SubjectBounds | null;
 
@@ -329,15 +254,20 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
     cutoutPng = res.cutoutPng;
     bounds = res.bounds;
   } catch (e) {
+    console.error("[ML] Background removal failed:", e);
     const processedBuffer = await rotated
       .resize(targetSize, targetSize, { fit: "cover", position: "center" })
       .webp({ quality: 85, effort: 4 })
       .toBuffer();
-    return { processedBuffer, processingStrategy: "fallback_cover_center", needsReviewHint: `ml_failed:${String(e)}` };
+    return {
+      processedBuffer,
+      processingStrategy: "fallback_cover_center",
+      needsReviewHint: `ml_failed:${String(e)}`,
+    };
   }
 
   if (!bounds) {
-    console.warn("[resizeToSquareML] bounds not found (mask empty?)");
+    console.warn("[ML] Bounds not found");
     const processedBuffer = await rotated
       .resize(targetSize, targetSize, { fit: "cover", position: "center" })
       .webp({ quality: 85, effort: 4 })
@@ -349,15 +279,11 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
     };
   }
 
-  // 2) Guardrails on segmentation coverage
-  // Shoes should usually be ~5%–70% of image area depending on framing; tune as you see outputs.
   const tooSmall = bounds.coverageRatio < 0.03;
   const tooLarge = bounds.coverageRatio > 0.85;
 
-  // 3) Determine background mode
   const { isUniform, color } = await detectUniformBackground(base);
 
-  // 4) If uniform bg, use solid background + centered cutout
   if (isUniform) {
     const fg = await sharp(cutoutPng)
       .resize(targetSize, targetSize, {
@@ -391,43 +317,28 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
     };
   }
 
-  // 5) Scene bg: create a background plate by reframing original around subject center
-  // Note: ML bounds are in cutout image coordinates; cutout has same dimensions as original input,
-  // but rotate() can change orientation. For consistent behavior, base the crop on the *rotated* metadata.
-  // We'll compute crop on rotated metadata by using rotated metadata sizes and clamping.
-  const rotMeta = await rotated.metadata();
-  if (!rotMeta.width || !rotMeta.height) {
-    const processedBuffer = await rotated
-      .resize(targetSize, targetSize, { fit: "cover", position: "center" })
-      .webp({ quality: 85, effort: 4 })
-      .toBuffer();
-    return { processedBuffer, processingStrategy: "fallback_cover_center", needsReviewHint: "no_rot_meta" };
-  }
-
-  // bounds.imageW/H are from cutout meta (pre-rotate). We’ll map center proportionally.
-  const cxNorm = (bounds.left + bounds.width / 2) / bounds.imageW;
-  const cyNorm = (bounds.top + bounds.height / 2) / bounds.imageH;
-
-  const mappedBounds: SubjectBounds = {
-    left: Math.round(cxNorm * rotMeta.width - (bounds.width / bounds.imageW) * rotMeta.width / 2),
-    top: Math.round(cyNorm * rotMeta.height - (bounds.height / bounds.imageH) * rotMeta.height / 2),
-    width: Math.round((bounds.width / bounds.imageW) * rotMeta.width),
-    height: Math.round((bounds.height / bounds.imageH) * rotMeta.height),
-    imageW: rotMeta.width,
-    imageH: rotMeta.height,
-    coverageRatio: bounds.coverageRatio,
-  };
-
+  // Scene background: crop + composite
   const sq = squareFromBounds(bounds);
 
-  // Foreground: ML cutout, centered (contain), transparent background.
-  // Resize the cutout to targetSize with contain so it sits centered and consistent.
+  const bgPlate = await rotated
+    .extract({ left: sq.left, top: sq.top, width: sq.size, height: sq.size })
+    .resize(targetSize, targetSize, { fit: "cover" })
+    .png()
+    .toBuffer();
 
-  const processedBuffer = await rotated
-  .extract({ left: sq.left, top: sq.top, width: sq.size, height: sq.size })
-  .resize(targetSize, targetSize, { fit: "cover" }) // already square, cover is safe
-  .webp({ quality: 85, effort: 4 })
-  .toBuffer();
+  const fg = await sharp(cutoutPng)
+    .resize(targetSize, targetSize, {
+      fit: "contain",
+      position: "center",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toBuffer();
+
+  const processedBuffer = await sharp(bgPlate)
+    .composite([{ input: fg }])
+    .webp({ quality: 85, effort: 4 })
+    .toBuffer();
 
   return {
     processedBuffer,
@@ -436,9 +347,6 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
   };
 }
 
-/**
- * Calculate quality score based on original image resolution
- */
 function calculateQualityScore(originalWidth: number, originalHeight: number): number {
   let score = 100;
 
@@ -456,6 +364,24 @@ function calculateQualityScore(originalWidth: number, originalHeight: number): n
   return Math.max(0, Math.min(100, score));
 }
 
+function bufferToArrayBuffer(buf: Buffer): ArrayBuffer {
+  const ab = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(ab).set(buf);
+  return ab;
+}
+
+function toHex(buffer: ArrayBuffer) {
+  return [...new Uint8Array(buffer)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function sha256Hex(file: File) {
+  const buf = await file.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buf);
+  return toHex(digest);
+}
+
 export class ProductImageService {
   private storageRepo: StorageRepository;
 
@@ -463,12 +389,6 @@ export class ProductImageService {
     this.storageRepo = new StorageRepository(supabase);
   }
 
-  /**
-   * Upload and process product image
-   * - Validates file
-   * - ML subject-centers and produces 1200x1200 WebP
-   * - Uploads original + processed
-   */
   async uploadProductImage(input: {
     tenantId: string;
     file: File;
@@ -497,7 +417,6 @@ export class ProductImageService {
       productId: input.productId,
     });
 
-    // Validation
     if (!input.file) throw new Error("Missing file");
     if (input.file.size <= 0) throw new Error("Empty file");
     if (input.file.size > maxBytes) {
@@ -506,20 +425,15 @@ export class ProductImageService {
       );
     }
 
-    // Normalize MIME type (handle iOS quirks)
     let mimeType = input.file.type;
     if (mimeType === "image/jpg") {
       mimeType = "image/jpeg";
-      console.info("[ProductImageService] Normalized image/jpg to image/jpeg");
     }
 
     let meta = ALLOWED_MIME[mimeType];
 
-    // iOS detection - infer from extension if MIME missing
     if (!meta && input.file.name) {
       const ext = input.file.name.toLowerCase().split(".").pop();
-      console.info("[ProductImageService] No MIME type, detecting from extension:", ext);
-
       if (ext === "jpg" || ext === "jpeg") {
         mimeType = "image/jpeg";
         meta = ALLOWED_MIME["image/jpeg"];
@@ -529,38 +443,24 @@ export class ProductImageService {
       } else if (ext === "webp") {
         mimeType = "image/webp";
         meta = ALLOWED_MIME["image/webp"];
-      } else if (ext === "heic" || ext === "heif") {
-        throw new Error("HEIC/HEIF not supported. Convert to JPG or PNG first.");
       }
     }
 
     if (!meta) {
-      console.error("[ProductImageService] Unsupported MIME type:", {
-        provided: input.file.type,
-        detected: mimeType,
-        fileName: input.file.name,
-        allowedTypes: Object.keys(ALLOWED_MIME),
-      });
       throw new Error(
         `Unsupported file type: ${input.file.type || "unknown"}. Supported: JPG, PNG, WebP`,
       );
     }
 
-    // Compute hash
     let hash: string;
     try {
       hash = await sha256Hex(input.file);
-      console.info("[ProductImageService] Hash computed:", hash);
     } catch (err) {
-      console.error("[ProductImageService] Hash computation failed:", err);
       throw new Error("Failed to process file");
     }
 
-    // Convert File to Buffer for Sharp/ML processing
     const arrayBuffer = await input.file.arrayBuffer();
     const originalBuffer = Buffer.from(arrayBuffer);
-
-    console.info("[ProductImageService] Starting ML subject-centered resize...");
 
     let processedBuffer: Buffer;
     let processingStrategy: ProcessingStrategy = "fallback_cover_center";
@@ -585,36 +485,19 @@ export class ProductImageService {
       throw new Error("Failed to process image. Please try a different image.");
     }
 
-    // Quality score + review flags
     const qualityScore = calculateQualityScore(
       originalMetadata.width || 0,
       originalMetadata.height || 0,
     );
 
-    // needsReview if low-res OR segmentation hints problems OR fallback path
     const needsReview =
       qualityScore < 70 ||
       processingStrategy === "fallback_cover_center" ||
       Boolean(needsReviewHint);
 
-    console.info("[ProductImageService] Quality metrics:", {
-      score: qualityScore,
-      needsReview,
-      originalDimensions: `${originalMetadata.width}x${originalMetadata.height}`,
-      processingStrategy,
-      needsReviewHint,
-    });
-
     const productPart = input.productId ? input.productId : "unassigned";
 
-    // Upload ORIGINAL (backup)
     const originalPath = `${input.tenantId}/products/${productPart}/originals/${hash}.${meta.ext}`;
-
-    console.info("[ProductImageService] Uploading original:", {
-      bucket,
-      path: originalPath,
-      contentType: mimeType,
-    });
 
     await this.storageRepo.uploadObject({
       bucket,
@@ -624,15 +507,7 @@ export class ProductImageService {
       upsert: true,
     });
 
-    // Upload PROCESSED (display)
     const processedPath = `${input.tenantId}/products/${productPart}/processed/${hash}.webp`;
-
-    console.info("[ProductImageService] Uploading processed:", {
-      bucket,
-      path: processedPath,
-      size: processedBuffer.length,
-      processingStrategy,
-    });
 
     await this.storageRepo.uploadBuffer({
       bucket,
