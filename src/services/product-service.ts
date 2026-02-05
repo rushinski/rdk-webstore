@@ -1,7 +1,7 @@
 // src/services/product-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { log } from "@/lib/utils/log";
-import { ProductRepository, type ProductFilters } from "@/repositories/product-repo";
+import { ProductRepository, type ProductFilters, type InventoryExportRow } from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/db/database.types";
 import type { Category, Condition, ProductWithDetails } from "@/types/domain/product";
 import { CatalogRepository } from "@/repositories/catalog-repo";
@@ -39,6 +39,10 @@ export class ProductService {
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.repo = new ProductRepository(supabase);
+  }
+
+  async exportInventory(filters: ProductFilters): Promise<InventoryExportRow[]> {
+    return this.repo.exportInventoryRows(filters);
   }
 
   async listProducts(filters: ProductFilters) {

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Plus, Trash2, MoreVertical, Search } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Search, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import type { ProductWithDetails, Category, Condition } from "@/types/domain/product";
@@ -74,6 +74,42 @@ export function InventoryClient({
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const showingStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingEnd = totalCount === 0 ? 0 : Math.min(page * PAGE_SIZE, totalCount);
+
+  const exportInventory = async () => {
+    try {
+      const f = filtersRef.current;
+
+      const params = new URLSearchParams();
+      if (f.q) params.set("q", f.q.trim());
+      if (f.category && f.category !== "all") params.set("category", String(f.category));
+      if (f.condition && f.condition !== "all") params.set("condition", String(f.condition));
+      if (f.stockStatus) params.set("stockStatus", f.stockStatus);
+
+      const res = await fetch(`/api/admin/products/export?${params.toString()}`);
+      if (!res.ok) {
+        showToast("Failed to export inventory.", "error");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `inventory-${today}.csv`;
+
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+      showToast("Inventory exported.", "success");
+    } catch {
+      showToast("Error exporting inventory.", "error");
+    }
+  };
 
   // Update URL when filters change
   const updateURL = useCallback(
@@ -442,6 +478,15 @@ export function InventoryClient({
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory</h1>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void exportInventory()}
+              className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded border border-zinc-800/70"
+            >
+              <Download className="w-3 h-3 sm:w-5 sm:h-5" />
+              Export Inventory
+            </button>
+
             <Link
               href="/admin/inventory/create"
               className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded"

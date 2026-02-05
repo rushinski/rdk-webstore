@@ -46,6 +46,32 @@ export type CartVariantDetails = {
   imageUrl: string | null;
 };
 
+export type InventoryExportRow = {
+  sku: string;
+  name: string; 
+  size: string;
+  type: string;
+  condition: string;
+  priceCents: number;
+  costCents: number;
+};
+
+type VariantExportRow = {
+  size_label: string | null;
+  price_cents: number | null;
+  cost_cents: number | null;
+  stock: number | null;
+  product?: {
+    sku: string | null;
+    title_raw: string | null;
+    condition: string | null;
+    is_active: boolean | null;
+    is_out_of_stock: boolean | null;
+    tenant_id: string | null;
+    category: string | null;
+  };
+};
+
 type ProductInsert = TablesInsert<"products">;
 type ProductUpdate = TablesUpdate<"products">;
 
@@ -127,6 +153,90 @@ type ProductImageRow = {
 
 export class ProductRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
+
+  async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
+    const includeOutOfStock = Boolean(filters.includeOutOfStock);
+
+    let query = this.supabase
+      .from("product_variants")
+      .select(
+        "size_label, price_cents, cost_cents, stock, product:products!inner(sku, title_raw, condition, is_active, is_out_of_stock, tenant_id, category)",
+      )
+      .eq("product.is_active", true);
+
+    // Tenant scoping (admin inventory is tenant-scoped)
+    if (filters.tenantId) {
+      query = query.eq("product.tenant_id", filters.tenantId);
+    }
+    if (filters.sellerId) {
+      query = query.eq("product.seller_id", filters.sellerId);
+    }
+    if (filters.marketplaceId) {
+      query = query.eq("product.marketplace_id", filters.marketplaceId);
+    }
+
+    // Stock filters: match the inventory UI semantics
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("product.is_out_of_stock", true);
+      // for out_of_stock export, keep all variants (sizes) for printing
+    } else if (filters.stockStatus === "in_stock") {
+      query = query.eq("product.is_out_of_stock", false).gt("stock", 0);
+    } else if (!includeOutOfStock) {
+      query = query.eq("product.is_out_of_stock", false).gt("stock", 0);
+    }
+
+    // Text search on product fields
+    if (filters.q) {
+      query = query.or(
+        [
+          `sku.ilike.%${filters.q}%`,
+          `title_raw.ilike.%${filters.q}%`,
+        ].join(","),
+        { foreignTable: "product" },
+      );
+    }
+
+    // Category / condition filters
+    if (filters.category?.length) {
+      query = query.in("product.category", filters.category);
+    }
+    if (filters.condition?.length) {
+      query = query.in("product.condition", filters.condition);
+    }
+
+    // Order for stable printing
+    query = query
+      .order("sku", { ascending: true, foreignTable: "product" })
+      .order("size_label", { ascending: true });
+
+    const { data, error } = await query.limit(20000);
+    if (error) throw error;
+
+    const rows = (data ?? []) as VariantExportRow[];
+
+    return rows
+      .map((r) => {
+        const p = r.product;
+        const sku = p?.sku?.trim() ?? "";
+        const name = p?.title_raw?.trim() ?? "";
+        const size = r.size_label?.trim() ?? "";
+        const type = p?.category?.trim() ?? "";
+        const condition = p?.condition?.trim() ?? "";
+
+        if (!sku || !name || !size || !condition) return null;
+
+        return {
+          sku,
+          name,
+          size,
+          type,
+          condition,
+          priceCents: Number(r.price_cents ?? 0),
+          costCents: Number(r.cost_cents ?? 0),
+        } as InventoryExportRow;
+      })
+      .filter((x): x is InventoryExportRow => Boolean(x));
+  }
 
   async list(filters: ProductFilters = {}) {
     const { page = 1, limit = 20, sort = "newest" } = filters;

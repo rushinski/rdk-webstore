@@ -3,7 +3,7 @@ name: Sync ML Service to Hugging Face
 on:
   push:
     branches:
-      - jacob-dev
+      - main
     paths:
       - 'ml-service/**'
   workflow_dispatch: # Allow manual trigger
