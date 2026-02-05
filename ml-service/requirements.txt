@@ -1,5 +1,0 @@
-fastapi==0.115.0
-uvicorn==0.32.0
-pillow==10.4.0
-rembg==2.0.59
-python-multipart==0.0.12

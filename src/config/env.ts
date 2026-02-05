@@ -38,8 +38,6 @@ const schema = z.object({
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
   NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: z.enum(["true", "false"]).default("true"),
 
-  HF_SPACE_URL: z.string(),
-
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .optional()

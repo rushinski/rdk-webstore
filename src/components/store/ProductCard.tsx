@@ -1,12 +1,5 @@
 // src/components/store/ProductCard.tsx
-/**
- * ProductCard - Optimized for processed images
- * 
- * Images are already processed to 1200x1200 WebP on upload,
- * so we just display them directly with Next.js Image optimization.
- * 
- * No Cloudinary needed - everything is handled by Supabase + Sharp.
- */
+// OPTIMIZED VERSION - Better image loading and performance
 
 import Link from "next/link";
 import Image from "next/image";
@@ -16,7 +9,7 @@ import type { ProductWithDetails } from "@/types/domain/product";
 interface ProductCardProps {
   product: ProductWithDetails;
   storeHref?: string;
-  priority?: boolean;
+  priority?: boolean; // For above-the-fold images
 }
 
 export function ProductCard({ product, storeHref, priority = false }: ProductCardProps) {
@@ -58,32 +51,32 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
     ? `/store/${product.id}?from=${encodeURIComponent(storeHref)}`
     : `/store/${product.id}`;
 
-  // Image is already processed to 1200x1200 WebP on upload
-  // Just use it directly - Next.js Image will handle responsive sizing
-  const imageUrl = primaryImage?.url || null;
-
   return (
     <Link
       href={productHref}
       className="group block h-full"
       data-testid="product-card"
       data-product-id={product.id}
+      // OPTIMIZATION 1: Add prefetch only for visible cards
       prefetch={priority}
     >
       <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
         <div className="aspect-square relative bg-zinc-800">
-          {imageUrl && (
+          {primaryImage && (
             <Image
-              src={imageUrl}
+              src={primaryImage.url}
               alt={product.title_display ?? product.name}
               fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+              sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
+              // OPTIMIZATION 2: Priority for first 8 cards, lazy for rest
               loading={priority ? "eager" : "lazy"}
               priority={priority}
               className="object-cover group-hover:scale-105 transition-transform duration-300"
-              quality={90}
-              // Image is already optimized WebP from Sharp processing
-              // Next.js will serve appropriate sizes based on device
+              // OPTIMIZATION 3: Lower quality for thumbnails
+              quality={75}
+              // OPTIMIZATION 4: Use placeholder for better LCP
+              placeholder="blur"
+              blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN8/+F9PQAI8wNPvd7POQAAAABJRU5ErkJggg=="
             />
           )}
 
@@ -93,12 +86,14 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
         </div>
 
         <div className="p-3 flex flex-col flex-1">
+          {/* Title */}
           <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
             <h3 className="text-white font-bold text-sm truncate flex-1">
               {product.title_raw ?? `${product.brand} ${product.name}`.trim()}
             </h3>
           </div>
 
+          {/* Size under title */}
           <p
             className="mt-1 text-gray-400 text-xs truncate"
             title={`Size: ${sizeDisplay}`}
@@ -106,6 +101,7 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
             {sizeDisplay}
           </p>
 
+          {/* Price at bottom, bigger */}
           <div className="mt-auto pt-3">
             <span
               className="text-white font-extrabold text-lg whitespace-nowrap tabular-nums"

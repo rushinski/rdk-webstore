@@ -1,11 +1,4 @@
 // app/api/admin/uploads/product-image/route.ts
-/**
- * Product Image Upload API - FIXED VERSION
- * 
- * Handles multiple file uploads with simple contain strategy.
- * All images are resized to 1200x1200 with white padding to ensure
- * the entire product is visible.
- */
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -17,22 +10,16 @@ import { ensureTenantId } from "@/lib/auth/tenant";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 import { ProductImageService } from "@/services/product-image-service";
-import type { ProcessingStrategy } from "@/services/product-image-service";
 
 type UploadSuccess = {
   status: "success";
   result: {
     url: string;
-    originalUrl: string;
     path: string;
-    originalPath: string;
     mimeType: string;
     bytes: number;
     hash: string;
     bucket: string;
-    qualityScore: number;
-    processingStrategy: ProcessingStrategy;
-    needsReview: boolean;
   };
   index: number;
 };
@@ -129,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     const service = new ProductImageService(supabase);
 
-    // Process all files in parallel
+    // CHANGED: Process all files in parallel with Promise.allSettled
     const uploadPromises = allFiles.map(async (file, index): Promise<UploadResult> => {
       try {
         console.info(
@@ -149,14 +136,8 @@ export async function POST(request: NextRequest) {
 
         console.info(
           `[Product Upload] File ${index + 1} uploaded successfully:`,
-          {
-            path: result.path,
-            qualityScore: result.qualityScore,
-            needsReview: result.needsReview,
-            strategy: result.processingStrategy,
-          },
+          result.path,
         );
-
         return { status: "success", result, index };
       } catch (uploadError) {
         console.error(`[Product Upload] File ${index + 1} upload failed:`, uploadError);
@@ -209,9 +190,6 @@ export async function POST(request: NextRequest) {
           })),
       );
 
-    // Check for images that need manual review
-    const needsReviewCount = uploadResults.filter((r) => r.needsReview).length;
-
     // If all uploads failed, return error
     if (uploadResults.length === 0) {
       console.error("[Product Upload] All uploads failed:", uploadErrors);
@@ -225,26 +203,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Log quality metrics
-    if (needsReviewCount > 0) {
-      console.warn(`[Product Upload] ${needsReviewCount} images flagged for review`, {
-        total: uploadResults.length,
-        needsReview: uploadResults
-          .filter((r) => r.needsReview)
-          .map((r) => ({
-            path: r.path,
-            score: r.qualityScore,
-            strategy: r.processingStrategy,
-          })),
+    // If some uploads failed, include partial success info
+    if (uploadErrors.length > 0) {
+      console.warn("[Product Upload] Partial success:", {
+        successful: uploadResults.length,
+        failed: uploadErrors.length,
       });
     }
 
-    // Build response
+    // ALWAYS return in the multiple-file format for consistency
     const responseData = {
       uploads: uploadResults,
       count: uploadResults.length,
       failures: uploadErrors.length > 0 ? uploadErrors : undefined,
-      needsReviewCount: needsReviewCount > 0 ? needsReviewCount : undefined,
       requestId,
     };
 
