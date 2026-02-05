@@ -7,6 +7,7 @@ import sharp from "sharp";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { StorageRepository } from "@/repositories/storage-repo";
 import { DEFAULT_MAX_BYTES, ALLOWED_MIME } from "@/config/constants/uploads";
+import { env } from "@/config/env";
 
 type RGB = { r: number; g: number; b: number };
 
@@ -32,7 +33,7 @@ type SubjectBounds = {
 };
 
 // CHANGE THIS to your Hugging Face Space URL
-const HF_SPACE_URL = process.env.HF_SPACE_URL || "https://YOUR-USERNAME-YOUR-SPACE.hf.space";
+const HF_SPACE_URL = env.HF_SPACE_URL;
 
 /**
  * Call Hugging Face Space to remove background
@@ -317,26 +318,12 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
     };
   }
 
-  // Scene background: crop + composite
+  // Scene background: FIXED - just crop and reframe around subject (no composite)
   const sq = squareFromBounds(bounds);
 
-  const bgPlate = await rotated
+  const processedBuffer = await rotated
     .extract({ left: sq.left, top: sq.top, width: sq.size, height: sq.size })
     .resize(targetSize, targetSize, { fit: "cover" })
-    .png()
-    .toBuffer();
-
-  const fg = await sharp(cutoutPng)
-    .resize(targetSize, targetSize, {
-      fit: "contain",
-      position: "center",
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer();
-
-  const processedBuffer = await sharp(bgPlate)
-    .composite([{ input: fg }])
     .webp({ quality: 85, effort: 4 })
     .toBuffer();
 
