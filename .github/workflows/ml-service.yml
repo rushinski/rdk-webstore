@@ -6,7 +6,7 @@ on:
       - jacob-dev
     paths:
       - 'ml-service/**'
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: 
 
 jobs:
   sync:
