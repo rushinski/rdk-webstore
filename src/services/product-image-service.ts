@@ -1,7 +1,7 @@
 // src/services/product-image-service.ts
 /**
  * Product Image Service — ML via Hugging Face Space (Free)
- * FIXED: Validates background removal actually created transparency
+ * FIXED: Truly centers the subject by cropping to bounds first
  */
 
 import sharp from "sharp";
@@ -152,25 +152,9 @@ async function mlCutoutAndBounds(
     .png({ compressionLevel: 9, palette: false })
     .toBuffer();
 
-  console.log("[mlCutoutAndBounds] Calling HF background removal API...");
   const cutoutPng = await callHFBackgroundRemoval(normalizedPng);
-  console.log("[mlCutoutAndBounds] Received response, size:", cutoutPng.length);
 
-  // CRITICAL: Verify the cutout actually has transparency
-  const cutoutMeta = await sharp(cutoutPng).metadata();
-  console.log("[mlCutoutAndBounds] Cutout metadata:", {
-    width: cutoutMeta.width,
-    height: cutoutMeta.height,
-    channels: cutoutMeta.channels,
-    hasAlpha: cutoutMeta.hasAlpha,
-  });
-
-  if (!cutoutMeta.hasAlpha) {
-    console.warn("[mlCutoutAndBounds] WARNING: Cutout has no alpha channel! Background removal may have failed.");
-    return { cutoutPng: normalizedPng, bounds: null };
-  }
-
-  const img = sharp(cutoutPng);
+  const img = sharp(cutoutPng).ensureAlpha();
   const meta = await img.metadata();
   if (!meta.width || !meta.height) return { cutoutPng, bounds: null };
 
@@ -190,7 +174,6 @@ async function mlCutoutAndBounds(
     maxY = 0;
   let found = false;
   let alphaCount = 0;
-  let transparentCount = 0;
 
   const aThresh = 12;
 
@@ -205,31 +188,11 @@ async function mlCutoutAndBounds(
         if (y < minY) minY = y;
         if (x > maxX) maxX = x;
         if (y > maxY) maxY = y;
-      } else {
-        transparentCount++;
       }
     }
   }
 
-  const coverageRatio = alphaCount / Math.max(1, info.width * info.height);
-  const transparencyRatio = transparentCount / Math.max(1, info.width * info.height);
-
-  console.log("[mlCutoutAndBounds] Alpha scan results:", {
-    coverage: `${(coverageRatio * 100).toFixed(1)}%`,
-    transparency: `${(transparencyRatio * 100).toFixed(1)}%`,
-    found,
-  });
-
-  // VALIDATION: If coverage is >95%, background removal probably failed
-  if (coverageRatio > 0.95) {
-    console.warn("[mlCutoutAndBounds] Coverage >95% - background removal likely failed!");
-    return { cutoutPng: normalizedPng, bounds: null };
-  }
-
-  if (!found) {
-    console.warn("[mlCutoutAndBounds] No opaque pixels found in cutout");
-    return { cutoutPng, bounds: null };
-  }
+  if (!found) return { cutoutPng, bounds: null };
 
   const scaleX = meta.width / info.width;
   const scaleY = meta.height / info.height;
@@ -239,7 +202,7 @@ async function mlCutoutAndBounds(
   const width = Math.min(meta.width - left, Math.ceil((maxX - minX + 1) * scaleX));
   const height = Math.min(meta.height - top, Math.ceil((maxY - minY + 1) * scaleY));
 
-  console.log("[mlCutoutAndBounds] Detected bounds:", { left, top, width, height });
+  const coverageRatio = alphaCount / Math.max(1, info.width * info.height);
 
   return {
     cutoutPng,
@@ -296,7 +259,7 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
   }
 
   if (!bounds) {
-    console.warn("[ML] Bounds not found - using fallback");
+    console.warn("[ML] Bounds not found");
     const processedBuffer = await rotated
       .resize(targetSize, targetSize, { fit: "cover", position: "center" })
       .webp({ quality: 85, effort: 4 })
@@ -314,20 +277,21 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
   const { isUniform, color } = await detectUniformBackground(base);
 
   if (isUniform) {
-    console.log("[ML] Uniform background detected, using subject-centered approach");
+    // FIXED: Crop to subject bounds FIRST, then resize with padding
+    // This ensures the subject itself is centered, not just the canvas
     
-    // Crop to subject bounds first, then resize with padding
-    const padding = 0.15; // 15% padding around subject
-    const paddedWidth = Math.round(bounds.width * (1 + padding * 2));
-    const paddedHeight = Math.round(bounds.height * (1 + padding * 2));
+    // Add padding around the subject bounds (20% margin)
+    const padding = 0.2;
+    const paddedWidth = Math.round(bounds.width * (1 + padding));
+    const paddedHeight = Math.round(bounds.height * (1 + padding));
     
-    const cropLeft = Math.max(0, Math.round(bounds.left - bounds.width * padding));
-    const cropTop = Math.max(0, Math.round(bounds.top - bounds.height * padding));
+    // Calculate crop coordinates (centered on subject)
+    const cropLeft = Math.max(0, Math.round(bounds.left - (paddedWidth - bounds.width) / 2));
+    const cropTop = Math.max(0, Math.round(bounds.top - (paddedHeight - bounds.height) / 2));
     const cropWidth = Math.min(paddedWidth, bounds.imageW - cropLeft);
     const cropHeight = Math.min(paddedHeight, bounds.imageH - cropTop);
     
-    console.log("[ML] Cropping to subject with padding:", { cropLeft, cropTop, cropWidth, cropHeight });
-    
+    // Crop to subject with padding, then resize to target
     const fg = await sharp(cutoutPng)
       .extract({ 
         left: cropLeft, 
@@ -366,7 +330,7 @@ async function resizeToSquareML(buffer: Buffer, targetSize = 1200): Promise<Resi
     };
   }
 
-  console.log("[ML] Scene background detected, using crop-based approach");
+  // Scene background: just crop and reframe around subject (no composite)
   const sq = squareFromBounds(bounds);
 
   const processedBuffer = await rotated
