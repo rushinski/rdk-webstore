@@ -80,10 +80,18 @@ export function InventoryClient({
       const f = filtersRef.current;
 
       const params = new URLSearchParams();
-      if (f.q) params.set("q", f.q.trim());
-      if (f.category && f.category !== "all") params.set("category", String(f.category));
-      if (f.condition && f.condition !== "all") params.set("condition", String(f.condition));
-      if (f.stockStatus) params.set("stockStatus", f.stockStatus);
+      if (f.q) {
+        params.set("q", f.q.trim());
+      }
+      if (f.category && f.category !== "all") {
+        params.set("category", String(f.category));
+      }
+      if (f.condition && f.condition !== "all") {
+        params.set("condition", String(f.condition));
+      }
+      if (f.stockStatus) {
+        params.set("stockStatus", f.stockStatus);
+      }
 
       const res = await fetch(`/api/admin/products/export?${params.toString()}`);
       if (!res.ok) {

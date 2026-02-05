@@ -1,7 +1,11 @@
 // src/services/product-service.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { log } from "@/lib/utils/log";
-import { ProductRepository, type ProductFilters, type InventoryExportRow } from "@/repositories/product-repo";
+import {
+  ProductRepository,
+  type ProductFilters,
+  type InventoryExportRow,
+} from "@/repositories/product-repo";
 import type { TablesInsert } from "@/types/db/database.types";
 import type { Category, Condition, ProductWithDetails } from "@/types/domain/product";
 import { CatalogRepository } from "@/repositories/catalog-repo";

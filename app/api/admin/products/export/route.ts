@@ -16,7 +16,9 @@ const querySchema = z.object({
 
 function csvEscape(value: string) {
   const v = value ?? "";
-  if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  if (/[",\n\r]/.test(v)) {
+    return `"${v.replace(/"/g, '""')}"`;
+  }
   return v;
 }
 

@@ -48,7 +48,7 @@ export type CartVariantDetails = {
 
 export type InventoryExportRow = {
   sku: string;
-  name: string; 
+  name: string;
   size: string;
   type: string;
   condition: string;
@@ -188,10 +188,7 @@ export class ProductRepository {
     // Text search on product fields
     if (filters.q) {
       query = query.or(
-        [
-          `sku.ilike.%${filters.q}%`,
-          `title_raw.ilike.%${filters.q}%`,
-        ].join(","),
+        [`sku.ilike.%${filters.q}%`, `title_raw.ilike.%${filters.q}%`].join(","),
         { foreignTable: "product" },
       );
     }
@@ -210,7 +207,9 @@ export class ProductRepository {
       .order("size_label", { ascending: true });
 
     const { data, error } = await query.limit(20000);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     const rows = (data ?? []) as VariantExportRow[];
 
@@ -223,7 +222,9 @@ export class ProductRepository {
         const type = p?.category?.trim() ?? "";
         const condition = p?.condition?.trim() ?? "";
 
-        if (!sku || !name || !size || !condition) return null;
+        if (!sku || !name || !size || !condition) {
+          return null;
+        }
 
         return {
           sku,
