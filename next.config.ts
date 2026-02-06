@@ -19,7 +19,7 @@ const nextConfig = {
   // OPTIMIZATION 1: Modern image formats and optimization
   images: {
     // Disable image optimization in development when using local Supabase
-    unoptimized: env.NODE_ENV === "development",
+    unoptimized: true,
     formats: ["image/avif", "image/webp"], // Modern formats for 30-50% smaller files
     deviceSizes: [640, 750, 828, 1080, 1200, 1920], // Responsive breakpoints
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384], // Icon/thumbnail sizes
