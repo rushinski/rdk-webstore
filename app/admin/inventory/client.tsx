@@ -489,18 +489,20 @@ export function InventoryClient({
             <button
               type="button"
               onClick={() => void exportInventory()}
-              className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white font-bold px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded border border-zinc-800/70"
+              aria-label="Export inventory"
+              className="flex items-center gap-1 bg-zinc-900 hover:bg-zinc-800 text-white font-bold px-3 py-2 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded border border-zinc-800/70"
             >
-              <Download className="w-3 h-3 sm:w-5 sm:h-5" />
-              Export Inventory
+              <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Export Inventory</span>
             </button>
 
             <Link
               href="/admin/inventory/create"
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-1 text-xs sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded"
+              aria-label="Create product"
+              className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-2 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base transition cursor-pointer rounded"
             >
-              <Plus className="w-3 h-3 sm:w-5 sm:h-5" />
-              Create Product
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">Create Product</span>
             </Link>
           </div>
         </div>
