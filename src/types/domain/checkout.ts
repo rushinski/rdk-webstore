@@ -13,7 +13,7 @@ export interface CheckoutSessionRequest {
   }>;
   fulfillment: FulfillmentMethod;
   idempotencyKey: string;
-  guestEmail?: string;
+  guestEmail?: string | null;
 }
 
 export interface CheckoutSessionResponse {
