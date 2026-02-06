@@ -39,11 +39,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isAdmin = role ? isAdminRole(role) : false;
 
   const userEmail = session?.user.email ?? session?.profile?.email;
+  const userId = session?.user.id ?? null;
 
   return (
     <html lang="en">
       <body className="bg-black text-white">
-        <CartProvider>
+        <CartProvider userId={userId}>
           <ClientShell isAdmin={isAdmin} userEmail={userEmail} role={role}>
             <ScrollHeader
               isAuthenticated={isAuthenticated}

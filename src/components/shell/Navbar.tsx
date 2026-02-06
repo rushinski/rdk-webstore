@@ -28,7 +28,6 @@ import {
 
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import { logError } from "@/lib/utils/log";
-import { CartService } from "@/services/cart-service";
 import { isAdminRole, type ProfileRole } from "@/config/constants/roles";
 
 type ActiveMenu = "shop" | "brands" | "shoeSizes" | "clothingSizes" | null;
@@ -146,7 +145,6 @@ export function Navbar({
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
-  const [localCartCount, setLocalCartCount] = useState(cartCount);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>(
     [],
   );
@@ -175,10 +173,6 @@ export function Navbar({
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  useEffect(() => {
-    setLocalCartCount(cartCount);
-  }, [cartCount]);
 
   useEffect(() => {
     let isActive = true;
@@ -222,21 +216,6 @@ export function Navbar({
       isActive = false;
     };
   }, [pathname]);
-
-  useEffect(() => {
-    const handleCartUpdate = (e: Event) => {
-      const event = e as CustomEvent;
-      const nextCount =
-        typeof event.detail?.count === "number"
-          ? event.detail.count
-          : new CartService().getItemCount();
-      setLocalCartCount(nextCount);
-    };
-
-    setLocalCartCount(new CartService().getItemCount());
-    window.addEventListener("cartUpdated", handleCartUpdate);
-    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
-  }, []);
 
   useEffect(() => {
     const loadBrandGroups = async () => {
@@ -801,9 +780,9 @@ export function Navbar({
             aria-label="Cart"
           >
             <ShoppingCart className="w-5 h-5" />
-            {localCartCount > 0 && (
+            {cartCount > 0 && (
               <span className="absolute -top-2 -right-1 text-[10px] font-semibold text-red-500">
-                {localCartCount}
+                {cartCount}
               </span>
             )}
           </button>

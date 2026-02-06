@@ -1,28 +1,15 @@
 // src/components/shell/MobileBottomNav.tsx
 "use client";
 
-import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Home, Search, ShoppingCart, User } from "lucide-react";
 
-import { CartService } from "@/services/cart-service";
+import { useCart } from "@/components/cart/CartProvider";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
-  const [cartCount, setCartCount] = useState(0);
-
-  useEffect(() => {
-    const cart = new CartService();
-    setCartCount(cart.getItemCount());
-
-    const handleCartUpdate = () => {
-      setCartCount(cart.getItemCount());
-    };
-
-    window.addEventListener("cartUpdated", handleCartUpdate);
-    return () => window.removeEventListener("cartUpdated", handleCartUpdate);
-  }, []);
+  const { itemCount } = useCart();
 
   if (pathname.startsWith("/admin")) {
     return null;
@@ -54,9 +41,9 @@ export function MobileBottomNav() {
           className="relative flex flex-col items-center text-gray-300 hover:text-white"
         >
           <ShoppingCart className="w-5 h-5" />
-          {cartCount > 0 && (
+          {itemCount > 0 && (
             <span className="absolute -top-2 -right-1 text-[10px] font-semibold text-red-500">
-              {cartCount}
+              {itemCount}
             </span>
           )}
           <span className="text-xs mt-1">Cart</span>

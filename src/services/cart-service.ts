@@ -3,15 +3,43 @@
 
 import type { CartItem } from "@/types/domain/cart";
 
-const CART_KEY = "rdk_cart";
+const CART_KEY_LEGACY = "rdk_cart";
+const CART_KEY_GUEST = "rdk_cart_session";
+const CART_KEY_USER_PREFIX = "rdk_cart_user_";
+
+type CartStorageScope =
+  | { storage: Storage; key: string; kind: "guest" | "user" }
+  | { storage: null; key: null; kind: "none" };
 
 export class CartService {
+  private userId: string | null;
+
+  constructor(userId: string | null = null) {
+    this.userId = userId;
+  }
+
+  setUserId(userId: string | null) {
+    this.userId = userId;
+  }
+
   getCart(): CartItem[] {
-    if (typeof window === "undefined") {
+    const scope = this.resolveStorage();
+    if (!scope.storage || !scope.key) {
       return [];
     }
-    const stored = localStorage.getItem(CART_KEY);
-    return stored ? JSON.parse(stored) : [];
+    try {
+      if (scope.kind === "user") {
+        this.migrateLegacyCart(scope.key);
+      }
+      const stored = scope.storage.getItem(scope.key);
+      if (!stored) {
+        return [];
+      }
+      const parsed = JSON.parse(stored) as unknown;
+      return Array.isArray(parsed) ? (parsed as CartItem[]) : [];
+    } catch {
+      return [];
+    }
   }
 
   addItem(item: Omit<CartItem, "quantity">) {
@@ -88,14 +116,58 @@ export class CartService {
   }
 
   private saveCart(cart: CartItem[]) {
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    const scope = this.resolveStorage();
+    if (!scope.storage || !scope.key) {
+      return;
+    }
+    try {
+      scope.storage.setItem(scope.key, JSON.stringify(cart));
+    } catch {
+      // ignore storage errors
+    }
 
-    // Dispatch custom event with count for navbar
-    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-    window.dispatchEvent(
-      new CustomEvent("cartUpdated", {
-        detail: { count, items: cart },
-      }),
-    );
+    try {
+      // Dispatch custom event with count for navbar
+      const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+      window.dispatchEvent(
+        new CustomEvent("cartUpdated", {
+          detail: { count, items: cart },
+        }),
+      );
+    } catch {
+      // ignore event errors
+    }
+  }
+
+  private resolveStorage(): CartStorageScope {
+    if (typeof window === "undefined") {
+      return { storage: null, key: null, kind: "none" };
+    }
+
+    if (this.userId) {
+      return {
+        storage: localStorage,
+        key: `${CART_KEY_USER_PREFIX}${this.userId}`,
+        kind: "user",
+      };
+    }
+
+    return { storage: sessionStorage, key: CART_KEY_GUEST, kind: "guest" };
+  }
+
+  private migrateLegacyCart(targetKey: string) {
+    try {
+      const legacy = localStorage.getItem(CART_KEY_LEGACY);
+      if (!legacy) {
+        return;
+      }
+      const existing = localStorage.getItem(targetKey);
+      if (!existing) {
+        localStorage.setItem(targetKey, legacy);
+      }
+      localStorage.removeItem(CART_KEY_LEGACY);
+    } catch {
+      // ignore migration errors
+    }
   }
 }

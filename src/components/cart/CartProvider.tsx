@@ -10,6 +10,7 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { usePathname } from "next/navigation";
 
 import { CartService } from "@/services/cart-service";
 import type { CartItem } from "@/types/domain/cart";
@@ -28,12 +29,20 @@ interface CartContextType {
 
 const cartContext = createContext<CartContextType | null>(null);
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [cart] = useState(() => new CartService());
+export function CartProvider({
+  children,
+  userId = null,
+}: {
+  children: ReactNode;
+  userId?: string | null;
+}) {
+  const pathname = usePathname();
+  const [cart] = useState(() => new CartService(userId ?? null));
   const [items, setItems] = useState<CartItem[]>([]);
   const [isReady, setIsReady] = useState(false);
   const didInitialValidation = useRef(false);
   const isValidatingRef = useRef(false);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(userId ?? null);
 
   const refreshCart = useCallback(async () => {
     const current = cart.getCart();
@@ -67,9 +76,47 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [cart]);
 
   useEffect(() => {
+    setResolvedUserId(userId ?? null);
+  }, [userId]);
+
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+
+    const loadSession = async () => {
+      try {
+        const response = await fetch("/api/auth/session", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json().catch(() => null);
+        if (!isActive) {
+          return;
+        }
+        const nextUserId = data?.user?.id ?? null;
+        setResolvedUserId((prev) => (prev === nextUserId ? prev : nextUserId));
+      } catch {
+        // keep current session on fetch errors
+      }
+    };
+
+    loadSession();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    cart.setUserId(resolvedUserId ?? null);
     const storedItems = cart.getCart();
     setItems(storedItems);
     setIsReady(true);
+    didInitialValidation.current = false;
     try {
       const count = storedItems.reduce((sum, item) => sum + item.quantity, 0);
       window.dispatchEvent(
@@ -89,7 +136,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener("cartUpdated", handleCartUpdate);
     return () => window.removeEventListener("cartUpdated", handleCartUpdate);
-  }, [cart]);
+  }, [cart, resolvedUserId]);
 
   useEffect(() => {
     if (didInitialValidation.current || !isReady) {
