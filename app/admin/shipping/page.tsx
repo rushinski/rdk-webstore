@@ -18,6 +18,7 @@ import type {
 
 const PAGE_SIZE = 8;
 const DEFAULT_PACKAGE = { weight: 16, length: 12, width: 12, height: 12 };
+const SHIPPING_ORDER_STATUSES = ["paid", "shipped"];
 const EMPTY_ORIGIN: ShippingOrigin = {
   name: "",
   company: "",
@@ -317,6 +318,7 @@ export default function ShippingPage() {
               limit: "1",
               page: "1",
             });
+            SHIPPING_ORDER_STATUSES.forEach((status) => params.append("status", status));
             const response = await fetch(`/api/admin/orders?${params.toString()}`);
             const data = await response.json();
             return { key: tab.key, count: Number(data.count ?? 0) };
@@ -362,6 +364,7 @@ export default function ShippingPage() {
           limit: String(PAGE_SIZE),
           page: String(currentPage),
         });
+        SHIPPING_ORDER_STATUSES.forEach((status) => params.append("status", status));
         const response = await fetch(`/api/admin/orders?${params.toString()}`);
 
         if (!response.ok) {
