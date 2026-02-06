@@ -20,7 +20,10 @@ export async function GET() {
       name: item.product.name,
       brand: item.product.brand,
       model: item.product.model,
-      titleDisplay: item.product.title_display,
+      titleDisplay:
+        item.product.title_raw ??
+        item.product.title_display ??
+        `${item.product.brand ?? ""} ${item.product.name ?? ""}`.trim(),
       category: item.product.category,
       primaryImage: item.product.images?.[0]?.url ?? null,
       minPrice: Math.min(...(item.product.variants?.map((v) => v.price_cents) ?? [0])),

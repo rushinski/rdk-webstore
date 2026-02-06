@@ -15,6 +15,7 @@ export type FeaturedItemWithProduct = FeaturedItemRow & {
     name: string;
     brand: string;
     model: string | null;
+    title_raw: string | null;
     title_display: string;
     category: string;
     is_active: boolean;
@@ -66,6 +67,7 @@ export class FeaturedItemsRepository {
           name,
           brand,
           model,
+          title_raw,
           title_display,
           category,
           is_active,

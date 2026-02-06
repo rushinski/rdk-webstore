@@ -1,3 +1,4 @@
+// src/components/shell/ScrollHeader.tsx
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,7 +25,8 @@ export function ScrollHeader({
   const isAuthRoute = pathname.startsWith("/auth");
   const isAdminRoute = pathname.startsWith("/admin");
   const isCheckoutRoute = pathname.startsWith("/checkout");
-  const hideHeader = isAuthRoute || isAdminRoute || isCheckoutRoute;
+  const isLockedRoute = pathname.startsWith("/locked");
+  const hideHeader = isAuthRoute || isAdminRoute || isCheckoutRoute || isLockedRoute;
 
   // ✅ Hooks must be unconditional
   const [isVisible, setIsVisible] = useState(true);

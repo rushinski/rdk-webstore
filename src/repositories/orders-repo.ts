@@ -252,7 +252,7 @@ export class OrdersRepository {
     let query = this.supabase
       .from("orders")
       .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
+        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_raw, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
       )
       .order("created_at", { ascending: false });
 
@@ -308,7 +308,7 @@ export class OrdersRepository {
     let query = this.supabase
       .from("orders")
       .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
+        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_raw, title_display, category, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -346,7 +346,7 @@ export class OrdersRepository {
     const { data, error } = await this.supabase
       .from("order_items")
       .select(
-        "*, product:products(id, name, brand, model, title_display, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label)",
+        "*, product:products(id, name, brand, model, title_raw, title_display, images:product_images(url, is_primary, sort_order)), variant:product_variants(id, size_label)",
       )
       .eq("order_id", orderId);
 
@@ -360,7 +360,7 @@ export class OrdersRepository {
     const { data, error } = await this.supabase
       .from("orders")
       .select(
-        "*, items:order_items(*, product:products(id, name, brand, model, title_display), variant:product_variants(id, size_label, price_cents))",
+        "*, items:order_items(*, product:products(id, name, brand, model, title_raw, title_display), variant:product_variants(id, size_label, price_cents))",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });

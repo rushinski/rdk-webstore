@@ -65,7 +65,7 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
           {primaryImage && (
             <Image
               src={primaryImage.url}
-              alt={product.title_display ?? product.name}
+              alt={product.title_raw ?? product.title_display ?? product.name}
               fill
               sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
               // OPTIMIZATION 2: Priority for first 8 cards, lazy for rest

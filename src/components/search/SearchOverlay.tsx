@@ -15,6 +15,7 @@ interface SearchOverlayProps {
 
 type SearchResult = {
   id: string;
+  title_raw?: string | null;
   title_display?: string | null;
   name?: string | null;
   brand?: string | null;
@@ -102,35 +103,42 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         {results.length > 0 && (
           <div className="space-y-2">
             <p className="text-gray-400 text-sm mb-3">Likely matches</p>
-            {results.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => {
-                  router.push(`/store/${product.id}`);
-                  onClose();
-                }}
-                className="w-full flex items-center gap-4 bg-zinc-900 hover:bg-zinc-800 p-3 rounded transition text-left"
-              >
-                <div className="w-16 h-16 relative flex-shrink-0">
-                  <Image
-                    src={product.images?.[0]?.url || "/placeholder.png"}
-                    alt={product.title_display ?? product.name ?? "Product image"}
-                    fill
-                    sizes="64px"
-                    loading="lazy"
-                    className="object-cover rounded"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-semibold truncate">
-                    {product.title_display ?? `${product.brand} ${product.name}`.trim()}
-                  </h3>
-                </div>
-                <div className="text-white font-bold">
-                  ${(Number(product.variants?.[0]?.price_cents ?? 0) / 100).toFixed(2)}
-                </div>
-              </button>
-            ))}
+            {results.map((product) => {
+              const displayTitle =
+                product.title_raw ??
+                product.title_display ??
+                `${product.brand ?? ""} ${product.name ?? ""}`.trim();
+
+              return (
+                <button
+                  key={product.id}
+                  onClick={() => {
+                    router.push(`/store/${product.id}`);
+                    onClose();
+                  }}
+                  className="w-full flex items-center gap-4 bg-zinc-900 hover:bg-zinc-800 p-3 rounded transition text-left"
+                >
+                  <div className="w-16 h-16 relative flex-shrink-0">
+                    <Image
+                      src={product.images?.[0]?.url || "/placeholder.png"}
+                      alt={displayTitle || "Product image"}
+                      fill
+                      sizes="64px"
+                      loading="lazy"
+                      className="object-cover rounded"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold truncate">
+                      {displayTitle || "Untitled product"}
+                    </h3>
+                  </div>
+                  <div className="text-white font-bold">
+                    ${(Number(product.variants?.[0]?.price_cents ?? 0) / 100).toFixed(2)}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
 

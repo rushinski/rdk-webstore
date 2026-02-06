@@ -12,6 +12,7 @@ import { checkCsrf } from "@/proxy/csrf";
 import { checkBot } from "@/proxy/bot";
 import { canonicalizePath } from "@/proxy/canonicalize";
 import { finalizeProxyResponse } from "@/proxy/finalize";
+import { checkSiteLock } from "@/proxy/site-lock";
 
 /**
  * @see docs/PROXY_PIPELINE.md
@@ -45,6 +46,17 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   sessionResponse.cookies.getAll().forEach((cookie) => {
     response.cookies.set(cookie.name, cookie.value, cookie);
   });
+
+  // Site lock gate (storefront lock with admin bypass)
+  const siteLockResponse = await checkSiteLock(request, requestId);
+  if (siteLockResponse) {
+    // preserve refreshed auth cookies on the lock response
+    sessionResponse.cookies.getAll().forEach((cookie) => {
+      siteLockResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+
+    return finalizeProxyResponse(siteLockResponse, requestId);
+  }
 
   response = finalizeProxyResponse(response, requestId);
 

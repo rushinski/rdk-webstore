@@ -4,12 +4,15 @@ import { ModalPortal } from "@/components/ui/ModalPortal";
 
 import type { ShippingOrigin } from "../../../types/domain/shipping";
 
+type OriginErrors = Partial<Record<keyof ShippingOrigin, string>>;
+
 type OriginModalProps = {
   open: boolean;
   originAddress: ShippingOrigin | null;
   emptyOrigin: ShippingOrigin;
   originError: string;
   originMessage: string;
+  originFieldErrors?: OriginErrors;
   savingOrigin: boolean;
   onClose: () => void;
   onChange: (field: keyof ShippingOrigin, value: string) => void;
@@ -22,12 +25,14 @@ export function OriginModal({
   emptyOrigin,
   originError,
   originMessage,
+  originFieldErrors,
   savingOrigin,
   onClose,
   onChange,
   onSave,
 }: OriginModalProps) {
   const value = originAddress ?? emptyOrigin;
+  const errors = originFieldErrors ?? {};
 
   return (
     <ModalPortal open={open} onClose={onClose}>
@@ -51,14 +56,22 @@ export function OriginModal({
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 text-[11px] sm:text-sm">
+          <div className="col-span-2 text-[10px] sm:text-xs text-zinc-400">
+            Provide a contact name or company name. Phone number is optional.
+          </div>
           <div>
-            <label className="block text-gray-400 mb-0.5">Name</label>
+            <label className="block text-gray-400 mb-0.5">Contact name</label>
             <input
               type="text"
-              value={value.name}
+              value={value.name ?? ""}
               onChange={(e) => onChange("name", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.name ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.name && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.name}</div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">Company</label>
@@ -66,17 +79,29 @@ export function OriginModal({
               type="text"
               value={value.company ?? ""}
               onChange={(e) => onChange("company", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.company ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.company && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.company}</div>
+            )}
           </div>
           <div>
-            <label className="block text-gray-400 mb-0.5">Phone</label>
+            <label className="block text-gray-400 mb-0.5">
+              Phone (optional)
+            </label>
             <input
               type="text"
-              value={value.phone}
+              value={value.phone ?? ""}
               onChange={(e) => onChange("phone", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.phone ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.phone && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.phone}</div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">Line 1</label>
@@ -84,8 +109,13 @@ export function OriginModal({
               type="text"
               value={value.line1}
               onChange={(e) => onChange("line1", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.line1 ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.line1 && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.line1}</div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">Line 2</label>
@@ -93,8 +123,13 @@ export function OriginModal({
               type="text"
               value={value.line2 ?? ""}
               onChange={(e) => onChange("line2", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.line2 ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.line2 && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.line2}</div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">City</label>
@@ -102,8 +137,13 @@ export function OriginModal({
               type="text"
               value={value.city}
               onChange={(e) => onChange("city", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.city ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.city && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.city}</div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">State</label>
@@ -111,8 +151,13 @@ export function OriginModal({
               type="text"
               value={value.state}
               onChange={(e) => onChange("state", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.state ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.state && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.state}</div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">Postal Code</label>
@@ -120,8 +165,15 @@ export function OriginModal({
               type="text"
               value={value.postal_code}
               onChange={(e) => onChange("postal_code", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.postal_code ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.postal_code && (
+              <div className="text-[10px] text-red-400 mt-1">
+                {errors.postal_code}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-gray-400 mb-0.5">Country</label>
@@ -129,8 +181,13 @@ export function OriginModal({
               type="text"
               value={value.country}
               onChange={(e) => onChange("country", e.target.value)}
-              className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+              className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                errors.country ? "border-red-500" : "border-zinc-800/70"
+              }`}
             />
+            {errors.country && (
+              <div className="text-[10px] text-red-400 mt-1">{errors.country}</div>
+            )}
           </div>
         </div>
 

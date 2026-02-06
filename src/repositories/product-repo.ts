@@ -138,6 +138,7 @@ type CartVariantRow = {
     id: string;
     brand: string;
     name: string;
+    title_raw: string | null;
     title_display: string;
     is_active: boolean;
     is_out_of_stock: boolean;
@@ -153,6 +154,16 @@ type ProductImageRow = {
 
 export class ProductRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
+
+  private readonly storefrontSearchFields = [
+    "brand",
+    "name",
+    "model",
+    "title_raw",
+    "title_display",
+  ];
+
+  private readonly inventorySearchFields = ["sku", "title_raw"];
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
     const includeOutOfStock = Boolean(filters.includeOutOfStock);
@@ -186,12 +197,12 @@ export class ProductRepository {
     }
 
     // Text search on product fields
-    if (filters.q) {
-      query = query.or(
-        [`sku.ilike.%${filters.q}%`, `title_raw.ilike.%${filters.q}%`].join(","),
-        { foreignTable: "product" },
-      );
-    }
+    query = this.applyTextSearch(
+      query,
+      filters.q,
+      this.inventorySearchFields,
+      { foreignTable: "product" },
+    );
 
     // Category / condition filters
     if (filters.category?.length) {
@@ -290,17 +301,7 @@ export class ProductRepository {
       }
 
       // Text search
-      if (filters.q) {
-        query = query.or(
-          [
-            `brand.ilike.%${filters.q}%`,
-            `name.ilike.%${filters.q}%`,
-            `model.ilike.%${filters.q}%`,
-            `title_raw.ilike.%${filters.q}%`,
-            `title_display.ilike.%${filters.q}%`,
-          ].join(","),
-        );
-      }
+      query = this.applyTextSearch(query, filters.q, this.storefrontSearchFields);
 
       // Category / brand / condition filters
       if (filters.category?.length) {
@@ -661,18 +662,9 @@ export class ProductRepository {
       query = query.eq("product.is_out_of_stock", false);
     }
 
-    if (filters?.q) {
-      query = query.or(
-        [
-          `brand.ilike.%${filters.q}%`,
-          `name.ilike.%${filters.q}%`,
-          `model.ilike.%${filters.q}%`,
-          `title_raw.ilike.%${filters.q}%`,
-          `title_display.ilike.%${filters.q}%`,
-        ].join(","),
-        { foreignTable: "product" },
-      );
-    }
+    query = this.applyTextSearch(query, filters?.q, this.storefrontSearchFields, {
+      foreignTable: "product",
+    });
 
     if (filters?.category?.length) {
       query = query.in("product.category", filters.category);
@@ -758,18 +750,9 @@ export class ProductRepository {
       query = query.eq("product.is_out_of_stock", false);
     }
 
-    if (filters?.q) {
-      query = query.or(
-        [
-          `brand.ilike.%${filters.q}%`,
-          `name.ilike.%${filters.q}%`,
-          `model.ilike.%${filters.q}%`,
-          `title_raw.ilike.%${filters.q}%`,
-          `title_display.ilike.%${filters.q}%`,
-        ].join(","),
-        { foreignTable: "product" },
-      );
-    }
+    query = this.applyTextSearch(query, filters?.q, this.storefrontSearchFields, {
+      foreignTable: "product",
+    });
 
     if (filters?.category?.length) {
       query = query.in("product.category", filters.category);
@@ -844,6 +827,83 @@ export class ProductRepository {
     };
   }
 
+  private applyTextSearch<
+    Query extends {
+      or: (
+        filters: string,
+        opts?: { foreignTable?: string; referencedTable?: string },
+      ) => Query;
+    },
+  >(
+    query: Query,
+    input: string | undefined,
+    fields: string[],
+    opts?: { foreignTable?: string; referencedTable?: string },
+  ): Query {
+    const terms = this.buildSearchTerms(input);
+    if (terms.length === 0) {
+      return query;
+    }
+
+    const clauses: string[] = [];
+    for (const term of terms) {
+      const safe = term.replace(/[(),]/g, " ").replace(/\s+/g, " ").trim();
+      if (!safe) {
+        continue;
+      }
+      for (const field of fields) {
+        clauses.push(`${field}.ilike.%${safe}%`);
+      }
+    }
+
+    if (clauses.length === 0) {
+      return query;
+    }
+
+    return query.or(clauses.join(","), opts) as Query;
+  }
+
+  private buildSearchTerms(input?: string): string[] {
+    if (!input) {
+      return [];
+    }
+
+    const normalized = input.trim().toLowerCase();
+    if (!normalized) {
+      return [];
+    }
+
+    const terms = new Set<string>();
+    const addTerm = (value: string) => {
+      const next = value.trim();
+      if (next.length >= 2) {
+        terms.add(next);
+      }
+    };
+
+    addTerm(normalized);
+
+    const tokens = normalized.split(/\s+/);
+    for (const token of tokens) {
+      const cleaned = token.replace(/[^a-z0-9]/g, "");
+      if (!cleaned) {
+        continue;
+      }
+
+      addTerm(cleaned);
+
+      if (cleaned.endsWith("ies") && cleaned.length > 4) {
+        addTerm(`${cleaned.slice(0, -3)}y`);
+      } else if (cleaned.endsWith("es") && cleaned.length > 4) {
+        addTerm(cleaned.slice(0, -2));
+      } else if (cleaned.endsWith("s") && cleaned.length > 3) {
+        addTerm(cleaned.slice(0, -1));
+      }
+    }
+
+    return Array.from(terms).slice(0, 8);
+  }
+
   private buildInClause(values: string[]) {
     return values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
   }
@@ -892,17 +952,11 @@ export class ProductRepository {
     }
 
     // Text search
-    if (filters.q) {
-      countQuery = countQuery.or(
-        [
-          `brand.ilike.%${filters.q}%`,
-          `name.ilike.%${filters.q}%`,
-          `model.ilike.%${filters.q}%`,
-          `title_raw.ilike.%${filters.q}%`,
-          `title_display.ilike.%${filters.q}%`,
-        ].join(","),
-      );
-    }
+    countQuery = this.applyTextSearch(
+      countQuery,
+      filters.q,
+      this.storefrontSearchFields,
+    );
 
     // Category / brand / condition filters
     if (filters.category?.length) {
@@ -986,18 +1040,9 @@ export class ProductRepository {
       query = query.eq("product.is_active", true);
 
       // Text search on product fields
-      if (filters.q) {
-        query = query.or(
-          [
-            `brand.ilike.%${filters.q}%`,
-            `name.ilike.%${filters.q}%`,
-            `model.ilike.%${filters.q}%`,
-            `title_raw.ilike.%${filters.q}%`,
-            `title_display.ilike.%${filters.q}%`,
-          ].join(","),
-          { foreignTable: "product" },
-        );
-      }
+      query = this.applyTextSearch(query, filters.q, this.storefrontSearchFields, {
+        foreignTable: "product",
+      });
 
       // Category / brand / condition filters
       if (filters.category?.length) {
@@ -1141,7 +1186,7 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("product_variants")
       .select(
-        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_display, is_active, is_out_of_stock)",
+        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_raw, title_display, is_active, is_out_of_stock)",
       )
       .in("id", variantIds);
 
@@ -1189,7 +1234,10 @@ export class ProductRepository {
         stock: row.stock,
         brand: product?.brand ?? "",
         name: product?.name ?? "",
-        titleDisplay: product?.title_display ?? "",
+        titleDisplay:
+          product?.title_raw ??
+          product?.title_display ??
+          `${product?.brand ?? ""} ${product?.name ?? ""}`.trim(),
         isActive: product?.is_active ?? false,
         isOutOfStock: product?.is_out_of_stock ?? false,
         imageUrl: imageMap.get(product?.id ?? row.product_id) ?? null,

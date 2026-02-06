@@ -30,6 +30,9 @@ const EMPTY_ORIGIN: ShippingOrigin = {
   country: "US",
 };
 
+type OriginField = keyof ShippingOrigin;
+type OriginErrors = Partial<Record<OriginField, string>>;
+
 const TABS: Array<{ key: TabKey; label: string; status: string }> = [
   { key: "label", label: "Review & Create Label", status: "unfulfilled" },
   { key: "ready", label: "Need to Ship", status: "ready_to_ship" },
@@ -147,6 +150,62 @@ const formatOriginAddress = (origin: ShippingOrigin | null) => {
   return parts.join(" - ");
 };
 
+const extractOriginErrors = (
+  issues: Record<string, { _errors?: string[] }> | undefined,
+): OriginErrors => {
+  const next: OriginErrors = {};
+  if (!issues || typeof issues !== "object") {
+    return next;
+  }
+  const fields: OriginField[] = [
+    "name",
+    "company",
+    "phone",
+    "line1",
+    "line2",
+    "city",
+    "state",
+    "postal_code",
+    "country",
+  ];
+  fields.forEach((field) => {
+    const entry = issues[field];
+    if (entry?._errors?.length) {
+      next[field] = entry._errors[0];
+    }
+  });
+  return next;
+};
+
+const validateOrigin = (origin: ShippingOrigin): OriginErrors => {
+  const errors: OriginErrors = {};
+  const name = origin.name.trim();
+  const company = (origin.company ?? "").trim();
+
+  if (!name && !company) {
+    const message = "Enter a contact name or company.";
+    errors.name = message;
+    errors.company = message;
+  }
+  if (!origin.line1.trim()) {
+    errors.line1 = "Street address is required.";
+  }
+  if (!origin.city.trim()) {
+    errors.city = "City is required.";
+  }
+  if (!origin.state.trim()) {
+    errors.state = "State is required.";
+  }
+  if (!origin.postal_code.trim()) {
+    errors.postal_code = "ZIP / postal code is required.";
+  }
+  if (!origin.country.trim()) {
+    errors.country = "Country is required.";
+  }
+
+  return errors;
+};
+
 const formatPlacedAt = (value?: string | null) => {
   if (!value) {
     return { date: "-", time: "" };
@@ -207,6 +266,7 @@ export default function ShippingPage() {
   const [originModalOpen, setOriginModalOpen] = useState(false);
   const [originMessage, setOriginMessage] = useState("");
   const [originError, setOriginError] = useState("");
+  const [originFieldErrors, setOriginFieldErrors] = useState<OriginErrors>({});
   const [savingOrigin, setSavingOrigin] = useState(false);
 
   const [labelOrder, setLabelOrder] = useState<ShippingOrder | null>(null);
@@ -287,6 +347,7 @@ export default function ShippingPage() {
     }
     setOriginError("");
     setOriginMessage("");
+    setOriginFieldErrors({});
     loadOriginAddress();
   }, [originModalOpen]);
 
@@ -407,6 +468,16 @@ export default function ShippingPage() {
 
   const handleOriginChange = (field: keyof ShippingOrigin, value: string) => {
     setOriginAddress((prev) => ({ ...(prev ?? EMPTY_ORIGIN), [field]: value }));
+    if (originFieldErrors[field]) {
+      setOriginFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (originError) {
+      setOriginError("");
+    }
   };
 
   const handleSaveOrigin = async () => {
@@ -414,14 +485,30 @@ export default function ShippingPage() {
     setSavingOrigin(true);
     setOriginError("");
     setOriginMessage("");
+    setOriginFieldErrors({});
+
+    const validationErrors = validateOrigin(payload);
+    if (Object.keys(validationErrors).length > 0) {
+      setOriginFieldErrors(validationErrors);
+      setOriginError("Please fix the highlighted fields.");
+      setSavingOrigin(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/shipping/origin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
+        const fieldErrors = extractOriginErrors(data?.issues);
+        if (Object.keys(fieldErrors).length > 0) {
+          setOriginFieldErrors(fieldErrors);
+          setOriginError("Please fix the highlighted fields.");
+          return;
+        }
         throw new Error(data?.error || "Failed to save origin");
       }
       setOriginAddress(data.origin ?? payload);
@@ -931,6 +1018,7 @@ export default function ShippingPage() {
         emptyOrigin={EMPTY_ORIGIN}
         originError={originError}
         originMessage={originMessage}
+        originFieldErrors={originFieldErrors}
         savingOrigin={savingOrigin}
         onClose={() => setOriginModalOpen(false)}
         onChange={handleOriginChange}

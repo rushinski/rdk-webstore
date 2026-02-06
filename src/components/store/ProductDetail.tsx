@@ -64,6 +64,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
         ? "New"
         : product.condition;
 
+  const displayTitle =
+    product.title_raw ?? product.title_display ?? `${product.brand} ${product.name}`.trim();
+
   useEffect(() => {
     const current = product.variants.find((v) => v.id === selectedVariantId);
     if (current) {
@@ -100,7 +103,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       sizeLabel: selectedVariant.size_label,
       brand: product.brand,
       name: product.name,
-      titleDisplay: product.title_display ?? `${product.brand} ${product.name}`.trim(),
+      titleDisplay: displayTitle,
       priceCents: selectedVariant.price_cents,
       imageUrl: primaryImage?.url || "/placeholder.png",
       maxStock: selectedVariant.stock,
@@ -115,14 +118,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
         {/* Image Gallery - NO Suspense wrapper */}
         <div>
           <div className="aspect-square relative bg-zinc-900 rounded overflow-hidden mb-4">
-            <Image
-              src={product.images[selectedImageIndex]?.url || "/placeholder.png"}
-              alt={product.name}
-              fill
-              sizes="(min-width: 1024px) 50vw, 100vw"
-              priority
-              className="object-cover"
-              quality={90}
+              <Image
+                src={product.images[selectedImageIndex]?.url || "/placeholder.png"}
+                alt={displayTitle}
+                fill
+                sizes="(min-width: 1024px) 50vw, 100vw"
+                priority
+                className="object-cover"
+                quality={90}
             />
           </div>
 
@@ -141,7 +144,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
                 >
                   <Image
                     src={image.url}
-                    alt={`${product.name} ${index + 1}`}
+                    alt={`${displayTitle} ${index + 1}`}
                     fill
                     sizes="(min-width: 1024px) 10vw, 20vw"
                     // FIXED: Load all thumbnails immediately
@@ -158,9 +161,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
         {/* Product Info */}
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            {product.title_raw ?? `${product.brand} ${product.name}`.trim()}
-          </h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{displayTitle}</h1>
 
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-bold text-white">

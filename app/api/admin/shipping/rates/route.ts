@@ -56,6 +56,11 @@ const toShippoAddress = (address: {
   postal_code?: string | null;
   country?: string | null;
 }) => {
+  const clean = (value?: string | null) => {
+    const trimmed = (value ?? "").trim();
+    return trimmed ? trimmed : undefined;
+  };
+
   if (
     !address.line1 ||
     !address.city ||
@@ -67,9 +72,9 @@ const toShippoAddress = (address: {
   }
 
   return {
-    name: address.name ?? undefined,
-    company: address.company ?? undefined,
-    phone: address.phone ?? undefined,
+    name: clean(address.name),
+    company: clean(address.company),
+    phone: clean(address.phone),
     street1: address.line1,
     street2: address.line2 ?? undefined,
     city: address.city,

@@ -17,6 +17,7 @@ type AccountOrderItem = {
   id: string;
   quantity?: number | null;
   product?: {
+    title_raw?: string | null;
     title_display?: string | null;
     brand?: string | null;
     name?: string | null;
@@ -763,7 +764,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                         className="flex items-center justify-between text-[12px] sm:text-sm"
                       >
                         <span className="text-gray-300">
-                          {item.product?.title_display ??
+                          {item.product?.title_raw ??
+                            item.product?.title_display ??
                             `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
                           {item.variant?.size_label
                             ? ` (${item.variant.size_label})`

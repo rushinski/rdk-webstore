@@ -29,6 +29,7 @@ type DetailedOrderItem = {
   unit_price?: number | null;
   line_total?: number | null;
   product?: {
+    title_raw?: string | null;
     title_display?: string | null;
     brand?: string | null;
     name?: string | null;
@@ -387,6 +388,7 @@ export async function POST(request: NextRequest) {
       const items = detailedItems.map((item: DetailedOrderItem) => {
         const product = item.product;
         const title =
+          product?.title_raw ??
           product?.title_display ??
           `${product?.brand ?? ""} ${product?.name ?? ""}`.trim();
         const unitPrice = Number(item.unit_price ?? 0);

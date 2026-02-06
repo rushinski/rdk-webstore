@@ -60,7 +60,8 @@ export async function generateMetadata({
   const firstVariant = product.variants[0];
 
   // Construct title
-  const title = product.title_display ?? `${product.brand} ${product.name}`.trim();
+  const title =
+    product.title_raw ?? product.title_display ?? `${product.brand} ${product.name}`.trim();
   const fullTitle = `${title} | Realdealkickzsc`;
 
   // Construct description

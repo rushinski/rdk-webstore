@@ -49,6 +49,9 @@ const initialOrigin = {
 
 type ShippingOriginAddress = typeof initialOrigin;
 
+type OriginField = keyof ShippingOriginAddress;
+type OriginErrors = Partial<Record<OriginField, string>>;
+
 const moneyToCents = (raw: string) => {
   const cleaned = raw.replace(/[^\d.]/g, "");
   if (!cleaned || cleaned === ".") {
@@ -96,6 +99,8 @@ export default function ShippingSettingsPage() {
   const [isSavingCarriers, setIsSavingCarriers] = useState(false);
   const [message, setMessage] = useState("");
   const [originMessage, setOriginMessage] = useState("");
+  const [originError, setOriginError] = useState("");
+  const [originErrors, setOriginErrors] = useState<OriginErrors>({});
   const [carriersMessage, setCarriersMessage] = useState("");
   const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -115,6 +120,62 @@ export default function ShippingSettingsPage() {
     () => new Map(SHIPPING_CATEGORIES.map((category) => [category.key, category.label])),
     [],
   );
+
+  const extractOriginErrors = (
+    issues: Record<string, { _errors?: string[] }> | undefined,
+  ): OriginErrors => {
+    const next: OriginErrors = {};
+    if (!issues || typeof issues !== "object") {
+      return next;
+    }
+    const fields: OriginField[] = [
+      "name",
+      "company",
+      "phone",
+      "line1",
+      "line2",
+      "city",
+      "state",
+      "postal_code",
+      "country",
+    ];
+    fields.forEach((field) => {
+      const entry = issues[field];
+      if (entry?._errors?.length) {
+        next[field] = entry._errors[0];
+      }
+    });
+    return next;
+  };
+
+  const validateOriginDraft = (draft: ShippingOriginAddress): OriginErrors => {
+    const errors: OriginErrors = {};
+    const name = draft.name.trim();
+    const company = (draft.company ?? "").trim();
+
+    if (!name && !company) {
+      const message = "Enter a contact name or company.";
+      errors.name = message;
+      errors.company = message;
+    }
+    if (!draft.line1.trim()) {
+      errors.line1 = "Street address is required.";
+    }
+    if (!draft.city.trim()) {
+      errors.city = "City is required.";
+    }
+    if (!draft.state.trim()) {
+      errors.state = "State is required.";
+    }
+    if (!draft.postal_code.trim()) {
+      errors.postal_code = "ZIP / postal code is required.";
+    }
+    if (!draft.country.trim()) {
+      errors.country = "Country is required.";
+    }
+
+    return errors;
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -184,6 +245,8 @@ export default function ShippingSettingsPage() {
     setOriginDraft({ ...originAddress });
     setIsOriginModalOpen(true);
     setOriginMessage("");
+    setOriginError("");
+    setOriginErrors({});
   };
 
   const handleDimensionInput = (
@@ -239,6 +302,16 @@ export default function ShippingSettingsPage() {
 
   const handleOriginDraftChange = (field: keyof ShippingOriginAddress, value: string) => {
     setOriginDraft((prev) => ({ ...prev, [field]: value }));
+    if (originErrors[field]) {
+      setOriginErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+    if (originError) {
+      setOriginError("");
+    }
   };
 
   const toggleCarrier = (carrierKey: string) => {
@@ -305,23 +378,39 @@ export default function ShippingSettingsPage() {
   const saveOrigin = async () => {
     setIsSavingOrigin(true);
     setOriginMessage("");
+    setOriginError("");
+    setOriginErrors({});
+
+    const draftErrors = validateOriginDraft(originDraft);
+    if (Object.keys(draftErrors).length > 0) {
+      setOriginErrors(draftErrors);
+      setOriginError("Please fix the highlighted fields.");
+      setIsSavingOrigin(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/shipping/origin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(originDraft),
       });
-
+      const errorData = await response.json().catch(() => ({}));
       if (response.ok) {
-        setOriginAddress(originDraft);
+        setOriginAddress(errorData.origin ?? originDraft);
         setIsOriginModalOpen(false);
         setOriginMessage("Shipping origin address saved.");
       } else {
-        const errorData = await response.json();
-        setOriginMessage(`Failed to save address: ${errorData.error}`);
+        const fieldErrors = extractOriginErrors(errorData?.issues);
+        if (Object.keys(fieldErrors).length > 0) {
+          setOriginErrors(fieldErrors);
+          setOriginError("Please fix the highlighted fields.");
+          return;
+        }
+        setOriginError(errorData?.error || "Failed to save address.");
       }
     } catch {
-      setOriginMessage("An unexpected error occurred.");
+      setOriginError("An unexpected error occurred.");
     } finally {
       setIsSavingOrigin(false);
     }
@@ -661,14 +750,24 @@ export default function ShippingSettingsPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 text-[11px] sm:text-sm">
+              <div className="col-span-2 text-[10px] sm:text-xs text-zinc-400">
+                Provide a contact name or company name. Phone number is optional.
+              </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">Contact name</label>
                 <input
                   type="text"
                   value={originDraft.name}
                   onChange={(e) => handleOriginDraftChange("name", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.name ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.name && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.name}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">Company</label>
@@ -676,17 +775,33 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.company ?? ""}
                   onChange={(e) => handleOriginDraftChange("company", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.company ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.company && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.company}
+                  </div>
+                )}
               </div>
               <div>
-                <label className="block text-gray-400 mb-0.5">Phone number</label>
+                <label className="block text-gray-400 mb-0.5">
+                  Phone number (optional)
+                </label>
                 <input
                   type="text"
-                  value={originDraft.phone}
+                  value={originDraft.phone ?? ""}
                   onChange={(e) => handleOriginDraftChange("phone", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.phone ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.phone && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.phone}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">Street address</label>
@@ -694,8 +809,15 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.line1}
                   onChange={(e) => handleOriginDraftChange("line1", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.line1 ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.line1 && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.line1}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">
@@ -705,8 +827,15 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.line2 ?? ""}
                   onChange={(e) => handleOriginDraftChange("line2", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.line2 ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.line2 && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.line2}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">City</label>
@@ -714,8 +843,15 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.city}
                   onChange={(e) => handleOriginDraftChange("city", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.city ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.city && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.city}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">State</label>
@@ -723,8 +859,15 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.state}
                   onChange={(e) => handleOriginDraftChange("state", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.state ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.state && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.state}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">ZIP / Postal code</label>
@@ -732,8 +875,15 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.postal_code}
                   onChange={(e) => handleOriginDraftChange("postal_code", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.postal_code ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.postal_code && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.postal_code}
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-gray-400 mb-0.5">Country</label>
@@ -741,13 +891,26 @@ export default function ShippingSettingsPage() {
                   type="text"
                   value={originDraft.country}
                   onChange={(e) => handleOriginDraftChange("country", e.target.value)}
-                  className="w-full bg-zinc-900 text-white px-2 py-1.5 border border-zinc-800/70"
+                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
+                    originErrors.country ? "border-red-500" : "border-zinc-800/70"
+                  }`}
                 />
+                {originErrors.country && (
+                  <div className="text-[10px] text-red-400 mt-1">
+                    {originErrors.country}
+                  </div>
+                )}
               </div>
             </div>
 
-            {originMessage && (
-              <div className="mt-4 text-sm text-gray-400">{originMessage}</div>
+            {(originError || originMessage) && (
+              <div
+                className={`mt-4 text-sm ${
+                  originError ? "text-red-400" : "text-gray-400"
+                }`}
+              >
+                {originError || originMessage}
+              </div>
             )}
 
             <div className="mt-3 sm:mt-6 flex items-center justify-end gap-2 sm:gap-3">

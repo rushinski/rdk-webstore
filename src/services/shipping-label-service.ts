@@ -102,16 +102,21 @@ interface ShippoTransaction {
 
 export class ShippoService {
   private toShippoAddress(address: IAddress) {
+    const clean = (value?: string | null) => {
+      const trimmed = (value ?? "").trim();
+      return trimmed ? trimmed : undefined;
+    };
+
     return {
-      name: address.name ?? undefined,
-      company: address.company ?? undefined,
+      name: clean(address.name),
+      company: clean(address.company),
       street1: address.street1,
       street2: address.street2 ?? undefined,
       city: address.city,
       state: address.state,
       zip: address.zip,
       country: address.country,
-      phone: address.phone ?? undefined,
+      phone: clean(address.phone),
     };
   }
 

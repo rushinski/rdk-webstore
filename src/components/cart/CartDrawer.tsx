@@ -73,9 +73,9 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             <h3 className="text-white font-semibold text-sm sm:text-base">
                               {item.titleDisplay}
                             </h3>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {item.brand} - {item.name}
-                            </p>
+                            {item.brand ? (
+                              <p className="text-xs text-gray-500 mt-1">{item.brand}</p>
+                            ) : null}
                             <p className="text-xs sm:text-sm text-gray-400 mt-2">
                               Size: {item.sizeLabel}
                             </p>

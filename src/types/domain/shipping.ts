@@ -21,7 +21,7 @@ export type ShippingDefault = {
 export type ShippingOrigin = {
   name: string;
   company?: string | null;
-  phone: string;
+  phone?: string | null;
   line1: string;
   line2?: string | null;
   city: string;
