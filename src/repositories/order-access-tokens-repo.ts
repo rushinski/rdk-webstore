@@ -58,4 +58,20 @@ export class OrderAccessTokensRepository {
       throw error;
     }
   }
+
+  async listTokenMetadata(orderId: string): Promise<
+    Array<Pick<OrderAccessTokenRow, "id" | "created_at" | "expires_at" | "last_used_at">>
+  > {
+    const { data, error } = await this.supabase
+      .from("order_access_tokens")
+      .select("id, created_at, expires_at, last_used_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return data ?? [];
+  }
 }

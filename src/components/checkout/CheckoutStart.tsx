@@ -1,11 +1,18 @@
 // src/components/checkout/CheckoutStart.tsx
+//
+// KEY CHANGES:
+// 1. Uses stripeAccountId from API response to configure Stripe Elements
+//    for direct charges (Elements must be initialized with stripeAccount option)
+// 2. Handles BNPL redirect flows (Afterpay, Affirm, Klarna return via redirect)
+// 3. Cleaner state management — fewer refs, clearer flow
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe, type StripeElementsOptions } from "@stripe/stripe-js";
+import { loadStripe, type Stripe as StripeType, type StripeElementsOptions } from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 
 import { useCart } from "@/components/cart/CartProvider";
@@ -25,18 +32,10 @@ import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address
 const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
 const buildCartSignature = (items: CartItem[]) => {
-  const sorted = [...items].sort((a, b) => {
-    const aKey = `${a.productId}:${a.variantId}`;
-    const bKey = `${b.productId}:${b.variantId}`;
-    return aKey.localeCompare(bKey);
-  });
-  return JSON.stringify(
-    sorted.map((item) => ({
-      productId: item.productId,
-      variantId: item.variantId,
-      quantity: item.quantity,
-    })),
+  const sorted = [...items].sort((a, b) =>
+    `${a.productId}:${a.variantId}`.localeCompare(`${b.productId}:${b.variantId}`),
   );
+  return JSON.stringify(sorted.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })));
 };
 
 const stripeAppearance: StripeElementsOptions["appearance"] = {
@@ -63,31 +62,18 @@ type ShippingPayload = {
   country: string;
 } | null;
 
-const getErrorMessage = (err: unknown, fallback: string) =>
-  err instanceof Error ? err.message : fallback;
-
-const isAbortError = (err: unknown): boolean => {
-  if (err instanceof DOMException) {
-    return err.name === "AbortError";
-  }
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "name" in err &&
-    (err as { name?: string }).name === "AbortError"
-  );
-};
-
 export function CheckoutStart() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { items, isReady, setCartItems } = useCart();
 
-  const stripePromise = useMemo(
-    () => loadStripe(clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!),
-    [],
-  );
   const snapshotService = useMemo(() => new CartSnapshotService(), []);
+
+  // ---------- Stripe state ----------
+  // For direct charges, we need to load Stripe with the Connect account ID.
+  // We get this from the API response, so we load Stripe lazily.
+  const [stripePromise, setStripePromise] = useState<Promise<StripeType | null> | null>(null);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
 
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -98,27 +84,14 @@ export function CheckoutStart() {
   const [tax, setTax] = useState(0);
   const [total, setTotal] = useState(0);
 
-  // Calculate initial subtotal from cart items
-  useEffect(() => {
-    if (items.length > 0 && subtotal === 0) {
-      const calculated = items.reduce((sum, item) => {
-        return sum + (item.priceCents * item.quantity) / 100;
-      }, 0);
-      setSubtotal(calculated);
-      setTotal(calculated);
-    }
-  }, [items, subtotal]);
-
   const [fulfillment, setFulfillment] = useState<"ship" | "pickup">("ship");
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
-
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   const [isRestoring, setIsRestoring] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   const [isUpdatingFulfillment, setIsUpdatingFulfillment] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
 
   const lastPricingKeyRef = useRef<string | null>(null);
@@ -127,443 +100,241 @@ export function CheckoutStart() {
 
   const isGuestFlow = searchParams.get("guest") === "1";
 
+  // Calculate initial subtotal from cart
   useEffect(() => {
-    if (!isGuestFlow) {
-      return;
+    if (items.length > 0 && subtotal === 0) {
+      const calc = items.reduce((sum, i) => sum + (i.priceCents * i.quantity) / 100, 0);
+      setSubtotal(calc);
+      setTotal(calc);
     }
+  }, [items, subtotal]);
 
-    const isReload = () => {
-      try {
-        const nav = performance.getEntriesByType?.("navigation")?.[0] as
-          | PerformanceNavigationTiming
-          | undefined;
-        if (nav) {
-          return nav.type === "reload";
-        }
-        return performance.navigation?.type === 1;
-      } catch {
-        return false;
-      }
-    };
-
-    const handleBeforeUnload = () => {
-      if (isReload()) {
-        return;
-      }
-      clearGuestShippingAddress();
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      clearGuestShippingAddress();
-    };
+  // Clear guest shipping on unmount
+  useEffect(() => {
+    if (!isGuestFlow) return;
+    return () => { clearGuestShippingAddress(); };
   }, [isGuestFlow]);
 
+  // Check auth
   useEffect(() => {
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/session", { cache: "no-store" });
-        const data = await response.json().catch(() => null);
-        setIsAuthenticated(Boolean(data?.user));
-      } catch {
-        setIsAuthenticated(false);
-      }
-    };
-
-    loadSession();
+    fetch("/api/auth/session", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setIsAuthenticated(Boolean(d?.user)))
+      .catch(() => setIsAuthenticated(false));
   }, []);
 
+  // Restore cart from snapshot if empty
   useEffect(() => {
-    if (!isReady) {
-      return;
-    }
-
-    if (items.length === 0) {
-      setIsRestoring(true);
-      snapshotService
-        .restoreCart()
-        .then((restored) => {
-          if (restored && restored.length > 0) {
-            setCartItems(restored);
-          } else {
-            router.push("/cart");
-          }
-        })
-        .finally(() => setIsRestoring(false));
-    }
+    if (!isReady || items.length > 0) return;
+    setIsRestoring(true);
+    snapshotService
+      .restoreCart()
+      .then((restored) => {
+        if (restored?.length) setCartItems(restored);
+        else router.push("/cart");
+      })
+      .finally(() => setIsRestoring(false));
   }, [isReady, items.length, router, setCartItems, snapshotService]);
 
+  // Redirect unauthenticated non-guest users
   useEffect(() => {
-    if (isAuthenticated === null) {
-      return;
-    }
-    if (isAuthenticated) {
-      return;
-    }
-
-    if (!isGuestFlow || !guestEnabled) {
+    if (isAuthenticated === null) return;
+    if (!isAuthenticated && (!isGuestFlow || !guestEnabled)) {
       router.push("/checkout");
     }
   }, [isAuthenticated, isGuestFlow, router]);
 
+  // Generate idempotency key
   useEffect(() => {
-    if (!isReady || items.length === 0) {
-      return;
-    }
-
-    const signature = buildCartSignature(items);
+    if (!isReady || items.length === 0) return;
+    const sig = buildCartSignature(items);
     try {
-      const storedSignature = sessionStorage.getItem("checkout_cart_signature");
+      const storedSig = sessionStorage.getItem("checkout_cart_signature");
       const storedKey = getIdempotencyKeyFromStorage();
-      if (!storedKey || storedSignature !== signature) {
-        const nextKey = generateIdempotencyKey();
-        setIdempotencyKeyInStorage(nextKey);
-        sessionStorage.setItem("checkout_cart_signature", signature);
-
-        setIdempotencyKey(nextKey);
+      if (!storedKey || storedSig !== sig) {
+        const key = generateIdempotencyKey();
+        setIdempotencyKeyInStorage(key);
+        sessionStorage.setItem("checkout_cart_signature", sig);
+        setIdempotencyKey(key);
         setOrderId(null);
         setClientSecret(null);
-
         lastPricingKeyRef.current = null;
-        abortRef.current?.abort();
-        inFlightRef.current = false;
-
         return;
       }
       setIdempotencyKey(storedKey);
     } catch {
-      const fallbackKey = generateIdempotencyKey();
-      setIdempotencyKeyInStorage(fallbackKey);
-      setIdempotencyKey(fallbackKey);
-      setOrderId(null);
-      setClientSecret(null);
-
-      lastPricingKeyRef.current = null;
-      abortRef.current?.abort();
-      inFlightRef.current = false;
+      const key = generateIdempotencyKey();
+      setIdempotencyKeyInStorage(key);
+      setIdempotencyKey(key);
     }
   }, [isReady, items]);
 
-  const buildShippingPayload = (address: ShippingAddress | null): ShippingPayload =>
-    address
-      ? {
-          name: address.name?.trim() ?? "",
-          phone: address.phone?.trim() ? address.phone.trim() : null,
-          line1: address.line1?.trim() ?? "",
-          line2: address.line2?.trim() ? address.line2.trim() : null,
-          city: address.city?.trim() ?? "",
-          state: address.state?.trim().toUpperCase() ?? "",
-          postal_code: address.postalCode?.trim() ?? "",
-          country: (address.country?.trim() ?? "US").toUpperCase(),
-        }
-      : null;
+  // Build shipping payload
+  const shippingPayload = useMemo<ShippingPayload>(() => {
+    if (!shippingAddress) return null;
+    return {
+      name: shippingAddress.name?.trim() ?? "",
+      phone: shippingAddress.phone?.trim() || null,
+      line1: shippingAddress.line1?.trim() ?? "",
+      line2: shippingAddress.line2?.trim() || null,
+      city: shippingAddress.city?.trim() ?? "",
+      state: shippingAddress.state?.trim().toUpperCase() ?? "",
+      postal_code: shippingAddress.postalCode?.trim() ?? "",
+      country: (shippingAddress.country?.trim() ?? "US").toUpperCase(),
+    };
+  }, [shippingAddress]);
 
-  const shippingPayload = useMemo(
-    () => buildShippingPayload(shippingAddress),
-    [shippingAddress],
-  );
-
-  const addressKey = useMemo(() => {
-    if (fulfillment !== "ship" || !shippingPayload) {
-      return "pickup";
-    }
-    return [
-      shippingPayload.line1,
-      shippingPayload.city,
-      shippingPayload.state,
-      shippingPayload.postal_code,
-      shippingPayload.country,
-    ].join("|");
-  }, [
-    fulfillment,
-    shippingPayload?.line1,
-    shippingPayload?.city,
-    shippingPayload?.state,
-    shippingPayload?.postal_code,
-    shippingPayload?.country,
-  ]);
-
-  const cartKey = useMemo(() => buildCartSignature(items), [items]);
-
-  const pricingKey = useMemo(() => {
-    if (!orderId) {
-      return null;
-    }
-    return `${orderId}:${cartKey}:${fulfillment}:${addressKey}`;
-  }, [orderId, cartKey, fulfillment, addressKey]);
-
-  // ✅ CHANGED: Create payment intent WITHOUT requiring email
+  // ---------- Initialize checkout (create PaymentIntent) ----------
   useEffect(() => {
-    if (!isReady || items.length === 0) {
-      return;
-    }
-    if (!idempotencyKey) {
-      return;
-    }
-    if (isAuthenticated === null) {
-      return;
-    }
-    if (!isAuthenticated && !isGuestFlow) {
-      return;
-    }
-    if (!isAuthenticated && !guestEnabled) {
-      return;
-    }
-    // ✅ REMOVED: No longer wait for email confirmation
-    if (clientSecret && orderId) {
-      return;
-    }
+    if (!isReady || items.length === 0 || !idempotencyKey) return;
+    if (isAuthenticated === null) return;
+    if (!isAuthenticated && !isGuestFlow) return;
+    if (clientSecret && orderId) return;
 
-    let isActive = true;
+    let active = true;
 
-    const initializeCheckout = async () => {
+    const init = async () => {
       setIsInitializing(true);
       setError(null);
 
       try {
-        const payload: {
-          idempotencyKey: string;
-          fulfillment: "ship" | "pickup";
-          guestEmail?: string | null; // ✅ CHANGED: Make optional
-          shippingAddress: typeof shippingPayload;
-          items: Array<{
-            productId: string;
-            variantId: string;
-            quantity: number;
-          }>;
-        } = {
+        const payload: Record<string, unknown> = {
           idempotencyKey,
           fulfillment,
           shippingAddress: fulfillment === "ship" ? shippingPayload : null,
-          items: items.map((item) => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-          })),
+          items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
         };
+        if (!isAuthenticated && guestEmail) payload.guestEmail = guestEmail;
 
-        // ✅ CHANGED: Include email if we have it, but don't require it
-        if (!isAuthenticated && guestEmail) {
-          payload.guestEmail = guestEmail;
-        }
-
-        const response = await fetch("/api/checkout/create-payment-intent", {
+        const res = await fetch("/api/checkout/create-payment-intent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
-        const data = await response.json().catch(() => null);
-        if (!response.ok) {
-          if (
-            data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
-            data?.code === "CART_MISMATCH"
-          ) {
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          if (data?.code === "IDEMPOTENCY_KEY_EXPIRED" || data?.code === "CART_MISMATCH") {
             clearIdempotencyKeyFromStorage();
           }
-          // ✅ REMOVED: Don't redirect on GUEST_EMAIL_REQUIRED
           if (data?.code === "GUEST_CHECKOUT_DISABLED") {
             router.push("/checkout");
             return;
           }
           throw new Error(data?.error || "Failed to start checkout");
         }
+        if (!active) return;
 
-        if (!isActive) {
-          return;
-        }
-
-        if (data?.status === "paid" && data?.orderId) {
+        if (data?.status === "paid") {
           router.push(`/checkout/success?orderId=${data.orderId}`);
           return;
         }
 
-        if (!data?.clientSecret || !data?.orderId) {
-          throw new Error("Checkout is missing payment details.");
+        if (!data?.clientSecret || !data?.orderId || !data?.stripeAccountId) {
+          throw new Error("Checkout response missing required fields");
         }
 
         setOrderId(data.orderId);
         setClientSecret(data.clientSecret);
+        setStripeAccountId(data.stripeAccountId);
         setSubtotal(Number(data.subtotal ?? 0));
         setShipping(Number(data.shipping ?? 0));
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
 
+        // Load Stripe with the Connect account ID for direct charges
+        // This is critical — without stripeAccount, Elements would create
+        // charges on the platform account instead of the Connect account.
+        setStripePromise(
+          loadStripe(clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!, {
+            stripeAccount: data.stripeAccountId,
+          }),
+        );
+
         lastPricingKeyRef.current = null;
       } catch (err: unknown) {
-        if (!isActive) {
-          return;
-        }
-        setError(getErrorMessage(err, "Failed to start checkout."));
+        if (active) setError(err instanceof Error ? err.message : "Failed to start checkout");
       } finally {
-        if (isActive) {
-          setIsInitializing(false);
-        }
+        if (active) setIsInitializing(false);
       }
     };
 
-    initializeCheckout();
+    init();
+    return () => { active = false; };
+  }, [clientSecret, fulfillment, guestEmail, idempotencyKey, isAuthenticated, isGuestFlow, isReady, items, orderId, router, shippingPayload]);
 
-    return () => {
-      isActive = false;
-    };
-  }, [
-    clientSecret,
-    guestEmail, // ✅ Keep in deps but don't gate on it
-    fulfillment,
-    idempotencyKey,
-    isAuthenticated,
-    isGuestFlow,
-    isReady,
-    items,
-    orderId,
-    router,
-    shippingPayload,
-  ]);
+  // ---------- Update pricing on fulfillment/address change ----------
+  const addressKey = useMemo(() => {
+    if (fulfillment !== "ship" || !shippingPayload) return "pickup";
+    return [shippingPayload.line1, shippingPayload.city, shippingPayload.state, shippingPayload.postal_code].join("|");
+  }, [fulfillment, shippingPayload]);
 
-  const updatePricing = useCallback(
-    async (
-      nextFulfillment: "ship" | "pickup",
-      nextShippingAddress: ShippingPayload,
-      dedupeKey?: string | null,
-    ) => {
-      if (!orderId) {
-        return;
+  const pricingKey = useMemo(() => {
+    if (!orderId) return null;
+    return `${orderId}:${fulfillment}:${addressKey}`;
+  }, [orderId, fulfillment, addressKey]);
+
+  const updatePricing = useCallback(async (nextFulfillment: "ship" | "pickup", nextAddr: ShippingPayload, dedupeKey?: string | null) => {
+    if (!orderId) return;
+    if (dedupeKey && lastPricingKeyRef.current === dedupeKey) return;
+
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setIsUpdatingFulfillment(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/checkout/update-fulfillment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, fulfillment: nextFulfillment, shippingAddress: nextAddr }),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to update fulfillment");
+
+      setFulfillment(data.fulfillment ?? nextFulfillment);
+      setSubtotal(Number(data.subtotal ?? 0));
+      setShipping(Number(data.shipping ?? 0));
+      setTax(Number(data.tax ?? 0));
+      setTotal(Number(data.total ?? 0));
+      if (dedupeKey) lastPricingKeyRef.current = dedupeKey;
+    } catch (err: unknown) {
+      if (dedupeKey) lastPricingKeyRef.current = null;
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        setError(err instanceof Error ? err.message : "Failed to update fulfillment");
       }
+    } finally {
+      inFlightRef.current = false;
+      setIsUpdatingFulfillment(false);
+    }
+  }, [orderId]);
 
-      if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
-        return;
-      }
-
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      if (inFlightRef.current) {
-        return;
-      }
-      inFlightRef.current = true;
-
-      setIsUpdatingFulfillment(true);
-      setError(null);
-
-      try {
-        const response = await fetch("/api/checkout/update-fulfillment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId,
-            fulfillment: nextFulfillment,
-            shippingAddress: nextShippingAddress,
-          }),
-          signal: controller.signal,
-        });
-
-        const data = await response.json().catch(() => null);
-        if (!response.ok) {
-          throw new Error(
-            data?.error || `Failed to update fulfillment (${response.status}).`,
-          );
-        }
-
-        setFulfillment(data.fulfillment ?? nextFulfillment);
-        setSubtotal(Number(data.subtotal ?? 0));
-        setShipping(Number(data.shipping ?? 0));
-        setTax(Number(data.tax ?? 0));
-        setTotal(Number(data.total ?? 0));
-
-        if (dedupeKey) {
-          lastPricingKeyRef.current = dedupeKey;
-        }
-      } catch (err: unknown) {
-        if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
-          lastPricingKeyRef.current = null;
-        }
-        if (!isAbortError(err)) {
-          setError(getErrorMessage(err, "Failed to update fulfillment."));
-        }
-      } finally {
-        inFlightRef.current = false;
-        setIsUpdatingFulfillment(false);
-      }
-    },
-    [orderId],
-  );
-
+  // Auto-update pricing when shipping address changes
   useEffect(() => {
-    if (fulfillment !== "ship") {
-      return;
-    }
-    if (!orderId || !clientSecret) {
-      return;
-    }
-    if (!pricingKey) {
-      return;
-    }
-    if (isUpdatingFulfillment) {
-      return;
-    }
-
-    if (!shippingPayload) {
-      return;
-    }
-    const valid =
-      shippingPayload.name.trim() !== "" &&
-      shippingPayload.line1.trim() !== "" &&
-      shippingPayload.city.trim() !== "" &&
-      shippingPayload.state.trim() !== "" &&
-      shippingPayload.postal_code.trim() !== "";
-
-    if (!valid) {
-      return;
-    }
-
-    if (lastPricingKeyRef.current === pricingKey) {
-      return;
-    }
+    if (fulfillment !== "ship" || !orderId || !clientSecret || !pricingKey || isUpdatingFulfillment) return;
+    if (!shippingPayload?.line1 || !shippingPayload.city || !shippingPayload.state || !shippingPayload.postal_code) return;
+    if (lastPricingKeyRef.current === pricingKey) return;
 
     const t = setTimeout(() => {
       lastPricingKeyRef.current = pricingKey;
       updatePricing("ship", shippingPayload, pricingKey);
     }, 350);
-
     return () => clearTimeout(t);
-  }, [
-    clientSecret,
-    fulfillment,
-    isUpdatingFulfillment,
-    orderId,
-    pricingKey,
-    shippingPayload,
-    updatePricing,
-  ]);
+  }, [clientSecret, fulfillment, isUpdatingFulfillment, orderId, pricingKey, shippingPayload, updatePricing]);
 
-  const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
-    if (nextFulfillment === fulfillment) {
-      return;
-    }
-
+  const handleFulfillmentChange = async (next: "ship" | "pickup") => {
+    if (next === fulfillment) return;
     lastPricingKeyRef.current = null;
-
-    if (!orderId) {
-      setFulfillment(nextFulfillment);
-      return;
-    }
-
-    const nextKey =
-      nextFulfillment === "ship"
-        ? `${orderId}:${cartKey}:ship:${addressKey}`
-        : `${orderId}:${cartKey}:pickup:pickup`;
-
-    await updatePricing(
-      nextFulfillment,
-      nextFulfillment === "ship" ? shippingPayload : null,
-      nextKey,
-    );
+    if (!orderId) { setFulfillment(next); return; }
+    await updatePricing(next, next === "ship" ? shippingPayload : null);
   };
+
+  // ---------- Render ----------
 
   if (!isReady || isRestoring || items.length === 0) {
     return (
@@ -574,27 +345,22 @@ export function CheckoutStart() {
     );
   }
 
-  // ✅ CHANGED: Always show form for guest checkout
-  const showCheckoutForm = isGuestFlow || (clientSecret && orderId);
+  const showForm = isGuestFlow || (clientSecret && orderId);
 
-  if (!showCheckoutForm || isInitializing) {
+  if (!showForm || isInitializing) {
     if (error) {
       return (
         <div className="max-w-3xl mx-auto px-4 py-20 text-center">
           <div className="bg-red-900/20 border border-red-500 text-red-400 p-6 rounded">
             <p className="text-lg font-semibold mb-2">Unable to start checkout</p>
             <p className="mb-4">{error}</p>
-            <button
-              onClick={() => router.push("/cart")}
-              className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
-            >
+            <button onClick={() => router.push("/cart")} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition">
               Return to Cart
             </button>
           </div>
         </div>
       );
     }
-
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">
         <Loader2 className="w-12 h-12 text-red-600 animate-spin mx-auto mb-4" />
@@ -604,79 +370,52 @@ export function CheckoutStart() {
   }
 
   const elementsOptions: StripeElementsOptions | undefined = clientSecret
-    ? {
-        clientSecret,
-        appearance: stripeAppearance,
-      }
+    ? { clientSecret, appearance: stripeAppearance }
     : undefined;
+
+  const formProps = {
+    orderId: orderId ?? "pending",
+    stripeAccountId: stripeAccountId ?? undefined,
+    items,
+    total,
+    fulfillment,
+    shippingAddress,
+    onShippingAddressChange: (addr: ShippingAddress | null) => {
+      lastPricingKeyRef.current = null;
+      setShippingAddress(addr);
+    },
+    onFulfillmentChange: (next: "ship" | "pickup") => { void handleFulfillmentChange(next); },
+    isUpdatingFulfillment,
+    canUseChat: isAuthenticated === true,
+    guestEmail,
+    onGuestEmailChange: setGuestEmail,
+    isGuestCheckout: isGuestFlow,
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 pt-0 sm:py-10 pb-28 lg:pb-10">
       <div className="flex items-center justify-between mb-6 sm:mb-8 pt-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
-          <p className="text-sm sm:text-base text-gray-400">
-            Secure checkout powered by Stripe
-          </p>
+          <p className="text-sm sm:text-base text-gray-400">Secure checkout powered by Stripe</p>
         </div>
-        <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
-          Back to cart
-        </Link>
+        <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">Back to cart</Link>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">
-          {error}
-        </div>
+        <div className="mb-6 bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">{error}</div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          {elementsOptions ? (
+          {elementsOptions && stripePromise ? (
             <Elements stripe={stripePromise} options={elementsOptions}>
-              <CheckoutForm
-                orderId={orderId ?? "pending"}
-                items={items}
-                total={total}
-                fulfillment={fulfillment}
-                shippingAddress={shippingAddress}
-                onShippingAddressChange={(addr) => {
-                  lastPricingKeyRef.current = null;
-                  setShippingAddress(addr);
-                }}
-                onFulfillmentChange={(next) => {
-                  void handleFulfillmentChange(next);
-                }}
-                isUpdatingFulfillment={isUpdatingFulfillment}
-                canUseChat={isAuthenticated === true}
-                guestEmail={guestEmail}
-                onGuestEmailChange={setGuestEmail}
-                isGuestCheckout={isGuestFlow}
-              />
+              <CheckoutForm {...formProps} />
             </Elements>
           ) : (
-            <CheckoutForm
-              orderId={orderId ?? "pending"}
-              items={items}
-              total={total}
-              fulfillment={fulfillment}
-              shippingAddress={shippingAddress}
-              onShippingAddressChange={(addr) => {
-                lastPricingKeyRef.current = null;
-                setShippingAddress(addr);
-              }}
-              onFulfillmentChange={(next) => {
-                void handleFulfillmentChange(next);
-              }}
-              isUpdatingFulfillment={isUpdatingFulfillment}
-              canUseChat={isAuthenticated === true}
-              guestEmail={guestEmail}
-              onGuestEmailChange={setGuestEmail}
-              isGuestCheckout={isGuestFlow}
-            />
+            <CheckoutForm {...formProps} />
           )}
         </div>
-
         <div className="lg:col-span-1">
           <OrderSummary
             items={items}
