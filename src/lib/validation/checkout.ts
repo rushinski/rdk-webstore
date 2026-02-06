@@ -25,7 +25,12 @@ export const checkoutSessionSchema = z
     items: z.array(checkoutItemSchema).min(1),
     fulfillment: z.enum(["ship", "pickup"]),
     idempotencyKey: z.string().uuid(),
-    guestEmail: z.string().trim().email().optional(),
+    guestEmail: z
+      .string()
+      .email()
+      .optional()
+      .nullable()
+      .transform((val) => val || null),
     shippingAddress: shippingAddressSchema.optional().nullable(),
   })
   .strict();

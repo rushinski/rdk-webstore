@@ -670,14 +670,9 @@ export function FilterPanel({
       <div className="lg:hidden fixed bottom-4 right-4 z-50">
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-lg flex items-center gap-2"
+          className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-lg flex items-center"
         >
           <Filter className="w-5 h-5" />
-          {activeFilterCount > 0 && (
-            <span className="bg-white text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">
-              {activeFilterCount}
-            </span>
-          )}
         </button>
       </div>
 

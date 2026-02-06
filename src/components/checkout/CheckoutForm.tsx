@@ -32,9 +32,7 @@ interface CheckoutFormProps {
   canUseChat?: boolean;
   guestEmail?: string | null;
   onGuestEmailChange?: (email: string) => void;
-  onGuestEmailConfirm?: () => void;
   isGuestCheckout?: boolean;
-  guestEmailConfirmed?: boolean;
 }
 
 export interface ShippingAddress {
@@ -62,7 +60,6 @@ export function CheckoutForm({
   canUseChat = false,
   guestEmail,
   onGuestEmailChange,
-  onGuestEmailConfirm,
   isGuestCheckout = false,
 }: CheckoutFormProps) {
   const router = useRouter();
@@ -81,31 +78,21 @@ export function CheckoutForm({
 
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentElementError, setPaymentElementError] = useState<string | null>(null);
+
+  // Inline email error (only updated on submit attempts)
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [lastSavedEmail, setLastSavedEmail] = useState<string | null>(null);
+
+  // Submit gating
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+
+  // Frozen (submit-time) user-facing errors under the button
+  const [uiValidationErrors, setUiValidationErrors] = useState<string[]>([]);
+  const [uiSubmitError, setUiSubmitError] = useState<string | null>(null);
 
   // For guest checkout, Stripe might not be ready yet
   const hasStripeElements = Boolean(elements);
-
-  const handleGuestEmailConfirm = () => {
-    const trimmedEmail = guestEmail?.trim() || "";
-    const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail);
-
-    if (!isValid) {
-      setEmailError("Please enter a valid email address");
-      return;
-    }
-
-    // Only trigger confirmation if email has changed
-    if (trimmedEmail !== lastSavedEmail) {
-      setEmailError(null);
-      setLastSavedEmail(trimmedEmail);
-      onGuestEmailConfirm?.();
-    }
-  };
 
   const toApiShippingAddress = (address: ShippingAddress | null) =>
     address
@@ -140,51 +127,76 @@ export function CheckoutForm({
     }
   };
 
-  const handlePayment = async (withSubmit: boolean) => {
-    if (!stripe || !elements) {
-      setError("Stripe is still loading. Please wait a moment.");
-      return { ok: false, error: "Stripe not ready" };
-    }
+  const getValidationErrors = (): string[] => {
+    const errors: string[] = [];
 
-    // Validate guest email if in guest checkout
+    // Check guest email
     if (isGuestCheckout) {
       const trimmedEmail = guestEmail?.trim() || "";
       if (!trimmedEmail) {
-        const message = "Please enter your email address";
-        setEmailError(message);
-        setError(message);
-        return { ok: false, error: message };
+        errors.push("Email address is required");
+      } else if (!isValidEmail(trimmedEmail)) {
+        errors.push("Email address is invalid");
       }
-      if (!isValidEmail(trimmedEmail)) {
-        const message = "Please enter a valid email address";
-        setEmailError(message);
-        setError(message);
-        return { ok: false, error: message };
-      }
-      setEmailError(null);
     }
 
+    // Check shipping address for ship fulfillment
     if (fulfillment === "ship" && !shippingAddress) {
-      const message = "Please add a shipping address";
-      setError(message);
-      return { ok: false, error: message };
+      errors.push("Shipping address is required");
     }
 
-    if (withSubmit && !paymentComplete) {
-      const message =
-        paymentElementError ?? "Please enter your card details to continue.";
-      setError(message);
-      return { ok: false, error: message };
+    // Check payment info
+    if (!stripe || !elements) {
+      errors.push("Payment system is still loading");
+    } else if (!paymentComplete) {
+      errors.push("Payment information is required");
+    }
+
+    return errors;
+  };
+
+  const handlePayment = async (withSubmit: boolean) => {
+    setHasAttemptedSubmit(true);
+
+    const validationErrors = getValidationErrors();
+
+    // Freeze what the user sees under the button (ONLY updated on submit attempt)
+    setUiValidationErrors(validationErrors);
+    setUiSubmitError(null);
+
+    if (validationErrors.length > 0) {
+      // Only set inline email error on submit (NOT onChange)
+      if (isGuestCheckout) {
+        const trimmedEmail = guestEmail?.trim() || "";
+        if (!trimmedEmail) {
+          setEmailError("Please enter your email address");
+        } else if (!isValidEmail(trimmedEmail)) {
+          setEmailError("Please enter a valid email address");
+        } else {
+          setEmailError(null);
+        }
+      }
+
+      return { ok: false, error: validationErrors[0] };
+    }
+
+    // Clear inline email error once validation passes
+    setEmailError(null);
+
+    if (!stripe || !elements) {
+      // Freeze runtime error under button (ONLY updated on submit attempt)
+      setUiSubmitError("Stripe is still loading. Please wait a moment.");
+      setUiValidationErrors([]);
+      return { ok: false, error: "Stripe not ready" };
     }
 
     setIsProcessing(true);
-    setError(null);
 
     try {
       if (withSubmit) {
-        const { error: submitError } = await elements.submit();
-        if (submitError) {
-          throw new Error(submitError.message);
+        const { error: submitErrorLocal } = await elements.submit();
+        if (submitErrorLocal) {
+          throw new Error(submitErrorLocal.message);
         }
       }
 
@@ -225,18 +237,10 @@ export function CheckoutForm({
         return { ok: true };
       }
 
-      if (paymentIntent.status === "processing") {
-        const secretParam = paymentIntent.client_secret
-          ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
-          : "";
-        const intentParam = paymentIntent.id ? `&payment_intent=${paymentIntent.id}` : "";
-        router.push(
-          `/checkout/processing?orderId=${orderId}${intentParam}${secretParam}&fulfillment=${fulfillment}`,
-        );
-        return { ok: true };
-      }
-
-      if (paymentIntent.status === "requires_action") {
+      if (
+        paymentIntent.status === "processing" ||
+        paymentIntent.status === "requires_action"
+      ) {
         const secretParam = paymentIntent.client_secret
           ? `&payment_intent_client_secret=${encodeURIComponent(paymentIntent.client_secret)}`
           : "";
@@ -252,7 +256,11 @@ export function CheckoutForm({
       console.error("Payment error:", err);
       const message =
         err instanceof Error ? err.message : "Payment failed. Please try again.";
-      setError(message);
+
+      // Freeze runtime error under the button (ONLY updated on submit attempt)
+      setUiSubmitError(message);
+      setUiValidationErrors([]);
+
       return { ok: false, error: message };
     } finally {
       setIsProcessing(false);
@@ -274,6 +282,7 @@ export function CheckoutForm({
       });
       return;
     }
+
     const result = await handlePayment(false);
     if (!result.ok) {
       event.paymentFailed({ reason: "fail", message: result.error });
@@ -299,31 +308,22 @@ export function CheckoutForm({
 
   const handleShippingAddressSelect = (address: ShippingAddress) => {
     onShippingAddressChange(address);
+    // Do NOT clear/update UI errors here (errors update only on submit click)
   };
 
   const handleGuestEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    onGuestEmailChange?.(value);
-
-    // Clear error when user starts typing
-    if (emailError) {
-      setEmailError(null);
-    }
+    onGuestEmailChange?.(e.target.value);
+    // Do NOT clear/update UI errors here (errors update only on submit click)
   };
 
   return (
     <form
+      noValidate
       onSubmit={(event) => {
         void handleSubmit(event);
       }}
       className="space-y-6"
     >
-      {error && (
-        <div className="bg-red-900/20 border border-red-500 text-red-400 p-4 rounded text-sm sm:text-base">
-          {error}
-        </div>
-      )}
-
       {/* Guest Email */}
       {isGuestCheckout && (
         <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-4 sm:p-6">
@@ -332,36 +332,17 @@ export function CheckoutForm({
             Contact Information
           </h2>
           <div className="space-y-2 sm:space-y-3">
-            <div className="flex gap-2">
-              <div className="flex-1 min-w-0">
-                <input
-                  id="guest-email"
-                  type="email"
-                  value={guestEmail || ""}
-                  onChange={handleGuestEmailChange}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleGuestEmailConfirm();
-                    }
-                  }}
-                  placeholder="you@email.com"
-                  className={`w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border ${
-                    emailError ? "border-red-500" : "border-zinc-800"
-                  } text-white focus:outline-none focus:ring-2 focus:ring-red-600`}
-                  required
-                  disabled={isProcessing}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleGuestEmailConfirm}
-                disabled={isProcessing}
-                className="px-4 sm:px-6 py-2 sm:py-3 text-sm sm:text-base bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold rounded transition whitespace-nowrap"
-              >
-                Save
-              </button>
-            </div>
+            <input
+              id="guest-email"
+              type="email"
+              value={guestEmail || ""}
+              onChange={handleGuestEmailChange}
+              placeholder="you@email.com"
+              className={`w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border ${
+                emailError ? "border-red-500" : "border-zinc-800"
+              } text-white focus:outline-none focus:ring-2 focus:ring-red-600`}
+              disabled={isProcessing}
+            />
             {emailError && (
               <p className="text-xs sm:text-sm text-red-400">{emailError}</p>
             )}
@@ -535,6 +516,7 @@ export function CheckoutForm({
             <PaymentElement
               onChange={(event) => {
                 setPaymentComplete(event.complete);
+                // Do NOT clear/update ui errors here (errors update only on submit click)
                 if (event.complete) {
                   setPaymentElementError(null);
                 } else if (event.empty) {
@@ -552,6 +534,7 @@ export function CheckoutForm({
                 your card details.
               </p>
             </div>
+
             {paymentElementError && (
               <div className="mt-3 text-sm text-red-400">{paymentElementError}</div>
             )}
@@ -583,6 +566,57 @@ export function CheckoutForm({
           </>
         )}
       </button>
+
+      {/* Error Summary - single source of truth; only updates on submit click */}
+      {(() => {
+        if (!hasAttemptedSubmit) {
+          return null;
+        }
+
+        const showSummary = uiSubmitError || uiValidationErrors.length > 0;
+        if (!showSummary) {
+          return null;
+        }
+
+        return (
+          <div className="bg-red-900/20 border border-red-500 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg
+                  className="w-5 h-5 text-red-400"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-red-400 mb-2">
+                  Please complete the following to place your order:
+                </h3>
+                <ul className="space-y-1.5 text-sm text-red-300">
+                  {uiSubmitError && (
+                    <li className="flex items-start gap-2">
+                      <span className="text-red-400 mt-0.5">•</span>
+                      <span>{uiSubmitError}</span>
+                    </li>
+                  )}
+                  {uiValidationErrors.map((msg, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span className="text-red-400 mt-0.5">•</span>
+                      <span>{msg}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Legal Agreements */}
       <div className="text-sm text-gray-400 text-center">

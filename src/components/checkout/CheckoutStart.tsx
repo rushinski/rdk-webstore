@@ -113,7 +113,6 @@ export function CheckoutStart() {
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
 
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
-  const [guestEmailConfirmed, setGuestEmailConfirmed] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   const [isRestoring, setIsRestoring] = useState(false);
@@ -295,6 +294,7 @@ export function CheckoutStart() {
     return `${orderId}:${cartKey}:${fulfillment}:${addressKey}`;
   }, [orderId, cartKey, fulfillment, addressKey]);
 
+  // ✅ CHANGED: Create payment intent WITHOUT requiring email
   useEffect(() => {
     if (!isReady || items.length === 0) {
       return;
@@ -311,11 +311,7 @@ export function CheckoutStart() {
     if (!isAuthenticated && !guestEnabled) {
       return;
     }
-    // For guest checkout, wait until email is confirmed
-    if (!isAuthenticated && isGuestFlow && !guestEmailConfirmed) {
-      setIsInitializing(false);
-      return;
-    }
+    // ✅ REMOVED: No longer wait for email confirmation
     if (clientSecret && orderId) {
       return;
     }
@@ -330,7 +326,7 @@ export function CheckoutStart() {
         const payload: {
           idempotencyKey: string;
           fulfillment: "ship" | "pickup";
-          guestEmail?: string;
+          guestEmail?: string | null; // ✅ CHANGED: Make optional
           shippingAddress: typeof shippingPayload;
           items: Array<{
             productId: string;
@@ -348,7 +344,7 @@ export function CheckoutStart() {
           })),
         };
 
-        // Only include guestEmail if we have one
+        // ✅ CHANGED: Include email if we have it, but don't require it
         if (!isAuthenticated && guestEmail) {
           payload.guestEmail = guestEmail;
         }
@@ -367,10 +363,8 @@ export function CheckoutStart() {
           ) {
             clearIdempotencyKeyFromStorage();
           }
-          if (
-            data?.code === "GUEST_EMAIL_REQUIRED" ||
-            data?.code === "GUEST_CHECKOUT_DISABLED"
-          ) {
+          // ✅ REMOVED: Don't redirect on GUEST_EMAIL_REQUIRED
+          if (data?.code === "GUEST_CHECKOUT_DISABLED") {
             router.push("/checkout");
             return;
           }
@@ -398,9 +392,6 @@ export function CheckoutStart() {
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
 
-        // Reset confirmation flag so user can change email if needed
-        setGuestEmailConfirmed(false);
-
         lastPricingKeyRef.current = null;
       } catch (err: unknown) {
         if (!isActive) {
@@ -421,8 +412,7 @@ export function CheckoutStart() {
     };
   }, [
     clientSecret,
-    guestEmailConfirmed,
-    guestEmail,
+    guestEmail, // ✅ Keep in deps but don't gate on it
     fulfillment,
     idempotencyKey,
     isAuthenticated,
@@ -584,7 +574,7 @@ export function CheckoutStart() {
     );
   }
 
-  // For guest checkout, show the form immediately so they can enter email
+  // ✅ CHANGED: Always show form for guest checkout
   const showCheckoutForm = isGuestFlow || (clientSecret && orderId);
 
   if (!showCheckoutForm || isInitializing) {
@@ -661,9 +651,7 @@ export function CheckoutStart() {
                 canUseChat={isAuthenticated === true}
                 guestEmail={guestEmail}
                 onGuestEmailChange={setGuestEmail}
-                onGuestEmailConfirm={() => setGuestEmailConfirmed(true)}
                 isGuestCheckout={isGuestFlow}
-                guestEmailConfirmed={guestEmailConfirmed}
               />
             </Elements>
           ) : (
@@ -684,9 +672,7 @@ export function CheckoutStart() {
               canUseChat={isAuthenticated === true}
               guestEmail={guestEmail}
               onGuestEmailChange={setGuestEmail}
-              onGuestEmailConfirm={() => setGuestEmailConfirmed(true)}
               isGuestCheckout={isGuestFlow}
-              guestEmailConfirmed={guestEmailConfirmed}
             />
           )}
         </div>

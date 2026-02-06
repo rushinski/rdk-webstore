@@ -52,6 +52,15 @@ export async function POST(request: NextRequest) {
     const parsed = checkoutSessionSchema.safeParse(body ?? {});
 
     if (!parsed.success) {
+      log({
+        level: "warn",
+        layer: "api",
+        message: "checkout_validation_failed",
+        requestId,
+        validationErrors: parsed.error.format(),
+        receivedBody: body,
+      });
+
       return NextResponse.json(
         { error: "Invalid payload", issues: parsed.error.format(), requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
@@ -74,12 +83,8 @@ export async function POST(request: NextRequest) {
         } | null;
       };
 
-    if (!userId && !guestEmail) {
-      return NextResponse.json(
-        { error: "GUEST_EMAIL_REQUIRED", code: "GUEST_EMAIL_REQUIRED", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } },
-      );
-    }
+    // ✅ REMOVED: No longer require email for guest checkout
+    // Email can be added later when they submit payment
 
     const normalizedFulfillment = fulfillment === "pickup" ? "pickup" : "ship";
     const cartHash = createCartHash(items, normalizedFulfillment);
@@ -115,6 +120,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // ✅ NEW: Update guest email if provided and not already set
       if (!existingOrder.user_id && guestEmail && !existingOrder.guest_email) {
         await ordersRepo.updateGuestEmail(existingOrder.id, guestEmail);
       }
@@ -376,7 +382,7 @@ export async function POST(request: NextRequest) {
       existingOrder ??
       (await ordersRepo.createPendingOrder({
         userId,
-        guestEmail: guestEmail ?? null,
+        guestEmail: guestEmail ?? null, // ✅ Can be null initially
         tenantId,
         currency: "USD",
         subtotal,
@@ -426,13 +432,13 @@ export async function POST(request: NextRequest) {
       receiptEmail = userEmail ?? profile?.email ?? undefined;
     }
 
-    // ✅ SIMPLIFIED: Always use automatic payment methods
+    // ✅ CHANGED: Don't set receipt_email if no email provided yet
     const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
       amount: Math.round(total * 100),
       currency: "usd",
-      automatic_payment_methods: { enabled: true }, // ✅ Simplified
+      automatic_payment_methods: { enabled: true },
       customer: stripeCustomerId,
-      receipt_email: receiptEmail ?? guestEmail ?? undefined,
+      receipt_email: receiptEmail ?? guestEmail ?? undefined, // ✅ Can be undefined
       metadata: {
         order_id: order.id,
         cart_hash: cartHash,
@@ -488,9 +494,33 @@ export async function POST(request: NextRequest) {
       route: "/api/checkout/create-payment-intent",
     });
 
+    // Better error message extraction
+    let errorMessage = "Failed to create payment intent";
+    let errorDetails: Record<string, unknown> = {};
+
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      errorDetails = {
+        name: error.name,
+        stack: error.stack,
+      };
+    } else if (typeof error === "object" && error !== null) {
+      errorMessage = JSON.stringify(error);
+      errorDetails = error as Record<string, unknown>;
+    }
+
+    log({
+      level: "error",
+      layer: "api",
+      message: "create_payment_intent_failed",
+      requestId,
+      error: errorMessage,
+      errorDetails,
+    });
+
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to create payment intent",
+        error: errorMessage,
         requestId,
       },
       { status: 500, headers: { "Cache-Control": "no-store" } },
