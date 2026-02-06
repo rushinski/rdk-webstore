@@ -88,9 +88,7 @@ export function OriginModal({
             )}
           </div>
           <div>
-            <label className="block text-gray-400 mb-0.5">
-              Phone (optional)
-            </label>
+            <label className="block text-gray-400 mb-0.5">Phone (optional)</label>
             <input
               type="text"
               value={value.phone ?? ""}
@@ -170,9 +168,7 @@ export function OriginModal({
               }`}
             />
             {errors.postal_code && (
-              <div className="text-[10px] text-red-400 mt-1">
-                {errors.postal_code}
-              </div>
+              <div className="text-[10px] text-red-400 mt-1">{errors.postal_code}</div>
             )}
           </div>
           <div>

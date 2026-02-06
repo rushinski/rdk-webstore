@@ -67,7 +67,8 @@ export function ClientShell({
   const isAuthRoute = pathname.startsWith("/auth");
   const isCheckoutRoute = pathname.startsWith("/checkout");
   const isLockedRoute = pathname.startsWith("/locked");
-  const isStoreRoute = !isAdminRoute && !isAuthRoute && !isCheckoutRoute && !isLockedRoute;
+  const isStoreRoute =
+    !isAdminRoute && !isAuthRoute && !isCheckoutRoute && !isLockedRoute;
 
   useEffect(() => {
     if (!pathname) {

@@ -30,13 +30,19 @@ export async function checkSiteLock(
 ): Promise<NextResponse | null> {
   const { pathname, search } = request.nextUrl;
 
-  if (!SITE_UNLOCKS_AT_ISO) return null;
+  if (!SITE_UNLOCKS_AT_ISO) {
+    return null;
+  }
 
   const unlockAt = parseUnlockAt(SITE_UNLOCKS_AT_ISO);
-  if (!unlockAt) return null;
+  if (!unlockAt) {
+    return null;
+  }
 
   const now = new Date();
-  if (now.getTime() >= unlockAt.getTime()) return null;
+  if (now.getTime() >= unlockAt.getTime()) {
+    return null;
+  }
 
   const allowPrefixes = [
     "/locked",
@@ -47,13 +53,19 @@ export async function checkSiteLock(
     "/images",
   ];
 
-  if (startsWithAny(pathname, allowPrefixes)) return null;
+  if (startsWithAny(pathname, allowPrefixes)) {
+    return null;
+  }
 
   // Admin bypass (valid admin session cookie)
-  const adminCookieValue = request.cookies.get(security.proxy.adminSession.cookieName)?.value;
+  const adminCookieValue = request.cookies.get(
+    security.proxy.adminSession.cookieName,
+  )?.value;
   if (adminCookieValue) {
     const session = await awaitMaybeVerify(adminCookieValue);
-    if (session) return null;
+    if (session) {
+      return null;
+    }
   }
 
   if (isApiPath(pathname)) {
@@ -72,7 +84,9 @@ export async function checkSiteLock(
   const isHtmlNav = accept.includes("text/html");
 
   // If it's not an HTML navigation, don't lock it (assets, images, many fetches)
-  if (!isHtmlNav) return null;
+  if (!isHtmlNav) {
+    return null;
+  }
 
   const lockedUrl = request.nextUrl.clone();
   lockedUrl.pathname = "/locked";

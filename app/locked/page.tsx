@@ -1,6 +1,7 @@
 // app/locked/page.tsx
 import Link from "next/link";
 import Image from "next/image";
+
 import { UnlockTimer } from "./unlock-timer";
 
 // Ensure the page is never cached so the redirect logic works fresh
@@ -10,7 +11,9 @@ const SITE_UNLOCKS_AT_ISO: string | null = "2026-02-05T20:00:00-05:00";
 
 function formatUnlock(iso: string) {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
+  if (Number.isNaN(d.getTime())) {
+    return iso;
+  }
   return d.toLocaleString("en-US", {
     weekday: "long",
     month: "long",
@@ -36,7 +39,7 @@ export default async function LockedPage(props: {
 
       {/* Page background: red/black gradient */}
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(120%_90%_at_50%_0%,rgba(220,38,38,0.35),transparent_60%),linear-gradient(to_bottom,rgba(0,0,0,0.98),rgba(0,0,0,0.92),rgba(220,38,38,0.10))]" />
-      
+
       {/* Vignette for depth */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(120%_120%_at_50%_60%,transparent_40%,rgba(0,0,0,0.92)_80%)]" />
 
@@ -45,10 +48,10 @@ export default async function LockedPage(props: {
         <div className="relative w-full overflow-hidden rounded-3xl border-2 border-zinc-800/80 bg-black shadow-2xl">
           {/* subtle red top accent */}
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-500/70 to-transparent" />
-          
+
           {/* soft red glow inside card */}
           <div className="pointer-events-none absolute -top-28 left-1/2 h-64 w-[32rem] -translate-x-1/2 rounded-full bg-red-600/12 blur-3xl" />
-          
+
           <div className="relative px-8 py-12 sm:px-14 text-center">
             {/* Brand row */}
             <div className="mb-8 flex items-center justify-center gap-3">
@@ -83,9 +86,7 @@ export default async function LockedPage(props: {
                   )}
                 </span>
               </p>
-              <p className="text-zinc-500 text-xs italic">
-                {unlockFullDate}
-              </p>
+              <p className="text-zinc-500 text-xs italic">{unlockFullDate}</p>
             </div>
 
             {/* CTA */}

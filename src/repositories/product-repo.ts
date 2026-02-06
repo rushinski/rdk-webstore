@@ -197,12 +197,9 @@ export class ProductRepository {
     }
 
     // Text search on product fields
-    query = this.applyTextSearch(
-      query,
-      filters.q,
-      this.inventorySearchFields,
-      { foreignTable: "product" },
-    );
+    query = this.applyTextSearch(query, filters.q, this.inventorySearchFields, {
+      foreignTable: "product",
+    });
 
     // Category / condition filters
     if (filters.category?.length) {
@@ -952,11 +949,7 @@ export class ProductRepository {
     }
 
     // Text search
-    countQuery = this.applyTextSearch(
-      countQuery,
-      filters.q,
-      this.storefrontSearchFields,
-    );
+    countQuery = this.applyTextSearch(countQuery, filters.q, this.storefrontSearchFields);
 
     // Category / brand / condition filters
     if (filters.category?.length) {

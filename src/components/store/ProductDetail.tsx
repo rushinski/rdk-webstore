@@ -65,7 +65,9 @@ export function ProductDetail({ product }: ProductDetailProps) {
         : product.condition;
 
   const displayTitle =
-    product.title_raw ?? product.title_display ?? `${product.brand} ${product.name}`.trim();
+    product.title_raw ??
+    product.title_display ??
+    `${product.brand} ${product.name}`.trim();
 
   useEffect(() => {
     const current = product.variants.find((v) => v.id === selectedVariantId);
@@ -118,14 +120,14 @@ export function ProductDetail({ product }: ProductDetailProps) {
         {/* Image Gallery - NO Suspense wrapper */}
         <div>
           <div className="aspect-square relative bg-zinc-900 rounded overflow-hidden mb-4">
-              <Image
-                src={product.images[selectedImageIndex]?.url || "/placeholder.png"}
-                alt={displayTitle}
-                fill
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                priority
-                className="object-cover"
-                quality={90}
+            <Image
+              src={product.images[selectedImageIndex]?.url || "/placeholder.png"}
+              alt={displayTitle}
+              fill
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              priority
+              className="object-cover"
+              quality={90}
             />
           </div>
 

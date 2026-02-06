@@ -154,7 +154,6 @@ export default function ShippingSettingsPage() {
     const company = (draft.company ?? "").trim();
 
     if (!name && !company) {
-      const message = "Enter a contact name or company.";
       errors.name = message;
       errors.company = message;
     }
@@ -764,9 +763,7 @@ export default function ShippingSettingsPage() {
                   }`}
                 />
                 {originErrors.name && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.name}
-                  </div>
+                  <div className="text-[10px] text-red-400 mt-1">{originErrors.name}</div>
                 )}
               </div>
               <div>
@@ -848,9 +845,7 @@ export default function ShippingSettingsPage() {
                   }`}
                 />
                 {originErrors.city && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.city}
-                  </div>
+                  <div className="text-[10px] text-red-400 mt-1">{originErrors.city}</div>
                 )}
               </div>
               <div>
