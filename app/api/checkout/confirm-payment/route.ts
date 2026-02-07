@@ -247,20 +247,34 @@ export async function POST(request: NextRequest) {
     const orderEventsRepo = new OrderEventsRepository(adminSupabase);
     const orderItems = await ordersRepo.getOrderItems(orderId);
 
+    // ✅ Update guest email if order doesn't have one yet
     if (!order.user_id && !order.guest_email) {
-      // ✅ FIX: Prioritize the email sent from frontend, then Stripe, then fallback
-      let email = guestEmail ?? paymentIntent.receipt_email;
-      
-      if (!email && order.tenant_id) {
-        email = order.guest_email;
-      }
-      
+      // Priority: 1) frontend guestEmail, 2) Stripe receipt_email, 3) placeholder
+      const email = guestEmail || paymentIntent.receipt_email || null;
+
       if (email) {
+        log({
+          level: "info",
+          layer: "api",
+          message: "updating_guest_email",
+          requestId,
+          orderId,
+          emailSource: guestEmail ? "frontend" : "stripe",
+        });
         await ordersRepo.updateGuestEmail(orderId, email);
         order.guest_email = email;
       } else {
-        // Only hit placeholder if absolutely no email was found
+        // Only use placeholder if absolutely no email was found
         const placeholder = `guest-${orderId}@placeholder.local`;
+        log({
+          level: "warn",
+          layer: "api",
+          message: "guest_email_missing_using_placeholder",
+          requestId,
+          orderId,
+          guestEmailFromRequest: Boolean(guestEmail),
+          receiptEmailFromStripe: Boolean(paymentIntent.receipt_email),
+        });
         await ordersRepo.updateGuestEmail(orderId, placeholder);
         order.guest_email = placeholder;
       }

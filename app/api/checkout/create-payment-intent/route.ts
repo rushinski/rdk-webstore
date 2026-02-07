@@ -230,7 +230,17 @@ export async function POST(request: NextRequest) {
       requestId,
     }, 200);
   } catch (error: unknown) {
-    logError(error, { layer: "api", requestId, route: "/api/checkout/create-payment-intent" });
+    // ✅ FIX: Ensure error is properly formatted before logging
+    const normalizedError = error instanceof Error
+      ? error
+      : new Error(typeof error === "object" && error !== null ? JSON.stringify(error) : String(error));
+
+    logError(normalizedError, {
+      layer: "api",
+      requestId,
+      route: "/api/checkout/create-payment-intent",
+      originalErrorType: error?.constructor?.name ?? typeof error,
+    });
 
     if (error instanceof CheckoutError) {
       const statusMap: Record<string, number> = {
@@ -245,7 +255,7 @@ export async function POST(request: NextRequest) {
     }
 
     return json(
-      { error: error instanceof Error ? error.message : "Failed to create payment intent", requestId },
+      { error: normalizedError.message, requestId },
       500,
     );
   }
