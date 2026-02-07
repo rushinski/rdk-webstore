@@ -7,6 +7,7 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
+import type { Tables } from "@/types/db/database.types";
 import { env } from "@/config/env";
 import { PICKUP_INSTRUCTIONS } from "@/config/pickup";
 import { log } from "@/lib/utils/log";
@@ -16,6 +17,8 @@ interface OrderEvent {
   message: string | null;
   created_at: string;
 }
+
+type OrderRow = Tables<"orders">;
 
 export class OrdersService {
   private ordersRepo: OrdersRepository;
@@ -91,7 +94,7 @@ export class OrdersService {
             userId,
             eventCount: events.length,
           });
-          
+
           // Found order - return it
           return this.buildResponse(order, events);
         }
@@ -166,7 +169,7 @@ export class OrdersService {
             orderId,
             tokenLength: accessToken.length,
           });
-          
+
           // Check if ANY token exists for this order
           try {
             const allTokens = await this.orderAccessTokens.listTokenMetadata(orderId);
@@ -190,10 +193,11 @@ export class OrdersService {
               layer: "service",
               message: "getOrderStatus_debug_tokens_error",
               orderId,
-              error: debugError instanceof Error ? debugError.message : String(debugError),
+              error:
+                debugError instanceof Error ? debugError.message : String(debugError),
             });
           }
-          
+
           throw new Error("Unauthorized");
         }
 
@@ -228,7 +232,7 @@ export class OrdersService {
             orderId,
             eventCount: events.length,
           });
-          
+
           return this.buildResponse(order, events);
         }
       } catch (error) {
@@ -284,7 +288,7 @@ export class OrdersService {
     throw new Error("Unauthorized");
   }
 
-  private buildResponse(order: any, events: OrderEvent[]): OrderStatusResponse {
+  private buildResponse(order: OrderRow, events: OrderEvent[]): OrderStatusResponse {
     const pickupInstructions =
       order.fulfillment === "pickup"
         ? (order.pickup_instructions ?? PICKUP_INSTRUCTIONS.join("\n"))

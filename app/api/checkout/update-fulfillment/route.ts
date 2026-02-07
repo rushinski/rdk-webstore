@@ -35,7 +35,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => null);
     const parsed = updateFulfillmentSchema.safeParse(body ?? {});
     if (!parsed.success) {
-      return json({ error: "Invalid payload", issues: parsed.error.format(), requestId }, 400);
+      return json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        400,
+      );
     }
 
     const { orderId, fulfillment, shippingAddress } = parsed.data;
@@ -54,26 +57,43 @@ export async function POST(request: NextRequest) {
       return json({ error: "Unauthorized", requestId }, 403);
     }
     if (order.status !== "pending") {
-      return json({ error: "ORDER_NOT_PENDING", code: "ORDER_NOT_PENDING", requestId }, 409);
+      return json(
+        { error: "ORDER_NOT_PENDING", code: "ORDER_NOT_PENDING", requestId },
+        409,
+      );
     }
     if (!order.stripe_payment_intent_id || !order.tenant_id) {
-      return json({ error: "MISSING_PAYMENT_INTENT", code: "MISSING_PAYMENT_INTENT", requestId }, 409);
+      return json(
+        { error: "MISSING_PAYMENT_INTENT", code: "MISSING_PAYMENT_INTENT", requestId },
+        409,
+      );
     }
 
     // Get tenant's Stripe account
     const profileRepo = new ProfileRepository(adminSupabase);
-    const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(order.tenant_id);
+    const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(
+      order.tenant_id,
+    );
     if (!stripeAccountId) {
       return json({ error: "Seller payment account not configured", requestId }, 400);
     }
 
     // Verify payment intent is still active
-    const pi = await directCharge.retrievePaymentIntent(stripeAccountId, order.stripe_payment_intent_id);
+    const pi = await directCharge.retrievePaymentIntent(
+      stripeAccountId,
+      order.stripe_payment_intent_id,
+    );
     if (pi.status === "succeeded") {
-      return json({ error: "ORDER_ALREADY_PAID", code: "ORDER_ALREADY_PAID", requestId }, 409);
+      return json(
+        { error: "ORDER_ALREADY_PAID", code: "ORDER_ALREADY_PAID", requestId },
+        409,
+      );
     }
     if (pi.status === "canceled") {
-      return json({ error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId }, 409);
+      return json(
+        { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
+        409,
+      );
     }
 
     // Rebuild line items from order items for pricing recalculation
@@ -124,14 +144,18 @@ export async function POST(request: NextRequest) {
     );
 
     // Update PaymentIntent on Connect account (direct charge)
-    await directCharge.updatePaymentIntent(stripeAccountId, order.stripe_payment_intent_id, {
-      amountCents: totalCents,
-      metadata: {
-        fulfillment,
-        cart_hash: cartHash,
-        tax_calculation_id: pricing.taxCalculationId ?? "",
+    await directCharge.updatePaymentIntent(
+      stripeAccountId,
+      order.stripe_payment_intent_id,
+      {
+        amountCents: totalCents,
+        metadata: {
+          fulfillment,
+          cart_hash: cartHash,
+          tax_calculation_id: pricing.taxCalculationId ?? "",
+        },
       },
-    });
+    );
 
     // Update order in DB
     await adminSupabase
@@ -148,16 +172,23 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", orderId);
 
-    return json({
-      subtotal: pricing.subtotal,
-      shipping: pricing.shipping,
-      tax: pricing.tax,
-      total: pricing.total,
-      fulfillment,
-      requestId,
-    }, 200);
+    return json(
+      {
+        subtotal: pricing.subtotal,
+        shipping: pricing.shipping,
+        tax: pricing.tax,
+        total: pricing.total,
+        fulfillment,
+        requestId,
+      },
+      200,
+    );
   } catch (error: unknown) {
-    logError(error, { layer: "api", requestId, route: "/api/checkout/update-fulfillment" });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/checkout/update-fulfillment",
+    });
     return json({ error: "Failed to update fulfillment", requestId }, 500);
   }
 }

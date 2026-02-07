@@ -59,7 +59,9 @@ export class OrderAccessTokensRepository {
     }
   }
 
-  async listTokenMetadata(orderId: string): Promise<
+  async listTokenMetadata(
+    orderId: string,
+  ): Promise<
     Array<Pick<OrderAccessTokenRow, "id" | "created_at" | "expires_at" | "last_used_at">>
   > {
     const { data, error } = await this.supabase

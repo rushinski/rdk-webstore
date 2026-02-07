@@ -42,11 +42,31 @@ import { StripeTaxService } from "@/services/stripe-tax-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
-import type { TablesUpdate } from "@/types/db/database.types";
+import type { Tables, TablesUpdate } from "@/types/db/database.types";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-10-29.clover",
 });
+
+type OrderRow = Tables<"orders">;
+type OrderItemRow = Tables<"order_items">;
+type ProductSummary = Pick<Tables<"products">, "title_display" | "brand" | "name">;
+type VariantSummary = Pick<Tables<"product_variants">, "size_label">;
+type DetailedOrderItem = OrderItemRow & {
+  product: ProductSummary | null;
+  variant: VariantSummary | null;
+};
+type MetadataCarrier = { metadata?: Stripe.Metadata };
+
+function getOrderIdFromMetadata(payload: Stripe.Event.Data.Object): string | undefined {
+  if (typeof payload === "object" && payload !== null && "metadata" in payload) {
+    const metadata = (payload as MetadataCarrier).metadata;
+    if (metadata && typeof metadata.order_id === "string") {
+      return metadata.order_id;
+    }
+  }
+  return undefined;
+}
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -91,7 +111,12 @@ export async function POST(request: NextRequest) {
 
     switch (event.type) {
       case "payment_intent.succeeded":
-        await handlePaymentIntentSucceeded(event, connectAccountId, adminSupabase, requestId);
+        await handlePaymentIntentSucceeded(
+          event,
+          connectAccountId,
+          adminSupabase,
+          requestId,
+        );
         break;
 
       case "payment_intent.processing":
@@ -125,7 +150,7 @@ export async function POST(request: NextRequest) {
       event.type,
       event.created,
       event.data.object,
-      (event.data.object as any).metadata?.order_id,
+      getOrderIdFromMetadata(event.data.object),
     );
 
     return json({ received: true }, 200);
@@ -153,14 +178,26 @@ async function handlePaymentIntentSucceeded(
   const tenantId = pi.metadata?.tenant_id;
 
   if (!orderId) {
-    log({ level: "warn", layer: "stripe", message: "pi_succeeded_no_order_id", requestId, piId: pi.id });
+    log({
+      level: "warn",
+      layer: "stripe",
+      message: "pi_succeeded_no_order_id",
+      requestId,
+      piId: pi.id,
+    });
     return;
   }
 
   const ordersRepo = new OrdersRepository(adminSupabase);
   const order = await ordersRepo.getById(orderId);
   if (!order) {
-    log({ level: "error", layer: "stripe", message: "pi_succeeded_order_not_found", requestId, orderId });
+    log({
+      level: "error",
+      layer: "stripe",
+      message: "pi_succeeded_order_not_found",
+      requestId,
+      orderId,
+    });
     return;
   }
 
@@ -169,11 +206,21 @@ async function handlePaymentIntentSucceeded(
   const didMarkPaid = await ordersRepo.markPaidTransactionally(
     orderId,
     pi.id,
-    orderItems.map((i) => ({ productId: i.product_id, variantId: i.variant_id, quantity: i.quantity })),
+    orderItems.map((i) => ({
+      productId: i.product_id,
+      variantId: i.variant_id,
+      quantity: i.quantity,
+    })),
   );
 
   if (didMarkPaid) {
-    log({ level: "info", layer: "stripe", message: "order_marked_paid_via_webhook", requestId, orderId });
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "order_marked_paid_via_webhook",
+      requestId,
+      orderId,
+    });
 
     // Sync product size tags
     const productService = new ProductService(adminSupabase);
@@ -194,7 +241,14 @@ async function handlePaymentIntentSucceeded(
           isTaxable: Number(order.tax_amount ?? 0) > 0,
         });
       } catch (err) {
-        log({ level: "warn", layer: "stripe", message: "nexus_tracking_failed", requestId, orderId });
+        log({
+          level: "warn",
+          layer: "stripe",
+          message: "nexus_tracking_failed",
+          requestId,
+          orderId,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }
@@ -203,7 +257,11 @@ async function handlePaymentIntentSucceeded(
   const orderEventsRepo = new OrderEventsRepository(adminSupabase);
   const hasPaidEvent = await orderEventsRepo.hasEvent(orderId, "paid");
   if (!hasPaidEvent) {
-    await orderEventsRepo.insertEvent({ orderId, type: "paid", message: "Payment confirmed." });
+    await orderEventsRepo.insertEvent({
+      orderId,
+      type: "paid",
+      message: "Payment confirmed.",
+    });
   }
 
   // Save shipping snapshot from PI
@@ -243,24 +301,39 @@ async function handlePaymentIntentSucceeded(
     try {
       const chatService = new ChatService(adminSupabase, adminSupabase);
       await chatService.createChatForUser({ userId: order.user_id, orderId });
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   }
 
   // Tax transaction (on Connect account)
   const taxCalculationId = pi.metadata?.tax_calculation_id;
-  const resolvedAccountId = connectAccountId ?? (tenantId
-    ? await new ProfileRepository(adminSupabase).getStripeAccountIdForTenant(tenantId)
-    : null);
+  const resolvedAccountId =
+    connectAccountId ??
+    (tenantId
+      ? await new ProfileRepository(adminSupabase).getStripeAccountIdForTenant(tenantId)
+      : null);
 
   if (taxCalculationId && taxCalculationId !== "" && resolvedAccountId) {
     try {
       const taxService = new StripeTaxService(adminSupabase, resolvedAccountId);
-      const txnId = await taxService.createTaxTransaction({ taxCalculationId, reference: orderId });
+      const txnId = await taxService.createTaxTransaction({
+        taxCalculationId,
+        reference: orderId,
+      });
       if (txnId) {
-        await adminSupabase.from("orders").update({ stripe_tax_transaction_id: txnId }).eq("id", orderId);
+        await adminSupabase
+          .from("orders")
+          .update({ stripe_tax_transaction_id: txnId })
+          .eq("id", orderId);
       }
     } catch (err) {
-      logError(err, { layer: "stripe", message: "tax_transaction_failed", orderId, taxCalculationId });
+      logError(err, {
+        layer: "stripe",
+        message: "tax_transaction_failed",
+        orderId,
+        taxCalculationId,
+      });
     }
   }
 
@@ -268,10 +341,20 @@ async function handlePaymentIntentSucceeded(
   try {
     const notifications = new AdminNotificationService(adminSupabase);
     await notifications.notifyOrderPlaced(orderId);
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 
   // Emails
-  await sendWebhookEmails(order, orderId, orderItems, fulfillment, pi, adminSupabase, requestId);
+  await sendWebhookEmails(
+    order,
+    orderId,
+    orderItems,
+    fulfillment,
+    pi,
+    adminSupabase,
+    requestId,
+  );
 
   // Cache revalidation
   try {
@@ -280,9 +363,17 @@ async function handlePaymentIntentSucceeded(
       revalidateTag(`product:${item.product_id}`, "max");
     }
     revalidateTag("products:list", "max");
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 
-  log({ level: "info", layer: "stripe", message: "order_completed_via_webhook", requestId, orderId });
+  log({
+    level: "info",
+    layer: "stripe",
+    message: "order_completed_via_webhook",
+    requestId,
+    orderId,
+  });
 }
 
 // ---------- payment_intent.processing ----------
@@ -296,7 +387,9 @@ async function handlePaymentIntentProcessing(
 ) {
   const pi = event.data.object as Stripe.PaymentIntent;
   const orderId = pi.metadata?.order_id;
-  if (!orderId) return;
+  if (!orderId) {
+    return;
+  }
 
   await adminSupabase
     .from("orders")
@@ -324,7 +417,9 @@ async function handlePaymentIntentFailed(
 ) {
   const pi = event.data.object as Stripe.PaymentIntent;
   const orderId = pi.metadata?.order_id;
-  if (!orderId) return;
+  if (!orderId) {
+    return;
+  }
 
   const failureMessage = pi.last_payment_error?.message ?? "Payment failed";
 
@@ -360,17 +455,24 @@ async function handleRefundEvent(
 ) {
   try {
     const refund = event.data.object as Stripe.Refund;
-    const chargeId = typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+    const chargeId =
+      typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
 
-    if (!chargeId) return;
+    if (!chargeId) {
+      return;
+    }
 
     const { data: orders } = await adminSupabase
       .from("orders")
       .select("id, status")
-      .or(`stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`)
+      .or(
+        `stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`,
+      )
       .limit(1);
 
-    if (!orders?.length) return;
+    if (!orders?.length) {
+      return;
+    }
 
     const order = orders[0];
     const updateData: TablesUpdate<"orders"> = {
@@ -378,13 +480,24 @@ async function handleRefundEvent(
       refunded_at: new Date(refund.created * 1000).toISOString(),
     };
 
-    if (refund.status === "succeeded") updateData.status = "refunded";
-    else if (refund.status === "pending") updateData.status = "refund_pending";
-    else if (refund.status === "failed") updateData.status = "refund_failed";
+    if (refund.status === "succeeded") {
+      updateData.status = "refunded";
+    } else if (refund.status === "pending") {
+      updateData.status = "refund_pending";
+    } else if (refund.status === "failed") {
+      updateData.status = "refund_failed";
+    }
 
     await adminSupabase.from("orders").update(updateData).eq("id", order.id);
 
-    log({ level: "info", layer: "stripe", message: "refund_processed", requestId, orderId: order.id, refundId: refund.id });
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "refund_processed",
+      requestId,
+      orderId: order.id,
+      refundId: refund.id,
+    });
   } catch (err) {
     logError(err, { layer: "stripe", requestId, message: "refund_handling_failed" });
   }
@@ -393,9 +506,9 @@ async function handleRefundEvent(
 // ---------- Webhook email helper ----------
 
 async function sendWebhookEmails(
-  order: any,
+  order: OrderRow,
   orderId: string,
-  orderItems: any[],
+  orderItems: OrderItemRow[],
   fulfillment: "ship" | "pickup",
   paymentIntent: Stripe.PaymentIntent,
   adminSupabase: AdminSupabaseClient,
@@ -414,9 +527,13 @@ async function sendWebhookEmails(
       const profile = await profilesRepo.getByUserId(order.user_id);
       email = profile?.email ?? null;
     }
-    if (!email) email = order.guest_email ?? null;
+    if (!email) {
+      email = order.guest_email ?? null;
+    }
 
-    if (!email) return;
+    if (!email) {
+      return;
+    }
 
     if (!order.user_id && order.guest_email !== email) {
       await ordersRepo.updateGuestEmail(orderId, email);
@@ -428,10 +545,14 @@ async function sendWebhookEmails(
       orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${orderId}?token=${encodeURIComponent(token)}`;
     }
 
-    const detailedItems = await ordersRepo.getOrderItemsDetailed(orderId);
-    const items = detailedItems.map((item: any) => {
+    const detailedItems = (await ordersRepo.getOrderItemsDetailed(
+      orderId,
+    )) as DetailedOrderItem[];
+    const items = detailedItems.map((item) => {
       const product = item.product;
-      const title = product?.title_display ?? (`${product?.brand ?? ""} ${product?.name ?? ""}`.trim() || "Item");
+      const title =
+        product?.title_display ??
+        (`${product?.brand ?? ""} ${product?.name ?? ""}`.trim() || "Item");
       return {
         title,
         sizeLabel: item.variant?.size_label ?? null,
@@ -441,9 +562,13 @@ async function sendWebhookEmails(
       };
     });
 
-    const shippingSnapshot = fulfillment === "ship" ? await addressesRepo.getOrderShipping(orderId) : null;
+    const shippingSnapshot =
+      fulfillment === "ship" ? await addressesRepo.getOrderShipping(orderId) : null;
 
-    const hasConfirmation = await orderEventsRepo.hasEvent(orderId, "confirmation_email_sent");
+    const hasConfirmation = await orderEventsRepo.hasEvent(
+      orderId,
+      "confirmation_email_sent",
+    );
     if (!hasConfirmation) {
       await orderEmailService.sendOrderConfirmation({
         to: email,
@@ -457,32 +582,53 @@ async function sendWebhookEmails(
         total: Number(order.total ?? 0),
         items,
         orderUrl,
-        shippingAddress: shippingSnapshot ? {
-          name: shippingSnapshot.name, line1: shippingSnapshot.line1,
-          line2: shippingSnapshot.line2, city: shippingSnapshot.city,
-          state: shippingSnapshot.state, postalCode: shippingSnapshot.postal_code,
-          country: shippingSnapshot.country,
-        } : null,
+        shippingAddress: shippingSnapshot
+          ? {
+              name: shippingSnapshot.name,
+              line1: shippingSnapshot.line1,
+              line2: shippingSnapshot.line2,
+              city: shippingSnapshot.city,
+              state: shippingSnapshot.state,
+              postalCode: shippingSnapshot.postal_code,
+              country: shippingSnapshot.country,
+            }
+          : null,
       });
-      await orderEventsRepo.insertEvent({ orderId, type: "confirmation_email_sent", message: "Confirmation emailed." });
+      await orderEventsRepo.insertEvent({
+        orderId,
+        type: "confirmation_email_sent",
+        message: "Confirmation emailed.",
+      });
     }
 
     if (fulfillment === "pickup") {
-      const hasPickup = await orderEventsRepo.hasEvent(orderId, "pickup_instructions_sent");
+      const hasPickup = await orderEventsRepo.hasEvent(
+        orderId,
+        "pickup_instructions_sent",
+      );
       if (!hasPickup) {
         await orderEmailService.sendPickupInstructions({ to: email, orderId, orderUrl });
-        await orderEventsRepo.insertEvent({ orderId, type: "pickup_instructions_sent", message: "Pickup instructions emailed." });
+        await orderEventsRepo.insertEvent({
+          orderId,
+          type: "pickup_instructions_sent",
+          message: "Pickup instructions emailed.",
+        });
       }
     }
 
     // Admin emails
-    const hasAdminEmail = await orderEventsRepo.hasEvent(orderId, "admin_order_email_sent");
+    const hasAdminEmail = await orderEventsRepo.hasEvent(
+      orderId,
+      "admin_order_email_sent",
+    );
     if (!hasAdminEmail) {
       const staff = await profilesRepo.listStaffProfiles();
-      const recipients = staff.filter((s) => s.admin_order_notifications_enabled !== false && s.email);
+      const recipients = staff.filter(
+        (s) => s.admin_order_notifications_enabled !== false && s.email,
+      );
       if (recipients.length > 0) {
         const adminEmailService = new AdminOrderEmailService();
-        const itemCount = orderItems.reduce((sum, i) => sum + i.quantity, 0);
+        const itemCount = orderItems.reduce((sum, i) => sum + Number(i.quantity ?? 0), 0);
         await Promise.all(
           recipients.map((admin) =>
             adminEmailService.sendOrderPlaced({
@@ -498,11 +644,22 @@ async function sendWebhookEmails(
             }),
           ),
         );
-        await orderEventsRepo.insertEvent({ orderId, type: "admin_order_email_sent", message: "Admin notified." });
+        await orderEventsRepo.insertEvent({
+          orderId,
+          type: "admin_order_email_sent",
+          message: "Admin notified.",
+        });
       }
     }
   } catch (err) {
-    log({ level: "warn", layer: "stripe", message: "webhook_email_failed", requestId, orderId, error: err instanceof Error ? err.message : String(err) });
+    log({
+      level: "warn",
+      layer: "stripe",
+      message: "webhook_email_failed",
+      requestId,
+      orderId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

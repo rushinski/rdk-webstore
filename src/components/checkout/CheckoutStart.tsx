@@ -12,7 +12,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Elements } from "@stripe/react-stripe-js";
-import { loadStripe, type Stripe as StripeType, type StripeElementsOptions } from "@stripe/stripe-js";
+import {
+  loadStripe,
+  type Stripe as StripeType,
+  type StripeElementsOptions,
+} from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 
 import { useCart } from "@/components/cart/CartProvider";
@@ -35,7 +39,13 @@ const buildCartSignature = (items: CartItem[]) => {
   const sorted = [...items].sort((a, b) =>
     `${a.productId}:${a.variantId}`.localeCompare(`${b.productId}:${b.variantId}`),
   );
-  return JSON.stringify(sorted.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })));
+  return JSON.stringify(
+    sorted.map((i) => ({
+      productId: i.productId,
+      variantId: i.variantId,
+      quantity: i.quantity,
+    })),
+  );
 };
 
 const stripeAppearance: StripeElementsOptions["appearance"] = {
@@ -72,7 +82,9 @@ export function CheckoutStart() {
   // ---------- Stripe state ----------
   // For direct charges, we need to load Stripe with the Connect account ID.
   // We get this from the API response, so we load Stripe lazily.
-  const [stripePromise, setStripePromise] = useState<Promise<StripeType | null> | null>(null);
+  const [stripePromise, setStripePromise] = useState<Promise<StripeType | null> | null>(
+    null,
+  );
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
 
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
@@ -111,8 +123,12 @@ export function CheckoutStart() {
 
   // Clear guest shipping on unmount
   useEffect(() => {
-    if (!isGuestFlow) return;
-    return () => { clearGuestShippingAddress(); };
+    if (!isGuestFlow) {
+      return;
+    }
+    return () => {
+      clearGuestShippingAddress();
+    };
   }, [isGuestFlow]);
 
   // Check auth
@@ -125,20 +141,27 @@ export function CheckoutStart() {
 
   // Restore cart from snapshot if empty
   useEffect(() => {
-    if (!isReady || items.length > 0) return;
+    if (!isReady || items.length > 0) {
+      return;
+    }
     setIsRestoring(true);
     snapshotService
       .restoreCart()
       .then((restored) => {
-        if (restored?.length) setCartItems(restored);
-        else router.push("/cart");
+        if (restored?.length) {
+          setCartItems(restored);
+        } else {
+          router.push("/cart");
+        }
       })
       .finally(() => setIsRestoring(false));
   }, [isReady, items.length, router, setCartItems, snapshotService]);
 
   // Redirect unauthenticated non-guest users
   useEffect(() => {
-    if (isAuthenticated === null) return;
+    if (isAuthenticated === null) {
+      return;
+    }
     if (!isAuthenticated && (!isGuestFlow || !guestEnabled)) {
       router.push("/checkout");
     }
@@ -146,7 +169,9 @@ export function CheckoutStart() {
 
   // Generate idempotency key
   useEffect(() => {
-    if (!isReady || items.length === 0) return;
+    if (!isReady || items.length === 0) {
+      return;
+    }
     const sig = buildCartSignature(items);
     try {
       const storedSig = sessionStorage.getItem("checkout_cart_signature");
@@ -171,7 +196,9 @@ export function CheckoutStart() {
 
   // Build shipping payload
   const shippingPayload = useMemo<ShippingPayload>(() => {
-    if (!shippingAddress) return null;
+    if (!shippingAddress) {
+      return null;
+    }
     return {
       name: shippingAddress.name?.trim() ?? "",
       phone: shippingAddress.phone?.trim() || null,
@@ -186,10 +213,18 @@ export function CheckoutStart() {
 
   // ---------- Initialize checkout (create PaymentIntent) ----------
   useEffect(() => {
-    if (!isReady || items.length === 0 || !idempotencyKey) return;
-    if (isAuthenticated === null) return;
-    if (!isAuthenticated && !isGuestFlow) return;
-    if (clientSecret && orderId) return;
+    if (!isReady || items.length === 0 || !idempotencyKey) {
+      return;
+    }
+    if (isAuthenticated === null) {
+      return;
+    }
+    if (!isAuthenticated && !isGuestFlow) {
+      return;
+    }
+    if (clientSecret && orderId) {
+      return;
+    }
 
     let active = true;
 
@@ -202,9 +237,15 @@ export function CheckoutStart() {
           idempotencyKey,
           fulfillment,
           shippingAddress: fulfillment === "ship" ? shippingPayload : null,
-          items: items.map((i) => ({ productId: i.productId, variantId: i.variantId, quantity: i.quantity })),
+          items: items.map((i) => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+          })),
         };
-        if (!isAuthenticated && guestEmail) payload.guestEmail = guestEmail;
+        if (!isAuthenticated && guestEmail) {
+          payload.guestEmail = guestEmail;
+        }
 
         const res = await fetch("/api/checkout/create-payment-intent", {
           method: "POST",
@@ -214,7 +255,10 @@ export function CheckoutStart() {
 
         const data = await res.json().catch(() => null);
         if (!res.ok) {
-          if (data?.code === "IDEMPOTENCY_KEY_EXPIRED" || data?.code === "CART_MISMATCH") {
+          if (
+            data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
+            data?.code === "CART_MISMATCH"
+          ) {
             clearIdempotencyKeyFromStorage();
           }
           if (data?.code === "GUEST_CHECKOUT_DISABLED") {
@@ -223,7 +267,9 @@ export function CheckoutStart() {
           }
           throw new Error(data?.error || "Failed to start checkout");
         }
-        if (!active) return;
+        if (!active) {
+          return;
+        }
 
         if (data?.status === "paid") {
           router.push(`/checkout/success?orderId=${data.orderId}`);
@@ -254,83 +300,163 @@ export function CheckoutStart() {
 
         lastPricingKeyRef.current = null;
       } catch (err: unknown) {
-        if (active) setError(err instanceof Error ? err.message : "Failed to start checkout");
+        if (active) {
+          setError(err instanceof Error ? err.message : "Failed to start checkout");
+        }
       } finally {
-        if (active) setIsInitializing(false);
+        if (active) {
+          setIsInitializing(false);
+        }
       }
     };
 
     init();
-    return () => { active = false; };
-  }, [clientSecret, fulfillment, guestEmail, idempotencyKey, isAuthenticated, isGuestFlow, isReady, items, orderId, router, shippingPayload]);
+    return () => {
+      active = false;
+    };
+  }, [
+    clientSecret,
+    fulfillment,
+    guestEmail,
+    idempotencyKey,
+    isAuthenticated,
+    isGuestFlow,
+    isReady,
+    items,
+    orderId,
+    router,
+    shippingPayload,
+  ]);
 
   // ---------- Update pricing on fulfillment/address change ----------
   const addressKey = useMemo(() => {
-    if (fulfillment !== "ship" || !shippingPayload) return "pickup";
-    return [shippingPayload.line1, shippingPayload.city, shippingPayload.state, shippingPayload.postal_code].join("|");
+    if (fulfillment !== "ship" || !shippingPayload) {
+      return "pickup";
+    }
+    return [
+      shippingPayload.line1,
+      shippingPayload.city,
+      shippingPayload.state,
+      shippingPayload.postal_code,
+    ].join("|");
   }, [fulfillment, shippingPayload]);
 
   const pricingKey = useMemo(() => {
-    if (!orderId) return null;
+    if (!orderId) {
+      return null;
+    }
     return `${orderId}:${fulfillment}:${addressKey}`;
   }, [orderId, fulfillment, addressKey]);
 
-  const updatePricing = useCallback(async (nextFulfillment: "ship" | "pickup", nextAddr: ShippingPayload, dedupeKey?: string | null) => {
-    if (!orderId) return;
-    if (dedupeKey && lastPricingKeyRef.current === dedupeKey) return;
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setIsUpdatingFulfillment(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/checkout/update-fulfillment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, fulfillment: nextFulfillment, shippingAddress: nextAddr }),
-        signal: controller.signal,
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(data?.error || "Failed to update fulfillment");
-
-      setFulfillment(data.fulfillment ?? nextFulfillment);
-      setSubtotal(Number(data.subtotal ?? 0));
-      setShipping(Number(data.shipping ?? 0));
-      setTax(Number(data.tax ?? 0));
-      setTotal(Number(data.total ?? 0));
-      if (dedupeKey) lastPricingKeyRef.current = dedupeKey;
-    } catch (err: unknown) {
-      if (dedupeKey) lastPricingKeyRef.current = null;
-      if (!(err instanceof DOMException && err.name === "AbortError")) {
-        setError(err instanceof Error ? err.message : "Failed to update fulfillment");
+  const updatePricing = useCallback(
+    async (
+      nextFulfillment: "ship" | "pickup",
+      nextAddr: ShippingPayload,
+      dedupeKey?: string | null,
+    ) => {
+      if (!orderId) {
+        return;
       }
-    } finally {
-      inFlightRef.current = false;
-      setIsUpdatingFulfillment(false);
-    }
-  }, [orderId]);
+      if (dedupeKey && lastPricingKeyRef.current === dedupeKey) {
+        return;
+      }
+
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      if (inFlightRef.current) {
+        return;
+      }
+      inFlightRef.current = true;
+      setIsUpdatingFulfillment(true);
+      setError(null);
+
+      try {
+        const res = await fetch("/api/checkout/update-fulfillment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId,
+            fulfillment: nextFulfillment,
+            shippingAddress: nextAddr,
+          }),
+          signal: controller.signal,
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(data?.error || "Failed to update fulfillment");
+        }
+
+        setFulfillment(data.fulfillment ?? nextFulfillment);
+        setSubtotal(Number(data.subtotal ?? 0));
+        setShipping(Number(data.shipping ?? 0));
+        setTax(Number(data.tax ?? 0));
+        setTotal(Number(data.total ?? 0));
+        if (dedupeKey) {
+          lastPricingKeyRef.current = dedupeKey;
+        }
+      } catch (err: unknown) {
+        if (dedupeKey) {
+          lastPricingKeyRef.current = null;
+        }
+        if (!(err instanceof DOMException && err.name === "AbortError")) {
+          setError(err instanceof Error ? err.message : "Failed to update fulfillment");
+        }
+      } finally {
+        inFlightRef.current = false;
+        setIsUpdatingFulfillment(false);
+      }
+    },
+    [orderId],
+  );
 
   // Auto-update pricing when shipping address changes
   useEffect(() => {
-    if (fulfillment !== "ship" || !orderId || !clientSecret || !pricingKey || isUpdatingFulfillment) return;
-    if (!shippingPayload?.line1 || !shippingPayload.city || !shippingPayload.state || !shippingPayload.postal_code) return;
-    if (lastPricingKeyRef.current === pricingKey) return;
+    if (
+      fulfillment !== "ship" ||
+      !orderId ||
+      !clientSecret ||
+      !pricingKey ||
+      isUpdatingFulfillment
+    ) {
+      return;
+    }
+    if (
+      !shippingPayload?.line1 ||
+      !shippingPayload.city ||
+      !shippingPayload.state ||
+      !shippingPayload.postal_code
+    ) {
+      return;
+    }
+    if (lastPricingKeyRef.current === pricingKey) {
+      return;
+    }
 
     const t = setTimeout(() => {
       lastPricingKeyRef.current = pricingKey;
       updatePricing("ship", shippingPayload, pricingKey);
     }, 350);
     return () => clearTimeout(t);
-  }, [clientSecret, fulfillment, isUpdatingFulfillment, orderId, pricingKey, shippingPayload, updatePricing]);
+  }, [
+    clientSecret,
+    fulfillment,
+    isUpdatingFulfillment,
+    orderId,
+    pricingKey,
+    shippingPayload,
+    updatePricing,
+  ]);
 
   const handleFulfillmentChange = async (next: "ship" | "pickup") => {
-    if (next === fulfillment) return;
+    if (next === fulfillment) {
+      return;
+    }
     lastPricingKeyRef.current = null;
-    if (!orderId) { setFulfillment(next); return; }
+    if (!orderId) {
+      setFulfillment(next);
+      return;
+    }
     await updatePricing(next, next === "ship" ? shippingPayload : null);
   };
 
@@ -354,7 +480,10 @@ export function CheckoutStart() {
           <div className="bg-red-900/20 border border-red-500 text-red-400 p-6 rounded">
             <p className="text-lg font-semibold mb-2">Unable to start checkout</p>
             <p className="mb-4">{error}</p>
-            <button onClick={() => router.push("/cart")} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition">
+            <button
+              onClick={() => router.push("/cart")}
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
+            >
               Return to Cart
             </button>
           </div>
@@ -384,7 +513,9 @@ export function CheckoutStart() {
       lastPricingKeyRef.current = null;
       setShippingAddress(addr);
     },
-    onFulfillmentChange: (next: "ship" | "pickup") => { void handleFulfillmentChange(next); },
+    onFulfillmentChange: (next: "ship" | "pickup") => {
+      void handleFulfillmentChange(next);
+    },
     isUpdatingFulfillment,
     canUseChat: isAuthenticated === true,
     guestEmail,
@@ -397,13 +528,19 @@ export function CheckoutStart() {
       <div className="flex items-center justify-between mb-6 sm:mb-8 pt-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
-          <p className="text-sm sm:text-base text-gray-400">Secure checkout powered by Stripe</p>
+          <p className="text-sm sm:text-base text-gray-400">
+            Secure checkout powered by Stripe
+          </p>
         </div>
-        <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">Back to cart</Link>
+        <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
+          Back to cart
+        </Link>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">{error}</div>
+        <div className="mb-6 bg-red-900/20 border border-red-500 text-red-400 p-4 rounded">
+          {error}
+        </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

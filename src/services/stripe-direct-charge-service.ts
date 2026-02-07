@@ -17,15 +17,6 @@ import Stripe from "stripe";
 
 import { env } from "@/config/env";
 import { log } from "@/lib/utils/log";
-import type {
-  FulfillmentMethod,
-  ResolvedLineItem,
-  SUPPORTED_PAYMENT_METHODS,
-} from "@/types/domain/checkout";
-
-const platformStripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-10-29.clover",
-});
 
 /**
  * Get a Stripe client scoped to a Connect account (for direct charges).

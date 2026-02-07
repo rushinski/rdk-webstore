@@ -18,6 +18,7 @@ import { Loader2, Lock, Package, TruckIcon, Mail } from "lucide-react";
 import Link from "next/link";
 
 import type { CartItem } from "@/types/domain/cart";
+
 import { SavedAddresses } from "./SavedAddresses";
 
 interface CheckoutFormProps {
@@ -51,7 +52,6 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 export function CheckoutForm({
   orderId,
-  stripeAccountId,
   items,
   total,
   fulfillment,
@@ -99,7 +99,7 @@ export function CheckoutForm({
         }
       : null;
 
-const confirmBackend = async (paymentIntentId: string) => {
+  const confirmBackend = async (paymentIntentId: string) => {
     // ✅ PASS guestEmail in the body
     const payload = {
       orderId,
@@ -114,7 +114,7 @@ const confirmBackend = async (paymentIntentId: string) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    
+
     const data = await res.json().catch(() => ({}));
 
     if (data?.processing) {
@@ -130,13 +130,20 @@ const confirmBackend = async (paymentIntentId: string) => {
     const errors: string[] = [];
     if (isGuestCheckout) {
       const e = guestEmail?.trim() || "";
-      if (!e) errors.push("Email address is required");
-      else if (!isValidEmail(e)) errors.push("Email address is invalid");
+      if (!e) {
+        errors.push("Email address is required");
+      } else if (!isValidEmail(e)) {
+        errors.push("Email address is invalid");
+      }
     }
-    if (fulfillment === "ship" && !shippingAddress)
+    if (fulfillment === "ship" && !shippingAddress) {
       errors.push("Shipping address is required");
-    if (!stripe || !elements) errors.push("Payment system is still loading");
-    else if (!paymentComplete) errors.push("Payment information is required");
+    }
+    if (!stripe || !elements) {
+      errors.push("Payment system is still loading");
+    } else if (!paymentComplete) {
+      errors.push("Payment information is required");
+    }
     return errors;
   };
 
@@ -170,7 +177,9 @@ const confirmBackend = async (paymentIntentId: string) => {
     try {
       if (withSubmit) {
         const { error: submitErr } = await elements.submit();
-        if (submitErr) throw new Error(submitErr.message);
+        if (submitErr) {
+          throw new Error(submitErr.message);
+        }
       }
 
       // ✅ KEY FIX: Pass receipt_email to Stripe
@@ -199,14 +208,16 @@ const confirmBackend = async (paymentIntentId: string) => {
         redirect: "if_required",
       });
 
-      if (confirmError) throw new Error(confirmError.message);
-      if (!paymentIntent) throw new Error("Payment failed. Please try again.");
+      if (confirmError) {
+        throw new Error(confirmError.message);
+      }
+      if (!paymentIntent) {
+        throw new Error("Payment failed. Please try again.");
+      }
 
       if (paymentIntent.status === "succeeded") {
         await confirmBackend(paymentIntent.id);
-        router.push(
-          `/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`,
-        );
+        router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
         return { ok: true };
       }
 
@@ -247,12 +258,14 @@ const confirmBackend = async (paymentIntentId: string) => {
       return;
     }
     const result = await handlePayment(false);
-    if (!result.ok) event.paymentFailed({ reason: "fail", message: result.error });
+    if (!result.ok) {
+      event.paymentFailed({ reason: "fail", message: result.error });
+    }
   };
 
   const handleExpressClick = (event: StripeExpressCheckoutElementClickEvent) => {
     // Note: Express Checkout (Apple Pay/Google Pay) handles email internally
-    // You might need to add `emailRequired: true` to ExpressCheckoutElement options 
+    // You might need to add `emailRequired: true` to ExpressCheckoutElement options
     // if you want to force it there, but for now we focus on the form inputs.
     const lineItems = items.map((i) => ({
       name: i.titleDisplay,
@@ -358,11 +371,19 @@ const confirmBackend = async (paymentIntentId: string) => {
               </a>
               .
             </p>
-            {canUseChat && <p>Signed-in customers can also use the in-app pickup chat.</p>}
+            {canUseChat && (
+              <p>Signed-in customers can also use the in-app pickup chat.</p>
+            )}
             <div className="mt-3 pt-3 border-t border-zinc-800">
               <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
-              <p>All sales are final except as outlined in our Returns &amp; Refunds policy.</p>
-              <Link href="/refunds" className="text-red-500 hover:text-red-400 underline mt-2 inline-block">
+              <p>
+                All sales are final except as outlined in our Returns &amp; Refunds
+                policy.
+              </p>
+              <Link
+                href="/refunds"
+                className="text-red-500 hover:text-red-400 underline mt-2 inline-block"
+              >
                 Returns &amp; Refunds Policy
               </Link>
             </div>
@@ -374,8 +395,15 @@ const confirmBackend = async (paymentIntentId: string) => {
             <p className="font-medium text-white mb-2">Shipping Information</p>
             <p>We aim to ship within 24 hours (processing time, not delivery).</p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-              <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">Shipping Policy</Link>
-              <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">Returns &amp; Refunds Policy</Link>
+              <Link
+                href="/shipping"
+                className="text-red-500 hover:text-red-400 underline"
+              >
+                Shipping Policy
+              </Link>
+              <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                Returns &amp; Refunds Policy
+              </Link>
             </div>
           </div>
         )}
@@ -402,7 +430,9 @@ const confirmBackend = async (paymentIntentId: string) => {
             <div className="mb-4">
               <ExpressCheckoutElement
                 options={{ layout: { overflow: "never" } }}
-                onConfirm={(e) => { void handleExpressConfirm(e); }}
+                onConfirm={(e) => {
+                  void handleExpressConfirm(e);
+                }}
                 onClick={handleExpressClick}
               />
             </div>
@@ -420,7 +450,8 @@ const confirmBackend = async (paymentIntentId: string) => {
             <div className="mt-4 mb-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
               <p className="flex items-center gap-2">
                 <Lock className="w-4 h-4" />
-                All payments are securely processed by Stripe. We never store your card details.
+                All payments are securely processed by Stripe. We never store your card
+                details.
               </p>
             </div>
           </>
@@ -476,9 +507,17 @@ const confirmBackend = async (paymentIntentId: string) => {
       <div className="text-sm text-gray-400 text-center">
         <p>
           By placing your order, you agree to our{" "}
-          <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">Terms of Service</Link>
+          <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
+            Terms of Service
+          </Link>
           {" and "}
-          <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">Privacy Policy</Link>.
+          <Link
+            href="/legal/privacy"
+            className="text-red-500 hover:text-red-400 underline"
+          >
+            Privacy Policy
+          </Link>
+          .
         </p>
       </div>
     </form>

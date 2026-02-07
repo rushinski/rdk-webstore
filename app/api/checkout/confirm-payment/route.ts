@@ -5,9 +5,11 @@
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type Stripe from "stripe";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
+import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
@@ -23,8 +25,18 @@ import { confirmPaymentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
+import type { Tables } from "@/types/db/database.types";
 
 const directCharge = new StripeDirectChargeService();
+
+type OrderRow = Tables<"orders">;
+type OrderItemRow = Tables<"order_items">;
+type ProductSummary = Pick<Tables<"products">, "title_display" | "brand" | "name">;
+type VariantSummary = Pick<Tables<"product_variants">, "size_label">;
+type DetailedOrderItem = OrderItemRow & {
+  product: ProductSummary | null;
+  variant: VariantSummary | null;
+};
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -46,7 +58,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { orderId, paymentIntentId, fulfillment, shippingAddress, guestEmail } = parsed.data;
+    const { orderId, paymentIntentId, fulfillment, shippingAddress, guestEmail } =
+      parsed.data;
 
     const ordersRepo = new OrdersRepository(adminSupabase);
     const order = await ordersRepo.getById(orderId);
@@ -71,10 +84,7 @@ export async function POST(request: NextRequest) {
       order.tenant_id,
     );
     if (!stripeAccountId) {
-      return json(
-        { error: "Seller payment account not configured", requestId },
-        400,
-      );
+      return json({ error: "Seller payment account not configured", requestId }, 400);
     }
 
     // Retrieve PaymentIntent from Connect account (direct charge)
@@ -84,10 +94,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Validate PI matches order
-    if (
-      paymentIntent.metadata?.order_id &&
-      paymentIntent.metadata.order_id !== orderId
-    ) {
+    if (paymentIntent.metadata?.order_id && paymentIntent.metadata.order_id !== orderId) {
       return json(
         {
           error: "Payment intent does not match order",
@@ -150,7 +157,7 @@ export async function POST(request: NextRequest) {
         const tokenService = new OrderAccessTokenService(adminSupabase);
         const { token } = await tokenService.createToken({ orderId });
         guestAccessToken = token;
-        
+
         log({
           level: "info",
           layer: "api",
@@ -175,12 +182,12 @@ export async function POST(request: NextRequest) {
       // Frontend should redirect to success page with processing state
       // ✅ FIX: Include guestAccessToken in response
       return json(
-        { 
-          success: true, 
-          processing: true, 
-          orderId, 
+        {
+          success: true,
+          processing: true,
+          orderId,
           guestAccessToken, // ✅ Critical: Include token for guest orders
-          requestId 
+          requestId,
         },
         202,
       );
@@ -198,10 +205,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Frontend should handle the redirect
-      return json(
-        { success: true, requiresAction: true, orderId, requestId },
-        202,
-      );
+      return json({ success: true, requiresAction: true, orderId, requestId }, 202);
     }
 
     // Payment must be succeeded at this point for instant methods (cards)
@@ -316,8 +320,7 @@ export async function POST(request: NextRequest) {
             message: "nexus_tracking_failed",
             requestId,
             orderId,
-            error:
-              nexusErr instanceof Error ? nexusErr.message : String(nexusErr),
+            error: nexusErr instanceof Error ? nexusErr.message : String(nexusErr),
           });
         }
       }
@@ -390,6 +393,7 @@ export async function POST(request: NextRequest) {
           message: "pickup_chat_failed",
           requestId,
           orderId,
+          error: chatErr instanceof Error ? chatErr.message : String(chatErr),
         });
       }
     }
@@ -400,7 +404,7 @@ export async function POST(request: NextRequest) {
       const tokenService = new OrderAccessTokenService(adminSupabase);
       const { token } = await tokenService.createToken({ orderId });
       guestAccessToken = token;
-      
+
       log({
         level: "info",
         layer: "api",
@@ -426,12 +430,15 @@ export async function POST(request: NextRequest) {
       guestAccessToken, // ✅ Pass token to email function
     });
 
-    return json({ success: true, alreadyPaid: !didMarkPaid, guestAccessToken, requestId }, 200);
+    return json(
+      { success: true, alreadyPaid: !didMarkPaid, guestAccessToken, requestId },
+      200,
+    );
   } catch (error: unknown) {
     // ✅ FIX: Better error logging
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     logError(new Error(errorMessage), {
       layer: "api",
       requestId,
@@ -439,7 +446,7 @@ export async function POST(request: NextRequest) {
       originalError: error,
       stack: errorStack,
     });
-    
+
     return json(
       {
         error: errorMessage,
@@ -453,16 +460,16 @@ export async function POST(request: NextRequest) {
 // ---------- Non-blocking email logic ----------
 
 async function sendOrderEmails(ctx: {
-  order: any;
+  order: OrderRow;
   orderId: string;
-  orderItems: any[];
+  orderItems: OrderItemRow[];
   expectedFulfillment: "ship" | "pickup";
-  paymentIntent: any;
+  paymentIntent: Stripe.PaymentIntent;
   addressesRepo: AddressesRepository;
   ordersRepo: OrdersRepository;
   orderEventsRepo: OrderEventsRepository;
   profilesRepo: ProfileRepository;
-  adminSupabase: any;
+  adminSupabase: AdminSupabaseClient;
   requestId: string;
   guestAccessToken: string | null; // ✅ Token passed from parent
 }) {
@@ -485,7 +492,9 @@ async function sendOrderEmails(ctx: {
       await ctx.ordersRepo.updateGuestEmail(ctx.order.id, email);
     }
 
-    if (!email) return;
+    if (!email) {
+      return;
+    }
 
     // Order URL for guests (using pre-created token)
     let orderUrl: string | null = null;
@@ -494,14 +503,14 @@ async function sendOrderEmails(ctx: {
     }
 
     // Build items for email
-    const detailedItems = await ctx.ordersRepo.getOrderItemsDetailed(
+    const detailedItems = (await ctx.ordersRepo.getOrderItemsDetailed(
       ctx.orderId,
-    );
-    const items = detailedItems.map((item: any) => {
+    )) as DetailedOrderItem[];
+    const items = detailedItems.map((item) => {
       const product = item.product;
       const title =
         product?.title_display ??
-        ((`${product?.brand ?? ""} ${product?.name ?? ""}`.trim()) || "Item");
+        (`${product?.brand ?? ""} ${product?.name ?? ""}`.trim() || "Item");
       return {
         title,
         sizeLabel: item.variant?.size_label ?? null,

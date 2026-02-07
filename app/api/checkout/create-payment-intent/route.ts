@@ -16,7 +16,10 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { CheckoutPricingService, CheckoutError } from "@/services/checkout-pricing-service";
+import {
+  CheckoutPricingService,
+  CheckoutError,
+} from "@/services/checkout-pricing-service";
 import { StripeDirectChargeService } from "@/services/stripe-direct-charge-service";
 import { createCartHash } from "@/lib/utils/crypto";
 import { createPaymentIntentSchema } from "@/lib/validation/checkout";
@@ -39,17 +42,24 @@ export async function POST(request: NextRequest) {
     const userEmail = user?.email ?? null;
 
     if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
-      return json({ error: "GUEST_CHECKOUT_DISABLED", code: "GUEST_CHECKOUT_DISABLED", requestId }, 403);
+      return json(
+        { error: "GUEST_CHECKOUT_DISABLED", code: "GUEST_CHECKOUT_DISABLED", requestId },
+        403,
+      );
     }
 
     // Parse & validate
     const body = await request.json().catch(() => null);
     const parsed = createPaymentIntentSchema.safeParse(body ?? {});
     if (!parsed.success) {
-      return json({ error: "Invalid payload", issues: parsed.error.format(), requestId }, 400);
+      return json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        400,
+      );
     }
 
-    const { items, fulfillment, idempotencyKey, guestEmail, shippingAddress } = parsed.data;
+    const { items, fulfillment, idempotencyKey, guestEmail, shippingAddress } =
+      parsed.data;
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
     const cartHash = createCartHash(items, fulfillment);
@@ -58,9 +68,18 @@ export async function POST(request: NextRequest) {
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
 
     if (existingOrder) {
-      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
+      const expiresAt = existingOrder.expires_at
+        ? new Date(existingOrder.expires_at)
+        : null;
       if (expiresAt && expiresAt < new Date()) {
-        return json({ error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId }, 409);
+        return json(
+          {
+            error: "IDEMPOTENCY_KEY_EXPIRED",
+            code: "IDEMPOTENCY_KEY_EXPIRED",
+            requestId,
+          },
+          409,
+        );
       }
       if (existingOrder.cart_hash !== cartHash) {
         return json({ error: "CART_MISMATCH", code: "CART_MISMATCH", requestId }, 409);
@@ -77,7 +96,9 @@ export async function POST(request: NextRequest) {
       // Return existing payment intent if still valid
       if (existingOrder.stripe_payment_intent_id && existingOrder.tenant_id) {
         const profileRepo = new ProfileRepository(adminSupabase);
-        const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(existingOrder.tenant_id);
+        const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(
+          existingOrder.tenant_id,
+        );
 
         if (stripeAccountId) {
           try {
@@ -90,21 +111,31 @@ export async function POST(request: NextRequest) {
               return json({ status: "paid", orderId: existingOrder.id, requestId }, 200);
             }
             if (pi.status === "canceled") {
-              return json({ error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId }, 409);
+              return json(
+                {
+                  error: "PAYMENT_INTENT_CANCELED",
+                  code: "PAYMENT_INTENT_CANCELED",
+                  requestId,
+                },
+                409,
+              );
             }
 
-            return json({
-              clientSecret: pi.client_secret,
-              orderId: existingOrder.id,
-              paymentIntentId: pi.id,
-              stripeAccountId, // Client needs this for Elements
-              subtotal: Number(existingOrder.subtotal ?? 0),
-              shipping: Number(existingOrder.shipping ?? 0),
-              tax: Number(existingOrder.tax_amount ?? 0),
-              total: Number(existingOrder.total ?? 0),
-              fulfillment: existingOrder.fulfillment ?? fulfillment,
-              requestId,
-            }, 200);
+            return json(
+              {
+                clientSecret: pi.client_secret,
+                orderId: existingOrder.id,
+                paymentIntentId: pi.id,
+                stripeAccountId, // Client needs this for Elements
+                subtotal: Number(existingOrder.subtotal ?? 0),
+                shipping: Number(existingOrder.shipping ?? 0),
+                tax: Number(existingOrder.tax_amount ?? 0),
+                total: Number(existingOrder.total ?? 0),
+                fulfillment: existingOrder.fulfillment ?? fulfillment,
+                requestId,
+              },
+              200,
+            );
           } catch {
             // Payment intent may have been invalidated; fall through to create new one
           }
@@ -114,7 +145,11 @@ export async function POST(request: NextRequest) {
 
     // ---------- Resolve pricing ----------
     const pricingService = new CheckoutPricingService(adminSupabase);
-    const resolved = await pricingService.resolve({ items, fulfillment, shippingAddress });
+    const resolved = await pricingService.resolve({
+      items,
+      fulfillment,
+      shippingAddress,
+    });
     const { tenantId, stripeAccountId, lineItems, pricing } = resolved;
 
     // ---------- Create pending order ----------
@@ -217,23 +252,31 @@ export async function POST(request: NextRequest) {
       fulfillment,
     });
 
-    return json({
-      clientSecret,
-      orderId: order.id,
-      paymentIntentId,
-      stripeAccountId, // Client must use this for Stripe Elements
-      subtotal: pricing.subtotal,
-      shipping: pricing.shipping,
-      tax: pricing.tax,
-      total: pricing.total,
-      fulfillment,
-      requestId,
-    }, 200);
+    return json(
+      {
+        clientSecret,
+        orderId: order.id,
+        paymentIntentId,
+        stripeAccountId, // Client must use this for Stripe Elements
+        subtotal: pricing.subtotal,
+        shipping: pricing.shipping,
+        tax: pricing.tax,
+        total: pricing.total,
+        fulfillment,
+        requestId,
+      },
+      200,
+    );
   } catch (error: unknown) {
     // ✅ FIX: Ensure error is properly formatted before logging
-    const normalizedError = error instanceof Error
-      ? error
-      : new Error(typeof error === "object" && error !== null ? JSON.stringify(error) : String(error));
+    const normalizedError =
+      error instanceof Error
+        ? error
+        : new Error(
+            typeof error === "object" && error !== null
+              ? JSON.stringify(error)
+              : String(error),
+          );
 
     logError(normalizedError, {
       layer: "api",
@@ -251,13 +294,13 @@ export async function POST(request: NextRequest) {
         VARIANT_NOT_FOUND: 400,
         INSUFFICIENT_STOCK: 409,
       };
-      return json({ error: error.message, code: error.code, requestId }, statusMap[error.code] ?? 500);
+      return json(
+        { error: error.message, code: error.code, requestId },
+        statusMap[error.code] ?? 500,
+      );
     }
 
-    return json(
-      { error: normalizedError.message, requestId },
-      500,
-    );
+    return json({ error: normalizedError.message, requestId }, 500);
   }
 }
 

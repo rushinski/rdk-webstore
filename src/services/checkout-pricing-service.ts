@@ -65,16 +65,12 @@ export class CheckoutPricingService {
       products.map((p) => p.tenantId).filter((id): id is string => Boolean(id)),
     );
     if (tenantIds.size !== 1) {
-      throw new CheckoutError(
-        "MULTI_TENANT",
-        "All items must be from the same seller",
-      );
+      throw new CheckoutError("MULTI_TENANT", "All items must be from the same seller");
     }
     const [tenantId] = [...tenantIds];
 
     // 3. Get tenant's Stripe Connect account
-    const stripeAccountId =
-      await this.profilesRepo.getStripeAccountIdForTenant(tenantId);
+    const stripeAccountId = await this.profilesRepo.getStripeAccountIdForTenant(tenantId);
     if (!stripeAccountId) {
       throw new CheckoutError(
         "NO_STRIPE_ACCOUNT",
@@ -115,17 +111,39 @@ export class CheckoutPricingService {
 
   private buildLineItems(
     items: CheckoutItem[],
-    productMap: Map<string, { id: string; titleDisplay: string; brand: string; name: string; category: string; variants: Array<{ id: string; priceCents: number; costCents: number | null; stock: number; sizeLabel: string }> }>,
+    productMap: Map<
+      string,
+      {
+        id: string;
+        titleDisplay: string;
+        brand: string;
+        name: string;
+        category: string;
+        variants: Array<{
+          id: string;
+          priceCents: number;
+          costCents: number | null;
+          stock: number;
+          sizeLabel: string;
+        }>;
+      }
+    >,
   ): ResolvedLineItem[] {
     return items.map((item) => {
       const product = productMap.get(item.productId);
       if (!product) {
-        throw new CheckoutError("PRODUCT_NOT_FOUND", `Product not found: ${item.productId}`);
+        throw new CheckoutError(
+          "PRODUCT_NOT_FOUND",
+          `Product not found: ${item.productId}`,
+        );
       }
 
       const variant = product.variants.find((v) => v.id === item.variantId);
       if (!variant) {
-        throw new CheckoutError("VARIANT_NOT_FOUND", `Variant not found: ${item.variantId}`);
+        throw new CheckoutError(
+          "VARIANT_NOT_FOUND",
+          `Variant not found: ${item.variantId}`,
+        );
       }
 
       if (variant.stock < item.quantity) {
@@ -192,7 +210,14 @@ export class CheckoutPricingService {
 
     if (!taxEnabled) {
       const total = subtotal + shipping;
-      return { subtotal, shipping, tax: 0, total, taxCalculationId: null, customerState: null };
+      return {
+        subtotal,
+        shipping,
+        tax: 0,
+        total,
+        taxCalculationId: null,
+        customerState: null,
+      };
     }
 
     // Determine destination state and customer address
@@ -255,7 +280,11 @@ export class CheckoutPricingService {
             taxCodes: taxCodeOverrides,
             taxEnabled: true,
           })
-        : { taxAmount: 0, totalAmount: Math.round((subtotal + shipping) * 100), taxCalculationId: null };
+        : {
+            taxAmount: 0,
+            totalAmount: Math.round((subtotal + shipping) * 100),
+            taxCalculationId: null,
+          };
 
     const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;

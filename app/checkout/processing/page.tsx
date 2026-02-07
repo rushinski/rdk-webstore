@@ -27,11 +27,11 @@ export default function CheckoutProcessingPage() {
     // 1. Handle Redirect Return (Affirm, Afterpay, etc.)
     if (redirectStatus === "succeeded" && paymentIntentId && !hasCalledConfirm.current) {
       hasCalledConfirm.current = true;
-      
+
       const confirmPayment = async () => {
         try {
           setMessage("Confirming your payment...");
-          
+
           const res = await fetch("/api/checkout/confirm-payment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -51,7 +51,7 @@ export default function CheckoutProcessingPage() {
           if (data.processing || data.success) {
             setMessage("Payment confirmed. Finalizing your order...");
             // ✅ FIX: Pass the guest token to polling
-            startPolling(data.guestAccessToken); 
+            startPolling(data.guestAccessToken);
           } else {
             throw new Error("Unexpected response from server");
           }
@@ -59,9 +59,9 @@ export default function CheckoutProcessingPage() {
           console.error("Payment confirmation error:", error);
           setStatus("error");
           setMessage(
-            error instanceof Error 
-              ? error.message 
-              : "Failed to confirm payment. Please contact support."
+            error instanceof Error
+              ? error.message
+              : "Failed to confirm payment. Please contact support.",
           );
         }
       };
@@ -72,7 +72,7 @@ export default function CheckoutProcessingPage() {
 
     // 2. Handle Direct Arrival (Standard flow, if applicable)
     if (!redirectStatus) {
-      // Note: If arriving here without a token in URL or state for a guest, 
+      // Note: If arriving here without a token in URL or state for a guest,
       // polling might fail unless the user is logged in.
       startPolling();
     }
@@ -86,13 +86,15 @@ export default function CheckoutProcessingPage() {
     const poll = async () => {
       if (pollCount >= maxPolls) {
         setStatus("error");
-        setMessage("Payment processing is taking longer than expected. Check your email for order confirmation.");
+        setMessage(
+          "Payment processing is taking longer than expected. Check your email for order confirmation.",
+        );
         return;
       }
 
       try {
         // ✅ FIX: Append token to URL if it exists
-        const url = guestToken 
+        const url = guestToken
           ? `/api/orders/${orderId}?token=${encodeURIComponent(guestToken)}`
           : `/api/orders/${orderId}`;
 
@@ -103,7 +105,9 @@ export default function CheckoutProcessingPage() {
           // If 404/Unauthorized, keep polling - order might not be ready or token might be propagating
           if (pollCount < 5) {
             pollCount++;
-            setTimeout(poll, 1000);
+            setTimeout(() => {
+              void poll();
+            }, 1000);
             return;
           }
           throw new Error(data.error || "Failed to fetch order status");
@@ -112,10 +116,10 @@ export default function CheckoutProcessingPage() {
         if (data.status === "paid" || data.status === "processing") {
           setStatus("success");
           setMessage("Payment successful!");
-          
+
           setTimeout(() => {
             // ✅ FIX: Pass token in redirect URL so success page can view the order
-            const targetUrl = guestToken 
+            const targetUrl = guestToken
               ? `/checkout/success?orderId=${orderId}&token=${encodeURIComponent(guestToken)}`
               : `/checkout/success?orderId=${orderId}`;
             router.push(targetUrl);
@@ -125,21 +129,29 @@ export default function CheckoutProcessingPage() {
           setMessage("Payment failed. Please try again.");
         } else {
           pollCount++;
-          setTimeout(poll, 1000);
+          setTimeout(() => {
+            void poll();
+          }, 1000);
         }
       } catch (error) {
         console.error("Polling error:", error);
         if (pollCount < 5) {
           pollCount++;
-          setTimeout(poll, 1000);
+          setTimeout(() => {
+            void poll();
+          }, 1000);
         } else {
           setStatus("error");
-          setMessage("Unable to verify payment status. Check your email for confirmation.");
+          setMessage(
+            "Unable to verify payment status. Check your email for confirmation.",
+          );
         }
       }
     };
 
-    setTimeout(poll, 500);
+    setTimeout(() => {
+      void poll();
+    }, 500);
   };
 
   return (

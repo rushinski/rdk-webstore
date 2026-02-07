@@ -29,26 +29,45 @@ export async function POST(request: NextRequest) {
     const products = await productsRepo.getProductsForCheckout(productIds);
 
     if (products.length === 0) {
-      return NextResponse.json({ shippingCost: 0, requestId }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        { shippingCost: 0, requestId },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const tenantIds = new Set(products.map((p) => p.tenantId).filter(Boolean));
     if (tenantIds.size !== 1) {
-      return NextResponse.json({ shippingCost: 0, requestId }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        { shippingCost: 0, requestId },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     const [tenantId] = [...tenantIds];
     const categories = [...new Set(products.map((p) => p.category))];
     const shippingDefaultsRepo = new ShippingDefaultsRepository(adminSupabase);
-    const shippingDefaults = await shippingDefaultsRepo.getByCategories(tenantId!, categories);
-    const maxCents = Math.max(...shippingDefaults.map((d) => Number(d.shipping_cost_cents ?? 0)), 0);
+    const shippingDefaults = await shippingDefaultsRepo.getByCategories(
+      tenantId!,
+      categories,
+    );
+    const maxCents = Math.max(
+      ...shippingDefaults.map((d) => Number(d.shipping_cost_cents ?? 0)),
+      0,
+    );
 
     return NextResponse.json(
       { shippingCost: maxCents / 100, requestId },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: unknown) {
-    logError(error, { layer: "api", requestId, route: "/api/checkout/calculate-shipping" });
-    return NextResponse.json({ error: "Failed to calculate shipping", requestId }, { status: 500, headers: { "Cache-Control": "no-store" } });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/checkout/calculate-shipping",
+    });
+    return NextResponse.json(
+      { error: "Failed to calculate shipping", requestId },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
