@@ -130,6 +130,11 @@ type Policy = { bucket: string; maxRequests: number; window: string };
  *  - reads: 300 per 1m
  */
 function getPolicyForRequest(pathname: string, method: string): Policy | null {
+  // Store page routes (browsing, not API)
+  if (pathname.startsWith("/store")) {
+    return { bucket: "store_browse", maxRequests: 200, window: "1 m" };
+  }
+
   if (!pathname.startsWith("/api")) {
     return null;
   }
@@ -182,6 +187,18 @@ export async function applyRateLimit(
   const isLocalhost =
     hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
   if (!rateLimit.applyInLocalDev && isLocalhost) {
+    return null;
+  }
+
+  // Skip Next.js link prefetch requests for store pages.
+  // The navbar mega menus render 20+ <Link> components at once, each
+  // triggering an RSC prefetch. These are harmless and should not count
+  // toward the rate limit. Actual navigations (user clicks) and bot
+  // requests do not send the Next-Router-Prefetch header.
+  if (
+    pathname.startsWith("/store") &&
+    request.headers.get("Next-Router-Prefetch") === "1"
+  ) {
     return null;
   }
 

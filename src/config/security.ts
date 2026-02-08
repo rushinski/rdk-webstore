@@ -39,7 +39,7 @@ export const security = {
   proxy: {
     requestIdHeader: "x-request-id",
     botCheckPrefixes: ["/admin", "/api", "/auth", "/products", "/store"],
-    rateLimitPrefixes: ["/api"],
+    rateLimitPrefixes: ["/api", "/store"],
     adminGuard: {
       protectedPrefixes: ["/admin", "/api/admin"],
       exemptPrefixes: ["/api/auth/2fa"],
@@ -68,6 +68,17 @@ export const security = {
         "libwww-perl",
         "scrapy",
         "aiohttp",
+        "headless",
+        "phantom",
+        "bot",
+        "crawler",
+        "spider",
+        "scraper",
+        "scanner",
+        "whatweb",
+        "nikto",
+        "masscan",
+        "nmap",
       ],
     },
 
