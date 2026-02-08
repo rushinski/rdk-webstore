@@ -212,15 +212,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ---------- Register Apple Pay domain on Connect account ----------
-    // Required for Apple Pay to work with direct charges. Idempotent — Stripe
-    // ignores if already registered. Fire-and-forget to avoid blocking checkout.
+    // ---------- Register payment method domain on Connect account ----------
+    // Required for Apple Pay / Google Pay to appear in ExpressCheckoutElement
+    // with direct charges. Must use paymentMethodDomains (not legacy applePayDomains).
+    // Awaited so the domain is registered before the client loads Elements.
     const siteUrl = env.NEXT_PUBLIC_SITE_URL;
     try {
       const domain = new URL(siteUrl).hostname;
-      void directCharge.registerApplePayDomain(stripeAccountId, domain);
-    } catch {
-      // Non-fatal — don't block checkout for domain registration
+      await directCharge.registerPaymentMethodDomain(stripeAccountId, domain);
+    } catch (err) {
+      // Log but don't block checkout — Apple Pay won't appear but card still works
+      log({
+        level: "warn",
+        layer: "api",
+        message: "payment_method_domain_registration_failed_at_checkout",
+        requestId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     // ---------- Create DIRECT CHARGE PaymentIntent on Connect account ----------

@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(psql:*)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

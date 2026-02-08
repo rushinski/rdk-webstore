@@ -5,6 +5,9 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe/stripe-server";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
+import { StripeDirectChargeService } from "@/services/stripe-direct-charge-service";
+import { env } from "@/config/env";
+import { log } from "@/lib/utils/log";
 
 export type StripeAccountSummary = {
   account: {
@@ -369,6 +372,25 @@ export class StripeAdminService {
 
       stripeAccountId = account.id;
       await this.profileRepo.setStripeAccountId(params.userId, stripeAccountId);
+    }
+
+    // Register the platform domain for Apple Pay / Google Pay on this Connect
+    // account. Idempotent — safe to run every time, and ensures the domain is
+    // registered as soon as the account exists.
+    try {
+      const domain = new URL(env.NEXT_PUBLIC_SITE_URL).hostname;
+      const directCharge = new StripeDirectChargeService();
+      await directCharge.registerPaymentMethodDomain(stripeAccountId, domain);
+    } catch (err) {
+      // Non-fatal here — domain can be registered later via admin endpoint
+      // or at checkout time as a fallback.
+      log({
+        level: "warn",
+        layer: "service",
+        message: "payment_method_domain_registration_failed_on_setup",
+        stripeAccountId,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
 
     return { accountId: stripeAccountId };

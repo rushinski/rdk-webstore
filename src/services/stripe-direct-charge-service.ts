@@ -250,24 +250,34 @@ export class StripeDirectChargeService {
   }
 
   /**
-   * Register an Apple Pay domain on the Connect account.
-   * Required for Apple Pay to work with direct charges — the domain must
-   * be verified on the Connect account, not just the platform.
-   * This is idempotent; Stripe ignores duplicates.
+   * Register a payment method domain on the Connect account.
+   * Required for Apple Pay (and other wallets) to work with direct charges —
+   * the domain must be registered on the Connect account, not just the platform.
+   *
+   * Uses the Payment Method Domains API (/v1/payment_method_domains) which is
+   * what ExpressCheckoutElement checks. The legacy /v1/apple_pay/domains API
+   * does NOT make Apple Pay available through ExpressCheckoutElement.
+   *
+   * Idempotent — Stripe returns the existing domain if already registered.
    */
-  async registerApplePayDomain(
+  async registerPaymentMethodDomain(
     stripeAccountId: string,
     domainName: string,
   ): Promise<void> {
     const connectClient = getConnectClient(stripeAccountId);
     try {
-      await connectClient.applePayDomains.create({ domain_name: domainName });
+      const domain = await connectClient.paymentMethodDomains.create({
+        domain_name: domainName,
+      });
       log({
         level: "info",
         layer: "service",
-        message: "apple_pay_domain_registered",
+        message: "payment_method_domain_registered",
         stripeAccountId,
         domainName,
+        domainId: domain.id,
+        applePayStatus: domain.apple_pay?.status,
+        googlePayStatus: domain.google_pay?.status,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -276,13 +286,14 @@ export class StripeDirectChargeService {
         return;
       }
       log({
-        level: "warn",
+        level: "error",
         layer: "service",
-        message: "apple_pay_domain_registration_failed",
+        message: "payment_method_domain_registration_failed",
         stripeAccountId,
         domainName,
         error: msg,
       });
+      throw err;
     }
   }
 }
