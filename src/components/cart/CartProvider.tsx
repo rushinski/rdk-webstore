@@ -1,4 +1,4 @@
-// src/components/cart/CartProvider.tsx 
+// src/components/cart/CartProvider.tsx
 "use client";
 
 import type { ReactNode } from "react";
