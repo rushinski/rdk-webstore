@@ -42,6 +42,10 @@ type OrderCustomer = {
   email?: string | null;
 };
 
+type OrderProfile = {
+  email?: string | null;
+};
+
 type SalesOrder = {
   id: string;
   status?: string | null;
@@ -53,6 +57,9 @@ type SalesOrder = {
   user_id?: string | null;
   guest_email?: string | null;
   customer?: OrderCustomer | null;
+  profiles?: OrderProfile | null;
+  shipping?: unknown;
+  shipping_profile_name?: string | null;
   items?: OrderItem[] | null;
 };
 
@@ -146,16 +153,38 @@ export default function SalesPage() {
     }
   }, [page, totalPages]);
 
-  const getCustomerHandle = (order: SalesOrder) => {
-    const email = order.customer?.email ?? null;
-    if (email && email.includes("@")) {
-      return email.split("@")[0];
+  const resolveShippingAddress = (value: unknown): { name?: string | null } | null => {
+    if (!value) {
+      return null;
     }
-    return order.user_id ? order.user_id.slice(0, 6) : "Guest";
+    if (Array.isArray(value)) {
+      return (value[0] ?? null) as { name?: string | null } | null;
+    }
+    if (typeof value === "object") {
+      return value as { name?: string | null };
+    }
+    return null;
   };
 
-  const getCustomerEmail = (order: SalesOrder) =>
-    order.customer?.email ?? order.guest_email ?? "-";
+  const getCustomerName = (order: SalesOrder) => {
+    const address = resolveShippingAddress(order.shipping);
+    const addressName = address?.name?.trim() ?? "";
+    if (addressName) {
+      return addressName;
+    }
+    const profileName = (order.shipping_profile_name ?? "").trim();
+    return profileName || "-";
+  };
+
+  const getCustomerEmail = (order: SalesOrder) => {
+    const email = (
+      order.profiles?.email ??
+      order.customer?.email ??
+      order.guest_email ??
+      ""
+    ).trim();
+    return email || "-";
+  };
 
   const getOrderTitle = (item: OrderItem) =>
     (item.product?.title_display ??
@@ -210,7 +239,7 @@ export default function SalesPage() {
     }
 
     return orders.filter((order) => {
-      const handle = getCustomerHandle(order).toLowerCase();
+      const handle = getCustomerName(order).toLowerCase();
       const email = getCustomerEmail(order).toLowerCase();
       const createdAt = order.created_at ? new Date(order.created_at) : null;
       const dateString = createdAt ? createdAt.toLocaleDateString().toLowerCase() : "";
@@ -506,7 +535,7 @@ export default function SalesPage() {
                 const status = order.status ?? "paid";
                 const canRefund = status === "paid" || status === "shipped";
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
-                const customerHandle = getCustomerHandle(order);
+                const customerName = getCustomerName(order);
                 const customerEmail = getCustomerEmail(order);
                 const fulfillmentLabel =
                   order.fulfillment === "pickup" ? "Pickup" : "Ship";
@@ -555,7 +584,7 @@ export default function SalesPage() {
                       </td>
                       <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
                       <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-                        {customerHandle}
+                        {customerName}
                       </td>
                       <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
                         {customerEmail}
@@ -642,7 +671,7 @@ export default function SalesPage() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Customer</span>
-                              <span className="text-white">{customerHandle}</span>
+                              <span className="text-white">{customerName}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Email</span>

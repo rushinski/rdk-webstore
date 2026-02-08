@@ -90,9 +90,49 @@ export async function GET(request: NextRequest) {
       limit: parsedLimit?.success ? parsedLimit.data : 20,
     });
 
+    let shippingProfileNameByUserId = new Map<string, string | null>();
+    const userIds = Array.from(
+      new Set(
+        (orders ?? [])
+          .map((order) => order?.user_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+
+    if (userIds.length > 0) {
+      try {
+        const { data, error } = await supabase
+          .from("shipping_profiles")
+          .select("user_id, full_name")
+          .in("user_id", userIds);
+
+        if (error) {
+          throw error;
+        }
+
+        (data ?? []).forEach((profile) => {
+          shippingProfileNameByUserId.set(profile.user_id, profile.full_name ?? null);
+        });
+      } catch (error) {
+        logError(error, {
+          layer: "api",
+          requestId,
+          route: "/api/admin/orders",
+          event: "admin_load_shipping_profiles",
+        });
+      }
+    }
+
+    const ordersWithProfiles = (orders ?? []).map((order) => ({
+      ...order,
+      shipping_profile_name: order?.user_id
+        ? shippingProfileNameByUserId.get(order.user_id) ?? null
+        : null,
+    }));
+
     return NextResponse.json(
       {
-        orders,
+        orders: ordersWithProfiles,
         count,
         page: parsedPage?.success ? parsedPage.data : 1,
         limit: parsedLimit?.success ? parsedLimit.data : 20,

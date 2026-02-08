@@ -66,16 +66,12 @@ type OrderItem = {
   variant?: OrderItemVariant | null;
 };
 
-type OrderProfile = {
-  email?: string | null;
-};
-
 type ShippingOrder = {
   id: string;
   created_at?: string | null;
   shipping?: unknown;
-  profiles?: OrderProfile | null;
   user_id?: string | null;
+  shipping_profile_name?: string | null;
   items?: OrderItem[] | null;
   shipping_carrier?: string | null;
   tracking_number?: string | null;
@@ -219,17 +215,14 @@ const formatPlacedAt = (value?: string | null) => {
   };
 };
 
-const getCustomerHandle = (order: ShippingOrder) => {
-  const email = order.profiles?.email ?? null;
-  if (email && email.includes("@")) {
-    return email.split("@")[0];
-  }
+const getCustomerName = (order: ShippingOrder) => {
   const address = resolveShippingAddress(order.shipping);
   const name = address?.name?.trim();
   if (name) {
-    return name.split(" ")[0];
+    return name;
   }
-  return order.user_id ? order.user_id.slice(0, 6) : "Guest";
+  const profileName = (order.shipping_profile_name ?? "").trim();
+  return profileName || "-";
 };
 
 const getPrimaryImage = (item: OrderItem) => {
@@ -633,7 +626,7 @@ export default function ShippingPage() {
     const addressLine = formatAddress(address);
     const trackingUrl = getTrackingUrl(order.shipping_carrier, order.tracking_number);
     const placedAt = formatPlacedAt(order.created_at);
-    const customerHandle = getCustomerHandle(order);
+    const customerName = getCustomerName(order);
     const itemsExpanded = expandedItems[order.id] ?? false;
     const detailsExpanded = expandedDetails[order.id] ?? false;
     const colSpan = 8; // FIX: table has 8 columns
@@ -678,7 +671,7 @@ export default function ShippingPage() {
           </td>
           <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
           <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-            {customerHandle}
+            {customerName}
           </td>
           <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400 max-w-[320px] truncate">
             {addressLine ? (
@@ -793,7 +786,7 @@ export default function ShippingPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-gray-500">Customer</span>
-                  <span className="text-white">{customerHandle}</span>
+                  <span className="text-white">{customerName}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-gray-500">Destination</span>

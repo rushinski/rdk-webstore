@@ -56,6 +56,8 @@ type PickupOrder = {
   user_id?: string | null;
   guest_email?: string | null;
   profiles?: OrderProfile | null;
+  shipping?: unknown;
+  shipping_profile_name?: string | null;
   items?: OrderItem[] | null;
 };
 
@@ -160,16 +162,33 @@ export default function PickupsPage() {
     }
   }, [currentPage, totalPages, activeTab]);
 
-  const getCustomerHandle = (order: PickupOrder) => {
-    const email = order.profiles?.email ?? null;
-    if (email && email.includes("@")) {
-      return email.split("@")[0];
+  const resolveShippingAddress = (value: unknown): { name?: string | null } | null => {
+    if (!value) {
+      return null;
     }
-    return order.user_id ? order.user_id.slice(0, 6) : "Guest";
+    if (Array.isArray(value)) {
+      return (value[0] ?? null) as { name?: string | null } | null;
+    }
+    if (typeof value === "object") {
+      return value as { name?: string | null };
+    }
+    return null;
   };
 
-  const getCustomerEmail = (order: PickupOrder) =>
-    order.profiles?.email ?? order.guest_email ?? "-";
+  const getCustomerName = (order: PickupOrder) => {
+    const address = resolveShippingAddress(order.shipping);
+    const addressName = address?.name?.trim() ?? "";
+    if (addressName) {
+      return addressName;
+    }
+    const profileName = (order.shipping_profile_name ?? "").trim();
+    return profileName || "-";
+  };
+
+  const getCustomerEmail = (order: PickupOrder) => {
+    const email = (order.profiles?.email ?? order.guest_email ?? "").trim();
+    return email || "-";
+  };
 
   const getOrderTitle = (item: OrderItem) =>
     (item.product?.title_display ??
@@ -224,7 +243,7 @@ export default function PickupsPage() {
     }
 
     return orders.filter((order) => {
-      const handle = getCustomerHandle(order).toLowerCase();
+      const handle = getCustomerName(order).toLowerCase();
       const email = getCustomerEmail(order).toLowerCase();
       const createdAt = order.created_at ? new Date(order.created_at) : null;
       const dateString = createdAt ? createdAt.toLocaleDateString().toLowerCase() : "";
@@ -457,7 +476,7 @@ export default function PickupsPage() {
                   <span className="hidden md:inline">Items</span>
                   <span className="md:hidden">Details</span>
                 </th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                <th className="hidden md:table-cell text-center text-gray-400 font-semibold p-3 sm:p-4">
                   Complete
                 </th>
               </tr>
@@ -476,7 +495,7 @@ export default function PickupsPage() {
                 const refundAmount = Number(order.refund_amount ?? 0) / 100;
                 const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
-                const customerHandle = getCustomerHandle(order);
+                const customerName = getCustomerName(order);
                 const customerEmail = getCustomerEmail(order);
                 const fulfillmentLabel =
                   order.fulfillment === "pickup" ? "Pickup" : "Ship";
@@ -511,7 +530,7 @@ export default function PickupsPage() {
                       </td>
                       <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
                       <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-                        {customerHandle}
+                        {customerName}
                       </td>
                       <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
                         {customerEmail}
@@ -554,18 +573,20 @@ export default function PickupsPage() {
                         </button>
                       </td>
                       <td className="hidden md:table-cell p-3 sm:p-4">
-                        <input
-                          type="checkbox"
-                          className="rdk-checkbox"
-                          checked={isPickedUp}
-                          disabled={isDisabled}
-                          onChange={() => {
-                            if (!isPickedUp) {
-                              void handleMarkPickedUp(order);
-                            }
-                          }}
-                          aria-label={`Mark order ${order.id} picked up`}
-                        />
+                        <div className="flex justify-center">
+                          <input
+                            type="checkbox"
+                            className="rdk-checkbox"
+                            checked={isPickedUp}
+                            disabled={isDisabled}
+                            onChange={() => {
+                              if (!isPickedUp) {
+                                void handleMarkPickedUp(order);
+                              }
+                            }}
+                            aria-label={`Mark order ${order.id} picked up`}
+                          />
+                        </div>
                       </td>
                     </tr>
                     {itemsExpanded && (
@@ -616,7 +637,7 @@ export default function PickupsPage() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Customer</span>
-                              <span className="text-white">{customerHandle}</span>
+                              <span className="text-white">{customerName}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Email</span>
