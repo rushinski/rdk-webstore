@@ -248,4 +248,41 @@ export class StripeDirectChargeService {
 
     return customer.id;
   }
+
+  /**
+   * Register an Apple Pay domain on the Connect account.
+   * Required for Apple Pay to work with direct charges — the domain must
+   * be verified on the Connect account, not just the platform.
+   * This is idempotent; Stripe ignores duplicates.
+   */
+  async registerApplePayDomain(
+    stripeAccountId: string,
+    domainName: string,
+  ): Promise<void> {
+    const connectClient = getConnectClient(stripeAccountId);
+    try {
+      await connectClient.applePayDomains.create({ domain_name: domainName });
+      log({
+        level: "info",
+        layer: "service",
+        message: "apple_pay_domain_registered",
+        stripeAccountId,
+        domainName,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Already registered — safe to ignore
+      if (msg.includes("already exists")) {
+        return;
+      }
+      log({
+        level: "warn",
+        layer: "service",
+        message: "apple_pay_domain_registration_failed",
+        stripeAccountId,
+        domainName,
+        error: msg,
+      });
+    }
+  }
 }

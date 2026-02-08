@@ -212,6 +212,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ---------- Register Apple Pay domain on Connect account ----------
+    // Required for Apple Pay to work with direct charges. Idempotent — Stripe
+    // ignores if already registered. Fire-and-forget to avoid blocking checkout.
+    const siteUrl = env.NEXT_PUBLIC_SITE_URL;
+    try {
+      const domain = new URL(siteUrl).hostname;
+      void directCharge.registerApplePayDomain(stripeAccountId, domain);
+    } catch {
+      // Non-fatal — don't block checkout for domain registration
+    }
+
     // ---------- Create DIRECT CHARGE PaymentIntent on Connect account ----------
     const totalCents = Math.round(pricing.total * 100);
 
