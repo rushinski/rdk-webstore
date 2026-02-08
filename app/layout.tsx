@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { CartProvider } from "@/components/cart/CartProvider";
 import { ScrollHeader } from "@/components/shell/ScrollHeader";
 import { ClientShell } from "@/components/shell/ClientShell";
+import { SessionProvider } from "@/contexts/SessionContext";
 import { getServerSession } from "@/lib/auth/session";
 import { isAdminRole } from "@/config/constants/roles";
 import "@/styles/global.css";
@@ -41,19 +42,29 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const userEmail = session?.user.email ?? session?.profile?.email;
   const userId = session?.user.id ?? null;
 
+  // OPTIMIZATION: Prepare session for client-side context
+  const sessionUser = session?.user
+    ? {
+        id: session.user.id,
+        email: session.user.email,
+      }
+    : null;
+
   return (
     <html lang="en">
       <body className="bg-black text-white">
-        <CartProvider userId={userId}>
-          <ClientShell isAdmin={isAdmin} userEmail={userEmail} role={role}>
-            <ScrollHeader
-              isAuthenticated={isAuthenticated}
-              userEmail={userEmail}
-              role={role}
-            />
-            <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
-          </ClientShell>
-        </CartProvider>
+        <SessionProvider initialUser={sessionUser} initialRole={role}>
+          <CartProvider userId={userId}>
+            <ClientShell isAdmin={isAdmin} userEmail={userEmail} role={role}>
+              <ScrollHeader
+                isAuthenticated={isAuthenticated}
+                userEmail={userEmail}
+                role={role}
+              />
+              <main className="min-h-screen pt-16 pb-20 md:pb-0">{children}</main>
+            </ClientShell>
+          </CartProvider>
+        </SessionProvider>
         <SpeedInsights />
         <Analytics />
       </body>

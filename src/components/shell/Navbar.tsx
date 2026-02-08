@@ -29,6 +29,7 @@ import {
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import { logError } from "@/lib/utils/log";
 import { isAdminRole, type ProfileRole } from "@/config/constants/roles";
+import { useSession } from "@/contexts/SessionContext";
 
 type ActiveMenu = "shop" | "brands" | "shoeSizes" | "clothingSizes" | null;
 
@@ -143,17 +144,18 @@ export function Navbar({
   role = null,
 }: NavbarProps) {
   const pathname = usePathname();
+  const {
+    user,
+    role: sessionRole,
+    isAuthenticated: sessionIsAuthenticated,
+    isLoading,
+  } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [mobileSection, setMobileSection] = useState<ActiveMenu>(null);
   const [brandGroups, setBrandGroups] = useState<Array<{ key: string; label: string }>>(
     [],
   );
   const [isMounted, setIsMounted] = useState(false);
-  const [clientIsAuthenticated, setClientIsAuthenticated] = useState<boolean | null>(
-    null,
-  );
-  const [clientUserEmail, setClientUserEmail] = useState<string | null>(null);
-  const [clientRole, setClientRole] = useState<ProfileRole | null>(role ?? null);
 
   // Build auth URLs with current page as "next" parameter
   const loginUrl = useMemo(() => {
@@ -174,48 +176,8 @@ export function Navbar({
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    let isActive = true;
-
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/session", { cache: "no-store" });
-        if (!response.ok) {
-          if (!isActive) {
-            return;
-          }
-          setClientIsAuthenticated(false);
-          setClientUserEmail(null);
-          return;
-        }
-
-        const data = await response.json();
-        if (!isActive) {
-          return;
-        }
-        const user = data?.user ?? null;
-        setClientIsAuthenticated(Boolean(user));
-        setClientUserEmail(user?.email ?? null);
-        setClientRole(data?.role ?? null);
-        // no-op: admin routes handled in layout
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "navbar_load_session" });
-        if (!isActive) {
-          return;
-        }
-        setClientIsAuthenticated(false);
-        setClientUserEmail(null);
-        setClientRole(null);
-        // no-op
-      }
-    };
-
-    loadSession();
-
-    return () => {
-      isActive = false;
-    };
-  }, [pathname]);
+  // OPTIMIZATION: Session fetching removed - now using SessionContext from layout
+  // This eliminates duplicate /api/auth/session calls on every route change
 
   useEffect(() => {
     const loadBrandGroups = async () => {
@@ -249,6 +211,8 @@ export function Navbar({
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    // Trigger session update event for SessionContext
+    window.dispatchEvent(new CustomEvent("sessionUpdate"));
     window.location.href = "/";
   };
 
@@ -377,13 +341,13 @@ export function Navbar({
     [shopIconClass, visibleBrandGroups],
   );
 
-  const authResolved = clientIsAuthenticated !== null || isAuthenticated;
-  const effectiveIsAuthenticated = clientIsAuthenticated ?? isAuthenticated;
-  const effectiveUserEmail = clientUserEmail ?? userEmail;
-  const effectiveRole = clientRole ?? role ?? null;
+  // OPTIMIZATION: Use session from context (eliminates duplicate API calls)
+  const effectiveIsAuthenticated = sessionIsAuthenticated || isAuthenticated;
+  const effectiveUserEmail = user?.email ?? userEmail;
+  const effectiveRole = sessionRole ?? role ?? null;
   const isAdminUser = effectiveRole ? isAdminRole(effectiveRole) : false;
-  const showAuthButtons = authResolved && !effectiveIsAuthenticated;
-  const showAuthLoading = !authResolved;
+  const showAuthButtons = !isLoading && !effectiveIsAuthenticated;
+  const showAuthLoading = isLoading;
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);

@@ -5,7 +5,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { FeaturedItemsService } from "@/services/featured-items-service";
 import { logError } from "@/lib/utils/log";
 
-export const dynamic = "force-dynamic";
+// OPTIMIZATION: Featured items change infrequently, cache for 5 minutes
+export const revalidate = 300; // 5 minutes
+export const dynamic = "force-static";
 
 export async function GET() {
   try {
@@ -36,7 +38,16 @@ export async function GET() {
         })) ?? [],
     }));
 
-    return NextResponse.json({ featured });
+    return NextResponse.json(
+      { featured },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          "CDN-Cache-Control": "public, s-maxage=300",
+          "Vercel-CDN-Cache-Control": "public, s-maxage=300",
+        },
+      },
+    );
   } catch (error) {
     logError(error, { layer: "api", endpoint: "GET /api/featured-items" });
     return NextResponse.json(

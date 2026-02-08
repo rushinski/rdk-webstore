@@ -80,6 +80,7 @@ export function ClientShell({
 
     const visitorKey = "rdk_visitor_id";
     const sessionKey = "rdk_session_id";
+    const lastTrackedKey = "rdk_last_tracked_path";
 
     const getOrCreateId = (storage: Storage, key: string) => {
       const existing = storage.getItem(key);
@@ -96,6 +97,14 @@ export function ClientShell({
 
     const visitorId = getOrCreateId(localStorage, visitorKey);
     const sessionId = getOrCreateId(sessionStorage, sessionKey);
+
+    // OPTIMIZATION: Only track if pathname actually changed (ignore query params for deduplication)
+    const lastTracked = sessionStorage.getItem(lastTrackedKey);
+    if (lastTracked === pathname) {
+      return; // Already tracked this pathname in this session
+    }
+    sessionStorage.setItem(lastTrackedKey, pathname);
+
     const path = `${window.location.pathname}${window.location.search}`;
 
     const payload = JSON.stringify({
@@ -116,7 +125,7 @@ export function ClientShell({
         keepalive: true,
       }).catch(() => undefined);
     }
-  }, [pathname, searchParams]);
+  }, [pathname]); // ✅ OPTIMIZATION: Removed searchParams - only track pathname changes
 
   const showAdminSidebar = isAdmin && isStoreRoute && Boolean(role);
 

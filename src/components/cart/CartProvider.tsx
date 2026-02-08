@@ -14,6 +14,7 @@ import { usePathname } from "next/navigation";
 
 import { CartService } from "@/services/cart-service";
 import type { CartItem } from "@/types/domain/cart";
+import { useSession } from "@/contexts/SessionContext";
 
 interface CartContextType {
   items: CartItem[];
@@ -36,13 +37,15 @@ export function CartProvider({
   children: ReactNode;
   userId?: string | null;
 }) {
-  const pathname = usePathname();
+  const { user } = useSession();
   const [cart] = useState(() => new CartService(userId ?? null));
   const [items, setItems] = useState<CartItem[]>([]);
   const [isReady, setIsReady] = useState(false);
   const didInitialValidation = useRef(false);
   const isValidatingRef = useRef(false);
-  const [resolvedUserId, setResolvedUserId] = useState<string | null>(userId ?? null);
+  const [resolvedUserId, setResolvedUserId] = useState<string | null>(
+    userId ?? user?.id ?? null,
+  );
 
   const refreshCart = useCallback(async () => {
     const current = cart.getCart();
@@ -75,41 +78,10 @@ export function CartProvider({
     }
   }, [cart]);
 
+  // OPTIMIZATION: Use session from context instead of fetching independently
   useEffect(() => {
-    setResolvedUserId(userId ?? null);
-  }, [userId]);
-
-  useEffect(() => {
-    let isActive = true;
-    const controller = new AbortController();
-
-    const loadSession = async () => {
-      try {
-        const response = await fetch("/api/auth/session", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json().catch(() => null);
-        if (!isActive) {
-          return;
-        }
-        const nextUserId = data?.user?.id ?? null;
-        setResolvedUserId((prev) => (prev === nextUserId ? prev : nextUserId));
-      } catch {
-        // keep current session on fetch errors
-      }
-    };
-
-    loadSession();
-
-    return () => {
-      isActive = false;
-      controller.abort();
-    };
-  }, [pathname]);
+    setResolvedUserId(userId ?? user?.id ?? null);
+  }, [userId, user?.id]);
 
   useEffect(() => {
     cart.setUserId(resolvedUserId ?? null);

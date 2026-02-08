@@ -38,8 +38,8 @@ export const security = {
   },
   proxy: {
     requestIdHeader: "x-request-id",
-    botCheckPrefixes: ["/admin", "/api", "/auth", "/products"],
-    rateLimitPrefixes: ["/api"],
+    botCheckPrefixes: ["/admin", "/api", "/auth", "/products", "/store"],
+    rateLimitPrefixes: ["/api", "/store"],
     adminGuard: {
       protectedPrefixes: ["/admin", "/api/admin"],
       exemptPrefixes: ["/api/auth/2fa"],

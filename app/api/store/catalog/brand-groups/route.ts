@@ -10,6 +10,10 @@ import { logError } from "@/lib/utils/log";
 
 const NAVBAR_GROUP_KEYS = new Set(["nike", "jordan", "asics", "designer"]);
 
+// OPTIMIZATION: Brand groups are static data, cache aggressively
+export const revalidate = 1800; // 30 minutes
+export const dynamic = "force-static";
+
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -18,7 +22,16 @@ export async function GET(request: NextRequest) {
     const service = new StorefrontService(supabase);
     const groups = await service.listBrandGroupsByKeys(NAVBAR_GROUP_KEYS);
 
-    return NextResponse.json({ groups }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { groups },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          "CDN-Cache-Control": "public, s-maxage=1800",
+          "Vercel-CDN-Cache-Control": "public, s-maxage=1800",
+        },
+      },
+    );
   } catch (error) {
     logError(error, {
       layer: "api",

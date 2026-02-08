@@ -11,6 +11,10 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 
+// OPTIMIZATION: Cache public catalog queries (5 minutes)
+// Note: Admin queries (out_of_stock, all) remain uncached
+export const revalidate = 300;
+
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const searchParams = request.nextUrl.searchParams;
@@ -56,8 +60,18 @@ export async function GET(request: NextRequest) {
 
     const result = await service.listProducts(parsed.data);
 
+    // OPTIMIZATION: Only cache public catalog queries (not admin out-of-stock queries)
+    const isAdminQuery = stockStatus !== "in_stock";
+
     return NextResponse.json(result, {
-      headers: { "Cache-Control": "no-store" },
+      headers: isAdminQuery
+        ? { "Cache-Control": "no-store" } // Admin queries stay uncached
+        : {
+            // Public catalog: cache for 5 minutes
+            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+            "CDN-Cache-Control": "public, s-maxage=300",
+            "Vercel-CDN-Cache-Control": "public, s-maxage=300",
+          },
     });
   } catch (error) {
     logError(error, {

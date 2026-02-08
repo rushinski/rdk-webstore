@@ -9,6 +9,10 @@ import { storeBrandQuerySchema } from "@/lib/validation/storefront";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
+// OPTIMIZATION: Brands are static data, cache aggressively
+export const revalidate = 1800; // 30 minutes
+export const dynamic = "force-static";
+
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
   const searchParams = request.nextUrl.searchParams;
@@ -29,7 +33,16 @@ export async function GET(request: NextRequest) {
     const service = new StorefrontService(supabase);
     const brands = await service.listBrandsByGroupKey(parsed.data.groupKey ?? null);
 
-    return NextResponse.json({ brands }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(
+      { brands },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          "CDN-Cache-Control": "public, s-maxage=1800",
+          "Vercel-CDN-Cache-Control": "public, s-maxage=1800",
+        },
+      },
+    );
   } catch (error) {
     logError(error, {
       layer: "api",

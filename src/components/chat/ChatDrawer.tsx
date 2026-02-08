@@ -8,6 +8,7 @@ import { Send, X } from "lucide-react";
 
 import { logError } from "@/lib/utils/log";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useSession } from "@/contexts/SessionContext";
 
 interface ChatDrawerProps {
   isOpen: boolean;
@@ -33,6 +34,7 @@ type ChatMessage = {
 
 export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
   const pathname = usePathname();
+  const { user } = useSession();
   const [chat, setChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
@@ -97,9 +99,8 @@ export function ChatDrawer({ isOpen, onClose }: ChatDrawerProps) {
     setErrorMessage("");
 
     try {
-      const sessionResponse = await fetch("/api/auth/session", { cache: "no-store" });
-      const sessionData = await sessionResponse.json().catch(() => null);
-      if (!sessionData?.user) {
+      // OPTIMIZATION: Use session from context instead of fetching
+      if (!user) {
         let storedAccess: { orderId: string; token: string } | null = null;
         try {
           const orderId = sessionStorage.getItem("rdk_guest_order_id");
