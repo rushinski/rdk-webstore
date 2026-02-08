@@ -13,6 +13,28 @@ import { productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
+const extractErrorMessage = (error: unknown): string | null => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.error === "string" && record.error.trim()) {
+      return record.error;
+    }
+    if (typeof record.details === "string" && record.details.trim()) {
+      return record.details;
+    }
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return null;
+};
+
 const paramsSchema = z.object({
   id: z.string().uuid(),
 });
@@ -78,8 +100,9 @@ export async function PATCH(
       requestId,
       route: "/api/admin/products/:id",
     });
+    const message = extractErrorMessage(error) ?? "Failed to update product";
     return NextResponse.json(
-      { error: "Failed to update product", requestId },
+      { error: message, requestId },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -129,8 +152,9 @@ export async function DELETE(
       requestId,
       route: "/api/admin/products/:id",
     });
+    const message = extractErrorMessage(error) ?? "Failed to delete product";
     return NextResponse.json(
-      { error: "Failed to delete product", requestId },
+      { error: message, requestId },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

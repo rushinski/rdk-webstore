@@ -161,7 +161,7 @@ export class ProductService {
     input: ProductCreateInput,
     ctx: { userId: string; tenantId: string },
   ) {
-    const existing = await this.repo.getById(productId);
+    const existing = await this.repo.getById(productId, { includeOutOfStock: true });
     if (!existing) {
       throw new Error("Product not found");
     }

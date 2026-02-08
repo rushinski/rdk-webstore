@@ -1053,6 +1053,7 @@ export function ProductForm({
         throw new Error("Please enter a valid shipping price.");
       }
 
+      const seenSizeKeys = new Set<string>();
       const preparedVariants = variants.map((variant, index) => {
         const priceCents = parseMoneyToCents(variant.price);
         if (priceCents === null) {
@@ -1073,6 +1074,11 @@ export function ProductForm({
         if (sizeType !== "none" && !sizeLabel) {
           throw new Error(`Variant ${index + 1} size is required.`);
         }
+        const sizeKey = `${sizeType}:${sizeLabel.toLowerCase()}`;
+        if (seenSizeKeys.has(sizeKey)) {
+          throw new Error(`Duplicate size "${sizeLabel}" found in variants.`);
+        }
+        seenSizeKeys.add(sizeKey);
 
         return {
           size_type: sizeType,

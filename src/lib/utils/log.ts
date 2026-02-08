@@ -138,6 +138,67 @@ function safeStringify(payload: unknown): string {
   });
 }
 
+type NormalizedError = {
+  message: string;
+  stack?: string;
+  meta?: Record<string, unknown>;
+};
+
+function normalizeError(error: unknown): NormalizedError {
+  if (error instanceof Error) {
+    return { message: error.message || "Unknown error", stack: error.stack };
+  }
+
+  if (typeof error === "string") {
+    return { message: error };
+  }
+
+  if (typeof error === "number" || typeof error === "boolean") {
+    return { message: String(error) };
+  }
+
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    const message =
+      (typeof record.message === "string" && record.message.trim()) ||
+      (typeof record.error === "string" && record.error.trim()) ||
+      (typeof record.details === "string" && record.details.trim()) ||
+      (typeof record.hint === "string" && record.hint.trim()) ||
+      "Unknown error";
+
+    const meta: Record<string, unknown> = {};
+    if (typeof record.code === "string") {
+      meta.error_code = record.code;
+    }
+    if ("details" in record) {
+      meta.error_details = record.details;
+    }
+    if ("hint" in record) {
+      meta.error_hint = record.hint;
+    }
+    if (typeof record.status === "number") {
+      meta.error_status = record.status;
+    }
+    if (typeof record.statusCode === "number") {
+      meta.error_status = record.statusCode;
+    }
+    if (typeof record.name === "string") {
+      meta.error_name = record.name;
+    }
+    if (typeof record.stack === "string") {
+      return { message, stack: record.stack, meta };
+    }
+
+    if (!record.message && !record.error && !record.details && !record.hint) {
+      meta.error_payload = safeStringify(record);
+    }
+
+    return { message, meta };
+  }
+
+  return { message: "Unknown error" };
+}
+
 function write(level: LogLevel, output: unknown) {
   const line = safeStringify(output);
 
@@ -185,7 +246,11 @@ export function log(entry: LogEntry) {
 }
 
 export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
-  const err = error instanceof Error ? error : new Error(String(error));
+  const normalized = normalizeError(error);
+  const err = new Error(normalized.message);
+  if (normalized.stack) {
+    err.stack = normalized.stack;
+  }
 
   const {
     layer = "unknown",
@@ -199,7 +264,10 @@ export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
     ...extendedRaw
   } = entry;
 
-  const extended = sanitizeExtended(extendedRaw);
+  const extended = sanitizeExtended({
+    ...extendedRaw,
+    ...(normalized.meta ?? {}),
+  });
   const maskedMessage = maskEmailsInString(err.message || "Unknown error");
 
   write("error", {
