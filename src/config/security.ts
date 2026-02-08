@@ -133,18 +133,18 @@ export const security = {
         prod: [
           "default-src 'self'",
           "img-src 'self' data: blob: https://*.supabase.co https://*.stripe.com https://*.openstreetmap.org",
-          "style-src 'self' 'unsafe-inline'",
-          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com",
+          "style-src 'self' 'unsafe-inline' https://newassets.hcaptcha.com",
+          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com https://js.hcaptcha.com https://newassets.hcaptcha.com",
           "worker-src 'self' blob:",
           "object-src 'none'",
           "base-uri 'self'",
 
-          // ✅ use computed connect-src
-          `connect-src ${prodConnectSrc}`,
+          // ✅ use computed connect-src (includes hcaptcha for Stripe Radar fraud detection)
+          `connect-src ${prodConnectSrc} https://*.hcaptcha.com`,
 
           "frame-ancestors 'none'",
           "font-src 'self' https://*.stripe.com data:",
-          "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "frame-src 'self' blob: https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org https://newassets.hcaptcha.com",
           "form-action 'self' https://*.stripe.com",
         ],
       },
