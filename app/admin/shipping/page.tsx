@@ -61,6 +61,7 @@ type OrderItemVariant = {
 type OrderItem = {
   id: string;
   quantity?: number | null;
+  line_total?: number | null;
   product?: OrderItemProduct | null;
   variant?: OrderItemVariant | null;
 };
@@ -234,7 +235,7 @@ const getCustomerHandle = (order: ShippingOrder) => {
 const getPrimaryImage = (item: OrderItem) => {
   const images = item.product?.images ?? [];
   const primary = images.find((img) => img.is_primary) ?? images[0];
-  return primary?.url ?? "/images/boxes.png";
+  return primary?.url ?? "/images/rdk-logo.png";
 };
 
 export default function ShippingPage() {
@@ -751,7 +752,7 @@ export default function ShippingPage() {
         {itemsExpanded && (
           <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
             <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-3">
                 {(order.items ?? []).map((item: OrderItem) => {
                   const imageUrl = getPrimaryImage(item);
                   const title =
@@ -759,16 +760,23 @@ export default function ShippingPage() {
                       `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
                     "Item";
                   return (
-                    <div key={item.id} className="flex items-center gap-3">
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-3 text-sm text-gray-400"
+                    >
                       <img
                         src={imageUrl}
                         alt={title}
-                        className="h-10 w-10 object-cover border border-zinc-800/70 bg-black"
+                        className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
                       />
                       <div className="min-w-0">
                         <div className="text-sm text-white truncate">{title}</div>
                         <div className="text-xs text-zinc-500">
-                          Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
+                          Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                          {item.quantity}
+                        </div>
+                        <div className="text-xs text-white mt-0.5">
+                          ${Number(item.line_total ?? 0).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -848,16 +856,23 @@ export default function ShippingPage() {
                         `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
                       "Item";
                     return (
-                      <div key={item.id} className="flex items-center gap-3">
+                      <div
+                        key={item.id}
+                        className="flex items-start gap-3 text-sm"
+                      >
                         <img
                           src={imageUrl}
                           alt={title}
-                          className="h-10 w-10 object-cover border border-zinc-800/70 bg-black"
+                          className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
                         />
                         <div className="min-w-0">
                           <div className="text-white truncate">{title}</div>
                           <div className="text-xs text-zinc-500">
-                            Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
+                            Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                            {item.quantity}
+                          </div>
+                          <div className="text-xs text-white mt-0.5">
+                            ${Number(item.line_total ?? 0).toFixed(2)}
                           </div>
                         </div>
                       </div>

@@ -19,12 +19,18 @@ const SALES_TABS: Array<{ key: TabKey; label: string; statuses: string[] }> = [
   },
 ];
 
+type OrderItemImage = {
+  url?: string | null;
+  is_primary?: boolean | null;
+};
+
 type OrderItem = {
   id: string;
   quantity?: number | null;
   line_total?: number | null;
   unit_cost?: number | null;
   product?: {
+    images?: OrderItemImage[] | null;
     title_display?: string | null;
     brand?: string | null;
     name?: string | null;
@@ -155,6 +161,12 @@ export default function SalesPage() {
     (item.product?.title_display ??
       `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
     "Item";
+
+  const getPrimaryImage = (item: OrderItem) => {
+    const images = item.product?.images ?? [];
+    const primary = images.find((img) => img.is_primary) ?? images[0];
+    return primary?.url ?? "/images/rdk-logo.png";
+  };
 
   const summary = useMemo(() => {
     let revenue = 0;
@@ -501,6 +513,10 @@ export default function SalesPage() {
                 const itemsExpanded = expandedOrders[order.id] ?? false;
                 const detailsExpanded = expandedDetails[order.id] ?? false;
                 const colSpan = isRefundMode ? 9 : 8;
+                const itemCount = (order.items ?? []).reduce(
+                  (sum: number, item: OrderItem) => sum + Number(item.quantity ?? 0),
+                  0,
+                );
 
                 return (
                   <Fragment key={order.id}>
@@ -559,7 +575,9 @@ export default function SalesPage() {
                           onClick={() => toggleOrderItems(order.id)}
                           className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
                         >
-                          {itemsExpanded ? "Hide items" : "View items"}
+                          {itemsExpanded
+                            ? "Hide items"
+                            : `View items (${itemCount})`}
                           <ChevronDown
                             className={`w-4 h-4 transition-transform ${itemsExpanded ? "rotate-180" : ""}`}
                           />
@@ -579,26 +597,33 @@ export default function SalesPage() {
                     {itemsExpanded && (
                       <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
                         <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {(order.items ?? []).map((item: OrderItem) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between text-sm text-gray-400"
-                              >
-                                <div className="min-w-0">
-                                  <div className="text-white truncate">
-                                    {getOrderTitle(item)}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
-                                    {item.quantity}
+                          <div className="flex flex-col gap-3">
+                            {(order.items ?? []).map((item: OrderItem) => {
+                              const imageUrl = getPrimaryImage(item);
+                              const title = getOrderTitle(item);
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="flex w-full items-start gap-3 text-sm text-gray-400"
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt={title}
+                                      className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="text-white truncate">{title}</div>
+                                    <div className="text-xs text-gray-500">
+                                      Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                                      {item.quantity}
+                                    </div>
+                                    <div className="text-xs text-white mt-0.5">
+                                      ${Number(item.line_total ?? 0).toFixed(2)}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="text-white">
-                                  ${Number(item.line_total ?? 0).toFixed(2)}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>
@@ -639,12 +664,17 @@ export default function SalesPage() {
                             <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">
                               Items
                             </div>
-                            <div className="space-y-2">
+                            <div className="flex flex-col gap-2">
                               {(order.items ?? []).map((item: OrderItem) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-start justify-between gap-3 text-sm"
+                                  className="flex w-full items-start gap-3 text-sm"
                                 >
+                                  <img
+                                    src={getPrimaryImage(item)}
+                                    alt={getOrderTitle(item)}
+                                      className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                                  />
                                   <div className="min-w-0">
                                     <div className="text-white truncate">
                                       {getOrderTitle(item)}
@@ -653,9 +683,9 @@ export default function SalesPage() {
                                       Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
                                       {item.quantity}
                                     </div>
-                                  </div>
-                                  <div className="text-white">
-                                    ${Number(item.line_total ?? 0).toFixed(2)}
+                                    <div className="text-xs text-white mt-0.5">
+                                      ${Number(item.line_total ?? 0).toFixed(2)}
+                                    </div>
                                   </div>
                                 </div>
                               ))}

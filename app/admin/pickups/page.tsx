@@ -21,12 +21,18 @@ const PICKUP_TABS: Array<{
   { key: "completed", label: "Completed", fulfillmentStatus: "picked_up" },
 ];
 
+type OrderItemImage = {
+  url?: string | null;
+  is_primary?: boolean | null;
+};
+
 type OrderItem = {
   id: string;
   quantity?: number | null;
   line_total?: number | null;
   unit_cost?: number | null;
   product?: {
+    images?: OrderItemImage[] | null;
     title_display?: string | null;
     brand?: string | null;
     name?: string | null;
@@ -169,6 +175,12 @@ export default function PickupsPage() {
     (item.product?.title_display ??
       `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
     "Item";
+
+  const getPrimaryImage = (item: OrderItem) => {
+    const images = item.product?.images ?? [];
+    const primary = images.find((img) => img.is_primary) ?? images[0];
+    return primary?.url ?? "/images/rdk-logo.png";
+  };
 
   const summary = useMemo(() => {
     let revenue = 0;
@@ -420,9 +432,6 @@ export default function PickupsPage() {
           <table className="w-full text-[12px] sm:text-sm">
             <thead>
               <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Complete
-                </th>
                 <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Placed At
                 </th>
@@ -447,6 +456,9 @@ export default function PickupsPage() {
                 <th className="text-left md:text-right text-gray-400 font-semibold p-3 sm:p-4">
                   <span className="hidden md:inline">Items</span>
                   <span className="md:hidden">Details</span>
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Complete
                 </th>
               </tr>
             </thead>
@@ -474,24 +486,14 @@ export default function PickupsPage() {
                 const isPickedUp =
                   activeTab === "completed" || order.fulfillment_status === "picked_up";
                 const isDisabled = isPickedUp || markingId === order.id;
+                const itemCount = (order.items ?? []).reduce(
+                  (sum: number, item: OrderItem) => sum + Number(item.quantity ?? 0),
+                  0,
+                );
 
                 return (
                   <Fragment key={order.id}>
                     <tr className="border-b border-zinc-800/70 hover:bg-zinc-800">
-                      <td className="hidden md:table-cell p-3 sm:p-4">
-                        <input
-                          type="checkbox"
-                          className="rdk-checkbox"
-                          checked={isPickedUp}
-                          disabled={isDisabled}
-                          onChange={() => {
-                            if (!isPickedUp) {
-                              void handleMarkPickedUp(order);
-                            }
-                          }}
-                          aria-label={`Mark order ${order.id} picked up`}
-                        />
-                      </td>
                       <td className="p-3 sm:p-4 text-gray-400">
                         {createdAt ? (
                           <div className="space-y-1">
@@ -529,7 +531,9 @@ export default function PickupsPage() {
                           onClick={() => toggleOrderItems(order.id)}
                           className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
                         >
-                          {itemsExpanded ? "Hide items" : "View items"}
+                          {itemsExpanded
+                            ? "Hide items"
+                            : `View items (${itemCount})`}
                           <ChevronDown
                             className={`w-4 h-4 transition-transform ${
                               itemsExpanded ? "rotate-180" : ""
@@ -549,30 +553,51 @@ export default function PickupsPage() {
                           />
                         </button>
                       </td>
+                      <td className="hidden md:table-cell p-3 sm:p-4">
+                        <input
+                          type="checkbox"
+                          className="rdk-checkbox"
+                          checked={isPickedUp}
+                          disabled={isDisabled}
+                          onChange={() => {
+                            if (!isPickedUp) {
+                              void handleMarkPickedUp(order);
+                            }
+                          }}
+                          aria-label={`Mark order ${order.id} picked up`}
+                        />
+                      </td>
                     </tr>
                     {itemsExpanded && (
                       <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
                         <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {(order.items ?? []).map((item: OrderItem) => (
-                              <div
-                                key={item.id}
-                                className="flex items-center justify-between text-sm text-gray-400"
-                              >
-                                <div className="min-w-0">
-                                  <div className="text-white truncate">
-                                    {getOrderTitle(item)}
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
-                                    {item.quantity}
+                          <div className="space-y-3">
+                            {(order.items ?? []).map((item: OrderItem) => {
+                              const imageUrl = getPrimaryImage(item);
+                              const title = getOrderTitle(item);
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="flex items-start gap-3 text-sm text-gray-400"
+                                >
+                                  <img
+                                    src={imageUrl}
+                                    alt={title}
+                                      className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="text-white truncate">{title}</div>
+                                    <div className="text-xs text-gray-500">
+                                      Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                                      {item.quantity}
+                                    </div>
+                                    <div className="text-xs text-white mt-0.5">
+                                      ${Number(item.line_total ?? 0).toFixed(2)}
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="text-white">
-                                  ${Number(item.line_total ?? 0).toFixed(2)}
-                                </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </td>
                       </tr>
@@ -641,8 +666,13 @@ export default function PickupsPage() {
                               {(order.items ?? []).map((item: OrderItem) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-start justify-between gap-3 text-sm"
+                                  className="flex items-start gap-3 text-sm"
                                 >
+                                  <img
+                                    src={getPrimaryImage(item)}
+                                    alt={getOrderTitle(item)}
+                                      className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                                  />
                                   <div className="min-w-0">
                                     <div className="text-white truncate">
                                       {getOrderTitle(item)}
@@ -651,9 +681,9 @@ export default function PickupsPage() {
                                       Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
                                       {item.quantity}
                                     </div>
-                                  </div>
-                                  <div className="text-white">
-                                    ${Number(item.line_total ?? 0).toFixed(2)}
+                                    <div className="text-xs text-white mt-0.5">
+                                      ${Number(item.line_total ?? 0).toFixed(2)}
+                                    </div>
                                   </div>
                                 </div>
                               ))}
