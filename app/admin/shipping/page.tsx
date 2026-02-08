@@ -762,20 +762,20 @@ export default function ShippingPage() {
                   return (
                     <div
                       key={item.id}
-                      className="flex items-start gap-3 text-sm text-gray-400"
+                      className="flex items-start gap-3 text-base text-gray-400"
                     >
                       <img
                         src={imageUrl}
                         alt={title}
-                        className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                        className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
                       />
                       <div className="min-w-0">
                         <div className="text-sm text-white truncate">{title}</div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="text-sm text-zinc-500">
                           Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
                           {item.quantity}
                         </div>
-                        <div className="text-xs text-white mt-0.5">
+                        <div className="text-sm font-medium text-white mt-0.5">
                           ${Number(item.line_total ?? 0).toFixed(2)}
                         </div>
                       </div>
@@ -858,20 +858,20 @@ export default function ShippingPage() {
                     return (
                       <div
                         key={item.id}
-                        className="flex items-start gap-3 text-sm"
+                        className="flex items-start gap-3 text-base"
                       >
                         <img
                           src={imageUrl}
                           alt={title}
-                          className="h-12 w-12 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                          className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
                         />
                         <div className="min-w-0">
                           <div className="text-white truncate">{title}</div>
-                          <div className="text-xs text-zinc-500">
+                          <div className="text-sm text-zinc-500">
                             Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
                             {item.quantity}
                           </div>
-                          <div className="text-xs text-white mt-0.5">
+                          <div className="text-sm font-medium text-white mt-0.5">
                             ${Number(item.line_total ?? 0).toFixed(2)}
                           </div>
                         </div>
