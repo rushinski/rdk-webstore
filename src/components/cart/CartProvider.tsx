@@ -10,7 +10,6 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { usePathname } from "next/navigation";
 
 import { CartService } from "@/services/cart-service";
 import type { CartItem } from "@/types/domain/cart";
