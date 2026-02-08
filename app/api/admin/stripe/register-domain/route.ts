@@ -31,10 +31,7 @@ export async function POST(request: NextRequest) {
 
     const domain = new URL(env.NEXT_PUBLIC_SITE_URL).hostname;
 
-    await directCharge.registerPaymentMethodDomain(
-      context.stripeAccountId,
-      domain,
-    );
+    await directCharge.registerPaymentMethodDomain(context.stripeAccountId, domain);
 
     return NextResponse.json(
       { success: true, domain, requestId },
