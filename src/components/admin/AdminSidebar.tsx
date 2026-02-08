@@ -72,10 +72,13 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     icon: Truck,
     groupKey: "orders",
     isActive: (pathname: string) =>
-      pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping"),
+      pathname.startsWith("/admin/sales") ||
+      pathname.startsWith("/admin/shipping") ||
+      pathname.startsWith("/admin/pickups"),
     children: [
       { href: "/admin/sales", label: "Sales" },
       { href: "/admin/shipping", label: "Shipping" },
+      { href: "/admin/pickups", label: "Pickups" },
     ],
   },
   { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
@@ -112,7 +115,9 @@ export function AdminSidebar({
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
   const ordersActive =
-    pathname.startsWith("/admin/sales") || pathname.startsWith("/admin/shipping");
+    pathname.startsWith("/admin/sales") ||
+    pathname.startsWith("/admin/shipping") ||
+    pathname.startsWith("/admin/pickups");
   const settingsActive = pathname.startsWith("/admin/settings");
   const [openGroups, setOpenGroups] = useState({
     analytics: false,
