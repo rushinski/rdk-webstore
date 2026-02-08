@@ -130,15 +130,6 @@ type Policy = { bucket: string; maxRequests: number; window: string };
  *  - reads: 300 per 1m
  */
 function getPolicyForRequest(pathname: string, method: string): Policy | null {
-  // OPTIMIZATION: Store routes (pages, not API)
-  // Check this FIRST before the /api check
-  if (pathname.startsWith("/store")) {
-    // Allow generous limits for browsing (bots are blocked separately by proxy/bot.ts)
-    // This prevents a single IP from hammering with filter changes
-    return { bucket: "store_browse", maxRequests: 100, window: "1 m" };
-  }
-
-  // Only rate limit /api after store check
   if (!pathname.startsWith("/api")) {
     return null;
   }
