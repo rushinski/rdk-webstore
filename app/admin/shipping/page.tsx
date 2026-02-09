@@ -765,8 +765,7 @@ export default function ShippingPage() {
                       <div className="min-w-0">
                         <div className="text-sm text-white truncate">{title}</div>
                         <div className="text-sm text-zinc-500">
-                          Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
-                          {item.quantity}
+                          Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
                         </div>
                         <div className="text-sm font-medium text-white mt-0.5">
                           ${Number(item.line_total ?? 0).toFixed(2)}
@@ -849,10 +848,7 @@ export default function ShippingPage() {
                         `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
                       "Item";
                     return (
-                      <div
-                        key={item.id}
-                        className="flex items-start gap-3 text-base"
-                      >
+                      <div key={item.id} className="flex items-start gap-3 text-base">
                         <img
                           src={imageUrl}
                           alt={title}
@@ -861,8 +857,7 @@ export default function ShippingPage() {
                         <div className="min-w-0">
                           <div className="text-white truncate">{title}</div>
                           <div className="text-sm text-zinc-500">
-                            Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
-                            {item.quantity}
+                            Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
                           </div>
                           <div className="text-sm font-medium text-white mt-0.5">
                             ${Number(item.line_total ?? 0).toFixed(2)}

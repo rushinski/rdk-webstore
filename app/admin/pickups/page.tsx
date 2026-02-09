@@ -550,9 +550,7 @@ export default function PickupsPage() {
                           onClick={() => toggleOrderItems(order.id)}
                           className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
                         >
-                          {itemsExpanded
-                            ? "Hide items"
-                            : `View items (${itemCount})`}
+                          {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
                           <ChevronDown
                             className={`w-4 h-4 transition-transform ${
                               itemsExpanded ? "rotate-180" : ""

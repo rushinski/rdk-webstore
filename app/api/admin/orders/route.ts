@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     const ordersWithProfiles = (orders ?? []).map((order) => ({
       ...order,
       shipping_profile_name: order?.user_id
-        ? shippingProfileNameByUserId.get(order.user_id) ?? null
+        ? (shippingProfileNameByUserId.get(order.user_id) ?? null)
         : null,
     }));
 
