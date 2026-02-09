@@ -26,7 +26,7 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
-import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
+import { SHOE_SIZES, CLOTHING_ALPHA_SIZES, JEAN_SIZES } from "@/config/constants/sizes";
 import { logError } from "@/lib/utils/log";
 import { isAdminRole, type ProfileRole } from "@/config/constants/roles";
 import { useSession } from "@/contexts/SessionContext";
@@ -439,18 +439,46 @@ export function Navbar({
             </button>
 
             {mobileSection === "clothingSizes" && (
-              <div className="border-b border-zinc-900 px-4 py-4">
-                <div className="pl-7 grid grid-cols-4 gap-2">
-                  {CLOTHING_SIZES.map((size) => (
-                    <Link
-                      key={size}
-                      href={buildStoreHref({ category: "clothing", sizeClothing: size })}
-                      onClick={closeMobileMenu}
-                      className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
-                    >
-                      {size}
-                    </Link>
-                  ))}
+              <div className="border-b border-zinc-900 px-4 py-4 space-y-4">
+                <div className="pl-7">
+                  <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    Clothing
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {CLOTHING_ALPHA_SIZES.map((size) => (
+                      <Link
+                        key={size}
+                        href={buildStoreHref({
+                          category: "clothing",
+                          sizeClothing: size,
+                        })}
+                        onClick={closeMobileMenu}
+                        className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
+                      >
+                        {size}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+                <div className="pl-7">
+                  <div className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mb-2">
+                    Jeans
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {JEAN_SIZES.map((size) => (
+                      <Link
+                        key={size}
+                        href={buildStoreHref({
+                          category: "clothing",
+                          sizeClothing: size,
+                        })}
+                        onClick={closeMobileMenu}
+                        className="px-3 py-2 text-center text-xs text-gray-300 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 transition-colors"
+                      >
+                        {size}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -700,20 +728,45 @@ export function Navbar({
                   </p>
                 </div>
 
-                <div className="p-6">
-                  <div className="grid grid-cols-4 gap-3">
-                    {CLOTHING_SIZES.map((size) => (
-                      <Link
-                        key={size}
-                        href={buildStoreHref({
-                          category: "clothing",
-                          sizeClothing: size,
-                        })}
-                        className="px-4 py-3 text-center text-sm font-bold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
-                      >
-                        {size}
-                      </Link>
-                    ))}
+                <div className="p-6 space-y-6">
+                  <div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">
+                      Clothing
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {CLOTHING_ALPHA_SIZES.map((size) => (
+                        <Link
+                          key={size}
+                          href={buildStoreHref({
+                            category: "clothing",
+                            sizeClothing: size,
+                          })}
+                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
+                        >
+                          {size}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-3">
+                      Jeans
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {JEAN_SIZES.map((size) => (
+                        <Link
+                          key={size}
+                          href={buildStoreHref({
+                            category: "clothing",
+                            sizeClothing: size,
+                          })}
+                          className="px-3 py-2 text-center text-xs font-semibold text-white bg-zinc-900 hover:bg-red-600 transition-colors border border-zinc-800 hover:border-red-600 cursor-pointer"
+                        >
+                          {size}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </MenuShell>

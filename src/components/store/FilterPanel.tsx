@@ -8,7 +8,7 @@ import { X, ChevronRight, ChevronDown, Filter } from "lucide-react";
 
 import {
   SHOE_SIZE_GROUPS,
-  CLOTHING_SIZES,
+  CLOTHING_SIZE_GROUPS,
   EU_SIZE_ALIASES,
   expandShoeSizeSelection,
   isEuShoeSize,
@@ -85,6 +85,12 @@ export function FilterPanel({
     mens: true,
     eu: true,
   });
+  const [expandedClothingGroups, setExpandedClothingGroups] = useState<
+    Record<string, boolean>
+  >({
+    clothing: true,
+    jeans: true,
+  });
   const [expandedBrands, setExpandedBrands] = useState<Record<string, boolean>>({});
 
   const orderedCategories = useMemo(() => {
@@ -140,10 +146,20 @@ export function FilterPanel({
     [availableShoeSizeSet],
   );
 
-  const filteredClothingSizes = useMemo(
-    () => CLOTHING_SIZES.filter((size) => availableClothingSizeSet.has(size)),
+  const clothingSizeGroups = useMemo(
+    () => ({
+      clothing: CLOTHING_SIZE_GROUPS.clothing.filter((size) =>
+        availableClothingSizeSet.has(size),
+      ),
+      jeans: CLOTHING_SIZE_GROUPS.jeans.filter((size) =>
+        availableClothingSizeSet.has(size),
+      ),
+    }),
     [availableClothingSizeSet],
   );
+
+  const hasClothingSizes =
+    clothingSizeGroups.clothing.length > 0 || clothingSizeGroups.jeans.length > 0;
 
   const availableConditionSet = useMemo(
     () => new Set(availableConditions),
@@ -213,6 +229,10 @@ export function FilterPanel({
 
   const toggleSizeGroup = useCallback((group: string) => {
     setExpandedSizeGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  }, []);
+
+  const toggleClothingGroup = useCallback((group: string) => {
+    setExpandedClothingGroups((prev) => ({ ...prev, [group]: !prev[group] }));
   }, []);
 
   const toggleBrand = useCallback((brand: string) => {
@@ -626,7 +646,7 @@ export function FilterPanel({
         )}
 
         {/* Clothing Sizes - FIXED: Smaller text */}
-        {showClothingFilter && filteredClothingSizes.length > 0 && (
+        {showClothingFilter && hasClothingSizes && (
           <div className="pb-4 w-full min-w-0">
             <button
               onClick={() => toggleSection("clothingSize")}
@@ -637,22 +657,74 @@ export function FilterPanel({
             </button>
 
             {expandedSections.clothingSize && (
-              <div className="grid grid-cols-2 gap-2 w-full min-w-0">
-                {filteredClothingSizes.map((size) => (
-                  <label
-                    key={size}
-                    className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedClothingSizes.includes(size)}
-                      onChange={() => handleClothingSizeChange(size)}
-                      className="rdk-checkbox flex-shrink-0 mt-0.5"
-                      data-testid={`filter-size-clothing-${toTestId(size)}`}
-                    />
-                    <span className="flex-1 break-words min-w-0">{size}</span>
-                  </label>
-                ))}
+              <div className="space-y-3 w-full min-w-0">
+                {clothingSizeGroups.clothing.length > 0 && (
+                  <div className="w-full min-w-0">
+                    <button
+                      onClick={() => toggleClothingGroup("clothing")}
+                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                    >
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">
+                        Clothing
+                      </span>
+                      <ToggleIcon open={!!expandedClothingGroups.clothing} size={14} />
+                    </button>
+
+                    {expandedClothingGroups.clothing && (
+                      <div className="grid grid-cols-2 gap-2 ml-2 w-full min-w-0">
+                        {clothingSizeGroups.clothing.map((size) => (
+                          <label
+                            key={size}
+                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedClothingSizes.includes(size)}
+                              onChange={() => handleClothingSizeChange(size)}
+                              className="rdk-checkbox flex-shrink-0 mt-0.5"
+                              data-testid={`filter-size-clothing-${toTestId(size)}`}
+                            />
+                            <span className="flex-1 break-words min-w-0">{size}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {clothingSizeGroups.jeans.length > 0 && (
+                  <div className="w-full min-w-0">
+                    <button
+                      onClick={() => toggleClothingGroup("jeans")}
+                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                    >
+                      <span className="uppercase tracking-wide flex-1 text-left truncate">
+                        Jeans
+                      </span>
+                      <ToggleIcon open={!!expandedClothingGroups.jeans} size={14} />
+                    </button>
+
+                    {expandedClothingGroups.jeans && (
+                      <div className="grid grid-cols-2 gap-2 ml-2 w-full min-w-0">
+                        {clothingSizeGroups.jeans.map((size) => (
+                          <label
+                            key={size}
+                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedClothingSizes.includes(size)}
+                              onChange={() => handleClothingSizeChange(size)}
+                              className="rdk-checkbox flex-shrink-0 mt-0.5"
+                              data-testid={`filter-size-clothing-${toTestId(size)}`}
+                            />
+                            <span className="flex-1 break-words min-w-0">{size}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

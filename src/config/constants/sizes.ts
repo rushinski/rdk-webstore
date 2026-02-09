@@ -106,7 +106,7 @@ export const SHOE_SIZE_GROUPS = {
   eu: SHOE_SIZES.filter(isEu),
 } as const;
 
-export const CLOTHING_SIZES = [
+export const CLOTHING_ALPHA_SIZES = [
   "XS",
   "SMALL",
   "MEDIUM",
@@ -115,6 +115,26 @@ export const CLOTHING_SIZES = [
   "2XL",
   "3XL",
 ] as const;
+
+export const JEAN_SIZES = [
+  "28",
+  "29",
+  "30",
+  "31",
+  "32",
+  "33",
+  "34",
+  "36",
+  "38",
+  "40",
+] as const;
+
+export const CLOTHING_SIZES = [...CLOTHING_ALPHA_SIZES, ...JEAN_SIZES] as const;
+
+export const CLOTHING_SIZE_GROUPS = {
+  clothing: CLOTHING_ALPHA_SIZES,
+  jeans: JEAN_SIZES,
+} as const;
 
 const US_TOKEN_TO_SIZES = buildUsTokenMap(SHOE_SIZES);
 
