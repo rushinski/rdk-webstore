@@ -1,12 +1,18 @@
 // app/admin/inventory/client.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Plus, Trash2, MoreVertical, Search, Download } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Search, Download, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import type { ProductWithDetails, Category, Condition } from "@/types/domain/product";
+import type {
+  ProductWithDetails,
+  ProductVariantRow,
+  Category,
+  Condition,
+} from "@/types/domain/product";
+import { InventoryProductDetailsModal } from "@/components/admin/inventory/InventoryProductDetailsModal";
 import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
@@ -52,6 +58,11 @@ export function InventoryClient({
   const [page, setPage] = useState(initialFilters.page || 1);
   const [totalCount, setTotalCount] = useState(initialTotal);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
+  const [detailsSelection, setDetailsSelection] = useState<{
+    product: ProductWithDetails;
+    variant: ProductVariantRow;
+  } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{
     id: string;
     label: string;
@@ -173,6 +184,7 @@ export function InventoryClient({
           limit: String(PAGE_SIZE),
           page: String(filters?.page ?? 1),
           includeOutOfStock: "1",
+          searchMode: "inventory",
         });
 
         if (filters?.q) {
@@ -214,6 +226,7 @@ export function InventoryClient({
 
   useEffect(() => {
     setSelectedIds([]);
+    setExpandedVariants({});
   }, [page, searchQuery, categoryFilter, conditionFilter, stockStatusFilter]);
 
   useEffect(() => {
@@ -300,9 +313,29 @@ export function InventoryClient({
     setToast({ message, tone });
   };
 
+  const getProductRawTitle = (product: ProductWithDetails) =>
+    product.title_raw?.trim() || `${product.brand} ${product.name}`.trim() || "Item";
+
+  const getPrimaryImageUrl = (product: ProductWithDetails) => {
+    const primary =
+      product.images.find((image) => image.is_primary) ?? product.images[0] ?? null;
+    return primary?.url ?? null;
+  };
+
+  const getProductTotalStock = (product: ProductWithDetails) =>
+    product.variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
+
+  const toggleVariants = (productId: string) => {
+    setExpandedVariants((prev) => ({ ...prev, [productId]: !prev[productId] }));
+  };
+
+  const openDetailsModal = (product: ProductWithDetails, variant: ProductVariantRow) => {
+    setDetailsSelection({ product, variant });
+  };
+
   const requestDelete = (product: ProductWithDetails) => {
     setOpenMenuId(null);
-    const label = product.title_display ?? `${product.brand} ${product.name}`.trim();
+    const label = getProductRawTitle(product);
     setPendingDelete({ id: product.id, label: label || "this product" });
   };
 
@@ -552,7 +585,7 @@ export function InventoryClient({
             type="text"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="Search products"
+            placeholder="Search raw names or SKU"
             className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none
                        focus:outline-none focus-visible:outline-none focus-visible:ring-0"
           />
@@ -611,9 +644,9 @@ export function InventoryClient({
                 <col className="w-12" />
                 <col className="w-20" />
                 <col />
-                <col className="w-36" />
-                <col className="w-44" />
+                <col className="w-28" />
                 <col className="w-20" />
+                <col className="w-32" />
                 <col className="w-20" />
               </colgroup>
 
@@ -641,16 +674,16 @@ export function InventoryClient({
                   <th className="text-left text-gray-400 font-semibold px-4 py-3">
                     Product
                   </th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                  <th className="text-left text-gray-400 font-semibold px-2 py-3">
                     Category
                   </th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
-                    Price
-                  </th>
-                  <th className="text-left text-gray-400 font-semibold px-4 py-3">
+                  <th className="text-center text-gray-400 font-semibold px-2 py-3">
                     Stock
                   </th>
-                  <th className="text-right text-gray-400 font-semibold px-4 py-3">
+                  <th className="text-left text-gray-400 font-semibold px-2 py-3">
+                    Variants
+                  </th>
+                  <th className="text-left text-gray-400 font-semibold px-2 py-3">
                     Actions
                   </th>
                 </tr>
@@ -658,118 +691,180 @@ export function InventoryClient({
 
               <tbody>
                 {products.map((product) => {
-                  const minPrice = Math.min(
-                    ...product.variants.map((v) => v.price_cents),
-                  );
-                  const maxPrice = Math.max(
-                    ...product.variants.map((v) => v.price_cents),
-                  );
-                  const totalStock = product.variants.reduce(
-                    (sum, v) => sum + (v.stock ?? 0),
-                    0,
-                  );
-                  const primaryImage =
-                    product.images.find((image) => image.is_primary) ?? product.images[0];
+                  const rawTitle = getProductRawTitle(product);
+                  const totalStock = getProductTotalStock(product);
+                  const primaryImageUrl = getPrimaryImageUrl(product);
+                  const variantsOpen = expandedVariants[product.id] ?? false;
 
                   return (
-                    <tr
-                      key={product.id}
-                      className="border-b border-zinc-800/70 hover:bg-zinc-800"
-                      data-testid="inventory-row"
-                      data-product-id={product.id}
-                    >
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          className="rdk-checkbox"
-                          checked={selectedIds.includes(product.id)}
-                          onChange={() => toggleSelection(product.id)}
-                        />
-                      </td>
+                    <Fragment key={product.id}>
+                      <tr
+                        className="border-b border-zinc-800/70 hover:bg-zinc-800 cursor-pointer"
+                        data-testid="inventory-row"
+                        data-product-id={product.id}
+                        onClick={() => toggleVariants(product.id)}
+                      >
+                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="rdk-checkbox"
+                            checked={selectedIds.includes(product.id)}
+                            onChange={() => toggleSelection(product.id)}
+                          />
+                        </td>
 
-                      <td className="px-4 py-3">
-                        <div className="w-12 h-12 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
-                          {primaryImage?.url ? (
-                            <img
-                              src={primaryImage.url}
-                              alt={product.title_display ?? product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span className="text-[10px] text-gray-500">No image</span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-3 min-w-0">
-                        <div className="text-white font-semibold truncate">
-                          {product.title_display ??
-                            `${product.brand} ${product.name}`.trim()}
-                        </div>
-                      </td>
-
-                      <td className="px-4 py-3 text-gray-400 capitalize truncate">
-                        {product.category}
-                      </td>
-
-                      <td className="px-4 py-3 text-white whitespace-nowrap">
-                        {minPrice === maxPrice
-                          ? `$${(minPrice / 100).toFixed(2)}`
-                          : `$${(minPrice / 100).toFixed(2)} - $${(maxPrice / 100).toFixed(2)}`}
-                      </td>
-
-                      <td className="px-4 py-3 text-gray-400 whitespace-nowrap">
-                        {totalStock}
-                      </td>
-
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end">
-                          <div className="relative" data-menu-id={product.id}>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setOpenMenuId((prev) =>
-                                  prev === product.id ? null : product.id,
-                                )
-                              }
-                              className="text-gray-400 hover:text-white p-2 rounded hover:bg-zinc-900 cursor-pointer"
-                              aria-label="Open actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-
-                            {openMenuId === product.id && (
-                              <div className="absolute right-0 mt-2 w-44 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30 rounded overflow-hidden">
-                                <Link
-                                  href={`/admin/inventory/${product.id}/edit`}
-                                  onClick={() => setOpenMenuId(null)}
-                                  className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
-                                >
-                                  Edit
-                                </Link>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    void handleDuplicate(product.id);
-                                  }}
-                                  className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
-                                >
-                                  Duplicate
-                                </button>
-                                <div className="h-px bg-zinc-800/70" />
-                                <button
-                                  type="button"
-                                  onClick={() => requestDelete(product)}
-                                  className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
-                                >
-                                  Delete
-                                </button>
-                              </div>
+                        <td className="px-4 py-3">
+                          <div className="w-12 h-12 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
+                            {primaryImageUrl ? (
+                              <img
+                                src={primaryImageUrl}
+                                alt={rawTitle}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-[10px] text-gray-500">No image</span>
                             )}
                           </div>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+
+                        <td className="px-4 py-3 min-w-0">
+                          <div className="text-white font-semibold truncate">
+                            {rawTitle}
+                          </div>
+                        </td>
+
+                        <td className="px-2 py-3 text-left text-gray-400 capitalize truncate">
+                          {product.category}
+                        </td>
+
+                        <td className="px-2 py-3 text-center text-gray-300 whitespace-nowrap">
+                          {totalStock}
+                        </td>
+
+                        <td
+                          className="px-2 py-3 text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleVariants(product.id)}
+                            className="inline-flex items-center gap-1 whitespace-nowrap text-sm text-red-400 hover:text-red-300"
+                          >
+                            {variantsOpen ? "Hide variants" : "View variants"}
+                            <ChevronDown
+                              className={`w-4 h-4 transition-transform ${variantsOpen ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                        </td>
+
+                        <td className="px-2 py-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-start">
+                            <div className="relative" data-menu-id={product.id}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenMenuId((prev) =>
+                                    prev === product.id ? null : product.id,
+                                  )
+                                }
+                                className="cursor-pointer rounded p-1.5 text-gray-400 hover:bg-zinc-900 hover:text-white"
+                                aria-label="Open actions"
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+
+                              {openMenuId === product.id && (
+                                <div className="absolute right-0 mt-2 w-44 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30 rounded overflow-hidden">
+                                  <Link
+                                    href={`/admin/inventory/${product.id}/edit`}
+                                    onClick={() => setOpenMenuId(null)}
+                                    className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
+                                  >
+                                    Edit
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      void handleDuplicate(product.id);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
+                                  >
+                                    Duplicate
+                                  </button>
+                                  <div className="h-px bg-zinc-800/70" />
+                                  <button
+                                    type="button"
+                                    onClick={() => requestDelete(product)}
+                                    className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {variantsOpen && (
+                        <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
+                          <td colSpan={7} className="p-0">
+                            <div className="py-1">
+                              <div className="flex flex-col">
+                                {product.variants.map((variant) => (
+                                  <div
+                                    key={variant.id}
+                                    onClick={() => openDetailsModal(product, variant)}
+                                    className="group flex cursor-pointer items-center justify-start gap-8 px-6 py-4 transition-colors hover:bg-zinc-800/70"
+                                  >
+                                    <div className="w-28 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
+                                        Size
+                                      </div>
+                                      <div className="text-sm font-medium text-zinc-200">
+                                        {variant.size_label}
+                                      </div>
+                                    </div>
+                                    <div className="w-32 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
+                                        Selling Price
+                                      </div>
+                                      <div className="text-sm font-bold text-white">
+                                        ${(variant.price_cents / 100).toFixed(2)}
+                                      </div>
+                                    </div>
+                                    <div className="w-32 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
+                                        Bought For
+                                      </div>
+                                      <div className="text-sm font-medium text-zinc-200">
+                                        {variant.cost_cents !== null &&
+                                        variant.cost_cents !== undefined
+                                          ? `$${(variant.cost_cents / 100).toFixed(2)}`
+                                          : "-"}
+                                      </div>
+                                    </div>
+                                    <div className="w-24 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
+                                        Stock
+                                      </div>
+                                      <div className="text-sm font-medium text-zinc-200">
+                                        {variant.stock ?? 0}
+                                      </div>
+                                    </div>
+                                    <div className="w-20 flex-shrink-0">
+                                      <span className="text-xs font-medium text-red-500 transition-colors group-hover:text-red-400">
+                                        Details
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -779,12 +874,10 @@ export function InventoryClient({
           {/* Mobile Cards */}
           <div className="md:hidden space-y-4">
             {products.map((product) => {
-              const primaryImage =
-                product.images.find((image) => image.is_primary) ?? product.images[0];
-              const totalStock = product.variants.reduce(
-                (sum, v) => sum + (v.stock ?? 0),
-                0,
-              );
+              const rawTitle = getProductRawTitle(product);
+              const totalStock = getProductTotalStock(product);
+              const primaryImageUrl = getPrimaryImageUrl(product);
+              const variantsOpen = expandedVariants[product.id] ?? false;
 
               return (
                 <div
@@ -793,10 +886,10 @@ export function InventoryClient({
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-14 h-14 rounded bg-zinc-800 border border-zinc-800/70 overflow-hidden flex items-center justify-center">
-                      {primaryImage?.url ? (
+                      {primaryImageUrl ? (
                         <img
-                          src={primaryImage.url}
-                          alt={product.title_display ?? product.name}
+                          src={primaryImageUrl}
+                          alt={rawTitle}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -804,16 +897,13 @@ export function InventoryClient({
                       )}
                     </div>
 
-                    <div className="flex-1">
-                      <h3 className="text-white font-semibold">
-                        {product.title_display ??
-                          `${product.brand} ${product.name}`.trim()}
-                      </h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-semibold truncate">{rawTitle}</h3>
                       <div className="mt-1 flex items-center gap-2">
                         <span className="text-gray-400 text-xs capitalize">
                           {product.category}
                         </span>
-                        <span className="text-gray-500 text-xs">•</span>
+                        <span className="text-gray-500 text-xs">|</span>
                         <span className="text-gray-400 text-xs">Stock: {totalStock}</span>
                       </div>
                     </div>
@@ -871,6 +961,56 @@ export function InventoryClient({
                       </div>
                     </div>
                   </div>
+
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleVariants(product.id)}
+                      className="inline-flex items-center gap-1 text-sm text-red-400"
+                    >
+                      {variantsOpen ? "Hide variants" : "View variants"}
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${variantsOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                  </div>
+
+                  {variantsOpen && (
+                    <div className="mt-3 space-y-2 border-t border-zinc-800/70 pt-3">
+                      {product.variants.map((variant) => (
+                        <div
+                          key={variant.id}
+                          onClick={() => openDetailsModal(product, variant)}
+                          className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3 cursor-pointer transition-colors hover:bg-zinc-800/60"
+                        >
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-200">
+                            <span>
+                              <span className="text-zinc-500">Size:</span>{" "}
+                              {variant.size_label}
+                            </span>
+                            <span>
+                              <span className="text-zinc-500">Selling Price:</span> $
+                              {(variant.price_cents / 100).toFixed(2)}
+                            </span>
+                            <span>
+                              <span className="text-zinc-500">Bought For:</span>{" "}
+                              {variant.cost_cents !== null &&
+                              variant.cost_cents !== undefined
+                                ? `$${(variant.cost_cents / 100).toFixed(2)}`
+                                : "-"}
+                            </span>
+                            <span>
+                              <span className="text-zinc-500">Stock:</span>{" "}
+                              {variant.stock ?? 0}
+                            </span>
+                            <span className="text-red-400 hover:text-red-300">
+                              View details
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -879,6 +1019,13 @@ export function InventoryClient({
       )}
 
       {!isLoading && renderPagination()}
+
+      <InventoryProductDetailsModal
+        open={Boolean(detailsSelection)}
+        product={detailsSelection?.product ?? null}
+        variant={detailsSelection?.variant ?? null}
+        onClose={() => setDetailsSelection(null)}
+      />
 
       <ConfirmDialog
         isOpen={Boolean(pendingDelete)}

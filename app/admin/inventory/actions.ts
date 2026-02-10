@@ -43,6 +43,7 @@ export async function getInventoryProducts(filters: InventoryFilters = {}) {
     includeOutOfStock: true, // Admin needs to see all products
     stockStatus,
     tenantId,
+    searchMode: "inventory",
   });
 
   return result;

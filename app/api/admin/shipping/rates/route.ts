@@ -71,10 +71,14 @@ const toShippoAddress = (address: {
     return null;
   }
 
+  // Shippo requires name - fallback to company if name is empty
+  const name = clean(address.name) || clean(address.company) || "";
+  const company = clean(address.company);
+
   return {
-    name: clean(address.name),
-    company: clean(address.company),
-    phone: clean(address.phone),
+    name: name, // Always provide name (use company as fallback)
+    company: company,
+    phone: address.phone || "", // Don't use clean() for phone - ensure it's always a string
     street1: address.line1,
     street2: address.line2 ?? undefined,
     city: address.city,
@@ -133,6 +137,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Recipient address not found for this order.", requestId },
         { status: 404, headers: noStoreHeaders },
+      );
+    }
+
+    // Validate phone is present for shipping labels (Shippo requires complete address)
+    if (!recipientSource.phone || recipientSource.phone.trim().length < 10) {
+      return NextResponse.json(
+        { error: "Phone number required for shipping labels (10+ digits)", requestId },
+        { status: 400, headers: noStoreHeaders },
       );
     }
 

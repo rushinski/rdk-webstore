@@ -206,7 +206,7 @@ export function CheckoutStart() {
       line2: shippingAddress.line2?.trim() || null,
       city: shippingAddress.city?.trim() ?? "",
       state: shippingAddress.state?.trim().toUpperCase() ?? "",
-      postal_code: shippingAddress.postalCode?.trim() ?? "",
+      postal_code: shippingAddress.postal_code?.trim() ?? "",
       country: (shippingAddress.country?.trim() ?? "US").toUpperCase(),
     };
   }, [shippingAddress]);

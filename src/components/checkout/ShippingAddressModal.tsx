@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, MapPin } from "lucide-react";
 
+import { AddressInput } from "@/components/shared/AddressInput";
+import { AddressSuggestionModal } from "@/components/shared/AddressSuggestionModal";
+import type { AddressSuggestion } from "@/components/shared/AddressSuggestionModal";
 import type { ShippingAddress } from "./CheckoutForm";
 
 interface ShippingAddressModalProps {
@@ -21,9 +24,16 @@ export function ShippingAddressModal({
   initialAddress,
 }: ShippingAddressModalProps) {
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
   const [address, setAddress] = useState<ShippingAddress>(
     initialAddress || createEmptyAddress(),
   );
+  const [isValidating, setIsValidating] = useState(false);
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [validationResult, setValidationResult] = useState<{
+    isValid: boolean;
+    suggestions: AddressSuggestion[];
+  } | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const [mounted, setMounted] = useState(false);
@@ -33,6 +43,9 @@ export function ShippingAddressModal({
     if (isOpen) {
       setAddress(initialAddress || createEmptyAddress());
       setSaveError(null);
+      setShowErrors(false);
+      setShowSuggestionModal(false);
+      setValidationResult(null);
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -57,14 +70,85 @@ export function ShippingAddressModal({
     setAddress((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setShowErrors(true);
     const normalized = normalizeAddress(address);
+
     if (!isValidAddress(normalized)) {
       setSaveError("Please complete all required fields.");
       return;
     }
+
+    // Validate address with HERE Maps
+    setIsValidating(true);
+    setSaveError(null);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch("/api/maps/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          line1: normalized.line1,
+          city: normalized.city,
+          state: normalized.state,
+          postal_code: normalized.postal_code,
+          country: normalized.country,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const result = await response.json();
+
+        // If there are suggestions, show the modal
+        if (result.suggestions && result.suggestions.length > 0) {
+          setValidationResult({
+            isValid: result.isValid,
+            suggestions: result.suggestions,
+          });
+          setShowSuggestionModal(true);
+          setIsValidating(false);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+      // Continue with save even if validation fails
+    }
+
+    setIsValidating(false);
+
+    // No suggestions or validation failed, just save
     onSave(normalized);
     onClose();
+  };
+
+  const handleUseSuggestion = (suggestion: AddressSuggestion) => {
+    const updatedAddress: ShippingAddress = {
+      ...address,
+      line1: suggestion.line1,
+      city: suggestion.city,
+      state: suggestion.state,
+      postal_code: suggestion.postal_code,
+      country: suggestion.country,
+    };
+    onSave(normalizeAddress(updatedAddress));
+    onClose();
+  };
+
+  const handleUseOriginal = () => {
+    onSave(normalizeAddress(address));
+    onClose();
+  };
+
+  const handleCancelSuggestion = () => {
+    setShowSuggestionModal(false);
+    setValidationResult(null);
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -77,7 +161,7 @@ export function ShippingAddressModal({
     return null;
   }
 
-  const modal = (
+  const shippingModal = (
     <div
       className={[
         // Full-screen overlay (no blur/gradient)
@@ -124,159 +208,21 @@ export function ShippingAddressModal({
         {/* Form */}
         <div
           className={[
-            "flex-1 min-h-0 overflow-y-auto p-4 space-y-4",
+            "flex-1 min-h-0 overflow-y-auto p-4",
             // Hide scrollbar but keep scrolling
             "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
           ].join(" ")}
         >
-          {/* Full Name */}
-          <div>
-            <label
-              htmlFor="modal-name"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              Full Name *
-            </label>
-            <input
-              type="text"
-              id="modal-name"
-              value={address.name}
-              onChange={(e) => handleChange("name", e.target.value)}
-              className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-              required
-              autoFocus
-            />
-          </div>
+          <AddressInput
+            value={address}
+            onChange={setAddress}
+            requirePhone={false}
+            requireEmail={false}
+            showErrors={showErrors}
+            countryCode="US"
+          />
 
-          {/* Phone */}
-          <div>
-            <label
-              htmlFor="modal-phone"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              Phone Number (optional)
-            </label>
-            <input
-              type="tel"
-              id="modal-phone"
-              value={address.phone}
-              onChange={(e) => handleChange("phone", e.target.value)}
-              className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          {/* Address Line 1 */}
-          <div>
-            <label
-              htmlFor="modal-line1"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              Street Address *
-            </label>
-            <input
-              type="text"
-              id="modal-line1"
-              value={address.line1}
-              onChange={(e) => handleChange("line1", e.target.value)}
-              placeholder="123 Main St"
-              className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-              required
-            />
-          </div>
-
-          {/* Address Line 2 */}
-          <div>
-            <label
-              htmlFor="modal-line2"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              Apartment, suite, etc. (optional)
-            </label>
-            <input
-              type="text"
-              id="modal-line2"
-              value={address.line2}
-              onChange={(e) => handleChange("line2", e.target.value)}
-              placeholder="Apt 4B"
-              className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          {/* City, State, ZIP */}
-          <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
-            <div className="sm:col-span-3">
-              <label
-                htmlFor="modal-city"
-                className="block text-sm font-medium text-gray-300 mb-1"
-              >
-                City *
-              </label>
-              <input
-                type="text"
-                id="modal-city"
-                value={address.city}
-                onChange={(e) => handleChange("city", e.target.value)}
-                className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                required
-              />
-            </div>
-
-            <div className="sm:col-span-1">
-              <label
-                htmlFor="modal-state"
-                className="block text-sm font-medium text-gray-300 mb-1"
-              >
-                State *
-              </label>
-              <input
-                type="text"
-                id="modal-state"
-                value={address.state}
-                onChange={(e) => handleChange("state", e.target.value)}
-                placeholder="CA"
-                maxLength={2}
-                className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase"
-                required
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label
-                htmlFor="modal-postalCode"
-                className="block text-sm font-medium text-gray-300 mb-1"
-              >
-                ZIP Code *
-              </label>
-              <input
-                type="text"
-                id="modal-postalCode"
-                value={address.postalCode}
-                onChange={(e) => handleChange("postalCode", e.target.value)}
-                placeholder="12345"
-                className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Country */}
-          <div>
-            <label
-              htmlFor="modal-country"
-              className="block text-sm font-medium text-gray-300 mb-1"
-            >
-              Country
-            </label>
-            <input
-              type="text"
-              id="modal-country"
-              value="United States"
-              disabled
-              className="w-full px-3 py-2.5 text-[16px] sm:text-base bg-zinc-950 border border-zinc-800 rounded text-gray-500 cursor-not-allowed"
-            />
-          </div>
-
-          {saveError && <div className="text-sm text-red-400">{saveError}</div>}
+          {saveError && <div className="text-sm text-red-400 mt-4">{saveError}</div>}
         </div>
 
         {/* Footer */}
@@ -298,27 +244,49 @@ export function ShippingAddressModal({
           <button
             type="button"
             onClick={handleSave}
-            className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-[16px] sm:text-sm font-semibold rounded transition"
+            disabled={isValidating}
+            className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white text-[16px] sm:text-sm font-semibold rounded transition"
           >
-            Save Address
+            {isValidating ? "Validating..." : "Save Address"}
           </button>
         </div>
       </div>
     </div>
   );
 
-  return createPortal(modal, document.body);
+  return (
+    <>
+      {createPortal(shippingModal, document.body)}
+      {validationResult && (
+        <AddressSuggestionModal
+          isOpen={showSuggestionModal}
+          isValid={validationResult.isValid}
+          suggestions={validationResult.suggestions}
+          originalAddress={{
+            line1: address.line1,
+            city: address.city,
+            state: address.state,
+            postal_code: address.postal_code,
+          }}
+          onUseSuggestion={handleUseSuggestion}
+          onUseOriginal={handleUseOriginal}
+          onCancel={handleCancelSuggestion}
+        />
+      )}
+    </>
+  );
 }
 
 function createEmptyAddress(): ShippingAddress {
   return {
     name: "",
     phone: "",
+    email: "",
     line1: "",
     line2: "",
     city: "",
     state: "",
-    postalCode: "",
+    postal_code: "",
     country: "US",
   };
 }
@@ -327,11 +295,12 @@ function normalizeAddress(address: ShippingAddress): ShippingAddress {
   return {
     name: address.name.trim(),
     phone: address.phone.trim(),
+    email: address.email?.trim() || undefined,
     line1: address.line1.trim(),
     line2: address.line2?.trim() ?? "",
     city: address.city.trim(),
     state: address.state.trim().toUpperCase(),
-    postalCode: address.postalCode.trim(),
+    postal_code: address.postal_code.trim(),
     country: address.country.trim().toUpperCase(),
   };
 }
@@ -342,6 +311,6 @@ function isValidAddress(address: ShippingAddress): boolean {
     address.line1.trim() !== "" &&
     address.city.trim() !== "" &&
     address.state.trim() !== "" &&
-    address.postalCode.trim() !== ""
+    address.postal_code.trim() !== ""
   );
 }

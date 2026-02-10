@@ -107,16 +107,20 @@ export class ShippoService {
       return trimmed ? trimmed : undefined;
     };
 
+    // Shippo requires name - fallback to company if name is empty
+    const name = clean(address.name) || clean(address.company) || "";
+    const company = clean(address.company);
+
     return {
-      name: clean(address.name),
-      company: clean(address.company),
+      name: name, // Always provide name (use company as fallback)
+      company: company,
       street1: address.street1,
       street2: address.street2 ?? undefined,
       city: address.city,
       state: address.state,
       zip: address.zip,
       country: address.country,
-      phone: clean(address.phone),
+      phone: address.phone || "", // Don't use clean() for phone - ensure it's always a string for Shippo
     };
   }
 

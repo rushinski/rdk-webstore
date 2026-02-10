@@ -80,5 +80,6 @@ export const adminProductsQuerySchema = z
     page: z.coerce.number().int().min(1).default(1),
     includeOutOfStock: includeOutOfStockSchema,
     stockStatus: z.enum(STOCK_STATUS_VALUES).optional(),
+    searchMode: z.enum(["storefront", "inventory"]).optional(),
   })
   .strict();

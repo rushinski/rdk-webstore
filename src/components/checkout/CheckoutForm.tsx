@@ -40,11 +40,12 @@ interface CheckoutFormProps {
 export interface ShippingAddress {
   name: string;
   phone: string;
+  email?: string;
   line1: string;
   line2?: string;
   city: string;
   state: string;
-  postalCode: string;
+  postal_code: string;
   country: string;
 }
 
@@ -94,7 +95,7 @@ export function CheckoutForm({
           line2: addr.line2 ?? null,
           city: addr.city,
           state: addr.state.trim().toUpperCase(),
-          postal_code: addr.postalCode.trim(),
+          postal_code: addr.postal_code.trim(),
           country: addr.country.trim().toUpperCase(),
         }
       : null;
@@ -212,7 +213,7 @@ export function CheckoutForm({
                     line2: shippingAddress.line2 || "",
                     city: shippingAddress.city,
                     state: shippingAddress.state.trim().toUpperCase(),
-                    postal_code: shippingAddress.postalCode.trim(),
+                    postal_code: shippingAddress.postal_code.trim(),
                     country: shippingAddress.country.trim().toUpperCase(),
                   },
                 }

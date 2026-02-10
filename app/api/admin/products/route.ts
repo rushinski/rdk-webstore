@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       condition: searchParams.getAll("condition").filter(Boolean),
       includeOutOfStock: searchParams.get("includeOutOfStock") ?? undefined,
       stockStatus: searchParams.get("stockStatus") ?? undefined,
+      searchMode: searchParams.get("searchMode") ?? undefined,
     });
 
     if (!parsedQuery.success) {
@@ -43,8 +44,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { q, limit, page, category, condition, includeOutOfStock, stockStatus } =
-      parsedQuery.data;
+    const {
+      q,
+      limit,
+      page,
+      category,
+      condition,
+      includeOutOfStock,
+      stockStatus,
+      searchMode,
+    } = parsedQuery.data;
 
     const result = await service.listProducts({
       q,
@@ -55,6 +64,7 @@ export async function GET(request: NextRequest) {
       includeOutOfStock,
       stockStatus,
       tenantId,
+      searchMode,
     });
 
     return NextResponse.json(result, {

@@ -22,6 +22,20 @@ export const shippingAddressSchema = z
   })
   .strict();
 
+// Shipping label schema with required phone (Shippo requires phone for complete address)
+export const shippingLabelAddressSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100),
+    phone: z.string().trim().min(10, "Phone number required for shipping labels").max(30),
+    line1: z.string().trim().min(1).max(200),
+    line2: z.string().trim().max(200).optional().nullable(),
+    city: z.string().trim().min(1).max(100),
+    state: z.string().trim().length(2),
+    postal_code: z.string().trim().min(3).max(20),
+    country: z.string().trim().length(2).default("US"),
+  })
+  .strict();
+
 // ---------- create-payment-intent ----------
 
 export const createPaymentIntentSchema = z

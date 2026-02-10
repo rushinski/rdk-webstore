@@ -33,6 +33,7 @@ type AddressErrors = {
   state?: string;
   postal_code?: string;
   country?: string;
+  phone?: string;
 };
 
 type EasyPostRate = {
@@ -103,6 +104,10 @@ const formatDeliveryEstimate = (days?: number | null) => {
 // Client-side address validation
 const validateAddress = (address: ShippingAddressDraft): AddressErrors => {
   const errors: AddressErrors = {};
+
+  if (!address.phone || address.phone.length < 10) {
+    errors.phone = "Phone number required (10+ digits)";
+  }
 
   if (!address.line1 || address.line1.length < 3) {
     errors.line1 = "Street address is required";
@@ -496,13 +501,18 @@ export function CreateLabelForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-0.5">Phone</label>
+                  <label className="block text-gray-400 mb-0.5">Phone *</label>
                   <input
                     type="text"
                     value={recipient.phone}
                     onChange={(e) => setRecipientField("phone", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-2 py-1.5 text-[12px] sm:text-sm"
+                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
+                      addressErrors.phone ? "border-red-500" : "border-zinc-800/70"
+                    }`}
                   />
+                  {addressErrors.phone && (
+                    <div className="text-xs text-red-400 mt-1">{addressErrors.phone}</div>
+                  )}
                 </div>
 
                 <div className="md:col-span-2">

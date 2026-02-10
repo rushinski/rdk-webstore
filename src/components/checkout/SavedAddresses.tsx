@@ -35,7 +35,7 @@ function toShippingAddress(a: SavedAddress): ShippingAddress {
     line2: a.line2 || "",
     city: a.city || "",
     state: a.state || "",
-    postalCode: a.postal_code || "",
+    postal_code: a.postal_code || "",
     country: a.country || "US",
   };
 }
@@ -48,7 +48,7 @@ function toApiPayload(address: ShippingAddress) {
     line2: address.line2?.trim() ? address.line2.trim() : null,
     city: address.city.trim(),
     state: address.state.trim().toUpperCase(),
-    postal_code: address.postalCode.trim(),
+    postal_code: address.postal_code.trim(),
     country: (address.country || "US").trim().toUpperCase(),
   };
 }
@@ -186,7 +186,7 @@ export function SavedAddresses({
       const saved = nextAddresses.find(
         (a) =>
           (a.line1 || "").trim().toLowerCase() === address.line1.trim().toLowerCase() &&
-          (a.postal_code || "").trim() === address.postalCode.trim(),
+          (a.postal_code || "").trim() === address.postal_code.trim(),
       );
 
       if (saved) {
@@ -255,7 +255,7 @@ export function SavedAddresses({
                     <p className="text-sm text-gray-400">{guestAddress.line2}</p>
                   )}
                   <p className="text-sm text-gray-400">
-                    {guestAddress.city}, {guestAddress.state} {guestAddress.postalCode}
+                    {guestAddress.city}, {guestAddress.state} {guestAddress.postal_code}
                   </p>
                   {guestAddress.phone && (
                     <p className="text-sm text-gray-500 mt-1">{guestAddress.phone}</p>

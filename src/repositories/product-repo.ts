@@ -19,6 +19,7 @@ export interface ProductFilters {
   tenantId?: string;
   sellerId?: string;
   marketplaceId?: string;
+  searchMode?: "storefront" | "inventory";
 }
 
 type ProductRow = Tables<"products">;
@@ -248,9 +249,13 @@ export class ProductRepository {
   }
 
   async list(filters: ProductFilters = {}) {
-    const { page = 1, limit = 20, sort = "newest" } = filters;
+    const { page = 1, limit = 20, sort = "newest", searchMode = "storefront" } = filters;
     const offset = (page - 1) * limit;
     const isPriceSort = sort === "price_asc" || sort === "price_desc";
+    const searchFields =
+      searchMode === "inventory"
+        ? this.inventorySearchFields
+        : this.storefrontSearchFields;
 
     const sizeProductIds = isPriceSort
       ? null
@@ -298,7 +303,7 @@ export class ProductRepository {
       }
 
       // Text search
-      query = this.applyTextSearch(query, filters.q, this.storefrontSearchFields);
+      query = this.applyTextSearch(query, filters.q, searchFields);
 
       // Category / brand / condition filters
       if (filters.category?.length) {
