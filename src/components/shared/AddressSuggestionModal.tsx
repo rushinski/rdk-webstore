@@ -108,7 +108,8 @@ export function AddressSuggestionModal({
             <div className="text-sm text-gray-300 bg-zinc-950 border border-zinc-800 rounded p-3">
               {originalAddress.line1}
               <br />
-              {originalAddress.city}, {originalAddress.state} {originalAddress.postal_code}
+              {originalAddress.city}, {originalAddress.state}{" "}
+              {originalAddress.postal_code}
             </div>
           </div>
 

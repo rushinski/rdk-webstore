@@ -36,9 +36,50 @@ export interface HereValidationResult {
   messages?: string[];
 }
 
+interface AddressValidationInput {
+  line1: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+}
+
+interface HereApiAddress {
+  label?: string;
+  countryCode?: string;
+  countryName?: string;
+  state?: string;
+  stateCode?: string;
+  county?: string;
+  city?: string;
+  district?: string;
+  street?: string;
+  postalCode?: string;
+  houseNumber?: string;
+}
+
+interface HereApiItem {
+  id?: string;
+  title?: string;
+  resultType?: string;
+  address?: HereApiAddress;
+  position?: {
+    lat?: number;
+    lng?: number;
+  };
+  scoring?: {
+    queryScore?: number;
+  };
+}
+
+interface HereApiResponse {
+  items?: HereApiItem[];
+}
+
 export class HereMapsService {
   private readonly apiKey: string;
-  private readonly autocompleteEndpoint = "https://autosuggest.search.hereapi.com/v1/autosuggest";
+  private readonly autocompleteEndpoint =
+    "https://autosuggest.search.hereapi.com/v1/autosuggest";
   private readonly geocodeEndpoint = "https://geocode.search.hereapi.com/v1/geocode";
 
   constructor() {
@@ -48,7 +89,10 @@ export class HereMapsService {
     }
   }
 
-  async autocomplete(query: string, countryCode: string = "USA"): Promise<HereAutocompleteResult[]> {
+  async autocomplete(
+    query: string,
+    countryCode: string = "USA",
+  ): Promise<HereAutocompleteResult[]> {
     try {
       // Convert 2-letter country code to 3-letter for HERE API
       const hereCountryCode = countryCode === "US" ? "USA" : countryCode;
@@ -62,7 +106,7 @@ export class HereMapsService {
 
       const response = await fetch(url.toString(), {
         method: "GET",
-        headers: { "Accept": "application/json" },
+        headers: { Accept: "application/json" },
       });
 
       if (!response.ok) {
@@ -77,7 +121,7 @@ export class HereMapsService {
         throw new Error(`HERE API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as HereApiResponse;
       return this.parseAutocompleteResults(data);
     } catch (error) {
       logError(error, {
@@ -89,13 +133,7 @@ export class HereMapsService {
     }
   }
 
-  async validateAddress(address: {
-    line1: string;
-    city: string;
-    state: string;
-    postal_code: string;
-    country: string;
-  }): Promise<HereValidationResult> {
+  async validateAddress(address: AddressValidationInput): Promise<HereValidationResult> {
     try {
       const url = new URL(this.geocodeEndpoint);
       const searchQuery = `${address.line1}, ${address.city}, ${address.state} ${address.postal_code}, ${address.country}`;
@@ -104,14 +142,14 @@ export class HereMapsService {
 
       const response = await fetch(url.toString(), {
         method: "GET",
-        headers: { "Accept": "application/json" },
+        headers: { Accept: "application/json" },
       });
 
       if (!response.ok) {
         throw new Error(`HERE API error: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as HereApiResponse;
       return this.parseValidationResult(data, address);
     } catch (error) {
       logError(error, {
@@ -123,31 +161,41 @@ export class HereMapsService {
     }
   }
 
-  private parseAutocompleteResults(data: any): HereAutocompleteResult[] {
-    const items = data?.items || [];
+  private parseAutocompleteResults(data: HereApiResponse): HereAutocompleteResult[] {
+    const items = data.items ?? [];
     return items
-      .filter((item: any) => item.resultType === "houseNumber" || item.resultType === "street")
-      .map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        address: {
-          label: item.address?.label || "",
-          countryCode: item.address?.countryCode || "US",
-          countryName: item.address?.countryName || "United States",
-          state: item.address?.state || "",
-          county: item.address?.county,
-          city: item.address?.city || "",
-          district: item.address?.district,
-          street: item.address?.street,
-          postalCode: item.address?.postalCode || "",
-          houseNumber: item.address?.houseNumber,
-        },
-        position: item.position,
-      }));
+      .filter((item) => item.resultType === "houseNumber" || item.resultType === "street")
+      .map((item) => {
+        const position =
+          item.position?.lat !== undefined && item.position?.lng !== undefined
+            ? { lat: item.position.lat, lng: item.position.lng }
+            : undefined;
+
+        return {
+          id: item.id || "",
+          title: item.title || "",
+          address: {
+            label: item.address?.label || "",
+            countryCode: item.address?.countryCode || "US",
+            countryName: item.address?.countryName || "United States",
+            state: item.address?.state || "",
+            county: item.address?.county,
+            city: item.address?.city || "",
+            district: item.address?.district,
+            street: item.address?.street,
+            postalCode: item.address?.postalCode || "",
+            houseNumber: item.address?.houseNumber,
+          },
+          position,
+        };
+      });
   }
 
-  private parseValidationResult(data: any, originalAddress: any): HereValidationResult {
-    const items = data?.items || [];
+  private parseValidationResult(
+    data: HereApiResponse,
+    originalAddress: AddressValidationInput,
+  ): HereValidationResult {
+    const items = data.items ?? [];
 
     if (items.length === 0) {
       return {
@@ -163,7 +211,8 @@ export class HereMapsService {
 
     // Format the standardized address from HERE Maps
     const standardizedAddress = {
-      line1: `${firstResult.address?.houseNumber || ""} ${firstResult.address?.street || ""}`.trim(),
+      line1:
+        `${firstResult.address?.houseNumber || ""} ${firstResult.address?.street || ""}`.trim(),
       city: firstResult.address?.city || "",
       state: normalizeUsStateCode(
         firstResult.address?.stateCode || firstResult.address?.state || "",
@@ -196,7 +245,7 @@ export class HereMapsService {
 
     // Medium confidence - provide suggestions
     if (score > 0.6) {
-      const suggestions = items.slice(0, 3).map((item: any) => ({
+      const suggestions = items.slice(0, 3).map((item) => ({
         line1: `${item.address?.houseNumber || ""} ${item.address?.street || ""}`.trim(),
         city: item.address?.city || "",
         state: normalizeUsStateCode(

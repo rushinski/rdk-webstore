@@ -34,7 +34,9 @@ export function AddressInput({
   showErrors = false,
 }: AddressInputProps) {
   const [errors, setErrors] = useState<Partial<Record<keyof AddressValue, string>>>({});
-  const [touched, setTouched] = useState<Partial<Record<keyof AddressValue, boolean>>>({});
+  const [touched, setTouched] = useState<Partial<Record<keyof AddressValue, boolean>>>(
+    {},
+  );
 
   // Client-side validation
   useEffect(() => {
@@ -88,7 +90,9 @@ export function AddressInput({
           onBlur={() => setTouched({ ...touched, name: true })}
           disabled={disabled}
           className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.name) && errors.name ? "border-red-500" : "border-zinc-800"
+            (showErrors || touched.name) && errors.name
+              ? "border-red-500"
+              : "border-zinc-800"
           }`}
         />
         {(showErrors || touched.name) && errors.name && (
@@ -109,7 +113,9 @@ export function AddressInput({
           disabled={disabled}
           placeholder="(555) 123-4567"
           className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.phone) && errors.phone ? "border-red-500" : "border-zinc-800"
+            (showErrors || touched.phone) && errors.phone
+              ? "border-red-500"
+              : "border-zinc-800"
           }`}
         />
         {(showErrors || touched.phone) && errors.phone && (
@@ -130,7 +136,9 @@ export function AddressInput({
           disabled={disabled}
           placeholder="email@example.com"
           className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.email) && errors.email ? "border-red-500" : "border-zinc-800"
+            (showErrors || touched.email) && errors.email
+              ? "border-red-500"
+              : "border-zinc-800"
           }`}
         />
         {(showErrors || touched.email) && errors.email && (
@@ -151,7 +159,9 @@ export function AddressInput({
           disabled={disabled}
           placeholder="123 Main St"
           className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.line1) && errors.line1 ? "border-red-500" : "border-zinc-800"
+            (showErrors || touched.line1) && errors.line1
+              ? "border-red-500"
+              : "border-zinc-800"
           }`}
         />
         {(showErrors || touched.line1) && errors.line1 && (
@@ -177,9 +187,7 @@ export function AddressInput({
       {/* City, State, ZIP */}
       <div className="grid grid-cols-6 gap-4">
         <div className="col-span-3">
-          <label className="block text-sm font-medium text-gray-300 mb-1">
-            City *
-          </label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">City *</label>
           <input
             type="text"
             value={value.city}
@@ -187,7 +195,9 @@ export function AddressInput({
             onBlur={() => setTouched({ ...touched, city: true })}
             disabled={disabled}
             className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-              (showErrors || touched.city) && errors.city ? "border-red-500" : "border-zinc-800"
+              (showErrors || touched.city) && errors.city
+                ? "border-red-500"
+                : "border-zinc-800"
             }`}
           />
           {(showErrors || touched.city) && errors.city && (
@@ -196,9 +206,7 @@ export function AddressInput({
         </div>
 
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-300 mb-1">
-            State *
-          </label>
+          <label className="block text-sm font-medium text-gray-300 mb-1">State *</label>
           <input
             type="text"
             value={value.state}
@@ -208,7 +216,9 @@ export function AddressInput({
             disabled={disabled}
             placeholder="CA"
             className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase ${
-              (showErrors || touched.state) && errors.state ? "border-red-500" : "border-zinc-800"
+              (showErrors || touched.state) && errors.state
+                ? "border-red-500"
+                : "border-zinc-800"
             }`}
           />
           {(showErrors || touched.state) && errors.state && (
@@ -228,7 +238,9 @@ export function AddressInput({
             disabled={disabled}
             placeholder="12345"
             className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-              (showErrors || touched.postal_code) && errors.postal_code ? "border-red-500" : "border-zinc-800"
+              (showErrors || touched.postal_code) && errors.postal_code
+                ? "border-red-500"
+                : "border-zinc-800"
             }`}
           />
           {(showErrors || touched.postal_code) && errors.postal_code && (
@@ -238,7 +250,7 @@ export function AddressInput({
       </div>
 
       {/* Country (hidden, always US for now) */}
-      <input type="hidden" value={value.country} />
+      <input type="hidden" value={value.country || countryCode} />
     </div>
   );
 }

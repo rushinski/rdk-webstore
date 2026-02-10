@@ -1,7 +1,8 @@
 "use client";
 
-import { X, Package, Tag, Calendar, Layers, Hash } from "lucide-react";
+import { X, Package, Tag, Layers, Hash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 // --- Types (Same as before) ---
@@ -59,9 +60,13 @@ const formatMoney = (value: number) =>
   }).format(value);
 
 const formatDateTime = (value?: string | null) => {
-  if (!value) return "-";
+  if (!value) {
+    return "-";
+  }
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
@@ -77,28 +82,24 @@ const getTitle = (item: AdminOrderItem) =>
   "Item";
 
 export const getOrderItemFinancials = (
-  item: AdminOrderItem
+  item: AdminOrderItem,
 ): AdminOrderItemFinancials => {
   const quantity = Math.max(1, Number(item.quantity ?? 0));
   const fallbackUnitPrice =
-    quantity > 0
-      ? Number(item.line_total ?? 0) / quantity
-      : Number(item.line_total ?? 0);
+    quantity > 0 ? Number(item.line_total ?? 0) / quantity : Number(item.line_total ?? 0);
   const unitPrice =
     item.unit_price !== null && item.unit_price !== undefined
       ? Number(item.unit_price)
-      : item.variant?.price_cents !== null &&
-        item.variant?.price_cents !== undefined
-      ? Number(item.variant.price_cents) / 100
-      : fallbackUnitPrice;
+      : item.variant?.price_cents !== null && item.variant?.price_cents !== undefined
+        ? Number(item.variant.price_cents) / 100
+        : fallbackUnitPrice;
 
   const unitCost =
     item.unit_cost !== null && item.unit_cost !== undefined
       ? Number(item.unit_cost)
-      : item.variant?.cost_cents !== null &&
-        item.variant?.cost_cents !== undefined
-      ? Number(item.variant.cost_cents) / 100
-      : Number(item.product?.cost_cents ?? 0) / 100;
+      : item.variant?.cost_cents !== null && item.variant?.cost_cents !== undefined
+        ? Number(item.variant.cost_cents) / 100
+        : Number(item.product?.cost_cents ?? 0) / 100;
   const unitProfit = unitPrice - unitCost;
 
   return { quantity, unitCost, unitPrice, unitProfit };
@@ -109,8 +110,8 @@ const getTagLabels = (item: AdminOrderItem) =>
     new Set(
       (item.product?.tags ?? [])
         .map((entry) => entry.tag?.label?.trim())
-        .filter((label): label is string => Boolean(label))
-    )
+        .filter((label): label is string => Boolean(label)),
+    ),
   );
 
 // --- Components ---
@@ -123,7 +124,7 @@ const DetailRow = ({
 }: {
   label: string;
   value: React.ReactNode;
-  icon?: any;
+  icon?: React.ComponentType<{ className?: string }>;
   className?: string;
 }) => (
   <div className={`flex flex-col gap-0.5 ${className || ""}`}>
@@ -155,9 +156,7 @@ const StatCard = ({
       <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-1">
         {label}
       </span>
-      <span className={`text-base font-semibold ${colorStyles[color]}`}>
-        {value}
-      </span>
+      <span className={`text-base font-semibold ${colorStyles[color]}`}>{value}</span>
     </div>
   );
 };
@@ -176,10 +175,14 @@ export function AdminOrderItemDetailsModal({
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     setSelectedImageIndex(0);
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -187,7 +190,7 @@ export function AdminOrderItemDetailsModal({
 
   const images = useMemo(() => {
     const raw = (item?.product?.images ?? []).filter(
-      (entry): entry is AdminOrderItemImage => Boolean(entry?.url)
+      (entry): entry is AdminOrderItemImage => Boolean(entry?.url),
     );
     if (!raw.length) {
       return [{ url: "/images/rdk-logo.png", is_primary: true, sort_order: 0 }];
@@ -195,12 +198,16 @@ export function AdminOrderItemDetailsModal({
     return [...raw].sort((a, b) => {
       const aPrimary = a.is_primary ? 0 : 1;
       const bPrimary = b.is_primary ? 0 : 1;
-      if (aPrimary !== bPrimary) return aPrimary - bPrimary;
+      if (aPrimary !== bPrimary) {
+        return aPrimary - bPrimary;
+      }
       return Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0);
     });
   }, [item]);
 
-  if (!item) return null;
+  if (!item) {
+    return null;
+  }
 
   const productTitle = getTitle(item);
   const financials = getOrderItemFinancials(item);
@@ -221,24 +228,22 @@ export function AdminOrderItemDetailsModal({
         {/* --- Header (Fixed) --- */}
         <div className="flex-shrink-0 flex items-start justify-between border-b border-zinc-800 bg-zinc-950 px-5 py-4">
           <div className="min-w-0 pr-4">
-            <h2 className="truncate text-lg font-bold text-white">
-              {productTitle}
-            </h2>
+            <h2 className="truncate text-lg font-bold text-white">{productTitle}</h2>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-               <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-zinc-500">SKU:</span>
-                  {/* UPDATED: Removed border/bg box styles */}
-                  <span className="font-mono text-zinc-300">
-                    {item.product?.sku?.trim() || "N/A"}
-                  </span>
-               </div>
-               
-               <div className="flex items-center gap-1.5">
-                  <span className="font-semibold text-zinc-500">Created:</span>
-                  <span className="text-zinc-300">
-                    {formatDateTime(item.product?.created_at)}
-                  </span>
-               </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-zinc-500">SKU:</span>
+                {/* UPDATED: Removed border/bg box styles */}
+                <span className="font-mono text-zinc-300">
+                  {item.product?.sku?.trim() || "N/A"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-zinc-500">Created:</span>
+                <span className="text-zinc-300">
+                  {formatDateTime(item.product?.created_at)}
+                </span>
+              </div>
             </div>
           </div>
           <button
@@ -251,9 +256,7 @@ export function AdminOrderItemDetailsModal({
 
         {/* --- Content Scroll Area --- */}
         <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-zinc-800">
-          
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            
             {/* --- Left Side: Gallery --- */}
             <div className="flex flex-col gap-3">
               <div className="relative w-full overflow-hidden rounded border border-zinc-800 bg-zinc-900/50 flex items-center justify-center">
@@ -263,7 +266,7 @@ export function AdminOrderItemDetailsModal({
                   className="h-48 w-full object-contain p-2 md:h-[300px]"
                 />
               </div>
-              
+
               {/* Thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800">
@@ -290,52 +293,58 @@ export function AdminOrderItemDetailsModal({
 
             {/* --- Right Side: Details --- */}
             <div className="flex flex-col gap-6">
-              
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-2">
-                 <StatCard 
-                    label="Bought" 
-                    value={formatMoney(financials.unitCost)} 
-                  />
-                  <StatCard 
-                    label="Sold" 
-                    value={formatMoney(financials.unitPrice)} 
-                  />
-                 <StatCard 
-                    label="Quantity" 
-                    value={financials.quantity.toString()} 
-                  />
-                  <StatCard 
-                    label="Profit" 
-                    value={`${profitPrefix}${formattedUnitProfit}`} 
-                    color={profitColor}
-                  />
+                <StatCard label="Bought" value={formatMoney(financials.unitCost)} />
+                <StatCard label="Sold" value={formatMoney(financials.unitPrice)} />
+                <StatCard label="Quantity" value={financials.quantity.toString()} />
+                <StatCard
+                  label="Profit"
+                  value={`${profitPrefix}${formattedUnitProfit}`}
+                  color={profitColor}
+                />
               </div>
 
               {/* Attributes */}
               <div className="rounded border border-zinc-800 bg-zinc-900/20 p-4">
-                 <div className="grid grid-cols-2 gap-y-4 gap-x-2">
-                    <DetailRow label="Brand" value={item.product?.brand || "-"} icon={Package} />
-                    <DetailRow label="Category" value={item.product?.category || "-"} icon={Layers} />
-                    <DetailRow label="Model" value={item.product?.model || "-"} />
-                    <DetailRow label="Size" value={item.variant?.size_label || "N/A"} icon={Hash} />
-                 </div>
-                 
-                 <div className="mt-4 pt-4 border-t border-zinc-800/50">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
-                       <Tag className="h-3 w-3" /> Tags
+                <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                  <DetailRow
+                    label="Brand"
+                    value={item.product?.brand || "-"}
+                    icon={Package}
+                  />
+                  <DetailRow
+                    label="Category"
+                    value={item.product?.category || "-"}
+                    icon={Layers}
+                  />
+                  <DetailRow label="Model" value={item.product?.model || "-"} />
+                  <DetailRow
+                    label="Size"
+                    value={item.variant?.size_label || "N/A"}
+                    icon={Hash}
+                  />
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-zinc-800/50">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
+                    <Tag className="h-3 w-3" /> Tags
+                  </div>
+                  {tagLabels.length ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {tagLabels.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[10px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700"
+                        >
+                          {tag}
+                        </span>
+                      ))}
                     </div>
-                    {tagLabels.length ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {tagLabels.map(tag => (
-                            <span key={tag} className="text-[10px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      ) : <span className="text-zinc-500 text-xs italic">No tags</span>
-                    }
-                 </div>
+                  ) : (
+                    <span className="text-zinc-500 text-xs italic">No tags</span>
+                  )}
+                </div>
               </div>
 
               {/* Description */}
@@ -351,7 +360,6 @@ export function AdminOrderItemDetailsModal({
                   )}
                 </div>
               </div>
-
             </div>
           </div>
         </div>
