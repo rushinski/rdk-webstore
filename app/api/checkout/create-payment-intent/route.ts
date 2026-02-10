@@ -249,7 +249,6 @@ export async function POST(request: NextRequest) {
         tax_calculation_id: pricing.taxCalculationId ?? "",
       },
       customerId: connectCustomerId,
-      receiptEmail: email ?? undefined,
       idempotencyKey,
       applicationFeeCents,
     });

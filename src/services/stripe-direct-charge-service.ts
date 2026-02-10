@@ -34,7 +34,6 @@ export interface CreateDirectPaymentIntentParams {
   currency?: string;
   metadata: Record<string, string>;
   customerId?: string; // Stripe customer on the Connect account (if any)
-  receiptEmail?: string;
   idempotencyKey: string;
   applicationFeeCents?: number; // platform fee (0 if no fee)
   shipping?: Stripe.PaymentIntentCreateParams["shipping"];
@@ -80,11 +79,6 @@ export class StripeDirectChargeService {
     // Customer on the Connect account (if we've created one there)
     if (params.customerId) {
       createParams.customer = params.customerId;
-    }
-
-    // Receipt email
-    if (params.receiptEmail) {
-      createParams.receipt_email = params.receiptEmail;
     }
 
     // Shipping info (for ship fulfillment, if known at creation time)

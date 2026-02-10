@@ -150,6 +150,24 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Save guest email for BNPL orders (Afterpay, Affirm, Klarna)
+      // This must happen here because the "succeeded" path may never run
+      // for this endpoint — the webhook handles the final transition.
+      if (!order.user_id && !order.guest_email) {
+        const email = guestEmail || paymentIntent.receipt_email || null;
+        if (email) {
+          log({
+            level: "info",
+            layer: "api",
+            message: "updating_guest_email_processing",
+            requestId,
+            orderId,
+            emailSource: guestEmail ? "frontend" : "stripe",
+          });
+          await ordersRepo.updateGuestEmail(orderId, email);
+        }
+      }
+
       // ✅ CRITICAL FIX: Create access token for guest orders NOW
       // Before any async operations so the processing page can poll immediately
       let guestAccessToken: string | null = null;

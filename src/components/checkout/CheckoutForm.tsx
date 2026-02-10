@@ -118,12 +118,18 @@ export function CheckoutForm({
     const data = await res.json().catch(() => ({}));
 
     if (data?.processing) {
-      router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
-      return;
+      const tokenParam = data.guestAccessToken
+        ? `&token=${encodeURIComponent(data.guestAccessToken)}`
+        : "";
+      router.push(
+        `/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}${tokenParam}`,
+      );
+      return data;
     }
     if (!res.ok) {
       throw new Error(data.error || "Failed to confirm payment");
     }
+    return data;
   };
 
   const getValidationErrors = (): string[] => {
@@ -216,8 +222,16 @@ export function CheckoutForm({
       }
 
       if (paymentIntent.status === "succeeded") {
-        await confirmBackend(paymentIntent.id);
-        router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
+        const confirmData = await confirmBackend(paymentIntent.id);
+        // confirmBackend may have already redirected for processing status
+        if (!confirmData?.processing) {
+          const tokenParam = confirmData?.guestAccessToken
+            ? `&token=${encodeURIComponent(confirmData.guestAccessToken)}`
+            : "";
+          router.push(
+            `/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}${tokenParam}`,
+          );
+        }
         return { ok: true };
       }
 
