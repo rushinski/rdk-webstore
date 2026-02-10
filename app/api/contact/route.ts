@@ -286,13 +286,15 @@ export async function POST(request: NextRequest) {
 
     const source = (parsed.data.source ?? "contact_form") as ContactSource;
 
-    // Insert message (user/anon client is fine for insert if your RLS permits it)
+    // Resolve request user from session cookies (if authenticated)
     const supabase = await createSupabaseServerClient();
-    const contactRepo = new ContactMessagesRepository(supabase);
-
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // Persist with service role so contact submissions do not depend on anon insert RLS.
+    const supabaseAdmin = createSupabaseAdminClient();
+    const contactRepo = new ContactMessagesRepository(supabaseAdmin);
 
     const messageId = await contactRepo.insertMessage({
       name: parsed.data.name,
@@ -315,7 +317,6 @@ export async function POST(request: NextRequest) {
     }> = [];
 
     if (validatedUploads.length > 0) {
-      const supabaseAdmin = createSupabaseAdminClient();
       const uploadService = new ContactAttachmentService(supabaseAdmin);
 
       for (const item of validatedUploads) {
@@ -337,7 +338,7 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // IMPORTANT: update via ADMIN so anon RLS can’t block it.
+      // IMPORTANT: update via ADMIN so anon RLS can't block it.
       const { error: updateErr } = await supabaseAdmin
         .from("contact_messages")
         .update({ attachments: storedAttachments })
