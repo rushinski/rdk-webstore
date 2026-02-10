@@ -70,6 +70,9 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
+      # HERE
+      HERE_MAPS_API_KEY: ${{ secrets.HERE_MAPS_API_KEY }}
+
       # Public Config (can use variables instead of secrets)
       NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://rdk-staging.vercel.app' }}
       NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: ${{ vars.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED || 'true' }}
