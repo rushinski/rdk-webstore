@@ -18,6 +18,7 @@ import { Loader2, Lock, Package, TruckIcon, Mail } from "lucide-react";
 import Link from "next/link";
 
 import type { CartItem } from "@/types/domain/cart";
+import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
 
 import { SavedAddresses } from "./SavedAddresses";
 
@@ -94,9 +95,9 @@ export function CheckoutForm({
           line1: addr.line1,
           line2: addr.line2 ?? null,
           city: addr.city,
-          state: addr.state.trim().toUpperCase(),
+          state: normalizeUsStateCode(addr.state),
           postal_code: addr.postal_code.trim(),
-          country: addr.country.trim().toUpperCase(),
+          country: normalizeCountryCode(addr.country, "US"),
         }
       : null;
 
@@ -145,6 +146,13 @@ export function CheckoutForm({
     }
     if (fulfillment === "ship" && !shippingAddress) {
       errors.push("Shipping address is required");
+    } else if (fulfillment === "ship" && shippingAddress) {
+      if (normalizeUsStateCode(shippingAddress.state).length !== 2) {
+        errors.push("Shipping state must be a 2-letter code");
+      }
+      if (normalizeCountryCode(shippingAddress.country, "US").length !== 2) {
+        errors.push("Shipping country must be a 2-letter code");
+      }
     }
     if (!stripe || !elements) {
       errors.push("Payment system is still loading");

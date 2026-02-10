@@ -8,6 +8,8 @@ import { X, MapPin } from "lucide-react";
 import { AddressInput } from "@/components/shared/AddressInput";
 import { AddressSuggestionModal } from "@/components/shared/AddressSuggestionModal";
 import type { AddressSuggestion } from "@/components/shared/AddressSuggestionModal";
+import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
+
 import type { ShippingAddress } from "./CheckoutForm";
 
 interface ShippingAddressModalProps {
@@ -65,10 +67,6 @@ export function ShippingAddressModal({
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
   }, [isOpen, onClose]);
-
-  const handleChange = (field: keyof ShippingAddress, value: string) => {
-    setAddress((prev) => ({ ...prev, [field]: value }));
-  };
 
   const handleSave = async () => {
     setShowErrors(true);
@@ -133,9 +131,9 @@ export function ShippingAddressModal({
       ...address,
       line1: suggestion.line1,
       city: suggestion.city,
-      state: suggestion.state,
+      state: normalizeUsStateCode(suggestion.state, address.state),
       postal_code: suggestion.postal_code,
-      country: suggestion.country,
+      country: normalizeCountryCode(suggestion.country, address.country || "US"),
     };
     onSave(normalizeAddress(updatedAddress));
     onClose();
@@ -214,7 +212,7 @@ export function ShippingAddressModal({
           ].join(" ")}
         >
           <AddressInput
-            value={address}
+            value={{ ...address, line2: address.line2 ?? "" }}
             onChange={setAddress}
             requirePhone={false}
             requireEmail={false}
@@ -243,7 +241,9 @@ export function ShippingAddressModal({
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => {
+              void handleSave();
+            }}
             disabled={isValidating}
             className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white text-[16px] sm:text-sm font-semibold rounded transition"
           >
@@ -299,9 +299,9 @@ function normalizeAddress(address: ShippingAddress): ShippingAddress {
     line1: address.line1.trim(),
     line2: address.line2?.trim() ?? "",
     city: address.city.trim(),
-    state: address.state.trim().toUpperCase(),
+    state: normalizeUsStateCode(address.state),
     postal_code: address.postal_code.trim(),
-    country: address.country.trim().toUpperCase(),
+    country: normalizeCountryCode(address.country, "US"),
   };
 }
 
@@ -310,7 +310,8 @@ function isValidAddress(address: ShippingAddress): boolean {
     address.name.trim() !== "" &&
     address.line1.trim() !== "" &&
     address.city.trim() !== "" &&
-    address.state.trim() !== "" &&
-    address.postal_code.trim() !== ""
+    address.state.trim().length === 2 &&
+    address.postal_code.trim() !== "" &&
+    address.country.trim().length === 2
   );
 }

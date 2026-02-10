@@ -1,5 +1,6 @@
 // src/services/here-maps-service.ts
 import { env } from "@/config/env";
+import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
 import { logError } from "@/lib/utils/log";
 
 export interface HereAutocompleteResult {
@@ -157,14 +158,19 @@ export class HereMapsService {
 
     const firstResult = items[0];
     const score = firstResult.scoring?.queryScore || 0;
+    const originalState = normalizeUsStateCode(originalAddress.state);
+    const originalCountry = normalizeCountryCode(originalAddress.country, "US");
 
     // Format the standardized address from HERE Maps
     const standardizedAddress = {
       line1: `${firstResult.address?.houseNumber || ""} ${firstResult.address?.street || ""}`.trim(),
       city: firstResult.address?.city || "",
-      state: firstResult.address?.stateCode || firstResult.address?.state || "",
+      state: normalizeUsStateCode(
+        firstResult.address?.stateCode || firstResult.address?.state || "",
+        originalState,
+      ),
       postal_code: firstResult.address?.postalCode || "",
-      country: firstResult.address?.countryCode || "US",
+      country: normalizeCountryCode(firstResult.address?.countryCode, originalCountry),
     };
 
     // Check if the address is different from what user entered
@@ -193,9 +199,12 @@ export class HereMapsService {
       const suggestions = items.slice(0, 3).map((item: any) => ({
         line1: `${item.address?.houseNumber || ""} ${item.address?.street || ""}`.trim(),
         city: item.address?.city || "",
-        state: item.address?.stateCode || item.address?.state || "",
+        state: normalizeUsStateCode(
+          item.address?.stateCode || item.address?.state || "",
+          originalState,
+        ),
         postal_code: item.address?.postalCode || "",
-        country: item.address?.countryCode || "US",
+        country: normalizeCountryCode(item.address?.countryCode, originalCountry),
       }));
 
       return {

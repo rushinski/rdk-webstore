@@ -32,6 +32,7 @@ import {
 import { CartSnapshotService } from "@/services/cart-snapshot-service";
 import { clientEnv } from "@/config/client-env";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
+import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
 
 const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
@@ -205,9 +206,9 @@ export function CheckoutStart() {
       line1: shippingAddress.line1?.trim() ?? "",
       line2: shippingAddress.line2?.trim() || null,
       city: shippingAddress.city?.trim() ?? "",
-      state: shippingAddress.state?.trim().toUpperCase() ?? "",
+      state: normalizeUsStateCode(shippingAddress.state),
       postal_code: shippingAddress.postal_code?.trim() ?? "",
-      country: (shippingAddress.country?.trim() ?? "US").toUpperCase(),
+      country: normalizeCountryCode(shippingAddress.country, "US"),
     };
   }, [shippingAddress]);
 
