@@ -4,6 +4,11 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ExternalLink, AlertCircle } from "lucide-react";
 
+import {
+  AdminOrderItemDetailsModal,
+  getOrderItemFinancials,
+  type AdminOrderItem,
+} from "@/components/admin/orders/OrderItemDetailsModal";
 import { logError } from "@/lib/utils/log";
 import { CreateLabelForm } from "@/components/admin/shipping/CreateLabelForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -41,30 +46,7 @@ const TABS: Array<{ key: TabKey; label: string; status: string }> = [
   { key: "delivered", label: "Delivered", status: "delivered" },
 ];
 
-type OrderItemImage = {
-  url?: string | null;
-  is_primary?: boolean | null;
-};
-
-type OrderItemProduct = {
-  images?: OrderItemImage[] | null;
-  category?: string | null;
-  title_display?: string | null;
-  brand?: string | null;
-  name?: string | null;
-};
-
-type OrderItemVariant = {
-  size_label?: string | null;
-};
-
-type OrderItem = {
-  id: string;
-  quantity?: number | null;
-  line_total?: number | null;
-  product?: OrderItemProduct | null;
-  variant?: OrderItemVariant | null;
-};
+type OrderItem = AdminOrderItem;
 
 type ShippingOrder = {
   id: string;
@@ -257,6 +239,7 @@ export default function ShippingPage() {
   const [confirmMarkShipped, setConfirmMarkShipped] = useState<ShippingOrder | null>(
     null,
   );
+  const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
   const [originAddress, setOriginAddress] = useState<ShippingOrigin | null>(null);
   const [originModalOpen, setOriginModalOpen] = useState(false);
   const [originMessage, setOriginMessage] = useState("");
@@ -394,6 +377,19 @@ export default function ShippingPage() {
 
   const toggleDetails = (orderId: string) => {
     setExpandedDetails((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const toggleOrderExpansion = (orderId: string) => {
+    const nextExpanded = !(
+      (expandedItems[orderId] ?? false) ||
+      (expandedDetails[orderId] ?? false)
+    );
+    setExpandedItems((prev) => ({ ...prev, [orderId]: nextExpanded }));
+    setExpandedDetails((prev) => ({ ...prev, [orderId]: nextExpanded }));
+  };
+
+  const openItemDetails = (item: OrderItem) => {
+    setSelectedItem(item);
   };
 
   const getPackageProfile = (order: ShippingOrder) => {
@@ -629,14 +625,17 @@ export default function ShippingPage() {
     const customerName = getCustomerName(order);
     const itemsExpanded = expandedItems[order.id] ?? false;
     const detailsExpanded = expandedDetails[order.id] ?? false;
-    const colSpan = 8; // FIX: table has 8 columns
-    const labelUrl = order.label_url ?? null; // Add this field to your order model
+    const colSpan = 8;
+    const labelUrl = order.label_url ?? null;
 
     const actionNode =
       activeTab === "label" ? (
         <button
           type="button"
-          onClick={() => setLabelOrder(order)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setLabelOrder(order);
+          }}
           className="text-sm text-red-400 hover:text-red-300"
         >
           Create label
@@ -644,7 +643,10 @@ export default function ShippingPage() {
       ) : activeTab === "ready" ? (
         <button
           type="button"
-          onClick={() => setConfirmMarkShipped(order)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setConfirmMarkShipped(order);
+          }}
           disabled={markingShippedId === order.id}
           className="text-sm text-zinc-400 hover:text-zinc-300 disabled:text-zinc-600"
         >
@@ -656,7 +658,10 @@ export default function ShippingPage() {
 
     return (
       <Fragment key={order.id}>
-        <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
+        <tr
+          onClick={() => toggleOrderExpansion(order.id)}
+          className="cursor-pointer border-b border-zinc-800/70 hover:bg-zinc-800/60"
+        >
           <td className="p-3 sm:p-4 text-gray-400">
             {placedAt.date !== "-" ? (
               <div className="space-y-1">
@@ -690,6 +695,7 @@ export default function ShippingPage() {
                     href={trackingUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(event) => event.stopPropagation()}
                     className="text-red-400 hover:text-red-300 flex items-center gap-1"
                   >
                     {order.tracking_number}
@@ -707,7 +713,10 @@ export default function ShippingPage() {
           <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
             {labelUrl ? (
               <button
-                onClick={() => viewLabel(order)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  viewLabel(order);
+                }}
                 className="text-sm text-red-400 hover:text-red-300"
               >
                 Print Label
@@ -720,7 +729,10 @@ export default function ShippingPage() {
           <td className="p-3 sm:p-4 text-left md:text-right">
             <button
               type="button"
-              onClick={() => toggleItems(order.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleItems(order.id);
+              }}
               className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
             >
               {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
@@ -730,7 +742,10 @@ export default function ShippingPage() {
             </button>
             <button
               type="button"
-              onClick={() => toggleDetails(order.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleDetails(order.id);
+              }}
               className="md:hidden w-full text-[12px] text-red-400 hover:text-red-300 inline-flex items-center justify-start gap-1 leading-none whitespace-nowrap"
             >
               {detailsExpanded ? "Hide label info" : "Label info"}
@@ -743,33 +758,90 @@ export default function ShippingPage() {
         </tr>
 
         {itemsExpanded && (
-          <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
-            <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-              <div className="space-y-3">
+          <tr className="hidden md:table-row bg-zinc-900/40">
+            <td colSpan={colSpan} className="p-0 border-b border-zinc-800/70">
+              <div className="flex flex-col">
                 {(order.items ?? []).map((item: OrderItem) => {
                   const imageUrl = getPrimaryImage(item);
                   const title =
                     (item.product?.title_display ??
                       `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
                     "Item";
+                  const itemFinancials = getOrderItemFinancials(item);
+                  const isPositive = itemFinancials.unitProfit >= 0;
+
                   return (
                     <div
                       key={item.id}
-                      className="flex items-start gap-3 text-base text-gray-400"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openItemDetails(item);
+                      }}
+                      className="group flex cursor-pointer items-center justify-start gap-8 px-6 py-4 transition-colors hover:bg-zinc-800"
                     >
-                      <img
-                        src={imageUrl}
-                        alt={title}
-                        className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
-                      />
-                      <div className="min-w-0">
-                        <div className="text-sm text-white truncate">{title}</div>
-                        <div className="text-sm text-zinc-500">
-                          Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
+                      <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
+                        <img
+                          src={imageUrl}
+                          alt={title}
+                          className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                        />
+                      </div>
+
+                      <div className="w-48 flex-shrink-0">
+                        <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                          Product
                         </div>
-                        <div className="text-sm font-medium text-white mt-0.5">
+                        <div
+                          className="truncate text-sm font-semibold text-white"
+                          title={title}
+                        >
+                          {title}
+                        </div>
+                      </div>
+
+                      <div className="w-28 flex-shrink-0">
+                        <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                          Size
+                        </div>
+                        <div className="text-sm font-medium text-gray-300">
+                          {item.variant?.size_label ?? "N/A"}
+                        </div>
+                      </div>
+
+                      <div className="w-24 flex-shrink-0">
+                        <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                          Qty
+                        </div>
+                        <div className="text-sm font-medium text-gray-300">
+                          {item.quantity}
+                        </div>
+                      </div>
+
+                      <div className="w-32 flex-shrink-0 text-left">
+                        <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                          Line Total
+                        </div>
+                        <div className="text-sm font-bold text-white">
                           ${Number(item.line_total ?? 0).toFixed(2)}
                         </div>
+                      </div>
+
+                      <div className="w-32 flex-shrink-0 text-left">
+                        <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                          Profit
+                        </div>
+                        <div
+                          className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
+                        >
+                          {isPositive ? "+" : "-"}$
+                          {Math.abs(itemFinancials.unitProfit).toFixed(2)}
+                        </div>
+                      </div>
+
+                      <div className="w-20 flex-shrink-0">
+                        <span className="text-xs font-medium text-red-500 transition-colors group-hover:text-red-400">
+                          Details
+                        </span>
                       </div>
                     </div>
                   );
@@ -847,8 +919,16 @@ export default function ShippingPage() {
                       (item.product?.title_display ??
                         `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
                       "Item";
+                    const itemFinancials = getOrderItemFinancials(item);
+                    const formattedUnitProfit = `${
+                      itemFinancials.unitProfit >= 0 ? "+" : "-"
+                    }$${Math.abs(itemFinancials.unitProfit).toFixed(2)}`;
                     return (
-                      <div key={item.id} className="flex items-start gap-3 text-base">
+                      <div
+                        key={item.id}
+                        onClick={() => openItemDetails(item)}
+                        className="flex cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition hover:bg-zinc-800/60"
+                      >
                         <img
                           src={imageUrl}
                           alt={title}
@@ -862,6 +942,28 @@ export default function ShippingPage() {
                           <div className="text-sm font-medium text-white mt-0.5">
                             ${Number(item.line_total ?? 0).toFixed(2)}
                           </div>
+                          <div className="mt-0.5 text-xs text-zinc-500">
+                            Price ${itemFinancials.unitPrice.toFixed(2)} - Profit{" "}
+                            <span
+                              className={
+                                itemFinancials.unitProfit >= 0
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }
+                            >
+                              {formattedUnitProfit}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openItemDetails(item);
+                            }}
+                            className="mt-1 text-xs text-red-400 hover:text-red-300"
+                          >
+                            View more details
+                          </button>
                         </div>
                       </div>
                     );
@@ -987,6 +1089,11 @@ export default function ShippingPage() {
 
       {renderPagination()}
 
+      <AdminOrderItemDetailsModal
+        open={Boolean(selectedItem)}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+      />
       <CreateLabelForm
         open={!!labelOrder}
         order={labelOrder}

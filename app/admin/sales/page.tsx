@@ -4,6 +4,11 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
+import {
+  AdminOrderItemDetailsModal,
+  getOrderItemFinancials,
+  type AdminOrderItem,
+} from "@/components/admin/orders/OrderItemDetailsModal";
 import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
@@ -19,24 +24,7 @@ const SALES_TABS: Array<{ key: TabKey; label: string; statuses: string[] }> = [
   },
 ];
 
-type OrderItemImage = {
-  url?: string | null;
-  is_primary?: boolean | null;
-};
-
-type OrderItem = {
-  id: string;
-  quantity?: number | null;
-  line_total?: number | null;
-  unit_cost?: number | null;
-  product?: {
-    images?: OrderItemImage[] | null;
-    title_display?: string | null;
-    brand?: string | null;
-    name?: string | null;
-  } | null;
-  variant?: { cost_cents?: number | null; size_label?: string | null } | null;
-};
+type OrderItem = AdminOrderItem;
 
 type OrderCustomer = {
   email?: string | null;
@@ -77,6 +65,7 @@ export default function SalesPage() {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+  const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
   const [toast, setToast] = useState<{
     message: string;
     tone: "success" | "error" | "info";
@@ -300,6 +289,19 @@ export default function SalesPage() {
 
   const toggleOrderDetails = (orderId: string) => {
     setExpandedDetails((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
+  };
+
+  const toggleOrderExpansion = (orderId: string) => {
+    const nextExpanded = !(
+      (expandedOrders[orderId] ?? false) ||
+      (expandedDetails[orderId] ?? false)
+    );
+    setExpandedOrders((prev) => ({ ...prev, [orderId]: nextExpanded }));
+    setExpandedDetails((prev) => ({ ...prev, [orderId]: nextExpanded }));
+  };
+
+  const openItemDetails = (item: OrderItem) => {
+    setSelectedItem(item);
   };
 
   const cancelRefundMode = () => {
@@ -549,7 +551,10 @@ export default function SalesPage() {
 
                 return (
                   <Fragment key={order.id}>
-                    <tr className="border-b border-zinc-800/70 hover:bg-zinc-800">
+                    <tr
+                      onClick={() => toggleOrderExpansion(order.id)}
+                      className="cursor-pointer border-b border-zinc-800/70 hover:bg-zinc-800"
+                    >
                       {isRefundMode && (
                         <td className="p-3 sm:p-4">
                           <input
@@ -557,6 +562,7 @@ export default function SalesPage() {
                             name="refundOrder"
                             className="rdk-checkbox"
                             checked={selectedOrderId === order.id}
+                            onClick={(event) => event.stopPropagation()}
                             onChange={() =>
                               setSelectedOrderId((prev) =>
                                 prev === order.id ? null : order.id,
@@ -601,7 +607,10 @@ export default function SalesPage() {
                       <td className="p-3 sm:p-4 text-left md:text-right">
                         <button
                           type="button"
-                          onClick={() => toggleOrderItems(order.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleOrderItems(order.id);
+                          }}
                           className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
                         >
                           {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
@@ -611,7 +620,10 @@ export default function SalesPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => toggleOrderDetails(order.id)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleOrderDetails(order.id);
+                          }}
                           className="md:hidden w-full text-[12px] text-red-400 hover:text-red-300 inline-flex items-center justify-start gap-1 leading-none whitespace-nowrap"
                         >
                           {detailsExpanded ? "Hide details" : "View details"}
@@ -622,31 +634,94 @@ export default function SalesPage() {
                       </td>
                     </tr>
                     {itemsExpanded && (
-                      <tr className="hidden md:table-row border-b border-zinc-800/70 bg-zinc-900/40">
-                        <td colSpan={colSpan} className="px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-                          <div className="flex flex-col gap-3">
+                      <tr className="hidden md:table-row bg-zinc-900/40">
+                        <td colSpan={colSpan} className="p-0 border-b border-zinc-800/70">
+                          <div className="flex flex-col">
                             {(order.items ?? []).map((item: OrderItem) => {
                               const imageUrl = getPrimaryImage(item);
                               const title = getOrderTitle(item);
+                              const itemFinancials = getOrderItemFinancials(item);
+                              const isPositive = itemFinancials.unitProfit >= 0;
+
                               return (
                                 <div
                                   key={item.id}
-                                  className="flex w-full items-start gap-3 text-base text-gray-400"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openItemDetails(item);
+                                  }}
+                                  className="group flex items-center justify-start gap-8 py-4 px-6 cursor-pointer transition-colors hover:bg-zinc-800"
                                 >
-                                  <img
-                                    src={imageUrl}
-                                    alt={title}
-                                    className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
-                                  />
-                                  <div className="min-w-0">
-                                    <div className="text-white truncate">{title}</div>
-                                    <div className="text-sm text-gray-500">
-                                      Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                                  {/* 1. IMAGE */}
+                                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
+                                    <img
+                                      src={imageUrl}
+                                      alt={title}
+                                      className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                                    />
+                                  </div>
+
+                                  {/* 2. PRODUCT TITLE - Swapped order to match attributes (Label Top, Value Bottom) */}
+                                  <div className="w-48 flex-shrink-0">
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
+                                      Product
+                                    </div>
+                                    <div
+                                      className="text-sm font-semibold text-white truncate"
+                                      title={title}
+                                    >
+                                      {title}
+                                    </div>
+                                  </div>
+
+                                  {/* 3. SIZE */}
+                                  <div className="w-28 flex-shrink-0">
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
+                                      Size
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-300">
+                                      {item.variant?.size_label ?? "N/A"}
+                                    </div>
+                                  </div>
+
+                                  {/* 4. QUANTITY */}
+                                  <div className="w-24 flex-shrink-0">
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
+                                      Qty
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-300">
                                       {item.quantity}
                                     </div>
-                                    <div className="text-sm font-medium text-white mt-0.5">
+                                  </div>
+
+                                  {/* 5. PRICE */}
+                                  <div className="w-32 flex-shrink-0 text-left">
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
+                                      Line Total
+                                    </div>
+                                    <div className="text-sm font-bold text-white">
                                       ${Number(item.line_total ?? 0).toFixed(2)}
                                     </div>
+                                  </div>
+
+                                  {/* 6. PROFIT */}
+                                  <div className="w-32 flex-shrink-0 text-left">
+                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
+                                      Profit
+                                    </div>
+                                    <div
+                                      className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
+                                    >
+                                      {isPositive ? "+" : "-"}$
+                                      {Math.abs(itemFinancials.unitProfit).toFixed(2)}
+                                    </div>
+                                  </div>
+
+                                  {/* 7. ACTION */}
+                                  <div className="w-20 flex-shrink-0">
+                                    <span className="text-xs font-medium text-red-500 group-hover:text-red-400 transition-colors">
+                                      Details
+                                    </span>
                                   </div>
                                 </div>
                               );
@@ -692,30 +767,60 @@ export default function SalesPage() {
                               Items
                             </div>
                             <div className="flex flex-col gap-2">
-                              {(order.items ?? []).map((item: OrderItem) => (
-                                <div
-                                  key={item.id}
-                                  className="flex w-full items-start gap-3 text-base"
-                                >
-                                  <img
-                                    src={getPrimaryImage(item)}
-                                    alt={getOrderTitle(item)}
-                                    className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
-                                  />
-                                  <div className="min-w-0">
-                                    <div className="text-white truncate">
-                                      {getOrderTitle(item)}
-                                    </div>
-                                    <div className="text-sm text-gray-500">
-                                      Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
-                                      {item.quantity}
-                                    </div>
-                                    <div className="text-sm font-medium text-white mt-0.5">
-                                      ${Number(item.line_total ?? 0).toFixed(2)}
+                              {(order.items ?? []).map((item: OrderItem) => {
+                                const itemFinancials = getOrderItemFinancials(item);
+                                const formattedUnitProfit = `${
+                                  itemFinancials.unitProfit >= 0 ? "+" : "-"
+                                }$${Math.abs(itemFinancials.unitProfit).toFixed(2)}`;
+                                return (
+                                  <div
+                                    key={item.id}
+                                    onClick={() => openItemDetails(item)}
+                                    className="flex w-full cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition hover:bg-zinc-800/60"
+                                  >
+                                    <img
+                                      src={getPrimaryImage(item)}
+                                      alt={getOrderTitle(item)}
+                                      className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                                    />
+                                    <div className="min-w-0">
+                                      <div className="text-white truncate">
+                                        {getOrderTitle(item)}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                                        {item.quantity}
+                                      </div>
+                                      <div className="text-sm font-medium text-white mt-0.5">
+                                        ${Number(item.line_total ?? 0).toFixed(2)}
+                                      </div>
+                                      <div className="mt-0.5 text-xs text-gray-500">
+                                        Price ${itemFinancials.unitPrice.toFixed(2)} -
+                                        Profit{" "}
+                                        <span
+                                          className={
+                                            itemFinancials.unitProfit >= 0
+                                              ? "text-green-400"
+                                              : "text-red-400"
+                                          }
+                                        >
+                                          {formattedUnitProfit}
+                                        </span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openItemDetails(item);
+                                        }}
+                                        className="mt-1 text-xs text-red-400 hover:text-red-300"
+                                      >
+                                        View more details
+                                      </button>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           </div>
                         </td>
@@ -744,6 +849,11 @@ export default function SalesPage() {
           void confirmRefund();
         }}
         onCancel={() => setPendingRefundId(null)}
+      />
+      <AdminOrderItemDetailsModal
+        open={Boolean(selectedItem)}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
       />
       <Toast
         open={Boolean(toast)}
