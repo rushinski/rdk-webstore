@@ -32,6 +32,14 @@ export default function CheckoutProcessingPage() {
         try {
           setMessage("Confirming your payment...");
 
+          // Recover guest email saved before the Affirm/BNPL redirect
+          let guestEmail: string | undefined;
+          try {
+            guestEmail = sessionStorage.getItem("checkout_guest_email") ?? undefined;
+          } catch {
+            // sessionStorage may be unavailable
+          }
+
           const res = await fetch("/api/checkout/confirm-payment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -39,6 +47,7 @@ export default function CheckoutProcessingPage() {
               orderId,
               paymentIntentId,
               fulfillment: fulfillment as "ship" | "pickup",
+              guestEmail,
             }),
           });
 
@@ -50,6 +59,12 @@ export default function CheckoutProcessingPage() {
 
           if (data.processing || data.success) {
             setMessage("Payment confirmed. Finalizing your order...");
+            // Clean up stored guest email after successful confirmation
+            try {
+              sessionStorage.removeItem("checkout_guest_email");
+            } catch {
+              // non-fatal
+            }
             // ✅ FIX: Pass the guest token to polling
             startPolling(data.guestAccessToken);
           } else {

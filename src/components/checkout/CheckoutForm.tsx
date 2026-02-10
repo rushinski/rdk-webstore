@@ -188,6 +188,16 @@ export function CheckoutForm({
         }
       }
 
+      // Persist guest email before Stripe redirect (Affirm, Afterpay, Klarna)
+      // so the processing page can recover it after the redirect round-trip.
+      if (isGuestCheckout && guestEmail) {
+        try {
+          sessionStorage.setItem("checkout_guest_email", guestEmail);
+        } catch {
+          // sessionStorage may be unavailable; non-fatal
+        }
+      }
+
       const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
