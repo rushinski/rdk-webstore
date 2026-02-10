@@ -188,13 +188,10 @@ export function CheckoutForm({
         }
       }
 
-      // ✅ KEY FIX: Pass receipt_email to Stripe
       const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
           return_url: `${window.location.origin}/checkout/processing?orderId=${orderId}&fulfillment=${fulfillment}`,
-          // This tells Stripe to attach the email to the PaymentIntent object
-          receipt_email: isGuestCheckout && guestEmail ? guestEmail : undefined,
           shipping:
             fulfillment === "ship" && shippingAddress
               ? {
