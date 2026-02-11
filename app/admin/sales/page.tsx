@@ -648,9 +648,7 @@ export default function SalesPage() {
                           "-"
                         )}
                       </td>
-                      <td className="p-3 sm:p-4 text-white">
-                        #{order.id.slice(0, 8)}
-                      </td>
+                      <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
                       <td className="hidden md:table-cell p-3 sm:p-4">
                         <span
                           className={

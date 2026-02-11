@@ -983,39 +983,37 @@ export function InventoryClient({
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold truncate">{rawTitle}</h3>
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className="text-gray-400 text-xs capitalize">
-                          {product.category}
-                        </span>
-                        <span className="text-gray-500 text-xs">|</span>
-                        <span className="text-gray-400 text-xs">Stock: {totalStock}</span>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <h3 className="text-white font-semibold truncate leading-tight">
+                        {rawTitle}
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                        <span className="capitalize">{product.category}</span>
+                        <span className="text-zinc-600">•</span>
+                        <span>Stock: {totalStock}</span>
                       </div>
-                      <div className="mt-2">
-                        <div className="w-full flex flex-col items-start gap-1 text-left">
+                      <div className="w-full flex flex-col items-start gap-1 text-left">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${
+                            liveState.isLive
+                              ? "bg-emerald-500/20 text-emerald-300"
+                              : "bg-amber-500/20 text-amber-300"
+                          }`}
+                        >
+                          {liveState.label}
+                        </span>
+                        {liveState.detail && (
                           <span
-                            className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${
-                              liveState.isLive
-                                ? "bg-emerald-500/20 text-emerald-300"
-                                : "bg-amber-500/20 text-amber-300"
-                            }`}
+                            className="text-[11px] leading-none text-zinc-400 whitespace-nowrap text-left"
+                            title={liveState.detailTooltip ?? undefined}
                           >
-                            {liveState.label}
+                            {liveState.detail}
                           </span>
-                          {liveState.detail && (
-                            <span
-                              className="text-[11px] leading-none text-zinc-400 whitespace-nowrap text-left"
-                              title={liveState.detailTooltip ?? undefined}
-                            >
-                              {liveState.detail}
-                            </span>
-                          )}
-                        </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-center">
+                    <div className="flex flex-col items-end gap-2">
                       <input
                         type="checkbox"
                         className="rdk-checkbox"
@@ -1031,7 +1029,7 @@ export function InventoryClient({
                               prev === product.id ? null : product.id,
                             )
                           }
-                          className="text-gray-400 hover:text-white p-2 rounded hover:bg-zinc-800 cursor-pointer"
+                          className="text-gray-400 hover:text-white p-1.5 rounded hover:bg-zinc-800 cursor-pointer"
                           aria-label="Open actions"
                         >
                           <MoreVertical className="w-4 h-4" />
@@ -1069,7 +1067,7 @@ export function InventoryClient({
                     </div>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-2">
+                  <div className="mt-3 border-t border-zinc-800/70 pt-3 flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => toggleVariants(product.id)}
@@ -1080,6 +1078,9 @@ export function InventoryClient({
                         className={`h-4 w-4 transition-transform ${variantsOpen ? "rotate-180" : ""}`}
                       />
                     </button>
+                    <span className="text-[11px] text-zinc-500">
+                      {product.variants.length} variants
+                    </span>
                   </div>
 
                   {variantsOpen && (

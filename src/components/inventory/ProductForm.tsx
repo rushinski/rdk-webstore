@@ -320,10 +320,7 @@ export function ProductForm({
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
-  const scheduleMin = useMemo(
-    () => toDateTimeLocalValue(new Date().toISOString()),
-    [],
-  );
+  const scheduleMin = useMemo(() => toDateTimeLocalValue(new Date().toISOString()), []);
 
   const ensureScheduledTime = useCallback(() => {
     if (scheduledGoLiveAt.trim()) {
@@ -1724,7 +1721,9 @@ export function ProductForm({
       </div>
 
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold text-white mb-2">Posting Schedule</h2>
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-2">
+          Posting Schedule
+        </h2>
         <p className="text-xs md:text-sm text-gray-400">
           Products post immediately by default. Switch to scheduled posting to pick a
           future go-live date and time.

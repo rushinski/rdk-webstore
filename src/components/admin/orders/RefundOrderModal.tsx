@@ -60,10 +60,7 @@ export function RefundOrderModal({
   const [customAmount, setCustomAmount] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const totalCents = useMemo(
-    () => toCents(Number(order?.total ?? 0)),
-    [order?.total],
-  );
+  const totalCents = useMemo(() => toCents(Number(order?.total ?? 0)), [order?.total]);
   const refundedCents = useMemo(
     () => Math.max(0, Math.round(Number(order?.refund_amount ?? 0))),
     [order?.refund_amount],
@@ -284,14 +281,18 @@ export function RefundOrderModal({
                 })}
               </div>
               <div className="rounded border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-sm text-gray-300">
-                Selected refund total: {formatMoney(fromCents(selectedProductRefundCents))}
+                Selected refund total:{" "}
+                {formatMoney(fromCents(selectedProductRefundCents))}
               </div>
             </div>
           )}
 
           {mode === "custom" && (
             <div className="space-y-2">
-              <label className="block text-sm text-gray-300" htmlFor="custom-refund-amount">
+              <label
+                className="block text-sm text-gray-300"
+                htmlFor="custom-refund-amount"
+              >
                 Refund amount
               </label>
               <input
@@ -306,8 +307,8 @@ export function RefundOrderModal({
                 placeholder="0.00"
               />
               <p className="text-xs text-gray-500">
-                Max refundable: {formatMoney(remainingDollars)}. Custom refunds do not mark
-                items as refunded.
+                Max refundable: {formatMoney(remainingDollars)}. Custom refunds do not
+                mark items as refunded.
               </p>
             </div>
           )}
