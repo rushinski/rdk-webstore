@@ -57,6 +57,8 @@ export class FeaturedItemsRepository {
    * Automatically excludes out-of-stock products
    */
   async list(tenantId?: string): Promise<FeaturedItemWithProduct[]> {
+    const nowIso = new Date().toISOString();
+
     let query = this.supabase
       .from("featured_items")
       .select(
@@ -79,6 +81,7 @@ export class FeaturedItemsRepository {
       )
       .eq("product.is_active", true)
       .eq("product.is_out_of_stock", false)
+      .lte("product.go_live_at", nowIso)
       .order("sort_order", { ascending: true });
 
     query = this.applyTenantFilter(query, tenantId);

@@ -32,6 +32,7 @@ export interface ProductCreateInput {
   condition_note?: string;
   description?: string;
   shipping_override_cents?: number;
+  go_live_at?: string;
   variants: VariantInput[];
   images: ImageInput[];
   tags?: TagInputItem[];
@@ -58,10 +59,15 @@ export class ProductService {
    */
   async getProductById(
     productId: string,
-    options: { tenantId: string; includeOutOfStock?: boolean },
+    options: {
+      tenantId: string;
+      includeOutOfStock?: boolean;
+      includeUnpublished?: boolean;
+    },
   ): Promise<ProductWithDetails | null> {
     const product = await this.repo.getById(productId, {
       includeOutOfStock: options.includeOutOfStock,
+      includeUnpublished: options.includeUnpublished,
     });
 
     if (!product) {
@@ -122,6 +128,7 @@ export class ProductService {
       sku,
       cost_cents: productCost,
       shipping_override_cents: input.shipping_override_cents ?? null,
+      go_live_at: this.normalizeGoLiveAt(input.go_live_at),
       is_active: true,
       created_by: ctx.userId,
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
@@ -161,7 +168,10 @@ export class ProductService {
     input: ProductCreateInput,
     ctx: { userId: string; tenantId: string },
   ) {
-    const existing = await this.repo.getById(productId, { includeOutOfStock: true });
+    const existing = await this.repo.getById(productId, {
+      includeOutOfStock: true,
+      includeUnpublished: true,
+    });
     if (!existing) {
       throw new Error("Product not found");
     }
@@ -180,6 +190,10 @@ export class ProductService {
     });
 
     const productCost = this.getProductCost(input.variants);
+    const goLiveAt =
+      input.go_live_at !== undefined
+        ? this.normalizeGoLiveAt(input.go_live_at)
+        : existing.go_live_at;
 
     const product = await this.repo.update(productId, {
       brand: parsed.brand.label,
@@ -197,6 +211,7 @@ export class ProductService {
       description: input.description || null,
       cost_cents: productCost,
       shipping_override_cents: input.shipping_override_cents ?? null,
+      go_live_at: goLiveAt,
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
     });
 
@@ -241,7 +256,10 @@ export class ProductService {
       sellerId?: string | null;
     },
   ) {
-    const original = await this.repo.getById(productId, { includeOutOfStock: true });
+    const original = await this.repo.getById(productId, {
+      includeOutOfStock: true,
+      includeUnpublished: true,
+    });
     if (!original) {
       throw new Error("Product not found");
     }
@@ -256,6 +274,7 @@ export class ProductService {
       condition_note: original.condition_note || undefined,
       description: original.description || undefined,
       shipping_override_cents: original.shipping_override_cents ?? undefined,
+      go_live_at: original.go_live_at ?? undefined,
       brand_override_id: undefined,
       model_override_id: undefined,
       variants: original.variants.map((v) => ({
@@ -280,7 +299,10 @@ export class ProductService {
   }
 
   async syncSizeTags(productId: string) {
-    const product = await this.repo.getById(productId, { includeOutOfStock: true });
+    const product = await this.repo.getById(productId, {
+      includeOutOfStock: true,
+      includeUnpublished: true,
+    });
     if (!product) {
       return;
     }
@@ -327,6 +349,17 @@ export class ProductService {
       return 0;
     }
     return Math.min(...costs);
+  }
+
+  private normalizeGoLiveAt(goLiveAt?: string): string {
+    if (!goLiveAt?.trim()) {
+      return new Date().toISOString();
+    }
+    const parsed = new Date(goLiveAt);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error("Invalid go-live date/time.");
+    }
+    return parsed.toISOString();
   }
 
   private async createCatalogCandidates(

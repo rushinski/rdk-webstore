@@ -138,6 +138,18 @@ const normalizeImages = (items: ImageDraft[]) => {
 
 const formatMoney = (value: number) => value.toFixed(2);
 
+const toDateTimeLocalValue = (value?: string) => {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+};
+
 const AUTO_TAG_GROUP_KEYS = new Set([
   "brand",
   "model",
@@ -197,6 +209,20 @@ export function ProductForm({
   const [condition, setCondition] = useState<Condition>(initialData?.condition || "new");
   const [conditionNote, setConditionNote] = useState(initialData?.condition_note || "");
   const [description, setDescription] = useState(initialData?.description || "");
+  const [publishMode, setPublishMode] = useState<"immediately" | "scheduled">(() => {
+    const goLiveAt = initialData?.go_live_at;
+    if (!goLiveAt) {
+      return "immediately";
+    }
+    const parsed = Date.parse(goLiveAt);
+    if (!Number.isFinite(parsed)) {
+      return "immediately";
+    }
+    return parsed > Date.now() ? "scheduled" : "immediately";
+  });
+  const [scheduledGoLiveAt, setScheduledGoLiveAt] = useState(() =>
+    toDateTimeLocalValue(initialData?.go_live_at),
+  );
 
   const [shippingPrice, setShippingPrice] = useState(() => {
     const shippingOverrideCents = initialData?.shipping_override_cents;
@@ -294,6 +320,18 @@ export function ProductForm({
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
+  const scheduleMin = useMemo(
+    () => toDateTimeLocalValue(new Date().toISOString()),
+    [],
+  );
+
+  const ensureScheduledTime = useCallback(() => {
+    if (scheduledGoLiveAt.trim()) {
+      return;
+    }
+    const defaultTime = toDateTimeLocalValue(new Date().toISOString());
+    setScheduledGoLiveAt(defaultTime);
+  }, [scheduledGoLiveAt]);
 
   const parsedBrandLabel = parseResult?.brand?.label?.trim() ?? "";
   const parsedBrandGroup = parseResult?.brand?.groupKey ?? null;
@@ -1101,6 +1139,24 @@ export function ProductForm({
         throw new Error("Please add at least one product image.");
       }
 
+      let goLiveAt = new Date().toISOString();
+      if (publishMode === "scheduled") {
+        const value = scheduledGoLiveAt.trim();
+        if (!value) {
+          throw new Error("Please choose a go-live date and time.");
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new Error("Go-live date/time is invalid.");
+        }
+        const nowMinute = new Date();
+        nowMinute.setSeconds(0, 0);
+        if (parsed.getTime() < nowMinute.getTime()) {
+          throw new Error("Go-live date/time cannot be in the past.");
+        }
+        goLiveAt = parsed.toISOString();
+      }
+
       const data: ProductCreateInput = {
         title_raw: trimmedTitle,
         brand_override_id: brandOverrideId ?? undefined,
@@ -1110,6 +1166,7 @@ export function ProductForm({
         condition_note: conditionNote || undefined,
         description: description || undefined,
         shipping_override_cents: shippingCents ?? undefined,
+        go_live_at: goLiveAt,
         variants: preparedVariants,
         images: preparedImages,
         tags: allTags.map((tag) => ({ label: tag.label, group_key: tag.group_key })),
@@ -1664,6 +1721,65 @@ export function ProductForm({
       <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
         <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">Tags</h2>
         <TagInput tags={allTags} onAddTag={handleAddTag} onRemoveTag={handleRemoveTag} />
+      </div>
+
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
+        <h2 className="text-lg md:text-xl font-semibold text-white mb-2">Posting Schedule</h2>
+        <p className="text-xs md:text-sm text-gray-400">
+          Products post immediately by default. Switch to scheduled posting to pick a
+          future go-live date and time.
+        </p>
+
+        <div className="mt-4 space-y-3">
+          <label className="flex items-center gap-3 text-sm text-white cursor-pointer select-none">
+            <input
+              type="radio"
+              name="publish-mode"
+              checked={publishMode === "immediately"}
+              onChange={() => setPublishMode("immediately")}
+              className="h-4 w-4 cursor-pointer accent-red-600"
+            />
+            <span>Post immediately</span>
+          </label>
+          <label className="flex items-center gap-3 text-sm text-white cursor-pointer select-none">
+            <input
+              type="radio"
+              name="publish-mode"
+              checked={publishMode === "scheduled"}
+              onChange={() => {
+                setPublishMode("scheduled");
+                ensureScheduledTime();
+              }}
+              className="h-4 w-4 cursor-pointer accent-red-600"
+            />
+            <span>Schedule date and time</span>
+          </label>
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-gray-400 text-sm mb-1">
+            Go Live Date & Time
+            {publishMode === "scheduled" && (
+              <>
+                {" "}
+                <RequiredMark />
+              </>
+            )}
+          </label>
+          <input
+            type="datetime-local"
+            value={scheduledGoLiveAt}
+            min={scheduleMin}
+            disabled={publishMode !== "scheduled"}
+            onChange={(event) => setScheduledGoLiveAt(event.target.value)}
+            className="w-full sm:w-auto bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
+          />
+          <p className="text-xs text-gray-500 mt-2">
+            {publishMode === "scheduled"
+              ? "This uses your local timezone and converts to UTC when saved."
+              : "Posting immediately. Choose 'Schedule date and time' to enable this field."}
+          </p>
+        </div>
       </div>
 
       {/* Actions - Mobile friendly */}

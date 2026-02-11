@@ -45,6 +45,7 @@ export class FeaturedItemsService {
     // Verify product exists and is eligible
     const product = await this.productRepo.getById(input.productId, {
       includeOutOfStock: true,
+      includeUnpublished: true,
     });
 
     if (!product) {

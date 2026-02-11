@@ -23,6 +23,7 @@ export async function getEditFormInitialData(productId: string) {
       productService.getProductById(productId, {
         tenantId,
         includeOutOfStock: true,
+        includeUnpublished: true,
       }),
       shippingDefaultsService.list(tenantId),
       catalogRepo.listBrandsWithGroups(tenantId),

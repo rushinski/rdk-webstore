@@ -22,6 +22,19 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type StockStatus = "in_stock" | "out_of_stock";
 
 const PAGE_SIZE = 100;
+const LIVE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+});
+const LIVE_DATE_WITH_YEAR_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+const LIVE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+});
 
 interface InventoryClientProps {
   initialProducts: ProductWithDetails[];
@@ -324,6 +337,51 @@ export function InventoryClient({
 
   const getProductTotalStock = (product: ProductWithDetails) =>
     product.variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
+
+  const getProductLiveState = (product: ProductWithDetails) => {
+    if (!product.is_active) {
+      return {
+        isLive: false,
+        label: "Inactive",
+        detail: "Hidden",
+        detailTooltip: "Not visible to customers",
+      };
+    }
+
+    const goLiveAt = product.go_live_at;
+    const parsed = goLiveAt ? Date.parse(goLiveAt) : Number.NaN;
+    if (!Number.isFinite(parsed)) {
+      return {
+        isLive: true,
+        label: "Live",
+        detail: null,
+        detailTooltip: null,
+      };
+    }
+
+    if (parsed <= Date.now()) {
+      return {
+        isLive: true,
+        label: "Live",
+        detail: null,
+        detailTooltip: null,
+      };
+    }
+
+    const scheduledAt = new Date(parsed);
+    const includeYear = scheduledAt.getFullYear() !== new Date().getFullYear();
+    const dateText = includeYear
+      ? LIVE_DATE_WITH_YEAR_FORMATTER.format(scheduledAt)
+      : LIVE_DATE_FORMATTER.format(scheduledAt);
+    const timeText = LIVE_TIME_FORMATTER.format(scheduledAt);
+
+    return {
+      isLive: false,
+      label: "Scheduled",
+      detail: `${dateText} · ${timeText}`,
+      detailTooltip: `${dateText}, ${timeText}`,
+    };
+  };
 
   const toggleVariants = (productId: string) => {
     setExpandedVariants((prev) => ({ ...prev, [productId]: !prev[productId] }));
@@ -646,6 +704,7 @@ export function InventoryClient({
                 <col />
                 <col className="w-28" />
                 <col className="w-20" />
+                <col className="w-44" />
                 <col className="w-32" />
                 <col className="w-20" />
               </colgroup>
@@ -681,6 +740,9 @@ export function InventoryClient({
                     Stock
                   </th>
                   <th className="text-left text-gray-400 font-semibold px-2 py-3">
+                    Live Status
+                  </th>
+                  <th className="text-left text-gray-400 font-semibold px-2 py-3">
                     Variants
                   </th>
                   <th className="text-left text-gray-400 font-semibold px-2 py-3">
@@ -695,6 +757,7 @@ export function InventoryClient({
                   const totalStock = getProductTotalStock(product);
                   const primaryImageUrl = getPrimaryImageUrl(product);
                   const variantsOpen = expandedVariants[product.id] ?? false;
+                  const liveState = getProductLiveState(product);
 
                   return (
                     <Fragment key={product.id}>
@@ -739,6 +802,28 @@ export function InventoryClient({
 
                         <td className="px-2 py-3 text-center text-gray-300 whitespace-nowrap">
                           {totalStock}
+                        </td>
+
+                        <td className="px-2 py-3 text-left">
+                          <div className="w-full flex flex-col items-start gap-1 text-left">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                liveState.isLive
+                                  ? "bg-emerald-500/20 text-emerald-300"
+                                  : "bg-amber-500/20 text-amber-300"
+                              }`}
+                            >
+                              {liveState.label}
+                            </span>
+                            {liveState.detail && (
+                              <span
+                                className="text-[11px] leading-none text-zinc-400 whitespace-nowrap text-left"
+                                title={liveState.detailTooltip ?? undefined}
+                              >
+                                {liveState.detail}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td
@@ -808,7 +893,7 @@ export function InventoryClient({
 
                       {variantsOpen && (
                         <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
-                          <td colSpan={7} className="p-0">
+                          <td colSpan={8} className="p-0">
                             <div className="py-1">
                               <div className="flex flex-col">
                                 {product.variants.map((variant) => (
@@ -878,6 +963,7 @@ export function InventoryClient({
               const totalStock = getProductTotalStock(product);
               const primaryImageUrl = getPrimaryImageUrl(product);
               const variantsOpen = expandedVariants[product.id] ?? false;
+              const liveState = getProductLiveState(product);
 
               return (
                 <div
@@ -905,6 +991,27 @@ export function InventoryClient({
                         </span>
                         <span className="text-gray-500 text-xs">|</span>
                         <span className="text-gray-400 text-xs">Stock: {totalStock}</span>
+                      </div>
+                      <div className="mt-2">
+                        <div className="w-full flex flex-col items-start gap-1 text-left">
+                          <span
+                            className={`inline-flex rounded-full px-2 py-1 text-[11px] font-medium ${
+                              liveState.isLive
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-amber-500/20 text-amber-300"
+                            }`}
+                          >
+                            {liveState.label}
+                          </span>
+                          {liveState.detail && (
+                            <span
+                              className="text-[11px] leading-none text-zinc-400 whitespace-nowrap text-left"
+                              title={liveState.detailTooltip ?? undefined}
+                            >
+                              {liveState.detail}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 

@@ -69,6 +69,7 @@ export function EditProductClient({
     condition_note: product.condition_note || undefined,
     description: product.description || undefined,
     shipping_override_cents: product.shipping_override_cents ?? undefined,
+    go_live_at: product.go_live_at ?? undefined,
     variants: product.variants,
     images: product.images,
     tags: (product.tags ?? []).map((tag) => ({

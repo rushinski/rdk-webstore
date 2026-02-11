@@ -143,6 +143,7 @@ type CartVariantRow = {
     title_display: string;
     is_active: boolean;
     is_out_of_stock: boolean;
+    go_live_at: string | null;
   };
 };
 
@@ -252,6 +253,8 @@ export class ProductRepository {
     const { page = 1, limit = 20, sort = "newest", searchMode = "storefront" } = filters;
     const offset = (page - 1) * limit;
     const isPriceSort = sort === "price_asc" || sort === "price_desc";
+    const includeUnpublished = searchMode === "inventory";
+    const nowIso = new Date().toISOString();
     const searchFields =
       searchMode === "inventory"
         ? this.inventorySearchFields
@@ -273,7 +276,13 @@ export class ProductRepository {
     let ids: string[] = [];
 
     if (isPriceSort) {
-      const result = await this.listProductIdsByPrice(filters, sort, includeOutOfStock);
+      const result = await this.listProductIdsByPrice(
+        filters,
+        sort,
+        includeOutOfStock,
+        includeUnpublished,
+        nowIso,
+      );
       ids = result.ids;
       total = result.total;
     } else {
@@ -281,6 +290,10 @@ export class ProductRepository {
         .from("products")
         .select("id", { count: "exact" })
         .eq("is_active", true);
+
+      if (!includeUnpublished) {
+        query = query.lte("go_live_at", nowIso);
+      }
 
       // Tenant/seller/marketplace scoping
       if (filters.tenantId) {
@@ -362,6 +375,10 @@ export class ProductRepository {
       .in("id", ids)
       .eq("is_active", true);
 
+    if (!includeUnpublished) {
+      detailQuery = detailQuery.lte("go_live_at", nowIso);
+    }
+
     if (filters.stockStatus === "out_of_stock") {
       detailQuery = detailQuery.eq("is_out_of_stock", true);
     } else if (filters.stockStatus === "in_stock") {
@@ -406,7 +423,7 @@ export class ProductRepository {
     opts?: Pick<
       ProductFilters,
       "tenantId" | "sellerId" | "marketplaceId" | "includeOutOfStock"
-    >,
+    > & { includeUnpublished?: boolean },
   ): Promise<ProductWithDetails | null> {
     let query = this.supabase
       .from("products")
@@ -418,6 +435,9 @@ export class ProductRepository {
 
     if (!opts?.includeOutOfStock) {
       query = query.eq("is_out_of_stock", false);
+    }
+    if (!opts?.includeUnpublished) {
+      query = query.lte("go_live_at", new Date().toISOString());
     }
     if (opts?.tenantId) {
       query = query.eq("tenant_id", opts.tenantId);
@@ -598,7 +618,8 @@ export class ProductRepository {
       .from("products")
       .select("brand")
       .eq("is_active", true)
-      .eq("is_out_of_stock", false);
+      .eq("is_out_of_stock", false)
+      .lte("go_live_at", new Date().toISOString());
 
     if (error) {
       throw error;
@@ -618,7 +639,8 @@ export class ProductRepository {
     let query = this.supabase
       .from("products")
       .select("brand, model, brand_is_verified, model_is_verified, category")
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .lte("go_live_at", new Date().toISOString());
 
     if (!includeOutOfStock) {
       query = query.eq("is_out_of_stock", false);
@@ -644,7 +666,8 @@ export class ProductRepository {
       .from("product_variants")
       .select("size_label, size_type, product:products!inner(is_active, is_out_of_stock)")
       .gt("stock", 0)
-      .eq("product.is_active", true);
+      .eq("product.is_active", true)
+      .lte("product.go_live_at", new Date().toISOString());
 
     if (filters?.tenantId) {
       query = query.eq("product.tenant_id", filters.tenantId);
@@ -732,7 +755,8 @@ export class ProductRepository {
         "size_label, size_type, product:products!inner(condition, is_active, is_out_of_stock)",
       )
       .gt("stock", 0)
-      .eq("product.is_active", true);
+      .eq("product.is_active", true)
+      .lte("product.go_live_at", new Date().toISOString());
 
     if (filters?.tenantId) {
       query = query.eq("product.tenant_id", filters.tenantId);
@@ -914,6 +938,8 @@ export class ProductRepository {
     filters: ProductFilters,
     sort: "price_asc" | "price_desc",
     includeOutOfStock: boolean,
+    includeUnpublished: boolean,
+    nowIso: string,
   ) {
     const { page = 1, limit = 20 } = filters;
     const offset = (page - 1) * limit;
@@ -933,6 +959,10 @@ export class ProductRepository {
       .from("products")
       .select("id", { count: "exact", head: true })
       .eq("is_active", true);
+
+    if (!includeUnpublished) {
+      countQuery = countQuery.lte("go_live_at", nowIso);
+    }
 
     // Tenant/seller/marketplace scoping
     if (filters.tenantId) {
@@ -1036,6 +1066,9 @@ export class ProductRepository {
       }
 
       query = query.eq("product.is_active", true);
+      if (!includeUnpublished) {
+        query = query.lte("product.go_live_at", nowIso);
+      }
 
       // Text search on product fields
       query = this.applyTextSearch(query, filters.q, this.storefrontSearchFields, {
@@ -1143,6 +1176,7 @@ export class ProductRepository {
       }>;
     }>
   > {
+    const nowIso = new Date().toISOString();
     const { data, error } = await this.supabase
       .from("products")
       .select(
@@ -1150,7 +1184,8 @@ export class ProductRepository {
       )
       .in("id", productIds)
       .eq("is_active", true)
-      .eq("is_out_of_stock", false);
+      .eq("is_out_of_stock", false)
+      .lte("go_live_at", nowIso);
 
     if (error) {
       throw error;
@@ -1184,7 +1219,7 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("product_variants")
       .select(
-        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_raw, title_display, is_active, is_out_of_stock)",
+        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_raw, title_display, is_active, is_out_of_stock, go_live_at)",
       )
       .in("id", variantIds);
 
@@ -1222,8 +1257,12 @@ export class ProductRepository {
       }
     }
 
+    const now = Date.now();
+
     return rows.map((row: CartVariantRow) => {
       const product = row.product;
+      const goLiveAt = product?.go_live_at ? Date.parse(product.go_live_at) : Number.NaN;
+      const isLive = Number.isFinite(goLiveAt) && goLiveAt <= now;
       return {
         variantId: row.id,
         productId: product?.id ?? row.product_id,
@@ -1236,7 +1275,7 @@ export class ProductRepository {
           product?.title_raw ??
           product?.title_display ??
           `${product?.brand ?? ""} ${product?.name ?? ""}`.trim(),
-        isActive: product?.is_active ?? false,
+        isActive: (product?.is_active ?? false) && isLive,
         isOutOfStock: product?.is_out_of_stock ?? false,
         imageUrl: imageMap.get(product?.id ?? row.product_id) ?? null,
       };
@@ -1249,6 +1288,7 @@ export class ProductRepository {
       .select("model")
       .eq("is_active", true)
       .eq("is_out_of_stock", false)
+      .lte("go_live_at", new Date().toISOString())
       .not("model", "is", null);
 
     if (category) {

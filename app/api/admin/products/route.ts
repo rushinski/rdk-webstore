@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       stockStatus,
       searchMode,
     } = parsedQuery.data;
+    const effectiveSearchMode = searchMode ?? "inventory";
 
     const result = await service.listProducts({
       q,
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
       includeOutOfStock,
       stockStatus,
       tenantId,
-      searchMode,
+      searchMode: effectiveSearchMode,
     });
 
     return NextResponse.json(result, {

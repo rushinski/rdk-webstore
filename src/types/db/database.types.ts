@@ -1217,6 +1217,7 @@ export type Database = {
           default_shipping_price: number | null;
           description: string | null;
           excluded_auto_tag_keys: string[];
+          go_live_at: string;
           id: string;
           is_active: boolean;
           is_out_of_stock: boolean;
@@ -1247,6 +1248,7 @@ export type Database = {
           default_shipping_price?: number | null;
           description?: string | null;
           excluded_auto_tag_keys?: string[];
+          go_live_at?: string;
           id?: string;
           is_active?: boolean;
           is_out_of_stock?: boolean;
@@ -1277,6 +1279,7 @@ export type Database = {
           default_shipping_price?: number | null;
           description?: string | null;
           excluded_auto_tag_keys?: string[];
+          go_live_at?: string;
           id?: string;
           is_active?: boolean;
           is_out_of_stock?: boolean;

@@ -66,6 +66,7 @@ export const productCreateSchema = z
     shipping_override_cents: z.number().int().nonnegative().optional(),
     variants: z.array(variantSchema).min(1),
     images: z.array(imageSchema).min(1),
+    go_live_at: z.string().datetime({ offset: true }).optional(),
     tags: z.array(tagSchema).optional(),
     excluded_auto_tag_keys: z.array(z.string()).optional(),
   })
