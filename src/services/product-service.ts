@@ -13,10 +13,13 @@ import { ProductTitleParserService } from "@/services/product-title-parser-servi
 
 import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
 
-type VariantInput = Pick<
+type VariantWriteInput = Pick<
   TablesInsert<"product_variants">,
   "size_type" | "size_label" | "price_cents" | "stock" | "cost_cents"
 >;
+type VariantInput = VariantWriteInput & {
+  id?: string;
+};
 
 type ImageInput = Pick<
   TablesInsert<"product_images">,
@@ -94,6 +97,7 @@ export class ProductService {
     if (!input.title_raw?.trim()) {
       throw new Error("Product title is required.");
     }
+    this.assertNoDuplicateVariantSizes(input.variants);
 
     const parser = new ProductTitleParserService(this.supabase);
     const parsed = await parser.parseTitle({
@@ -135,10 +139,11 @@ export class ProductService {
     });
 
     for (const variant of input.variants) {
+      const { id: _variantId, ...variantData } = variant;
       await this.repo.createVariant({
         product_id: product.id,
+        ...variantData,
         cost_cents: variant.cost_cents ?? 0,
-        ...variant,
       });
     }
 
@@ -178,6 +183,7 @@ export class ProductService {
     if (!input.title_raw?.trim()) {
       throw new Error("Product title is required.");
     }
+    this.assertNoDuplicateVariantSizes(input.variants);
 
     const tenantId = existing.tenant_id ?? ctx.tenantId;
     const parser = new ProductTitleParserService(this.supabase);
@@ -215,12 +221,99 @@ export class ProductService {
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
     });
 
-    await this.repo.deleteVariantsByProduct(productId);
+    const existingVariants = existing.variants ?? [];
+    const existingVariantsById = new Map(
+      existingVariants.map((variant) => [variant.id, variant]),
+    );
+    const incomingVariantIds = new Set<string>();
+    const incomingExistingVariants: Array<{
+      id: string;
+      payload: VariantWriteInput;
+    }> = [];
+    const incomingNewVariants: VariantWriteInput[] = [];
+
     for (const variant of input.variants) {
+      const variantPayload: VariantWriteInput = {
+        size_type: variant.size_type,
+        size_label: variant.size_label,
+        price_cents: variant.price_cents,
+        stock: variant.stock,
+        cost_cents: variant.cost_cents ?? 0,
+      };
+
+      if (variant.id) {
+        if (incomingVariantIds.has(variant.id)) {
+          throw new Error("Duplicate variant entry in request.");
+        }
+        incomingVariantIds.add(variant.id);
+
+        if (!existingVariantsById.has(variant.id)) {
+          throw new Error("Invalid variant selected for this product.");
+        }
+
+        incomingExistingVariants.push({
+          id: variant.id,
+          payload: variantPayload,
+        });
+        continue;
+      }
+
+      incomingNewVariants.push(variantPayload);
+    }
+
+    const variantsToDelete = existingVariants.filter(
+      (variant) => !incomingVariantIds.has(variant.id),
+    );
+    if (variantsToDelete.length > 0) {
+      const variantIdsToDelete = variantsToDelete.map((variant) => variant.id);
+      const referencedVariantIds = new Set(
+        await this.repo.listReferencedVariantIds(variantIdsToDelete),
+      );
+
+      if (referencedVariantIds.size > 0) {
+        const blockedLabels = variantsToDelete
+          .filter((variant) => referencedVariantIds.has(variant.id))
+          .map((variant) => variant.size_label)
+          .join(", ");
+
+        throw new Error(
+          `Cannot remove variant(s) with existing orders (${blockedLabels}). Set stock to 0 instead.`,
+        );
+      }
+
+      for (const variant of variantsToDelete) {
+        await this.repo.deleteVariant(variant.id);
+      }
+    }
+
+    // Avoid transient unique conflicts while renaming/swapping sizes by parking changed keys first.
+    const variantsRequiringTemporaryKey = incomingExistingVariants.filter(
+      ({ id, payload }) => {
+        const existingVariant = existingVariantsById.get(id);
+        if (!existingVariant) {
+          return false;
+        }
+        return (
+          existingVariant.size_type !== payload.size_type ||
+          existingVariant.size_label !== payload.size_label
+        );
+      },
+    );
+
+    for (const { id } of variantsRequiringTemporaryKey) {
+      await this.repo.updateVariant(id, {
+        size_label: `__tmp__${productId}_${id}`,
+      });
+    }
+
+    for (const { id, payload } of incomingExistingVariants) {
+      await this.repo.updateVariant(id, payload);
+    }
+
+    for (const payload of incomingNewVariants) {
       await this.repo.createVariant({
         product_id: productId,
-        cost_cents: variant.cost_cents ?? 0,
-        ...variant,
+        ...payload,
       });
     }
 
@@ -349,6 +442,21 @@ export class ProductService {
       return 0;
     }
     return Math.min(...costs);
+  }
+
+  private assertNoDuplicateVariantSizes(variants: VariantInput[]) {
+    const seen = new Set<string>();
+
+    for (const variant of variants) {
+      const normalizedSizeLabel = variant.size_label.trim().toLowerCase();
+      const key = `${variant.size_type}:${normalizedSizeLabel}`;
+
+      if (seen.has(key)) {
+        throw new Error(`Duplicate size "${variant.size_label}" found in variants.`);
+      }
+
+      seen.add(key);
+    }
   }
 
   private normalizeGoLiveAt(goLiveAt?: string): string {

@@ -12,7 +12,7 @@ localhost:8443 {
     level INFO
   }
 
-  reverse_proxy http://127.0.0.1:54321
+  reverse_proxy http://127.0.0.1:65431
 }
 
 # Next.js Frontend

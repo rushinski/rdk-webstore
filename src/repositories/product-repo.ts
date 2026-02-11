@@ -555,6 +555,37 @@ export class ProductRepository {
     }
   }
 
+  async deleteVariant(id: string) {
+    const { error } = await this.supabase.from("product_variants").delete().eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async listReferencedVariantIds(variantIds: string[]) {
+    if (variantIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("order_items")
+      .select("variant_id")
+      .in("variant_id", variantIds);
+
+    if (error) {
+      throw error;
+    }
+
+    return [
+      ...new Set(
+        (data ?? [])
+          .map((row) => row.variant_id)
+          .filter((variantId): variantId is string => Boolean(variantId)),
+      ),
+    ];
+  }
+
   async createImage(image: ImageInsert) {
     const { data, error } = await this.supabase
       .from("product_images")

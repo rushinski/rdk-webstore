@@ -297,7 +297,7 @@ export class OrdersRepository {
     let query = this.supabase
       .from("orders")
       .select(
-        "id, created_at, subtotal, total, refund_amount, items:order_items(quantity, unit_cost)",
+        "id, created_at, subtotal, total, refund_amount, items:order_items(quantity, unit_cost, refunded_at)",
       )
       .order("created_at", { ascending: false });
 

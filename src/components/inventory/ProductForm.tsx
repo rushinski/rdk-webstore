@@ -36,6 +36,7 @@ interface ProductFormProps {
 }
 
 type VariantDraft = {
+  id?: string;
   size_label: string;
   price: string;
   cost: string;
@@ -289,6 +290,7 @@ export function ProductForm({
   const [variants, setVariants] = useState<VariantDraft[]>(() => {
     const sizeType = getSizeTypeForCategory(initialData?.category || "sneakers");
     const mapped = initialData?.variants?.map((variant) => ({
+      id: variant.id ?? undefined,
       size_label: variant.size_label?.trim() ?? "",
       price: formatMoney(variant.price_cents / 100),
       cost: formatMoney((variant.cost_cents ?? 0) / 100),
@@ -1116,6 +1118,7 @@ export function ProductForm({
         seenSizeKeys.add(sizeKey);
 
         return {
+          ...(variant.id ? { id: variant.id } : {}),
           size_type: sizeType,
           size_label: sizeLabel,
           price_cents: priceCents,

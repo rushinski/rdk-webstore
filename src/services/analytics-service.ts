@@ -1,6 +1,10 @@
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { SitePageviewsRepository } from "@/repositories/site-pageviews-repo";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import {
+  getOrderNetProfitDollars,
+  getOrderNetRevenueDollars,
+} from "@/lib/orders/metrics";
 
 const rangeDays: Record<string, number> = {
   today: 1,
@@ -17,6 +21,7 @@ interface OrderForAnalytics {
   items: Array<{
     unit_cost: string | number | null;
     quantity: string | number | null;
+    refunded_at?: string | null;
   }> | null;
 }
 
@@ -140,19 +145,20 @@ export class AnalyticsService {
 
     filtered.forEach((order) => {
       orderCount += 1;
-      const total = Number(order.total ?? 0);
-      const refundAmount = Number(order.refund_amount ?? 0) / 100;
+      const netRevenue = getOrderNetRevenueDollars(order.total, order.refund_amount);
+      const netProfit = getOrderNetProfitDollars({
+        subtotal: order.subtotal,
+        total: order.total,
+        refundAmountRaw: order.refund_amount,
+        items: order.items,
+        resolveUnitCost: (item) => Number(item.unit_cost ?? 0),
+      });
 
-      const itemCost = (order.items || []).reduce((sum, item) => {
-        const unitCost = Number(item.unit_cost ?? 0);
-        return sum + unitCost * Number(item.quantity ?? 0);
-      }, 0);
-
-      revenue += total - refundAmount;
-      profit += Number(order.subtotal ?? 0) - itemCost - refundAmount;
+      revenue += netRevenue;
+      profit += netProfit;
 
       const dateKey = toDateKey(order.created_at);
-      trendMap.set(dateKey, (trendMap.get(dateKey) ?? 0) + total - refundAmount);
+      trendMap.set(dateKey, (trendMap.get(dateKey) ?? 0) + netRevenue);
     });
 
     const salesTrend = Array.from(trendMap.entries())

@@ -9,6 +9,10 @@ import {
   getOrderItemFinancials,
   type AdminOrderItem,
 } from "@/components/admin/orders/OrderItemDetailsModal";
+import {
+  getOrderNetProfitDollars,
+  getOrderNetRevenueDollars,
+} from "@/lib/orders/metrics";
 import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
 
@@ -204,15 +208,15 @@ export default function PickupsPage() {
       ) {
         totalSales += 1;
       }
-      const total = Number(order.total ?? 0);
-      const refundAmount = Number(order.refund_amount ?? 0) / 100;
-      revenue += total - refundAmount;
-
-      const itemCost = (order.items || []).reduce((sum: number, item: OrderItem) => {
-        const unitCost = Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100);
-        return sum + unitCost * Number(item.quantity ?? 0);
-      }, 0);
-      profit += Number(order.subtotal ?? 0) - itemCost - refundAmount;
+      revenue += getOrderNetRevenueDollars(order.total, order.refund_amount);
+      profit += getOrderNetProfitDollars({
+        subtotal: order.subtotal,
+        total: order.total,
+        refundAmountRaw: order.refund_amount,
+        items: order.items,
+        resolveUnitCost: (item) =>
+          Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100),
+      });
     });
 
     return { revenue, profit, totalSales };
@@ -408,7 +412,11 @@ export default function PickupsPage() {
         </div>
         <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-6">
           <span className="text-gray-400 text-[11px] sm:text-sm">Profit</span>
-          <div className="text-lg sm:text-3xl font-bold text-green-400 mt-1 sm:mt-2">
+          <div
+            className={`text-lg sm:text-3xl font-bold mt-1 sm:mt-2 ${
+              summary.profit >= 0 ? "text-green-400" : "text-red-400"
+            }`}
+          >
             <span className="sm:hidden">{compactMoney(summary.profit)}</span>
             <span className="hidden sm:inline">${summary.profit.toFixed(2)}</span>
           </div>
@@ -486,17 +494,16 @@ export default function PickupsPage() {
             </thead>
             <tbody>
               {filteredOrders.map((order) => {
-                const itemCost = (order.items || []).reduce(
-                  (sum: number, item: OrderItem) => {
-                    const unitCost = Number(
-                      item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100,
-                    );
-                    return sum + unitCost * Number(item.quantity ?? 0);
-                  },
-                  0,
-                );
-                const refundAmount = Number(order.refund_amount ?? 0) / 100;
-                const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
+                const profit = getOrderNetProfitDollars({
+                  subtotal: order.subtotal,
+                  total: order.total,
+                  refundAmountRaw: order.refund_amount,
+                  items: order.items,
+                  resolveUnitCost: (item) =>
+                    Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100),
+                });
+                const profitPrefix = profit >= 0 ? "+" : "-";
+                const profitClass = profit >= 0 ? "text-green-400" : "text-red-400";
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
                 const customerName = getCustomerName(order);
                 const customerEmail = getCustomerEmail(order);
@@ -547,8 +554,10 @@ export default function PickupsPage() {
                       <td className="p-3 sm:p-4 text-right text-white">
                         ${Number(order.total ?? 0).toFixed(2)}
                       </td>
-                      <td className="hidden md:table-cell p-3 sm:p-4 text-right text-green-400">
-                        +${profit.toFixed(2)}
+                      <td
+                        className={`hidden md:table-cell p-3 sm:p-4 text-right ${profitClass}`}
+                      >
+                        {profitPrefix}${Math.abs(profit).toFixed(2)}
                       </td>
                       <td className="p-3 sm:p-4 text-left md:text-right">
                         <button
@@ -736,8 +745,8 @@ export default function PickupsPage() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Profit</span>
-                              <span className="text-green-400">
-                                +${profit.toFixed(2)}
+                              <span className={profitClass}>
+                                {profitPrefix}${Math.abs(profit).toFixed(2)}
                               </span>
                             </div>
                             <div className="flex items-center justify-between gap-4">

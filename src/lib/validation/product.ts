@@ -7,6 +7,7 @@ const STOCK_STATUS_VALUES = ["in_stock", "out_of_stock", "all"] as const;
 
 const variantSchema = z
   .object({
+    id: z.string().uuid().optional(),
     size_type: z.string().trim().min(1),
     size_label: z.string().trim().min(1),
     price_cents: z.number().int().nonnegative(),
