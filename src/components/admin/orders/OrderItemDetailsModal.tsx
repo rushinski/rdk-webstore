@@ -23,6 +23,8 @@ export type AdminOrderItem = {
   id: string;
   quantity?: number | null;
   line_total?: number | null;
+  refund_amount?: number | null;
+  refunded_at?: string | null;
   unit_cost?: number | null;
   unit_price?: number | null;
   product?: {

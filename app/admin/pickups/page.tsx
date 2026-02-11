@@ -15,7 +15,7 @@ import { Toast } from "@/components/ui/Toast";
 type TabKey = "pending" | "completed";
 
 const PAGE_SIZE = 20;
-const PICKUP_ORDER_STATUSES = ["paid", "shipped"];
+const PICKUP_ORDER_STATUSES = ["paid", "shipped", "partially_refunded"];
 
 const PICKUP_TABS: Array<{
   key: TabKey;
@@ -199,6 +199,7 @@ export default function PickupsPage() {
       if (
         order.status === "paid" ||
         order.status === "shipped" ||
+        order.status === "partially_refunded" ||
         order.status === "refunded"
       ) {
         totalSales += 1;
@@ -608,6 +609,7 @@ export default function PickupsPage() {
                               const title = getOrderTitle(item);
                               const itemFinancials = getOrderItemFinancials(item);
                               const isPositive = itemFinancials.unitProfit >= 0;
+                              const isRefunded = Boolean(item.refunded_at);
 
                               return (
                                 <div
@@ -616,71 +618,90 @@ export default function PickupsPage() {
                                     event.stopPropagation();
                                     openItemDetails(item);
                                   }}
-                                  className="group flex cursor-pointer items-center justify-start gap-8 px-6 py-4 transition-colors hover:bg-zinc-800"
+                                  className={`group relative cursor-pointer px-6 py-4 transition-colors ${
+                                    isRefunded
+                                      ? "bg-red-950/20 border-y border-red-900/40"
+                                      : "hover:bg-zinc-800"
+                                  }`}
                                 >
-                                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
-                                    <img
-                                      src={imageUrl}
-                                      alt={title}
-                                      className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
-                                    />
-                                  </div>
+                                  {isRefunded && (
+                                    <span className="absolute inset-y-0 left-0 w-1 bg-red-500/80" />
+                                  )}
+                                  <div
+                                    className={`flex items-center justify-start gap-8 ${
+                                      isRefunded ? "opacity-60" : ""
+                                    }`}
+                                  >
+                                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
+                                      <img
+                                        src={imageUrl}
+                                        alt={title}
+                                        className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                                      />
+                                    </div>
 
-                                  <div className="w-48 flex-shrink-0">
-                                    <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                                      Product
+                                    <div className="w-48 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Product
+                                      </div>
+                                      <div
+                                        className="truncate text-sm font-semibold text-white"
+                                        title={title}
+                                      >
+                                        {title}
+                                      </div>
                                     </div>
-                                    <div
-                                      className="truncate text-sm font-semibold text-white"
-                                      title={title}
-                                    >
-                                      {title}
-                                    </div>
-                                  </div>
 
-                                  <div className="w-28 flex-shrink-0">
-                                    <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                                      Size
+                                    <div className="w-28 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Size
+                                      </div>
+                                      <div className="text-sm font-medium text-gray-300">
+                                        {item.variant?.size_label ?? "N/A"}
+                                      </div>
                                     </div>
-                                    <div className="text-sm font-medium text-gray-300">
-                                      {item.variant?.size_label ?? "N/A"}
-                                    </div>
-                                  </div>
 
-                                  <div className="w-24 flex-shrink-0">
-                                    <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                                      Qty
+                                    <div className="w-24 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Qty
+                                      </div>
+                                      <div className="text-sm font-medium text-gray-300">
+                                        {item.quantity}
+                                      </div>
                                     </div>
-                                    <div className="text-sm font-medium text-gray-300">
-                                      {item.quantity}
-                                    </div>
-                                  </div>
 
-                                  <div className="w-32 flex-shrink-0 text-left">
-                                    <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                                      Line Total
+                                    <div className="w-32 flex-shrink-0 text-left">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Line Total
+                                      </div>
+                                      <div className="text-sm font-bold text-white">
+                                        ${Number(item.line_total ?? 0).toFixed(2)}
+                                      </div>
                                     </div>
-                                    <div className="text-sm font-bold text-white">
-                                      ${Number(item.line_total ?? 0).toFixed(2)}
-                                    </div>
-                                  </div>
 
-                                  <div className="w-32 flex-shrink-0 text-left">
-                                    <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                                      Profit
+                                    <div className="w-32 flex-shrink-0 text-left">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Profit
+                                      </div>
+                                      <div
+                                        className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
+                                      >
+                                        {isPositive ? "+" : "-"}$
+                                        {Math.abs(itemFinancials.unitProfit).toFixed(2)}
+                                      </div>
                                     </div>
-                                    <div
-                                      className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
-                                    >
-                                      {isPositive ? "+" : "-"}$
-                                      {Math.abs(itemFinancials.unitProfit).toFixed(2)}
-                                    </div>
-                                  </div>
 
-                                  <div className="w-20 flex-shrink-0">
-                                    <span className="text-xs font-medium text-red-500 transition-colors group-hover:text-red-400">
-                                      Details
-                                    </span>
+                                    <div className="w-20 flex-shrink-0">
+                                      {isRefunded ? (
+                                        <span className="inline-flex items-center rounded-sm border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
+                                          Refunded
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs font-medium text-red-500 transition-colors group-hover:text-red-400">
+                                          Details
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -755,12 +776,20 @@ export default function PickupsPage() {
                                 const formattedUnitProfit = `${
                                   itemFinancials.unitProfit >= 0 ? "+" : "-"
                                 }$${Math.abs(itemFinancials.unitProfit).toFixed(2)}`;
+                                const isRefunded = Boolean(item.refunded_at);
                                 return (
                                   <div
                                     key={item.id}
                                     onClick={() => openItemDetails(item)}
-                                    className="flex cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition hover:bg-zinc-800/60"
+                                    className={`relative flex cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition ${
+                                      isRefunded
+                                        ? "bg-red-950/20 border border-red-900/40"
+                                        : "hover:bg-zinc-800/60"
+                                    }`}
                                   >
+                                    {isRefunded && (
+                                      <span className="absolute inset-y-0 left-0 w-1 rounded-l-sm bg-red-500/80" />
+                                    )}
                                     <img
                                       src={getPrimaryImage(item)}
                                       alt={getOrderTitle(item)}
@@ -801,6 +830,13 @@ export default function PickupsPage() {
                                         View more details
                                       </button>
                                     </div>
+                                    {isRefunded && (
+                                      <div className="absolute right-2 top-2">
+                                        <span className="inline-flex items-center rounded-sm border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-300">
+                                          Refunded
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}

@@ -804,6 +804,8 @@ export type Database = {
           order_id: string;
           product_id: string;
           quantity: number;
+          refund_amount: number | null;
+          refunded_at: string | null;
           unit_cost: number | null;
           unit_price: number;
           variant_id: string | null;
@@ -815,6 +817,8 @@ export type Database = {
           order_id: string;
           product_id: string;
           quantity: number;
+          refund_amount?: number | null;
+          refunded_at?: string | null;
           unit_cost?: number | null;
           unit_price: number;
           variant_id?: string | null;
@@ -826,6 +830,8 @@ export type Database = {
           order_id?: string;
           product_id?: string;
           quantity?: number;
+          refund_amount?: number | null;
+          refunded_at?: string | null;
           unit_cost?: number | null;
           unit_price?: number;
           variant_id?: string | null;
@@ -1813,6 +1819,10 @@ export type Database = {
     };
     Functions: {
       decrement_variant_stock: {
+        Args: { p_quantity: number; p_variant_id: string };
+        Returns: undefined;
+      };
+      increment_variant_stock: {
         Args: { p_quantity: number; p_variant_id: string };
         Returns: undefined;
       };

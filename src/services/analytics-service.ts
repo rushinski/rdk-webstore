@@ -120,7 +120,7 @@ export class AnalyticsService {
     startDate.setHours(0, 0, 0, 0);
 
     const orders = await this.ordersRepo.listOrdersForAnalytics({
-      status: ["paid", "shipped", "refunded"],
+      status: ["paid", "shipped", "refunded", "partially_refunded"],
       since: startDate.toISOString(),
     });
 

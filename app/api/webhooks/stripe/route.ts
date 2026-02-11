@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
       case "charge.refund.updated":
       case "refund.created":
       case "refund.updated":
-        await handleRefundEvent(event, adminSupabase, requestId);
+        await handleRefundEvent(event, connectAccountId, adminSupabase, requestId);
         break;
 
       default:
@@ -450,6 +450,7 @@ async function handlePaymentIntentFailed(
 
 async function handleRefundEvent(
   event: Stripe.Event,
+  connectAccountId: string | null,
   adminSupabase: AdminSupabaseClient,
   requestId: string,
 ) {
@@ -457,17 +458,28 @@ async function handleRefundEvent(
     const refund = event.data.object as Stripe.Refund;
     const chargeId =
       typeof refund.charge === "string" ? refund.charge : refund.charge?.id;
+    const paymentIntentId =
+      typeof refund.payment_intent === "string" ? refund.payment_intent : null;
 
-    if (!chargeId) {
+    if (!chargeId && !paymentIntentId) {
+      return;
+    }
+
+    const orderLookupFilters: string[] = [];
+    if (chargeId) {
+      orderLookupFilters.push(`stripe_charge_id.eq.${chargeId}`);
+    }
+    if (paymentIntentId) {
+      orderLookupFilters.push(`stripe_payment_intent_id.eq.${paymentIntentId}`);
+    }
+    if (orderLookupFilters.length === 0) {
       return;
     }
 
     const { data: orders } = await adminSupabase
       .from("orders")
-      .select("id, status")
-      .or(
-        `stripe_charge_id.eq.${chargeId},stripe_payment_intent_id.eq.${refund.payment_intent}`,
-      )
+      .select("id, status, total")
+      .or(orderLookupFilters.join(","))
       .limit(1);
 
     if (!orders?.length) {
@@ -475,15 +487,50 @@ async function handleRefundEvent(
     }
 
     const order = orders[0];
+    let succeededRefundCents = 0;
+    let pendingRefundCents = 0;
+
+    if (paymentIntentId) {
+      const refunds = await stripe.refunds.list(
+        {
+          payment_intent: paymentIntentId,
+          limit: 100,
+        },
+        connectAccountId ? { stripeAccount: connectAccountId } : undefined,
+      );
+
+      refunds.data.forEach((entry) => {
+        const cents = Math.max(0, Math.round(Number(entry.amount ?? 0)));
+        if (entry.status === "succeeded") {
+          succeededRefundCents += cents;
+        } else if (entry.status === "pending") {
+          pendingRefundCents += cents;
+        }
+      });
+    } else {
+      const cents = Math.max(0, Math.round(Number(refund.amount ?? 0)));
+      if (refund.status === "succeeded") {
+        succeededRefundCents = cents;
+      } else if (refund.status === "pending") {
+        pendingRefundCents = cents;
+      }
+    }
+
+    const orderTotalCents = Math.max(0, Math.round(Number(order.total ?? 0) * 100));
+    const trackedRefundCents = succeededRefundCents + pendingRefundCents;
+
     const updateData: TablesUpdate<"orders"> = {
-      refund_amount: refund.amount,
-      refunded_at: new Date(refund.created * 1000).toISOString(),
+      refund_amount: trackedRefundCents,
+      refunded_at:
+        trackedRefundCents > 0 ? new Date(refund.created * 1000).toISOString() : null,
     };
 
-    if (refund.status === "succeeded") {
-      updateData.status = "refunded";
-    } else if (refund.status === "pending") {
+    if (pendingRefundCents > 0) {
       updateData.status = "refund_pending";
+    } else if (succeededRefundCents >= orderTotalCents && succeededRefundCents > 0) {
+      updateData.status = "refunded";
+    } else if (succeededRefundCents > 0) {
+      updateData.status = "partially_refunded";
     } else if (refund.status === "failed") {
       updateData.status = "refund_failed";
     }
@@ -497,6 +544,8 @@ async function handleRefundEvent(
       requestId,
       orderId: order.id,
       refundId: refund.id,
+      refundAmountCents: trackedRefundCents,
+      refundOrderStatus: updateData.status ?? order.status,
     });
   } catch (err) {
     logError(err, { layer: "stripe", requestId, message: "refund_handling_failed" });

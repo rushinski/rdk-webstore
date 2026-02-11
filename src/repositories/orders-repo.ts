@@ -243,6 +243,23 @@ export class OrdersRepository {
     return data ?? [];
   }
 
+  async getOrderItemsByIds(orderId: string, itemIds: string[]): Promise<OrderItemRow[]> {
+    if (itemIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", orderId)
+      .in("id", itemIds);
+
+    if (error) {
+      throw error;
+    }
+    return data ?? [];
+  }
+
   async listOrders(params?: {
     status?: string[];
     fulfillment?: string;
@@ -387,6 +404,85 @@ export class OrdersRepository {
       throw error;
     }
     return data as OrderRow;
+  }
+
+  async updateRefundSummary(
+    orderId: string,
+    input: {
+      status: string;
+      refundAmount: number;
+      refundedAt?: string | null;
+    },
+  ): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({
+        status: input.status,
+        refund_amount: input.refundAmount,
+        refunded_at:
+          input.refundedAt !== undefined
+            ? input.refundedAt
+            : input.refundAmount > 0
+              ? new Date().toISOString()
+              : null,
+      })
+      .eq("id", orderId);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async markOrderItemsRefunded(
+    orderId: string,
+    itemRefunds: Array<{ itemId: string; refundAmount: number }>,
+    refundedAt = new Date().toISOString(),
+  ): Promise<void> {
+    const deduped = new Map<string, number>();
+    itemRefunds.forEach((item) => {
+      if (!item.itemId) {
+        return;
+      }
+      deduped.set(item.itemId, item.refundAmount);
+    });
+
+    for (const [itemId, refundAmount] of deduped.entries()) {
+      const { error } = await this.supabase
+        .from("order_items")
+        .update({
+          refund_amount: refundAmount,
+          refunded_at: refundedAt,
+        })
+        .eq("id", itemId)
+        .eq("order_id", orderId);
+
+      if (error) {
+        throw error;
+      }
+    }
+  }
+
+  async restockVariants(
+    variantAdjustments: Array<{ variantId: string; quantity: number }>,
+  ): Promise<void> {
+    const grouped = new Map<string, number>();
+    variantAdjustments.forEach((entry) => {
+      if (!entry.variantId || entry.quantity <= 0) {
+        return;
+      }
+      grouped.set(entry.variantId, (grouped.get(entry.variantId) ?? 0) + entry.quantity);
+    });
+
+    for (const [variantId, quantity] of grouped.entries()) {
+      const { error } = await this.supabase.rpc("increment_variant_stock", {
+        p_variant_id: variantId,
+        p_quantity: quantity,
+      });
+
+      if (error) {
+        throw error;
+      }
+    }
   }
 
   async setFulfillmentStatus(orderId: string, status: string): Promise<void> {

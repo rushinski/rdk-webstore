@@ -9,18 +9,25 @@ import {
   getOrderItemFinancials,
   type AdminOrderItem,
 } from "@/components/admin/orders/OrderItemDetailsModal";
+import {
+  RefundOrderModal,
+  type RefundRequestPayload,
+} from "@/components/admin/orders/RefundOrderModal";
 import { logError } from "@/lib/utils/log";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
 
 type TabKey = "paid" | "refunded";
 
 const SALES_TABS: Array<{ key: TabKey; label: string; statuses: string[] }> = [
-  { key: "paid", label: "Paid", statuses: ["paid", "shipped"] },
+  {
+    key: "paid",
+    label: "Paid",
+    statuses: ["paid", "shipped", "partially_refunded"],
+  },
   {
     key: "refunded",
     label: "Refunded",
-    statuses: ["refunded", "refund_pending", "refund_failed"],
+    statuses: ["refunded", "refund_pending", "refund_failed", "partially_refunded"],
   },
 ];
 
@@ -62,6 +69,7 @@ export default function SalesPage() {
   const [counts, setCounts] = useState<Record<TabKey, number>>({ paid: 0, refunded: 0 });
   const [refreshToken, setRefreshToken] = useState(0);
   const [pendingRefundId, setPendingRefundId] = useState<string | null>(null);
+  const [isRefundSubmitting, setIsRefundSubmitting] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
@@ -186,6 +194,25 @@ export default function SalesPage() {
     return primary?.url ?? "/images/rdk-logo.png";
   };
 
+  const getOrderTotalCents = (order: SalesOrder) =>
+    Math.max(0, Math.round(Number(order.total ?? 0) * 100));
+
+  const getOrderRefundedCents = (order: SalesOrder) =>
+    Math.max(0, Math.round(Number(order.refund_amount ?? 0)));
+
+  const getOrderRemainingRefundableCents = (order: SalesOrder) =>
+    Math.max(0, getOrderTotalCents(order) - getOrderRefundedCents(order));
+
+  const isOrderRefundable = (order: SalesOrder) => {
+    const status = order.status ?? "paid";
+    const canRefundStatus =
+      status === "paid" ||
+      status === "shipped" ||
+      status === "partially_refunded" ||
+      status === "refund_failed";
+    return canRefundStatus && getOrderRemainingRefundableCents(order) > 0;
+  };
+
   const summary = useMemo(() => {
     let revenue = 0;
     let profit = 0;
@@ -195,6 +222,7 @@ export default function SalesPage() {
       if (
         order.status === "paid" ||
         order.status === "shipped" ||
+        order.status === "partially_refunded" ||
         order.status === "refunded"
       ) {
         totalSales += 1;
@@ -249,37 +277,60 @@ export default function SalesPage() {
     });
   }, [orders, searchQuery]);
 
+  const pendingRefundOrder = useMemo(
+    () => orders.find((order) => order.id === pendingRefundId) ?? null,
+    [orders, pendingRefundId],
+  );
+
   const requestSelectedRefund = () => {
     if (!selectedOrderId) {
+      return;
+    }
+    const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+    if (!selectedOrder || !isOrderRefundable(selectedOrder)) {
+      setToast({ message: "Selected order cannot be refunded.", tone: "error" });
       return;
     }
     setPendingRefundId(selectedOrderId);
   };
 
-  const confirmRefund = async () => {
+  const confirmRefund = async (payload: RefundRequestPayload) => {
     if (!pendingRefundId) {
       return;
     }
     const orderId = pendingRefundId;
-    setPendingRefundId(null);
+    setIsRefundSubmitting(true);
 
     try {
       const response = await fetch(`/api/admin/orders/${orderId}/refund`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (response.ok && data?.success !== false) {
-        setToast({ message: "Order refunded.", tone: "success" });
+        const refundModeLabel =
+          payload.type === "full"
+            ? "Full refund processed."
+            : payload.type === "product"
+              ? "Product refund processed."
+              : "Custom refund processed.";
+        const warning = typeof data?.warning === "string" ? data.warning : null;
+        setToast({
+          message: warning ? `${refundModeLabel} ${warning}` : refundModeLabel,
+          tone: warning ? "info" : "success",
+        });
+        setPendingRefundId(null);
         setRefreshToken((prev) => prev + 1);
       } else {
         setToast({ message: data?.error ?? "Refund failed.", tone: "error" });
       }
     } catch {
       setToast({ message: "Refund failed.", tone: "error" });
+    } finally {
+      setIsRefundSubmitting(false);
     }
   };
 
@@ -310,8 +361,12 @@ export default function SalesPage() {
   };
 
   const hasRefundableOrders =
-    activeTab === "paid" &&
-    orders.some((order) => order.status === "paid" || order.status === "shipped");
+    activeTab === "paid" && orders.some((order) => isOrderRefundable(order));
+  const selectedOrder = useMemo(
+    () => orders.find((order) => order.id === selectedOrderId) ?? null,
+    [orders, selectedOrderId],
+  );
+  const canRefundSelectedOrder = selectedOrder ? isOrderRefundable(selectedOrder) : false;
 
   const renderPagination = () => {
     if (totalPages <= 1) {
@@ -400,7 +455,7 @@ export default function SalesPage() {
               <button
                 type="button"
                 onClick={requestSelectedRefund}
-                disabled={!selectedOrderId}
+                disabled={!selectedOrderId || !canRefundSelectedOrder}
                 className="bg-red-600 hover:bg-red-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white px-4 py-2 rounded-sm text-sm transition"
               >
                 Refund selected
@@ -501,6 +556,9 @@ export default function SalesPage() {
                   Order
                 </th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Status
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
                   Customer
                 </th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
@@ -535,15 +593,17 @@ export default function SalesPage() {
                 const refundAmount = Number(order.refund_amount ?? 0) / 100;
                 const profit = Number(order.subtotal ?? 0) - itemCost - refundAmount;
                 const status = order.status ?? "paid";
-                const canRefund = status === "paid" || status === "shipped";
+                const canRefund = isOrderRefundable(order);
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
                 const customerName = getCustomerName(order);
                 const customerEmail = getCustomerEmail(order);
                 const fulfillmentLabel =
                   order.fulfillment === "pickup" ? "Pickup" : "Ship";
+                const saleStatusLabel =
+                  status === "partially_refunded" ? "Partially refunded" : "Paid";
                 const itemsExpanded = expandedOrders[order.id] ?? false;
                 const detailsExpanded = expandedDetails[order.id] ?? false;
-                const colSpan = isRefundMode ? 9 : 8;
+                const colSpan = isRefundMode ? 10 : 9;
                 const itemCount = (order.items ?? []).reduce(
                   (sum: number, item: OrderItem) => sum + Number(item.quantity ?? 0),
                   0,
@@ -588,7 +648,20 @@ export default function SalesPage() {
                           "-"
                         )}
                       </td>
-                      <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
+                      <td className="p-3 sm:p-4 text-white">
+                        #{order.id.slice(0, 8)}
+                      </td>
+                      <td className="hidden md:table-cell p-3 sm:p-4">
+                        <span
+                          className={
+                            saleStatusLabel === "Partially refunded"
+                              ? "text-amber-300"
+                              : "text-green-400"
+                          }
+                        >
+                          {saleStatusLabel}
+                        </span>
+                      </td>
                       <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
                         {customerName}
                       </td>
@@ -642,6 +715,7 @@ export default function SalesPage() {
                               const title = getOrderTitle(item);
                               const itemFinancials = getOrderItemFinancials(item);
                               const isPositive = itemFinancials.unitProfit >= 0;
+                              const isRefunded = Boolean(item.refunded_at);
 
                               return (
                                 <div
@@ -650,78 +724,97 @@ export default function SalesPage() {
                                     e.stopPropagation();
                                     openItemDetails(item);
                                   }}
-                                  className="group flex items-center justify-start gap-8 py-4 px-6 cursor-pointer transition-colors hover:bg-zinc-800"
+                                  className={`group relative cursor-pointer px-6 py-4 transition-colors ${
+                                    isRefunded
+                                      ? "bg-red-950/20 border-y border-red-900/40"
+                                      : "hover:bg-zinc-800"
+                                  }`}
                                 >
-                                  {/* 1. IMAGE */}
-                                  <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
-                                    <img
-                                      src={imageUrl}
-                                      alt={title}
-                                      className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
-                                    />
-                                  </div>
+                                  {isRefunded && (
+                                    <span className="absolute inset-y-0 left-0 w-1 bg-red-500/80" />
+                                  )}
+                                  <div
+                                    className={`flex items-center justify-start gap-8 ${
+                                      isRefunded ? "opacity-60" : ""
+                                    }`}
+                                  >
+                                    {/* 1. IMAGE */}
+                                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
+                                      <img
+                                        src={imageUrl}
+                                        alt={title}
+                                        className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
+                                      />
+                                    </div>
 
-                                  {/* 2. PRODUCT TITLE - Swapped order to match attributes (Label Top, Value Bottom) */}
-                                  <div className="w-48 flex-shrink-0">
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
-                                      Product
+                                    {/* 2. PRODUCT TITLE */}
+                                    <div className="w-48 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Product
+                                      </div>
+                                      <div
+                                        className="truncate text-sm font-semibold text-white"
+                                        title={title}
+                                      >
+                                        {title}
+                                      </div>
                                     </div>
-                                    <div
-                                      className="text-sm font-semibold text-white truncate"
-                                      title={title}
-                                    >
-                                      {title}
-                                    </div>
-                                  </div>
 
-                                  {/* 3. SIZE */}
-                                  <div className="w-28 flex-shrink-0">
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
-                                      Size
+                                    {/* 3. SIZE */}
+                                    <div className="w-28 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Size
+                                      </div>
+                                      <div className="text-sm font-medium text-gray-300">
+                                        {item.variant?.size_label ?? "N/A"}
+                                      </div>
                                     </div>
-                                    <div className="text-sm font-medium text-gray-300">
-                                      {item.variant?.size_label ?? "N/A"}
-                                    </div>
-                                  </div>
 
-                                  {/* 4. QUANTITY */}
-                                  <div className="w-24 flex-shrink-0">
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
-                                      Qty
+                                    {/* 4. QUANTITY */}
+                                    <div className="w-24 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Qty
+                                      </div>
+                                      <div className="text-sm font-medium text-gray-300">
+                                        {item.quantity}
+                                      </div>
                                     </div>
-                                    <div className="text-sm font-medium text-gray-300">
-                                      {item.quantity}
-                                    </div>
-                                  </div>
 
-                                  {/* 5. PRICE */}
-                                  <div className="w-32 flex-shrink-0 text-left">
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
-                                      Line Total
+                                    {/* 5. PRICE */}
+                                    <div className="w-32 flex-shrink-0 text-left">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Line Total
+                                      </div>
+                                      <div className="text-sm font-bold text-white">
+                                        ${Number(item.line_total ?? 0).toFixed(2)}
+                                      </div>
                                     </div>
-                                    <div className="text-sm font-bold text-white">
-                                      ${Number(item.line_total ?? 0).toFixed(2)}
-                                    </div>
-                                  </div>
 
-                                  {/* 6. PROFIT */}
-                                  <div className="w-32 flex-shrink-0 text-left">
-                                    <div className="text-[10px] text-gray-500 uppercase tracking-tight mb-0.5">
-                                      Profit
+                                    {/* 6. PROFIT */}
+                                    <div className="w-32 flex-shrink-0 text-left">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                        Profit
+                                      </div>
+                                      <div
+                                        className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
+                                      >
+                                        {isPositive ? "+" : "-"}$
+                                        {Math.abs(itemFinancials.unitProfit).toFixed(2)}
+                                      </div>
                                     </div>
-                                    <div
-                                      className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
-                                    >
-                                      {isPositive ? "+" : "-"}$
-                                      {Math.abs(itemFinancials.unitProfit).toFixed(2)}
-                                    </div>
-                                  </div>
 
-                                  {/* 7. ACTION */}
-                                  <div className="w-20 flex-shrink-0">
-                                    <span className="text-xs font-medium text-red-500 group-hover:text-red-400 transition-colors">
-                                      Details
-                                    </span>
+                                    {/* 7. ACTION */}
+                                    <div className="w-20 flex-shrink-0">
+                                      {isRefunded ? (
+                                        <span className="inline-flex items-center rounded-sm border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
+                                          Refunded
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs font-medium text-red-500 transition-colors group-hover:text-red-400">
+                                          Details
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -755,6 +848,18 @@ export default function SalesPage() {
                               <span className="text-white">{fulfillmentLabel}</span>
                             </div>
                             <div className="flex items-center justify-between gap-4">
+                              <span className="text-gray-500">Status</span>
+                              <span
+                                className={
+                                  saleStatusLabel === "Partially refunded"
+                                    ? "text-amber-300"
+                                    : "text-green-400"
+                                }
+                              >
+                                {saleStatusLabel}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Profit</span>
                               <span className="text-green-400">
                                 +${profit.toFixed(2)}
@@ -772,12 +877,20 @@ export default function SalesPage() {
                                 const formattedUnitProfit = `${
                                   itemFinancials.unitProfit >= 0 ? "+" : "-"
                                 }$${Math.abs(itemFinancials.unitProfit).toFixed(2)}`;
+                                const isRefunded = Boolean(item.refunded_at);
                                 return (
                                   <div
                                     key={item.id}
                                     onClick={() => openItemDetails(item)}
-                                    className="flex w-full cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition hover:bg-zinc-800/60"
+                                    className={`relative flex w-full cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition ${
+                                      isRefunded
+                                        ? "bg-red-950/20 border border-red-900/40"
+                                        : "hover:bg-zinc-800/60"
+                                    }`}
                                   >
+                                    {isRefunded && (
+                                      <span className="absolute inset-y-0 left-0 w-1 rounded-l-sm bg-red-500/80" />
+                                    )}
                                     <img
                                       src={getPrimaryImage(item)}
                                       alt={getOrderTitle(item)}
@@ -818,6 +931,13 @@ export default function SalesPage() {
                                         View more details
                                       </button>
                                     </div>
+                                    {isRefunded && (
+                                      <div className="absolute right-2 top-2">
+                                        <span className="inline-flex items-center rounded-sm border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-300">
+                                          Refunded
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               })}
@@ -836,19 +956,16 @@ export default function SalesPage() {
 
       {renderPagination()}
 
-      <ConfirmDialog
-        isOpen={Boolean(pendingRefundId)}
-        title="Refund order?"
-        description={
-          pendingRefundId
-            ? `This will refund order #${pendingRefundId.slice(0, 8)} in full.`
-            : undefined
-        }
-        confirmLabel="Refund"
-        onConfirm={() => {
-          void confirmRefund();
+      <RefundOrderModal
+        open={Boolean(pendingRefundId)}
+        order={pendingRefundOrder}
+        submitting={isRefundSubmitting}
+        onConfirm={confirmRefund}
+        onClose={() => {
+          if (!isRefundSubmitting) {
+            setPendingRefundId(null);
+          }
         }}
-        onCancel={() => setPendingRefundId(null)}
       />
       <AdminOrderItemDetailsModal
         open={Boolean(selectedItem)}
