@@ -35,6 +35,25 @@ const extractErrorMessage = (error: unknown): string | null => {
   return null;
 };
 
+const isForeignKeyViolation = (error: unknown, constraintName?: string): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as Record<string, unknown>;
+  if (record.code !== "23503") {
+    return false;
+  }
+
+  if (!constraintName) {
+    return true;
+  }
+
+  const details = typeof record.details === "string" ? record.details : "";
+  const message = typeof record.message === "string" ? record.message : "";
+  return details.includes(constraintName) || message.includes(constraintName);
+};
+
 const paramsSchema = z.object({
   id: z.string().uuid(),
 });
@@ -127,7 +146,7 @@ export async function DELETE(
     }
 
     const service = new ProductService(supabase);
-    await service.deleteProduct(paramsParsed.data.id);
+    const result = await service.deleteProduct(paramsParsed.data.id);
 
     try {
       revalidateTag(`product:${paramsParsed.data.id}`, "max");
@@ -143,7 +162,7 @@ export async function DELETE(
     }
 
     return NextResponse.json(
-      { success: true },
+      { success: true, archived: result.archived },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -152,6 +171,27 @@ export async function DELETE(
       requestId,
       route: "/api/admin/products/:id",
     });
+    if (isForeignKeyViolation(error, "order_items_product_id_fkey")) {
+      return NextResponse.json(
+        {
+          error:
+            "Cannot delete this product because it is referenced by existing orders. Archive it instead.",
+          requestId,
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    if (isForeignKeyViolation(error)) {
+      return NextResponse.json(
+        {
+          error: "Cannot delete this product because it is still referenced.",
+          requestId,
+        },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const message = extractErrorMessage(error) ?? "Failed to delete product";
     return NextResponse.json(
       { error: message, requestId },

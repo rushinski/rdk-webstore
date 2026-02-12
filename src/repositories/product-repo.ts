@@ -517,6 +517,30 @@ export class ProductRepository {
     }
   }
 
+  async archive(id: string) {
+    const { error } = await this.supabase
+      .from("products")
+      .update({ is_active: false, is_out_of_stock: true })
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async countOrderItemsForProduct(productId: string): Promise<number> {
+    const { count, error } = await this.supabase
+      .from("order_items")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", productId);
+
+    if (error) {
+      throw error;
+    }
+
+    return count ?? 0;
+  }
+
   async createVariant(variant: VariantInsert) {
     const { data, error } = await this.supabase
       .from("product_variants")

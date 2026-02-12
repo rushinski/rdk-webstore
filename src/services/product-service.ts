@@ -422,8 +422,16 @@ export class ProductService {
     }
   }
 
-  async deleteProduct(productId: string) {
+  async deleteProduct(productId: string): Promise<{ archived: boolean }> {
+    const orderItemCount = await this.repo.countOrderItemsForProduct(productId);
+
+    if (orderItemCount > 0) {
+      await this.repo.archive(productId);
+      return { archived: true };
+    }
+
     await this.repo.delete(productId);
+    return { archived: false };
   }
 
   private generateSKU(brand: string): string {

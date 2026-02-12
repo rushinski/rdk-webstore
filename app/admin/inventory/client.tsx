@@ -406,8 +406,28 @@ export function InventoryClient({
 
     try {
       const response = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => null);
+      const errorMessage =
+        payload &&
+        typeof payload === "object" &&
+        typeof (payload as { error?: unknown }).error === "string"
+          ? (payload as { error: string }).error
+          : "Failed to delete product.";
+
       if (response.ok) {
-        showToast(`Deleted ${label}.`, "success");
+        const archived =
+          payload &&
+          typeof payload === "object" &&
+          Boolean((payload as { archived?: unknown }).archived);
+
+        if (archived) {
+          showToast(
+            `${label} has existing orders and was archived instead of deleted.`,
+            "info",
+          );
+        } else {
+          showToast(`Deleted ${label}.`, "success");
+        }
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
@@ -416,7 +436,7 @@ export function InventoryClient({
           page,
         });
       } else {
-        showToast("Failed to delete product.", "error");
+        showToast(errorMessage, "error");
       }
     } catch {
       showToast("Error deleting product.", "error");
