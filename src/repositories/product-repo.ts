@@ -412,8 +412,8 @@ export class ProductRepository {
 
     let products = ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[];
 
-    // Apply relevance sorting for inventory searches with query
-    if (searchMode === "inventory" && filters.q?.trim()) {
+    // Apply relevance sorting for searches with query (both inventory and storefront)
+    if (filters.q?.trim()) {
       const productsWithScores = products.map((product) => ({
         product,
         score: this.calculateSearchRelevance(product, filters.q, searchFields),
