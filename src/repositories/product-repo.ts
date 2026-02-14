@@ -410,8 +410,23 @@ export class ProductRepository {
       ]),
     );
 
+    let products = ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[];
+
+    // Apply relevance sorting for inventory searches with query
+    if (searchMode === "inventory" && filters.q?.trim()) {
+      const productsWithScores = products.map((product) => ({
+        product,
+        score: this.calculateSearchRelevance(product, filters.q, searchFields),
+      }));
+
+      // Sort by relevance score (highest first)
+      productsWithScores.sort((a, b) => b.score - a.score);
+
+      products = productsWithScores.map((item) => item.product);
+    }
+
     return {
-      products: ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[],
+      products,
       total,
       page,
       limit,
@@ -594,8 +609,9 @@ export class ProductRepository {
 
     const { data, error } = await this.supabase
       .from("order_items")
-      .select("variant_id")
-      .in("variant_id", variantIds);
+      .select("variant_id, order:orders!inner(status)")
+      .in("variant_id", variantIds)
+      .in("order.status", ["paid", "shipped"]);
 
     if (error) {
       throw error;
@@ -987,6 +1003,76 @@ export class ProductRepository {
 
   private buildInClause(values: string[]) {
     return values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",");
+  }
+
+  /**
+   * Calculate a relevance score for a product based on search terms.
+   * Higher scores indicate better matches.
+   */
+  private calculateSearchRelevance(
+    product: ProductRow,
+    searchQuery: string | undefined,
+    searchFields: string[],
+  ): number {
+    if (!searchQuery?.trim()) {
+      return 0;
+    }
+
+    const query = searchQuery.trim().toLowerCase();
+    const terms = this.buildSearchTerms(searchQuery);
+    let score = 0;
+
+    // Helper to get field values
+    const getFieldValue = (field: string): string => {
+      const value = product[field as keyof ProductRow];
+      return String(value ?? "").toLowerCase();
+    };
+
+    // Check each search field
+    for (const field of searchFields) {
+      const fieldValue = getFieldValue(field);
+      if (!fieldValue) {
+        continue;
+      }
+
+      // Exact match bonus (highest priority)
+      if (fieldValue === query) {
+        score += 1000;
+      }
+
+      // Starts with query bonus
+      if (fieldValue.startsWith(query)) {
+        score += 500;
+      }
+
+      // Contains full query bonus
+      if (fieldValue.includes(query)) {
+        score += 250;
+      }
+
+      // Count matching terms
+      let matchingTerms = 0;
+      for (const term of terms) {
+        if (fieldValue.includes(term)) {
+          matchingTerms++;
+        }
+      }
+
+      // Bonus for matching all terms
+      if (terms.length > 0 && matchingTerms === terms.length) {
+        score += 100;
+      }
+
+      // Bonus for each matching term
+      score += matchingTerms * 10;
+
+      // Bonus for matches in title_raw (primary search field for inventory)
+      if (field === "title_raw") {
+        score *= 1.5;
+      }
+    }
+
+    return score;
   }
 
   private async listProductIdsByPrice(
