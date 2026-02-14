@@ -286,74 +286,87 @@ export class ProductRepository {
       ids = result.ids;
       total = result.total;
     } else {
-      let query = this.supabase
-        .from("products")
-        .select("id", { count: "exact" })
-        .eq("is_active", true);
+      // Build the base query with all filters
+      let baseQuery = this.supabase.from("products").select("id", { count: "exact" });
+
+      baseQuery = baseQuery.eq("is_active", true);
 
       if (!includeUnpublished) {
-        query = query.lte("go_live_at", nowIso);
+        baseQuery = baseQuery.lte("go_live_at", nowIso);
       }
 
       // Tenant/seller/marketplace scoping
       if (filters.tenantId) {
-        query = query.eq("tenant_id", filters.tenantId);
+        baseQuery = baseQuery.eq("tenant_id", filters.tenantId);
       }
       if (filters.sellerId) {
-        query = query.eq("seller_id", filters.sellerId);
+        baseQuery = baseQuery.eq("seller_id", filters.sellerId);
       }
       if (filters.marketplaceId) {
-        query = query.eq("marketplace_id", filters.marketplaceId);
+        baseQuery = baseQuery.eq("marketplace_id", filters.marketplaceId);
       }
 
       if (filters.stockStatus === "out_of_stock") {
-        query = query.eq("is_out_of_stock", true);
+        baseQuery = baseQuery.eq("is_out_of_stock", true);
       } else if (filters.stockStatus === "in_stock") {
-        query = query.eq("is_out_of_stock", false);
+        baseQuery = baseQuery.eq("is_out_of_stock", false);
       } else if (!includeOutOfStock) {
         // default (storefront-safe)
-        query = query.eq("is_out_of_stock", false);
+        baseQuery = baseQuery.eq("is_out_of_stock", false);
       }
 
       // Text search
-      query = this.applyTextSearch(query, filters.q, searchFields);
+      baseQuery = this.applyTextSearch(baseQuery, filters.q, searchFields);
 
       // Category / brand / condition filters
       if (filters.category?.length) {
-        query = query.in("category", filters.category);
+        baseQuery = baseQuery.in("category", filters.category);
       }
       if (filters.brand?.length) {
-        query = query.in("brand", filters.brand);
+        baseQuery = baseQuery.in("brand", filters.brand);
       }
       if (filters.model?.length) {
-        query = query.in("model", filters.model);
+        baseQuery = baseQuery.in("model", filters.model);
       }
       if (filters.condition?.length) {
-        query = query.in("condition", filters.condition);
+        baseQuery = baseQuery.in("condition", filters.condition);
       }
 
       if (Array.isArray(sizeProductIds)) {
-        query = query.in("id", sizeProductIds);
+        baseQuery = baseQuery.in("id", sizeProductIds);
       }
 
-      // Sorting
-      switch (sort) {
-        case "newest":
-          query = query.order("created_at", { ascending: false });
-          break;
-        case "name_asc":
-          query = query
-            .order("title_display", { ascending: true })
-            .order("created_at", { ascending: false });
-          break;
-        case "name_desc":
-          query = query
-            .order("title_display", { ascending: false })
-            .order("created_at", { ascending: false });
-          break;
-      }
+      // Determine if we have a search query
+      const hasSearchQuery = Boolean(filters.q?.trim());
 
-      query = query.range(offset, offset + limit - 1);
+      // For search queries, we need to fetch more results to properly rank them
+      // So we'll get the total count first, then fetch accordingly
+      let query = baseQuery;
+
+      if (!hasSearchQuery) {
+        // No search - use normal sorting and pagination
+        switch (sort) {
+          case "newest":
+            query = query.order("created_at", { ascending: false });
+            break;
+          case "name_asc":
+            query = query
+              .order("title_display", { ascending: true })
+              .order("created_at", { ascending: false });
+            break;
+          case "name_desc":
+            query = query
+              .order("title_display", { ascending: false })
+              .order("created_at", { ascending: false });
+            break;
+        }
+        query = query.range(offset, offset + limit - 1);
+      } else {
+        // For searches, fetch more results to score and rank them
+        // Fetch up to 500 results to ensure good ranking
+        const fetchLimit = 500;
+        query = query.order("created_at", { ascending: false }).range(0, fetchLimit - 1);
+      }
 
       const { data, error, count } = await query;
       if (error) {
@@ -422,7 +435,9 @@ export class ProductRepository {
       // Sort by relevance score (highest first)
       productsWithScores.sort((a, b) => b.score - a.score);
 
-      products = productsWithScores.map((item) => item.product);
+      // Apply pagination AFTER scoring
+      const paginatedScores = productsWithScores.slice(offset, offset + limit);
+      products = paginatedScores.map((item) => item.product);
     }
 
     return {
@@ -599,6 +614,38 @@ export class ProductRepository {
 
     if (error) {
       throw error;
+    }
+  }
+
+  async deleteAbandonedOrderItems(variantIds: string[]) {
+    if (variantIds.length === 0) {
+      return;
+    }
+
+    // First, get order_items for these variants that are in pending/canceled orders
+    const { data: itemsToDelete, error: selectError } = await this.supabase
+      .from("order_items")
+      .select("id, order:orders!inner(status)")
+      .in("variant_id", variantIds)
+      .in("order.status", ["pending", "canceled"]);
+
+    if (selectError) {
+      throw selectError;
+    }
+
+    if (!itemsToDelete || itemsToDelete.length === 0) {
+      return;
+    }
+
+    // Delete these order_items
+    const itemIds = itemsToDelete.map((item) => item.id);
+    const { error: deleteError } = await this.supabase
+      .from("order_items")
+      .delete()
+      .in("id", itemIds);
+
+    if (deleteError) {
+      throw deleteError;
     }
   }
 
@@ -1020,6 +1067,10 @@ export class ProductRepository {
 
     const query = searchQuery.trim().toLowerCase();
     const terms = this.buildSearchTerms(searchQuery);
+
+    // Filter out the full phrase from individual terms to avoid double-counting
+    const individualTerms = terms.filter((term) => term !== query);
+
     let score = 0;
 
     // Helper to get field values
@@ -1038,6 +1089,7 @@ export class ProductRepository {
       // Exact match bonus (highest priority)
       if (fieldValue === query) {
         score += 1000;
+        continue; // Skip other checks for exact matches
       }
 
       // Starts with query bonus
@@ -1045,26 +1097,39 @@ export class ProductRepository {
         score += 500;
       }
 
-      // Contains full query bonus
+      // Contains full query bonus (exact phrase)
       if (fieldValue.includes(query)) {
-        score += 250;
+        score += 300;
       }
 
-      // Count matching terms
+      // Count matching individual terms (excluding the full phrase)
       let matchingTerms = 0;
-      for (const term of terms) {
+      for (const term of individualTerms) {
         if (fieldValue.includes(term)) {
           matchingTerms++;
         }
       }
 
-      // Bonus for matching all terms
-      if (terms.length > 0 && matchingTerms === terms.length) {
-        score += 100;
+      // Strong bonus for matching ALL individual terms (even if not exact phrase)
+      if (individualTerms.length > 0 && matchingTerms === individualTerms.length) {
+        score += 200;
       }
 
-      // Bonus for each matching term
-      score += matchingTerms * 10;
+      // Bonus for each matching term (more important now)
+      score += matchingTerms * 25;
+
+      // Check for terms appearing in sequence (even with words between)
+      if (individualTerms.length > 1) {
+        let sequenceBonus = 0;
+        for (let i = 0; i < individualTerms.length - 1; i++) {
+          const term1Idx = fieldValue.indexOf(individualTerms[i]);
+          const term2Idx = fieldValue.indexOf(individualTerms[i + 1]);
+          if (term1Idx !== -1 && term2Idx > term1Idx) {
+            sequenceBonus += 15;
+          }
+        }
+        score += sequenceBonus;
+      }
 
       // Bonus for matches in title_raw (primary search field for inventory)
       if (field === "title_raw") {

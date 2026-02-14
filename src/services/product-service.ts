@@ -266,6 +266,11 @@ export class ProductService {
     );
     if (variantsToDelete.length > 0) {
       const variantIdsToDelete = variantsToDelete.map((variant) => variant.id);
+
+      // Clean up order_items from abandoned (pending/canceled) orders
+      await this.repo.deleteAbandonedOrderItems(variantIdsToDelete);
+
+      // Now check if there are any remaining references (from paid/shipped orders)
       const referencedVariantIds = new Set(
         await this.repo.listReferencedVariantIds(variantIdsToDelete),
       );
