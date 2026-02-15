@@ -87,7 +87,7 @@ export const security = {
       unsafeMethods: ["POST", "PUT", "PATCH", "DELETE"] as const,
       maxOriginLength: 512,
 
-      bypassPrefixes: ["/api/stripe/webhook", "/api/auth/2fa/challenge/verify"],
+      bypassPrefixes: ["/api/webhooks/stripe", "/api/auth/2fa/challenge/verify"],
     },
 
     rateLimit: {
