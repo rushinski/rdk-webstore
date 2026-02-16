@@ -69,7 +69,7 @@ export default function HoursPage() {
             </div>
             <div className="flex justify-between">
               <span>Sunday</span>
-              <span>1:00 PM - 6:00 PM</span>
+              <span>Closed</span>
             </div>
           </div>
         </div>
