@@ -203,15 +203,56 @@ async function handlePaymentIntentSucceeded(
 
   // Mark paid & decrement inventory (idempotent)
   const orderItems = await ordersRepo.getOrderItems(orderId);
-  const didMarkPaid = await ordersRepo.markPaidTransactionally(
-    orderId,
-    pi.id,
-    orderItems.map((i) => ({
-      productId: i.product_id,
-      variantId: i.variant_id,
-      quantity: i.quantity,
-    })),
-  );
+
+  let didMarkPaid = false;
+  try {
+    didMarkPaid = await ordersRepo.markPaidTransactionally(
+      orderId,
+      pi.id,
+      orderItems.map((i) => ({
+        productId: i.product_id,
+        variantId: i.variant_id,
+        quantity: i.quantity,
+      })),
+    );
+  } catch (rpcError) {
+    // RPC failed — likely status mismatch (order is "processing" but RPC
+    // only accepts "pending") or insufficient stock.  The customer has
+    // already paid so we MUST still mark the order as paid.
+    log({
+      level: "error",
+      layer: "stripe",
+      message: "mark_paid_rpc_failed_using_fallback",
+      requestId,
+      orderId,
+      error: rpcError instanceof Error ? rpcError.message : String(rpcError),
+    });
+
+    // Fallback: directly update order status without stock decrement.
+    // Stock discrepancy is logged and can be corrected manually.
+    const { data: fallbackRow } = await adminSupabase
+      .from("orders")
+      .update({
+        status: "paid",
+        stripe_payment_intent_id: pi.id,
+      })
+      .eq("id", orderId)
+      .in("status", ["pending", "processing"])
+      .select("id")
+      .maybeSingle();
+
+    didMarkPaid = !!fallbackRow;
+
+    if (didMarkPaid) {
+      log({
+        level: "warn",
+        layer: "stripe",
+        message: "order_marked_paid_via_fallback_stock_not_decremented",
+        requestId,
+        orderId,
+      });
+    }
+  }
 
   if (didMarkPaid) {
     log({
@@ -352,6 +393,7 @@ async function handlePaymentIntentSucceeded(
     orderItems,
     fulfillment,
     pi,
+    connectAccountId,
     adminSupabase,
     requestId,
   );
@@ -560,6 +602,7 @@ async function sendWebhookEmails(
   orderItems: OrderItemRow[],
   fulfillment: "ship" | "pickup",
   paymentIntent: Stripe.PaymentIntent,
+  connectAccountId: string | null,
   adminSupabase: AdminSupabaseClient,
   requestId: string,
 ) {
@@ -571,25 +614,67 @@ async function sendWebhookEmails(
     const orderEmailService = new OrderEmailService();
     const orderAccessTokens = new OrderAccessTokenService(adminSupabase);
 
+    // Re-fetch order to get the latest guest_email (confirm-payment may
+    // have saved it after the initial fetch at the top of the handler).
+    const freshOrder = await ordersRepo.getById(orderId);
+    const resolvedOrder = freshOrder ?? order;
+
     let email = paymentIntent.receipt_email ?? null;
-    if (!email && order.user_id) {
-      const profile = await profilesRepo.getByUserId(order.user_id);
+    if (!email && resolvedOrder.user_id) {
+      const profile = await profilesRepo.getByUserId(resolvedOrder.user_id);
       email = profile?.email ?? null;
     }
     if (!email) {
-      email = order.guest_email ?? null;
+      email = resolvedOrder.guest_email ?? null;
+    }
+
+    // Last resort: retrieve email from the charge's billing_details.
+    // Afterpay/BNPL methods don't populate receipt_email but the charge
+    // does carry the customer's billing email.
+    if (!email && paymentIntent.latest_charge) {
+      try {
+        const chargeId =
+          typeof paymentIntent.latest_charge === "string"
+            ? paymentIntent.latest_charge
+            : paymentIntent.latest_charge.id;
+
+        const charge = await stripe.charges.retrieve(
+          chargeId,
+          connectAccountId ? { stripeAccount: connectAccountId } : undefined,
+        );
+        email = charge.billing_details?.email ?? null;
+
+        if (email) {
+          log({
+            level: "info",
+            layer: "stripe",
+            message: "webhook_email_recovered_from_charge",
+            requestId,
+            orderId,
+          });
+        }
+      } catch {
+        // Non-fatal: we tried but couldn't retrieve the charge email
+      }
     }
 
     if (!email) {
+      log({
+        level: "warn",
+        layer: "stripe",
+        message: "webhook_email_not_found_skipping",
+        requestId,
+        orderId,
+      });
       return;
     }
 
-    if (!order.user_id && order.guest_email !== email) {
+    if (!resolvedOrder.user_id && resolvedOrder.guest_email !== email) {
       await ordersRepo.updateGuestEmail(orderId, email);
     }
 
     let orderUrl: string | null = null;
-    if (!order.user_id) {
+    if (!resolvedOrder.user_id) {
       const { token } = await orderAccessTokens.createToken({ orderId });
       orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${orderId}?token=${encodeURIComponent(token)}`;
     }

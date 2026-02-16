@@ -62,6 +62,7 @@ docker-storage/
 .vscode/
 .idea/
 *.swp
+.claude/
 
 # TypeScript
 *.tsbuildinfo
