@@ -1,0 +1,65 @@
+version: '3.9'
+
+services:
+  # PostgreSQL 18 Database
+  postgres:
+    image: postgres:18-alpine
+    container_name: sneaker-eco-postgres
+    environment:
+      POSTGRES_DB: sneaker_eco_dev
+      POSTGRES_USER: sneaker_eco
+      POSTGRES_PASSWORD: local_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sneaker_eco"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: sneaker-eco-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # MinIO (S3-compatible - replaces R2 locally)
+  minio:
+    image: minio/minio:latest
+    container_name: sneaker-eco-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # Rembg ML Service (for image background removal - Week 3)
+  # Commented out for now, uncomment in Week 3
+  # rembg:
+  #   build:
+  #     context: ./rembg-service
+  #     dockerfile: Dockerfile
+  #   container_name: sneaker-eco-rembg
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./rembg-service:/app
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
