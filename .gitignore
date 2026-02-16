@@ -62,6 +62,7 @@ docker-storage/
 .vscode/
 .idea/
 *.swp
+.claude/
 
 # TypeScript
 *.tsbuildinfo
@@ -71,6 +72,3 @@ docker-storage/
 *.seed
 *.tgz
 
-.vercel
-
-.claude
