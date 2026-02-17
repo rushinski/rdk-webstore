@@ -216,21 +216,27 @@ async function handlePaymentIntentSucceeded(
       })),
     );
   } catch (rpcError) {
-    // RPC failed — likely status mismatch (order is "processing" but RPC
-    // only accepts "pending") or insufficient stock.  The customer has
-    // already paid so we MUST still mark the order as paid.
+    // RPC threw — likely RAISE EXCEPTION on insufficient stock, or the
+    // function doesn't exist / has a bug. Log and fall through to the
+    // fallback below.
     log({
       level: "error",
       layer: "stripe",
-      message: "mark_paid_rpc_failed_using_fallback",
+      message: "mark_paid_rpc_threw",
       requestId,
       orderId,
       error: rpcError instanceof Error ? rpcError.message : String(rpcError),
     });
+  }
 
-    // Fallback: directly update order status without stock decrement.
-    // Stock discrepancy is logged and can be corrected manually.
-    const { data: fallbackRow } = await adminSupabase
+  // Fallback: if the RPC didn't mark the order paid (returned false OR
+  // threw), try a direct status update.  This covers:
+  //  - Old RPC that only accepts status='pending' when order is 'processing'
+  //  - RPC that RAISE EXCEPTION on insufficient stock (rolls back status)
+  //  - Any other RPC failure
+  // The customer has already paid, so the order MUST be marked paid.
+  if (!didMarkPaid) {
+    const { data: fallbackRow, error: fallbackError } = await adminSupabase
       .from("orders")
       .update({
         status: "paid",
@@ -241,15 +247,34 @@ async function handlePaymentIntentSucceeded(
       .select("id")
       .maybeSingle();
 
-    didMarkPaid = !!fallbackRow;
-
-    if (didMarkPaid) {
+    if (fallbackError) {
+      log({
+        level: "error",
+        layer: "stripe",
+        message: "fallback_update_failed",
+        requestId,
+        orderId,
+        error: fallbackError.message,
+        code: fallbackError.code,
+      });
+    } else if (fallbackRow) {
+      didMarkPaid = true;
       log({
         level: "warn",
         layer: "stripe",
-        message: "order_marked_paid_via_fallback_stock_not_decremented",
+        message: "order_marked_paid_via_fallback",
         requestId,
         orderId,
+      });
+    } else {
+      // No rows matched — order was likely already paid or in a terminal state
+      log({
+        level: "info",
+        layer: "stripe",
+        message: "fallback_no_rows_matched_order_may_already_be_paid",
+        requestId,
+        orderId,
+        currentStatus: order.status,
       });
     }
   }
