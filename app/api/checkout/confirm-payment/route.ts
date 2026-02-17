@@ -37,6 +37,166 @@ type DetailedOrderItem = OrderItemRow & {
   product: ProductSummary | null;
   variant: VariantSummary | null;
 };
+type ErrorDetails = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
+
+const PLACEHOLDER_EMAIL_DOMAIN = "@placeholder.local";
+
+function normalizeEmail(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function isPlaceholderEmail(value: string | null | undefined): boolean {
+  return normalizeEmail(value)?.endsWith(PLACEHOLDER_EMAIL_DOMAIN) ?? false;
+}
+
+function extractErrorDetails(error: unknown): ErrorDetails {
+  if (error instanceof Error) {
+    return { message: error.message };
+  }
+
+  if (!error || typeof error !== "object") {
+    return { message: String(error) };
+  }
+
+  const record = error as Record<string, unknown>;
+  const message =
+    typeof record.message === "string"
+      ? record.message
+      : typeof record.error === "string"
+        ? record.error
+        : String(error);
+  const code = typeof record.code === "string" ? record.code : undefined;
+  const details = typeof record.details === "string" ? record.details : undefined;
+  const hint = typeof record.hint === "string" ? record.hint : undefined;
+
+  return { message, code, details, hint };
+}
+
+async function resolvePaymentIntentEmail(params: {
+  paymentIntent: Stripe.PaymentIntent;
+  stripeAccountId: string;
+  requestId: string;
+  orderId: string;
+}): Promise<{ email: string | null; source: string | null }> {
+  const receiptEmail = normalizeEmail(params.paymentIntent.receipt_email);
+  if (receiptEmail) {
+    return { email: receiptEmail, source: "payment_intent.receipt_email" };
+  }
+
+  if (params.paymentIntent.latest_charge) {
+    try {
+      const chargeId =
+        typeof params.paymentIntent.latest_charge === "string"
+          ? params.paymentIntent.latest_charge
+          : params.paymentIntent.latest_charge.id;
+
+      const charge = await directCharge.retrieveCharge(params.stripeAccountId, chargeId);
+      const chargeEmail = normalizeEmail(charge.billing_details?.email);
+      if (chargeEmail) {
+        return { email: chargeEmail, source: "charge.billing_details.email" };
+      }
+    } catch (error) {
+      const details = extractErrorDetails(error);
+      log({
+        level: "warn",
+        layer: "api",
+        message: "charge_email_lookup_failed",
+        requestId: params.requestId,
+        orderId: params.orderId,
+        error: details.message,
+        code: details.code,
+      });
+    }
+  }
+
+  return { email: null, source: null };
+}
+
+async function ensureGuestContactForStatusTransitions(params: {
+  order: OrderRow;
+  orderId: string;
+  requestId: string;
+  stripeAccountId: string;
+  guestEmail: string | null | undefined;
+  paymentIntent: Stripe.PaymentIntent;
+  ordersRepo: OrdersRepository;
+}): Promise<string | null> {
+  const {
+    order,
+    orderId,
+    requestId,
+    stripeAccountId,
+    guestEmail,
+    paymentIntent,
+    ordersRepo,
+  } = params;
+
+  if (order.user_id) {
+    return normalizeEmail(order.guest_email);
+  }
+
+  const existing = normalizeEmail(order.guest_email);
+  if (existing) {
+    return existing;
+  }
+
+  const requestedEmail = normalizeEmail(guestEmail);
+  if (requestedEmail) {
+    await ordersRepo.updateGuestEmail(orderId, requestedEmail);
+    order.guest_email = requestedEmail;
+    log({
+      level: "info",
+      layer: "api",
+      message: "guest_contact_backfilled_for_confirm",
+      requestId,
+      orderId,
+      emailSource: "frontend",
+      isPlaceholder: false,
+    });
+    return requestedEmail;
+  }
+
+  const resolved = await resolvePaymentIntentEmail({
+    paymentIntent,
+    stripeAccountId,
+    requestId,
+    orderId,
+  });
+  const email = resolved.email ?? `guest-${orderId}${PLACEHOLDER_EMAIL_DOMAIN}`;
+  const source = resolved.source ?? "placeholder";
+
+  if (!resolved.email) {
+    log({
+      level: "warn",
+      layer: "api",
+      message: "guest_contact_missing_using_placeholder",
+      requestId,
+      orderId,
+    });
+  }
+
+  await ordersRepo.updateGuestEmail(orderId, email);
+  order.guest_email = email;
+  log({
+    level: "info",
+    layer: "api",
+    message: "guest_contact_backfilled_for_confirm",
+    requestId,
+    orderId,
+    emailSource: source,
+    isPlaceholder: source === "placeholder",
+  });
+  return email;
+}
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -123,6 +283,23 @@ export async function POST(request: NextRequest) {
       await ordersRepo.updateStripePaymentIntent(orderId, paymentIntentId);
     }
 
+    const orderEventsRepo = new OrderEventsRepository(adminSupabase);
+
+    let guestAccessToken: string | null = null;
+    if (!order.user_id) {
+      const tokenService = new OrderAccessTokenService(adminSupabase);
+      const { token } = await tokenService.createToken({ orderId });
+      guestAccessToken = token;
+
+      log({
+        level: "info",
+        layer: "api",
+        message: "guest_access_token_created",
+        requestId,
+        orderId,
+      });
+    }
+
     // ---------- Handle payment status ----------
 
     // CRITICAL: BNPL methods (Afterpay, Affirm, Klarna) are "processing" initially.
@@ -130,14 +307,38 @@ export async function POST(request: NextRequest) {
     // the webhook will handle the final transition to "succeeded".
     // DO NOT treat "processing" as an error!
     if (paymentIntent.status === "processing") {
+      await ensureGuestContactForStatusTransitions({
+        order,
+        orderId,
+        requestId,
+        stripeAccountId,
+        guestEmail: guestEmail ?? null,
+        paymentIntent,
+        ordersRepo,
+      });
+
       // Mark order as "processing" so it's tracked but not yet counted as revenue
-      await adminSupabase
+      const { data: processingRow, error: processingError } = await adminSupabase
         .from("orders")
         .update({ status: "processing" })
         .eq("id", orderId)
-        .eq("status", "pending"); // only if still pending
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle(); // only if still pending
 
-      const orderEventsRepo = new OrderEventsRepository(adminSupabase);
+      if (processingError) {
+        throw processingError;
+      }
+      if (!processingRow) {
+        log({
+          level: "info",
+          layer: "api",
+          message: "payment_processing_no_status_transition",
+          requestId,
+          orderId,
+        });
+      }
+
       const hasProcessingEvent = await orderEventsRepo.hasEvent(
         orderId,
         "payment_processing",
@@ -147,41 +348,6 @@ export async function POST(request: NextRequest) {
           orderId,
           type: "payment_processing",
           message: `Payment processing via ${paymentIntent.payment_method_types?.[0] ?? "unknown method"}.`,
-        });
-      }
-
-      // Save guest email for BNPL orders (Afterpay, Affirm, Klarna)
-      // This must happen here because the "succeeded" path may never run
-      // for this endpoint — the webhook handles the final transition.
-      if (!order.user_id && !order.guest_email) {
-        const email = guestEmail || paymentIntent.receipt_email || null;
-        if (email) {
-          log({
-            level: "info",
-            layer: "api",
-            message: "updating_guest_email_processing",
-            requestId,
-            orderId,
-            emailSource: guestEmail ? "frontend" : "stripe",
-          });
-          await ordersRepo.updateGuestEmail(orderId, email);
-        }
-      }
-
-      // ✅ CRITICAL FIX: Create access token for guest orders NOW
-      // Before any async operations so the processing page can poll immediately
-      let guestAccessToken: string | null = null;
-      if (!order.user_id) {
-        const tokenService = new OrderAccessTokenService(adminSupabase);
-        const { token } = await tokenService.createToken({ orderId });
-        guestAccessToken = token;
-
-        log({
-          level: "info",
-          layer: "api",
-          message: "guest_access_token_created",
-          requestId,
-          orderId,
         });
       }
 
@@ -223,7 +389,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Frontend should handle the redirect
-      return json({ success: true, requiresAction: true, orderId, requestId }, 202);
+      return json(
+        { success: true, requiresAction: true, orderId, guestAccessToken, requestId },
+        202,
+      );
     }
 
     // Payment must be succeeded at this point for instant methods (cards)
@@ -266,51 +435,86 @@ export async function POST(request: NextRequest) {
     }
 
     // ---------- Mark paid & decrement inventory ----------
-    const orderEventsRepo = new OrderEventsRepository(adminSupabase);
     const orderItems = await ordersRepo.getOrderItems(orderId);
 
-    // ✅ Update guest email if order doesn't have one yet
-    if (!order.user_id && !order.guest_email) {
-      // Priority: 1) frontend guestEmail, 2) Stripe receipt_email, 3) placeholder
-      const email = guestEmail || paymentIntent.receipt_email || null;
+    await ensureGuestContactForStatusTransitions({
+      order,
+      orderId,
+      requestId,
+      stripeAccountId,
+      guestEmail: guestEmail ?? null,
+      paymentIntent,
+      ordersRepo,
+    });
 
-      if (email) {
-        log({
-          level: "info",
-          layer: "api",
-          message: "updating_guest_email",
-          requestId,
-          orderId,
-          emailSource: guestEmail ? "frontend" : "stripe",
-        });
-        await ordersRepo.updateGuestEmail(orderId, email);
-        order.guest_email = email;
-      } else {
-        // Only use placeholder if absolutely no email was found
-        const placeholder = `guest-${orderId}@placeholder.local`;
+    let didMarkPaid = false;
+    try {
+      didMarkPaid = await ordersRepo.markPaidTransactionally(
+        orderId,
+        paymentIntentId,
+        orderItems.map((i) => ({
+          productId: i.product_id,
+          variantId: i.variant_id,
+          quantity: i.quantity,
+        })),
+      );
+    } catch (rpcError) {
+      const details = extractErrorDetails(rpcError);
+      log({
+        level: "error",
+        layer: "api",
+        message: "mark_paid_rpc_threw",
+        requestId,
+        orderId,
+        error: details.message,
+        code: details.code,
+        details: details.details,
+        hint: details.hint,
+      });
+    }
+
+    if (!didMarkPaid) {
+      const { data: fallbackRow, error: fallbackError } = await adminSupabase
+        .from("orders")
+        .update({
+          status: "paid",
+          stripe_payment_intent_id: paymentIntentId,
+        })
+        .eq("id", orderId)
+        .in("status", ["pending", "processing"])
+        .select("id")
+        .maybeSingle();
+
+      if (fallbackError) {
+        throw fallbackError;
+      }
+      if (fallbackRow) {
+        didMarkPaid = true;
         log({
           level: "warn",
           layer: "api",
-          message: "guest_email_missing_using_placeholder",
+          message: "order_marked_paid_via_fallback",
           requestId,
           orderId,
-          guestEmailFromRequest: Boolean(guestEmail),
-          receiptEmailFromStripe: Boolean(paymentIntent.receipt_email),
         });
-        await ordersRepo.updateGuestEmail(orderId, placeholder);
-        order.guest_email = placeholder;
+      } else {
+        log({
+          level: "info",
+          layer: "api",
+          message: "mark_paid_no_transition",
+          requestId,
+          orderId,
+        });
       }
     }
 
-    const didMarkPaid = await ordersRepo.markPaidTransactionally(
-      orderId,
-      paymentIntentId,
-      orderItems.map((i) => ({
-        productId: i.product_id,
-        variantId: i.variant_id,
-        quantity: i.quantity,
-      })),
-    );
+    const currentOrder = await ordersRepo.getById(orderId);
+    if (currentOrder?.status !== "paid") {
+      throw new Error(
+        "Order payment was captured by Stripe but the order could not be marked paid",
+      );
+    }
+    const postPaymentOrder = currentOrder ?? order;
 
     if (didMarkPaid) {
       // Sync size tags
@@ -321,15 +525,15 @@ export async function POST(request: NextRequest) {
       }
 
       // Record nexus sale
-      if (order.customer_state && order.tenant_id) {
+      if (postPaymentOrder.customer_state && postPaymentOrder.tenant_id) {
         try {
           const nexusRepo = new NexusRepository(adminSupabase);
           await nexusRepo.recordSale({
-            tenantId: order.tenant_id,
-            stateCode: order.customer_state,
-            orderTotal: Number(order.total ?? 0),
-            taxAmount: Number(order.tax_amount ?? 0),
-            isTaxable: Number(order.tax_amount ?? 0) > 0,
+            tenantId: postPaymentOrder.tenant_id,
+            stateCode: postPaymentOrder.customer_state,
+            orderTotal: Number(postPaymentOrder.total ?? 0),
+            taxAmount: Number(postPaymentOrder.tax_amount ?? 0),
+            isTaxable: Number(postPaymentOrder.tax_amount ?? 0) > 0,
           });
         } catch (nexusErr) {
           log({
@@ -383,8 +587,8 @@ export async function POST(request: NextRequest) {
         country: resolvedShipping.country,
       });
 
-      if (order.user_id) {
-        await addressesRepo.upsertUserAddress(order.user_id, {
+      if (postPaymentOrder.user_id) {
+        await addressesRepo.upsertUserAddress(postPaymentOrder.user_id, {
           name: resolvedShipping.name,
           phone: resolvedShipping.phone,
           line1: resolvedShipping.line1,
@@ -400,10 +604,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Pickup chat
-    if (expectedFulfillment === "pickup" && order.user_id) {
+    if (expectedFulfillment === "pickup" && postPaymentOrder.user_id) {
       try {
         const chatService = new ChatService(adminSupabase, adminSupabase);
-        await chatService.createChatForUser({ userId: order.user_id, orderId });
+        await chatService.createChatForUser({
+          userId: postPaymentOrder.user_id,
+          orderId,
+        });
       } catch (chatErr) {
         log({
           level: "warn",
@@ -416,25 +623,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ CRITICAL FIX: Create access token for guest orders BEFORE async email
-    let guestAccessToken: string | null = null;
-    if (!order.user_id) {
-      const tokenService = new OrderAccessTokenService(adminSupabase);
-      const { token } = await tokenService.createToken({ orderId });
-      guestAccessToken = token;
-
-      log({
-        level: "info",
-        layer: "api",
-        message: "guest_access_token_created",
-        requestId,
-        orderId,
-      });
-    }
-
     // ---------- Send emails (async, non-blocking) ----------
     void sendOrderEmails({
-      order,
+      order: postPaymentOrder,
       orderId,
       orderItems,
       expectedFulfillment,
@@ -503,6 +694,9 @@ async function sendOrderEmails(ctx: {
     }
     if (!email) {
       email = ctx.order.guest_email ?? null;
+    }
+    if (isPlaceholderEmail(email)) {
+      email = null;
     }
 
     // Update guest email if needed

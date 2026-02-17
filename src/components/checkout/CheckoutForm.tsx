@@ -22,6 +22,9 @@ import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes"
 
 import { SavedAddresses } from "./SavedAddresses";
 
+const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
+const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
+
 interface CheckoutFormProps {
   orderId: string;
   stripeAccountId?: string;
@@ -118,20 +121,33 @@ export function CheckoutForm({
     });
 
     const data = await res.json().catch(() => ({}));
+    const guestAccessToken =
+      typeof data?.guestAccessToken === "string" && data.guestAccessToken.trim()
+        ? data.guestAccessToken
+        : null;
+
+    if (isGuestCheckout && guestAccessToken) {
+      try {
+        sessionStorage.setItem(GUEST_ORDER_ID_STORAGE_KEY, orderId);
+        sessionStorage.setItem(GUEST_ORDER_TOKEN_STORAGE_KEY, guestAccessToken);
+      } catch {
+        // sessionStorage may be unavailable
+      }
+    }
 
     if (data?.processing) {
-      const tokenParam = data.guestAccessToken
-        ? `&token=${encodeURIComponent(data.guestAccessToken)}`
+      const tokenParam = guestAccessToken
+        ? `&token=${encodeURIComponent(guestAccessToken)}`
         : "";
       router.push(
         `/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}${tokenParam}`,
       );
-      return data;
+      return { ...data, guestAccessToken };
     }
     if (!res.ok) {
       throw new Error(data.error || "Failed to confirm payment");
     }
-    return data;
+    return { ...data, guestAccessToken };
   };
 
   const getValidationErrors = (): string[] => {
@@ -258,8 +274,20 @@ export function CheckoutForm({
       }
 
       if (paymentIntent.status === "requires_action") {
+        let tokenParam = "";
+        if (isGuestCheckout) {
+          try {
+            const storedOrderId = sessionStorage.getItem(GUEST_ORDER_ID_STORAGE_KEY);
+            const storedToken = sessionStorage.getItem(GUEST_ORDER_TOKEN_STORAGE_KEY);
+            if (storedOrderId === orderId && storedToken) {
+              tokenParam = `&token=${encodeURIComponent(storedToken)}`;
+            }
+          } catch {
+            // sessionStorage may be unavailable
+          }
+        }
         router.push(
-          `/checkout/processing?orderId=${orderId}&payment_intent=${paymentIntent.id}&fulfillment=${fulfillment}`,
+          `/checkout/processing?orderId=${orderId}&payment_intent=${paymentIntent.id}&fulfillment=${fulfillment}${tokenParam}`,
         );
         return { ok: true };
       }

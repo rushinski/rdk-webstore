@@ -57,6 +57,14 @@ type DetailedOrderItem = OrderItemRow & {
   variant: VariantSummary | null;
 };
 type MetadataCarrier = { metadata?: Stripe.Metadata };
+type ErrorDetails = {
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+};
+
+const PLACEHOLDER_EMAIL_DOMAIN = "@placeholder.local";
 
 function getOrderIdFromMetadata(payload: Stripe.Event.Data.Object): string | undefined {
   if (typeof payload === "object" && payload !== null && "metadata" in payload) {
@@ -66,6 +74,178 @@ function getOrderIdFromMetadata(payload: Stripe.Event.Data.Object): string | und
     }
   }
   return undefined;
+}
+
+function normalizeEmail(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function isPlaceholderEmail(value: string | null | undefined): boolean {
+  return normalizeEmail(value)?.endsWith(PLACEHOLDER_EMAIL_DOMAIN) ?? false;
+}
+
+function extractErrorDetails(error: unknown): ErrorDetails {
+  if (error instanceof Error) {
+    return { message: error.message };
+  }
+
+  if (!error || typeof error !== "object") {
+    return { message: String(error) };
+  }
+
+  const record = error as Record<string, unknown>;
+  const message =
+    typeof record.message === "string"
+      ? record.message
+      : typeof record.error === "string"
+        ? record.error
+        : String(error);
+  const code = typeof record.code === "string" ? record.code : undefined;
+  const details = typeof record.details === "string" ? record.details : undefined;
+  const hint = typeof record.hint === "string" ? record.hint : undefined;
+
+  return { message, code, details, hint };
+}
+
+async function resolvePaymentIntentEmail(
+  paymentIntent: Stripe.PaymentIntent,
+  connectAccountId: string | null,
+  requestId: string,
+  orderId: string,
+): Promise<{ email: string | null; source: string | null }> {
+  const receiptEmail = normalizeEmail(paymentIntent.receipt_email);
+  if (receiptEmail) {
+    return { email: receiptEmail, source: "payment_intent.receipt_email" };
+  }
+
+  if (paymentIntent.latest_charge) {
+    try {
+      const chargeId =
+        typeof paymentIntent.latest_charge === "string"
+          ? paymentIntent.latest_charge
+          : paymentIntent.latest_charge.id;
+
+      const charge = await stripe.charges.retrieve(
+        chargeId,
+        connectAccountId ? { stripeAccount: connectAccountId } : undefined,
+      );
+
+      const chargeEmail = normalizeEmail(charge.billing_details?.email);
+      if (chargeEmail) {
+        return { email: chargeEmail, source: "charge.billing_details.email" };
+      }
+    } catch (error) {
+      const details = extractErrorDetails(error);
+      log({
+        level: "warn",
+        layer: "stripe",
+        message: "charge_email_lookup_failed",
+        requestId,
+        orderId,
+        error: details.message,
+        code: details.code,
+      });
+    }
+  }
+
+  if (typeof paymentIntent.payment_method === "string") {
+    try {
+      const paymentMethod = await stripe.paymentMethods.retrieve(
+        paymentIntent.payment_method,
+        connectAccountId ? { stripeAccount: connectAccountId } : undefined,
+      );
+      const methodEmail = normalizeEmail(paymentMethod.billing_details?.email);
+      if (methodEmail) {
+        return { email: methodEmail, source: "payment_method.billing_details.email" };
+      }
+    } catch (error) {
+      const details = extractErrorDetails(error);
+      log({
+        level: "warn",
+        layer: "stripe",
+        message: "payment_method_email_lookup_failed",
+        requestId,
+        orderId,
+        error: details.message,
+        code: details.code,
+      });
+    }
+  }
+
+  return { email: null, source: null };
+}
+
+async function ensureGuestContactForStatusTransitions(params: {
+  order: OrderRow;
+  orderId: string;
+  paymentIntent: Stripe.PaymentIntent;
+  connectAccountId: string | null;
+  ordersRepo: OrdersRepository;
+  requestId: string;
+}): Promise<string | null> {
+  const { order, orderId, paymentIntent, connectAccountId, ordersRepo, requestId } =
+    params;
+
+  if (order.user_id) {
+    return normalizeEmail(order.guest_email);
+  }
+
+  const existing = normalizeEmail(order.guest_email);
+  if (existing) {
+    return existing;
+  }
+
+  const resolved = await resolvePaymentIntentEmail(
+    paymentIntent,
+    connectAccountId,
+    requestId,
+    orderId,
+  );
+  const email = resolved.email ?? `guest-${orderId}${PLACEHOLDER_EMAIL_DOMAIN}`;
+  const source = resolved.source ?? "placeholder";
+
+  if (!resolved.email) {
+    log({
+      level: "warn",
+      layer: "stripe",
+      message: "guest_contact_missing_using_placeholder",
+      requestId,
+      orderId,
+    });
+  }
+
+  try {
+    await ordersRepo.updateGuestEmail(orderId, email);
+    order.guest_email = email;
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "guest_contact_backfilled_for_webhook",
+      requestId,
+      orderId,
+      emailSource: source,
+      isPlaceholder: source === "placeholder",
+    });
+    return email;
+  } catch (error) {
+    const details = extractErrorDetails(error);
+    log({
+      level: "error",
+      layer: "stripe",
+      message: "guest_contact_backfill_failed",
+      requestId,
+      orderId,
+      error: details.message,
+      code: details.code,
+      details: details.details,
+      hint: details.hint,
+    });
+    return null;
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -109,9 +289,10 @@ export async function POST(request: NextRequest) {
       return json({ received: true }, 200);
     }
 
+    let shouldRecordEvent = true;
     switch (event.type) {
       case "payment_intent.succeeded":
-        await handlePaymentIntentSucceeded(
+        shouldRecordEvent = await handlePaymentIntentSucceeded(
           event,
           connectAccountId,
           adminSupabase,
@@ -120,7 +301,12 @@ export async function POST(request: NextRequest) {
         break;
 
       case "payment_intent.processing":
-        await handlePaymentIntentProcessing(event, adminSupabase, requestId);
+        await handlePaymentIntentProcessing(
+          event,
+          connectAccountId,
+          adminSupabase,
+          requestId,
+        );
         break;
 
       case "payment_intent.payment_failed":
@@ -142,6 +328,10 @@ export async function POST(request: NextRequest) {
           requestId,
           eventType: event.type,
         });
+    }
+
+    if (!shouldRecordEvent) {
+      return json({ error: "Webhook processing deferred", requestId }, 500);
     }
 
     // Record as processed
@@ -172,7 +362,7 @@ async function handlePaymentIntentSucceeded(
   connectAccountId: string | null,
   adminSupabase: AdminSupabaseClient,
   requestId: string,
-) {
+): Promise<boolean> {
   const pi = event.data.object as Stripe.PaymentIntent;
   const orderId = pi.metadata?.order_id;
   const tenantId = pi.metadata?.tenant_id;
@@ -185,7 +375,7 @@ async function handlePaymentIntentSucceeded(
       requestId,
       piId: pi.id,
     });
-    return;
+    return true;
   }
 
   const ordersRepo = new OrdersRepository(adminSupabase);
@@ -198,8 +388,17 @@ async function handlePaymentIntentSucceeded(
       requestId,
       orderId,
     });
-    return;
+    return true;
   }
+
+  await ensureGuestContactForStatusTransitions({
+    order,
+    orderId,
+    paymentIntent: pi,
+    connectAccountId,
+    ordersRepo,
+    requestId,
+  });
 
   // Mark paid & decrement inventory (idempotent)
   const orderItems = await ordersRepo.getOrderItems(orderId);
@@ -219,13 +418,17 @@ async function handlePaymentIntentSucceeded(
     // RPC threw — likely RAISE EXCEPTION on insufficient stock, or the
     // function doesn't exist / has a bug. Log and fall through to the
     // fallback below.
+    const details = extractErrorDetails(rpcError);
     log({
       level: "error",
       layer: "stripe",
       message: "mark_paid_rpc_threw",
       requestId,
       orderId,
-      error: rpcError instanceof Error ? rpcError.message : String(rpcError),
+      error: details.message,
+      code: details.code,
+      details: details.details,
+      hint: details.hint,
     });
   }
 
@@ -279,6 +482,22 @@ async function handlePaymentIntentSucceeded(
     }
   }
 
+  const currentOrder = await ordersRepo.getById(orderId);
+  const isOrderPaid = currentOrder?.status === "paid";
+  if (!didMarkPaid && !isOrderPaid) {
+    log({
+      level: "error",
+      layer: "stripe",
+      message: "mark_paid_failed_aborting_post_payment_actions",
+      requestId,
+      orderId,
+      currentStatus: currentOrder?.status ?? order.status,
+    });
+    return false;
+  }
+
+  const postPaymentOrder = currentOrder ?? order;
+
   if (didMarkPaid) {
     log({
       level: "info",
@@ -296,15 +515,15 @@ async function handlePaymentIntentSucceeded(
     }
 
     // Record nexus sale
-    if (order.customer_state && order.tenant_id) {
+    if (postPaymentOrder.customer_state && postPaymentOrder.tenant_id) {
       try {
         const nexusRepo = new NexusRepository(adminSupabase);
         await nexusRepo.recordSale({
-          tenantId: order.tenant_id,
-          stateCode: order.customer_state,
-          orderTotal: Number(order.total ?? 0),
-          taxAmount: Number(order.tax_amount ?? 0),
-          isTaxable: Number(order.tax_amount ?? 0) > 0,
+          tenantId: postPaymentOrder.tenant_id,
+          stateCode: postPaymentOrder.customer_state,
+          orderTotal: Number(postPaymentOrder.total ?? 0),
+          taxAmount: Number(postPaymentOrder.tax_amount ?? 0),
+          isTaxable: Number(postPaymentOrder.tax_amount ?? 0) > 0,
         });
       } catch (err) {
         log({
@@ -331,7 +550,7 @@ async function handlePaymentIntentSucceeded(
   }
 
   // Save shipping snapshot from PI
-  const fulfillment = order.fulfillment === "pickup" ? "pickup" : "ship";
+  const fulfillment = postPaymentOrder.fulfillment === "pickup" ? "pickup" : "ship";
   if (fulfillment === "ship" && pi.shipping?.address) {
     const addressesRepo = new AddressesRepository(adminSupabase);
     const existing = await addressesRepo.getOrderShipping(orderId);
@@ -346,8 +565,8 @@ async function handlePaymentIntentSucceeded(
         postalCode: pi.shipping.address.postal_code ?? null,
         country: pi.shipping.address.country ?? null,
       });
-      if (order.user_id) {
-        await addressesRepo.upsertUserAddress(order.user_id, {
+      if (postPaymentOrder.user_id) {
+        await addressesRepo.upsertUserAddress(postPaymentOrder.user_id, {
           name: pi.shipping.name ?? null,
           phone: pi.shipping.phone ?? null,
           line1: pi.shipping.address.line1 ?? null,
@@ -363,10 +582,13 @@ async function handlePaymentIntentSucceeded(
   }
 
   // Pickup chat
-  if (fulfillment === "pickup" && order.user_id) {
+  if (fulfillment === "pickup" && postPaymentOrder.user_id) {
     try {
       const chatService = new ChatService(adminSupabase, adminSupabase);
-      await chatService.createChatForUser({ userId: order.user_id, orderId });
+      await chatService.createChatForUser({
+        userId: postPaymentOrder.user_id,
+        orderId,
+      });
     } catch {
       /* non-fatal */
     }
@@ -413,7 +635,7 @@ async function handlePaymentIntentSucceeded(
 
   // Emails
   await sendWebhookEmails(
-    order,
+    postPaymentOrder,
     orderId,
     orderItems,
     fulfillment,
@@ -441,6 +663,8 @@ async function handlePaymentIntentSucceeded(
     requestId,
     orderId,
   });
+
+  return true;
 }
 
 // ---------- payment_intent.processing ----------
@@ -449,6 +673,7 @@ async function handlePaymentIntentSucceeded(
 
 async function handlePaymentIntentProcessing(
   event: Stripe.Event,
+  connectAccountId: string | null,
   adminSupabase: AdminSupabaseClient,
   requestId: string,
 ) {
@@ -458,11 +683,60 @@ async function handlePaymentIntentProcessing(
     return;
   }
 
-  await adminSupabase
+  const ordersRepo = new OrdersRepository(adminSupabase);
+  const order = await ordersRepo.getById(orderId);
+  if (!order) {
+    log({
+      level: "warn",
+      layer: "stripe",
+      message: "pi_processing_order_not_found",
+      requestId,
+      orderId,
+    });
+    return;
+  }
+
+  await ensureGuestContactForStatusTransitions({
+    order,
+    orderId,
+    paymentIntent: pi,
+    connectAccountId,
+    ordersRepo,
+    requestId,
+  });
+
+  const { data: processingRow, error: processingError } = await adminSupabase
     .from("orders")
     .update({ status: "processing" })
     .eq("id", orderId)
-    .in("status", ["pending"]); // only transition pending → processing
+    .in("status", ["pending"])
+    .select("id")
+    .maybeSingle(); // only transition pending -> processing
+
+  if (processingError) {
+    log({
+      level: "error",
+      layer: "stripe",
+      message: "order_status_processing_update_failed",
+      requestId,
+      orderId,
+      error: processingError.message,
+      code: processingError.code,
+      details: processingError.details,
+      hint: processingError.hint,
+    });
+    return;
+  }
+
+  if (!processingRow) {
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "order_status_processing_no_transition",
+      requestId,
+      orderId,
+    });
+  }
 
   log({
     level: "info",
@@ -490,11 +764,26 @@ async function handlePaymentIntentFailed(
 
   const failureMessage = pi.last_payment_error?.message ?? "Payment failed";
 
-  await adminSupabase
+  const { error: failedUpdateError } = await adminSupabase
     .from("orders")
     .update({ status: "failed" })
     .eq("id", orderId)
     .in("status", ["pending", "processing"]); // don't overwrite paid/refunded
+
+  if (failedUpdateError) {
+    log({
+      level: "error",
+      layer: "stripe",
+      message: "order_status_failed_update_failed",
+      requestId,
+      orderId,
+      error: failedUpdateError.message,
+      code: failedUpdateError.code,
+      details: failedUpdateError.details,
+      hint: failedUpdateError.hint,
+    });
+    return;
+  }
 
   const orderEventsRepo = new OrderEventsRepository(adminSupabase);
   await orderEventsRepo.insertEvent({
@@ -652,6 +941,9 @@ async function sendWebhookEmails(
     if (!email) {
       email = resolvedOrder.guest_email ?? null;
     }
+    if (isPlaceholderEmail(email)) {
+      email = null;
+    }
 
     // Last resort: retrieve email from the charge's billing_details.
     // Afterpay/BNPL methods don't populate receipt_email but the charge
@@ -694,7 +986,7 @@ async function sendWebhookEmails(
       return;
     }
 
-    if (!resolvedOrder.user_id && resolvedOrder.guest_email !== email) {
+    if (!resolvedOrder.user_id && email && resolvedOrder.guest_email !== email) {
       await ordersRepo.updateGuestEmail(orderId, email);
     }
 

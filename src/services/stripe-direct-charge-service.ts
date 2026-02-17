@@ -155,6 +155,17 @@ export class StripeDirectChargeService {
   }
 
   /**
+   * Retrieve a Charge from the Connect account.
+   */
+  async retrieveCharge(
+    stripeAccountId: string,
+    chargeId: string,
+  ): Promise<Stripe.Charge> {
+    const connectClient = getConnectClient(stripeAccountId);
+    return connectClient.charges.retrieve(chargeId);
+  }
+
+  /**
    * Cancel a PaymentIntent on the Connect account.
    */
   async cancelPaymentIntent(

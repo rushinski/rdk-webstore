@@ -195,7 +195,11 @@ export async function GET(
     const message =
       error instanceof Error ? error.message : "Failed to fetch order status";
 
-    if (message === "Unauthorized" || message === "Order not found") {
+    if (message === "Unauthorized") {
+      return json({ error: message, requestId }, 401);
+    }
+
+    if (message === "Order not found") {
       return json({ error: message, requestId }, 404);
     }
 

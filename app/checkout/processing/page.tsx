@@ -6,6 +6,31 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
+const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
+const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
+
+function persistGuestAccess(orderId: string, token: string) {
+  try {
+    sessionStorage.setItem(GUEST_ORDER_ID_STORAGE_KEY, orderId);
+    sessionStorage.setItem(GUEST_ORDER_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // sessionStorage may be unavailable
+  }
+}
+
+function readStoredGuestToken(orderId: string): string | null {
+  try {
+    const storedOrderId = sessionStorage.getItem(GUEST_ORDER_ID_STORAGE_KEY);
+    const storedToken = sessionStorage.getItem(GUEST_ORDER_TOKEN_STORAGE_KEY);
+    if (storedOrderId === orderId && storedToken) {
+      return storedToken;
+    }
+  } catch {
+    // sessionStorage may be unavailable
+  }
+  return null;
+}
+
 export default function CheckoutProcessingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -17,6 +42,20 @@ export default function CheckoutProcessingPage() {
   const paymentIntentId = searchParams.get("payment_intent");
   const redirectStatus = searchParams.get("redirect_status");
   const fulfillment = searchParams.get("fulfillment") || "ship";
+  const tokenParam = searchParams.get("token");
+  const [guestToken, setGuestToken] = useState<string | null>(tokenParam);
+
+  useEffect(() => {
+    if (!orderId) {
+      return;
+    }
+
+    const resolvedToken = tokenParam ?? readStoredGuestToken(orderId);
+    if (resolvedToken) {
+      persistGuestAccess(orderId, resolvedToken);
+    }
+    setGuestToken(resolvedToken ?? null);
+  }, [orderId, tokenParam]);
 
   useEffect(() => {
     if (!orderId) {
@@ -58,6 +97,15 @@ export default function CheckoutProcessingPage() {
           }
 
           if (data.processing || data.success) {
+            const returnedToken =
+              typeof data.guestAccessToken === "string" && data.guestAccessToken.trim()
+                ? data.guestAccessToken
+                : null;
+            if (returnedToken) {
+              persistGuestAccess(orderId, returnedToken);
+              setGuestToken(returnedToken);
+            }
+
             setMessage("Payment confirmed. Finalizing your order...");
             // Clean up stored guest email after successful confirmation
             try {
@@ -65,8 +113,7 @@ export default function CheckoutProcessingPage() {
             } catch {
               // non-fatal
             }
-            // ✅ FIX: Pass the guest token to polling
-            startPolling(data.guestAccessToken);
+            startPolling(returnedToken ?? readStoredGuestToken(orderId));
           } else {
             throw new Error("Unexpected response from server");
           }
@@ -89,14 +136,14 @@ export default function CheckoutProcessingPage() {
     if (!redirectStatus) {
       // Note: If arriving here without a token in URL or state for a guest,
       // polling might fail unless the user is logged in.
-      startPolling();
+      startPolling(tokenParam ?? readStoredGuestToken(orderId));
     }
-  }, [orderId, paymentIntentId, redirectStatus, fulfillment, router]);
+  }, [orderId, paymentIntentId, redirectStatus, fulfillment, tokenParam, router]);
 
-  // ✅ FIX: Accept optional guestToken
-  const startPolling = (guestToken?: string) => {
+  const startPolling = (explicitToken?: string | null) => {
     let pollCount = 0;
     const maxPolls = 60;
+    const activeToken = explicitToken ?? guestToken ?? null;
 
     const poll = async () => {
       if (pollCount >= maxPolls) {
@@ -108,16 +155,23 @@ export default function CheckoutProcessingPage() {
       }
 
       try {
-        // ✅ FIX: Append token to URL if it exists
-        const url = guestToken
-          ? `/api/orders/${orderId}?token=${encodeURIComponent(guestToken)}`
+        const url = activeToken
+          ? `/api/orders/${orderId}?token=${encodeURIComponent(activeToken)}`
           : `/api/orders/${orderId}`;
 
         const res = await fetch(url);
         const data = await res.json();
 
         if (!res.ok) {
-          // If 404/Unauthorized, keep polling - order might not be ready or token might be propagating
+          const unauthorized = data?.error === "Unauthorized" || res.status === 401;
+          if (unauthorized && !activeToken && pollCount < maxPolls) {
+            pollCount++;
+            setTimeout(() => {
+              void poll();
+            }, 1000);
+            return;
+          }
+
           if (pollCount < 5) {
             pollCount++;
             setTimeout(() => {
@@ -133,9 +187,8 @@ export default function CheckoutProcessingPage() {
           setMessage("Payment successful!");
 
           setTimeout(() => {
-            // ✅ FIX: Pass token in redirect URL so success page can view the order
-            const targetUrl = guestToken
-              ? `/checkout/success?orderId=${orderId}&token=${encodeURIComponent(guestToken)}`
+            const targetUrl = activeToken
+              ? `/checkout/success?orderId=${orderId}&token=${encodeURIComponent(activeToken)}`
               : `/checkout/success?orderId=${orderId}`;
             router.push(targetUrl);
           }, 1500);

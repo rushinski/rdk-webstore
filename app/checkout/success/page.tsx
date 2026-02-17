@@ -10,15 +10,41 @@ import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { useCart } from "@/components/cart/CartProvider";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 
+const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
+const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
+
+function persistGuestAccess(orderId: string, token: string) {
+  try {
+    sessionStorage.setItem(GUEST_ORDER_ID_STORAGE_KEY, orderId);
+    sessionStorage.setItem(GUEST_ORDER_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // sessionStorage may be unavailable
+  }
+}
+
+function readStoredGuestToken(orderId: string): string | null {
+  try {
+    const storedOrderId = sessionStorage.getItem(GUEST_ORDER_ID_STORAGE_KEY);
+    const storedToken = sessionStorage.getItem(GUEST_ORDER_TOKEN_STORAGE_KEY);
+    if (storedOrderId === orderId && storedToken) {
+      return storedToken;
+    }
+  } catch {
+    // sessionStorage may be unavailable
+  }
+  return null;
+}
+
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { clearCart } = useCart();
   const orderId = searchParams.get("orderId");
-  const accessToken = searchParams.get("token");
+  const tokenParam = searchParams.get("token");
   const fulfillmentParam = searchParams.get("fulfillment");
   const isPickupParam = fulfillmentParam === "pickup";
 
+  const [accessToken, setAccessToken] = useState<string | null>(tokenParam);
   const [status, setStatus] = useState<OrderStatusResponse | null>(null);
   const [canFetchStatus, setCanFetchStatus] = useState<boolean | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -40,6 +66,18 @@ function SuccessContent() {
       clearCart();
     }
   }, [orderId, router, clearCart]);
+
+  useEffect(() => {
+    if (!orderId) {
+      return;
+    }
+
+    const resolvedToken = tokenParam ?? readStoredGuestToken(orderId);
+    if (resolvedToken) {
+      persistGuestAccess(orderId, resolvedToken);
+    }
+    setAccessToken(resolvedToken ?? null);
+  }, [orderId, tokenParam]);
 
   useEffect(() => {
     if (accessToken) {
