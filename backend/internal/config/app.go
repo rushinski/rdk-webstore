@@ -13,12 +13,12 @@ type AppConfig struct {
 func LoadAppConfig() (*AppConfig, error) {
 	env := os.Getenv("ENV")
 	if env == "" {
-		return nil, fmt.Errorf("ENV is required")
+		return nil, fmt.Errorf("ENV enviorment variable is required")
 	}
 
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		return nil, fmt.Errorf("API_PORT is required")
+		return nil, fmt.Errorf("API_PORT enviorment variable is required")
 	}
 
     return &AppConfig{
