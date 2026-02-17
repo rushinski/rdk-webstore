@@ -6,6 +6,9 @@ import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
+const isValidEmail = (value: string | undefined) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value ?? "").trim());
+
 export default function CheckoutProcessingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -16,6 +19,7 @@ export default function CheckoutProcessingPage() {
   const orderId = searchParams.get("orderId");
   const paymentIntentId = searchParams.get("payment_intent");
   const redirectStatus = searchParams.get("redirect_status");
+  const tokenFromUrl = searchParams.get("token");
   const fulfillment = searchParams.get("fulfillment") || "ship";
 
   useEffect(() => {
@@ -25,7 +29,11 @@ export default function CheckoutProcessingPage() {
     }
 
     // 1. Handle Redirect Return (Affirm, Afterpay, etc.)
-    if (redirectStatus === "succeeded" && paymentIntentId && !hasCalledConfirm.current) {
+    if (
+      (redirectStatus === "succeeded" || (!redirectStatus && paymentIntentId)) &&
+      paymentIntentId &&
+      !hasCalledConfirm.current
+    ) {
       hasCalledConfirm.current = true;
 
       const confirmPayment = async () => {
@@ -47,7 +55,7 @@ export default function CheckoutProcessingPage() {
               orderId,
               paymentIntentId,
               fulfillment: fulfillment as "ship" | "pickup",
-              guestEmail,
+              guestEmail: isValidEmail(guestEmail) ? guestEmail?.trim() : undefined,
             }),
           });
 
@@ -66,7 +74,7 @@ export default function CheckoutProcessingPage() {
               // non-fatal
             }
             // ✅ FIX: Pass the guest token to polling
-            startPolling(data.guestAccessToken);
+            startPolling(data.guestAccessToken ?? tokenFromUrl ?? undefined);
           } else {
             throw new Error("Unexpected response from server");
           }
@@ -87,11 +95,16 @@ export default function CheckoutProcessingPage() {
 
     // 2. Handle Direct Arrival (Standard flow, if applicable)
     if (!redirectStatus) {
-      // Note: If arriving here without a token in URL or state for a guest,
-      // polling might fail unless the user is logged in.
-      startPolling();
+      if (tokenFromUrl) {
+        startPolling(tokenFromUrl);
+        return;
+      }
+      setMessage("Finalizing your order...");
+      setTimeout(() => {
+        router.push(`/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`);
+      }, 800);
     }
-  }, [orderId, paymentIntentId, redirectStatus, fulfillment, router]);
+  }, [orderId, paymentIntentId, redirectStatus, tokenFromUrl, fulfillment, router]);
 
   // ✅ FIX: Accept optional guestToken
   const startPolling = (guestToken?: string) => {
@@ -117,6 +130,20 @@ export default function CheckoutProcessingPage() {
         const data = await res.json();
 
         if (!res.ok) {
+          if (
+            !guestToken &&
+            (res.status === 401 || res.status === 404 || data?.error === "Unauthorized")
+          ) {
+            setStatus("success");
+            setMessage("Order received. Redirecting...");
+            setTimeout(() => {
+              router.push(
+                `/checkout/success?orderId=${orderId}&fulfillment=${fulfillment}`,
+              );
+            }, 800);
+            return;
+          }
+
           // If 404/Unauthorized, keep polling - order might not be ready or token might be propagating
           if (pollCount < 5) {
             pollCount++;
