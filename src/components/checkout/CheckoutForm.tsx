@@ -102,16 +102,13 @@ export function CheckoutForm({
       : null;
 
   const confirmBackend = async (paymentIntentId: string) => {
-    const trimmedGuestEmail = guestEmail?.trim() ?? "";
+    // ✅ PASS guestEmail in the body
     const payload = {
       orderId,
       paymentIntentId,
       fulfillment,
       shippingAddress: fulfillment === "ship" ? toApiAddress(shippingAddress) : null,
-      guestEmail:
-        isGuestCheckout && trimmedGuestEmail && isValidEmail(trimmedGuestEmail)
-          ? trimmedGuestEmail
-          : undefined,
+      guestEmail: isGuestCheckout ? guestEmail : undefined, // <--- Added this
     };
 
     const res = await fetch("/api/checkout/confirm-payment", {
@@ -203,11 +200,8 @@ export function CheckoutForm({
       // Persist guest email before Stripe redirect (Affirm, Afterpay, Klarna)
       // so the processing page can recover it after the redirect round-trip.
       if (isGuestCheckout && guestEmail) {
-        const trimmedGuestEmail = guestEmail.trim();
         try {
-          if (trimmedGuestEmail && isValidEmail(trimmedGuestEmail)) {
-            sessionStorage.setItem("checkout_guest_email", trimmedGuestEmail);
-          }
+          sessionStorage.setItem("checkout_guest_email", guestEmail);
         } catch {
           // sessionStorage may be unavailable; non-fatal
         }

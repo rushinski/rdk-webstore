@@ -49,9 +49,6 @@ const buildCartSignature = (items: CartItem[]) => {
   );
 };
 
-const isValidEmail = (value: string | null | undefined) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((value ?? "").trim());
-
 const stripeAppearance: StripeElementsOptions["appearance"] = {
   theme: "night",
   variables: {
@@ -226,9 +223,6 @@ export function CheckoutStart() {
     if (!isAuthenticated && !isGuestFlow) {
       return;
     }
-    if (!isAuthenticated && isGuestFlow && !isValidEmail(guestEmail)) {
-      return;
-    }
     if (clientSecret && orderId) {
       return;
     }
@@ -251,10 +245,7 @@ export function CheckoutStart() {
           })),
         };
         if (!isAuthenticated && guestEmail) {
-          const trimmedGuestEmail = guestEmail.trim();
-          if (isValidEmail(trimmedGuestEmail)) {
-            payload.guestEmail = trimmedGuestEmail;
-          }
+          payload.guestEmail = guestEmail;
         }
 
         const res = await fetch("/api/checkout/create-payment-intent", {

@@ -3,8 +3,7 @@
     "allow": [
       "Bash(psql:*)",
       "Bash(npx supabase:*)",
-      "Bash(npx tsc:*)",
-      "WebFetch(domain:docs.stripe.com)"
+      "Bash(npx tsc:*)"
     ]
   }
 }

@@ -60,14 +60,6 @@ export async function POST(request: NextRequest) {
 
     const { items, fulfillment, idempotencyKey, guestEmail, shippingAddress } =
       parsed.data;
-
-    if (!userId && !guestEmail) {
-      return json(
-        { error: "Guest email is required", code: "GUEST_EMAIL_REQUIRED", requestId },
-        400,
-      );
-    }
-
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
     const cartHash = createCartHash(items, fulfillment);
@@ -255,7 +247,6 @@ export async function POST(request: NextRequest) {
         fulfillment,
         tenant_id: tenantId,
         tax_calculation_id: pricing.taxCalculationId ?? "",
-        ...(email ? { guest_email: email } : {}),
       },
       customerId: connectCustomerId,
       idempotencyKey,
