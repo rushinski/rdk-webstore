@@ -7,6 +7,31 @@ export type Json =
   | Json[];
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json;
+          operationName?: string;
+          query?: string;
+          variables?: Json;
+        };
+        Returns: Json;
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   public: {
     Tables: {
       admin_audit_log: {
@@ -747,6 +772,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "order_access_tokens_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_billing: {
+        Row: {
+          city: string | null;
+          country: string | null;
+          created_at: string | null;
+          id: string;
+          line1: string | null;
+          line2: string | null;
+          name: string | null;
+          order_id: string;
+          phone: string | null;
+          postal_code: string | null;
+          state: string | null;
+        };
+        Insert: {
+          city?: string | null;
+          country?: string | null;
+          created_at?: string | null;
+          id?: string;
+          line1?: string | null;
+          line2?: string | null;
+          name?: string | null;
+          order_id: string;
+          phone?: string | null;
+          postal_code?: string | null;
+          state?: string | null;
+        };
+        Update: {
+          city?: string | null;
+          country?: string | null;
+          created_at?: string | null;
+          id?: string;
+          line1?: string | null;
+          line2?: string | null;
+          name?: string | null;
+          order_id?: string;
+          phone?: string | null;
+          postal_code?: string | null;
+          state?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_billing_order_id_fkey";
             columns: ["order_id"];
             isOneToOne: false;
             referencedRelation: "orders";
@@ -1816,6 +1891,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_billing_addresses: {
+        Row: {
+          city: string | null;
+          country: string | null;
+          created_at: string | null;
+          id: string;
+          is_default: boolean | null;
+          line1: string | null;
+          line2: string | null;
+          name: string | null;
+          phone: string | null;
+          postal_code: string | null;
+          state: string | null;
+          updated_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          city?: string | null;
+          country?: string | null;
+          created_at?: string | null;
+          id?: string;
+          is_default?: boolean | null;
+          line1?: string | null;
+          line2?: string | null;
+          name?: string | null;
+          phone?: string | null;
+          postal_code?: string | null;
+          state?: string | null;
+          updated_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          city?: string | null;
+          country?: string | null;
+          created_at?: string | null;
+          id?: string;
+          is_default?: boolean | null;
+          line1?: string | null;
+          line2?: string | null;
+          name?: string | null;
+          phone?: string | null;
+          postal_code?: string | null;
+          state?: string | null;
+          updated_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -1969,6 +2092,9 @@ export type CompositeTypes<
     : never;
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

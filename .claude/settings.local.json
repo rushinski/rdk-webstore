@@ -3,7 +3,8 @@
     "allow": [
       "Bash(psql:*)",
       "Bash(npx supabase:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

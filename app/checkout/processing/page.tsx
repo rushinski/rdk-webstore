@@ -58,7 +58,7 @@ export default function CheckoutProcessingPage() {
   }, [orderId, tokenParam]);
 
   useEffect(() => {
-    console.log("[Processing] useEffect triggered with:", {
+    console.info("[Processing] useEffect triggered with:", {
       orderId,
       paymentIntentId,
       redirectStatus,
@@ -91,7 +91,7 @@ export default function CheckoutProcessingPage() {
             // sessionStorage may be unavailable
           }
 
-          console.log("[Processing] Confirming payment with:", {
+          console.info("[Processing] Confirming payment with:", {
             orderId,
             paymentIntentId,
             hasGuestEmail: Boolean(guestEmail),
@@ -110,7 +110,7 @@ export default function CheckoutProcessingPage() {
 
           const data = await res.json();
 
-          console.log("[Processing] Confirm payment response:", {
+          console.info("[Processing] Confirm payment response:", {
             status: res.status,
             ok: res.ok,
             processing: data.processing,
@@ -129,7 +129,7 @@ export default function CheckoutProcessingPage() {
                 ? data.guestAccessToken
                 : null;
 
-            console.log("[Processing] Token received:", {
+            console.info("[Processing] Token received:", {
               hasToken: Boolean(returnedToken),
               tokenLength: returnedToken?.length,
               willStartPolling: true,
@@ -150,7 +150,7 @@ export default function CheckoutProcessingPage() {
 
             // ✅ FIX: Always use the returned token first, fall back to stored
             const tokenForPolling = returnedToken ?? readStoredGuestToken(orderId);
-            console.log("[Processing] Starting polling with token:", {
+            console.info("[Processing] Starting polling with token:", {
               hasToken: Boolean(tokenForPolling),
               tokenSource: returnedToken ? "returned" : "stored",
             });
@@ -176,10 +176,13 @@ export default function CheckoutProcessingPage() {
 
     // 2. Handle Direct Arrival (Standard flow, if applicable)
     if (!redirectStatus && !paymentIntentId) {
-      console.log("[Processing] Direct arrival detected (no redirect_status), starting polling:", {
-        hasTokenParam: Boolean(tokenParam),
-        hasStoredToken: Boolean(readStoredGuestToken(orderId)),
-      });
+      console.info(
+        "[Processing] Direct arrival detected (no redirect_status), starting polling:",
+        {
+          hasTokenParam: Boolean(tokenParam),
+          hasStoredToken: Boolean(readStoredGuestToken(orderId)),
+        },
+      );
       // Note: If arriving here without a token in URL or state for a guest,
       // polling might fail unless the user is logged in.
       startPolling(tokenParam ?? readStoredGuestToken(orderId));
@@ -235,7 +238,7 @@ export default function CheckoutProcessingPage() {
     const maxPolls = 60;
     const activeToken = explicitToken ?? guestToken ?? null;
 
-    console.log("[Processing] Starting polling with:", {
+    console.info("[Processing] Starting polling with:", {
       hasExplicitToken: Boolean(explicitToken),
       hasGuestToken: Boolean(guestToken),
       hasActiveToken: Boolean(activeToken),
@@ -257,7 +260,7 @@ export default function CheckoutProcessingPage() {
           ? `/api/orders/${orderId}?token=${encodeURIComponent(activeToken)}`
           : `/api/orders/${orderId}`;
 
-        console.log(`[Processing] Poll #${pollCount + 1}:`, {
+        console.info(`[Processing] Poll #${pollCount + 1}:`, {
           url,
           hasToken: Boolean(activeToken),
           tokenLength: activeToken?.length,
@@ -266,7 +269,7 @@ export default function CheckoutProcessingPage() {
         const res = await fetch(url);
         const data = await res.json();
 
-        console.log(`[Processing] Poll #${pollCount + 1} response:`, {
+        console.info(`[Processing] Poll #${pollCount + 1} response:`, {
           status: res.status,
           ok: res.ok,
           orderStatus: data.status,
@@ -319,7 +322,7 @@ export default function CheckoutProcessingPage() {
         }
 
         if (data.status === "paid" || data.status === "processing") {
-          console.log("[Processing] Order confirmed:", {
+          console.info("[Processing] Order confirmed:", {
             status: data.status,
             orderId,
             hasToken: Boolean(activeToken),
@@ -332,7 +335,7 @@ export default function CheckoutProcessingPage() {
             const targetUrl = activeToken
               ? `/checkout/success?orderId=${orderId}&token=${encodeURIComponent(activeToken)}`
               : `/checkout/success?orderId=${orderId}`;
-            console.log("[Processing] Redirecting to:", targetUrl);
+            console.info("[Processing] Redirecting to:", targetUrl);
             router.push(targetUrl);
           }, 1500);
         } else if (data.status === "failed") {
@@ -341,7 +344,7 @@ export default function CheckoutProcessingPage() {
           setMessage("Payment failed. Please try again.");
         } else {
           // Order is still pending, keep polling
-          console.log("[Processing] Order still pending, continuing to poll...", {
+          console.info("[Processing] Order still pending, continuing to poll...", {
             status: data.status,
             pollCount: pollCount + 1,
           });

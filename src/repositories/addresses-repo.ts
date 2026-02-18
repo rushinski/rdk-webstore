@@ -5,8 +5,12 @@ import type { Tables, TablesInsert } from "@/types/db/database.types";
 
 type OrderShippingInsert = TablesInsert<"order_shipping">;
 type OrderShippingRow = Tables<"order_shipping">;
+type OrderBillingInsert = TablesInsert<"order_billing">;
+type OrderBillingRow = Tables<"order_billing">;
 type UserAddressRow = Tables<"user_addresses">;
 type UserAddressInsert = TablesInsert<"user_addresses">;
+type UserBillingAddressRow = Tables<"user_billing_addresses">;
+type UserBillingAddressInsert = TablesInsert<"user_billing_addresses">;
 
 export interface AddressInput {
   name?: string | null;
@@ -127,6 +131,115 @@ export class AddressesRepository {
       throw error;
     }
     return data ?? null;
+  }
+
+  // ---------- Billing Address Methods ----------
+
+  async insertOrderBillingSnapshot(
+    orderId: string,
+    address: AddressInput,
+  ): Promise<void> {
+    const insert: OrderBillingInsert = {
+      order_id: orderId,
+      name: address.name ?? null,
+      phone: address.phone ?? null,
+      line1: address.line1 ?? null,
+      line2: address.line2 ?? null,
+      city: address.city ?? null,
+      state: address.state ?? null,
+      postal_code: address.postalCode ?? null,
+      country: address.country ?? null,
+    };
+
+    const { error } = await this.supabase.from("order_billing").insert(insert);
+
+    if (error && !this.isDuplicateKeyError(error)) {
+      throw error;
+    }
+  }
+
+  async getOrderBilling(orderId: string): Promise<OrderBillingRow | null> {
+    const { data, error } = await this.supabase
+      .from("order_billing")
+      .select("*")
+      .eq("order_id", orderId)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+    return data ?? null;
+  }
+
+  async upsertUserBillingAddress(userId: string, address: AddressInput): Promise<void> {
+    const { data: existing } = await this.supabase
+      .from("user_billing_addresses")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("line1", address.line1 ?? "")
+      .eq("postal_code", address.postalCode ?? "")
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await this.supabase
+        .from("user_billing_addresses")
+        .update({
+          name: address.name ?? null,
+          phone: address.phone ?? null,
+          line2: address.line2 ?? null,
+          city: address.city ?? null,
+          state: address.state ?? null,
+          country: address.country ?? null,
+        })
+        .eq("id", existing.id);
+
+      if (error) {
+        throw error;
+      }
+    } else {
+      const insert: UserBillingAddressInsert = {
+        user_id: userId,
+        name: address.name ?? null,
+        phone: address.phone ?? null,
+        line1: address.line1 ?? null,
+        line2: address.line2 ?? null,
+        city: address.city ?? null,
+        state: address.state ?? null,
+        postal_code: address.postalCode ?? null,
+        country: address.country ?? null,
+      };
+
+      const { error } = await this.supabase.from("user_billing_addresses").insert(insert);
+
+      if (error) {
+        throw error;
+      }
+    }
+  }
+
+  async listUserBillingAddresses(userId: string): Promise<UserBillingAddressRow[]> {
+    const { data, error } = await this.supabase
+      .from("user_billing_addresses")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+    return data ?? [];
+  }
+
+  async deleteUserBillingAddress(userId: string, addressId: string): Promise<void> {
+    const { error } = await this.supabase
+      .from("user_billing_addresses")
+      .delete()
+      .eq("user_id", userId)
+      .eq("id", addressId);
+
+    if (error) {
+      throw error;
+    }
   }
 
   private isDuplicateKeyError(error: PostgrestError): boolean {

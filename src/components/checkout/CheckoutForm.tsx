@@ -21,6 +21,7 @@ import type { CartItem } from "@/types/domain/cart";
 import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
 
 import { SavedAddresses } from "./SavedAddresses";
+import { BillingAddressForm, type BillingAddress } from "./BillingAddressForm";
 
 const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
 const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
@@ -89,6 +90,7 @@ export function CheckoutForm({
   const [uiSubmitError, setUiSubmitError] = useState<string | null>(null);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
   const emailSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(null);
 
   const hasStripeElements = Boolean(elements);
 
@@ -124,7 +126,7 @@ export function CheckoutForm({
             const data = await res.json().catch(() => ({}));
             console.warn("[CheckoutForm] Failed to save guest email:", data.error);
           } else {
-            console.log("[CheckoutForm] Guest email saved to database:", trimmed);
+            console.info("[CheckoutForm] Guest email saved to database:", trimmed);
           }
         } catch (error) {
           console.error("[CheckoutForm] Error saving guest email:", error);
@@ -158,13 +160,14 @@ export function CheckoutForm({
       : null;
 
   const confirmBackend = async (paymentIntentId: string) => {
-    // ✅ PASS guestEmail in the body
+    // ✅ PASS guestEmail and billingAddress in the body
     const payload = {
       orderId,
       paymentIntentId,
       fulfillment,
       shippingAddress: fulfillment === "ship" ? toApiAddress(shippingAddress) : null,
-      guestEmail: isGuestCheckout ? guestEmail : undefined, // <--- Added this
+      billingAddress: billingAddress ? toApiAddress(billingAddress) : null,
+      guestEmail: isGuestCheckout ? guestEmail : undefined,
     };
 
     const res = await fetch("/api/checkout/confirm-payment", {
@@ -221,6 +224,29 @@ export function CheckoutForm({
       }
       if (normalizeCountryCode(shippingAddress.country, "US").length !== 2) {
         errors.push("Shipping country must be a 2-letter code");
+      }
+    }
+    // Billing address validation
+    if (!billingAddress) {
+      errors.push("Billing address is required");
+    } else {
+      if (!billingAddress.name?.trim()) {
+        errors.push("Billing name is required");
+      }
+      if (!billingAddress.line1?.trim()) {
+        errors.push("Billing street address is required");
+      }
+      if (!billingAddress.city?.trim()) {
+        errors.push("Billing city is required");
+      }
+      if (normalizeUsStateCode(billingAddress.state).length !== 2) {
+        errors.push("Billing state must be a 2-letter code");
+      }
+      if (!billingAddress.postal_code?.trim()) {
+        errors.push("Billing ZIP code is required");
+      }
+      if (normalizeCountryCode(billingAddress.country, "US").length !== 2) {
+        errors.push("Billing country must be a 2-letter code");
       }
     }
     if (!stripe || !elements) {
@@ -295,6 +321,23 @@ export function CheckoutForm({
                   },
                 }
               : undefined,
+          payment_method_data: billingAddress
+            ? {
+                billing_details: {
+                  name: billingAddress.name,
+                  email: guestEmail || undefined,
+                  phone: billingAddress.phone || undefined,
+                  address: {
+                    line1: billingAddress.line1,
+                    line2: billingAddress.line2 || undefined,
+                    city: billingAddress.city,
+                    state: billingAddress.state.trim().toUpperCase(),
+                    postal_code: billingAddress.postal_code.trim(),
+                    country: billingAddress.country.trim().toUpperCase(),
+                  },
+                },
+              }
+            : undefined,
         },
         redirect: "if_required",
       });
@@ -536,6 +579,15 @@ export function CheckoutForm({
           isGuest={!canUseChat}
         />
       )}
+
+      {/* Billing Address */}
+      <BillingAddressForm
+        billingAddress={billingAddress}
+        onBillingAddressChange={setBillingAddress}
+        shippingAddress={shippingAddress}
+        fulfillment={fulfillment}
+        isProcessing={isProcessing}
+      />
 
       {/* Payment */}
       <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">

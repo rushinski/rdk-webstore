@@ -218,8 +218,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { orderId, paymentIntentId, fulfillment, shippingAddress, guestEmail } =
-      parsed.data;
+    const {
+      orderId,
+      paymentIntentId,
+      fulfillment,
+      shippingAddress,
+      billingAddress,
+      guestEmail,
+    } = parsed.data;
 
     const ordersRepo = new OrdersRepository(adminSupabase);
     const order = await ordersRepo.getById(orderId);
@@ -625,6 +631,35 @@ export async function POST(request: NextRequest) {
       }
 
       await ordersRepo.setFulfillmentStatus(orderId, "unfulfilled");
+    }
+
+    // ---------- Save billing address snapshot ----------
+    // Always save billing address (required for both ship and pickup)
+    if (billingAddress?.line1) {
+      await addressesRepo.insertOrderBillingSnapshot(orderId, {
+        name: billingAddress.name,
+        phone: billingAddress.phone,
+        line1: billingAddress.line1,
+        line2: billingAddress.line2 ?? null,
+        city: billingAddress.city,
+        state: billingAddress.state,
+        postalCode: billingAddress.postal_code,
+        country: billingAddress.country,
+      });
+
+      // Save to user's billing addresses if logged in
+      if (postPaymentOrder.user_id) {
+        await addressesRepo.upsertUserBillingAddress(postPaymentOrder.user_id, {
+          name: billingAddress.name,
+          phone: billingAddress.phone,
+          line1: billingAddress.line1,
+          line2: billingAddress.line2 ?? null,
+          city: billingAddress.city,
+          state: billingAddress.state,
+          postalCode: billingAddress.postal_code,
+          country: billingAddress.country,
+        });
+      }
     }
 
     // Pickup chat
