@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Parse & validate
+    // Parse and validate
     const body = await request.json().catch(() => null);
     const parsed = createPaymentIntentSchema.safeParse(body ?? {});
     if (!parsed.success) {
