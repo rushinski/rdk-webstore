@@ -35,6 +35,24 @@ const SALES_TABS: Array<{ key: TabKey; label: string; statuses: string[] }> = [
   },
 ];
 
+const getSaleStatusMeta = (status: string | null | undefined) => {
+  switch (status) {
+    case "refunded":
+      return { label: "Refunded", className: "text-red-300" };
+    case "refund_pending":
+      return { label: "Refund pending", className: "text-amber-300" };
+    case "refund_failed":
+      return { label: "Refund failed", className: "text-rose-300" };
+    case "partially_refunded":
+      return { label: "Partially refunded", className: "text-amber-300" };
+    case "shipped":
+      return { label: "Shipped", className: "text-blue-300" };
+    case "paid":
+    default:
+      return { label: "Paid", className: "text-green-400" };
+  }
+};
+
 type OrderItem = AdminOrderItem;
 
 type OrderCustomer = {
@@ -366,6 +384,7 @@ export default function SalesPage() {
 
   const hasRefundableOrders =
     activeTab === "paid" && orders.some((order) => isOrderRefundable(order));
+  const showProfitColumn = activeTab === "paid";
   const selectedOrder = useMemo(
     () => orders.find((order) => order.id === selectedOrderId) ?? null,
     [orders, selectedOrderId],
@@ -578,9 +597,11 @@ export default function SalesPage() {
                 <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">
                   Amount
                 </th>
-                <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">
-                  Profit
-                </th>
+                {showProfitColumn && (
+                  <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">
+                    Profit
+                  </th>
+                )}
                 <th className="text-left md:text-right text-gray-400 font-semibold p-3 sm:p-4">
                   <span className="hidden md:inline">Items</span>
                   <span className="md:hidden">Details</span>
@@ -606,11 +627,17 @@ export default function SalesPage() {
                 const customerEmail = getCustomerEmail(order);
                 const fulfillmentLabel =
                   order.fulfillment === "pickup" ? "Pickup" : "Ship";
-                const saleStatusLabel =
-                  status === "partially_refunded" ? "Partially refunded" : "Paid";
+                const saleStatusMeta = getSaleStatusMeta(status);
+                const saleStatusLabel = saleStatusMeta.label;
                 const itemsExpanded = expandedOrders[order.id] ?? false;
                 const detailsExpanded = expandedDetails[order.id] ?? false;
-                const colSpan = isRefundMode ? 10 : 9;
+                const colSpan = isRefundMode
+                  ? showProfitColumn
+                    ? 10
+                    : 9
+                  : showProfitColumn
+                    ? 9
+                    : 8;
                 const itemCount = (order.items ?? []).reduce(
                   (sum: number, item: OrderItem) => sum + Number(item.quantity ?? 0),
                   0,
@@ -657,13 +684,7 @@ export default function SalesPage() {
                       </td>
                       <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
                       <td className="hidden md:table-cell p-3 sm:p-4">
-                        <span
-                          className={
-                            saleStatusLabel === "Partially refunded"
-                              ? "text-amber-300"
-                              : "text-green-400"
-                          }
-                        >
+                        <span className={saleStatusMeta.className}>
                           {saleStatusLabel}
                         </span>
                       </td>
@@ -679,11 +700,13 @@ export default function SalesPage() {
                       <td className="p-3 sm:p-4 text-right text-white">
                         ${Number(order.total ?? 0).toFixed(2)}
                       </td>
-                      <td
-                        className={`hidden md:table-cell p-3 sm:p-4 text-right ${profitClass}`}
-                      >
-                        {profitPrefix}${Math.abs(profit).toFixed(2)}
-                      </td>
+                      {showProfitColumn && (
+                        <td
+                          className={`hidden md:table-cell p-3 sm:p-4 text-right ${profitClass}`}
+                        >
+                          {profitPrefix}${Math.abs(profit).toFixed(2)}
+                        </td>
+                      )}
                       <td className="p-3 sm:p-4 text-left md:text-right">
                         <button
                           type="button"
@@ -797,18 +820,19 @@ export default function SalesPage() {
                                       </div>
                                     </div>
 
-                                    {/* 6. PROFIT */}
-                                    <div className="w-32 flex-shrink-0 text-left">
-                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                                        Profit
+                                    {showProfitColumn && (
+                                      <div className="w-32 flex-shrink-0 text-left">
+                                        <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
+                                          Profit
+                                        </div>
+                                        <div
+                                          className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
+                                        >
+                                          {isPositive ? "+" : "-"}$
+                                          {Math.abs(itemFinancials.unitProfit).toFixed(2)}
+                                        </div>
                                       </div>
-                                      <div
-                                        className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
-                                      >
-                                        {isPositive ? "+" : "-"}$
-                                        {Math.abs(itemFinancials.unitProfit).toFixed(2)}
-                                      </div>
-                                    </div>
+                                    )}
 
                                     {/* 7. ACTION */}
                                     <div className="w-20 flex-shrink-0">
@@ -856,22 +880,18 @@ export default function SalesPage() {
                             </div>
                             <div className="flex items-center justify-between gap-4">
                               <span className="text-gray-500">Status</span>
-                              <span
-                                className={
-                                  saleStatusLabel === "Partially refunded"
-                                    ? "text-amber-300"
-                                    : "text-green-400"
-                                }
-                              >
+                              <span className={saleStatusMeta.className}>
                                 {saleStatusLabel}
                               </span>
                             </div>
-                            <div className="flex items-center justify-between gap-4">
-                              <span className="text-gray-500">Profit</span>
-                              <span className={profitClass}>
-                                {profitPrefix}${Math.abs(profit).toFixed(2)}
-                              </span>
-                            </div>
+                            {showProfitColumn && (
+                              <div className="flex items-center justify-between gap-4">
+                                <span className="text-gray-500">Profit</span>
+                                <span className={profitClass}>
+                                  {profitPrefix}${Math.abs(profit).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="mt-4 border-t border-zinc-800/70 pt-4">
@@ -915,17 +935,22 @@ export default function SalesPage() {
                                         ${Number(item.line_total ?? 0).toFixed(2)}
                                       </div>
                                       <div className="mt-0.5 text-xs text-gray-500">
-                                        Price ${itemFinancials.unitPrice.toFixed(2)} -
-                                        Profit{" "}
-                                        <span
-                                          className={
-                                            itemFinancials.unitProfit >= 0
-                                              ? "text-green-400"
-                                              : "text-red-400"
-                                          }
-                                        >
-                                          {formattedUnitProfit}
-                                        </span>
+                                        Price ${itemFinancials.unitPrice.toFixed(2)}
+                                        {showProfitColumn && (
+                                          <>
+                                            {" "}
+                                            - Profit{" "}
+                                            <span
+                                              className={
+                                                itemFinancials.unitProfit >= 0
+                                                  ? "text-green-400"
+                                                  : "text-red-400"
+                                              }
+                                            >
+                                              {formattedUnitProfit}
+                                            </span>
+                                          </>
+                                        )}
                                       </div>
                                       <button
                                         type="button"

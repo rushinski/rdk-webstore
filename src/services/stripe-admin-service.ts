@@ -35,7 +35,6 @@ export type StripeAccountSummary = {
     amount: number;
     currency: string;
     arrival_date: number | null;
-    estimated: boolean; // Whether this is estimated or an actual scheduled payout
   } | null;
   requirements: {
     currently_due: string[];
@@ -120,81 +119,12 @@ export class StripeAdminService {
   }
 
   /**
-   * Calculate the next scheduled payout date based on the payout schedule
-   */
-  private calculateNextPayoutDate(
-    schedule: Stripe.Account.Settings.Payouts.Schedule | null,
-  ): number | null {
-    if (!schedule) {
-      return null;
-    }
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    if (schedule.interval === "daily") {
-      // Next payout is tomorrow (Stripe typically pays out the next business day)
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      return Math.floor(tomorrow.getTime() / 1000);
-    }
-
-    if (schedule.interval === "weekly") {
-      const weeklyAnchor = schedule.weekly_anchor || "monday";
-      const dayMap: Record<string, number> = {
-        sunday: 0,
-        monday: 1,
-        tuesday: 2,
-        wednesday: 3,
-        thursday: 4,
-        friday: 5,
-        saturday: 6,
-      };
-
-      const targetDay = dayMap[weeklyAnchor.toLowerCase()] ?? 1;
-      const currentDay = today.getDay();
-
-      let daysUntilNext = targetDay - currentDay;
-      if (daysUntilNext <= 0) {
-        daysUntilNext += 7; // Next week
-      }
-
-      const nextDate = new Date(today);
-      nextDate.setDate(nextDate.getDate() + daysUntilNext);
-      return Math.floor(nextDate.getTime() / 1000);
-    }
-
-    if (schedule.interval === "monthly") {
-      const anchor = schedule.monthly_anchor || 1;
-      const nextDate = new Date(today);
-
-      // If we're past this month's anchor, go to next month
-      if (today.getDate() >= anchor) {
-        nextDate.setMonth(nextDate.getMonth() + 1);
-      }
-
-      nextDate.setDate(anchor);
-      return Math.floor(nextDate.getTime() / 1000);
-    }
-
-    if (schedule.interval === "manual") {
-      return null; // No automatic payouts scheduled
-    }
-
-    return null;
-  }
-
-  /**
    * Returns the next expected payout for the connected account.
-   * This tries to find an actual scheduled payout first, then falls back
-   * to estimating based on the payout schedule and pending balance.
+   * Only returns Stripe-confirmed payouts to avoid showing inaccurate estimates.
    */
   private async getUpcomingPayoutForAccount(
     stripeAccountId: string,
-    balance: Stripe.Balance,
-    schedule: Stripe.Account.Settings.Payouts.Schedule | null,
   ): Promise<StripeAccountSummary["upcoming_payout"]> {
-    // First, try to find actual scheduled payouts
     const pendingParams = {
       limit: 20,
       status: "pending",
@@ -222,33 +152,10 @@ export class StripeAdminService {
         amount: next.amount,
         currency: next.currency,
         arrival_date: next.arrival_date ?? null,
-        estimated: false,
       };
     }
 
-    // No scheduled payout found - estimate based on schedule and pending balance
-    // This mimics what Stripe Dashboard does
-    if (!schedule || schedule.interval === "manual") {
-      // Manual payouts only - no automatic upcoming payout
-      return null;
-    }
-
-    // Get pending balance for USD (or adapt for multi-currency if needed)
-    const pendingBalance = balance.pending.find((b) => b.currency === "usd");
-
-    if (!pendingBalance || pendingBalance.amount === 0) {
-      // No pending balance, no upcoming payout to show
-      return null;
-    }
-
-    const estimatedDate = this.calculateNextPayoutDate(schedule);
-
-    return {
-      amount: pendingBalance.amount,
-      currency: pendingBalance.currency,
-      arrival_date: estimatedDate,
-      estimated: true, // Flag this as an estimate
-    };
+    return null;
   }
 
   async getStripeAccountSummary(params: {
@@ -286,12 +193,7 @@ export class StripeAdminService {
       }),
     ]);
 
-    // Get upcoming payout AFTER we have balance and schedule
-    const upcomingPayout = await this.getUpcomingPayoutForAccount(
-      stripeAccountId,
-      balance,
-      account.settings?.payouts?.schedule ?? null,
-    );
+    const upcomingPayout = await this.getUpcomingPayoutForAccount(stripeAccountId);
 
     const bankAccounts = externalAccounts.data
       .filter((ea) => ea.object === "bank_account")
