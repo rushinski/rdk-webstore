@@ -307,15 +307,36 @@ export async function POST(request: NextRequest) {
     // the webhook will handle the final transition to "succeeded".
     // DO NOT treat "processing" as an error!
     if (paymentIntent.status === "processing") {
-      await ensureGuestContactForStatusTransitions({
-        order,
-        orderId,
-        requestId,
-        stripeAccountId,
-        guestEmail: guestEmail ?? null,
-        paymentIntent,
-        ordersRepo,
-      });
+      // ✅ FIX: For BNPL guest orders, save the guest email IMMEDIATELY
+      // Don't wait for webhook or try to extract from PaymentIntent
+      if (!order.user_id && guestEmail) {
+        const normalizedGuestEmail = normalizeEmail(guestEmail);
+        if (normalizedGuestEmail && order.guest_email !== normalizedGuestEmail) {
+          await ordersRepo.updateGuestEmail(orderId, normalizedGuestEmail);
+          order.guest_email = normalizedGuestEmail;
+          log({
+            level: "info",
+            layer: "api",
+            message: "guest_email_saved_for_processing_payment",
+            requestId,
+            orderId,
+            hasGuestEmail: true,
+          });
+        }
+      }
+
+      // If we still don't have a guest email, try to extract it
+      if (!order.user_id && !order.guest_email) {
+        await ensureGuestContactForStatusTransitions({
+          order,
+          orderId,
+          requestId,
+          stripeAccountId,
+          guestEmail: guestEmail ?? null,
+          paymentIntent,
+          ordersRepo,
+        });
+      }
 
       // Mark order as "processing" so it's tracked but not yet counted as revenue
       const { data: processingRow, error: processingError } = await adminSupabase
@@ -336,6 +357,7 @@ export async function POST(request: NextRequest) {
           message: "payment_processing_no_status_transition",
           requestId,
           orderId,
+          currentStatus: order.status,
         });
       }
 
@@ -360,6 +382,8 @@ export async function POST(request: NextRequest) {
         paymentIntentId,
         paymentMethod: paymentIntent.payment_method_types?.[0],
         hasGuestToken: Boolean(guestAccessToken),
+        hasGuestEmail: Boolean(order.guest_email),
+        guestEmail: order.guest_email,
       });
 
       // Return 202 Accepted with processing flag

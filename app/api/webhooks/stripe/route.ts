@@ -263,7 +263,16 @@ export async function POST(request: NextRequest) {
     try {
       // Use the Connect webhook secret for events from connected accounts
       event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
-    } catch {
+    } catch (error) {
+      log({
+        level: "error",
+        layer: "stripe",
+        message: "webhook_signature_validation_failed",
+        requestId,
+        error: error instanceof Error ? error.message : String(error),
+        hasSignature: Boolean(signature),
+        signaturePrefix: signature?.substring(0, 10) + "...",
+      });
       return json({ error: "Invalid signature", requestId }, 400);
     }
 
@@ -391,14 +400,27 @@ async function handlePaymentIntentSucceeded(
     return true;
   }
 
-  await ensureGuestContactForStatusTransitions({
-    order,
-    orderId,
-    paymentIntent: pi,
-    connectAccountId,
-    ordersRepo,
-    requestId,
-  });
+  // ✅ FIX: Only try to extract guest email if not already set
+  // For BNPL payments, confirm-payment should have already set it
+  if (!order.user_id && !order.guest_email) {
+    await ensureGuestContactForStatusTransitions({
+      order,
+      orderId,
+      paymentIntent: pi,
+      connectAccountId,
+      ordersRepo,
+      requestId,
+    });
+  } else if (!order.user_id && order.guest_email) {
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "guest_email_already_set_for_succeeded_webhook",
+      requestId,
+      orderId,
+      guestEmail: order.guest_email,
+    });
+  }
 
   // Mark paid & decrement inventory (idempotent)
   const orderItems = await ordersRepo.getOrderItems(orderId);
@@ -696,14 +718,27 @@ async function handlePaymentIntentProcessing(
     return;
   }
 
-  await ensureGuestContactForStatusTransitions({
-    order,
-    orderId,
-    paymentIntent: pi,
-    connectAccountId,
-    ordersRepo,
-    requestId,
-  });
+  // ✅ FIX: Only try to extract guest email if it's not already set
+  // The confirm-payment endpoint should have already set it for BNPL payments
+  if (!order.user_id && !order.guest_email) {
+    await ensureGuestContactForStatusTransitions({
+      order,
+      orderId,
+      paymentIntent: pi,
+      connectAccountId,
+      ordersRepo,
+      requestId,
+    });
+  } else if (!order.user_id && order.guest_email) {
+    log({
+      level: "info",
+      layer: "stripe",
+      message: "guest_email_already_set_skipping_extraction",
+      requestId,
+      orderId,
+      guestEmail: order.guest_email,
+    });
+  }
 
   const { data: processingRow, error: processingError } = await adminSupabase
     .from("orders")
@@ -735,6 +770,7 @@ async function handlePaymentIntentProcessing(
       message: "order_status_processing_no_transition",
       requestId,
       orderId,
+      currentStatus: order.status,
     });
   }
 
@@ -745,6 +781,7 @@ async function handlePaymentIntentProcessing(
     requestId,
     orderId,
     paymentMethod: pi.payment_method_types?.[0],
+    hasGuestEmail: Boolean(order.guest_email),
   });
 }
 
@@ -968,6 +1005,8 @@ async function sendWebhookEmails(
             message: "webhook_email_recovered_from_charge",
             requestId,
             orderId,
+            email,
+            paymentMethod: paymentIntent.payment_method_types?.[0] || "unknown",
           });
         }
       } catch {
@@ -988,6 +1027,14 @@ async function sendWebhookEmails(
 
     if (!resolvedOrder.user_id && email && resolvedOrder.guest_email !== email) {
       await ordersRepo.updateGuestEmail(orderId, email);
+      log({
+        level: "info",
+        layer: "stripe",
+        message: "webhook_guest_email_updated",
+        requestId,
+        orderId,
+        email,
+      });
     }
 
     let orderUrl: string | null = null;

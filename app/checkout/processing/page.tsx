@@ -58,6 +58,18 @@ export default function CheckoutProcessingPage() {
   }, [orderId, tokenParam]);
 
   useEffect(() => {
+    console.log("[Processing] useEffect triggered with:", {
+      orderId,
+      paymentIntentId,
+      redirectStatus,
+      fulfillment,
+      tokenParam,
+      hasCalledConfirm: hasCalledConfirm.current,
+      willCallConfirm: Boolean(
+        redirectStatus === "succeeded" && paymentIntentId && !hasCalledConfirm.current,
+      ),
+    });
+
     if (!orderId) {
       router.push("/cart");
       return;
@@ -79,6 +91,12 @@ export default function CheckoutProcessingPage() {
             // sessionStorage may be unavailable
           }
 
+          console.log("[Processing] Confirming payment with:", {
+            orderId,
+            paymentIntentId,
+            hasGuestEmail: Boolean(guestEmail),
+          });
+
           const res = await fetch("/api/checkout/confirm-payment", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -92,6 +110,15 @@ export default function CheckoutProcessingPage() {
 
           const data = await res.json();
 
+          console.log("[Processing] Confirm payment response:", {
+            status: res.status,
+            ok: res.ok,
+            processing: data.processing,
+            success: data.success,
+            hasGuestToken: Boolean(data.guestAccessToken),
+            tokenLength: data.guestAccessToken?.length,
+          });
+
           if (!res.ok) {
             throw new Error(data.error || "Payment confirmation failed");
           }
@@ -101,6 +128,13 @@ export default function CheckoutProcessingPage() {
               typeof data.guestAccessToken === "string" && data.guestAccessToken.trim()
                 ? data.guestAccessToken
                 : null;
+
+            console.log("[Processing] Token received:", {
+              hasToken: Boolean(returnedToken),
+              tokenLength: returnedToken?.length,
+              willStartPolling: true,
+            });
+
             if (returnedToken) {
               persistGuestAccess(orderId, returnedToken);
               setGuestToken(returnedToken);
@@ -113,7 +147,15 @@ export default function CheckoutProcessingPage() {
             } catch {
               // non-fatal
             }
-            startPolling(returnedToken ?? readStoredGuestToken(orderId));
+
+            // ✅ FIX: Always use the returned token first, fall back to stored
+            const tokenForPolling = returnedToken ?? readStoredGuestToken(orderId);
+            console.log("[Processing] Starting polling with token:", {
+              hasToken: Boolean(tokenForPolling),
+              tokenSource: returnedToken ? "returned" : "stored",
+            });
+
+            startPolling(tokenForPolling);
           } else {
             throw new Error("Unexpected response from server");
           }
@@ -133,10 +175,58 @@ export default function CheckoutProcessingPage() {
     }
 
     // 2. Handle Direct Arrival (Standard flow, if applicable)
-    if (!redirectStatus) {
+    if (!redirectStatus && !paymentIntentId) {
+      console.log("[Processing] Direct arrival detected (no redirect_status), starting polling:", {
+        hasTokenParam: Boolean(tokenParam),
+        hasStoredToken: Boolean(readStoredGuestToken(orderId)),
+      });
       // Note: If arriving here without a token in URL or state for a guest,
       // polling might fail unless the user is logged in.
       startPolling(tokenParam ?? readStoredGuestToken(orderId));
+    } else if (!redirectStatus && paymentIntentId) {
+      // ✅ NEW FAILSAFE: If we have a paymentIntentId but no redirectStatus,
+      // this might be a direct inline completion (shouldn't happen for Afterpay but just in case)
+      console.warn(
+        "[Processing] Have payment_intent but no redirect_status - this is unusual",
+        {
+          paymentIntentId,
+          orderId,
+        },
+      );
+      // Try to confirm anyway as a failsafe
+      hasCalledConfirm.current = true;
+      const confirmPayment = async () => {
+        try {
+          setMessage("Verifying your payment...");
+          const res = await fetch("/api/checkout/confirm-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              orderId,
+              paymentIntentId,
+              fulfillment: fulfillment as "ship" | "pickup",
+            }),
+          });
+          const data = await res.json();
+          if (res.ok && (data.processing || data.success)) {
+            const token = data.guestAccessToken;
+            if (token) {
+              persistGuestAccess(orderId, token);
+              setGuestToken(token);
+            }
+            startPolling(token ?? readStoredGuestToken(orderId));
+          } else {
+            throw new Error(data.error || "Payment verification failed");
+          }
+        } catch (error) {
+          console.error("[Processing] Failsafe confirm error:", error);
+          setStatus("error");
+          setMessage("Unable to verify payment. Please contact support.");
+        }
+      };
+      void confirmPayment();
+    } else if (redirectStatus && redirectStatus !== "succeeded") {
+      console.error("[Processing] Unexpected redirect_status:", redirectStatus);
     }
   }, [orderId, paymentIntentId, redirectStatus, fulfillment, tokenParam, router]);
 
@@ -144,6 +234,14 @@ export default function CheckoutProcessingPage() {
     let pollCount = 0;
     const maxPolls = 60;
     const activeToken = explicitToken ?? guestToken ?? null;
+
+    console.log("[Processing] Starting polling with:", {
+      hasExplicitToken: Boolean(explicitToken),
+      hasGuestToken: Boolean(guestToken),
+      hasActiveToken: Boolean(activeToken),
+      activeTokenLength: activeToken?.length,
+      orderId,
+    });
 
     const poll = async () => {
       if (pollCount >= maxPolls) {
@@ -159,11 +257,48 @@ export default function CheckoutProcessingPage() {
           ? `/api/orders/${orderId}?token=${encodeURIComponent(activeToken)}`
           : `/api/orders/${orderId}`;
 
+        console.log(`[Processing] Poll #${pollCount + 1}:`, {
+          url,
+          hasToken: Boolean(activeToken),
+          tokenLength: activeToken?.length,
+        });
+
         const res = await fetch(url);
         const data = await res.json();
 
+        console.log(`[Processing] Poll #${pollCount + 1} response:`, {
+          status: res.status,
+          ok: res.ok,
+          orderStatus: data.status,
+          error: data.error,
+        });
+
         if (!res.ok) {
           const unauthorized = data?.error === "Unauthorized" || res.status === 401;
+
+          // ✅ FIX: If unauthorized WITH a token, it's a real error
+          if (unauthorized && activeToken) {
+            console.error("[Processing] Unauthorized error with token:", {
+              pollCount,
+              hasToken: Boolean(activeToken),
+              tokenLength: activeToken?.length,
+            });
+
+            // Retry a few times in case of race condition
+            if (pollCount < 10) {
+              pollCount++;
+              setTimeout(() => {
+                void poll();
+              }, 2000); // Wait longer between retries
+              return;
+            }
+
+            throw new Error(
+              "Unable to access order. Your payment is processing. Check your email for confirmation.",
+            );
+          }
+
+          // If unauthorized without token, keep retrying (might be logged in user)
           if (unauthorized && !activeToken && pollCount < maxPolls) {
             pollCount++;
             setTimeout(() => {
@@ -172,6 +307,7 @@ export default function CheckoutProcessingPage() {
             return;
           }
 
+          // For other errors, retry a few times
           if (pollCount < 5) {
             pollCount++;
             setTimeout(() => {
@@ -183,6 +319,12 @@ export default function CheckoutProcessingPage() {
         }
 
         if (data.status === "paid" || data.status === "processing") {
+          console.log("[Processing] Order confirmed:", {
+            status: data.status,
+            orderId,
+            hasToken: Boolean(activeToken),
+          });
+
           setStatus("success");
           setMessage("Payment successful!");
 
@@ -190,19 +332,26 @@ export default function CheckoutProcessingPage() {
             const targetUrl = activeToken
               ? `/checkout/success?orderId=${orderId}&token=${encodeURIComponent(activeToken)}`
               : `/checkout/success?orderId=${orderId}`;
+            console.log("[Processing] Redirecting to:", targetUrl);
             router.push(targetUrl);
           }, 1500);
         } else if (data.status === "failed") {
+          console.error("[Processing] Payment failed:", data);
           setStatus("error");
           setMessage("Payment failed. Please try again.");
         } else {
+          // Order is still pending, keep polling
+          console.log("[Processing] Order still pending, continuing to poll...", {
+            status: data.status,
+            pollCount: pollCount + 1,
+          });
           pollCount++;
           setTimeout(() => {
             void poll();
           }, 1000);
         }
       } catch (error) {
-        console.error("Polling error:", error);
+        console.error("[Processing] Polling error:", error);
         if (pollCount < 5) {
           pollCount++;
           setTimeout(() => {
@@ -211,15 +360,17 @@ export default function CheckoutProcessingPage() {
         } else {
           setStatus("error");
           setMessage(
-            "Unable to verify payment status. Check your email for confirmation.",
+            error instanceof Error
+              ? error.message
+              : "Unable to verify payment status. Check your email for confirmation.",
           );
         }
       }
     };
 
-    setTimeout(() => {
-      void poll();
-    }, 500);
+    // ✅ FIX: Start polling immediately instead of waiting 500ms
+    // The webhook might have already processed by the time we get here
+    void poll();
   };
 
   return (

@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ExpressCheckoutElement,
@@ -87,8 +87,61 @@ export function CheckoutForm({
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [uiValidationErrors, setUiValidationErrors] = useState<string[]>([]);
   const [uiSubmitError, setUiSubmitError] = useState<string | null>(null);
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const emailSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasStripeElements = Boolean(elements);
+
+  // ✅ NEW: Auto-save guest email to database when it changes
+  // This prevents race conditions where sessionStorage is cleared during Afterpay redirect
+  useEffect(() => {
+    if (!isGuestCheckout || !guestEmail || !orderId) {
+      return;
+    }
+
+    const trimmed = guestEmail.trim();
+    if (!trimmed || !isValidEmail(trimmed)) {
+      return;
+    }
+
+    // Clear any pending save
+    if (emailSaveTimerRef.current) {
+      clearTimeout(emailSaveTimerRef.current);
+    }
+
+    // Debounce: save 500ms after user stops typing
+    emailSaveTimerRef.current = setTimeout(() => {
+      const saveEmail = async () => {
+        setIsSavingEmail(true);
+        try {
+          const res = await fetch("/api/checkout/update-guest-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId, guestEmail: trimmed }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            console.warn("[CheckoutForm] Failed to save guest email:", data.error);
+          } else {
+            console.log("[CheckoutForm] Guest email saved to database:", trimmed);
+          }
+        } catch (error) {
+          console.error("[CheckoutForm] Error saving guest email:", error);
+        } finally {
+          setIsSavingEmail(false);
+        }
+      };
+
+      void saveEmail();
+    }, 500);
+
+    return () => {
+      if (emailSaveTimerRef.current) {
+        clearTimeout(emailSaveTimerRef.current);
+      }
+    };
+  }, [isGuestCheckout, guestEmail, orderId]);
 
   const toApiAddress = (addr: ShippingAddress | null) =>
     addr
@@ -352,14 +405,21 @@ export function CheckoutForm({
           <h2 className="text-sm sm:text-lg font-semibold text-white mb-3 flex items-center gap-2">
             <Mail className="w-4 h-4 sm:w-5 sm:h-5" /> Contact Information
           </h2>
-          <input
-            type="email"
-            value={guestEmail || ""}
-            onChange={(e) => onGuestEmailChange?.(e.target.value)}
-            placeholder="you@email.com"
-            className={`w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border ${emailError ? "border-red-500" : "border-zinc-800"} text-white focus:outline-none focus:ring-2 focus:ring-red-600`}
-            disabled={isProcessing}
-          />
+          <div className="relative">
+            <input
+              type="email"
+              value={guestEmail || ""}
+              onChange={(e) => onGuestEmailChange?.(e.target.value)}
+              placeholder="you@email.com"
+              className={`w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border ${emailError ? "border-red-500" : "border-zinc-800"} text-white focus:outline-none focus:ring-2 focus:ring-red-600`}
+              disabled={isProcessing}
+            />
+            {isSavingEmail && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-4 h-4 text-zinc-500 animate-spin" />
+              </div>
+            )}
+          </div>
           {emailError && (
             <p className="text-xs sm:text-sm text-red-400 mt-2">{emailError}</p>
           )}
