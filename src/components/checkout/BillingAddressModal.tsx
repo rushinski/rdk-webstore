@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { X, CreditCard } from "lucide-react";
 
 import { AddressInput } from "@/components/shared/AddressInput";
-import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
+import { normalizeUsStateCode } from "@/lib/address/codes";
 
 import type { BillingAddress } from "./BillingAddressForm";
 

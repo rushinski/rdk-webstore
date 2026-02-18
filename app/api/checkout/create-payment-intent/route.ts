@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
-    const userEmail = user?.email ?? null;
 
     if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
       return json(
@@ -188,9 +187,6 @@ export async function POST(request: NextRequest) {
         customer_state: pricing.customerState,
       })
       .eq("id", order.id);
-
-    // ---------- Resolve customer email ----------
-    const email = userEmail ?? guestEmail ?? null;
 
     // DISABLED: Customer creation causes saved payment methods to be reused with old billing details
     // This breaks Stripe Radar postal code verification since the saved payment methods

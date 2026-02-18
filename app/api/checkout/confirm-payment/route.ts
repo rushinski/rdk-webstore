@@ -268,19 +268,23 @@ export async function POST(request: NextRequest) {
             ? paymentIntent.payment_method
             : paymentIntent.payment_method.id;
 
-        await directCharge.updatePaymentMethodBillingDetails(stripeAccountId, paymentMethodId, {
-          name: billingAddress.name,
-          email: guestEmail || undefined,
-          phone: billingAddress.phone || undefined,
-          address: {
-            line1: billingAddress.line1,
-            line2: billingAddress.line2 || undefined,
-            city: billingAddress.city,
-            state: billingAddress.state,
-            postal_code: billingAddress.postal_code,
-            country: billingAddress.country,
+        await directCharge.updatePaymentMethodBillingDetails(
+          stripeAccountId,
+          paymentMethodId,
+          {
+            name: billingAddress.name,
+            email: guestEmail || undefined,
+            phone: billingAddress.phone || undefined,
+            address: {
+              line1: billingAddress.line1,
+              line2: billingAddress.line2 || undefined,
+              city: billingAddress.city,
+              state: billingAddress.state,
+              postal_code: billingAddress.postal_code,
+              country: billingAddress.country,
+            },
           },
-        });
+        );
 
         log({
           level: "info",

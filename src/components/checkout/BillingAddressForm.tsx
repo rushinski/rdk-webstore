@@ -94,7 +94,8 @@ export function BillingAddressForm({
                     <p className="text-sm text-gray-400">{billingAddress.line2}</p>
                   )}
                   <p className="text-sm text-gray-400">
-                    {billingAddress.city}, {billingAddress.state} {billingAddress.postal_code}
+                    {billingAddress.city}, {billingAddress.state}{" "}
+                    {billingAddress.postal_code}
                   </p>
                   {billingAddress.phone && (
                     <p className="text-sm text-gray-500 mt-1">{billingAddress.phone}</p>
