@@ -69,6 +69,11 @@ export class StripeDirectChargeService {
       // account controls which methods are available via their dashboard.
       automatic_payment_methods: { enabled: true },
       metadata: params.metadata,
+      // IMPORTANT: Don't save payment methods for future use
+      // This ensures we always create fresh payment methods with current billing details
+      // Otherwise, saved payment methods will have old billing details that cause
+      // Stripe Radar postal code verification to fail
+      setup_future_usage: null,
     };
 
     // Platform fee (optional — set to 0 if the platform takes no cut)
@@ -252,6 +257,42 @@ export class StripeDirectChargeService {
     });
 
     return customer.id;
+  }
+
+  /**
+   * Update a payment method's billing details on the Connect account.
+   * This is useful for updating saved payment methods with current billing information.
+   */
+  async updatePaymentMethodBillingDetails(
+    stripeAccountId: string,
+    paymentMethodId: string,
+    billingDetails: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      address?: {
+        line1?: string;
+        line2?: string;
+        city?: string;
+        state?: string;
+        postal_code?: string;
+        country?: string;
+      };
+    },
+  ): Promise<void> {
+    const connectClient = getConnectClient(stripeAccountId);
+
+    await connectClient.paymentMethods.update(paymentMethodId, {
+      billing_details: billingDetails,
+    });
+
+    log({
+      level: "info",
+      layer: "service",
+      message: "payment_method_billing_details_updated",
+      paymentMethodId,
+      stripeAccountId,
+    });
   }
 
   /**

@@ -259,6 +259,50 @@ export async function POST(request: NextRequest) {
       paymentIntentId,
     );
 
+    // Update payment method billing details if provided
+    // This ensures correct billing details for both new and saved payment methods
+    if (billingAddress?.line1 && paymentIntent.payment_method) {
+      try {
+        const paymentMethodId =
+          typeof paymentIntent.payment_method === "string"
+            ? paymentIntent.payment_method
+            : paymentIntent.payment_method.id;
+
+        await directCharge.updatePaymentMethodBillingDetails(stripeAccountId, paymentMethodId, {
+          name: billingAddress.name,
+          email: guestEmail || undefined,
+          phone: billingAddress.phone || undefined,
+          address: {
+            line1: billingAddress.line1,
+            line2: billingAddress.line2 || undefined,
+            city: billingAddress.city,
+            state: billingAddress.state,
+            postal_code: billingAddress.postal_code,
+            country: billingAddress.country,
+          },
+        });
+
+        log({
+          level: "info",
+          layer: "api",
+          message: "payment_method_billing_details_updated",
+          requestId,
+          orderId,
+          paymentMethodId,
+        });
+      } catch (updateError) {
+        // Log but don't fail the payment
+        log({
+          level: "warn",
+          layer: "api",
+          message: "payment_method_billing_update_failed",
+          requestId,
+          orderId,
+          error: updateError instanceof Error ? updateError.message : String(updateError),
+        });
+      }
+    }
+
     // Validate PI matches order
     if (paymentIntent.metadata?.order_id && paymentIntent.metadata.order_id !== orderId) {
       return json(

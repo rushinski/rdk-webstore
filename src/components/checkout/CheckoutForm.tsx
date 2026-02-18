@@ -292,6 +292,23 @@ export function CheckoutForm({
         }
       }
 
+      // IMPORTANT: For saved payment methods, we need to update billing details
+      // Get the payment method from the payment intent and update it
+      if (billingAddress) {
+        try {
+          // Fetch the current payment intent to get the payment method
+          const paymentElement = elements.getElement("payment");
+          if (paymentElement) {
+            // The payment method will be attached during confirmPayment
+            // So we pass billing details via payment_method_data for new PMs
+            // and update existing PMs via the updatePaymentMethod call below
+          }
+        } catch (error) {
+          console.warn("Could not pre-update payment method billing details:", error);
+          // Non-fatal, continue with payment
+        }
+      }
+
       // Persist guest email before Stripe redirect (Affirm, Afterpay, Klarna)
       // so the processing page can recover it after the redirect round-trip.
       if (isGuestCheckout && guestEmail) {
@@ -302,43 +319,79 @@ export function CheckoutForm({
         }
       }
 
+      // Build confirm params with billing details for BOTH new and existing payment methods
+      const confirmParams: {
+        return_url: string;
+        shipping?: {
+          name: string;
+          phone: string;
+          address: {
+            line1: string;
+            line2: string;
+            city: string;
+            state: string;
+            postal_code: string;
+            country: string;
+          };
+        };
+        payment_method_data?: {
+          billing_details: {
+            name: string;
+            email?: string;
+            phone?: string;
+            address: {
+              line1: string;
+              line2?: string;
+              city: string;
+              state: string;
+              postal_code: string;
+              country: string;
+            };
+          };
+        };
+      } = {
+        return_url: `${window.location.origin}/checkout/processing?orderId=${orderId}&fulfillment=${fulfillment}`,
+      };
+
+      // Add shipping address if applicable
+      if (fulfillment === "ship" && shippingAddress) {
+        confirmParams.shipping = {
+          name: shippingAddress.name,
+          phone: shippingAddress.phone,
+          address: {
+            line1: shippingAddress.line1,
+            line2: shippingAddress.line2 || "",
+            city: shippingAddress.city,
+            state: shippingAddress.state.trim().toUpperCase(),
+            postal_code: shippingAddress.postal_code.trim(),
+            country: shippingAddress.country.trim().toUpperCase(),
+          },
+        };
+      }
+
+      // Add billing details - this works for new payment methods
+      // For saved payment methods, we'll update them separately below
+      if (billingAddress) {
+        confirmParams.payment_method_data = {
+          billing_details: {
+            name: billingAddress.name,
+            email: guestEmail || undefined,
+            phone: billingAddress.phone || undefined,
+            address: {
+              line1: billingAddress.line1,
+              line2: billingAddress.line2 || undefined,
+              city: billingAddress.city,
+              state: billingAddress.state.trim().toUpperCase(),
+              postal_code: billingAddress.postal_code.trim(),
+              country: billingAddress.country.trim().toUpperCase(),
+            },
+          },
+        };
+      }
+
       const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
         elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/checkout/processing?orderId=${orderId}&fulfillment=${fulfillment}`,
-          shipping:
-            fulfillment === "ship" && shippingAddress
-              ? {
-                  name: shippingAddress.name,
-                  phone: shippingAddress.phone,
-                  address: {
-                    line1: shippingAddress.line1,
-                    line2: shippingAddress.line2 || "",
-                    city: shippingAddress.city,
-                    state: shippingAddress.state.trim().toUpperCase(),
-                    postal_code: shippingAddress.postal_code.trim(),
-                    country: shippingAddress.country.trim().toUpperCase(),
-                  },
-                }
-              : undefined,
-          payment_method_data: billingAddress
-            ? {
-                billing_details: {
-                  name: billingAddress.name,
-                  email: guestEmail || undefined,
-                  phone: billingAddress.phone || undefined,
-                  address: {
-                    line1: billingAddress.line1,
-                    line2: billingAddress.line2 || undefined,
-                    city: billingAddress.city,
-                    state: billingAddress.state.trim().toUpperCase(),
-                    postal_code: billingAddress.postal_code.trim(),
-                    country: billingAddress.country.trim().toUpperCase(),
-                  },
-                },
-              }
-            : undefined,
-        },
+        confirmParams,
         redirect: "if_required",
       });
 

@@ -1,6 +1,9 @@
 "use client";
 
-import { CreditCard } from "lucide-react";
+import { useState } from "react";
+import { Check, CreditCard, Plus, Copy } from "lucide-react";
+
+import { BillingAddressModal } from "./BillingAddressModal";
 
 export interface BillingAddress {
   name: string;
@@ -37,16 +40,15 @@ export function BillingAddressForm({
   fulfillment,
   isProcessing = false,
 }: BillingAddressFormProps) {
-  const useSameAsShipping = Boolean(
-    fulfillment === "ship" &&
-      shippingAddress &&
-      billingAddress &&
-      billingAddress.line1 === shippingAddress.line1 &&
-      billingAddress.postal_code === shippingAddress.postal_code,
-  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleSameAsShippingChange = (checked: boolean) => {
-    if (checked && shippingAddress) {
+  const handleSaveAddress = (address: BillingAddress) => {
+    onBillingAddressChange(address);
+    setIsModalOpen(false);
+  };
+
+  const handleUseShippingAddress = () => {
+    if (shippingAddress) {
       onBillingAddressChange({
         name: shippingAddress.name,
         phone: shippingAddress.phone,
@@ -55,200 +57,92 @@ export function BillingAddressForm({
         city: shippingAddress.city,
         state: shippingAddress.state,
         postal_code: shippingAddress.postal_code,
-        country: shippingAddress.country,
-      });
-    } else if (!checked) {
-      // Clear billing address when unchecking
-      onBillingAddressChange({
-        name: "",
-        phone: "",
-        line1: "",
-        line2: "",
-        city: "",
-        state: "",
-        postal_code: "",
         country: "US",
       });
     }
   };
 
-  const updateField = (field: keyof BillingAddress, value: string) => {
-    onBillingAddressChange({
-      ...(billingAddress || {
-        name: "",
-        phone: "",
-        line1: "",
-        line2: "",
-        city: "",
-        state: "",
-        postal_code: "",
-        country: "US",
-      }),
-      [field]: value,
-    });
+  const handleEditAddress = () => {
+    setIsModalOpen(true);
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
-      <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <CreditCard className="w-5 h-5" /> Billing Address
-      </h2>
+    <>
+      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <CreditCard className="w-5 h-5" /> Billing Address
+        </h2>
 
-      {/* Same as shipping checkbox - only show for shipping orders */}
-      {fulfillment === "ship" && shippingAddress && (
-        <div className="mb-4">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={useSameAsShipping}
-              onChange={(e) => handleSameAsShippingChange(e.target.checked)}
+        <div className="space-y-3">
+          {/* Selected billing address card */}
+          {billingAddress && (
+            <button
+              type="button"
+              onClick={handleEditAddress}
               disabled={isProcessing}
-              className="w-4 h-4 rounded border-zinc-700 bg-zinc-950 text-red-600 focus:ring-2 focus:ring-red-600 focus:ring-offset-0"
-            />
-            <span className="text-sm text-gray-300">Same as shipping address</span>
-          </label>
-        </div>
-      )}
-
-      {/* Billing address form - only show if not using shipping address */}
-      {!useSameAsShipping && (
-        <div className="space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Full Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={billingAddress?.name || ""}
-              onChange={(e) => updateField("name", e.target.value)}
-              placeholder="John Doe"
-              disabled={isProcessing}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Phone Number
-            </label>
-            <input
-              type="tel"
-              value={billingAddress?.phone || ""}
-              onChange={(e) => updateField("phone", e.target.value)}
-              placeholder="(555) 123-4567"
-              disabled={isProcessing}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          {/* Address Line 1 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Street Address <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={billingAddress?.line1 || ""}
-              onChange={(e) => updateField("line1", e.target.value)}
-              placeholder="123 Main St"
-              disabled={isProcessing}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          {/* Address Line 2 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Apartment, suite, etc. (optional)
-            </label>
-            <input
-              type="text"
-              value={billingAddress?.line2 || ""}
-              onChange={(e) => updateField("line2", e.target.value)}
-              placeholder="Apt 4B"
-              disabled={isProcessing}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-            />
-          </div>
-
-          {/* City, State, ZIP */}
-          <div className="grid grid-cols-6 gap-3">
-            <div className="col-span-3">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                City <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={billingAddress?.city || ""}
-                onChange={(e) => updateField("city", e.target.value)}
-                placeholder="New York"
-                disabled={isProcessing}
-                className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-            <div className="col-span-1">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                State <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={billingAddress?.state || ""}
-                onChange={(e) => updateField("state", e.target.value.toUpperCase())}
-                placeholder="NY"
-                maxLength={2}
-                disabled={isProcessing}
-                className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                ZIP Code <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={billingAddress?.postal_code || ""}
-                onChange={(e) => updateField("postal_code", e.target.value)}
-                placeholder="10001"
-                disabled={isProcessing}
-                className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
-              />
-            </div>
-          </div>
-
-          {/* Country */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Country <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={billingAddress?.country || "US"}
-              onChange={(e) => updateField("country", e.target.value)}
-              disabled={isProcessing}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base rounded bg-zinc-950 border border-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+              className="w-full text-left p-4 rounded border border-red-600 bg-red-600/10 transition hover:border-red-500"
             >
-              <option value="US">United States</option>
-              <option value="CA">Canada</option>
-            </select>
-          </div>
-        </div>
-      )}
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-600 bg-red-600 flex items-center justify-center mt-0.5">
+                  <Check className="w-3 h-3 text-white" />
+                </div>
 
-      {/* Show billing address preview when using same as shipping */}
-      {useSameAsShipping && shippingAddress && (
-        <div className="mt-4 p-4 border border-zinc-800 rounded bg-zinc-950/40">
-          <p className="text-sm text-gray-400 mb-2">Billing address:</p>
-          <p className="text-white font-medium">{shippingAddress.name}</p>
-          <p className="text-sm text-gray-400">{shippingAddress.line1}</p>
-          {shippingAddress.line2 && (
-            <p className="text-sm text-gray-400">{shippingAddress.line2}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-white font-medium">{billingAddress.name}</p>
+                  <p className="text-sm text-gray-400">{billingAddress.line1}</p>
+                  {billingAddress.line2 && (
+                    <p className="text-sm text-gray-400">{billingAddress.line2}</p>
+                  )}
+                  <p className="text-sm text-gray-400">
+                    {billingAddress.city}, {billingAddress.state} {billingAddress.postal_code}
+                  </p>
+                  {billingAddress.phone && (
+                    <p className="text-sm text-gray-500 mt-1">{billingAddress.phone}</p>
+                  )}
+                </div>
+              </div>
+            </button>
           )}
-          <p className="text-sm text-gray-400">
-            {shippingAddress.city}, {shippingAddress.state} {shippingAddress.postal_code}
-          </p>
+
+          {/* Add billing address button */}
+          <button
+            type="button"
+            onClick={handleEditAddress}
+            disabled={isProcessing}
+            className="w-full p-4 rounded border border-dashed border-zinc-700 hover:border-red-600 hover:bg-red-600/5 transition flex items-center justify-center gap-2 text-gray-400 hover:text-red-400"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="font-medium">
+              {billingAddress ? "Edit billing address" : "Add billing address"}
+            </span>
+          </button>
+
+          {/* Use shipping address button - only show for shipping orders */}
+          {fulfillment === "ship" && shippingAddress && (
+            <button
+              type="button"
+              onClick={handleUseShippingAddress}
+              disabled={isProcessing}
+              className="w-full p-4 rounded border border-dashed border-zinc-700 hover:border-blue-600 hover:bg-blue-600/5 transition flex items-center justify-center gap-2 text-gray-400 hover:text-blue-400"
+            >
+              <Copy className="w-5 h-5" />
+              <span className="font-medium">Use shipping address</span>
+            </button>
+          )}
         </div>
-      )}
-    </div>
+
+        {/* Info text */}
+        <p className="text-xs text-gray-500 mt-4">
+          Required for payment verification and fraud prevention.
+        </p>
+      </div>
+
+      <BillingAddressModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveAddress}
+        initialAddress={billingAddress}
+      />
+    </>
   );
 }
