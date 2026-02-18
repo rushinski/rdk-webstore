@@ -69,11 +69,8 @@ export class StripeDirectChargeService {
       // account controls which methods are available via their dashboard.
       automatic_payment_methods: { enabled: true },
       metadata: params.metadata,
-      // IMPORTANT: Don't save payment methods for future use
-      // This ensures we always create fresh payment methods with current billing details
-      // Otherwise, saved payment methods will have old billing details that cause
-      // Stripe Radar postal code verification to fail
-      setup_future_usage: null,
+      // NOTE: We don't set setup_future_usage because we've disabled customer creation
+      // to prevent saved payment methods from being reused with old billing details
     };
 
     // Platform fee (optional — set to 0 if the platform takes no cut)

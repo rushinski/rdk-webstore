@@ -192,25 +192,30 @@ export async function POST(request: NextRequest) {
     // ---------- Resolve customer email ----------
     const email = userEmail ?? guestEmail ?? null;
 
+    // DISABLED: Customer creation causes saved payment methods to be reused with old billing details
+    // This breaks Stripe Radar postal code verification since the saved payment methods
+    // have outdated billing information that can't be updated before authorization.
+    // By not creating customers, we force fresh payment methods with current billing details.
+    //
     // Optionally create a customer on the Connect account for signed-in users
     let connectCustomerId: string | undefined;
-    if (userId && email) {
-      try {
-        connectCustomerId = await directCharge.getOrCreateConnectCustomer(
-          stripeAccountId,
-          { email, metadata: { platform_user_id: userId } },
-        );
-      } catch (err) {
-        // Non-fatal — proceed without customer
-        log({
-          level: "warn",
-          layer: "api",
-          message: "connect_customer_create_failed",
-          requestId,
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-    }
+    // if (userId && email) {
+    //   try {
+    //     connectCustomerId = await directCharge.getOrCreateConnectCustomer(
+    //       stripeAccountId,
+    //       { email, metadata: { platform_user_id: userId } },
+    //     );
+    //   } catch (err) {
+    //     // Non-fatal — proceed without customer
+    //     log({
+    //       level: "warn",
+    //       layer: "api",
+    //       message: "connect_customer_create_failed",
+    //       requestId,
+    //       error: err instanceof Error ? err.message : String(err),
+    //     });
+    //   }
+    // }
 
     // ---------- Register payment method domain on Connect account ----------
     // Required for Apple Pay / Google Pay to appear in ExpressCheckoutElement
