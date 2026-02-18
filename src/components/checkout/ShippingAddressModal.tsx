@@ -121,7 +121,7 @@ export function ShippingAddressModal({
 
     setIsValidating(false);
 
-    // No suggestions or validation failed, just save
+    // No suggestions or validation failed just save
     onSave(normalized);
     onClose();
   };
