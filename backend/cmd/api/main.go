@@ -55,6 +55,7 @@ func main() {
 
 	// creating the chi router
 	router := chi.NewRouter()
+	
 	// attaching middleware and CORS policies to the router
 	router.Use(
 		middleware.RequestID,
@@ -86,6 +87,7 @@ func main() {
 	// we put this in a goroutine because ListenAndServe runs forever so we need
 	// it to run in the background other wise nothing after it would ever run
 	go func() {
+		slog.Info("starting server")
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			slog.Error("server error",
@@ -93,6 +95,7 @@ func main() {
 			)
 			os.Exit(1)
 		}
+		slog.Info("server started")
 	}()
 
 	// channel listening for 1 OS signal
@@ -103,7 +106,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	slog.Info("shutting down server...")
+	slog.Info("shutting down server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
