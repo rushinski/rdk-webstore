@@ -1,11 +1,14 @@
 package config
 
 import (
-	"strconv"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type DatabaseConfig struct {
@@ -18,44 +21,81 @@ type DatabaseConfig struct {
 }
 
 func LoadDatabaseConfig() (*DatabaseConfig, error) {
-	url := os.Getenv("DATABASE_URL")
-	if url == "" {
-		return nil, fmt.Errorf("DATABASE_URL enviorment variable is required")
-	}
+    url := os.Getenv("DATABASE_URL")
+    if url == "" {
+        return nil, fmt.Errorf("DATABASE_URL environment variable is required")
+    }
 
-	maxConnectionsRaw := os.Getenv("DATABASE_MAX_CONNECTIONS")
-	if maxConnectionsRaw == "" {
-		slog.Warn("DATABASE_MAX_CONNECTIONS enviorment variable not set, defaulting to 25")
-		maxConnectionsRaw = "25"
-	}
+    maxConnections := getEnvIntWithDefault("DATABASE_MAX_CONNECTIONS", 25)
+    minConnections := getEnvIntWithDefault("DATABASE_MIN_CONNECTIONS", 5)
 
-	maxConnections, err := strconv.Atoi(maxConnectionsRaw)
+    return &DatabaseConfig{
+        URL:               url,
+        MaxConnections:    maxConnections,
+        MinConnections:    minConnections,
+        MaxConnLifetime:   time.Hour,
+        MaxConnIdleTime:   30 * time.Minute,
+        HealthCheckPeriod: time.Minute,
+    }, nil
+}
+
+// function used to create the initial database connection
+func NewPool(cfg *DatabaseConfig) (*pgxpool.Pool, error) {
+	// parsing the url from our DatabaseConfig struct 
+	poolConfig, err := pgxpool.ParseConfig(cfg.URL)
 	if err != nil {
-		return nil, fmt.Errorf("Error while converting maxConnections to int")
+		return nil, fmt.Errorf("failed to parse database url: %w", err)
 	}
 
-	minConnectionsRaw := os.Getenv("DATABASE_MIN_CONNECTIONS")
-	if minConnectionsRaw == "" {
-		slog.Warn("DATABASE_MIN_CONNECTIONS enviorment variable not set, defaulting to 5")
-		minConnectionsRaw = "5"
-	}
+	// adding the additional fields from our DatabaseConfig struct
+	poolConfig.MaxConns = int32(cfg.MaxConnections)
+	poolConfig.MinConns = int32(cfg.MinConnections)
+	poolConfig.MaxConnLifetime = cfg.MaxConnLifetime
+	poolConfig.MaxConnIdleTime = cfg.MaxConnIdleTime
+	poolConfig.HealthCheckPeriod = cfg.HealthCheckPeriod
 
-	minConnections, err := strconv.Atoi(minConnectionsRaw)
+	// context has a deadline/timeout and a cancellation signal 
+	// context.Background() has no deadline/timeout and never cancels
+	// we hand context.background() the 5 second timeout window
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// creating the actual pool using our 5 second window
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig) 
 	if err != nil {
-		return nil, fmt.Errorf("Error while converting minConnections to int: %err", err)
+		return nil, fmt.Errorf("failed to create pgxpool: %w", err)
 	}
-} 
 
+	// pinging database to confirm its healthy
+	err = pool.Ping(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+	return pool, nil
+}
+
+// helper function used to convert the string enviorment variable to integers
+// gracefully fallsback to the default value if an error occurs 
 func getEnvIntWithDefault(key string, fallback int) int {
-	raw := os.Getenv(key)
-	if raw == "" {
-		slog.Warn("%s enviorment variable not set, defaulting to %d", key, fallback)
-		return fallback
-	} else {
-		parsed, err := strconv.Atoi(raw)
+    raw := os.Getenv(key)
+    if raw == "" {
+        slog.Warn("environment variable not set, using default",
+            "key", key,
+            "default", fallback,
+        )
+        return fallback
+    }
 
-		if err == nil {
-			return parsed
-		}
-	}
+    parsed, err := strconv.Atoi(raw)
+    if err != nil {
+        slog.Warn("failed to parse environment variable, using default",
+            "key", key,
+            "value", raw,
+            "default", fallback,
+            "error", err,
+        )
+        return fallback
+    }
+
+    return parsed
 }

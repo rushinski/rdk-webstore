@@ -50,7 +50,10 @@ func LoadSecurityConfig(appConfig *AppConfig) (*SecurityConfig, error) {
 
 	enabledRaw := os.Getenv("RATE_LIMIT_ENABLED")
 	if enabledRaw == "" {
-		slog.Warn("RATE_LIMIT_ENABLED enviorment variable not set, defaulting to enabled")
+		slog.Warn("enviorment variable not set, using default",
+    		"key", "RATE_LIMIT_ENABLED",
+    		"default", true,
+		)
 		enabledRaw = "true"
 	}
 
