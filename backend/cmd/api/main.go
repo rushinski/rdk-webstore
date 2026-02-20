@@ -88,6 +88,8 @@ func main() {
 	// it to run in the background other wise nothing after it would ever run
 	go func() {
 		slog.Info("starting server")
+		slog.Info("server started")
+		
 		err := srv.ListenAndServe()
 		if err != nil && err != http.ErrServerClosed {
 			slog.Error("server error",
@@ -95,7 +97,6 @@ func main() {
 			)
 			os.Exit(1)
 		}
-		slog.Info("server started")
 	}()
 
 	// channel listening for 1 OS signal
