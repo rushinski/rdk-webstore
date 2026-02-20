@@ -7,7 +7,7 @@ CREATE TABLE tenants (
     email TEXT NOT NULL UNIQUE,
     phone TEXT UNIQUE,
     instagram TEXT UNIQUE,
-    stripe_connect_id TEXT UNIQUE,
+    stripe_connect_id TEXT,
     status TEXT NOT NULL DEFAULT 'inactive',
     opens_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
