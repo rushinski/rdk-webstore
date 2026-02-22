@@ -12,10 +12,10 @@ docker-ps:
 	docker-compose -f $(COMPOSE_FILE) ps
 
 run:
-	cd backend/api && doppler run -- go run ./cmd/api/
+	doppler run -- powershell -Command "cd backend/api; go run ./cmd/api/"
 
 db-up:
-	doppler run -- goose -dir database/migrations postgres "$$DATABASE_URL" up
+	doppler run -- powershell -Command "goose -dir ./backend/database/migrations postgres $$env:DATABASE_URL up"
 
 db-down:
-	doppler run -- goose -dir database/migrations postgres "$$DATABASE_URL" down
+	doppler run -- powershell -Command "goose -dir ./backend/database/migrations postgres $$env:DATABASE_URL down"
