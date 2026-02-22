@@ -1,11 +1,13 @@
-package models
+package tenant
 
 import (
 	"time"
+
+	"github.com/rushinski/snkreco-api/internal/platform/database"
 )
 
 type Tenant struct {
-	BaseModel
+	database.Model
 	Name string
 	Slug string
 	Domain string

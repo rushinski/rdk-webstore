@@ -1,4 +1,4 @@
-module github.com/rushinski/snkreco-backend
+module github.com/rushinski/snkreco-api
 
 go 1.25.0
 

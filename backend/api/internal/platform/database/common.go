@@ -1,10 +1,10 @@
-package models
+package database
 
 import (
 	"time"
 )
 
-type BaseModel struct {
+type Model struct {
 	ID string
 	CreatedAt time.Time
 	UpdatedAt time.Time
