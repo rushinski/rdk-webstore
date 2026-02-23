@@ -129,45 +129,41 @@ export default async function StorePage({
   const selectedConditions = filters.condition ?? [];
   const query = filters.q ?? "";
 
-  const breadcrumbItems = (() => {
-    const formatLabel = (value: string) =>
-      value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
+  const formatLabel = (value: string) =>
+    value.replace(/_/g, " ").replace(/\b\w/g, (match) => match.toUpperCase());
 
+  const activeFilterLabels = Array.from(
+    new Set([
+      ...selectedCategories.map(formatLabel),
+      ...selectedBrands,
+      ...selectedModels,
+      ...selectedShoeSizes,
+      ...selectedClothingSizes,
+      ...selectedConditions.map(formatLabel),
+    ]),
+  );
+
+  const browseLabel = (() => {
+    if (query) {
+      return `Search: "${query}"`;
+    }
+    if (activeFilterLabels.length === 0) {
+      return `Shopping "Shop All"`;
+    }
+    if (activeFilterLabels.length === 1) {
+      return `Shopping "${activeFilterLabels[0]}"`;
+    }
+    return `Shopping "Multiple Categories"`;
+  })();
+
+  const breadcrumbItems = (() => {
     const items: Array<{ label: string; href?: string }> = [
       { label: "Home", href: "/" },
       { label: "Shop", href: "/store" },
     ];
 
-    if (query) {
-      items.push({ label: `Search: ${query}` });
-      return items;
-    }
-
-    if (selectedCategories.length === 1) {
-      items.push({ label: formatLabel(selectedCategories[0]) });
-      return items;
-    }
-
-    if (selectedBrands.length === 1) {
-      items.push({ label: selectedBrands[0] });
-      return items;
-    }
-
-    if (selectedModels.length === 1) {
-      items.push({ label: selectedModels[0] });
-      return items;
-    }
-
-    const hasFilters =
-      selectedCategories.length > 0 ||
-      selectedBrands.length > 0 ||
-      selectedModels.length > 0 ||
-      selectedShoeSizes.length > 0 ||
-      selectedClothingSizes.length > 0 ||
-      selectedConditions.length > 0;
-
-    if (hasFilters) {
-      items.push({ label: "Filtered" });
+    if (query || activeFilterLabels.length > 0) {
+      items.push({ label: browseLabel });
     }
 
     return items;
@@ -193,9 +189,7 @@ export default async function StorePage({
             );
           })}
         </div>
-        <h1 className="text-4xl font-bold text-white mb-2">
-          {query ? `Search: "${query}"` : "Shop All"}
-        </h1>
+        <h1 className="text-4xl font-bold text-white mb-2">{browseLabel}</h1>
       </div>
 
       <StoreControls
