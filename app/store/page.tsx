@@ -148,12 +148,12 @@ export default async function StorePage({
       return `Search: "${query}"`;
     }
     if (activeFilterLabels.length === 0) {
-      return `Shopping "Shop All"`;
+      return `Shop All`;
     }
     if (activeFilterLabels.length === 1) {
-      return `Shopping "${activeFilterLabels[0]}"`;
+      return `${activeFilterLabels[0]}`;
     }
-    return `Shopping "Multiple Categories"`;
+    return `Multiple Categories`;
   })();
 
   const breadcrumbItems = (() => {
