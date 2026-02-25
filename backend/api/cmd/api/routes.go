@@ -1,6 +1,8 @@
 package main
 
 import (
+    appmiddleware "github.com/rushinski/snkreco-api/internal/platform/middleware"
+
     "github.com/go-chi/chi/v5"
     "github.com/go-chi/chi/v5/middleware"
     "github.com/go-chi/cors"
@@ -10,11 +12,12 @@ import (
 )
 
 func registerRoutes(r *chi.Mux, cfg *config.Config, pool *pgxpool.Pool) {
+    // attaching middleware and CORS policies to the router
     r.Use(
+        middleware.Logger,
         middleware.RequestID,
         middleware.RealIP,
         middleware.Recoverer,
-        middleware.Logger,
         cors.Handler(cors.Options{
             AllowedOrigins:   cfg.Security.AllowedOrigins,
             AllowedMethods:   cfg.Security.AllowedMethods,
@@ -25,7 +28,12 @@ func registerRoutes(r *chi.Mux, cfg *config.Config, pool *pgxpool.Pool) {
         }),
     )
 
-    r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/health", health.Handler(pool))
+    // Outside versioning - infra routes
+    r.Get("/health", health.Handler(pool))
+
+    r.Route("/v1", func(r chi.Router) {
+        // attaching our custom middleware
+        // we only attach to the v1 routes as attac
+        appmiddleware.Setup(r, pool)
     })
 }

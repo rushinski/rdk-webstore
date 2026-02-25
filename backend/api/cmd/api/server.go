@@ -20,8 +20,10 @@ type server struct {
 
 func newServer(cfg *config.Config, pool *pgxpool.Pool) *server {
     router := chi.NewRouter()
+    
     registerRoutes(router, cfg, pool)
 
+    // creates our server object
     return &server{
         http: &http.Server{
             Addr:         ":" + cfg.App.Port,
