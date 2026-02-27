@@ -384,7 +384,10 @@ export function ProductForm({
   } | null>(null);
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
-  const variantIds = useMemo(() => variants.map((variant) => variant.draft_id), [variants]);
+  const variantIds = useMemo(
+    () => variants.map((variant) => variant.draft_id),
+    [variants],
+  );
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
   const scheduleMin = useMemo(() => toDateTimeLocalValue(new Date().toISOString()), []);
   const variantDragSensors = useSensors(
@@ -711,8 +714,12 @@ export function ProductForm({
     }
 
     setVariants((current) => {
-      const oldIndex = current.findIndex((variant) => variant.draft_id === String(active.id));
-      const newIndex = current.findIndex((variant) => variant.draft_id === String(over.id));
+      const oldIndex = current.findIndex(
+        (variant) => variant.draft_id === String(active.id),
+      );
+      const newIndex = current.findIndex(
+        (variant) => variant.draft_id === String(over.id),
+      );
 
       if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
         return current;
@@ -1549,7 +1556,10 @@ export function ProductForm({
                               placeholder="Select..."
                               searchable
                               searchPlaceholder="Search sizes..."
-                              options={buildSizeOptions(CLOTHING_SIZES, variant.size_label)}
+                              options={buildSizeOptions(
+                                CLOTHING_SIZES,
+                                variant.size_label,
+                              )}
                               buttonClassName="bg-zinc-900"
                             />
                           )}
@@ -1558,7 +1568,9 @@ export function ProductForm({
                             <input
                               type="text"
                               value={variant.size_label}
-                              onChange={(e) => updateVariant(index, "size_label", e.target.value)}
+                              onChange={(e) =>
+                                updateVariant(index, "size_label", e.target.value)
+                              }
                               required
                               placeholder="e.g., One Size"
                               className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -1583,7 +1595,9 @@ export function ProductForm({
                             type="text"
                             inputMode="decimal"
                             value={variant.price}
-                            onChange={(e) => updateVariant(index, "price", e.target.value)}
+                            onChange={(e) =>
+                              updateVariant(index, "price", e.target.value)
+                            }
                             required
                             className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                           />
@@ -1611,7 +1625,9 @@ export function ProductForm({
                             type="text"
                             inputMode="numeric"
                             value={variant.stock}
-                            onChange={(e) => updateVariant(index, "stock", e.target.value)}
+                            onChange={(e) =>
+                              updateVariant(index, "stock", e.target.value)
+                            }
                             required
                             className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                           />
@@ -1647,7 +1663,6 @@ export function ProductForm({
               ))}
             </div>
           </SortableContext>
-
         </DndContext>
       </div>
 
