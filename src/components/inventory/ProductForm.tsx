@@ -2,7 +2,26 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { GripVertical, ImagePlus, Plus, Trash2, X } from "lucide-react";
+import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
@@ -36,6 +55,7 @@ interface ProductFormProps {
 }
 
 type VariantDraft = {
+  draft_id: string;
   id?: string;
   size_label: string;
   price: string;
@@ -178,8 +198,47 @@ const getSizeTypeForCategory = (category: Category): SizeType => {
 const getTagKey = (tag: { label: string; group_key: string }) =>
   `${tag.group_key}:${tag.label}`;
 
+const createVariantDraftId = () =>
+  `variant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
 function RequiredMark() {
   return <span className="text-red-500">*</span>;
+}
+
+type SortableVariantRenderProps = Pick<
+  ReturnType<typeof useSortable>,
+  "attributes" | "listeners" | "setActivatorNodeRef" | "isDragging" | "isOver"
+>;
+
+interface SortableVariantRowProps {
+  id: string;
+  className: string;
+  children: (props: SortableVariantRenderProps) => React.ReactNode;
+}
+
+function SortableVariantRow({ id, className, children }: SortableVariantRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition ?? "transform 220ms cubic-bezier(0.2, 0, 0, 1)",
+    zIndex: isDragging ? 20 : undefined,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={className}>
+      {children({ attributes, listeners, setActivatorNodeRef, isDragging, isOver })}
+    </div>
+  );
 }
 
 export function ProductForm({
@@ -289,7 +348,11 @@ export function ProductForm({
 
   const [variants, setVariants] = useState<VariantDraft[]>(() => {
     const sizeType = getSizeTypeForCategory(initialData?.category || "sneakers");
-    const mapped = initialData?.variants?.map((variant) => ({
+    const sortedInitialVariants = [...(initialData?.variants ?? [])].sort(
+      (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+    );
+    const mapped = sortedInitialVariants.map((variant) => ({
+      draft_id: createVariantDraftId(),
       id: variant.id ?? undefined,
       size_label: variant.size_label?.trim() ?? "",
       price: formatMoney(variant.price_cents / 100),
@@ -297,17 +360,19 @@ export function ProductForm({
       stock: String(variant.stock ?? 0),
     }));
 
-    return (
-      mapped || [
-        {
-          size_label: sizeType === "none" ? "N/A" : "",
-          price: "",
-          cost: "",
-          stock: "1",
-        },
-      ]
-    );
+    return mapped.length > 0
+      ? mapped
+      : [
+          {
+            draft_id: createVariantDraftId(),
+            size_label: sizeType === "none" ? "N/A" : "",
+            price: "",
+            cost: "",
+            stock: "1",
+          },
+        ];
   });
+  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
   const [images, setImages] = useState<ImageDraft[]>(() =>
     normalizeImages(initialData?.images ?? []),
@@ -321,8 +386,17 @@ export function ProductForm({
   } | null>(null);
 
   const sizeType = useMemo(() => getSizeTypeForCategory(category), [category]);
+  const variantIds = useMemo(() => variants.map((variant) => variant.draft_id), [variants]);
   const defaultShippingPrice = shippingDefaults[category] ?? 0;
   const scheduleMin = useMemo(() => toDateTimeLocalValue(new Date().toISOString()), []);
+  const variantDragSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const activeVariant = useMemo(
+    () => variants.find((variant) => variant.draft_id === activeVariantId) ?? null,
+    [variants, activeVariantId],
+  );
 
   const ensureScheduledTime = useCallback(() => {
     if (scheduledGoLiveAt.trim()) {
@@ -611,9 +685,10 @@ export function ProductForm({
   }, [sizeType]);
 
   const addVariant = () => {
-    setVariants([
-      ...variants,
+    setVariants((current) => [
+      ...current,
       {
+        draft_id: createVariantDraftId(),
         size_label: sizeType === "none" ? "N/A" : "",
         price: "",
         cost: "",
@@ -623,15 +698,43 @@ export function ProductForm({
   };
 
   const removeVariant = (index: number) => {
-    if (variants.length > 1) {
-      setVariants(variants.filter((_, i) => i !== index));
-    }
+    setVariants((current) =>
+      current.length > 1 ? current.filter((_, i) => i !== index) : current,
+    );
   };
 
   const updateVariant = (index: number, field: keyof VariantDraft, value: string) => {
-    const updated = [...variants];
-    updated[index] = { ...updated[index], [field]: value };
-    setVariants(updated);
+    setVariants((current) =>
+      current.map((variant, i) =>
+        i === index ? { ...variant, [field]: value } : variant,
+      ),
+    );
+  };
+
+  const handleVariantDragStart = ({ active }: DragStartEvent) => {
+    setActiveVariantId(String(active.id));
+  };
+
+  const handleVariantDragCancel = () => {
+    setActiveVariantId(null);
+  };
+
+  const handleVariantDragEnd = ({ active, over }: DragEndEvent) => {
+    setActiveVariantId(null);
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    setVariants((current) => {
+      const oldIndex = current.findIndex((variant) => variant.draft_id === String(active.id));
+      const newIndex = current.findIndex((variant) => variant.draft_id === String(over.id));
+
+      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
+        return current;
+      }
+
+      return arrayMove(current, oldIndex, newIndex);
+    });
   };
 
   const buildSizeOptions = (
@@ -1124,6 +1227,7 @@ export function ProductForm({
           price_cents: priceCents,
           cost_cents: costCents,
           stock: stockCount,
+          sort_order: index,
         };
       });
 
@@ -1407,119 +1511,168 @@ export function ProductForm({
           </button>
         </div>
 
-        <div className="space-y-3 md:space-y-4">
-          {variants.map((variant, index) => (
-            <div
-              key={index}
-              className="bg-zinc-800 p-3 md:p-4 rounded flex flex-col sm:flex-row gap-3 md:gap-4"
-            >
-              <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4">
-                <div className="col-span-2 sm:col-span-1">
-                  <label className="block text-gray-400 text-xs mb-1">
-                    Size <RequiredMark />
-                  </label>
-
-                  {sizeType === "shoe" && (
-                    <RdkSelect
-                      value={variant.size_label}
-                      onChange={(v) => updateVariant(index, "size_label", v)}
-                      placeholder="Select..."
-                      searchable
-                      searchPlaceholder="Search sizes..."
-                      options={buildSizeOptions(SHOE_SIZES, variant.size_label)}
-                      buttonClassName="bg-zinc-900"
-                    />
-                  )}
-
-                  {sizeType === "clothing" && (
-                    <RdkSelect
-                      value={variant.size_label}
-                      onChange={(v) => updateVariant(index, "size_label", v)}
-                      placeholder="Select..."
-                      searchable
-                      searchPlaceholder="Search sizes..."
-                      options={buildSizeOptions(CLOTHING_SIZES, variant.size_label)}
-                      buttonClassName="bg-zinc-900"
-                    />
-                  )}
-
-                  {sizeType === "custom" && (
-                    <input
-                      type="text"
-                      value={variant.size_label}
-                      onChange={(e) => updateVariant(index, "size_label", e.target.value)}
-                      required
-                      placeholder="e.g., One Size"
-                      className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                    />
-                  )}
-
-                  {sizeType === "none" && (
-                    <input
-                      type="text"
-                      value="N/A"
-                      disabled
-                      className="w-full bg-zinc-900 text-gray-500 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 text-xs mb-1">
-                    Price ($) <RequiredMark />
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={variant.price}
-                    onChange={(e) => updateVariant(index, "price", e.target.value)}
-                    required
-                    className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 text-xs mb-1">
-                    Cost ($) <RequiredMark />
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={variant.cost}
-                    onChange={(e) => updateVariant(index, "cost", e.target.value)}
-                    required
-                    className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-gray-400 text-xs mb-1">
-                    Stock <RequiredMark />
-                  </label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={variant.stock}
-                    onChange={(e) => updateVariant(index, "stock", e.target.value)}
-                    required
-                    className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                  />
-                </div>
-              </div>
-
-              {variants.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeVariant(index)}
-                  className="text-red-500 hover:text-red-400 p-2 rounded hover:bg-zinc-900 self-start sm:self-center"
-                  aria-label="Remove variant"
+        <DndContext
+          sensors={variantDragSensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleVariantDragStart}
+          onDragCancel={handleVariantDragCancel}
+          onDragEnd={handleVariantDragEnd}
+        >
+          <SortableContext items={variantIds} strategy={verticalListSortingStrategy}>
+            <div className="space-y-3 md:space-y-4">
+              {variants.map((variant, index) => (
+                <SortableVariantRow
+                  key={variant.draft_id}
+                  id={variant.draft_id}
+                  className="transition-transform duration-200"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
+                  {({
+                    attributes,
+                    listeners,
+                    setActivatorNodeRef,
+                    isDragging: isVariantDragging,
+                    isOver: isVariantOver,
+                  }) => (
+                    <div
+                      className={[
+                        "bg-zinc-800 p-3 md:p-4 rounded flex flex-col sm:flex-row gap-3 md:gap-4 transition-[box-shadow,opacity] duration-150",
+                        isVariantDragging ? "opacity-65 shadow-2xl" : "",
+                        isVariantOver ? "ring-2 ring-red-500/50" : "",
+                      ].join(" ")}
+                    >
+                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4">
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="block text-gray-400 text-xs mb-1">
+                            Size <RequiredMark />
+                          </label>
+
+                          {sizeType === "shoe" && (
+                            <RdkSelect
+                              value={variant.size_label}
+                              onChange={(v) => updateVariant(index, "size_label", v)}
+                              placeholder="Select..."
+                              searchable
+                              searchPlaceholder="Search sizes..."
+                              options={buildSizeOptions(SHOE_SIZES, variant.size_label)}
+                              buttonClassName="bg-zinc-900"
+                            />
+                          )}
+
+                          {sizeType === "clothing" && (
+                            <RdkSelect
+                              value={variant.size_label}
+                              onChange={(v) => updateVariant(index, "size_label", v)}
+                              placeholder="Select..."
+                              searchable
+                              searchPlaceholder="Search sizes..."
+                              options={buildSizeOptions(CLOTHING_SIZES, variant.size_label)}
+                              buttonClassName="bg-zinc-900"
+                            />
+                          )}
+
+                          {sizeType === "custom" && (
+                            <input
+                              type="text"
+                              value={variant.size_label}
+                              onChange={(e) => updateVariant(index, "size_label", e.target.value)}
+                              required
+                              placeholder="e.g., One Size"
+                              className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                            />
+                          )}
+
+                          {sizeType === "none" && (
+                            <input
+                              type="text"
+                              value="N/A"
+                              disabled
+                              className="w-full bg-zinc-900 text-gray-500 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70"
+                            />
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 text-xs mb-1">
+                            Price ($) <RequiredMark />
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={variant.price}
+                            onChange={(e) => updateVariant(index, "price", e.target.value)}
+                            required
+                            className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 text-xs mb-1">
+                            Cost ($) <RequiredMark />
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            value={variant.cost}
+                            onChange={(e) => updateVariant(index, "cost", e.target.value)}
+                            required
+                            className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-400 text-xs mb-1">
+                            Stock <RequiredMark />
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={variant.stock}
+                            onChange={(e) => updateVariant(index, "stock", e.target.value)}
+                            required
+                            className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 self-start sm:self-center">
+                        <button
+                          ref={setActivatorNodeRef}
+                          type="button"
+                          {...attributes}
+                          {...listeners}
+                          className="text-zinc-300 hover:text-white p-2 rounded hover:bg-zinc-900 cursor-grab active:cursor-grabbing touch-none"
+                          aria-label="Drag to reorder variant"
+                          title="Drag to reorder"
+                        >
+                          <GripVertical className="w-4 h-4" />
+                        </button>
+                        {variants.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeVariant(index)}
+                            className="text-red-500 hover:text-red-400 p-2 rounded hover:bg-zinc-900"
+                            aria-label="Remove variant"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </SortableVariantRow>
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeVariant ? (
+              <div className="rounded border border-red-500/60 bg-zinc-800 px-3 py-2 text-xs text-white shadow-2xl md:text-sm">
+                Moving variant:{" "}
+                {sizeType === "none" ? "N/A" : activeVariant.size_label || "Untitled"}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       {/* Images - Mobile optimized */}

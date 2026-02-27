@@ -1247,6 +1247,7 @@ export type Database = {
           id: string;
           price_cents: number;
           product_id: string;
+          sort_order: number;
           size_label: string;
           size_type: string;
           stock: number;
@@ -1256,6 +1257,7 @@ export type Database = {
           id?: string;
           price_cents: number;
           product_id: string;
+          sort_order?: number;
           size_label: string;
           size_type: string;
           stock?: number;
@@ -1265,6 +1267,7 @@ export type Database = {
           id?: string;
           price_cents?: number;
           product_id?: string;
+          sort_order?: number;
           size_label?: string;
           size_type?: string;
           stock?: number;

@@ -13,6 +13,7 @@ const variantSchema = z
     price_cents: z.number().int().nonnegative(),
     stock: z.number().int().nonnegative(),
     cost_cents: z.number().int().nonnegative().optional().nullable(),
+    sort_order: z.number().int().nonnegative().optional(),
   })
   .strict();
 

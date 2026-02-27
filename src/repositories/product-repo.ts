@@ -956,7 +956,9 @@ export class ProductRepository {
 
     return {
       ...(raw as ProductRow),
-      variants: variants as VariantRow[],
+      variants: (variants as VariantRow[]).sort(
+        (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
+      ),
       images: (images as ImageRow[]).sort(
         (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
       ),

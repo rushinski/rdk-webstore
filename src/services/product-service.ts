@@ -15,7 +15,7 @@ import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
 
 type VariantWriteInput = Pick<
   TablesInsert<"product_variants">,
-  "size_type" | "size_label" | "price_cents" | "stock" | "cost_cents"
+  "size_type" | "size_label" | "price_cents" | "stock" | "cost_cents" | "sort_order"
 >;
 type VariantInput = VariantWriteInput & {
   id?: string;
@@ -97,7 +97,8 @@ export class ProductService {
     if (!input.title_raw?.trim()) {
       throw new Error("Product title is required.");
     }
-    this.assertNoDuplicateVariantSizes(input.variants);
+    const normalizedVariants = this.normalizeVariantSortOrder(input.variants);
+    this.assertNoDuplicateVariantSizes(normalizedVariants);
 
     const parser = new ProductTitleParserService(this.supabase);
     const parsed = await parser.parseTitle({
@@ -109,7 +110,7 @@ export class ProductService {
     });
 
     const sku = this.generateSKU(parsed.brand.label);
-    const productCost = this.getProductCost(input.variants);
+    const productCost = this.getProductCost(normalizedVariants);
 
     const product = await this.repo.create({
       tenant_id: ctx.tenantId,
@@ -138,7 +139,7 @@ export class ProductService {
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
     });
 
-    for (const variant of input.variants) {
+    for (const variant of normalizedVariants) {
       const { id: _variantId, ...variantData } = variant;
       await this.repo.createVariant({
         product_id: product.id,
@@ -183,7 +184,8 @@ export class ProductService {
     if (!input.title_raw?.trim()) {
       throw new Error("Product title is required.");
     }
-    this.assertNoDuplicateVariantSizes(input.variants);
+    const normalizedVariants = this.normalizeVariantSortOrder(input.variants);
+    this.assertNoDuplicateVariantSizes(normalizedVariants);
 
     const tenantId = existing.tenant_id ?? ctx.tenantId;
     const parser = new ProductTitleParserService(this.supabase);
@@ -195,7 +197,7 @@ export class ProductService {
       tenantId,
     });
 
-    const productCost = this.getProductCost(input.variants);
+    const productCost = this.getProductCost(normalizedVariants);
     const goLiveAt =
       input.go_live_at !== undefined
         ? this.normalizeGoLiveAt(input.go_live_at)
@@ -232,13 +234,14 @@ export class ProductService {
     }> = [];
     const incomingNewVariants: VariantWriteInput[] = [];
 
-    for (const variant of input.variants) {
+    for (const [index, variant] of normalizedVariants.entries()) {
       const variantPayload: VariantWriteInput = {
         size_type: variant.size_type,
         size_label: variant.size_label,
         price_cents: variant.price_cents,
         stock: variant.stock,
         cost_cents: variant.cost_cents ?? 0,
+        sort_order: variant.sort_order ?? index,
       };
 
       if (variant.id) {
@@ -381,6 +384,7 @@ export class ProductService {
         price_cents: v.price_cents,
         cost_cents: v.cost_cents ?? 0,
         stock: v.stock,
+        sort_order: v.sort_order ?? 0,
       })),
       images: original.images.map((img) => ({
         url: img.url,
@@ -455,6 +459,13 @@ export class ProductService {
       return 0;
     }
     return Math.min(...costs);
+  }
+
+  private normalizeVariantSortOrder(variants: VariantInput[]): VariantInput[] {
+    return variants.map((variant, index) => ({
+      ...variant,
+      sort_order: Number.isFinite(variant.sort_order) ? variant.sort_order : index,
+    }));
   }
 
   private assertNoDuplicateVariantSizes(variants: VariantInput[]) {
