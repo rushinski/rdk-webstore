@@ -6,13 +6,11 @@ import { GripVertical, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import {
   closestCenter,
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -372,7 +370,6 @@ export function ProductForm({
           },
         ];
   });
-  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
   const [images, setImages] = useState<ImageDraft[]>(() =>
     normalizeImages(initialData?.images ?? []),
@@ -392,10 +389,6 @@ export function ProductForm({
   const variantDragSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-  const activeVariant = useMemo(
-    () => variants.find((variant) => variant.draft_id === activeVariantId) ?? null,
-    [variants, activeVariantId],
   );
 
   const ensureScheduledTime = useCallback(() => {
@@ -711,16 +704,7 @@ export function ProductForm({
     );
   };
 
-  const handleVariantDragStart = ({ active }: DragStartEvent) => {
-    setActiveVariantId(String(active.id));
-  };
-
-  const handleVariantDragCancel = () => {
-    setActiveVariantId(null);
-  };
-
   const handleVariantDragEnd = ({ active, over }: DragEndEvent) => {
-    setActiveVariantId(null);
     if (!over || active.id === over.id) {
       return;
     }
@@ -1514,8 +1498,6 @@ export function ProductForm({
         <DndContext
           sensors={variantDragSensors}
           collisionDetection={closestCenter}
-          onDragStart={handleVariantDragStart}
-          onDragCancel={handleVariantDragCancel}
           onDragEnd={handleVariantDragEnd}
         >
           <SortableContext items={variantIds} strategy={verticalListSortingStrategy}>
@@ -1664,14 +1646,6 @@ export function ProductForm({
             </div>
           </SortableContext>
 
-          <DragOverlay>
-            {activeVariant ? (
-              <div className="rounded border border-red-500/60 bg-zinc-800 px-3 py-2 text-xs text-white shadow-2xl md:text-sm">
-                Moving variant:{" "}
-                {sizeType === "none" ? "N/A" : activeVariant.size_label || "Untitled"}
-              </div>
-            ) : null}
-          </DragOverlay>
         </DndContext>
       </div>
 
