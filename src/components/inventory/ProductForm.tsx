@@ -19,6 +19,7 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 
 import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
@@ -1498,6 +1499,7 @@ export function ProductForm({
         <DndContext
           sensors={variantDragSensors}
           collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
           onDragEnd={handleVariantDragEnd}
         >
           <SortableContext items={variantIds} strategy={verticalListSortingStrategy}>
