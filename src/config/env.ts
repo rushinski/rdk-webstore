@@ -9,9 +9,24 @@ const schema = z.object({
   SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_DB_URL: z.string(),
 
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string(),
-  STRIPE_SECRET_KEY: z.string(),
-  STRIPE_WEBHOOK_SECRET: z.string(),
+  // Stripe (keep during transition — remove once PayRilla is fully live)
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional().default(""),
+  STRIPE_SECRET_KEY: z.string().optional().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
+
+  // PayRilla (payment processor)
+  PAYRILLA_WEBHOOK_SECRET: z.string().optional().default(""),
+  // Defaults to production. Set to https://api.sandbox.payrillagateway.com/api/v2 for testing.
+  PAYRILLA_API_URL: z.string().url().optional().default("https://api.payrillagateway.com/api/v2"),
+
+  // ZipTax (sales tax rate lookup — free tier: 100 req/month, mitigated by 30-day cache)
+  ZIPTAX_API_KEY: z.string().min(1),
+
+  // NoFraud (fraud screening — free tier: 100 orders/month)
+  NOFRAUD_API_KEY: z.string().min(1),
+  // Customer code embedded in the device JS snippet URL (e.g. 53926).
+  // Used to load services.nofraud.com/js/{code}/customer_code.js on checkout pages.
+  NEXT_PUBLIC_NOFRAUD_CUSTOMER_CODE: z.string().min(1),
 
   SHIPPO_API_TOKEN: z.string(),
   SHIPPO_WEBHOOK_TOKEN: z.string(),

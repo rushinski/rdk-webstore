@@ -17,11 +17,13 @@ import {
   type PickupInstructionsEmailInput,
   type OrderItemEmail,
 } from "@/lib/email/orders";
+import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import { EvidenceService } from "@/services/evidence-service";
 
 type EmailContent = { html: string; text: string };
 
 /**
- * Mapper types: the “detailed” row shape you get from repo joins like:
+ * Mapper types: the "detailed" row shape you get from repo joins like:
  * order_items(*, product:products(..., images:product_images(...)), variant:product_variants(...))
  */
 type ProductImageRow = {
@@ -98,8 +100,28 @@ const mapOrderItemsToEmailItems = (rows: DetailedOrderItemRow[]): OrderItemEmail
   });
 
 export class OrderEmailService {
-  private async send(to: string, subject: string, content: EmailContent) {
-    await sendEmailWithRetry(
+  private evidenceService: EvidenceService | null;
+
+  /**
+   * @param supabase - When provided, email sends are recorded in email_audit_log
+   * @param tenantId - Required to scope audit log entries
+   */
+  constructor(
+    supabase?: TypedSupabaseClient | null,
+    private readonly tenantId?: string | null,
+  ) {
+    this.evidenceService =
+      supabase && tenantId ? new EvidenceService(supabase) : null;
+  }
+
+  private async send(
+    to: string,
+    subject: string,
+    content: EmailContent,
+    orderId?: string | null,
+    emailType?: string,
+  ) {
+    const result = await sendEmailWithRetry(
       {
         to,
         subject,
@@ -109,6 +131,20 @@ export class OrderEmailService {
       },
       { maxAttempts: 3, baseDelayMs: 750, timeoutMs: 5000 },
     );
+
+    // Record in audit log (non-blocking, never throws)
+    if (this.evidenceService && this.tenantId && emailType) {
+      void this.evidenceService.recordEmailSent({
+        orderId: orderId ?? null,
+        tenantId: this.tenantId,
+        emailType,
+        recipientEmail: to,
+        subject,
+        htmlSnapshot: content.html,
+        plainTextSnapshot: content.text,
+        messageId: result?.messageId ?? null,
+      });
+    }
   }
 
   /**
@@ -119,7 +155,13 @@ export class OrderEmailService {
       return;
     }
     const content = buildOrderConfirmationEmail(input);
-    await this.send(input.to, emailSubjects.orderConfirmation(), content);
+    await this.send(
+      input.to,
+      emailSubjects.orderConfirmation(),
+      content,
+      input.orderId,
+      "order_confirmation",
+    );
   }
 
   /**
@@ -143,7 +185,13 @@ export class OrderEmailService {
     };
 
     const content = buildOrderConfirmationEmail(input);
-    await this.send(params.to, emailSubjects.orderConfirmation(), content);
+    await this.send(
+      params.to,
+      emailSubjects.orderConfirmation(),
+      content,
+      params.order.orderId,
+      "order_confirmation",
+    );
   }
 
   async sendPickupInstructions(input: PickupInstructionsEmailInput) {
@@ -151,7 +199,13 @@ export class OrderEmailService {
       return;
     }
     const content = buildPickupInstructionsEmail(input);
-    await this.send(input.to, emailSubjects.pickupInstructions(input.orderId), content);
+    await this.send(
+      input.to,
+      emailSubjects.pickupInstructions(input.orderId),
+      content,
+      input.orderId,
+      "pickup_instructions",
+    );
   }
 
   async sendOrderLabelCreated(input: OrderLabelCreatedEmailInput) {
@@ -159,7 +213,13 @@ export class OrderEmailService {
       return;
     }
     const content = buildOrderLabelCreatedEmail(input);
-    await this.send(input.to, emailSubjects.orderLabelCreated(input.orderId), content);
+    await this.send(
+      input.to,
+      emailSubjects.orderLabelCreated(input.orderId),
+      content,
+      input.orderId,
+      "shipping_update",
+    );
   }
 
   async sendOrderInTransit(input: OrderInTransitEmailInput) {
@@ -167,7 +227,13 @@ export class OrderEmailService {
       return;
     }
     const content = buildOrderInTransitEmail(input);
-    await this.send(input.to, emailSubjects.orderInTransit(input.orderId), content);
+    await this.send(
+      input.to,
+      emailSubjects.orderInTransit(input.orderId),
+      content,
+      input.orderId,
+      "shipping_update",
+    );
   }
 
   async sendOrderDelivered(input: OrderDeliveredEmailInput) {
@@ -175,7 +241,13 @@ export class OrderEmailService {
       return;
     }
     const content = buildOrderDeliveredEmail(input);
-    await this.send(input.to, emailSubjects.orderDelivered(input.orderId), content);
+    await this.send(
+      input.to,
+      emailSubjects.orderDelivered(input.orderId),
+      content,
+      input.orderId,
+      "delivery_confirmation",
+    );
   }
 
   async sendOrderRefunded(input: OrderRefundedEmailInput) {
@@ -183,6 +255,12 @@ export class OrderEmailService {
       return;
     }
     const content = buildOrderRefundedEmail(input);
-    await this.send(input.to, emailSubjects.orderRefunded(input.orderId), content);
+    await this.send(
+      input.to,
+      emailSubjects.orderRefunded(input.orderId),
+      content,
+      input.orderId,
+      "refund_notification",
+    );
   }
 }

@@ -5,6 +5,7 @@
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import Script from "next/script";
 import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
 
 import { useCart } from "@/components/cart/CartProvider";
@@ -16,6 +17,8 @@ export default function CartPage() {
   const handleCheckout = () => {
     router.push("/checkout");
   };
+
+  const nofraudCode = process.env.NEXT_PUBLIC_NOFRAUD_CUSTOMER_CODE;
 
   if (items.length === 0) {
     return (
@@ -38,6 +41,13 @@ export default function CartPage() {
   }
 
   return (
+    <>
+      {nofraudCode && (
+        <Script
+          src={`https://services.nofraud.com/js/${nofraudCode}/customer_code.js`}
+          strategy="afterInteractive"
+        />
+      )}
     <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
       <h1 className="text-2xl sm:text-4xl font-bold text-white mb-6 sm:mb-8">
         Shopping Cart
@@ -165,5 +175,6 @@ export default function CartPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

@@ -319,8 +319,8 @@ export async function POST(request: NextRequest) {
       );
     }
     if (
-      order.stripe_payment_intent_id &&
-      order.stripe_payment_intent_id !== paymentIntentId
+      order.payment_transaction_id &&
+      order.payment_transaction_id !== paymentIntentId
     ) {
       return json(
         {
@@ -333,7 +333,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Link PI if not already
-    if (!order.stripe_payment_intent_id) {
+    if (!order.payment_transaction_id) {
       await ordersRepo.updateStripePaymentIntent(orderId, paymentIntentId);
     }
 
@@ -556,7 +556,7 @@ export async function POST(request: NextRequest) {
         .from("orders")
         .update({
           status: "paid",
-          stripe_payment_intent_id: paymentIntentId,
+          payment_transaction_id: paymentIntentId,
         })
         .eq("id", orderId)
         .in("status", ["pending", "processing"])

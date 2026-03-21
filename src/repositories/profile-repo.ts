@@ -128,12 +128,12 @@ export class ProfileRepository {
     return data ?? [];
   }
 
-  async getStripeAccountIdForTenant(tenantId: string): Promise<string | null> {
+  async getPayrillaAccountIdForTenant(tenantId: string): Promise<string | null> {
     const { data, error } = await this.supabase
       .from("profiles")
-      .select("stripe_account_id, is_primary_admin")
+      .select("payrilla_account_id, is_primary_admin")
       .eq("tenant_id", tenantId)
-      .not("stripe_account_id", "is", null)
+      .not("payrilla_account_id", "is", null)
       .order("is_primary_admin", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -141,7 +141,12 @@ export class ProfileRepository {
     if (error) {
       throw error;
     }
-    return data?.stripe_account_id ?? null;
+    return data?.payrilla_account_id ?? null;
+  }
+
+  /** @deprecated Use getPayrillaAccountIdForTenant */
+  async getStripeAccountIdForTenant(tenantId: string): Promise<string | null> {
+    return this.getPayrillaAccountIdForTenant(tenantId);
   }
 
   async setStripeCustomerId(userId: string, stripeCustomerId: string) {
@@ -154,10 +159,15 @@ export class ProfileRepository {
     }
   }
 
+  /** @deprecated Use setPayrillaAccountId instead */
   async setStripeAccountId(userId: string, stripeAccountId: string) {
+    return this.setPayrillaAccountId(userId, stripeAccountId);
+  }
+
+  async setPayrillaAccountId(userId: string, payrillaAccountId: string) {
     const { error } = await this.supabase
       .from("profiles")
-      .update({ stripe_account_id: stripeAccountId })
+      .update({ payrilla_account_id: payrillaAccountId })
       .eq("id", userId);
     if (error) {
       throw error;

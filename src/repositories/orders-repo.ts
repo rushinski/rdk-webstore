@@ -163,18 +163,26 @@ export class OrdersRepository {
     }
   }
 
-  async updateStripePaymentIntent(
+  async updatePaymentTransactionId(
     orderId: string,
-    stripePaymentIntentId: string,
+    paymentTransactionId: string,
   ): Promise<void> {
     const { error } = await this.supabase
       .from("orders")
-      .update({ stripe_payment_intent_id: stripePaymentIntentId })
+      .update({ payment_transaction_id: paymentTransactionId })
       .eq("id", orderId);
 
     if (error) {
       throw error;
     }
+  }
+
+  /** @deprecated Use updatePaymentTransactionId */
+  async updateStripePaymentIntent(
+    orderId: string,
+    paymentTransactionId: string,
+  ): Promise<void> {
+    return this.updatePaymentTransactionId(orderId, paymentTransactionId);
   }
 
   async updatePricingAndFulfillment(
@@ -205,7 +213,7 @@ export class OrdersRepository {
 
   async markPaidTransactionally(
     orderId: string,
-    stripePaymentIntentId: string,
+    paymentTransactionId: string,
     itemsToDecrement: Array<{
       productId: string;
       variantId: string | null;
@@ -221,7 +229,7 @@ export class OrdersRepository {
 
     const { data, error } = await this.supabase.rpc("mark_order_paid_and_decrement", {
       p_order_id: orderId,
-      p_stripe_payment_intent_id: stripePaymentIntentId,
+      p_stripe_payment_intent_id: paymentTransactionId, // RPC param name unchanged for DB compat
       p_items: payload,
     });
 

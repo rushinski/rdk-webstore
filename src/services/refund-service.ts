@@ -34,7 +34,7 @@ export class RefundService {
         throw new Error("Order cannot be refunded");
       }
 
-      const paymentIntentId = order.stripe_payment_intent_id;
+      const paymentIntentId = order.payment_transaction_id;
       if (!paymentIntentId) {
         throw new Error("No payment intent found");
       }

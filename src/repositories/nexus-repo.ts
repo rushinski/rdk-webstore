@@ -9,7 +9,7 @@ export type NexusRegistration = {
   registration_type: "physical" | "economic";
   is_registered: boolean;
   registered_at: string | null;
-  stripe_registration_id: string | null;
+  stripe_registration_id: string | null; // @deprecated — column dropped in migration 20260320
   created_at: string;
   updated_at: string;
   tracking_started_at: string | null;
@@ -113,7 +113,7 @@ export class NexusRepository {
           registration_type: registration.registrationType,
           is_registered: registration.isRegistered,
           registered_at: registration.registeredAt ?? null,
-          stripe_registration_id: registration.stripeRegistrationId ?? null,
+          // stripe_registration_id column was dropped — no longer sent to DB
           tracking_started_at: registration.isRegistered ? trackingStartedAt : null,
           updated_at: new Date().toISOString(),
         },

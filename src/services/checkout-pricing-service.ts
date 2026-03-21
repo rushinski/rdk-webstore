@@ -9,7 +9,8 @@ import { ProductRepository } from "@/repositories/product-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippingDefaultsRepository } from "@/repositories/shipping-defaults-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
-import { StripeTaxService } from "@/services/stripe-tax-service";
+import { NexusRepository } from "@/repositories/nexus-repo";
+import { ZipTaxService } from "@/services/ziptax-service";
 import { log } from "@/lib/utils/log";
 import type {
   CheckoutItem,
@@ -21,6 +22,8 @@ import type {
 
 export interface ResolvedCheckout {
   tenantId: string;
+  payrillaAccountId: string;
+  /** @deprecated Use payrillaAccountId */
   stripeAccountId: string;
   lineItems: ResolvedLineItem[];
   pricing: CheckoutPricing;
@@ -31,12 +34,16 @@ export class CheckoutPricingService {
   private shippingDefaultsRepo: ShippingDefaultsRepository;
   private taxSettingsRepo: TaxSettingsRepository;
   private profilesRepo: ProfileRepository;
+  private nexusRepo: NexusRepository;
+  private zipTaxService: ZipTaxService;
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.productsRepo = new ProductRepository(supabase);
     this.shippingDefaultsRepo = new ShippingDefaultsRepository(supabase);
     this.taxSettingsRepo = new TaxSettingsRepository(supabase);
     this.profilesRepo = new ProfileRepository(supabase);
+    this.nexusRepo = new NexusRepository(supabase);
+    this.zipTaxService = new ZipTaxService(supabase);
   }
 
   /**
@@ -69,14 +76,15 @@ export class CheckoutPricingService {
     }
     const [tenantId] = [...tenantIds];
 
-    // 3. Get tenant's Stripe Connect account
-    const stripeAccountId = await this.profilesRepo.getStripeAccountIdForTenant(tenantId);
-    if (!stripeAccountId) {
+    // 3. Get tenant's PayRilla account
+    const payrillaAccountId = await this.profilesRepo.getPayrillaAccountIdForTenant(tenantId);
+    if (!payrillaAccountId) {
       throw new CheckoutError(
-        "NO_STRIPE_ACCOUNT",
+        "NO_PAYMENT_ACCOUNT",
         "Seller payment account not configured",
       );
     }
+    const stripeAccountId = payrillaAccountId; // backwards-compat alias
 
     // 4. Build line items with stock validation
     const lineItems = this.buildLineItems(items, productMap);
@@ -90,7 +98,7 @@ export class CheckoutPricingService {
       shippingAddress,
     });
 
-    return { tenantId, stripeAccountId, lineItems, pricing };
+    return { tenantId, payrillaAccountId, stripeAccountId, lineItems, pricing };
   }
 
   /**
@@ -178,7 +186,7 @@ export class CheckoutPricingService {
     fulfillment: FulfillmentMethod;
     shippingAddress?: ShippingAddressPayload | null;
   }): Promise<CheckoutPricing> {
-    const { tenantId, stripeAccountId, lineItems, fulfillment, shippingAddress } = params;
+    const { tenantId, lineItems, fulfillment, shippingAddress } = params;
 
     const subtotal = lineItems.reduce((sum, li) => sum + li.lineTotal, 0);
 
@@ -202,11 +210,6 @@ export class CheckoutPricingService {
     const taxSettings = await this.taxSettingsRepo.getByTenant(tenantId);
     const taxEnabled = taxSettings?.tax_enabled ?? false;
     const homeState = (taxSettings?.home_state ?? "SC").trim().toUpperCase();
-    const taxCodeOverrides =
-      taxSettings?.tax_code_overrides &&
-      typeof taxSettings.tax_code_overrides === "object"
-        ? (taxSettings.tax_code_overrides as Record<string, string>)
-        : {};
 
     if (!taxEnabled) {
       const total = subtotal + shipping;
@@ -220,73 +223,42 @@ export class CheckoutPricingService {
       };
     }
 
-    // Determine destination state and customer address
+    // Determine destination state and zip code
     const destinationState =
       fulfillment === "pickup"
         ? homeState
         : (shippingAddress?.state?.trim().toUpperCase() ?? null);
 
-    // Use the Connect account's Stripe Tax (direct charge means tax lives on Connect)
-    const taxService = new StripeTaxService(this.supabase, stripeAccountId);
-    const stripeRegistrations = destinationState
-      ? await taxService.getStripeRegistrations()
-      : new Map<string, { id: string; state: string; active: boolean }>();
+    // Resolve destination zip code for ZipTax lookup
+    // Ship: use shipping address postal code
+    // Pickup: use stored business zip or fall back to home state default
+    const destinationZip =
+      fulfillment === "ship"
+        ? (shippingAddress?.postal_code?.trim() ?? null)
+        : null; // TODO: store business zip in tenant_tax_settings for pickup tax
 
+    // Check nexus registration for the destination state
+    // Only collect tax if the tenant is registered in that state
     const hasRegistration = destinationState
-      ? (stripeRegistrations.get(destinationState)?.active ?? false)
+      ? (await this.nexusRepo.getRegistration(tenantId, destinationState))?.is_registered ??
+        false
       : false;
 
-    let customerAddress: {
-      line1: string;
-      line2?: string | null;
-      city: string;
-      state: string;
-      postal_code: string;
-      country: string;
-    } | null = null;
+    let taxCalcId: string | null = null;
+    let tax = 0;
 
-    if (fulfillment === "ship" && shippingAddress) {
-      customerAddress = {
-        line1: shippingAddress.line1,
-        line2: shippingAddress.line2 ?? null,
-        city: shippingAddress.city,
-        state: shippingAddress.state.trim().toUpperCase(),
-        postal_code: shippingAddress.postal_code,
-        country: shippingAddress.country,
-      };
-    } else if (fulfillment === "pickup") {
-      const officeAddr = await taxService.getHeadOfficeAddress();
-      customerAddress = officeAddr ?? {
-        line1: "123 Main St",
-        city: "Charleston",
-        state: homeState,
-        postal_code: "29401",
-        country: "US",
-      };
+    if (hasRegistration && destinationZip) {
+      const subtotalCents = Math.round(subtotal * 100);
+      const taxCalc = await this.zipTaxService.calculateTax({
+        zipCode: destinationZip,
+        subtotalCents,
+        taxEnabled: true,
+      });
+
+      tax = taxCalc.taxAmount / 100;
+      taxCalcId = taxCalc.taxCalculationId;
     }
 
-    const taxCalc =
-      hasRegistration && customerAddress
-        ? await taxService.calculateTax({
-            currency: "usd",
-            customerAddress,
-            lineItems: lineItems.map((li) => ({
-              amount: Math.round(li.unitPrice * 100),
-              quantity: li.quantity,
-              productId: li.productId,
-              category: li.category,
-            })),
-            shippingCost: Math.round(shipping * 100),
-            taxCodes: taxCodeOverrides,
-            taxEnabled: true,
-          })
-        : {
-            taxAmount: 0,
-            totalAmount: Math.round((subtotal + shipping) * 100),
-            taxCalculationId: null,
-          };
-
-    const tax = taxCalc.taxAmount / 100;
     const total = subtotal + shipping + tax;
 
     log({
@@ -298,8 +270,9 @@ export class CheckoutPricingService {
       shipping,
       tax,
       total,
-      taxCalculationId: taxCalc.taxCalculationId,
+      taxCalculationId: taxCalcId,
       destinationState,
+      destinationZip,
       fulfillment,
     });
 
@@ -308,7 +281,7 @@ export class CheckoutPricingService {
       shipping,
       tax,
       total,
-      taxCalculationId: taxCalc.taxCalculationId,
+      taxCalculationId: taxCalcId,
       customerState: destinationState,
     };
   }

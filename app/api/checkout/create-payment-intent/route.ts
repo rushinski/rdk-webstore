@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Return existing payment intent if still valid
-      if (existingOrder.stripe_payment_intent_id && existingOrder.tenant_id) {
+      if (existingOrder.payment_transaction_id && existingOrder.tenant_id) {
         const profileRepo = new ProfileRepository(adminSupabase);
         const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(
           existingOrder.tenant_id,
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
           try {
             const pi = await directCharge.retrievePaymentIntent(
               stripeAccountId,
-              existingOrder.stripe_payment_intent_id,
+              existingOrder.payment_transaction_id,
             );
 
             if (pi.status === "succeeded") {
@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Link payment intent to order
-    if (!order.stripe_payment_intent_id) {
+    if (!order.payment_transaction_id) {
       await ordersRepo.updateStripePaymentIntent(order.id, paymentIntentId);
     }
 

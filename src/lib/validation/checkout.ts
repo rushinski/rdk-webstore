@@ -66,6 +66,34 @@ export const createPaymentIntentSchema = z
   })
   .strict();
 
+// ---------- create-checkout (PayRilla) ----------
+// The frontend tokenizes the card via PayRilla Hosted Tokenization and sends
+// the nonce + card metadata here. The server completes the charge in one step.
+
+export const createCheckoutSchema = z
+  .object({
+    items: z.array(checkoutItemSchema).min(1).max(50),
+    fulfillment: z.enum(["ship", "pickup"]),
+    idempotencyKey: z.string().uuid(),
+    guestEmail: z
+      .string()
+      .email()
+      .optional()
+      .nullable()
+      .transform((v) => v || null),
+    shippingAddress: shippingAddressSchema.optional().nullable(),
+    billingAddress: billingAddressSchema.optional().nullable(),
+    // PayRilla tokenization result (from hostedTokenization.getNonceToken())
+    nonce: z.string().trim().min(1),
+    expiryMonth: z.number().int().min(1).max(12),
+    expiryYear: z.number().int().min(2024).max(9999),
+    avsZip: z.string().trim().optional().nullable(),
+    cardholderName: z.string().trim().max(255).optional().nullable(),
+    // Device fingerprint token from NoFraud JS snippet cookie (optional but improves accuracy)
+    nfToken: z.string().trim().optional().nullable(),
+  })
+  .strict();
+
 // ---------- confirm-payment ----------
 
 export const confirmPaymentSchema = z

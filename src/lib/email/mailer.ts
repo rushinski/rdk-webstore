@@ -61,6 +61,8 @@ const getSes = () => {
 
 const buildFrom = () => `"${env.SES_FROM_NAME}" <${env.SES_FROM_EMAIL}>`;
 
+type SendEmailResult = { messageId?: string };
+
 // Prefer SESv2 for simple emails (no attachments). Use SES raw for attachments / CID.
 export async function sendEmail({
   to,
@@ -69,7 +71,7 @@ export async function sendEmail({
   text,
   attachments,
   replyTo,
-}: SendEmailInput) {
+}: SendEmailInput): Promise<SendEmailResult> {
   const from = buildFrom();
 
   if (attachments && attachments.length > 0) {
@@ -93,19 +95,19 @@ export async function sendEmail({
     const raw = await composer.compile().build(); // Buffer
     const client = getSes();
 
-    await client.send(
+    const result = await client.send(
       new SendRawEmailCommand({
         RawMessage: { Data: raw },
       }),
     );
 
-    return;
+    return { messageId: result.MessageId };
   }
 
   // Simple path (fast + clean)
   const client = getSesv2();
 
-  await client.send(
+  const result = await client.send(
     new SendEmailCommand({
       FromEmailAddress: from,
       Destination: { ToAddresses: [to] },
@@ -122,6 +124,8 @@ export async function sendEmail({
       // ConfigurationSetName: env.AWS_SES_CONFIGURATION_SET,
     }),
   );
+
+  return { messageId: result.MessageId };
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -142,7 +146,7 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number) => {
 export async function sendEmailWithRetry(
   input: SendEmailInput,
   options: RetryOptions = {},
-) {
+): Promise<SendEmailResult> {
   const maxAttempts = Math.max(1, options.maxAttempts ?? 3);
   const baseDelayMs = Math.max(0, options.baseDelayMs ?? 500);
   const timeoutMs = Math.max(1000, options.timeoutMs ?? 5000);
@@ -150,8 +154,7 @@ export async function sendEmailWithRetry(
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      await withTimeout(sendEmail(input), timeoutMs);
-      return;
+      return await withTimeout(sendEmail(input), timeoutMs);
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {

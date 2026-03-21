@@ -118,7 +118,7 @@ export async function POST(
       );
     }
 
-    if (!order.stripe_payment_intent_id) {
+    if (!order.payment_transaction_id) {
       return NextResponse.json(
         { error: "Cannot refund order: Missing payment information", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
@@ -208,13 +208,13 @@ export async function POST(
       orderId,
       tenantId,
       stripeAccountId,
-      paymentIntentId: order.stripe_payment_intent_id,
+      paymentIntentId: order.payment_transaction_id,
       refundType: payload.type,
       requestedRefundCents,
     });
 
     const paymentIntent = await stripe.paymentIntents.retrieve(
-      order.stripe_payment_intent_id,
+      order.payment_transaction_id,
       { expand: ["latest_charge"] },
       { stripeAccount: stripeAccountId },
     );
@@ -228,7 +228,7 @@ export async function POST(
       Number(expandedCharge?.application_fee_amount ?? 0) > 0;
 
     const refundParams: Stripe.RefundCreateParams = {
-      payment_intent: order.stripe_payment_intent_id,
+      payment_intent: order.payment_transaction_id,
       amount: requestedRefundCents,
       reason: "requested_by_customer",
     };

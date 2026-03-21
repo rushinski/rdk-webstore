@@ -1,22 +1,15 @@
 // src/components/checkout/CheckoutStart.tsx
 //
-// KEY CHANGES:
-// 1. Uses stripeAccountId from API response to configure Stripe Elements
-//    for direct charges (Elements must be initialized with stripeAccount option)
-// 2. Handles BNPL redirect flows (Afterpay, Affirm, Klarna return via redirect)
-// 3. Cleaner state management — fewer refs, clearer flow
+// Orchestrates the PayRilla checkout flow:
+//   1. Calls /api/checkout/init-checkout to create a pending order and get the tokenization key
+//   2. Passes tokenizationKey to CheckoutForm, which initializes HostedTokenization
+//   3. CheckoutForm calls /api/checkout/create-checkout on submit (auth + NoFraud + capture)
 
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Elements } from "@stripe/react-stripe-js";
-import {
-  loadStripe,
-  type Stripe as StripeType,
-  type StripeElementsOptions,
-} from "@stripe/stripe-js";
 import { Loader2 } from "lucide-react";
 
 import { useCart } from "@/components/cart/CartProvider";
@@ -49,19 +42,6 @@ const buildCartSignature = (items: CartItem[]) => {
   );
 };
 
-const stripeAppearance: StripeElementsOptions["appearance"] = {
-  theme: "night",
-  variables: {
-    fontFamily: "Arial, Helvetica, sans-serif",
-    colorPrimary: "#dc2626",
-    colorBackground: "#09090b",
-    colorText: "#ffffff",
-    colorTextSecondary: "#a1a1aa",
-    colorDanger: "#dc2626",
-    borderRadius: "2px",
-  },
-};
-
 type ShippingPayload = {
   name: string;
   phone?: string | null;
@@ -80,17 +60,9 @@ export function CheckoutStart() {
 
   const snapshotService = useMemo(() => new CartSnapshotService(), []);
 
-  // ---------- Stripe state ----------
-  // For direct charges, we need to load Stripe with the Connect account ID.
-  // We get this from the API response, so we load Stripe lazily.
-  const [stripePromise, setStripePromise] = useState<Promise<StripeType | null> | null>(
-    null,
-  );
-  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
-
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [tokenizationKey, setTokenizationKey] = useState<string | null>(null);
 
   const [subtotal, setSubtotal] = useState(0);
   const [shipping, setShipping] = useState(0);
@@ -183,7 +155,7 @@ export function CheckoutStart() {
         sessionStorage.setItem("checkout_cart_signature", sig);
         setIdempotencyKey(key);
         setOrderId(null);
-        setClientSecret(null);
+        setTokenizationKey(null);
         lastPricingKeyRef.current = null;
         return;
       }
@@ -212,7 +184,7 @@ export function CheckoutStart() {
     };
   }, [shippingAddress]);
 
-  // ---------- Initialize checkout (create PaymentIntent) ----------
+  // ---------- Initialize checkout ----------
   useEffect(() => {
     if (!isReady || items.length === 0 || !idempotencyKey) {
       return;
@@ -223,7 +195,7 @@ export function CheckoutStart() {
     if (!isAuthenticated && !isGuestFlow) {
       return;
     }
-    if (clientSecret && orderId) {
+    if (orderId && tokenizationKey) {
       return;
     }
 
@@ -248,7 +220,7 @@ export function CheckoutStart() {
           payload.guestEmail = guestEmail;
         }
 
-        const res = await fetch("/api/checkout/create-payment-intent", {
+        const res = await fetch("/api/checkout/init-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -277,28 +249,17 @@ export function CheckoutStart() {
           return;
         }
 
-        if (!data?.clientSecret || !data?.orderId || !data?.stripeAccountId) {
+        if (!data?.orderId || !data?.tokenizationKey) {
           throw new Error("Checkout response missing required fields");
         }
 
         setOrderId(data.orderId);
-        setClientSecret(data.clientSecret);
-        setStripeAccountId(data.stripeAccountId);
+        setTokenizationKey(data.tokenizationKey);
         setSubtotal(Number(data.subtotal ?? 0));
         setShipping(Number(data.shipping ?? 0));
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
-
-        // Load Stripe with the Connect account ID for direct charges
-        // This is critical — without stripeAccount, Elements would create
-        // charges on the platform account instead of the Connect account.
-        setStripePromise(
-          loadStripe(clientEnv.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!, {
-            stripeAccount: data.stripeAccountId,
-          }),
-        );
-
         lastPricingKeyRef.current = null;
       } catch (err: unknown) {
         if (active) {
@@ -316,7 +277,6 @@ export function CheckoutStart() {
       active = false;
     };
   }, [
-    clientSecret,
     fulfillment,
     guestEmail,
     idempotencyKey,
@@ -327,6 +287,7 @@ export function CheckoutStart() {
     orderId,
     router,
     shippingPayload,
+    tokenizationKey,
   ]);
 
   // ---------- Update pricing on fulfillment/address change ----------
@@ -416,7 +377,7 @@ export function CheckoutStart() {
     if (
       fulfillment !== "ship" ||
       !orderId ||
-      !clientSecret ||
+      !tokenizationKey ||
       !pricingKey ||
       isUpdatingFulfillment
     ) {
@@ -440,12 +401,12 @@ export function CheckoutStart() {
     }, 350);
     return () => clearTimeout(t);
   }, [
-    clientSecret,
     fulfillment,
     isUpdatingFulfillment,
     orderId,
     pricingKey,
     shippingPayload,
+    tokenizationKey,
     updatePricing,
   ]);
 
@@ -472,7 +433,7 @@ export function CheckoutStart() {
     );
   }
 
-  const showForm = isGuestFlow || (clientSecret && orderId);
+  const showForm = isGuestFlow || (orderId && tokenizationKey);
 
   if (!showForm || isInitializing) {
     if (error) {
@@ -499,13 +460,9 @@ export function CheckoutStart() {
     );
   }
 
-  const elementsOptions: StripeElementsOptions | undefined = clientSecret
-    ? { clientSecret, appearance: stripeAppearance }
-    : undefined;
-
   const formProps = {
     orderId: orderId ?? "pending",
-    stripeAccountId: stripeAccountId ?? undefined,
+    tokenizationKey,
     items,
     total,
     fulfillment,
@@ -529,9 +486,7 @@ export function CheckoutStart() {
       <div className="flex items-center justify-between mb-6 sm:mb-8 pt-2">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Checkout</h1>
-          <p className="text-sm sm:text-base text-gray-400">
-            Secure checkout powered by Stripe
-          </p>
+          <p className="text-sm sm:text-base text-gray-400">Secure checkout</p>
         </div>
         <Link href="/cart" className="text-sm text-gray-400 hover:text-white transition">
           Back to cart
@@ -546,13 +501,7 @@ export function CheckoutStart() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
-          {elementsOptions && stripePromise ? (
-            <Elements stripe={stripePromise} options={elementsOptions}>
-              <CheckoutForm {...formProps} />
-            </Elements>
-          ) : (
-            <CheckoutForm {...formProps} />
-          )}
+          <CheckoutForm {...formProps} />
         </div>
         <div className="lg:col-span-1">
           <OrderSummary

@@ -27,7 +27,7 @@ import Stripe from "stripe";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
-import { StripeEventsRepository } from "@/repositories/stripe-events-repo";
+import { PaymentWebhookEventsRepository as StripeEventsRepository } from "@/repositories/payment-webhook-events-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -465,7 +465,7 @@ async function handlePaymentIntentSucceeded(
       .from("orders")
       .update({
         status: "paid",
-        stripe_payment_intent_id: pi.id,
+        payment_transaction_id: pi.id,
       })
       .eq("id", orderId)
       .in("status", ["pending", "processing"])
@@ -634,7 +634,7 @@ async function handlePaymentIntentSucceeded(
       if (txnId) {
         await adminSupabase
           .from("orders")
-          .update({ stripe_tax_transaction_id: txnId })
+          .update({ tax_transaction_id: txnId })
           .eq("id", orderId);
       }
     } catch (err) {
@@ -863,7 +863,7 @@ async function handleRefundEvent(
       orderLookupFilters.push(`stripe_charge_id.eq.${chargeId}`);
     }
     if (paymentIntentId) {
-      orderLookupFilters.push(`stripe_payment_intent_id.eq.${paymentIntentId}`);
+      orderLookupFilters.push(`payment_transaction_id.eq.${paymentIntentId}`);
     }
     if (orderLookupFilters.length === 0) {
       return;

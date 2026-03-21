@@ -4,7 +4,17 @@
       "Bash(psql:*)",
       "Bash(npx supabase:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "WebFetch(domain:zip.tax)",
+      "WebFetch(domain:developers.nofraud.com)",
+      "WebFetch(domain:developers.zip.tax)",
+      "WebFetch(domain:docs.nofraud.com)",
+      "WebFetch(domain:www.wyllo.ai)",
+      "WebFetch(domain:wyllo.ai)",
+      "WebSearch",
+      "WebFetch(domain:portal.nofraud.com)",
+      "Bash(npm install:*)",
+      "Bash(npm list:*)"
     ]
   }
 }

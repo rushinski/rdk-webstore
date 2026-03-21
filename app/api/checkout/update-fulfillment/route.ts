@@ -1,8 +1,8 @@
-// src/app/api/checkout/update-fulfillment/route.ts
+// app/api/checkout/update-fulfillment/route.ts
 //
 // Called when the user changes fulfillment (ship ↔ pickup) or enters a
 // shipping address during checkout. Recalculates pricing and updates
-// the PaymentIntent on the Connect account.
+// the pending order in the database.
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -11,15 +11,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
-import { ProfileRepository } from "@/repositories/profile-repo";
 import { CheckoutPricingService } from "@/services/checkout-pricing-service";
-import { StripeDirectChargeService } from "@/services/stripe-direct-charge-service";
 import { createCartHash } from "@/lib/utils/crypto";
 import { updateFulfillmentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
-
-const directCharge = new StripeDirectChargeService();
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -62,36 +58,9 @@ export async function POST(request: NextRequest) {
         409,
       );
     }
-    if (!order.stripe_payment_intent_id || !order.tenant_id) {
+    if (!order.tenant_id) {
       return json(
-        { error: "MISSING_PAYMENT_INTENT", code: "MISSING_PAYMENT_INTENT", requestId },
-        409,
-      );
-    }
-
-    // Get tenant's Stripe account
-    const profileRepo = new ProfileRepository(adminSupabase);
-    const stripeAccountId = await profileRepo.getStripeAccountIdForTenant(
-      order.tenant_id,
-    );
-    if (!stripeAccountId) {
-      return json({ error: "Seller payment account not configured", requestId }, 400);
-    }
-
-    // Verify payment intent is still active
-    const pi = await directCharge.retrievePaymentIntent(
-      stripeAccountId,
-      order.stripe_payment_intent_id,
-    );
-    if (pi.status === "succeeded") {
-      return json(
-        { error: "ORDER_ALREADY_PAID", code: "ORDER_ALREADY_PAID", requestId },
-        409,
-      );
-    }
-    if (pi.status === "canceled") {
-      return json(
-        { error: "PAYMENT_INTENT_CANCELED", code: "PAYMENT_INTENT_CANCELED", requestId },
+        { error: "ORDER_MISSING_TENANT", code: "ORDER_MISSING_TENANT", requestId },
         409,
       );
     }
@@ -127,13 +96,12 @@ export async function POST(request: NextRequest) {
     const pricingService = new CheckoutPricingService(adminSupabase);
     const pricing = await pricingService.recalculate({
       tenantId: order.tenant_id,
-      stripeAccountId,
+      stripeAccountId: order.tenant_id, // unused; kept for API compatibility
       lineItems,
       fulfillment,
       shippingAddress,
     });
 
-    const totalCents = Math.round(pricing.total * 100);
     const cartHash = createCartHash(
       orderItems.map((i) => ({
         productId: i.product_id,
@@ -141,20 +109,6 @@ export async function POST(request: NextRequest) {
         quantity: i.quantity,
       })),
       fulfillment,
-    );
-
-    // Update PaymentIntent on Connect account (direct charge)
-    await directCharge.updatePaymentIntent(
-      stripeAccountId,
-      order.stripe_payment_intent_id,
-      {
-        amountCents: totalCents,
-        metadata: {
-          fulfillment,
-          cart_hash: cartHash,
-          tax_calculation_id: pricing.taxCalculationId ?? "",
-        },
-      },
     );
 
     // Update order in DB
