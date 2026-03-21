@@ -34,6 +34,49 @@ const CARD_BRAND_LABELS: Record<string, string> = {
   UnionPay: "UnionPay",
 };
 
+const PAYRILLA_BASE_FIELD_STYLE = [
+  "background: #ffffff",
+  "color: #111827",
+  "border: 1px solid #d6d3d1",
+  "padding: 15px 16px",
+  "font-size: 15px",
+  "font-family: Arial, Helvetica, sans-serif",
+  "line-height: 1.45",
+  "box-sizing: border-box",
+  "min-height: 54px",
+  "width: 100%",
+].join("; ");
+
+const PAYRILLA_HOSTED_STYLES: Record<string, string> = {
+  container: ["background: transparent", "padding: 0", "display: grid", "gap: 14px"].join(
+    "; ",
+  ),
+  card: PAYRILLA_BASE_FIELD_STYLE,
+  expiryContainer: [
+    "display: grid",
+    "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)",
+    "gap: 12px",
+  ].join("; "),
+  expiryMonth: PAYRILLA_BASE_FIELD_STYLE,
+  expirySeparator: "display: none",
+  expiryYear: PAYRILLA_BASE_FIELD_STYLE,
+  cvv2: PAYRILLA_BASE_FIELD_STYLE,
+  avsZip: PAYRILLA_BASE_FIELD_STYLE,
+  labels: [
+    "color: #475569",
+    "font-size: 11px",
+    "font-weight: 700",
+    "letter-spacing: 0.08em",
+    "text-transform: uppercase",
+    "margin: 0 0 6px 0",
+  ].join("; "),
+  floatingLabelsPlaceholder: [
+    "color: #9ca3af",
+    "font-size: 15px",
+    "font-weight: 500",
+  ].join("; "),
+};
+
 interface CheckoutFormProps {
   orderId: string;
   tokenizationKey: string | null;
@@ -76,7 +119,9 @@ type AddressLike = {
 const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 function toApiAddress(addr: AddressLike | null) {
-  if (!addr) return null;
+  if (!addr) {
+    return null;
+  }
   return {
     name: addr.name,
     phone: addr.phone ?? null,
@@ -90,13 +135,47 @@ function toApiAddress(addr: AddressLike | null) {
 }
 
 function getNoFraudToken(): string | null {
-  if (typeof document === "undefined") return null;
+  if (typeof document === "undefined") {
+    return null;
+  }
   const candidates = ["nf-token", "nf_token", "nfToken"];
   for (const cookie of document.cookie.split(";")) {
     const [k, v] = cookie.trim().split("=");
-    if (candidates.includes(k.trim()) && v) return decodeURIComponent(v.trim());
+    if (candidates.includes(k.trim()) && v) {
+      return decodeURIComponent(v.trim());
+    }
   }
   return null;
+}
+
+function getPayrillaErrorMessage(error: unknown): string | null {
+  if (!error) {
+    return null;
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const candidate = error as {
+      message?: unknown;
+      error?: unknown;
+      detail?: unknown;
+    };
+
+    for (const value of [candidate.message, candidate.error, candidate.detail]) {
+      if (typeof value === "string" && value.trim()) {
+        return value.trim();
+      }
+    }
+  }
+
+  return "Please check your card details and try again.";
 }
 
 export function CheckoutForm({
@@ -124,6 +203,8 @@ export function CheckoutForm({
     typeof window !== "undefined" && typeof window.HostedTokenization === "function",
   );
   const [cardType, setCardType] = useState<string | null>(null);
+  const [payrillaFieldError, setPayrillaFieldError] = useState<string | null>(null);
+  const [hasTouchedPayrilla, setHasTouchedPayrilla] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [uiValidationErrors, setUiValidationErrors] = useState<string[]>([]);
@@ -143,14 +224,19 @@ export function CheckoutForm({
   // Next Script can dedupe/load the SDK before this component's onLoad handler runs.
   // If the global is already present, treat the script as loaded so initialization can proceed.
   useEffect(() => {
-    if (typeof window !== "undefined" && typeof window.HostedTokenization === "function") {
+    if (
+      typeof window !== "undefined" &&
+      typeof window.HostedTokenization === "function"
+    ) {
       setIsScriptLoaded(true);
     }
   }, [tokenizationKey]);
 
   // Detect Apple Pay support (Safari / Apple devices only)
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const AP = (window as any).ApplePaySession;
@@ -164,11 +250,15 @@ export function CheckoutForm({
 
   // Initialize Google Pay client once the script loads
   useEffect(() => {
-    if (!isGooglePayScriptLoaded) return;
+    if (!isGooglePayScriptLoaded) {
+      return;
+    }
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const g = (window as any).google;
-      if (!g?.payments?.api?.PaymentsClient) return;
+      if (!g?.payments?.api?.PaymentsClient) {
+        return;
+      }
 
       const client = new g.payments.api.PaymentsClient({
         environment: process.env.NODE_ENV === "production" ? "PRODUCTION" : "TEST",
@@ -190,7 +280,9 @@ export function CheckoutForm({
           ],
         })
         .then((res: { result: boolean }) => setShowGooglePay(res.result))
-        .catch(() => {/* Google Pay not available on this device/browser */});
+        .catch(() => {
+          /* Google Pay not available on this device/browser */
+        });
     } catch {
       // Google Pay unavailable (localhost, unsupported browser, etc.)
     }
@@ -198,11 +290,17 @@ export function CheckoutForm({
 
   // Auto-save guest email to database (debounced)
   useEffect(() => {
-    if (!isGuestCheckout || !guestEmail || !orderId) return;
+    if (!isGuestCheckout || !guestEmail || !orderId) {
+      return;
+    }
     const trimmed = guestEmail.trim();
-    if (!trimmed || !isValidEmail(trimmed)) return;
+    if (!trimmed || !isValidEmail(trimmed)) {
+      return;
+    }
 
-    if (emailSaveTimerRef.current) clearTimeout(emailSaveTimerRef.current);
+    if (emailSaveTimerRef.current) {
+      clearTimeout(emailSaveTimerRef.current);
+    }
 
     emailSaveTimerRef.current = setTimeout(() => {
       const saveEmail = async () => {
@@ -227,20 +325,29 @@ export function CheckoutForm({
     }, 500);
 
     return () => {
-      if (emailSaveTimerRef.current) clearTimeout(emailSaveTimerRef.current);
+      if (emailSaveTimerRef.current) {
+        clearTimeout(emailSaveTimerRef.current);
+      }
     };
   }, [isGuestCheckout, guestEmail, orderId]);
 
   // Initialize PayRilla HostedTokenization once script + key are ready
   useEffect(() => {
-    if (!isScriptLoaded || !tokenizationKey) return;
+    if (!isScriptLoaded || !tokenizationKey) {
+      return;
+    }
 
     const el = cardFormRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
 
     const HT = window.HostedTokenization;
     if (!HT) {
-      console.error("[PayRilla] window.HostedTokenization undefined — script may have failed to load:", clientEnv.NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL);
+      console.error(
+        "[PayRilla] window.HostedTokenization undefined — script may have failed to load:",
+        clientEnv.NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL,
+      );
       setPayrillaLoadError("Payment form failed to load. Please refresh.");
       return;
     }
@@ -255,12 +362,8 @@ export function CheckoutForm({
       instance = new HT(tokenizationKey, {
         target: "#payrilla-card-form",
         showZip: true,
-        styles: {
-          container: "background: transparent; padding: 0;",
-          card: "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
-          cvv2: "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
-          avsZip: "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
-        },
+        labelType: "floating",
+        styles: PAYRILLA_HOSTED_STYLES,
       });
     } catch (err) {
       console.error("[PayRilla] constructor threw:", err);
@@ -272,13 +375,23 @@ export function CheckoutForm({
       .on("ready", () => {
         setIsPayrillaReady(true);
         setPayrillaLoadError(null);
+        setPayrillaFieldError(null);
       })
       .on("change", (event) => {
-        if (event.error) console.error("[PayRilla] error:", event.error);
+        setHasTouchedPayrilla(true);
+        const errorMessage = getPayrillaErrorMessage(event.error);
+        setPayrillaFieldError(errorMessage);
+        if (event.error) {
+          console.error("[PayRilla] error:", event.error);
+        }
         const detected = event.result?.cardType;
         setCardType(detected && detected !== "" ? detected : null);
       })
       .on("input", (event) => {
+        setHasTouchedPayrilla(true);
+        if (!event.error) {
+          setPayrillaFieldError(null);
+        }
         const detected = event.result?.cardType;
         setCardType(detected && detected !== "" ? detected : null);
       });
@@ -291,6 +404,8 @@ export function CheckoutForm({
       setIsPayrillaReady(false);
       setPayrillaLoadError(null);
       setCardType(null);
+      setPayrillaFieldError(null);
+      setHasTouchedPayrilla(false);
     };
   }, [isScriptLoaded, tokenizationKey]);
 
@@ -299,16 +414,21 @@ export function CheckoutForm({
     const errors: string[] = [];
     if (isGuestCheckout) {
       const e = guestEmail?.trim() || "";
-      if (!e) errors.push("Email address is required");
-      else if (!isValidEmail(e)) errors.push("Email address is invalid");
+      if (!e) {
+        errors.push("Email address is required");
+      } else if (!isValidEmail(e)) {
+        errors.push("Email address is invalid");
+      }
     }
     if (fulfillment === "ship" && !shippingAddress) {
       errors.push("Shipping address is required");
     } else if (fulfillment === "ship" && shippingAddress) {
-      if (normalizeUsStateCode(shippingAddress.state).length !== 2)
+      if (normalizeUsStateCode(shippingAddress.state).length !== 2) {
         errors.push("Shipping state must be a 2-letter code");
-      if (normalizeCountryCode(shippingAddress.country, "US").length !== 2)
+      }
+      if (normalizeCountryCode(shippingAddress.country, "US").length !== 2) {
         errors.push("Shipping country must be a 2-letter code");
+      }
     }
     return errors;
   }
@@ -319,17 +439,28 @@ export function CheckoutForm({
     if (!billingAddress) {
       errors.push("Billing address is required");
     } else {
-      if (!billingAddress.name?.trim()) errors.push("Billing name is required");
-      if (!billingAddress.line1?.trim()) errors.push("Billing street address is required");
-      if (!billingAddress.city?.trim()) errors.push("Billing city is required");
-      if (normalizeUsStateCode(billingAddress.state).length !== 2)
+      if (!billingAddress.name?.trim()) {
+        errors.push("Billing name is required");
+      }
+      if (!billingAddress.line1?.trim()) {
+        errors.push("Billing street address is required");
+      }
+      if (!billingAddress.city?.trim()) {
+        errors.push("Billing city is required");
+      }
+      if (normalizeUsStateCode(billingAddress.state).length !== 2) {
         errors.push("Billing state must be a 2-letter code");
-      if (!billingAddress.postal_code?.trim()) errors.push("Billing ZIP code is required");
-      if (normalizeCountryCode(billingAddress.country, "US").length !== 2)
+      }
+      if (!billingAddress.postal_code?.trim()) {
+        errors.push("Billing ZIP code is required");
+      }
+      if (normalizeCountryCode(billingAddress.country, "US").length !== 2) {
         errors.push("Billing country must be a 2-letter code");
+      }
     }
-    if (!hostedTokenizationRef.current || !isPayrillaReady)
+    if (!hostedTokenizationRef.current || !isPayrillaReady) {
       errors.push("Payment form is still loading");
+    }
     return errors;
   }
 
@@ -365,7 +496,8 @@ export function CheckoutForm({
             ? "Payment was declined. Please try a different payment method."
             : data?.code === "FRAUD_BLOCKED"
               ? "We were unable to process your order. Please contact support."
-              : (data?.error as string | undefined) || "Payment failed. Please try again.";
+              : (data?.error as string | undefined) ||
+                "Payment failed. Please try again.";
       throw new Error(msg);
     }
 
@@ -392,7 +524,7 @@ export function CheckoutForm({
   }
 
   // Apple Pay: launch ApplePaySession and handle the full flow
-  async function handleApplePay() {
+  function handleApplePay() {
     const preflightErrors = validateCommonFields();
     if (preflightErrors.length > 0) {
       setUiValidationErrors(preflightErrors);
@@ -404,7 +536,9 @@ export function CheckoutForm({
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const AP = (window as any).ApplePaySession as any;
-    if (!AP) return;
+    if (!AP) {
+      return;
+    }
 
     const session = new AP(3, {
       countryCode: "US",
@@ -421,7 +555,9 @@ export function CheckoutForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ validationURL: event.validationURL }),
         });
-        if (!res.ok) throw new Error("Merchant validation failed");
+        if (!res.ok) {
+          throw new Error("Merchant validation failed");
+        }
         const merchantSession = await res.json();
         session.completeMerchantValidation(merchantSession);
       } catch {
@@ -462,7 +598,9 @@ export function CheckoutForm({
     setUiValidationErrors([]);
 
     const client = googlePayClientRef.current;
-    if (!client) return;
+    if (!client) {
+      return;
+    }
 
     const paymentDataRequest = {
       apiVersion: 2,
@@ -553,11 +691,12 @@ export function CheckoutForm({
       try {
         nonceResult = await ht.getNonceToken();
       } catch (err) {
-        throw new Error(
-          err instanceof Error && err.message
-            ? err.message
-            : "Please check your card details and try again.",
-        );
+        const message =
+          getPayrillaErrorMessage(err) ??
+          payrillaFieldError ??
+          "Please check your card details and try again.";
+        setPayrillaFieldError(message);
+        throw new Error(message);
       }
 
       await submitCheckout({
@@ -587,7 +726,10 @@ export function CheckoutForm({
         onReady={() => setIsScriptLoaded(true)}
         onLoad={() => setIsScriptLoaded(true)}
         onError={() => {
-          console.error("[PayRilla] Script failed to load:", clientEnv.NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL);
+          console.error(
+            "[PayRilla] Script failed to load:",
+            clientEnv.NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL,
+          );
           setPayrillaLoadError("Payment form failed to load. Please refresh.");
         }}
       />
@@ -676,7 +818,9 @@ export function CheckoutForm({
                   <Package className="w-4 h-4 text-gray-400" />
                   <span className="text-white font-medium">Local pickup</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-1">Free — pick up at our location</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Free — pick up at our location
+                </p>
               </div>
             </label>
           </div>
@@ -703,7 +847,8 @@ export function CheckoutForm({
               <div className="mt-3 pt-3 border-t border-zinc-800">
                 <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
                 <p>
-                  All sales are final except as outlined in our Returns &amp; Refunds policy.
+                  All sales are final except as outlined in our Returns &amp; Refunds
+                  policy.
                 </p>
                 <Link
                   href="/refunds"
@@ -720,10 +865,16 @@ export function CheckoutForm({
               <p className="font-medium text-white mb-2">Shipping Information</p>
               <p>We aim to ship within 24 hours (processing time, not delivery).</p>
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
+                <Link
+                  href="/shipping"
+                  className="text-red-500 hover:text-red-400 underline"
+                >
                   Shipping Policy
                 </Link>
-                <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                <Link
+                  href="/refunds"
+                  className="text-red-500 hover:text-red-400 underline"
+                >
                   Returns &amp; Refunds Policy
                 </Link>
               </div>
@@ -825,51 +976,75 @@ export function CheckoutForm({
             </div>
           )}
 
-          {/* Card input */}
-          <div className="space-y-2">
-            {/* Live card type badge */}
-            {cardType && (
-              <div className="flex items-center gap-2 text-sm text-zinc-300">
-                <CreditCard className="w-4 h-4 text-zinc-400 shrink-0" />
-                <span className="font-medium">
-                  {CARD_BRAND_LABELS[cardType] ?? cardType}
-                </span>
+          <div className="border border-stone-300 bg-stone-50">
+            <div className="border-b border-stone-300 px-5 py-4 sm:px-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-lg font-semibold text-zinc-900">Card details</p>
+                  <p className="mt-1 text-sm text-stone-500">
+                    Hosted by Payrilla. Card data is tokenized before it reaches our
+                    server.
+                  </p>
+                </div>
+                {cardType && (
+                  <div className="flex items-center gap-2 text-sm text-stone-600">
+                    <CreditCard className="w-4 h-4 shrink-0" />
+                    <span className="font-medium text-zinc-800">
+                      {CARD_BRAND_LABELS[cardType] ?? cardType}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
-            {/* PayRilla iframe target */}
-            <div
-              id="payrilla-card-form"
-              ref={cardFormRef}
-              className="min-h-[120px] rounded border border-zinc-800 bg-zinc-950/40 p-2"
-            />
+            <div className="space-y-4 px-5 py-5 sm:px-6">
+              <div
+                id="payrilla-card-form"
+                ref={cardFormRef}
+                className="min-h-[248px] border border-stone-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]"
+              />
 
-            {!isPayrillaReady && !payrillaLoadError && (
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Loading card form...</span>
+              {!isPayrillaReady && !payrillaLoadError && (
+                <div className="flex items-center gap-2 text-sm text-stone-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading card form...</span>
+                </div>
+              )}
+
+              {(hasTouchedPayrilla || hasAttemptedSubmit) && payrillaFieldError && (
+                <div className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {payrillaFieldError}
+                </div>
+              )}
+
+              {payrillaLoadError && (
+                <div className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {payrillaLoadError}
+                </div>
+              )}
+
+              <div className="grid gap-3 text-sm text-stone-600 sm:grid-cols-2">
+                <p>
+                  CVV and billing ZIP are used for bank verification and fraud checks.
+                </p>
+                <p>
+                  We store the payment result and transaction reference, not the raw card
+                  number.
+                </p>
               </div>
-            )}
-
-            {payrillaLoadError && (
-              <div className="flex items-start gap-2 text-sm text-red-400 bg-red-900/20 border border-red-800 rounded p-3">
-                <span>{payrillaLoadError}</span>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-4 p-3 bg-zinc-950 border border-zinc-800 rounded text-sm text-gray-400">
-            <p className="flex items-center gap-2">
-              <Lock className="w-4 h-4 shrink-0" />
-              Your payment details are securely encrypted. We never store raw card data.
-            </p>
+            </div>
           </div>
         </div>
 
         {/* Card submit button */}
         <button
           type="submit"
-          disabled={isProcessing || isUpdatingFulfillment || !isPayrillaReady || !!payrillaLoadError}
+          disabled={
+            isProcessing ||
+            isUpdatingFulfillment ||
+            !isPayrillaReady ||
+            !!payrillaLoadError
+          }
           className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg transition text-base sm:text-lg flex items-center justify-center gap-2"
         >
           {isProcessing ? (
@@ -910,11 +1085,17 @@ export function CheckoutForm({
         <div className="text-sm text-gray-400 text-center">
           <p>
             By placing your order, you agree to our{" "}
-            <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
+            <Link
+              href="/legal/terms"
+              className="text-red-500 hover:text-red-400 underline"
+            >
               Terms of Service
             </Link>
             {" and "}
-            <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
+            <Link
+              href="/legal/privacy"
+              className="text-red-500 hover:text-red-400 underline"
+            >
               Privacy Policy
             </Link>
             .

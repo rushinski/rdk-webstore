@@ -22,7 +22,7 @@ import {
   CheckoutError,
 } from "@/services/checkout-pricing-service";
 import { PayrillaChargeService } from "@/services/payrilla-charge-service";
-import { NoFraudService } from "@/services/nofraud-service";
+import { NoFraudService, type NoFraudResult } from "@/services/nofraud-service";
 import { EvidenceService } from "@/services/evidence-service";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { ProductService } from "@/services/product-service";
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       nfToken,
     } = parsed.data;
 
-    const isWalletPayment = walletType != null && walletToken != null;
+    const isWalletPayment = walletType !== null && walletToken !== null;
 
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
@@ -168,6 +168,7 @@ export async function POST(request: NextRequest) {
 
     const payrillaService = new PayrillaChargeService(adminSupabase, tenantId);
     let chargeResult;
+    let nofraudResult: NoFraudResult | null = null;
 
     if (isWalletPayment) {
       // ---- Wallet flow: single-step immediate capture ----
@@ -197,8 +198,10 @@ export async function POST(request: NextRequest) {
       if (chargeResult.status !== "approved") {
         return json(
           {
-            error: chargeResult.status === "declined" ? "Payment declined" : "Payment error",
-            code: chargeResult.status === "declined" ? "PAYMENT_DECLINED" : "PAYMENT_ERROR",
+            error:
+              chargeResult.status === "declined" ? "Payment declined" : "Payment error",
+            code:
+              chargeResult.status === "declined" ? "PAYMENT_DECLINED" : "PAYMENT_ERROR",
             requestId,
           },
           402,
@@ -207,7 +210,7 @@ export async function POST(request: NextRequest) {
 
       // NoFraud screening after capture — refund if flagged as fraud
       const nofraud = new NoFraudService();
-      const nofraudResult = await nofraud.screenTransaction({
+      nofraudResult = await nofraud.screenTransaction({
         nfToken: nfToken ?? null,
         amount: (totalCents / 100).toFixed(2),
         shippingAmount: pricing.shipping.toFixed(2),
@@ -222,7 +225,9 @@ export async function POST(request: NextRequest) {
 
       if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
         try {
-          await payrillaService.reverseTransaction({ transactionId: chargeResult.transactionId });
+          await payrillaService.reverseTransaction({
+            transactionId: chargeResult.transactionId,
+          });
         } catch {
           /* best-effort */
         }
@@ -233,7 +238,10 @@ export async function POST(request: NextRequest) {
           requestId,
           orderId: order.id,
         });
-        await adminSupabase.from("orders").update({ status: "failed" }).eq("id", order.id);
+        await adminSupabase
+          .from("orders")
+          .update({ status: "failed" })
+          .eq("id", order.id);
         return json(
           { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
           402,
@@ -241,7 +249,10 @@ export async function POST(request: NextRequest) {
       }
 
       if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-        await adminSupabase.from("orders").update({ status: "review" }).eq("id", order.id);
+        await adminSupabase
+          .from("orders")
+          .update({ status: "review" })
+          .eq("id", order.id);
       }
     } else {
       // ---- Card flow: auth-only → NoFraud → capture ----
@@ -287,7 +298,7 @@ export async function POST(request: NextRequest) {
 
       // NoFraud screening — AVS/CVV codes from authorization required by NoFraud
       const nofraud = new NoFraudService();
-      const nofraudResult = await nofraud.screenTransaction({
+      nofraudResult = await nofraud.screenTransaction({
         nfToken: nfToken ?? null,
         amount: (totalCents / 100).toFixed(2),
         shippingAmount: pricing.shipping.toFixed(2),
@@ -313,7 +324,10 @@ export async function POST(request: NextRequest) {
           requestId,
           orderId: order.id,
         });
-        await adminSupabase.from("orders").update({ status: "failed" }).eq("id", order.id);
+        await adminSupabase
+          .from("orders")
+          .update({ status: "failed" })
+          .eq("id", order.id);
         return json(
           { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
           402,
@@ -336,7 +350,10 @@ export async function POST(request: NextRequest) {
       }
 
       if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-        await adminSupabase.from("orders").update({ status: "review" }).eq("id", order.id);
+        await adminSupabase
+          .from("orders")
+          .update({ status: "review" })
+          .eq("id", order.id);
       }
 
       chargeResult = authResult;
@@ -394,7 +411,7 @@ export async function POST(request: NextRequest) {
       // Chargeback evidence
       try {
         const evidenceService = new EvidenceService(adminSupabase);
-        const nofraudResponse = nofraudResult.ok ? nofraudResult.response : null;
+        const nofraudResponse = nofraudResult?.ok ? nofraudResult.response : null;
         await evidenceService.collectPaymentEvidence({
           orderId: order.id,
           tenantId,
@@ -441,7 +458,7 @@ export async function POST(request: NextRequest) {
       orderId: order.id,
       transactionId: chargeResult.transactionId,
       totalCents,
-      nofraudDecision: nofraudResult.ok ? nofraudResult.response.decision : "skipped",
+      nofraudDecision: nofraudResult?.ok ? nofraudResult.response.decision : "skipped",
     });
 
     return json(
