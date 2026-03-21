@@ -17,7 +17,10 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
-import { CheckoutPricingService, CheckoutError } from "@/services/checkout-pricing-service";
+import {
+  CheckoutPricingService,
+  CheckoutError,
+} from "@/services/checkout-pricing-service";
 import { PayrillaChargeService } from "@/services/payrilla-charge-service";
 import { NoFraudService } from "@/services/nofraud-service";
 import { EvidenceService } from "@/services/evidence-service";
@@ -79,9 +82,18 @@ export async function POST(request: NextRequest) {
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
 
     if (existingOrder) {
-      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
+      const expiresAt = existingOrder.expires_at
+        ? new Date(existingOrder.expires_at)
+        : null;
       if (expiresAt && expiresAt < new Date()) {
-        return json({ error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId }, 409);
+        return json(
+          {
+            error: "IDEMPOTENCY_KEY_EXPIRED",
+            code: "IDEMPOTENCY_KEY_EXPIRED",
+            requestId,
+          },
+          409,
+        );
       }
       if (existingOrder.cart_hash !== cartHash) {
         return json({ error: "CART_MISMATCH", code: "CART_MISMATCH", requestId }, 409);
@@ -169,7 +181,12 @@ export async function POST(request: NextRequest) {
         customerIp,
       });
     } catch (err) {
-      logError(err, { layer: "api", requestId, orderId: order.id, event: "payrilla_auth_failed" });
+      logError(err, {
+        layer: "api",
+        requestId,
+        orderId: order.id,
+        event: "payrilla_auth_failed",
+      });
       return json(
         { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
         402,
@@ -217,10 +234,7 @@ export async function POST(request: NextRequest) {
         requestId,
         orderId: order.id,
       });
-      await adminSupabase
-        .from("orders")
-        .update({ status: "failed" })
-        .eq("id", order.id);
+      await adminSupabase.from("orders").update({ status: "failed" }).eq("id", order.id);
       return json(
         { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
         402,
@@ -232,7 +246,12 @@ export async function POST(request: NextRequest) {
     try {
       await payrillaService.captureTransaction(authResult.transactionId);
     } catch (err) {
-      logError(err, { layer: "api", requestId, orderId: order.id, event: "payrilla_capture_failed" });
+      logError(err, {
+        layer: "api",
+        requestId,
+        orderId: order.id,
+        event: "payrilla_capture_failed",
+      });
       return json(
         { error: "Payment capture failed", code: "CAPTURE_FAILED", requestId },
         402,
@@ -240,10 +259,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-      await adminSupabase
-        .from("orders")
-        .update({ status: "review" })
-        .eq("id", order.id);
+      await adminSupabase.from("orders").update({ status: "review" }).eq("id", order.id);
     }
 
     // Use authResult for downstream references

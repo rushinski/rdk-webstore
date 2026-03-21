@@ -55,7 +55,9 @@ const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 /** Read the NoFraud device fingerprint cookie set by the JS snippet. */
 function getNoFraudToken(): string | null {
-  if (typeof document === "undefined") return null;
+  if (typeof document === "undefined") {
+    return null;
+  }
   // NoFraud's script may use different cookie names depending on integration version
   const candidates = ["nf-token", "nf_token", "nfToken"];
   for (const cookie of document.cookie.split(";")) {
@@ -166,7 +168,8 @@ export function CheckoutForm({
         container: "background: transparent; padding: 0;",
         card: "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
         cvv2: "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
-        avsZip: "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
+        avsZip:
+          "background: #09090b; color: #ffffff; border: 1px solid #3f3f46; border-radius: 4px; padding: 8px 12px; font-size: 14px;",
       },
     });
 
@@ -443,7 +446,9 @@ export function CheckoutForm({
                   <Package className="w-4 h-4 text-gray-400" />
                   <span className="text-white font-medium">Local pickup</span>
                 </div>
-                <p className="text-sm text-gray-400 mt-1">Free — pick up at our location</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Free — pick up at our location
+                </p>
               </div>
             </label>
           </div>
@@ -470,7 +475,8 @@ export function CheckoutForm({
               <div className="mt-3 pt-3 border-t border-zinc-800">
                 <p className="font-medium text-white mb-2">Returns &amp; Refunds</p>
                 <p>
-                  All sales are final except as outlined in our Returns &amp; Refunds policy.
+                  All sales are final except as outlined in our Returns &amp; Refunds
+                  policy.
                 </p>
                 <Link
                   href="/refunds"
@@ -487,10 +493,16 @@ export function CheckoutForm({
               <p className="font-medium text-white mb-2">Shipping Information</p>
               <p>We aim to ship within 24 hours (processing time, not delivery).</p>
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                <Link href="/shipping" className="text-red-500 hover:text-red-400 underline">
+                <Link
+                  href="/shipping"
+                  className="text-red-500 hover:text-red-400 underline"
+                >
                   Shipping Policy
                 </Link>
-                <Link href="/refunds" className="text-red-500 hover:text-red-400 underline">
+                <Link
+                  href="/refunds"
+                  className="text-red-500 hover:text-red-400 underline"
+                >
                   Returns &amp; Refunds Policy
                 </Link>
               </div>
@@ -588,11 +600,17 @@ export function CheckoutForm({
         <div className="text-sm text-gray-400 text-center">
           <p>
             By placing your order, you agree to our{" "}
-            <Link href="/legal/terms" className="text-red-500 hover:text-red-400 underline">
+            <Link
+              href="/legal/terms"
+              className="text-red-500 hover:text-red-400 underline"
+            >
               Terms of Service
             </Link>
             {" and "}
-            <Link href="/legal/privacy" className="text-red-500 hover:text-red-400 underline">
+            <Link
+              href="/legal/privacy"
+              className="text-red-500 hover:text-red-400 underline"
+            >
               Privacy Policy
             </Link>
             .

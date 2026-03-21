@@ -17,8 +17,10 @@
 //                   transaction.voided, refund.completed
 
 import crypto from "node:crypto";
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
@@ -84,12 +86,12 @@ type PayrillaTransactionData = {
   transaction?: {
     id?: number;
     transaction_details?: {
-      order_number?: string;   // our orderId
+      order_number?: string; // our orderId
       description?: string;
     };
     custom_fields?: {
-      custom1?: string;        // our tenantId
-      custom2?: string;        // our orderId (redundant backup)
+      custom1?: string; // our tenantId
+      custom2?: string; // our orderId (redundant backup)
     };
     amount_details?: {
       amount?: number;
@@ -194,15 +196,27 @@ export async function POST(request: NextRequest) {
     // PayRilla schema: { event: "transaction", type: "succeeded"|"declined"|..., subType: "charge"|"refund"|"void"|... }
     const routeKey = `${event.event}:${event.type}:${event.subType ?? ""}`;
 
-    if (event.event === "transaction" && event.type === "succeeded" && event.subType === "charge") {
+    if (
+      event.event === "transaction" &&
+      event.type === "succeeded" &&
+      event.subType === "charge"
+    ) {
       await handleTransactionApproved(event, adminSupabase, requestId);
     } else if (event.event === "transaction" && event.type === "declined") {
       await handleTransactionFailed(event, adminSupabase, requestId);
     } else if (event.event === "transaction" && event.type === "error") {
       await handleTransactionFailed(event, adminSupabase, requestId);
-    } else if (event.event === "transaction" && event.type === "updated" && event.subType === "void") {
+    } else if (
+      event.event === "transaction" &&
+      event.type === "updated" &&
+      event.subType === "void"
+    ) {
       await handleTransactionVoided(event, adminSupabase, requestId);
-    } else if (event.event === "transaction" && event.type === "succeeded" && event.subType === "refund") {
+    } else if (
+      event.event === "transaction" &&
+      event.type === "succeeded" &&
+      event.subType === "refund"
+    ) {
       await handleRefundCompleted(event, adminSupabase, requestId);
     } else {
       log({
@@ -455,7 +469,9 @@ async function handleTransactionFailed(
   }
 
   const failureMessage =
-    event.type === "error" ? "Payment error via PayRilla" : "Payment declined by PayRilla";
+    event.type === "error"
+      ? "Payment error via PayRilla"
+      : "Payment declined by PayRilla";
 
   const { error } = await adminSupabase
     .from("orders")
@@ -482,7 +498,13 @@ async function handleTransactionFailed(
     message: failureMessage,
   });
 
-  log({ level: "warn", layer: "payrilla", message: "transaction_failed", requestId, orderId });
+  log({
+    level: "warn",
+    layer: "payrilla",
+    message: "transaction_failed",
+    requestId,
+    orderId,
+  });
 }
 
 // ---------- transaction.voided ----------
@@ -503,7 +525,13 @@ async function handleTransactionVoided(
     .eq("id", orderId)
     .in("status", ["pending", "processing"]);
 
-  log({ level: "info", layer: "payrilla", message: "transaction_voided", requestId, orderId });
+  log({
+    level: "info",
+    layer: "payrilla",
+    message: "transaction_voided",
+    requestId,
+    orderId,
+  });
 }
 
 // ---------- refund.completed ----------
@@ -519,9 +547,8 @@ async function handleRefundCompleted(
   }
 
   // auth_amount is in USD; store in cents for the refund_amount column
-  const refundAmountCents = event.data.auth_amount != null
-    ? Math.round(event.data.auth_amount * 100)
-    : null;
+  const refundAmountCents =
+    event.data.auth_amount != null ? Math.round(event.data.auth_amount * 100) : null;
 
   const updateData: TablesUpdate<"orders"> = {
     ...(refundAmountCents != null ? { refund_amount: refundAmountCents } : {}),
@@ -600,13 +627,19 @@ async function sendWebhookEmails(
     }
 
     const detailedItems = await ordersRepo.getOrderItemsDetailed(orderId);
-    const items = (detailedItems as Array<{
-      product: { title_display?: string | null; brand?: string | null; name?: string | null } | null;
-      variant: { size_label?: string | null } | null;
-      quantity: number;
-      unit_price: number | null;
-      line_total: number;
-    }>).map((item) => {
+    const items = (
+      detailedItems as Array<{
+        product: {
+          title_display?: string | null;
+          brand?: string | null;
+          name?: string | null;
+        } | null;
+        variant: { size_label?: string | null } | null;
+        quantity: number;
+        unit_price: number | null;
+        line_total: number;
+      }>
+    ).map((item) => {
       const product = item.product;
       const title =
         product?.title_display ??
@@ -675,7 +708,10 @@ async function sendWebhookEmails(
     }
 
     // Admin emails
-    const hasAdminEmail = await orderEventsRepo.hasEvent(orderId, "admin_order_email_sent");
+    const hasAdminEmail = await orderEventsRepo.hasEvent(
+      orderId,
+      "admin_order_email_sent",
+    );
     if (!hasAdminEmail) {
       const staff = await profilesRepo.listStaffProfiles();
       const recipients = staff.filter(

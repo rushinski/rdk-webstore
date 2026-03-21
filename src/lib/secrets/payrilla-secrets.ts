@@ -18,12 +18,13 @@ import {
   PutParameterCommand,
   ParameterNotFound,
 } from "@aws-sdk/client-ssm";
+
 import { env } from "@/config/env";
 import { logError } from "@/lib/utils/log";
 
 export type PayrillaSecret = {
   sourceKey: string;
-  pin: string;          // Empty string if no PIN set on source key
+  pin: string; // Empty string if no PIN set on source key
   tokenizationKey: string;
   webhookSecret: string;
 };
@@ -56,7 +57,9 @@ function parameterPath(tenantId: string): string {
 
 // ---------- Public API ----------
 
-export async function getPayrillaSecret(tenantId: string): Promise<PayrillaSecret | null> {
+export async function getPayrillaSecret(
+  tenantId: string,
+): Promise<PayrillaSecret | null> {
   const cached = cache.get(tenantId);
   if (cached && cached.expiresAt > Date.now()) {
     return cached.secret;
@@ -71,7 +74,9 @@ export async function getPayrillaSecret(tenantId: string): Promise<PayrillaSecre
     );
 
     const value = response.Parameter?.Value;
-    if (!value) return null;
+    if (!value) {
+      return null;
+    }
 
     const secret = JSON.parse(value) as PayrillaSecret;
     cache.set(tenantId, { secret, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -98,7 +103,7 @@ export async function putPayrillaSecret(
       Name: parameterPath(tenantId),
       Value: JSON.stringify(secret),
       Type: "SecureString", // KMS-encrypted at rest
-      Overwrite: true,      // Creates if missing, updates if present
+      Overwrite: true, // Creates if missing, updates if present
       Description: `PayRilla credentials for tenant ${tenantId}`,
     }),
   );

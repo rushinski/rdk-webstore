@@ -110,8 +110,7 @@ export class OrderEmailService {
     supabase?: TypedSupabaseClient | null,
     private readonly tenantId?: string | null,
   ) {
-    this.evidenceService =
-      supabase && tenantId ? new EvidenceService(supabase) : null;
+    this.evidenceService = supabase && tenantId ? new EvidenceService(supabase) : null;
   }
 
   private async send(

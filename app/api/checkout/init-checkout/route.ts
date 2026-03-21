@@ -17,7 +17,10 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
-import { CheckoutPricingService, CheckoutError } from "@/services/checkout-pricing-service";
+import {
+  CheckoutPricingService,
+  CheckoutError,
+} from "@/services/checkout-pricing-service";
 import { PayrillaChargeService } from "@/services/payrilla-charge-service";
 import { createCartHash } from "@/lib/utils/crypto";
 import { createPaymentIntentSchema } from "@/lib/validation/checkout";
@@ -51,7 +54,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { items, fulfillment, idempotencyKey, guestEmail, shippingAddress } = parsed.data;
+    const { items, fulfillment, idempotencyKey, guestEmail, shippingAddress } =
+      parsed.data;
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
     const cartHash = createCartHash(items, fulfillment);
@@ -60,10 +64,16 @@ export async function POST(request: NextRequest) {
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
 
     if (existingOrder) {
-      const expiresAt = existingOrder.expires_at ? new Date(existingOrder.expires_at) : null;
+      const expiresAt = existingOrder.expires_at
+        ? new Date(existingOrder.expires_at)
+        : null;
       if (expiresAt && expiresAt < new Date()) {
         return json(
-          { error: "IDEMPOTENCY_KEY_EXPIRED", code: "IDEMPOTENCY_KEY_EXPIRED", requestId },
+          {
+            error: "IDEMPOTENCY_KEY_EXPIRED",
+            code: "IDEMPOTENCY_KEY_EXPIRED",
+            requestId,
+          },
           409,
         );
       }
@@ -79,7 +89,10 @@ export async function POST(request: NextRequest) {
 
       // Return existing order with tokenization key
       if (existingOrder.tenant_id) {
-        const payrillaService = new PayrillaChargeService(adminSupabase, existingOrder.tenant_id);
+        const payrillaService = new PayrillaChargeService(
+          adminSupabase,
+          existingOrder.tenant_id,
+        );
         const creds = await payrillaService.getCredentials();
         if (creds) {
           return json(
@@ -117,7 +130,11 @@ export async function POST(request: NextRequest) {
     const creds = await payrillaService.getCredentials();
     if (!creds) {
       return json(
-        { error: "Payment system not configured", code: "PAYMENT_NOT_CONFIGURED", requestId },
+        {
+          error: "Payment system not configured",
+          code: "PAYMENT_NOT_CONFIGURED",
+          requestId,
+        },
         400,
       );
     }

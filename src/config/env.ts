@@ -17,7 +17,11 @@ const schema = z.object({
   // PayRilla (payment processor)
   PAYRILLA_WEBHOOK_SECRET: z.string().optional().default(""),
   // Defaults to production. Set to https://api.sandbox.payrillagateway.com/api/v2 for testing.
-  PAYRILLA_API_URL: z.string().url().optional().default("https://api.payrillagateway.com/api/v2"),
+  PAYRILLA_API_URL: z
+    .string()
+    .url()
+    .optional()
+    .default("https://api.payrillagateway.com/api/v2"),
 
   // ZipTax (sales tax rate lookup — free tier: 100 req/month, mitigated by 30-day cache)
   ZIPTAX_API_KEY: z.string().min(1),

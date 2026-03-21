@@ -193,8 +193,7 @@ export class PayrillaChargeService {
       chargeBody,
     );
 
-    const isApproved =
-      response.status_code === "A" || response.status === "Approved";
+    const isApproved = response.status_code === "A" || response.status === "Approved";
 
     log({
       level: isApproved ? "info" : "warn",
@@ -209,7 +208,11 @@ export class PayrillaChargeService {
 
     return {
       transactionId: response.reference_number?.toString() ?? "",
-      status: isApproved ? "approved" : response.status_code === "E" ? "error" : "declined",
+      status: isApproved
+        ? "approved"
+        : response.status_code === "E"
+          ? "error"
+          : "declined",
       authAmount: response.auth_amount,
       authCode: response.auth_code,
       avsResultCode: response.avs_result_code,
@@ -236,12 +239,9 @@ export class PayrillaChargeService {
       throw new Error(`Invalid PayRilla transaction ID: ${transactionId}`);
     }
 
-    await this.request(
-      "POST",
-      "/transactions/capture",
-      credentials.apiKey,
-      { reference_number: referenceNumber },
-    );
+    await this.request("POST", "/transactions/capture", credentials.apiKey, {
+      reference_number: referenceNumber,
+    });
 
     log({
       level: "info",
@@ -268,12 +268,9 @@ export class PayrillaChargeService {
       throw new Error(`Invalid PayRilla transaction ID: ${transactionId}`);
     }
 
-    await this.request(
-      "POST",
-      "/transactions/void",
-      credentials.apiKey,
-      { reference_number: referenceNumber },
-    );
+    await this.request("POST", "/transactions/void", credentials.apiKey, {
+      reference_number: referenceNumber,
+    });
 
     log({
       level: "info",
@@ -379,12 +376,15 @@ export class PayrillaChargeService {
         credentials.apiKey,
       );
 
-      const isApproved =
-        response.status_code === "A" || response.status === "Approved";
+      const isApproved = response.status_code === "A" || response.status === "Approved";
 
       return {
         transactionId: response.reference_number?.toString() ?? transactionId,
-        status: isApproved ? "approved" : response.status_code === "E" ? "error" : "declined",
+        status: isApproved
+          ? "approved"
+          : response.status_code === "E"
+            ? "error"
+            : "declined",
         authAmount: response.auth_amount,
         authCode: response.auth_code,
         avsResultCode: response.avs_result_code,

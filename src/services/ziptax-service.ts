@@ -71,7 +71,10 @@ export class ZipTaxService {
    * Returns cached result if not expired; otherwise calls ZipTax API.
    */
   async getTaxRate(zipCode: string): Promise<ZipTaxRate | null> {
-    const normalizedZip = zipCode.trim().replace(/[^0-9]/g, "").slice(0, 5);
+    const normalizedZip = zipCode
+      .trim()
+      .replace(/[^0-9]/g, "")
+      .slice(0, 5);
     if (!normalizedZip || normalizedZip.length < 5) {
       log({
         level: "warn",

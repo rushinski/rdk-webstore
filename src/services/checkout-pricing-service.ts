@@ -77,7 +77,8 @@ export class CheckoutPricingService {
     const [tenantId] = [...tenantIds];
 
     // 3. Get tenant's PayRilla account
-    const payrillaAccountId = await this.profilesRepo.getPayrillaAccountIdForTenant(tenantId);
+    const payrillaAccountId =
+      await this.profilesRepo.getPayrillaAccountIdForTenant(tenantId);
     if (!payrillaAccountId) {
       throw new CheckoutError(
         "NO_PAYMENT_ACCOUNT",
@@ -233,15 +234,13 @@ export class CheckoutPricingService {
     // Ship: use shipping address postal code
     // Pickup: use stored business zip or fall back to home state default
     const destinationZip =
-      fulfillment === "ship"
-        ? (shippingAddress?.postal_code?.trim() ?? null)
-        : null; // TODO: store business zip in tenant_tax_settings for pickup tax
+      fulfillment === "ship" ? (shippingAddress?.postal_code?.trim() ?? null) : null; // TODO: store business zip in tenant_tax_settings for pickup tax
 
     // Check nexus registration for the destination state
     // Only collect tax if the tenant is registered in that state
     const hasRegistration = destinationState
-      ? (await this.nexusRepo.getRegistration(tenantId, destinationState))?.is_registered ??
-        false
+      ? ((await this.nexusRepo.getRegistration(tenantId, destinationState))
+          ?.is_registered ?? false)
       : false;
 
     let taxCalcId: string | null = null;

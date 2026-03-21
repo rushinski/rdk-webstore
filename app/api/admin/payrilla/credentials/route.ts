@@ -26,7 +26,7 @@ import { getPayrillaSecret, putPayrillaSecret } from "@/lib/secrets/payrilla-sec
 const credentialsSchema = z
   .object({
     sourceKey: z.string().min(1),
-    pin: z.string().default(""),           // Optional — empty string if not set
+    pin: z.string().default(""), // Optional — empty string if not set
     tokenizationKey: z.string().min(1),
     webhookSecret: z.string().min(1),
   })
@@ -54,7 +54,11 @@ export async function GET(request: NextRequest) {
 
     return json({ configured: !!secret, requestId }, 200);
   } catch (error) {
-    logError(error, { layer: "api", requestId, route: "/api/admin/payrilla/credentials" });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/payrilla/credentials",
+    });
     return json({ error: "Internal server error", requestId }, 500);
   }
 }
@@ -73,7 +77,10 @@ export async function PUT(request: NextRequest) {
     const parsed = credentialsSchema.safeParse(body ?? {});
 
     if (!parsed.success) {
-      return json({ error: "Invalid payload", issues: parsed.error.format(), requestId }, 400);
+      return json(
+        { error: "Invalid payload", issues: parsed.error.format(), requestId },
+        400,
+      );
     }
 
     const supabase = await createSupabaseServerClient();
@@ -103,7 +110,11 @@ export async function PUT(request: NextRequest) {
 
     return json({ success: true, requestId }, 200);
   } catch (error) {
-    logError(error, { layer: "api", requestId, route: "/api/admin/payrilla/credentials" });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/payrilla/credentials",
+    });
     return json({ error: "Internal server error", requestId }, 500);
   }
 }
