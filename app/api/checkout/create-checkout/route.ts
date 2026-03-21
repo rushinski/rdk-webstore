@@ -71,8 +71,12 @@ export async function POST(request: NextRequest) {
       expiryYear,
       avsZip,
       cardholderName,
+      walletType,
+      walletToken,
       nfToken,
     } = parsed.data;
+
+    const isWalletPayment = walletType != null && walletToken != null;
 
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
@@ -156,10 +160,6 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", order.id);
 
-    // ---------- Step 1: Authorize (do not capture yet) ----------
-    // Auth-only ensures nothing appears on the customer's statement until
-    // fraud screening passes. If NoFraud rejects the order, we void the
-    // authorization — the customer never sees a charge.
     const totalCents = Math.round(pricing.total * 100);
     const customerIp =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -167,103 +167,180 @@ export async function POST(request: NextRequest) {
       null;
 
     const payrillaService = new PayrillaChargeService(adminSupabase, tenantId);
-    let authResult;
-    try {
-      authResult = await payrillaService.createTransaction({
-        nonce,
-        amountCents: totalCents,
-        expiryMonth,
-        expiryYear,
-        avsZip: avsZip ?? shippingAddress?.postal_code ?? null,
-        avsAddress: billingAddress?.line1 ?? shippingAddress?.line1 ?? null,
-        cardholderName: cardholderName ?? null,
-        orderId: order.id,
-        customerIp,
-      });
-    } catch (err) {
-      logError(err, {
-        layer: "api",
-        requestId,
-        orderId: order.id,
-        event: "payrilla_auth_failed",
-      });
-      return json(
-        { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
-        402,
-      );
-    }
+    let chargeResult;
 
-    if (authResult.status !== "approved") {
-      return json(
-        {
-          error: authResult.status === "declined" ? "Card declined" : "Payment error",
-          code: authResult.status === "declined" ? "CARD_DECLINED" : "PAYMENT_ERROR",
-          requestId,
-        },
-        402,
-      );
-    }
-
-    // ---------- Step 2: NoFraud screening ----------
-    // We now have AVS/CVV result codes from the authorization — required by NoFraud.
-    const nofraud = new NoFraudService();
-    const nofraudResult = await nofraud.screenTransaction({
-      nfToken: nfToken ?? null,
-      amount: (totalCents / 100).toFixed(2),
-      shippingAmount: pricing.shipping.toFixed(2),
-      customerIP: customerIp ?? "",
-      email: guestEmail ?? "",
-      avsResultCode: authResult.avsResultCode ?? "",
-      cvvResultCode: authResult.cvvResultCode ?? "",
-      gatewayName: "PayRilla",
-      gatewayStatus: "approved",
-      invoiceNumber: order.id,
-    });
-
-    if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
-      // Void the authorization — nothing ever appears on the customer's statement
+    if (isWalletPayment) {
+      // ---- Wallet flow: single-step immediate capture ----
+      // Apple Pay / Google Pay tokens are encrypted by the device and captured
+      // in one step. If NoFraud fails, we issue a refund instead of a void.
       try {
-        await payrillaService.voidTransaction(authResult.transactionId);
-      } catch {
-        /* best-effort — authorization will expire on its own if void fails */
+        chargeResult = await payrillaService.createWalletTransaction({
+          walletType: walletType!,
+          walletToken: walletToken!,
+          amountCents: totalCents,
+          orderId: order.id,
+          customerIp,
+        });
+      } catch (err) {
+        logError(err, {
+          layer: "api",
+          requestId,
+          orderId: order.id,
+          event: "payrilla_wallet_charge_failed",
+        });
+        return json(
+          { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
+          402,
+        );
       }
-      log({
-        level: "warn",
-        layer: "api",
-        message: "nofraud_fail_order_blocked",
-        requestId,
-        orderId: order.id,
+
+      if (chargeResult.status !== "approved") {
+        return json(
+          {
+            error: chargeResult.status === "declined" ? "Payment declined" : "Payment error",
+            code: chargeResult.status === "declined" ? "PAYMENT_DECLINED" : "PAYMENT_ERROR",
+            requestId,
+          },
+          402,
+        );
+      }
+
+      // NoFraud screening after capture — refund if flagged as fraud
+      const nofraud = new NoFraudService();
+      const nofraudResult = await nofraud.screenTransaction({
+        nfToken: nfToken ?? null,
+        amount: (totalCents / 100).toFixed(2),
+        shippingAmount: pricing.shipping.toFixed(2),
+        customerIP: customerIp ?? "",
+        email: guestEmail ?? "",
+        avsResultCode: "",
+        cvvResultCode: "",
+        gatewayName: "PayRilla",
+        gatewayStatus: "approved",
+        invoiceNumber: order.id,
       });
-      await adminSupabase.from("orders").update({ status: "failed" }).eq("id", order.id);
-      return json(
-        { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
-        402,
-      );
-    }
 
-    // ---------- Step 3: Capture the authorization ----------
-    // NoFraud passed (or returned "review" — we still capture but flag the order).
-    try {
-      await payrillaService.captureTransaction(authResult.transactionId);
-    } catch (err) {
-      logError(err, {
-        layer: "api",
-        requestId,
-        orderId: order.id,
-        event: "payrilla_capture_failed",
+      if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
+        try {
+          await payrillaService.reverseTransaction({ transactionId: chargeResult.transactionId });
+        } catch {
+          /* best-effort */
+        }
+        log({
+          level: "warn",
+          layer: "api",
+          message: "nofraud_fail_order_blocked",
+          requestId,
+          orderId: order.id,
+        });
+        await adminSupabase.from("orders").update({ status: "failed" }).eq("id", order.id);
+        return json(
+          { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
+          402,
+        );
+      }
+
+      if (nofraudResult.ok && nofraudResult.response.decision === "review") {
+        await adminSupabase.from("orders").update({ status: "review" }).eq("id", order.id);
+      }
+    } else {
+      // ---- Card flow: auth-only → NoFraud → capture ----
+      // Auth-only ensures nothing appears on the customer's statement until
+      // fraud screening passes. If NoFraud rejects the order, we void the
+      // authorization — the customer never sees a charge.
+      let authResult;
+      try {
+        authResult = await payrillaService.createTransaction({
+          nonce: nonce!,
+          amountCents: totalCents,
+          expiryMonth: expiryMonth!,
+          expiryYear: expiryYear!,
+          avsZip: avsZip ?? shippingAddress?.postal_code ?? null,
+          avsAddress: billingAddress?.line1 ?? shippingAddress?.line1 ?? null,
+          cardholderName: cardholderName ?? null,
+          orderId: order.id,
+          customerIp,
+        });
+      } catch (err) {
+        logError(err, {
+          layer: "api",
+          requestId,
+          orderId: order.id,
+          event: "payrilla_auth_failed",
+        });
+        return json(
+          { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
+          402,
+        );
+      }
+
+      if (authResult.status !== "approved") {
+        return json(
+          {
+            error: authResult.status === "declined" ? "Card declined" : "Payment error",
+            code: authResult.status === "declined" ? "CARD_DECLINED" : "PAYMENT_ERROR",
+            requestId,
+          },
+          402,
+        );
+      }
+
+      // NoFraud screening — AVS/CVV codes from authorization required by NoFraud
+      const nofraud = new NoFraudService();
+      const nofraudResult = await nofraud.screenTransaction({
+        nfToken: nfToken ?? null,
+        amount: (totalCents / 100).toFixed(2),
+        shippingAmount: pricing.shipping.toFixed(2),
+        customerIP: customerIp ?? "",
+        email: guestEmail ?? "",
+        avsResultCode: authResult.avsResultCode ?? "",
+        cvvResultCode: authResult.cvvResultCode ?? "",
+        gatewayName: "PayRilla",
+        gatewayStatus: "approved",
+        invoiceNumber: order.id,
       });
-      return json(
-        { error: "Payment capture failed", code: "CAPTURE_FAILED", requestId },
-        402,
-      );
-    }
 
-    if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-      await adminSupabase.from("orders").update({ status: "review" }).eq("id", order.id);
-    }
+      if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
+        try {
+          await payrillaService.voidTransaction(authResult.transactionId);
+        } catch {
+          /* best-effort — authorization will expire on its own if void fails */
+        }
+        log({
+          level: "warn",
+          layer: "api",
+          message: "nofraud_fail_order_blocked",
+          requestId,
+          orderId: order.id,
+        });
+        await adminSupabase.from("orders").update({ status: "failed" }).eq("id", order.id);
+        return json(
+          { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
+          402,
+        );
+      }
 
-    // Use authResult for downstream references
-    const chargeResult = authResult;
+      try {
+        await payrillaService.captureTransaction(authResult.transactionId);
+      } catch (err) {
+        logError(err, {
+          layer: "api",
+          requestId,
+          orderId: order.id,
+          event: "payrilla_capture_failed",
+        });
+        return json(
+          { error: "Payment capture failed", code: "CAPTURE_FAILED", requestId },
+          402,
+        );
+      }
+
+      if (nofraudResult.ok && nofraudResult.response.decision === "review") {
+        await adminSupabase.from("orders").update({ status: "review" }).eq("id", order.id);
+      }
+
+      chargeResult = authResult;
+    }
 
     // ---------- Mark paid ----------
     const orderItems = await ordersRepo.getOrderItems(order.id);

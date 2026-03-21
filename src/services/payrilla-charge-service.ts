@@ -366,6 +366,93 @@ export class PayrillaChargeService {
   }
 
   /**
+   * Create a charge using an encrypted wallet token from Apple Pay or Google Pay.
+   * Wallet transactions are captured immediately (no separate capture step).
+   *
+   * @param params.walletType - "applepay" or "googlepay"
+   * @param params.walletToken - Encrypted payment token from the wallet (JSON stringified)
+   * @param params.amountCents - Amount in cents
+   */
+  async createWalletTransaction(params: {
+    walletType: "applepay" | "googlepay";
+    walletToken: string;
+    amountCents: number;
+    orderId: string;
+    customerIp?: string | null;
+  }): Promise<PayrillaTransactionResult> {
+    const credentials = await this.getCredentials();
+    if (!credentials) {
+      throw new Error("PayRilla credentials not configured for tenant");
+    }
+
+    const amountUsd = params.amountCents / 100;
+
+    const chargeBody: Record<string, unknown> = {
+      source: params.walletType,
+      token: params.walletToken,
+      amount: amountUsd,
+      transaction_details: {
+        order_number: params.orderId,
+        description: `Order ${params.orderId}`,
+        ...(params.customerIp ? { client_ip: params.customerIp } : {}),
+      },
+      custom_fields: {
+        custom1: this.tenantId,
+        custom2: params.orderId,
+      },
+      capture: true, // Wallet transactions are captured immediately
+    };
+
+    log({
+      level: "info",
+      layer: "service",
+      message: "payrilla_wallet_charge_request",
+      tenantId: this.tenantId,
+      orderId: params.orderId,
+      walletType: params.walletType,
+      amountUsd,
+    });
+
+    const response = await this.request<PayrillaChargeResponse>(
+      "POST",
+      "/transactions/charge",
+      credentials.apiKey,
+      chargeBody,
+    );
+
+    const isApproved = response.status_code === "A" || response.status === "Approved";
+
+    log({
+      level: isApproved ? "info" : "warn",
+      layer: "service",
+      message: isApproved ? "payrilla_wallet_charge_approved" : "payrilla_wallet_charge_declined",
+      tenantId: this.tenantId,
+      orderId: params.orderId,
+      walletType: params.walletType,
+      referenceNumber: response.reference_number,
+      statusCode: response.status_code,
+      errorCode: response.error_code,
+    });
+
+    return {
+      transactionId: response.reference_number?.toString() ?? "",
+      status: isApproved
+        ? "approved"
+        : response.status_code === "E"
+          ? "error"
+          : "declined",
+      authAmount: response.auth_amount,
+      authCode: response.auth_code,
+      avsResultCode: response.avs_result_code,
+      cvvResultCode: response.cvv2_result_code,
+      last4: response.last_4,
+      cardType: response.card_type,
+      cardRef: response.card_ref,
+      rawResponse: response as Record<string, unknown>,
+    };
+  }
+
+  /**
    * Retrieve a transaction by reference number.
    */
   async getTransaction(transactionId: string): Promise<PayrillaTransactionResult | null> {

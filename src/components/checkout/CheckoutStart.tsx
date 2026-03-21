@@ -433,7 +433,7 @@ export function CheckoutStart() {
     );
   }
 
-  const showForm = isGuestFlow || (orderId && tokenizationKey);
+  const showForm = Boolean(orderId && tokenizationKey);
 
   if (!showForm || isInitializing) {
     if (error) {
