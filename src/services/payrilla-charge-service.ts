@@ -65,6 +65,16 @@ export class PayrillaChargeService {
   }
 
   async getCredentials(): Promise<PayrillaCredentials | null> {
+    // --- Flat env var credentials (temporary — replace with SSM once configured) ---
+    if (env.PAYRILLA_SOURCE_KEY && env.PAYRILLA_TOKEN) {
+      return {
+        apiKey: buildApiKey({ sourceKey: env.PAYRILLA_SOURCE_KEY, pin: env.PAYRILLA_PIN }),
+        tokenizationKey: env.PAYRILLA_TOKEN,
+        merchantId: null,
+      };
+    }
+
+    // --- Per-tenant AWS SSM credentials (re-enable once Parameter Store is seeded) ---
     try {
       const secret = await getPayrillaSecret(this.tenantId);
 

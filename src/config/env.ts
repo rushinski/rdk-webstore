@@ -22,6 +22,11 @@ const schema = z.object({
     .url()
     .optional()
     .default("https://api.payrillagateway.com/api/v2"),
+  // Flat credentials — used instead of AWS SSM during initial rollout.
+  // TODO: remove once per-tenant AWS Parameter Store credentials are configured.
+  PAYRILLA_SOURCE_KEY: z.string().optional().default(""),
+  PAYRILLA_PIN: z.string().optional().default(""),
+  PAYRILLA_TOKEN: z.string().optional().default(""),
 
   // ZipTax (sales tax rate lookup — free tier: 100 req/month, mitigated by 30-day cache)
   ZIPTAX_API_KEY: z.string().min(1),
