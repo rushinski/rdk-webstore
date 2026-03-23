@@ -1064,7 +1064,7 @@ export function CheckoutForm({
                 key={brand}
                 src={`/icons/cards/${brand}.svg`}
                 alt={brand}
-                className="h-5 w-auto opacity-60"
+                className="h-7 w-auto opacity-60"
               />
             ))}
           </div>
