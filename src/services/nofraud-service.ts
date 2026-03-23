@@ -21,6 +21,31 @@ const NOFRAUD_API_URL = "https://api.nofraud.com/transaction";
 
 export type NoFraudDecision = "pass" | "fail" | "review";
 
+export type NoFraudLineItem = {
+  sku?: string | null;
+  name: string;
+  quantity: number;
+  unitPrice: string; // e.g. "99.00"
+  totalPrice: string; // e.g. "198.00"
+};
+
+export type NoFraudAddress = {
+  firstName: string;
+  lastName: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  phoneNumber?: string | null;
+};
+
+export type NoFraudPayment = {
+  cardType: string; // "visa", "mastercard", etc.
+  last4: string;
+  bin?: string | null;
+};
+
 export type NoFraudRequest = {
   // Device fingerprint token — set by the NoFraud JS snippet on the checkout page.
   // The script (services.nofraud.com/js/{customerCode}/customer_code.js) writes
@@ -45,6 +70,16 @@ export type NoFraudRequest = {
   avsResultCode?: string | null;
   cvvResultCode?: string | null;
   cardAttempts?: number | null;
+
+  // Card info for NoFraud payment object
+  payment?: NoFraudPayment | null;
+
+  // Billing and shipping addresses
+  billTo?: NoFraudAddress | null;
+  shipTo?: NoFraudAddress | null;
+
+  // Line items
+  lineItems?: NoFraudLineItem[] | null;
 
   // Customer history (improves accuracy)
   totalPreviousPurchases?: number | null;
@@ -184,6 +219,49 @@ export class NoFraudService {
     }
     if (request.merchantWebsite) {
       payload.merchantWebsite = request.merchantWebsite;
+    }
+    if (request.payment) {
+      payload.payment = {
+        method: "creditCard",
+        creditCard: {
+          cardType: request.payment.cardType,
+          last4: request.payment.last4,
+          ...(request.payment.bin ? { bin: request.payment.bin } : {}),
+        },
+      };
+    }
+    if (request.billTo) {
+      payload.billTo = {
+        firstName: request.billTo.firstName,
+        lastName: request.billTo.lastName,
+        address: request.billTo.address,
+        city: request.billTo.city,
+        state: request.billTo.state,
+        zip: request.billTo.zip,
+        country: request.billTo.country,
+        ...(request.billTo.phoneNumber ? { phoneNumber: request.billTo.phoneNumber } : {}),
+      };
+    }
+    if (request.shipTo) {
+      payload.shipTo = {
+        firstName: request.shipTo.firstName,
+        lastName: request.shipTo.lastName,
+        address: request.shipTo.address,
+        city: request.shipTo.city,
+        state: request.shipTo.state,
+        zip: request.shipTo.zip,
+        country: request.shipTo.country,
+        ...(request.shipTo.phoneNumber ? { phoneNumber: request.shipTo.phoneNumber } : {}),
+      };
+    }
+    if (request.lineItems && request.lineItems.length > 0) {
+      payload.lineItems = request.lineItems.map((item) => ({
+        ...(item.sku ? { sku: item.sku } : {}),
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      }));
     }
 
     return payload;

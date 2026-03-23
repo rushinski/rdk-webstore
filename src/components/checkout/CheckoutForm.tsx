@@ -35,45 +35,63 @@ const CARD_BRAND_LABELS: Record<string, string> = {
 };
 
 const PAYRILLA_BASE_FIELD_STYLE = [
-  "background: #ffffff",
-  "color: #111827",
-  "border: 1px solid #d6d3d1",
-  "padding: 15px 16px",
+  "background: #26272b",
+  "color: #f5f5f5",
+  "border: 1px solid #313338",
+  "border-radius: 0",
+  "padding: 10px 12px",
   "font-size: 15px",
   "font-family: Arial, Helvetica, sans-serif",
-  "line-height: 1.45",
+  "line-height: 1.35",
   "box-sizing: border-box",
-  "min-height: 54px",
+  "min-height: 44px",
   "width: 100%",
+  "display: block",
 ].join("; ");
 
 const PAYRILLA_HOSTED_STYLES: Record<string, string> = {
-  container: ["background: transparent", "padding: 0", "display: grid", "gap: 14px"].join(
-    "; ",
-  ),
-  card: PAYRILLA_BASE_FIELD_STYLE,
-  expiryContainer: [
-    "display: grid",
-    "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)",
-    "gap: 12px",
+  container: [
+    "background: transparent",
+    "padding: 0",
+    "max-width: 460px",
+    "width: 100%",
   ].join("; "),
-  expiryMonth: PAYRILLA_BASE_FIELD_STYLE,
-  expirySeparator: "display: none",
-  expiryYear: PAYRILLA_BASE_FIELD_STYLE,
-  cvv2: PAYRILLA_BASE_FIELD_STYLE,
-  avsZip: PAYRILLA_BASE_FIELD_STYLE,
+  card: [
+    PAYRILLA_BASE_FIELD_STYLE,
+    "width: 100%",
+    "font-family: monospace",
+    "letter-spacing: 1.2px",
+    "margin-bottom: 16px",
+  ].join("; "),
+  expiryContainer: [
+    "display: inline-flex",
+    "gap: 12px",
+    "align-items: end",
+    "vertical-align: top",
+  ].join("; "),
+  expiryMonth: [PAYRILLA_BASE_FIELD_STYLE, "width: 76px", "text-align: center"].join("; "),
+  expirySeparator: ["display: none", "width: 0", "overflow: hidden"].join("; "),
+  expiryYear: [PAYRILLA_BASE_FIELD_STYLE, "width: 76px", "text-align: center"].join("; "),
+  cvv2: [
+    PAYRILLA_BASE_FIELD_STYLE,
+    "width: 92px",
+    "letter-spacing: 3px",
+    "display: inline-block",
+    "vertical-align: top",
+    "margin-left: 12px",
+  ].join("; "),
   labels: [
-    "color: #475569",
-    "font-size: 11px",
-    "font-weight: 700",
-    "letter-spacing: 0.08em",
-    "text-transform: uppercase",
+    "color: #9ca3af",
+    "font-size: 12px",
+    "font-weight: 500",
     "margin: 0 0 6px 0",
+    "display: block",
   ].join("; "),
   floatingLabelsPlaceholder: [
-    "color: #9ca3af",
-    "font-size: 15px",
-    "font-weight: 500",
+    "color: transparent",
+    "font-size: 0",
+    "line-height: 0",
+    "opacity: 0",
   ].join("; "),
 };
 
@@ -176,6 +194,28 @@ function getPayrillaErrorMessage(error: unknown): string | null {
   }
 
   return "Please check your card details and try again.";
+}
+
+function safelyDestroyHostedTokenization(
+  instance: HostedTokenizationInstance | null,
+  container: HTMLDivElement | null,
+) {
+  if (!instance) {
+    if (container) {
+      container.innerHTML = "";
+    }
+    return;
+  }
+
+  try {
+    instance.destroy();
+  } catch (error) {
+    console.warn("[PayRilla] destroy failed during cleanup:", error);
+  } finally {
+    if (container) {
+      container.innerHTML = "";
+    }
+  }
 }
 
 export function CheckoutForm({
@@ -352,17 +392,18 @@ export function CheckoutForm({
       return;
     }
 
-    // Destroy any previous instance and clear the container
-    hostedTokenizationRef.current?.destroy();
+    // Destroy any previous instance and clear the container.
+    // PayRilla's SDK can throw during route changes if its internal node is already gone.
+    safelyDestroyHostedTokenization(hostedTokenizationRef.current, el);
     hostedTokenizationRef.current = null;
-    el.innerHTML = "";
 
     let instance: HostedTokenizationInstance;
     try {
       instance = new HT(tokenizationKey, {
         target: "#payrilla-card-form",
-        showZip: true,
-        labelType: "floating",
+        showZip: false, // Billing address form already collects ZIP
+        requireCvv2: true,
+        labelType: "static-top",
         styles: PAYRILLA_HOSTED_STYLES,
       });
     } catch (err) {
@@ -399,7 +440,7 @@ export function CheckoutForm({
     hostedTokenizationRef.current = instance;
 
     return () => {
-      hostedTokenizationRef.current?.destroy();
+      safelyDestroyHostedTokenization(hostedTokenizationRef.current, el);
       hostedTokenizationRef.current = null;
       setIsPayrillaReady(false);
       setPayrillaLoadError(null);
@@ -513,6 +554,14 @@ export function CheckoutForm({
       } catch {
         // sessionStorage unavailable
       }
+    }
+
+    // Handle under_review status — order is on hold pending fraud review
+    if ((data as { status?: string }).status === "under_review") {
+      router.push(
+        `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}&status=under_review`,
+      );
+      return;
     }
 
     const tokenParam = guestAccessToken
@@ -703,8 +752,10 @@ export function CheckoutForm({
         nonce: nonceResult.nonce,
         expiryMonth: nonceResult.expiryMonth,
         expiryYear: nonceResult.expiryYear,
-        avsZip: nonceResult.avsZip || billingAddress?.postal_code || null,
+        avsZip: billingAddress?.postal_code || null,
         cardholderName: billingAddress?.name || null,
+        last4: nonceResult.last4 || null,
+        cardType: nonceResult.cardType || null,
         billingAddress: toApiAddress(billingAddress),
       });
     } catch (err: unknown) {
@@ -901,10 +952,10 @@ export function CheckoutForm({
           isProcessing={isProcessing}
         />
 
-        {/* Payment */}
+        {/* Payment Method */}
         <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Lock className="w-5 h-5" /> Payment
+            <CreditCard className="w-5 h-5" /> Payment Method
           </h2>
 
           {/* Apple Pay / Google Pay buttons */}
@@ -976,63 +1027,52 @@ export function CheckoutForm({
             </div>
           )}
 
-          <div className="border border-stone-300 bg-stone-50">
-            <div className="border-b border-stone-300 px-5 py-4 sm:px-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-lg font-semibold text-zinc-900">Card details</p>
-                  <p className="mt-1 text-sm text-stone-500">
-                    Hosted by Payrilla. Card data is tokenized before it reaches our
-                    server.
-                  </p>
-                </div>
-                {cardType && (
-                  <div className="flex items-center gap-2 text-sm text-stone-600">
-                    <CreditCard className="w-4 h-4 shrink-0" />
-                    <span className="font-medium text-zinc-800">
-                      {CARD_BRAND_LABELS[cardType] ?? cardType}
-                    </span>
-                  </div>
-                )}
+          {/* Card iframe — PayRilla handles labels internally via static-top */}
+          <div className="relative max-w-[460px]">
+            <div
+              id="payrilla-card-form"
+              ref={cardFormRef}
+              className="min-h-[140px]"
+            />
+
+            {/* Card brand badge */}
+            {cardType && (
+              <div className="absolute top-0 right-0 flex items-center gap-1.5 bg-zinc-800/80 rounded px-2 py-1 pointer-events-none">
+                <CreditCard className="w-4 h-4 text-zinc-300 shrink-0" />
+                <span className="text-xs font-medium text-zinc-300">
+                  {CARD_BRAND_LABELS[cardType] ?? cardType}
+                </span>
               </div>
+            )}
+          </div>
+
+          {!isPayrillaReady && !payrillaLoadError && (
+            <div className="flex items-center gap-2 text-sm text-zinc-400 mt-3">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Loading card form...</span>
             </div>
+          )}
 
-            <div className="space-y-4 px-5 py-5 sm:px-6">
-              <div
-                id="payrilla-card-form"
-                ref={cardFormRef}
-                className="min-h-[248px] border border-stone-200 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]"
-              />
-
-              {!isPayrillaReady && !payrillaLoadError && (
-                <div className="flex items-center gap-2 text-sm text-stone-500">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Loading card form...</span>
-                </div>
-              )}
-
-              {(hasTouchedPayrilla || hasAttemptedSubmit) && payrillaFieldError && (
-                <div className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {payrillaFieldError}
-                </div>
-              )}
-
-              {payrillaLoadError && (
-                <div className="border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {payrillaLoadError}
-                </div>
-              )}
-
-              <div className="grid gap-3 text-sm text-stone-600 sm:grid-cols-2">
-                <p>
-                  CVV and billing ZIP are used for bank verification and fraud checks.
-                </p>
-                <p>
-                  We store the payment result and transaction reference, not the raw card
-                  number.
-                </p>
-              </div>
+          {(hasTouchedPayrilla || hasAttemptedSubmit) && payrillaFieldError && (
+            <div className="mt-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-400">
+              {payrillaFieldError}
             </div>
+          )}
+
+          {payrillaLoadError && (
+            <div className="mt-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-400">
+              {payrillaLoadError}
+            </div>
+          )}
+
+          {/* Secure badge */}
+          <div className="mt-4 flex items-center gap-2 text-xs text-zinc-500">
+            <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span className="text-emerald-600 font-medium">
+              Secure payment processing
+            </span>
+            <span className="text-zinc-600">·</span>
+            <span>PCI compliant</span>
           </div>
         </div>
 

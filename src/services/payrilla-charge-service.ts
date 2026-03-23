@@ -139,7 +139,7 @@ export class PayrillaChargeService {
    * Frontend flow:
    *   1. Load PayRilla Hosted Tokenization with the tenant's tokenization key (pk_...)
    *   2. Call hostedTokenization.getNonceToken() → { nonce, expiryMonth, expiryYear, avsZip }
-   *   3. POST those values + orderId + amount to /api/checkout/create-checkout
+   *   3. POST nonce + expiry + billing to /api/checkout/create-checkout
    *   4. That route calls this method
    *
    * @param params.nonce - The raw nonce string (without "nonce-" prefix)
@@ -158,6 +158,27 @@ export class PayrillaChargeService {
     orderId: string;
     customerIp?: string | null;
     saveCard?: boolean;
+    billingInfo?: {
+      firstName: string;
+      lastName: string;
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+      phone?: string | null;
+    } | null;
+    shippingInfo?: {
+      firstName: string;
+      lastName: string;
+      street: string;
+      city: string;
+      state: string;
+      zip: string;
+      country: string;
+    } | null;
+    customerEmail?: string | null;
+    customerId?: string | null;
   }): Promise<PayrillaTransactionResult> {
     const credentials = await this.getCredentials();
     if (!credentials) {
@@ -185,6 +206,42 @@ export class PayrillaChargeService {
       },
       save_card: params.saveCard ?? false,
       capture: false, // Auth-only — call captureTransaction() after fraud screening passes
+      // Full billing info for AVS + risk scoring
+      ...(params.billingInfo
+        ? {
+            billing_info: {
+              first_name: params.billingInfo.firstName,
+              last_name: params.billingInfo.lastName,
+              street: params.billingInfo.street,
+              city: params.billingInfo.city,
+              state: params.billingInfo.state,
+              zip: params.billingInfo.zip,
+              country: params.billingInfo.country,
+              ...(params.billingInfo.phone ? { phone: params.billingInfo.phone } : {}),
+            },
+          }
+        : {}),
+      ...(params.shippingInfo
+        ? {
+            shipping_info: {
+              first_name: params.shippingInfo.firstName,
+              last_name: params.shippingInfo.lastName,
+              street: params.shippingInfo.street,
+              city: params.shippingInfo.city,
+              state: params.shippingInfo.state,
+              zip: params.shippingInfo.zip,
+              country: params.shippingInfo.country,
+            },
+          }
+        : {}),
+      ...(params.customerEmail || params.customerId
+        ? {
+            customer: {
+              ...(params.customerEmail ? { email: params.customerEmail } : {}),
+              ...(params.customerId ? { identifier: params.customerId } : {}),
+            },
+          }
+        : {}),
     };
 
     log({
@@ -379,6 +436,8 @@ export class PayrillaChargeService {
     amountCents: number;
     orderId: string;
     customerIp?: string | null;
+    avsZip?: string | null;
+    avsAddress?: string | null;
   }): Promise<PayrillaTransactionResult> {
     const credentials = await this.getCredentials();
     if (!credentials) {
@@ -391,6 +450,8 @@ export class PayrillaChargeService {
       source: params.walletType,
       token: params.walletToken,
       amount: amountUsd,
+      ...(params.avsZip ? { avs_zip: params.avsZip } : {}),
+      ...(params.avsAddress ? { avs_address: params.avsAddress } : {}),
       transaction_details: {
         order_number: params.orderId,
         description: `Order ${params.orderId}`,

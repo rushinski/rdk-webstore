@@ -32,6 +32,7 @@ import { createCheckoutSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
+import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -74,6 +75,8 @@ export async function POST(request: NextRequest) {
       walletType,
       walletToken,
       nfToken,
+      last4,
+      cardType: submittedCardType,
     } = parsed.data;
 
     const isWalletPayment = walletType !== null && walletToken !== null;
@@ -167,8 +170,51 @@ export async function POST(request: NextRequest) {
       null;
 
     const payrillaService = new PayrillaChargeService(adminSupabase, tenantId);
+    const paymentTxRepo = new PaymentTransactionsRepository(adminSupabase);
     let chargeResult;
     let nofraudResult: NoFraudResult | null = null;
+
+    // Resolve billing name parts for NoFraud + PayRilla (billing.name = "First Last")
+    const billingName = billingAddress?.name ?? null;
+    const billingNameParts = billingName?.trim().split(/\s+/) ?? [];
+    const billingFirstName = billingNameParts[0] ?? "";
+    const billingLastName = billingNameParts.slice(1).join(" ") || billingFirstName;
+
+    // Resolve shipping name parts similarly
+    const shippingName = shippingAddress?.name ?? null;
+    const shippingNameParts = shippingName?.trim().split(/\s+/) ?? [];
+    const shippingFirstName = shippingNameParts[0] ?? "";
+    const shippingLastName = shippingNameParts.slice(1).join(" ") || shippingFirstName;
+
+    // Create payment_transaction row before charging
+    let paymentTxId: string | null = null;
+    try {
+      const txRow = await paymentTxRepo.create({
+        orderId: order.id,
+        tenantId,
+        amountRequested: pricing.total,
+        billingName: billingName,
+        billingAddress: billingAddress?.line1 ?? null,
+        billingCity: billingAddress?.city ?? null,
+        billingState: billingAddress?.state ?? null,
+        billingZip: billingAddress?.postal_code ?? null,
+        billingCountry: billingAddress?.country ?? null,
+        billingPhone: billingAddress?.phone ?? null,
+        customerEmail: guestEmail ?? null,
+        customerIp,
+      });
+      paymentTxId = txRow.id;
+
+      await paymentTxRepo.logEvent({
+        paymentTransactionId: paymentTxId,
+        orderId: order.id,
+        tenantId,
+        eventType: "payment_started",
+        eventData: { fulfillment, itemCount: items.length },
+      });
+    } catch {
+      // Non-fatal — continue even if event logging fails
+    }
 
     if (isWalletPayment) {
       // ---- Wallet flow: single-step immediate capture ----
@@ -181,6 +227,8 @@ export async function POST(request: NextRequest) {
           amountCents: totalCents,
           orderId: order.id,
           customerIp,
+          avsZip: billingAddress?.postal_code ?? shippingAddress?.postal_code ?? null,
+          avsAddress: billingAddress?.line1 ?? shippingAddress?.line1 ?? null,
         });
       } catch (err) {
         logError(err, {
@@ -259,6 +307,7 @@ export async function POST(request: NextRequest) {
       // Auth-only ensures nothing appears on the customer's statement until
       // fraud screening passes. If NoFraud rejects the order, we void the
       // authorization — the customer never sees a charge.
+
       let authResult;
       try {
         authResult = await payrillaService.createTransaction({
@@ -266,11 +315,35 @@ export async function POST(request: NextRequest) {
           amountCents: totalCents,
           expiryMonth: expiryMonth!,
           expiryYear: expiryYear!,
-          avsZip: avsZip ?? shippingAddress?.postal_code ?? null,
+          avsZip: avsZip ?? billingAddress?.postal_code ?? shippingAddress?.postal_code ?? null,
           avsAddress: billingAddress?.line1 ?? shippingAddress?.line1 ?? null,
-          cardholderName: cardholderName ?? null,
+          cardholderName: cardholderName ?? billingName ?? null,
           orderId: order.id,
           customerIp,
+          billingInfo: billingAddress
+            ? {
+                firstName: billingFirstName,
+                lastName: billingLastName,
+                street: billingAddress.line1,
+                city: billingAddress.city,
+                state: billingAddress.state,
+                zip: billingAddress.postal_code,
+                country: billingAddress.country,
+                phone: billingAddress.phone ?? null,
+              }
+            : null,
+          shippingInfo: shippingAddress
+            ? {
+                firstName: shippingFirstName,
+                lastName: shippingLastName,
+                street: shippingAddress.line1,
+                city: shippingAddress.city,
+                state: shippingAddress.state,
+                zip: shippingAddress.postal_code,
+                country: shippingAddress.country,
+              }
+            : null,
+          customerEmail: guestEmail ?? null,
         });
       } catch (err) {
         logError(err, {
@@ -279,6 +352,20 @@ export async function POST(request: NextRequest) {
           orderId: order.id,
           event: "payrilla_auth_failed",
         });
+        if (paymentTxId) {
+          try {
+            await paymentTxRepo.logEvent({
+              paymentTransactionId: paymentTxId,
+              orderId: order.id,
+              tenantId,
+              eventType: "authorization_error",
+              eventData: { error: err instanceof Error ? err.message : String(err) },
+            });
+            await paymentTxRepo.update(paymentTxId, { payrillaStatus: "error" });
+          } catch {
+            /* non-fatal */
+          }
+        }
         return json(
           { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
           402,
@@ -286,6 +373,32 @@ export async function POST(request: NextRequest) {
       }
 
       if (authResult.status !== "approved") {
+        if (paymentTxId) {
+          try {
+            await paymentTxRepo.update(paymentTxId, {
+              payrillaReferenceNumber: authResult.transactionId
+                ? parseInt(authResult.transactionId, 10)
+                : null,
+              payrillaStatus: authResult.status === "declined" ? "declined" : "error",
+              avsResultCode: authResult.avsResultCode ?? null,
+              cvv2ResultCode: authResult.cvvResultCode ?? null,
+              cardType: authResult.cardType ?? submittedCardType ?? null,
+              cardLast4: authResult.last4 ?? last4 ?? null,
+            });
+            await paymentTxRepo.logEvent({
+              paymentTransactionId: paymentTxId,
+              orderId: order.id,
+              tenantId,
+              eventType:
+                authResult.status === "declined"
+                  ? "authorization_declined"
+                  : "authorization_error",
+              eventData: authResult.rawResponse ?? {},
+            });
+          } catch {
+            /* non-fatal */
+          }
+        }
         return json(
           {
             error: authResult.status === "declined" ? "Card declined" : "Payment error",
@@ -294,6 +407,41 @@ export async function POST(request: NextRequest) {
           },
           402,
         );
+      }
+
+      // Log authorization approved
+      if (paymentTxId) {
+        try {
+          await paymentTxRepo.update(paymentTxId, {
+            payrillaReferenceNumber: authResult.transactionId
+              ? parseInt(authResult.transactionId, 10)
+              : null,
+            payrillaAuthCode: authResult.authCode ?? null,
+            payrillaStatus: "authorized",
+            avsResultCode: authResult.avsResultCode ?? null,
+            cvv2ResultCode: authResult.cvvResultCode ?? null,
+            cardType: authResult.cardType ?? submittedCardType ?? null,
+            cardLast4: authResult.last4 ?? last4 ?? null,
+            amountAuthorized: authResult.authAmount ?? pricing.total,
+          });
+          await paymentTxRepo.logEvent({
+            paymentTransactionId: paymentTxId,
+            orderId: order.id,
+            tenantId,
+            eventType: "authorization_approved",
+            eventData: {
+              referenceNumber: authResult.transactionId,
+              authCode: authResult.authCode,
+              authAmount: authResult.authAmount,
+              avsResultCode: authResult.avsResultCode,
+              cvv2ResultCode: authResult.cvvResultCode,
+              cardType: authResult.cardType,
+              last4: authResult.last4,
+            },
+          });
+        } catch {
+          /* non-fatal */
+        }
       }
 
       // NoFraud screening — AVS/CVV codes from authorization required by NoFraud
@@ -309,11 +457,79 @@ export async function POST(request: NextRequest) {
         gatewayName: "PayRilla",
         gatewayStatus: "approved",
         invoiceNumber: order.id,
+        payment: authResult.last4 || last4
+          ? {
+              cardType: (authResult.cardType ?? submittedCardType ?? "unknown").toLowerCase(),
+              last4: authResult.last4 ?? last4 ?? "",
+            }
+          : null,
+        billTo: billingAddress
+          ? {
+              firstName: billingFirstName,
+              lastName: billingLastName,
+              address: billingAddress.line1,
+              city: billingAddress.city,
+              state: billingAddress.state,
+              zip: billingAddress.postal_code,
+              country: billingAddress.country,
+              phoneNumber: billingAddress.phone ?? null,
+            }
+          : null,
+        shipTo: shippingAddress
+          ? {
+              firstName: shippingFirstName,
+              lastName: shippingLastName,
+              address: shippingAddress.line1,
+              city: shippingAddress.city,
+              state: shippingAddress.state,
+              zip: shippingAddress.postal_code,
+              country: shippingAddress.country,
+            }
+          : null,
       });
+
+      // Log NoFraud result
+      if (paymentTxId && nofraudResult.ok) {
+        const nfDecision = nofraudResult.response.decision;
+        try {
+          await paymentTxRepo.update(paymentTxId, {
+            nofraudTransactionId: nofraudResult.response.id,
+            nofraudDecision: nfDecision,
+          });
+          await paymentTxRepo.logEvent({
+            paymentTransactionId: paymentTxId,
+            orderId: order.id,
+            tenantId,
+            eventType:
+              nfDecision === "pass"
+                ? "fraud_check_pass"
+                : nfDecision === "review"
+                  ? "fraud_check_review"
+                  : "fraud_check_fail",
+            eventData: {
+              decision: nfDecision,
+              transactionId: nofraudResult.response.id,
+              message: nofraudResult.response.message,
+            },
+          });
+        } catch {
+          /* non-fatal */
+        }
+      }
 
       if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
         try {
           await payrillaService.voidTransaction(authResult.transactionId);
+          if (paymentTxId) {
+            await paymentTxRepo.update(paymentTxId, { payrillaStatus: "voided" });
+            await paymentTxRepo.logEvent({
+              paymentTransactionId: paymentTxId,
+              orderId: order.id,
+              tenantId,
+              eventType: "payment_voided",
+              eventData: { reason: "fraud_check_fail" },
+            });
+          }
         } catch {
           /* best-effort — authorization will expire on its own if void fails */
         }
@@ -334,8 +550,39 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // NoFraud review — keep auth on hold, wait for resolution
+      if (nofraudResult.ok && nofraudResult.response.decision === "review") {
+        await adminSupabase
+          .from("orders")
+          .update({ status: "review" })
+          .eq("id", order.id);
+        // Return under_review so frontend can redirect appropriately
+        return json(
+          {
+            status: "under_review",
+            orderId: order.id,
+            requestId,
+          },
+          200,
+        );
+      }
+
+      // NoFraud passed — capture the authorization
       try {
         await payrillaService.captureTransaction(authResult.transactionId);
+        if (paymentTxId) {
+          await paymentTxRepo.update(paymentTxId, {
+            payrillaStatus: "captured",
+            amountCaptured: authResult.authAmount ?? pricing.total,
+          });
+          await paymentTxRepo.logEvent({
+            paymentTransactionId: paymentTxId,
+            orderId: order.id,
+            tenantId,
+            eventType: "payment_captured",
+            eventData: { referenceNumber: authResult.transactionId },
+          });
+        }
       } catch (err) {
         logError(err, {
           layer: "api",
@@ -347,13 +594,6 @@ export async function POST(request: NextRequest) {
           { error: "Payment capture failed", code: "CAPTURE_FAILED", requestId },
           402,
         );
-      }
-
-      if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-        await adminSupabase
-          .from("orders")
-          .update({ status: "review" })
-          .eq("id", order.id);
       }
 
       chargeResult = authResult;

@@ -2,6 +2,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronDown, Search } from "lucide-react";
 
 import {
@@ -708,19 +709,28 @@ export default function SalesPage() {
                         </td>
                       )}
                       <td className="p-3 sm:p-4 text-left md:text-right">
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            toggleOrderItems(order.id);
-                          }}
-                          className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
-                        >
-                          {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
-                          <ChevronDown
-                            className={`w-4 h-4 transition-transform ${itemsExpanded ? "rotate-180" : ""}`}
-                          />
-                        </button>
+                        <div className="hidden md:flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleOrderItems(order.id);
+                            }}
+                            className="text-sm text-red-400 hover:text-red-300 inline-flex items-center gap-2"
+                          >
+                            {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
+                            <ChevronDown
+                              className={`w-4 h-4 transition-transform ${itemsExpanded ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                          <Link
+                            href={`/admin/orders/${order.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-sm text-zinc-400 hover:text-white transition"
+                          >
+                            Payment
+                          </Link>
+                        </div>
                         <button
                           type="button"
                           onClick={(event) => {

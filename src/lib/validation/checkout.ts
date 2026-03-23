@@ -96,6 +96,9 @@ export const createCheckoutSchema = z
     walletToken: z.string().trim().min(1).optional().nullable(),
     // Device fingerprint token from NoFraud JS snippet cookie (optional but improves accuracy)
     nfToken: z.string().trim().optional().nullable(),
+    // Card metadata from PayRilla tokenization result (used for NoFraud payment object)
+    last4: z.string().trim().length(4).optional().nullable(),
+    cardType: z.string().trim().max(30).optional().nullable(),
   })
   .strict()
   .superRefine((d, ctx) => {
