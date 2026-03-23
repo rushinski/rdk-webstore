@@ -159,18 +159,6 @@ export function OrderSummary({
             </div>
           </div>
         </div>
-
-        {/* Trust Badges */}
-        <div className="mt-6 pt-6 border-t border-zinc-800 space-y-3 text-xs text-gray-400">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-green-500 rounded-full" />
-            <span>Stripe secure payment processing</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-1 bg-green-500 rounded-full" />
-            <span>100% authentic products guaranteed</span>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -286,19 +274,6 @@ export function OrderSummary({
                     </div>
                   ))}
                 </div>
-
-                {/* Trust badges (mobile) */}
-                <div className="mt-4 pt-4 border-t border-zinc-800 space-y-2 text-xs text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-1 bg-green-500 rounded-full" />
-                    <span>Stripe secure payment processing</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-1 h-1 bg-green-500 rounded-full" />
-                    <span>100% authentic products guaranteed</span>
-                  </div>
-                </div>
-
                 {/* Safe-area spacer */}
                 <div className="h-4" />
               </div>

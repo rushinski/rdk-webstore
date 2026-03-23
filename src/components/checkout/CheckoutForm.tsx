@@ -367,9 +367,6 @@ export function CheckoutForm({
         setHasTouchedPayrilla(true);
         const errorMessage = getPayrillaErrorMessage(event.error);
         setPayrillaFieldError(errorMessage);
-        if (event.error) {
-          console.error("[PayRilla] error:", event.error);
-        }
         const detected = event.result?.cardType;
         setCardType(detected && detected !== "" ? detected : null);
       })
@@ -803,15 +800,11 @@ export function CheckoutForm({
           )}
 
           {(hasTouchedPayrilla || hasAttemptedSubmit) && payrillaFieldError && (
-            <div className="mt-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-400">
-              {payrillaFieldError}
-            </div>
+            <p className="text-xs sm:text-sm text-red-400 mt-2">{payrillaFieldError}</p>
           )}
 
           {payrillaLoadError && (
-            <div className="mt-3 rounded-md border border-red-800/60 bg-red-950/40 px-3 py-2 text-sm text-red-400">
-              {payrillaLoadError}
-            </div>
+            <p className="text-xs sm:text-sm text-red-400 mt-2">{payrillaLoadError}</p>
           )}
 
           {/* Secure badge */}
