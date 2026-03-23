@@ -23,15 +23,12 @@ import { BillingAddressForm, type BillingAddress } from "./BillingAddressForm";
 const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
 const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
 
-// Label shown next to the card input when PayRilla detects the card brand
-const CARD_BRAND_LABELS: Record<string, string> = {
-  Visa: "Visa",
-  Mastercard: "Mastercard",
-  "American Express": "Amex",
-  Discover: "Discover",
-  "Diners Club": "Diners",
-  JCB: "JCB",
-  UnionPay: "UnionPay",
+// Maps PayRilla's cardType string → SVG filename in /icons/cards/
+const CARD_BRAND_ICON: Record<string, string> = {
+  Visa: "visa",
+  Mastercard: "mastercard",
+  "American Express": "american-express",
+  Discover: "discover",
 };
 
 const PAYRILLA_BASE_FIELD_STYLE = [
@@ -69,8 +66,16 @@ const PAYRILLA_HOSTED_STYLES: Record<string, string> = {
     "align-items: end",
     "vertical-align: top",
   ].join("; "),
+  
   expiryMonth: [PAYRILLA_BASE_FIELD_STYLE, "width: 76px", "text-align: center"].join("; "),
-  expirySeparator: ["display: none", "width: 0", "overflow: hidden"].join("; "),
+  expirySeparator: [
+    "color: #9ca3af",
+    "font-size: 16px",
+    "display: inline-block",
+    "vertical-align: top",
+    "line-height: 44px",
+    "margin: 0 2px",
+  ].join("; "),
   expiryYear: [PAYRILLA_BASE_FIELD_STYLE, "width: 76px", "text-align: center"].join("; "),
   cvv2: [
     PAYRILLA_BASE_FIELD_STYLE,
@@ -81,11 +86,12 @@ const PAYRILLA_HOSTED_STYLES: Record<string, string> = {
     "margin-left: 12px",
   ].join("; "),
   labels: [
-    "color: #9ca3af",
-    "font-size: 12px",
+    "color: #e4e4e7",
+    "font-size: 13px",
     "font-weight: 500",
-    "margin: 0 0 6px 0",
+    "margin: 0 0 8px 0",
     "display: block",
+    "line-height: 1",
   ].join("; "),
   floatingLabelsPlaceholder: [
     "color: transparent",
@@ -1027,23 +1033,40 @@ export function CheckoutForm({
             </div>
           )}
 
-          {/* Card iframe — PayRilla handles labels internally via static-top */}
+{/* Card iframe with brand icon and accepted cards note */}
           <div className="relative max-w-[460px]">
             <div
               id="payrilla-card-form"
               ref={cardFormRef}
-              className="min-h-[140px]"
+              className="min-h-[120px]"
             />
 
-            {/* Card brand badge */}
-            {cardType && (
-              <div className="absolute top-0 right-0 flex items-center gap-1.5 bg-zinc-800/80 rounded px-2 py-1 pointer-events-none">
-                <CreditCard className="w-4 h-4 text-zinc-300 shrink-0" />
-                <span className="text-xs font-medium text-zinc-300">
-                  {CARD_BRAND_LABELS[cardType] ?? cardType}
-                </span>
-              </div>
-            )}
+            {/* Card brand icon — overlaid on the card number input row */}
+            <div
+              className="absolute right-3 flex items-center pointer-events-none"
+              style={{ top: "4px", height: "44px", left: "480px" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/icons/cards/${cardType && CARD_BRAND_ICON[cardType] ? CARD_BRAND_ICON[cardType] : "default"}.svg`}
+                alt={cardType && CARD_BRAND_ICON[cardType] ? cardType : "Credit card"}
+                className="h-7 w-auto"
+              />
+            </div>
+          </div>
+
+          {/* Accepted cards */}
+          <div className="flex items-center gap-3 mt-3">
+            <span className="text-xs text-zinc-500">Accepted:</span>
+            {["visa", "mastercard", "american-express", "discover"].map((brand) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={brand}
+                src={`/icons/cards/${brand}.svg`}
+                alt={brand}
+                className="h-5 w-auto opacity-60"
+              />
+            ))}
           </div>
 
           {!isPayrillaReady && !payrillaLoadError && (
