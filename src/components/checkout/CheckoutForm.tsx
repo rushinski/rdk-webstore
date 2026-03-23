@@ -1,7 +1,7 @@
 // src/components/checkout/CheckoutForm.tsx
 //
 // PayRilla-based checkout form.
-// Supports card payments (PayRilla HostedTokenization), Apple Pay, and Google Pay.
+// Supports card payments via PayRilla HostedTokenization.
 
 "use client";
 
@@ -257,15 +257,10 @@ export function CheckoutForm({
   const [uiSubmitError, setUiSubmitError] = useState<string | null>(null);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [billingAddress, setBillingAddress] = useState<BillingAddress | null>(null);
-  const [showApplePay, setShowApplePay] = useState(false);
-  const [showGooglePay, setShowGooglePay] = useState(false);
-  const [isGooglePayScriptLoaded, setIsGooglePayScriptLoaded] = useState(false);
 
   const emailSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hostedTokenizationRef = useRef<HostedTokenizationInstance | null>(null);
   const cardFormRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const googlePayClientRef = useRef<any>(null);
 
   // Next Script can dedupe/load the SDK before this component's onLoad handler runs.
   // If the global is already present, treat the script as loaded so initialization can proceed.
@@ -277,62 +272,6 @@ export function CheckoutForm({
       setIsScriptLoaded(true);
     }
   }, [tokenizationKey]);
-
-  // Detect Apple Pay support (Safari / Apple devices only)
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const AP = (window as any).ApplePaySession;
-      if (AP && typeof AP.canMakePayments === "function") {
-        setShowApplePay(AP.canMakePayments() as boolean);
-      }
-    } catch {
-      // Unavailable in non-Safari or iframe contexts
-    }
-  }, []);
-
-  // Initialize Google Pay client once the script loads
-  useEffect(() => {
-    if (!isGooglePayScriptLoaded) {
-      return;
-    }
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const g = (window as any).google;
-      if (!g?.payments?.api?.PaymentsClient) {
-        return;
-      }
-
-      const client = new g.payments.api.PaymentsClient({
-        environment: process.env.NODE_ENV === "production" ? "PRODUCTION" : "TEST",
-      });
-      googlePayClientRef.current = client;
-
-      client
-        .isReadyToPay({
-          apiVersion: 2,
-          apiVersionMinor: 0,
-          allowedPaymentMethods: [
-            {
-              type: "CARD",
-              parameters: {
-                allowedAuthMethods: ["PAN_ONLY", "CRYPTOGRAM_3DS"],
-                allowedCardNetworks: ["AMEX", "DISCOVER", "MASTERCARD", "VISA"],
-              },
-            },
-          ],
-        })
-        .then((res: { result: boolean }) => setShowGooglePay(res.result))
-        .catch(() => {
-          /* Google Pay not available on this device/browser */
-        });
-    } catch {
-      // Google Pay unavailable (localhost, unsupported browser, etc.)
-    }
-  }, [isGooglePayScriptLoaded]);
 
   // Auto-save guest email to database (debounced)
   useEffect(() => {
@@ -578,139 +517,6 @@ export function CheckoutForm({
     );
   }
 
-  // Apple Pay: launch ApplePaySession and handle the full flow
-  function handleApplePay() {
-    const preflightErrors = validateCommonFields();
-    if (preflightErrors.length > 0) {
-      setUiValidationErrors(preflightErrors);
-      setHasAttemptedSubmit(true);
-      return;
-    }
-    setUiSubmitError(null);
-    setUiValidationErrors([]);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const AP = (window as any).ApplePaySession as any;
-    if (!AP) {
-      return;
-    }
-
-    const session = new AP(3, {
-      countryCode: "US",
-      currencyCode: "USD",
-      supportedNetworks: ["visa", "masterCard", "amex", "discover"],
-      merchantCapabilities: ["supports3DS"],
-      total: { label: "Sneaker Eco", amount: total.toFixed(2) },
-    });
-
-    session.onvalidatemerchant = async (event: { validationURL: string }) => {
-      try {
-        const res = await fetch("/api/checkout/apple-pay-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ validationURL: event.validationURL }),
-        });
-        if (!res.ok) {
-          throw new Error("Merchant validation failed");
-        }
-        const merchantSession = await res.json();
-        session.completeMerchantValidation(merchantSession);
-      } catch {
-        session.abort();
-      }
-    };
-
-    session.onpaymentauthorized = async (event: { payment: { token: unknown } }) => {
-      setIsProcessing(true);
-      try {
-        await submitCheckout({
-          walletType: "applepay",
-          walletToken: JSON.stringify(event.payment.token),
-        });
-        session.completePayment(AP.STATUS_SUCCESS);
-      } catch (err: unknown) {
-        session.completePayment(AP.STATUS_FAILURE);
-        setUiSubmitError(
-          err instanceof Error ? err.message : "Apple Pay payment failed.",
-        );
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    session.begin();
-  }
-
-  // Google Pay: load payment data and submit
-  async function handleGooglePay() {
-    const preflightErrors = validateCommonFields();
-    if (preflightErrors.length > 0) {
-      setUiValidationErrors(preflightErrors);
-      setHasAttemptedSubmit(true);
-      return;
-    }
-    setUiSubmitError(null);
-    setUiValidationErrors([]);
-
-    const client = googlePayClientRef.current;
-    if (!client) {
-      return;
-    }
-
-    const paymentDataRequest = {
-      apiVersion: 2,
-      apiVersionMinor: 0,
-      allowedPaymentMethods: [
-        {
-          type: "CARD",
-          parameters: {
-            allowedAuthMethods: ["PAN_ONLY", "CRYPTOGRAM_3DS"],
-            allowedCardNetworks: ["AMEX", "DISCOVER", "MASTERCARD", "VISA"],
-          },
-          tokenizationSpecification: {
-            type: "PAYMENT_GATEWAY",
-            parameters: {
-              gateway: "acceptblue",
-              gatewayMerchantId: clientEnv.NEXT_PUBLIC_GOOGLE_PAY_GATEWAY_MERCHANT_ID,
-            },
-          },
-        },
-      ],
-      merchantInfo: {
-        merchantId: clientEnv.NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID,
-        merchantName: "Sneaker Eco",
-      },
-      transactionInfo: {
-        totalPriceStatus: "FINAL",
-        totalPrice: total.toFixed(2),
-        currencyCode: "USD",
-        countryCode: "US",
-      },
-    };
-
-    setIsProcessing(true);
-    try {
-      const paymentData = await client.loadPaymentData(paymentDataRequest);
-      await submitCheckout({
-        walletType: "googlepay",
-        walletToken: paymentData.paymentMethodData.tokenizationData.token as string,
-      });
-    } catch (err: unknown) {
-      // Ignore user-cancelled Google Pay sheet
-      const statusCode =
-        err && typeof err === "object" && "statusCode" in err
-          ? (err as { statusCode: string }).statusCode
-          : null;
-      if (statusCode !== "CANCELED") {
-        setUiSubmitError(
-          err instanceof Error ? err.message : "Google Pay payment failed.",
-        );
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  }
-
   // Card payment form submit
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -772,8 +578,6 @@ export function CheckoutForm({
     }
   };
 
-  const hasWalletOptions = showApplePay || showGooglePay;
-
   return (
     <>
       {/* PayRilla Hosted Tokenization script */}
@@ -790,15 +594,6 @@ export function CheckoutForm({
           setPayrillaLoadError("Payment form failed to load. Please refresh.");
         }}
       />
-      {/* Google Pay script — only load if merchant ID is configured */}
-      {clientEnv.NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID && (
-        <Script
-          src="https://pay.google.com/gp/p/js/pay.js"
-          strategy="afterInteractive"
-          onLoad={() => setIsGooglePayScriptLoaded(true)}
-        />
-      )}
-
       <form
         noValidate
         onSubmit={(e) => {
@@ -964,76 +759,7 @@ export function CheckoutForm({
             <CreditCard className="w-5 h-5" /> Payment Method
           </h2>
 
-          {/* Apple Pay / Google Pay buttons */}
-          {hasWalletOptions && (
-            <div className="space-y-3 mb-5">
-              {showApplePay && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleApplePay();
-                  }}
-                  disabled={isProcessing || isUpdatingFulfillment}
-                  className="w-full flex items-center justify-center gap-2.5 bg-black border border-zinc-600 hover:border-zinc-400 text-white font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {/* Apple logo unicode */}
-                  <span className="text-xl leading-none" aria-hidden="true">
-                    &#63743;
-                  </span>
-                  <span className="text-[15px]">Pay with Apple Pay</span>
-                </button>
-              )}
-
-              {showGooglePay && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleGooglePay();
-                  }}
-                  disabled={isProcessing || isUpdatingFulfillment}
-                  className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-gray-100 text-[#3c4043] font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {/* Google Pay wordmark as inline SVG */}
-                  <svg
-                    className="h-5"
-                    viewBox="0 0 68 28"
-                    xmlns="http://www.w3.org/2000/svg"
-                    aria-label="Google Pay"
-                  >
-                    <path
-                      d="M31.09 13.75v7.3h-2.32V3h6.16c1.57 0 2.9.52 3.99 1.57 1.1 1.05 1.66 2.32 1.66 3.82 0 1.53-.56 2.82-1.66 3.86-1.08 1.04-2.42 1.55-4 1.55l-3.83-.05zm0-8.47v6.19h3.88c.93 0 1.7-.31 2.31-.94.62-.63.93-1.4.93-2.16 0-.74-.31-1.5-.93-2.12-.61-.64-1.38-.97-2.31-.97h-3.88zm14.43 3.14c1.74 0 3.1.47 4.1 1.4 1 .93 1.5 2.2 1.5 3.82v7.71H49v-1.74h-.1c-.97 1.43-2.25 2.14-3.85 2.14-1.37 0-2.52-.4-3.44-1.21-.93-.8-1.4-1.83-1.4-3.07 0-1.3.5-2.33 1.48-3.08.98-.76 2.3-1.14 3.94-1.14 1.4 0 2.55.26 3.46.77v-.54c0-.84-.34-1.55-1.01-2.13-.67-.58-1.46-.88-2.36-.88-1.37 0-2.45.58-3.24 1.73l-2.13-1.34c1.16-1.69 2.9-2.54 5.17-2.54zm-3.2 9.46c0 .61.27 1.13.8 1.54.54.41 1.17.62 1.9.62 1.03 0 1.94-.38 2.74-1.14.8-.76 1.2-1.65 1.2-2.67-.75-.6-1.8-.9-3.13-.9-.97 0-1.78.23-2.44.7-.65.47-.97 1.04-.97 1.75l-.1.1zM65 8.72l-7.77 17.87H55l2.88-6.24-5.1-11.63h2.43l3.68 8.9h.05l3.59-8.9H65z"
-                      fill="#3C4043"
-                    />
-                    <path
-                      d="M21.2 12.1c0-.68-.06-1.34-.17-1.96H10.8v3.7h5.86c-.25 1.36-1.02 2.51-2.18 3.28v2.72h3.52c2.06-1.9 3.25-4.7 3.25-7.74z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M10.8 22.3c2.94 0 5.41-.97 7.21-2.62l-3.52-2.73c-.97.65-2.22 1.04-3.69 1.04-2.84 0-5.24-1.92-6.1-4.5H1.07v2.82A10.88 10.88 0 0010.8 22.3z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M4.7 13.49a6.56 6.56 0 010-4.17V6.5H1.07a10.9 10.9 0 000 9.82l3.63-2.82z"
-                      fill="#FBBC04"
-                    />
-                    <path
-                      d="M10.8 4.82c1.6 0 3.04.55 4.17 1.63l3.12-3.13A10.78 10.78 0 0010.8 0 10.88 10.88 0 001.07 6.5L4.7 9.32c.86-2.58 3.26-4.5 6.1-4.5z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                </button>
-              )}
-
-              {/* "or pay with card" divider */}
-              <div className="relative flex items-center gap-3 py-1">
-                <div className="flex-1 border-t border-zinc-800" />
-                <span className="text-xs text-zinc-500 shrink-0">or pay with card</span>
-                <div className="flex-1 border-t border-zinc-800" />
-              </div>
-            </div>
-          )}
-
-{/* Card iframe with brand icon and accepted cards note */}
+          {/* Card iframe with brand icon and accepted cards note */}
           <div className="relative max-w-[460px]">
             <div
               id="payrilla-card-form"
