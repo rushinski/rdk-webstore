@@ -31,7 +31,7 @@ const TRANSACTION_TABS: Array<{
 const getStatusMeta = (status: string | null | undefined) => {
   switch (status) {
     case "paid":
-      return { label: "Paid", className: "text-green-400" };
+      return { label: "Succeeded", className: "text-green-400" };
     case "shipped":
       return { label: "Shipped", className: "text-blue-300" };
     case "refunded":
@@ -65,6 +65,12 @@ type OrderShipping = {
   name?: string | null;
 };
 
+type OrderItemSummary = {
+  unit_price?: number | null;
+  unit_cost?: number | null;
+  quantity?: number | null;
+};
+
 type TransactionOrder = {
   id: string;
   status?: string | null;
@@ -80,6 +86,7 @@ type TransactionOrder = {
   shipping?: OrderShipping | OrderShipping[] | null;
   shipping_profile_name?: string | null;
   payment?: PaymentSummary | PaymentSummary[];
+  items?: OrderItemSummary[] | null;
 };
 
 export default function TransactionsPage() {
@@ -202,6 +209,17 @@ export default function TransactionsPage() {
     const type = payment.card_type ?? "";
     const last4 = payment.card_last4 ? `···· ${payment.card_last4}` : "";
     return [type, last4].filter(Boolean).join(" ");
+  };
+
+  const getProfit = (order: TransactionOrder): number | null => {
+    const items = order.items;
+    if (!items || items.length === 0) return null;
+    return items.reduce((sum, item) => {
+      const qty = Number(item.quantity ?? 0);
+      const price = Number(item.unit_price ?? 0);
+      const cost = Number(item.unit_cost ?? 0);
+      return sum + (price - cost) * qty;
+    }, 0);
   };
 
   const filteredOrders = useMemo(() => {
@@ -333,6 +351,7 @@ export default function TransactionsPage() {
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Payment</th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Fulfillment</th>
                 <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">Amount</th>
+                <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">Profit</th>
                 <th className="text-right text-gray-400 font-semibold p-3 sm:p-4"></th>
               </tr>
             </thead>
@@ -382,6 +401,17 @@ export default function TransactionsPage() {
                     </td>
                     <td className="p-3 sm:p-4 text-right text-white">
                       ${Number(order.total ?? 0).toFixed(2)}
+                    </td>
+                    <td className="hidden md:table-cell p-3 sm:p-4 text-right">
+                      {(() => {
+                        const profit = getProfit(order);
+                        if (profit === null) return <span className="text-zinc-600">—</span>;
+                        return (
+                          <span className={profit >= 0 ? "text-emerald-400" : "text-red-400"}>
+                            {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="p-3 sm:p-4 text-right">
                       <Link

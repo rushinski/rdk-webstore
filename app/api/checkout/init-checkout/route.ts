@@ -26,10 +26,12 @@ import { createCartHash } from "@/lib/utils/crypto";
 import { createPaymentIntentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
+import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { env } from "@/config/env";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
+  const startedAt = Date.now();
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -68,6 +70,16 @@ export async function POST(request: NextRequest) {
         ? new Date(existingOrder.expires_at)
         : null;
       if (expiresAt && expiresAt < new Date()) {
+        void logCheckoutEvent(adminSupabase, {
+          orderId: existingOrder.id,
+          tenantId: existingOrder.tenant_id,
+          requestId,
+          route: "/api/checkout/init-checkout",
+          httpStatus: 409,
+          durationMs: Date.now() - startedAt,
+          eventLabel: "Idempotency key expired",
+          errorMessage: "IDEMPOTENCY_KEY_EXPIRED",
+        });
         return json(
           {
             error: "IDEMPOTENCY_KEY_EXPIRED",
@@ -83,6 +95,30 @@ export async function POST(request: NextRequest) {
       if (existingOrder.status === "paid") {
         return json({ status: "paid", orderId: existingOrder.id, requestId }, 200);
       }
+
+      // If the previous payment attempt failed, reset the order to pending so the
+      // customer can retry without needing to start a new checkout session.
+      if (existingOrder.status === "failed") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (adminSupabase as any)
+          .from("orders")
+          .update({
+            status: "pending",
+            failure_reason: null,
+            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          })
+          .eq("id", existingOrder.id);
+        void logCheckoutEvent(adminSupabase, {
+          orderId: existingOrder.id,
+          tenantId: existingOrder.tenant_id,
+          requestId,
+          route: "/api/checkout/init-checkout",
+          httpStatus: 200,
+          durationMs: Date.now() - startedAt,
+          eventLabel: "Failed order reset — retry available",
+        });
+      }
+
       if (!existingOrder.user_id && guestEmail && !existingOrder.guest_email) {
         await ordersRepo.updateGuestEmail(existingOrder.id, guestEmail);
       }
@@ -95,6 +131,15 @@ export async function POST(request: NextRequest) {
         );
         const creds = await payrillaService.getCredentials();
         if (creds) {
+          void logCheckoutEvent(adminSupabase, {
+            orderId: existingOrder.id,
+            tenantId: existingOrder.tenant_id,
+            requestId,
+            route: "/api/checkout/init-checkout",
+            httpStatus: 200,
+            durationMs: Date.now() - startedAt,
+            eventLabel: "Checkout resumed",
+          });
           return json(
             {
               orderId: existingOrder.id,
@@ -184,6 +229,16 @@ export async function POST(request: NextRequest) {
       orderId: order.id,
       tenantId,
       fulfillment,
+    });
+
+    void logCheckoutEvent(adminSupabase, {
+      orderId: order.id,
+      tenantId,
+      requestId,
+      route: "/api/checkout/init-checkout",
+      httpStatus: 200,
+      durationMs: Date.now() - startedAt,
+      eventLabel: "Checkout initialized",
     });
 
     return json(

@@ -16,9 +16,11 @@ import { createCartHash } from "@/lib/utils/crypto";
 import { updateFulfillmentSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
+import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
+  const startedAt = Date.now();
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -125,6 +127,16 @@ export async function POST(request: NextRequest) {
         customer_state: pricing.customerState,
       })
       .eq("id", orderId);
+
+    void logCheckoutEvent(adminSupabase, {
+      orderId,
+      tenantId: order.tenant_id,
+      requestId,
+      route: "/api/checkout/update-fulfillment",
+      httpStatus: 200,
+      durationMs: Date.now() - startedAt,
+      eventLabel: `Fulfillment updated to ${fulfillment}`,
+    });
 
     return json(
       {

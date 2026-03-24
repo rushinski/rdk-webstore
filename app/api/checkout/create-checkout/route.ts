@@ -31,6 +31,7 @@ import { createCartHash } from "@/lib/utils/crypto";
 import { createCheckoutSchema } from "@/lib/validation/checkout";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
+import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { env } from "@/config/env";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 
@@ -56,6 +57,7 @@ function isRateLimited(ip: string): boolean {
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
+  const startedAt = Date.now();
 
   try {
     const supabase = await createSupabaseServerClient();
@@ -336,6 +338,16 @@ export async function POST(request: NextRequest) {
           .from("orders")
           .update({ status: "failed", failure_reason: "Payment processing error" })
           .eq("id", order.id);
+        void logCheckoutEvent(adminSupabase, {
+          orderId: order.id,
+          tenantId,
+          requestId,
+          route: "/api/checkout/create-checkout",
+          httpStatus: 402,
+          durationMs: Date.now() - startedAt,
+          eventLabel: "Payment processing error",
+          errorMessage: "PAYMENT_FAILED",
+        });
         return json(
           { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
           402,
@@ -377,6 +389,16 @@ export async function POST(request: NextRequest) {
             failure_reason: isDecline ? "Card declined" : "Payment error",
           })
           .eq("id", order.id);
+        void logCheckoutEvent(adminSupabase, {
+          orderId: order.id,
+          tenantId,
+          requestId,
+          route: "/api/checkout/create-checkout",
+          httpStatus: 402,
+          durationMs: Date.now() - startedAt,
+          eventLabel: isDecline ? "Card declined" : "Payment error",
+          errorMessage: isDecline ? "CARD_DECLINED" : "PAYMENT_ERROR",
+        });
         return json(
           {
             error: isDecline ? "Card declined" : "Payment error",
@@ -549,6 +571,16 @@ export async function POST(request: NextRequest) {
           .from("orders")
           .update({ status: "blocked", failure_reason: "Blocked by fraud screening" })
           .eq("id", order.id);
+        void logCheckoutEvent(adminSupabase, {
+          orderId: order.id,
+          tenantId,
+          requestId,
+          route: "/api/checkout/create-checkout",
+          httpStatus: 402,
+          durationMs: Date.now() - startedAt,
+          eventLabel: "Blocked by fraud screening",
+          errorMessage: "FRAUD_BLOCKED",
+        });
         return json(
           { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
           402,
@@ -704,6 +736,16 @@ export async function POST(request: NextRequest) {
       transactionId: chargeResult.transactionId,
       totalCents,
       nofraudDecision: nofraudResult?.ok ? nofraudResult.response.decision : "skipped",
+    });
+
+    void logCheckoutEvent(adminSupabase, {
+      orderId: order.id,
+      tenantId,
+      requestId,
+      route: "/api/checkout/create-checkout",
+      httpStatus: 200,
+      durationMs: Date.now() - startedAt,
+      eventLabel: "Payment approved — order complete",
     });
 
     return json(

@@ -232,7 +232,14 @@ export function CheckoutStart() {
             data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
             data?.code === "CART_MISMATCH"
           ) {
+            // Silently regenerate the key and let the effect re-run — no error shown to customer
             clearIdempotencyKeyFromStorage();
+            const newKey = generateIdempotencyKey();
+            setIdempotencyKeyInStorage(newKey);
+            setIdempotencyKey(newKey);
+            setOrderId(null);
+            setTokenizationKey(null);
+            return;
           }
           if (data?.code === "GUEST_CHECKOUT_DISABLED") {
             router.push("/checkout");

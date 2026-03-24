@@ -32,7 +32,12 @@ export async function GET(
         profiles!user_id(email, full_name),
         items:order_items(
           id, quantity, unit_price, unit_cost, line_total, refund_amount, refunded_at,
-          product:products(id, name, brand, model, title_display, title_raw, category, images:product_images(url, is_primary, sort_order)),
+          product:products(
+            id, name, brand, model, title_display, title_raw, category,
+            sku, cost_cents, description, created_at,
+            images:product_images(url, is_primary, sort_order),
+            tags:product_tags(tag:tags(label, group_key))
+          ),
           variant:product_variants(id, size_label, price_cents, cost_cents)
         ),
         shipping:order_shipping(*)
@@ -81,6 +86,14 @@ export async function GET(
       .eq("order_id", orderId)
       .order("event_timestamp", { ascending: true });
 
+    // --- Checkout API logs ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: checkoutLogs } = await (admin as any)
+      .from("checkout_api_logs")
+      .select("id, route, method, http_status, duration_ms, event_label, error_message, created_at")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true });
+
     return NextResponse.json(
       {
         order,
@@ -88,6 +101,7 @@ export async function GET(
         paymentEvents: paymentEvents ?? [],
         emailLogs: emailLogs ?? [],
         trackingEvents: trackingEvents ?? [],
+        checkoutLogs: checkoutLogs ?? [],
         requestId,
       },
       { headers: { "Cache-Control": "no-store" } },
