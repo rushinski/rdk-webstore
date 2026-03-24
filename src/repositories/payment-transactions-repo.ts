@@ -19,6 +19,8 @@ export type PaymentTransactionInsert = {
   billingPhone?: string | null;
   customerEmail?: string | null;
   customerIp?: string | null;
+  cardExpiryMonth?: number | null;
+  cardExpiryYear?: number | null;
 };
 
 export type PaymentTransactionUpdate = {
@@ -68,6 +70,8 @@ export class PaymentTransactionsRepository {
         billing_phone: params.billingPhone ?? null,
         customer_email: params.customerEmail ?? null,
         customer_ip: params.customerIp ?? null,
+        card_expiry_month: params.cardExpiryMonth ?? null,
+        card_expiry_year: params.cardExpiryYear ?? null,
       })
       .select("id")
       .single();

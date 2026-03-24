@@ -247,6 +247,8 @@ export async function POST(request: NextRequest) {
         billingAddress: billingAddress?.line1 ?? null,
         billingCity: billingAddress?.city ?? null,
         billingState: billingAddress?.state ?? null,
+        cardExpiryMonth: expiryMonth,
+        cardExpiryYear: expiryYear,
         billingZip: billingAddress?.postal_code ?? null,
         billingCountry: billingAddress?.country ?? null,
         billingPhone: billingAddress?.phone ?? null,
@@ -330,6 +332,10 @@ export async function POST(request: NextRequest) {
             /* non-fatal */
           }
         }
+        await adminSupabase
+          .from("orders")
+          .update({ status: "failed", failure_reason: "Payment processing error" })
+          .eq("id", order.id);
         return json(
           { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
           402,
@@ -363,10 +369,18 @@ export async function POST(request: NextRequest) {
             /* non-fatal */
           }
         }
+        const isDecline = authResult.status === "declined";
+        await adminSupabase
+          .from("orders")
+          .update({
+            status: "failed",
+            failure_reason: isDecline ? "Card declined" : "Payment error",
+          })
+          .eq("id", order.id);
         return json(
           {
-            error: authResult.status === "declined" ? "Card declined" : "Payment error",
-            code: authResult.status === "declined" ? "CARD_DECLINED" : "PAYMENT_ERROR",
+            error: isDecline ? "Card declined" : "Payment error",
+            code: isDecline ? "CARD_DECLINED" : "PAYMENT_ERROR",
             requestId,
           },
           402,
@@ -533,7 +547,7 @@ export async function POST(request: NextRequest) {
         });
         await adminSupabase
           .from("orders")
-          .update({ status: "failed" })
+          .update({ status: "blocked", failure_reason: "Blocked by fraud screening" })
           .eq("id", order.id);
         return json(
           { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },

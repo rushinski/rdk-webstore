@@ -336,6 +336,8 @@ export class OrdersService {
     fulfillmentStatus?: string;
     limit?: number;
     page?: number;
+    incomplete?: boolean;
+    includeAll?: boolean;
   }) {
     return this.ordersRepo.listOrdersPaged(params);
   }

@@ -68,15 +68,15 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
   },
   {
     type: "group",
-    label: "Orders",
+    label: "Activity",
     icon: Truck,
     groupKey: "orders",
     isActive: (pathname: string) =>
-      pathname.startsWith("/admin/sales") ||
+      pathname.startsWith("/admin/transactions") ||
       pathname.startsWith("/admin/shipping") ||
       pathname.startsWith("/admin/pickups"),
     children: [
-      { href: "/admin/sales", label: "Sales" },
+      { href: "/admin/transactions", label: "Transactions" },
       { href: "/admin/shipping", label: "Shipping" },
       { href: "/admin/pickups", label: "Pickups" },
     ],
@@ -115,7 +115,7 @@ export function AdminSidebar({
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
   const ordersActive =
-    pathname.startsWith("/admin/sales") ||
+    pathname.startsWith("/admin/transactions") ||
     pathname.startsWith("/admin/shipping") ||
     pathname.startsWith("/admin/pickups");
   const settingsActive = pathname.startsWith("/admin/settings");

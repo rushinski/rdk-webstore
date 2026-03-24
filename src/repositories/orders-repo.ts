@@ -329,21 +329,28 @@ export class OrdersRepository {
     fulfillmentStatus?: string;
     limit?: number;
     page?: number;
+    /** Show incomplete orders: status='pending' and past their expiry window */
+    incomplete?: boolean;
+    /** Skip default filtering — return all statuses */
+    includeAll?: boolean;
   }) {
     let query = this.supabase
       .from("orders")
       .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_raw, title_display, category, created_at, description, sku, cost_cents, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
+        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_raw, title_display, category, created_at, description, sku, cost_cents, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*), payment:payment_transactions(card_type, card_last4, payrilla_status)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
 
-    if (params?.status?.length) {
+    if (params?.incomplete) {
+      // Incomplete = checkout started (pending) but payment window has expired
+      query = query
+        .eq("status", "pending")
+        .lt("expires_at", new Date().toISOString());
+    } else if (params?.status?.length) {
       query = query.in("status", params.status);
-    }
-    // ✅ NEW: Exclude refunded orders from all queries
-    else {
-      // If no specific status filter, exclude refunded by default
+    } else if (!params?.includeAll) {
+      // Legacy default: exclude refunded orders from unfiltered queries
       query = query.neq("status", "refunded");
     }
 

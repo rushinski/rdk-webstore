@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
     const statusesRaw = searchParams.getAll("status").filter(Boolean);
     const fulfillmentRaw = searchParams.get("fulfillment") ?? undefined;
     const fulfillmentStatusRaw = searchParams.get("fulfillmentStatus") ?? undefined;
+    const incompleteRaw = searchParams.get("incomplete") === "true";
+    const includeAllRaw = searchParams.get("includeAll") === "true";
 
     const parsedStatuses = statusSchema.safeParse(statusesRaw);
     const parsedFulfillment = fulfillmentSchema.safeParse(fulfillmentRaw);
@@ -88,6 +90,8 @@ export async function GET(request: NextRequest) {
       fulfillmentStatus: parsedFulfillmentStatus.data,
       page: parsedPage?.success ? parsedPage.data : 1,
       limit: parsedLimit?.success ? parsedLimit.data : 20,
+      incomplete: incompleteRaw || undefined,
+      includeAll: includeAllRaw || undefined,
     });
 
     let shippingProfileNameByUserId = new Map<string, string | null>();

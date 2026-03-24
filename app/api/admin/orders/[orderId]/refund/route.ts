@@ -1,16 +1,20 @@
 // app/api/admin/orders/[orderId]/refund/route.ts
+// Processes refunds via PayRilla. Handles full, product-level, and custom amount refunds.
+// Uses reverseTransaction() which voids if unsettled or refunds if settled.
+
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { z } from "zod";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersRepository } from "@/repositories/orders-repo";
-import { ProfileRepository } from "@/repositories/profile-repo";
+import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
+import { PayrillaChargeService } from "@/services/payrilla-charge-service";
 import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
-import { env } from "@/config/env";
+import { ProfileRepository } from "@/repositories/profile-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 
@@ -23,37 +27,10 @@ type OrderItemRefundCandidate = {
   refunded_at?: string | null;
 };
 
-function getStripeErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "raw" in error &&
-    typeof (error as { raw?: { message?: string } }).raw?.message === "string"
-  ) {
-    return (error as { raw?: { message?: string } }).raw?.message ?? "";
-  }
-  return "";
-}
-
-const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2025-10-29.clover",
-});
-
 const refundRequestSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("full"),
-  }),
-  z.object({
-    type: z.literal("product"),
-    itemIds: z.array(z.string().uuid()).min(1),
-  }),
-  z.object({
-    type: z.literal("custom"),
-    amount: z.number().positive(),
-  }),
+  z.object({ type: z.literal("full") }),
+  z.object({ type: z.literal("product"), itemIds: z.array(z.string().uuid()).min(1) }),
+  z.object({ type: z.literal("custom"), amount: z.number().positive() }),
 ]);
 
 const toCents = (amount: number) => Math.max(0, Math.round(amount * 100));
@@ -72,18 +49,16 @@ export async function POST(
 
     if (!parsedBody.success) {
       return NextResponse.json(
-        {
-          error: "Invalid refund payload",
-          issues: parsedBody.error.format(),
-          requestId,
-        },
+        { error: "Invalid refund payload", issues: parsedBody.error.format(), requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
     const supabase = await createSupabaseServerClient();
+    const admin = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(supabase);
     const profilesRepo = new ProfileRepository(supabase);
+    const paymentTxRepo = new PaymentTransactionsRepository(admin);
 
     const order = await ordersRepo.getOrderWithTenant(orderId);
     if (!order) {
@@ -101,26 +76,24 @@ export async function POST(
     }
 
     const currentStatus = order.status ?? "";
-    const refundableStatuses = new Set([
-      "paid",
-      "shipped",
-      "partially_refunded",
-      "refund_failed",
-      "refund_pending",
-    ]);
+    const refundableStatuses = new Set(["paid", "shipped", "partially_refunded", "refund_failed", "refund_pending"]);
     if (!refundableStatuses.has(currentStatus)) {
       return NextResponse.json(
-        {
-          error: `Order cannot be refunded while in status "${currentStatus || "unknown"}"`,
-          requestId,
-        },
+        { error: `Order cannot be refunded while in status "${currentStatus || "unknown"}"`, requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
 
-    if (!order.payment_transaction_id) {
+    // Resolve PayRilla reference number from payment_transactions
+    const paymentTx = await paymentTxRepo.getByOrderId(orderId);
+    const payrillaReferenceNumber =
+      paymentTx?.payrilla_reference_number != null
+        ? String(paymentTx.payrilla_reference_number)
+        : null;
+
+    if (!payrillaReferenceNumber) {
       return NextResponse.json(
-        { error: "Cannot refund order: Missing payment information", requestId },
+        { error: "Cannot refund: No PayRilla transaction found for this order", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -129,14 +102,6 @@ export async function POST(
     if (!tenantId) {
       return NextResponse.json(
         { error: "Cannot refund: Tenant not found for order", requestId },
-        { status: 400, headers: { "Cache-Control": "no-store" } },
-      );
-    }
-
-    const stripeAccountId = await profilesRepo.getStripeAccountIdForTenant(tenantId);
-    if (!stripeAccountId) {
-      return NextResponse.json(
-        { error: "Cannot refund: Stripe Connect account not configured", requestId },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -153,9 +118,7 @@ export async function POST(
     }
 
     const payload = parsedBody.data;
-    const orderItems = (
-      Array.isArray(order.items) ? order.items : []
-    ) as OrderItemRefundCandidate[];
+    const orderItems = (Array.isArray(order.items) ? order.items : []) as OrderItemRefundCandidate[];
     let requestedRefundCents = remainingRefundableCents;
     let selectedItems: OrderItemRefundCandidate[] = [];
 
@@ -164,14 +127,12 @@ export async function POST(
     } else if (payload.type === "product") {
       const requestedItemIds = Array.from(new Set(payload.itemIds));
       selectedItems = orderItems.filter((item) => requestedItemIds.includes(item.id));
-
       if (selectedItems.length !== requestedItemIds.length) {
         return NextResponse.json(
           { error: "One or more selected products are invalid", requestId },
           { status: 400, headers: { "Cache-Control": "no-store" } },
         );
       }
-
       const alreadyRefundedItem = selectedItems.find((item) => item.refunded_at);
       if (alreadyRefundedItem) {
         return NextResponse.json(
@@ -179,7 +140,6 @@ export async function POST(
           { status: 400, headers: { "Cache-Control": "no-store" } },
         );
       }
-
       requestedRefundCents = selectedItems.reduce(
         (sum, item) => sum + toCents(Number(item.line_total ?? 0)),
         0,
@@ -207,88 +167,23 @@ export async function POST(
       requestId,
       orderId,
       tenantId,
-      stripeAccountId,
-      paymentIntentId: order.payment_transaction_id,
+      payrillaReferenceNumber,
       refundType: payload.type,
       requestedRefundCents,
     });
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(
-      order.payment_transaction_id,
-      { expand: ["latest_charge"] },
-      { stripeAccount: stripeAccountId },
-    );
-    const expandedCharge =
-      paymentIntent.latest_charge && typeof paymentIntent.latest_charge !== "string"
-        ? paymentIntent.latest_charge
-        : null;
-    const hasApplicationFee =
-      (expandedCharge?.application_fee !== null &&
-        expandedCharge?.application_fee !== undefined) ||
-      Number(expandedCharge?.application_fee_amount ?? 0) > 0;
-
-    const refundParams: Stripe.RefundCreateParams = {
-      payment_intent: order.payment_transaction_id,
-      amount: requestedRefundCents,
-      reason: "requested_by_customer",
-    };
-    if (hasApplicationFee) {
-      refundParams.refund_application_fee = true;
-    }
-
-    let refund: Stripe.Refund;
-    try {
-      refund = await stripe.refunds.create(refundParams, {
-        stripeAccount: stripeAccountId,
-      });
-    } catch (refundError) {
-      const errorMessage = getStripeErrorMessage(refundError).toLowerCase();
-      const noAppFeeError =
-        hasApplicationFee &&
-        errorMessage.includes("refund_application_fee") &&
-        errorMessage.includes("no application fee");
-
-      if (!noAppFeeError) {
-        throw refundError;
-      }
-
-      delete refundParams.refund_application_fee;
-      refund = await stripe.refunds.create(refundParams, {
-        stripeAccount: stripeAccountId,
-      });
-    }
-
-    log({
-      level: "info",
-      layer: "api",
-      message: "refund_request_submitted",
-      requestId,
-      orderId,
-      refundType: payload.type,
-      requestedRefundCents,
-      refundApplicationFee: Boolean(refundParams.refund_application_fee),
+    // Issue the refund via PayRilla
+    const payrillaService = new PayrillaChargeService(admin, tenantId);
+    const isFullRefund = requestedRefundCents >= remainingRefundableCents;
+    await payrillaService.reverseTransaction({
+      transactionId: payrillaReferenceNumber,
+      amountCents: isFullRefund ? undefined : requestedRefundCents,
     });
 
-    if (refund.status === "failed") {
-      throw new Error(`Stripe refund failed: ${refund.failure_reason}`);
-    }
-
-    const refundedCents = Math.max(
-      0,
-      Math.round(Number(refund.amount ?? requestedRefundCents)),
-    );
-    const nextRefundAmountCents = Math.min(
-      orderTotalCents,
-      existingRefundCents + refundedCents,
-    );
+    const refundedCents = requestedRefundCents;
+    const nextRefundAmountCents = Math.min(orderTotalCents, existingRefundCents + refundedCents);
     const isFullyRefunded = nextRefundAmountCents >= orderTotalCents;
-
-    let nextStatus = order.status ?? "paid";
-    if (refund.status === "pending") {
-      nextStatus = "refund_pending";
-    } else if (refund.status === "succeeded") {
-      nextStatus = isFullyRefunded ? "refunded" : "partially_refunded";
-    }
+    const nextStatus = isFullyRefunded ? "refunded" : "partially_refunded";
 
     await ordersRepo.updateRefundSummary(orderId, {
       status: nextStatus,
@@ -296,19 +191,34 @@ export async function POST(
       refundedAt: new Date().toISOString(),
     });
 
+    // Log refund event to payment_transactions
+    try {
+      if (paymentTx?.id) {
+        await paymentTxRepo.update(paymentTx.id as string, {
+          amountRefunded: nextRefundAmountCents / 100,
+        });
+        await paymentTxRepo.logEvent({
+          paymentTransactionId: paymentTx.id as string,
+          orderId,
+          tenantId,
+          eventType: isFullyRefunded ? "payment_refunded" : "payment_refund_partial",
+          eventData: {
+            refundType: payload.type,
+            refundedCents,
+            nextRefundAmountCents,
+          },
+        });
+      }
+    } catch {
+      /* non-fatal */
+    }
+
     let inventoryWarning: string | null = null;
-    if (
-      payload.type === "product" &&
-      selectedItems.length > 0 &&
-      refund.status !== "failed"
-    ) {
-      const refundScale =
-        requestedRefundCents > 0 ? refundedCents / requestedRefundCents : 1;
+    if (payload.type === "product" && selectedItems.length > 0) {
       const itemRefundUpdates = selectedItems.map((item) => ({
         itemId: item.id,
-        refundAmount: Math.round(toCents(Number(item.line_total ?? 0)) * refundScale),
+        refundAmount: toCents(Number(item.line_total ?? 0)),
       }));
-
       try {
         await ordersRepo.markOrderItemsRefunded(orderId, itemRefundUpdates);
         await ordersRepo.restockVariants(
@@ -318,26 +228,16 @@ export async function POST(
               variantId: item.variant_id as string,
               quantity: Math.max(0, Math.round(Number(item.quantity ?? 0))),
             }))
-            .filter((entry) => entry.quantity > 0),
+            .filter((e) => e.quantity > 0),
         );
-
         const productService = new ProductService(supabase);
-        const touchedProductIds = Array.from(
-          new Set(selectedItems.map((item) => item.product_id).filter(Boolean)),
-        );
+        const touchedProductIds = Array.from(new Set(selectedItems.map((item) => item.product_id).filter(Boolean)));
         for (const productId of touchedProductIds) {
           await productService.syncSizeTags(productId);
         }
       } catch (inventoryError) {
-        inventoryWarning =
-          "Refund completed, but product refund state could not be fully synced.";
-        logError(inventoryError, {
-          layer: "api",
-          requestId,
-          message: "refund_inventory_sync_failed",
-          orderId,
-          refundId: refund.id,
-        });
+        inventoryWarning = "Refund completed, but product refund state could not be fully synced.";
+        logError(inventoryError, { layer: "api", requestId, message: "refund_inventory_sync_failed", orderId });
       }
     }
 
@@ -347,70 +247,36 @@ export async function POST(
       message: "refund_completed",
       requestId,
       orderId,
-      refundId: refund.id,
       amountCents: refundedCents,
       refundOrderStatus: nextStatus,
       refundType: payload.type,
     });
 
+    // Send refund email
     try {
       const emailService = new OrderEmailService();
-      if (order.user_id) {
-        const profile = await profilesRepo.getByUserId(order.user_id);
-        if (profile?.email) {
-          await emailService.sendOrderRefunded({
-            to: profile.email,
-            orderId: order.id,
-            refundAmount: refundedCents,
-          });
-        }
-      } else if (order.guest_email) {
-        await emailService.sendOrderRefunded({
-          to: order.guest_email,
-          orderId: order.id,
-          refundAmount: refundedCents,
-        });
+      const emailTo = order.user_id
+        ? (await profilesRepo.getByUserId(order.user_id))?.email
+        : order.guest_email;
+      if (emailTo) {
+        await emailService.sendOrderRefunded({ to: emailTo, orderId: order.id, refundAmount: refundedCents });
       }
     } catch (emailError) {
-      logError(emailError, {
-        layer: "api",
-        requestId,
-        message: "refund_email_failed",
-        orderId,
-      });
+      logError(emailError, { layer: "api", requestId, message: "refund_email_failed", orderId });
     }
 
     return NextResponse.json(
-      {
-        success: true,
-        refundId: refund.id,
-        status: nextStatus,
-        refundAmount: nextRefundAmountCents,
-        warning: inventoryWarning,
-      },
+      { success: true, status: nextStatus, refundAmount: nextRefundAmountCents, warning: inventoryWarning },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: unknown) {
-    logError(error, {
-      layer: "api",
-      requestId,
-      route: `/api/admin/orders/${orderId}/refund`,
-      message: "refund_failed",
-    });
-
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : typeof error === "object" &&
-            error !== null &&
-            "raw" in error &&
-            typeof (error as { raw?: { message?: string } }).raw?.message === "string"
-          ? ((error as { raw?: { message?: string } }).raw?.message ??
-            "Failed to process refund")
-          : "Failed to process refund";
-
+    logError(error, { layer: "api", requestId, route: `/api/admin/orders/${orderId}/refund`, message: "refund_failed" });
     return NextResponse.json(
-      { error: errorMessage, requestId },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to process refund",
+        requestId,
+      },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }
