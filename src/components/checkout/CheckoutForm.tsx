@@ -261,6 +261,7 @@ export function CheckoutForm({
   const emailSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hostedTokenizationRef = useRef<HostedTokenizationInstance | null>(null);
   const cardFormRef = useRef<HTMLDivElement>(null);
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   // Next Script can dedupe/load the SDK before this component's onLoad handler runs.
   // If the global is already present, treat the script as loaded so initialization can proceed.
@@ -449,6 +450,9 @@ export function CheckoutForm({
 
   // POST to /api/checkout/create-checkout with payment data merged in
   async function submitCheckout(paymentData: Record<string, unknown>) {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = getIdempotencyKeyFromStorage() ?? crypto.randomUUID();
+    }
     const payload = {
       items: items.map((i) => ({
         productId: i.productId,
@@ -456,7 +460,7 @@ export function CheckoutForm({
         quantity: i.quantity,
       })),
       fulfillment,
-      idempotencyKey: getIdempotencyKeyFromStorage() ?? crypto.randomUUID(),
+      idempotencyKey: idempotencyKeyRef.current,
       guestEmail: isGuestCheckout ? guestEmail : undefined,
       shippingAddress: fulfillment === "ship" ? toApiAddress(shippingAddress) : null,
       nfToken: getNoFraudToken(),
@@ -506,11 +510,8 @@ export function CheckoutForm({
       return;
     }
 
-    const tokenParam = guestAccessToken
-      ? `&token=${encodeURIComponent(guestAccessToken)}`
-      : "";
     router.push(
-      `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}${tokenParam}`,
+      `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}`,
     );
   }
 

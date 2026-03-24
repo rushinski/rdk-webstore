@@ -69,8 +69,6 @@ export const createPaymentIntentSchema = z
 // ---------- create-checkout (PayRilla) ----------
 // The frontend tokenizes the card via PayRilla Hosted Tokenization and sends
 // the nonce + card metadata here. The server completes the charge in one step.
-// For wallet payments (Apple Pay / Google Pay), walletType + walletToken are
-// sent instead of nonce + expiry fields.
 
 export const createCheckoutSchema = z
   .object({
@@ -88,12 +86,9 @@ export const createCheckoutSchema = z
     // --- Card payment (PayRilla Hosted Tokenization) ---
     nonce: z.string().trim().min(1).optional().nullable(),
     expiryMonth: z.number().int().min(1).max(12).optional().nullable(),
-    expiryYear: z.number().int().min(2024).max(9999).optional().nullable(),
+    expiryYear: z.number().int().min(new Date().getFullYear()).max(9999).optional().nullable(),
     avsZip: z.string().trim().optional().nullable(),
     cardholderName: z.string().trim().max(255).optional().nullable(),
-    // --- Wallet payment (Apple Pay / Google Pay) ---
-    walletType: z.enum(["applepay", "googlepay"]).optional().nullable(),
-    walletToken: z.string().trim().min(1).optional().nullable(),
     // Device fingerprint token from NoFraud JS snippet cookie (optional but improves accuracy)
     nfToken: z.string().trim().optional().nullable(),
     // Card metadata from PayRilla tokenization result (used for NoFraud payment object)
@@ -102,13 +97,11 @@ export const createCheckoutSchema = z
   })
   .strict()
   .superRefine((d, ctx) => {
-    const hasCard = d.nonce != null && d.expiryMonth != null && d.expiryYear != null;
-    const hasWallet = d.walletType != null && d.walletToken != null;
-    if (!hasCard && !hasWallet) {
+    if (d.nonce == null || d.expiryMonth == null || d.expiryYear == null) {
       ctx.addIssue({
         code: "custom",
         path: ["nonce"],
-        message: "Either card nonce (with expiry) or wallet token is required",
+        message: "Card nonce and expiry are required",
       });
     }
   });

@@ -34,6 +34,26 @@ import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 
+// Simple sliding-window rate limiter: max 10 checkout attempts per IP per 60 s.
+// Works for traditional Node servers. Replace with Redis for serverless/multi-instance.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 10;
+const ipAttempts = new Map<string, number[]>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const attempts = (ipAttempts.get(ip) ?? []).filter(
+    (t) => now - t < RATE_LIMIT_WINDOW_MS,
+  );
+  if (attempts.length >= RATE_LIMIT_MAX) {
+    ipAttempts.set(ip, attempts);
+    return true;
+  }
+  attempts.push(now);
+  ipAttempts.set(ip, attempts);
+  return false;
+}
+
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -43,6 +63,16 @@ export async function POST(request: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser();
     const userId = user?.id ?? null;
+    const userEmail = user?.email ?? null;
+
+    const customerIp =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      null;
+
+    if (customerIp && isRateLimited(customerIp)) {
+      return json({ error: "Too many requests", code: "RATE_LIMITED", requestId }, 429);
+    }
 
     if (!userId && env.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED !== "true") {
       return json(
@@ -72,14 +102,16 @@ export async function POST(request: NextRequest) {
       expiryYear,
       avsZip,
       cardholderName,
-      walletType,
-      walletToken,
       nfToken,
       last4,
       cardType: submittedCardType,
     } = parsed.data;
 
-    const isWalletPayment = walletType !== null && walletToken !== null;
+    // superRefine already guarantees these, but we narrow here so TypeScript
+    // knows they're non-null for the rest of the function without ! assertions.
+    if (nonce == null || expiryMonth == null || expiryYear == null) {
+      return json({ error: "Invalid payload", requestId }, 400);
+    }
 
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
@@ -164,10 +196,28 @@ export async function POST(request: NextRequest) {
       .eq("id", order.id);
 
     const totalCents = Math.round(pricing.total * 100);
-    const customerIp =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-      request.headers.get("x-real-ip") ??
-      null;
+
+    // Fetch product names + categories for NoFraud line items
+    const productIds = [...new Set(lineItems.map((li) => li.productId))];
+    const { data: productRows, error: productRowsError } = await adminSupabase
+      .from("products")
+      .select("id, name, category")
+      .in("id", productIds);
+    if (productRowsError) {
+      log({ level: "warn", layer: "api", message: "nofraud_product_fetch_failed", requestId, error: productRowsError.message });
+    }
+    const productMap = new Map((productRows ?? []).map((p) => [p.id, p]));
+    const nofraudLineItems = lineItems.map((li) => {
+      const product = productMap.get(li.productId);
+      const category = product?.category ?? null;
+      const name = product?.name ?? "Product";
+      return {
+        name: category ? `${name} (${category})` : name,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice.toFixed(2),
+        totalPrice: li.lineTotal.toFixed(2),
+      };
+    });
 
     const payrillaService = new PayrillaChargeService(adminSupabase, tenantId);
     const paymentTxRepo = new PaymentTransactionsRepository(adminSupabase);
@@ -200,7 +250,7 @@ export async function POST(request: NextRequest) {
         billingZip: billingAddress?.postal_code ?? null,
         billingCountry: billingAddress?.country ?? null,
         billingPhone: billingAddress?.phone ?? null,
-        customerEmail: guestEmail ?? null,
+        customerEmail: guestEmail ?? userEmail ?? null,
         customerIp,
       });
       paymentTxId = txRow.id;
@@ -216,93 +266,7 @@ export async function POST(request: NextRequest) {
       // Non-fatal — continue even if event logging fails
     }
 
-    if (isWalletPayment) {
-      // ---- Wallet flow: single-step immediate capture ----
-      // Apple Pay / Google Pay tokens are encrypted by the device and captured
-      // in one step. If NoFraud fails, we issue a refund instead of a void.
-      try {
-        chargeResult = await payrillaService.createWalletTransaction({
-          walletType: walletType!,
-          walletToken: walletToken!,
-          amountCents: totalCents,
-          orderId: order.id,
-          customerIp,
-          avsZip: billingAddress?.postal_code ?? shippingAddress?.postal_code ?? null,
-          avsAddress: billingAddress?.line1 ?? shippingAddress?.line1 ?? null,
-        });
-      } catch (err) {
-        logError(err, {
-          layer: "api",
-          requestId,
-          orderId: order.id,
-          event: "payrilla_wallet_charge_failed",
-        });
-        return json(
-          { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
-          402,
-        );
-      }
-
-      if (chargeResult.status !== "approved") {
-        return json(
-          {
-            error:
-              chargeResult.status === "declined" ? "Payment declined" : "Payment error",
-            code:
-              chargeResult.status === "declined" ? "PAYMENT_DECLINED" : "PAYMENT_ERROR",
-            requestId,
-          },
-          402,
-        );
-      }
-
-      // NoFraud screening after capture — refund if flagged as fraud
-      const nofraud = new NoFraudService();
-      nofraudResult = await nofraud.screenTransaction({
-        nfToken: nfToken ?? null,
-        amount: (totalCents / 100).toFixed(2),
-        shippingAmount: pricing.shipping.toFixed(2),
-        customerIP: customerIp ?? "",
-        email: guestEmail ?? "",
-        avsResultCode: "",
-        cvvResultCode: "",
-        gatewayName: "PayRilla",
-        gatewayStatus: "approved",
-        invoiceNumber: order.id,
-      });
-
-      if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
-        try {
-          await payrillaService.reverseTransaction({
-            transactionId: chargeResult.transactionId,
-          });
-        } catch {
-          /* best-effort */
-        }
-        log({
-          level: "warn",
-          layer: "api",
-          message: "nofraud_fail_order_blocked",
-          requestId,
-          orderId: order.id,
-        });
-        await adminSupabase
-          .from("orders")
-          .update({ status: "failed" })
-          .eq("id", order.id);
-        return json(
-          { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
-          402,
-        );
-      }
-
-      if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-        await adminSupabase
-          .from("orders")
-          .update({ status: "review" })
-          .eq("id", order.id);
-      }
-    } else {
+    {
       // ---- Card flow: auth-only → NoFraud → capture ----
       // Auth-only ensures nothing appears on the customer's statement until
       // fraud screening passes. If NoFraud rejects the order, we void the
@@ -311,12 +275,12 @@ export async function POST(request: NextRequest) {
       let authResult;
       try {
         authResult = await payrillaService.createTransaction({
-          nonce: nonce!,
+          nonce: nonce,
           amountCents: totalCents,
-          expiryMonth: expiryMonth!,
-          expiryYear: expiryYear!,
-          avsZip: avsZip ?? billingAddress?.postal_code ?? shippingAddress?.postal_code ?? null,
-          avsAddress: billingAddress?.line1 ?? shippingAddress?.line1 ?? null,
+          expiryMonth: expiryMonth,
+          expiryYear: expiryYear,
+          avsZip: avsZip ?? billingAddress?.postal_code ?? null,
+          avsAddress: billingAddress?.line1 ?? null,
           cardholderName: cardholderName ?? billingName ?? null,
           orderId: order.id,
           customerIp,
@@ -451,12 +415,13 @@ export async function POST(request: NextRequest) {
         amount: (totalCents / 100).toFixed(2),
         shippingAmount: pricing.shipping.toFixed(2),
         customerIP: customerIp ?? "",
-        email: guestEmail ?? "",
+        email: guestEmail ?? userEmail ?? "",
         avsResultCode: authResult.avsResultCode ?? "",
         cvvResultCode: authResult.cvvResultCode ?? "",
         gatewayName: "PayRilla",
         gatewayStatus: "approved",
         invoiceNumber: order.id,
+        lineItems: nofraudLineItems,
         payment: authResult.last4 || last4
           ? {
               cardType: (authResult.cardType ?? submittedCardType ?? "unknown").toLowerCase(),
@@ -487,6 +452,32 @@ export async function POST(request: NextRequest) {
             }
           : null,
       });
+
+      // Label orders processed while NoFraud was unreachable
+      if (!nofraudResult.ok) {
+        log({
+          level: "warn",
+          layer: "api",
+          message: "nofraud_skipped",
+          requestId,
+          orderId: order.id,
+          reason: nofraudResult.error,
+        });
+        if (paymentTxId) {
+          try {
+            await paymentTxRepo.update(paymentTxId, { nofraudDecision: "skipped" });
+            await paymentTxRepo.logEvent({
+              paymentTransactionId: paymentTxId,
+              orderId: order.id,
+              tenantId,
+              eventType: "fraud_check_skipped",
+              eventData: { reason: nofraudResult.error },
+            });
+          } catch {
+            /* non-fatal */
+          }
+        }
+      }
 
       // Log NoFraud result
       if (paymentTxId && nofraudResult.ok) {
