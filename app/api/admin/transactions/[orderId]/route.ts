@@ -55,7 +55,8 @@ export async function GET(
     }
 
     // --- Payment transaction ---
-    const { data: paymentTxRows } = await admin
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: paymentTxRows } = await (admin as any)
       .from("payment_transactions")
       .select("*")
       .eq("order_id", orderId)
@@ -64,7 +65,8 @@ export async function GET(
     const paymentTx = paymentTxRows?.[0] ?? null;
 
     // --- Payment events (checkout activity timeline) ---
-    const { data: paymentEvents } = await admin
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: paymentEvents } = await (admin as any)
       .from("payment_events")
       .select("id, event_type, event_data, created_at")
       .eq("order_id", orderId)
@@ -90,7 +92,7 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: checkoutLogs } = await (admin as any)
       .from("checkout_api_logs")
-      .select("id, route, method, http_status, duration_ms, event_label, error_message, created_at")
+      .select("id, route, method, http_status, duration_ms, event_label, error_message, request_payload, response_payload, created_at")
       .eq("order_id", orderId)
       .order("created_at", { ascending: true });
 

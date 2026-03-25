@@ -28,7 +28,9 @@ import {
 } from "@/components/admin/orders/RefundOrderModal";
 import { AdminOrderItemDetailsModal } from "@/components/admin/orders/OrderItemDetailsModal";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import { Drawer } from "@/components/ui/Drawer";
 import { Toast } from "@/components/ui/Toast";
+import { shouldShowOrderProfit } from "@/lib/orders/metrics";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,6 +164,8 @@ type CheckoutLog = {
   duration_ms?: number | null;
   event_label?: string | null;
   error_message?: string | null;
+  request_payload?: unknown;
+  response_payload?: unknown;
   created_at: string;
 };
 
@@ -185,17 +189,17 @@ function fmtDate(iso: string | null | undefined, opts?: Intl.DateTimeFormatOptio
 
 function getOrderStatusMeta(status: string | null | undefined) {
   switch (status) {
-    case "paid": return { label: "Succeeded", cls: "bg-emerald-900/50 text-emerald-400" };
-    case "shipped": return { label: "Shipped", cls: "bg-blue-900/50 text-blue-400" };
-    case "refunded": return { label: "Refunded", cls: "bg-red-900/50 text-red-400" };
-    case "partially_refunded": return { label: "Partially refunded", cls: "bg-amber-900/50 text-amber-400" };
-    case "refund_pending": return { label: "Refund pending", cls: "bg-amber-900/50 text-amber-400" };
-    case "refund_failed": return { label: "Refund failed", cls: "bg-rose-900/50 text-rose-400" };
-    case "failed": return { label: "Failed", cls: "bg-red-900/50 text-red-400" };
-    case "blocked": return { label: "Blocked", cls: "bg-orange-900/50 text-orange-400" };
-    case "review": return { label: "Under review", cls: "bg-yellow-900/50 text-yellow-400" };
-    case "pending": return { label: "Incomplete", cls: "bg-zinc-800 text-zinc-400" };
-    default: return { label: status ?? "Unknown", cls: "bg-zinc-800 text-zinc-400" };
+    case "paid": return { label: "Succeeded", cls: "border border-emerald-800 bg-emerald-950/40 text-emerald-300" };
+    case "shipped": return { label: "Shipped", cls: "border border-blue-800 bg-blue-950/40 text-blue-300" };
+    case "refunded": return { label: "Refunded", cls: "border border-red-800 bg-red-950/40 text-red-300" };
+    case "partially_refunded": return { label: "Partially refunded", cls: "border border-amber-800 bg-amber-950/40 text-amber-300" };
+    case "refund_pending": return { label: "Refund pending", cls: "border border-amber-800 bg-amber-950/40 text-amber-300" };
+    case "refund_failed": return { label: "Refund failed", cls: "border border-rose-800 bg-rose-950/40 text-rose-300" };
+    case "failed": return { label: "Failed", cls: "border border-red-800 bg-red-950/40 text-red-300" };
+    case "blocked": return { label: "Blocked", cls: "border border-orange-800 bg-orange-950/40 text-orange-300" };
+    case "review": return { label: "Under review", cls: "border border-yellow-800 bg-yellow-950/40 text-yellow-300" };
+    case "pending": return { label: "Incomplete", cls: "border border-zinc-700 bg-zinc-800 text-zinc-300" };
+    default: return { label: status ?? "Unknown", cls: "border border-zinc-700 bg-zinc-800 text-zinc-300" };
   }
 }
 
@@ -337,6 +341,38 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+type LogEntry =
+  | { kind: "api"; data: CheckoutLog }
+  | { kind: "email"; data: EmailLog };
+
+function hasRenderablePayload(payload: unknown) {
+  if (payload == null) return false;
+  if (Array.isArray(payload)) return payload.length > 0;
+  if (typeof payload === "object") return Object.keys(payload as Record<string, unknown>).length > 0;
+  return true;
+}
+
+function PayloadDetails({
+  label,
+  payload,
+}: {
+  label: string;
+  payload: unknown;
+}) {
+  if (!hasRenderablePayload(payload)) return null;
+
+  return (
+    <details className="mt-2">
+      <summary className="cursor-pointer text-xs text-zinc-500 hover:text-zinc-300">
+        {label}
+      </summary>
+      <pre className="mt-2 overflow-x-auto rounded border border-zinc-800/60 bg-zinc-950 p-3 text-[11px] text-zinc-300">
+        {JSON.stringify(payload, null, 2)}
+      </pre>
+    </details>
+  );
+}
+
 export default function TransactionDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -352,6 +388,7 @@ export default function TransactionDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [emailPreview, setEmailPreview] = useState<EmailLog | null>(null);
+  const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [isRefundSubmitting, setIsRefundSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: "success" | "error" | "info" } | null>(null);
@@ -455,6 +492,7 @@ export default function TransactionDetailPage() {
   const tax = Number(order.tax_amount ?? 0);
   const total = Number(order.total ?? 0);
   const refundedCents = Math.round(Number(order.refund_amount ?? 0));
+  const showOrderProfit = shouldShowOrderProfit(order.status);
 
   const isRefundable =
     ["paid", "shipped", "partially_refunded", "refund_failed"].includes(order.status ?? "") &&
@@ -478,10 +516,6 @@ export default function TransactionDetailPage() {
   );
 
   // Logs: merge checkout_api_logs + email_audit_log, most recent first
-  type LogEntry =
-    | { kind: "api"; data: CheckoutLog }
-    | { kind: "email"; data: EmailLog };
-
   const allLogs: LogEntry[] = [
     ...checkoutLogs.map((l): LogEntry => ({ kind: "api", data: l })),
     ...emailLogs.map((l): LogEntry => ({ kind: "email", data: l })),
@@ -491,10 +525,84 @@ export default function TransactionDetailPage() {
     return bTime - aTime;
   });
 
+  const previewLogs = allLogs.slice(0, 3);
+  const hasMoreLogs = allLogs.length > previewLogs.length;
+
   const openItemModal = (item: OrderItem) => {
     setSelectedItem(item as unknown as AdminOrderItem);
     setItemModalOpen(true);
   };
+
+  const renderLogEntries = (entries: LogEntry[]) => (
+    <div className="space-y-0">
+      {entries.map((entry) => {
+        if (entry.kind === "api") {
+          const log = entry.data;
+          const isError = log.http_status != null && log.http_status >= 400;
+          const statusColor = isError ? "text-red-400" : "text-emerald-400";
+          return (
+            <div
+              key={`api-${log.id}`}
+              className="border-b border-zinc-800/50 py-2.5 last:border-0"
+            >
+              <div className="flex items-start gap-3">
+                <Terminal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-600" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-zinc-200">
+                      {log.event_label ?? log.route}
+                    </span>
+                    {log.http_status != null && (
+                      <span className={`text-xs font-mono ${statusColor}`}>
+                        {log.http_status}
+                      </span>
+                    )}
+                    {log.duration_ms != null && (
+                      <span className="text-xs text-zinc-600">{log.duration_ms}ms</span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 font-mono text-xs text-zinc-600">
+                    {log.method} {log.route}
+                  </p>
+                  {log.error_message && (
+                    <p className="mt-0.5 text-xs text-red-400">{log.error_message}</p>
+                  )}
+                  <p className="mt-0.5 text-xs text-zinc-600">{fmtDate(log.created_at)}</p>
+                  <PayloadDetails label="Request" payload={log.request_payload} />
+                  <PayloadDetails label="Response" payload={log.response_payload} />
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const log = entry.data;
+        const emailMeta = getEmailTypeMeta(log.email_type);
+        const isFailure = log.delivery_status === "failed";
+        return (
+          <div
+            key={`email-${log.id}`}
+            className="flex items-start gap-3 py-2.5 border-b border-zinc-800/50 last:border-0"
+          >
+            <div className="mt-0.5 shrink-0">{emailMeta.icon}</div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm text-zinc-200">{emailMeta.label}</span>
+                <span className={`text-xs capitalize ${isFailure ? "text-red-400" : "text-zinc-500"}`}>
+                  {log.delivery_status}
+                </span>
+              </div>
+              <p className="mt-0.5 text-xs text-zinc-600">
+                To: {log.recipient_email}
+                {log.subject ? ` Â· "${log.subject}"` : ""}
+              </p>
+              <p className="mt-0.5 text-xs text-zinc-600">{fmtDate(log.sent_at)}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -512,9 +620,7 @@ export default function TransactionDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-white font-mono">
-              #{order.id.slice(0, 8)}
-            </h1>
+            <h1 className="text-2xl font-bold text-white">Transaction</h1>
             <span
               className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${statusMeta.cls}`}
             >
@@ -530,12 +636,19 @@ export default function TransactionDetailPage() {
           )}
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="text-3xl font-bold text-white">{fmtMoney(total)}</div>
           {refundedCents > 0 && (
-            <div className="text-sm text-red-400">
+            <div className="text-right text-sm text-red-400">
               −{fmtMoney(refundedCents / 100)} refunded
             </div>
           )}
+          <div className="text-right">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
+              Order number
+            </p>
+            <div className="font-mono text-2xl font-bold text-white">
+              #{order.id.slice(0, 8)}
+            </div>
+          </div>
           {isRefundable && (
             <button
               type="button"
@@ -561,6 +674,7 @@ export default function TransactionDetailPage() {
               item.product?.images?.[0]?.url ??
               "/images/rdk-logo.png";
             const isRefunded = Boolean(item.refunded_at);
+            const showItemProfit = showOrderProfit && !isRefunded;
             const profit = (item.unit_price - (item.unit_cost ?? 0)) * item.quantity;
             return (
               <button
@@ -582,9 +696,11 @@ export default function TransactionDetailPage() {
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-sm text-white">{fmtMoney(item.line_total)}</p>
-                  <p className={`text-xs ${profit >= 0 ? "text-emerald-500" : "text-red-400"}`}>
-                    {profit >= 0 ? "+" : ""}{fmtMoney(profit)}
-                  </p>
+                  {showItemProfit && (
+                    <p className={`text-xs ${profit >= 0 ? "text-emerald-500" : "text-red-400"}`}>
+                      {profit >= 0 ? "+" : ""}{fmtMoney(profit)}
+                    </p>
+                  )}
                 </div>
                 <ChevronRight className="w-3.5 h-3.5 text-zinc-700 group-hover:text-zinc-400 shrink-0 transition-colors" />
               </button>
@@ -602,11 +718,23 @@ export default function TransactionDetailPage() {
               <span>{fmtMoney(tax)}</span>
             </div>
           )}
+          {refundedCents > 0 && (
+            <div className="flex justify-between text-red-400 text-xs">
+              <span>Refunded</span>
+              <span>-{fmtMoney(refundedCents / 100)}</span>
+            </div>
+          )}
+          {false && refundedCents > 0 && (
+            <div className="flex justify-between text-red-400 text-xs">
+              <span>Refunded</span>
+              <span>âˆ’{fmtMoney(refundedCents / 100)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-white font-semibold pt-2 border-t border-zinc-800/70">
             <span>Total</span>
             <span>{fmtMoney(total)}</span>
           </div>
-          {refundedCents > 0 && (
+          {false && refundedCents > 0 && (
             <div className="flex justify-between text-red-400 text-xs">
               <span>Refunded</span>
               <span>−{fmtMoney(refundedCents / 100)}</span>
@@ -846,7 +974,7 @@ export default function TransactionDetailPage() {
           <p className="text-zinc-500 text-sm">No logs recorded for this order.</p>
         ) : (
           <div className="space-y-0">
-            {allLogs.map((entry) => {
+            {previewLogs.map((entry) => {
               if (entry.kind === "api") {
                 const log = entry.data;
                 const isError = log.http_status != null && log.http_status >= 400;
@@ -878,6 +1006,8 @@ export default function TransactionDetailPage() {
                         <p className="text-xs text-red-400 mt-0.5">{log.error_message}</p>
                       )}
                       <p className="text-xs text-zinc-600 mt-0.5">{fmtDate(log.created_at)}</p>
+                      <PayloadDetails label="Request" payload={log.request_payload} />
+                      <PayloadDetails label="Response" payload={log.response_payload} />
                     </div>
                   </div>
                 );
@@ -908,6 +1038,15 @@ export default function TransactionDetailPage() {
                 </div>
               );
             })}
+            {hasMoreLogs && (
+              <button
+                type="button"
+                onClick={() => setLogsDrawerOpen(true)}
+                className="mt-4 text-sm text-red-400 transition hover:text-red-300"
+              >
+                View {allLogs.length - previewLogs.length} more log{allLogs.length - previewLogs.length === 1 ? "" : "s"}
+              </button>
+            )}
           </div>
         )}
       </SectionCard>
@@ -935,6 +1074,21 @@ export default function TransactionDetailPage() {
           )}
         </div>
       )}
+
+      <Drawer
+        isOpen={logsDrawerOpen}
+        onClose={() => setLogsDrawerOpen(false)}
+        title="All Logs"
+        subtitle={`${allLogs.length} total ${allLogs.length === 1 ? "entry" : "entries"}`}
+        side="bottom"
+        heightClassName="max-h-[75vh]"
+      >
+        {allLogs.length === 0 ? (
+          <p className="text-sm text-zinc-500">No logs recorded for this order.</p>
+        ) : (
+          renderLogEntries(allLogs)
+        )}
+      </Drawer>
 
       {/* Email preview modal */}
       {emailPreview && (
@@ -980,6 +1134,7 @@ export default function TransactionDetailPage() {
       <AdminOrderItemDetailsModal
         open={itemModalOpen}
         item={selectedItem}
+        showProfit={showOrderProfit && !Boolean(selectedItem?.refunded_at)}
         onClose={() => {
           setItemModalOpen(false);
           setSelectedItem(null);
@@ -989,9 +1144,10 @@ export default function TransactionDetailPage() {
       {/* Toast */}
       {toast && (
         <Toast
+          open={Boolean(toast)}
           message={toast.message}
           tone={toast.tone}
-          onDismiss={() => setToast(null)}
+          onClose={() => setToast(null)}
         />
       )}
     </div>

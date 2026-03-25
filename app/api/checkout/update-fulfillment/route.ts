@@ -136,6 +136,15 @@ export async function POST(request: NextRequest) {
       httpStatus: 200,
       durationMs: Date.now() - startedAt,
       eventLabel: `Fulfillment updated to ${fulfillment}`,
+      requestPayload: body,
+      responsePayload: {
+        subtotal: pricing.subtotal,
+        shipping: pricing.shipping,
+        tax: pricing.tax,
+        total: pricing.total,
+        fulfillment,
+        requestId,
+      },
     });
 
     return json(

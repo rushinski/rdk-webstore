@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 
+import {
+  getOrderNetProfitDollars,
+  shouldShowOrderProfit,
+} from "@/lib/orders/metrics";
 import { logError } from "@/lib/utils/log";
 
 type TabKey = "all" | "succeeded" | "failed" | "refunded" | "incomplete" | "blocked";
@@ -69,6 +73,7 @@ type OrderItemSummary = {
   unit_price?: number | null;
   unit_cost?: number | null;
   quantity?: number | null;
+  refunded_at?: string | null;
 };
 
 type TransactionOrder = {
@@ -212,14 +217,16 @@ export default function TransactionsPage() {
   };
 
   const getProfit = (order: TransactionOrder): number | null => {
+    if (!shouldShowOrderProfit(order.status)) return null;
     const items = order.items;
     if (!items || items.length === 0) return null;
-    return items.reduce((sum, item) => {
-      const qty = Number(item.quantity ?? 0);
-      const price = Number(item.unit_price ?? 0);
-      const cost = Number(item.unit_cost ?? 0);
-      return sum + (price - cost) * qty;
-    }, 0);
+    return getOrderNetProfitDollars({
+      subtotal: order.subtotal ?? order.total ?? 0,
+      total: order.total ?? 0,
+      refundAmountRaw: order.refund_amount ?? 0,
+      items,
+      resolveUnitCost: (item) => Number(item.unit_cost ?? 0),
+    });
   };
 
   const filteredOrders = useMemo(() => {
@@ -328,7 +335,7 @@ export default function TransactionsPage() {
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by date, customer, email, or order ID"
+          placeholder="Search by date, customer, fulfillment, or order ID"
           className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
         />
       </div>
@@ -347,7 +354,6 @@ export default function TransactionsPage() {
                 <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Order</th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Status</th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Customer</th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Email</th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Payment</th>
                 <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Fulfillment</th>
                 <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">Amount</th>
@@ -360,7 +366,6 @@ export default function TransactionsPage() {
                 const statusMeta = getStatusMeta(order.status);
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
                 const customerName = getCustomerName(order);
-                const customerEmail = getCustomerEmail(order);
                 const paymentDisplay = getPaymentDisplay(order);
                 const fulfillmentLabel = order.fulfillment === "pickup" ? "Pickup" : "Ship";
 
@@ -389,9 +394,6 @@ export default function TransactionsPage() {
                     </td>
                     <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
                       {customerName}
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-                      {customerEmail}
                     </td>
                     <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
                       {paymentDisplay}

@@ -167,12 +167,14 @@ type AdminOrderItemDetailsModalProps = {
   open: boolean;
   item: AdminOrderItem | null;
   onClose: () => void;
+  showProfit?: boolean;
 };
 
 export function AdminOrderItemDetailsModal({
   open,
   item,
   onClose,
+  showProfit = true,
 }: AdminOrderItemDetailsModalProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
@@ -300,11 +302,13 @@ export function AdminOrderItemDetailsModal({
                 <StatCard label="Bought" value={formatMoney(financials.unitCost)} />
                 <StatCard label="Sold" value={formatMoney(financials.unitPrice)} />
                 <StatCard label="Quantity" value={financials.quantity.toString()} />
-                <StatCard
-                  label="Profit"
-                  value={`${profitPrefix}${formattedUnitProfit}`}
-                  color={profitColor}
-                />
+                {showProfit && (
+                  <StatCard
+                    label="Profit"
+                    value={`${profitPrefix}${formattedUnitProfit}`}
+                    color={profitColor}
+                  />
+                )}
               </div>
 
               {/* Attributes */}

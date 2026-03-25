@@ -347,6 +347,12 @@ export async function POST(request: NextRequest) {
           durationMs: Date.now() - startedAt,
           eventLabel: "Payment processing error",
           errorMessage: "PAYMENT_FAILED",
+          requestPayload: body,
+          responsePayload: {
+            error: "Payment processing failed",
+            code: "PAYMENT_FAILED",
+            requestId,
+          },
         });
         return json(
           { error: "Payment processing failed", code: "PAYMENT_FAILED", requestId },
@@ -398,6 +404,12 @@ export async function POST(request: NextRequest) {
           durationMs: Date.now() - startedAt,
           eventLabel: isDecline ? "Card declined" : "Payment error",
           errorMessage: isDecline ? "CARD_DECLINED" : "PAYMENT_ERROR",
+          requestPayload: body,
+          responsePayload: {
+            error: isDecline ? "Card declined" : "Payment error",
+            code: isDecline ? "CARD_DECLINED" : "PAYMENT_ERROR",
+            requestId,
+          },
         });
         return json(
           {
@@ -580,6 +592,12 @@ export async function POST(request: NextRequest) {
           durationMs: Date.now() - startedAt,
           eventLabel: "Blocked by fraud screening",
           errorMessage: "FRAUD_BLOCKED",
+          requestPayload: body,
+          responsePayload: {
+            error: "Order could not be processed",
+            code: "FRAUD_BLOCKED",
+            requestId,
+          },
         });
         return json(
           { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
@@ -593,6 +611,21 @@ export async function POST(request: NextRequest) {
           .from("orders")
           .update({ status: "review" })
           .eq("id", order.id);
+        void logCheckoutEvent(adminSupabase, {
+          orderId: order.id,
+          tenantId,
+          requestId,
+          route: "/api/checkout/create-checkout",
+          httpStatus: 200,
+          durationMs: Date.now() - startedAt,
+          eventLabel: "Order placed under review",
+          requestPayload: body,
+          responsePayload: {
+            status: "under_review",
+            orderId: order.id,
+            requestId,
+          },
+        });
         // Return under_review so frontend can redirect appropriately
         return json(
           {
@@ -626,6 +659,22 @@ export async function POST(request: NextRequest) {
           requestId,
           orderId: order.id,
           event: "payrilla_capture_failed",
+        });
+        void logCheckoutEvent(adminSupabase, {
+          orderId: order.id,
+          tenantId,
+          requestId,
+          route: "/api/checkout/create-checkout",
+          httpStatus: 402,
+          durationMs: Date.now() - startedAt,
+          eventLabel: "Payment capture failed",
+          errorMessage: "CAPTURE_FAILED",
+          requestPayload: body,
+          responsePayload: {
+            error: "Payment capture failed",
+            code: "CAPTURE_FAILED",
+            requestId,
+          },
         });
         return json(
           { error: "Payment capture failed", code: "CAPTURE_FAILED", requestId },
@@ -746,6 +795,28 @@ export async function POST(request: NextRequest) {
       httpStatus: 200,
       durationMs: Date.now() - startedAt,
       eventLabel: "Payment approved — order complete",
+    });
+
+    void logCheckoutEvent(adminSupabase, {
+      orderId: order.id,
+      tenantId,
+      requestId,
+      route: "/api/checkout/create-checkout",
+      httpStatus: 200,
+      durationMs: Date.now() - startedAt,
+      eventLabel: "Payment approved response",
+      requestPayload: body,
+      responsePayload: {
+        status: "paid",
+        orderId: order.id,
+        transactionId: chargeResult.transactionId,
+        subtotal: pricing.subtotal,
+        shipping: pricing.shipping,
+        tax: pricing.tax,
+        total: pricing.total,
+        fulfillment,
+        requestId,
+      },
     });
 
     return json(

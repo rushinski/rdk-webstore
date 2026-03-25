@@ -16,6 +16,7 @@ import { ProductService } from "@/services/product-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { log, logError } from "@/lib/utils/log";
 
 type OrderItemRefundCandidate = {
@@ -40,11 +41,15 @@ export async function POST(
   { params }: { params: Promise<{ orderId: string }> },
 ) {
   const requestId = getRequestIdFromHeaders(request.headers);
+  const startedAt = Date.now();
   const { orderId } = await params;
+  let requestBody: unknown = null;
+  let tenantIdForLog: string | null = null;
 
   try {
     await requireAdminApi();
     const body = await request.json().catch(() => ({}));
+    requestBody = body;
     const parsedBody = refundRequestSchema.safeParse(body);
 
     if (!parsedBody.success) {
@@ -99,6 +104,7 @@ export async function POST(
     }
 
     const tenantId = order.tenant_id;
+    tenantIdForLog = tenantId;
     if (!tenantId) {
       return NextResponse.json(
         { error: "Cannot refund: Tenant not found for order", requestId },
@@ -265,12 +271,48 @@ export async function POST(
       logError(emailError, { layer: "api", requestId, message: "refund_email_failed", orderId });
     }
 
+    void logCheckoutEvent(admin, {
+      orderId,
+      tenantId: tenantIdForLog,
+      requestId,
+      route: `/api/admin/orders/${orderId}/refund`,
+      method: "POST",
+      httpStatus: 200,
+      durationMs: Date.now() - startedAt,
+      eventLabel: `Refund processed (${payload.type})`,
+      requestPayload: requestBody,
+      responsePayload: {
+        success: true,
+        status: nextStatus,
+        refundAmount: nextRefundAmountCents,
+        warning: inventoryWarning,
+        requestId,
+      },
+    });
+
     return NextResponse.json(
       { success: true, status: nextStatus, refundAmount: nextRefundAmountCents, warning: inventoryWarning },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: unknown) {
     logError(error, { layer: "api", requestId, route: `/api/admin/orders/${orderId}/refund`, message: "refund_failed" });
+    const admin = createSupabaseAdminClient();
+    void logCheckoutEvent(admin, {
+      orderId,
+      tenantId: tenantIdForLog,
+      requestId,
+      route: `/api/admin/orders/${orderId}/refund`,
+      method: "POST",
+      httpStatus: 500,
+      durationMs: Date.now() - startedAt,
+      eventLabel: "Refund failed",
+      errorMessage: "REFUND_FAILED",
+      requestPayload: requestBody,
+      responsePayload: {
+        error: error instanceof Error ? error.message : "Failed to process refund",
+        requestId,
+      },
+    });
     return NextResponse.json(
       {
         error:

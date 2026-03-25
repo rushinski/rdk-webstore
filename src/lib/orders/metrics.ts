@@ -32,6 +32,16 @@ type ItemLike = {
   refunded_at?: string | null;
 };
 
+const PROFIT_VISIBLE_STATUSES = new Set([
+  "paid",
+  "shipped",
+  "partially_refunded",
+  "refund_failed",
+]);
+
+export const shouldShowOrderProfit = (status: string | null | undefined) =>
+  PROFIT_VISIBLE_STATUSES.has(status ?? "");
+
 export const getOrderNetProfitDollars = <TItem extends ItemLike>(params: {
   subtotal: NumericLike;
   total: NumericLike;

@@ -11,8 +11,9 @@ interface DrawerProps {
   title: string;
   subtitle?: string;
   children: ReactNode;
-  side?: "left" | "right";
+  side?: "left" | "right" | "bottom";
   widthClassName?: string;
+  heightClassName?: string;
   zIndexClassName?: string;
 }
 
@@ -24,6 +25,7 @@ export function Drawer({
   children,
   side = "right",
   widthClassName = "max-w-md",
+  heightClassName = "max-h-[70vh]",
   zIndexClassName = "z-[10000]",
 }: DrawerProps) {
   useEffect(() => {
@@ -43,7 +45,21 @@ export function Drawer({
     return null;
   }
 
-  const sideClass = side === "right" ? "right-0 border-l" : "left-0 border-r";
+  const panelClasses =
+    side === "bottom"
+      ? [
+          "absolute inset-x-0 bottom-0 border-t",
+          "w-full",
+          heightClassName,
+          "bg-zinc-950 border-zinc-800/70 overflow-y-auto shadow-2xl",
+        ].join(" ")
+      : [
+          "absolute top-0 bottom-0",
+          side === "right" ? "right-0 border-l" : "left-0 border-r",
+          "w-full",
+          widthClassName,
+          "bg-zinc-950 border-zinc-800/70 overflow-y-auto shadow-2xl",
+        ].join(" ");
 
   return (
     <div className={`fixed inset-0 ${zIndexClassName}`}>
@@ -54,13 +70,7 @@ export function Drawer({
         onClick={onClose}
       />
       <div
-        className={[
-          "absolute top-0 bottom-0",
-          sideClass,
-          "w-full",
-          widthClassName,
-          "bg-zinc-950 border-zinc-800/70 overflow-y-auto shadow-2xl",
-        ].join(" ")}
+        className={panelClasses}
         role="dialog"
         aria-modal="true"
       >

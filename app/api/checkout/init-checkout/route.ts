@@ -79,6 +79,12 @@ export async function POST(request: NextRequest) {
           durationMs: Date.now() - startedAt,
           eventLabel: "Idempotency key expired",
           errorMessage: "IDEMPOTENCY_KEY_EXPIRED",
+          requestPayload: body,
+          responsePayload: {
+            error: "IDEMPOTENCY_KEY_EXPIRED",
+            code: "IDEMPOTENCY_KEY_EXPIRED",
+            requestId,
+          },
         });
         return json(
           {
@@ -139,6 +145,16 @@ export async function POST(request: NextRequest) {
             httpStatus: 200,
             durationMs: Date.now() - startedAt,
             eventLabel: "Checkout resumed",
+            requestPayload: body,
+            responsePayload: {
+              orderId: existingOrder.id,
+              subtotal: Number(existingOrder.subtotal ?? 0),
+              shipping: Number(existingOrder.shipping ?? 0),
+              tax: Number(existingOrder.tax_amount ?? 0),
+              total: Number(existingOrder.total ?? 0),
+              fulfillment: existingOrder.fulfillment ?? fulfillment,
+              requestId,
+            },
           });
           return json(
             {
@@ -239,6 +255,16 @@ export async function POST(request: NextRequest) {
       httpStatus: 200,
       durationMs: Date.now() - startedAt,
       eventLabel: "Checkout initialized",
+      requestPayload: body,
+      responsePayload: {
+        orderId: order.id,
+        subtotal: pricing.subtotal,
+        shipping: pricing.shipping,
+        tax: pricing.tax,
+        total: pricing.total,
+        fulfillment,
+        requestId,
+      },
     });
 
     return json(
