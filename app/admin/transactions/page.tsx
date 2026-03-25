@@ -2,13 +2,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
-import {
-  getOrderNetProfitDollars,
-  shouldShowOrderProfit,
-} from "@/lib/orders/metrics";
+import { getOrderNetProfitDollars, shouldShowOrderProfit } from "@/lib/orders/metrics";
 import { logError } from "@/lib/utils/log";
 
 type TabKey = "all" | "succeeded" | "failed" | "refunded" | "incomplete" | "blocked";
@@ -95,6 +92,7 @@ type TransactionOrder = {
 };
 
 export default function TransactionsPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<TransactionOrder[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -109,12 +107,15 @@ export default function TransactionsPage() {
     incomplete: 0,
     blocked: 0,
   });
-  const [refreshToken, setRefreshToken] = useState(0);
+  const [refreshToken] = useState(0);
 
   const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  const buildParams = (tab: (typeof TRANSACTION_TABS)[number], extra?: Record<string, string>) => {
+  const buildParams = (
+    tab: (typeof TRANSACTION_TABS)[number],
+    extra?: Record<string, string>,
+  ) => {
     const params = new URLSearchParams();
     if (tab.statuses) {
       tab.statuses.forEach((s) => params.append("status", s));
@@ -154,7 +155,6 @@ export default function TransactionsPage() {
       }
     };
     loadOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, refreshToken, page]);
 
   useEffect(() => {
@@ -168,7 +168,14 @@ export default function TransactionsPage() {
             return { key: tab.key, count: Number(data.count ?? 0) };
           }),
         );
-        const nextCounts = { all: 0, succeeded: 0, failed: 0, refunded: 0, incomplete: 0, blocked: 0 };
+        const nextCounts = {
+          all: 0,
+          succeeded: 0,
+          failed: 0,
+          refunded: 0,
+          incomplete: 0,
+          blocked: 0,
+        };
         results.forEach(({ key, count }) => {
           nextCounts[key as TabKey] = count;
         });
@@ -178,22 +185,31 @@ export default function TransactionsPage() {
       }
     };
     loadCounts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshToken]);
 
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
   }, [page, totalPages]);
 
   const resolveShipping = (value: unknown): OrderShipping | null => {
-    if (!value) return null;
-    if (Array.isArray(value)) return (value[0] ?? null) as OrderShipping | null;
+    if (!value) {
+      return null;
+    }
+    if (Array.isArray(value)) {
+      return (value[0] ?? null) as OrderShipping | null;
+    }
     return value as OrderShipping;
   };
 
   const resolvePayment = (value: unknown): PaymentSummary | null => {
-    if (!value) return null;
-    if (Array.isArray(value)) return (value[0] ?? null) as PaymentSummary | null;
+    if (!value) {
+      return null;
+    }
+    if (Array.isArray(value)) {
+      return (value[0] ?? null) as PaymentSummary | null;
+    }
     return value as PaymentSummary;
   };
 
@@ -203,23 +219,27 @@ export default function TransactionsPage() {
   };
 
   const getCustomerEmail = (order: TransactionOrder) => {
-    return (
-      (order.profiles?.email ?? order.guest_email ?? "").trim() || "—"
-    );
+    return (order.profiles?.email ?? order.guest_email ?? "").trim() || "—";
   };
 
   const getPaymentDisplay = (order: TransactionOrder) => {
     const payment = resolvePayment(order.payment);
-    if (!payment?.card_type && !payment?.card_last4) return "—";
+    if (!payment?.card_type && !payment?.card_last4) {
+      return "—";
+    }
     const type = payment.card_type ?? "";
     const last4 = payment.card_last4 ? `···· ${payment.card_last4}` : "";
     return [type, last4].filter(Boolean).join(" ");
   };
 
   const getProfit = (order: TransactionOrder): number | null => {
-    if (!shouldShowOrderProfit(order.status)) return null;
+    if (!shouldShowOrderProfit(order.status)) {
+      return null;
+    }
     const items = order.items;
-    if (!items || items.length === 0) return null;
+    if (!items || items.length === 0) {
+      return null;
+    }
     return getOrderNetProfitDollars({
       subtotal: order.subtotal ?? order.total ?? 0,
       total: order.total ?? 0,
@@ -231,7 +251,9 @@ export default function TransactionsPage() {
 
   const filteredOrders = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return orders;
+    if (!query) {
+      return orders;
+    }
     return orders.filter((order) => {
       const name = getCustomerName(order).toLowerCase();
       const email = getCustomerEmail(order).toLowerCase();
@@ -252,11 +274,15 @@ export default function TransactionsPage() {
   }, [orders, searchQuery]);
 
   const renderPagination = () => {
-    if (totalPages <= 1) return null;
+    if (totalPages <= 1) {
+      return null;
+    }
     const pages: number[] = [];
     const start = Math.max(1, page - 2);
     const end = Math.min(totalPages, page + 2);
-    for (let p = start; p <= end; p++) pages.push(p);
+    for (let p = start; p <= end; p++) {
+      pages.push(p);
+    }
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -268,7 +294,11 @@ export default function TransactionsPage() {
           Previous
         </button>
         {start > 1 && (
-          <button type="button" onClick={() => setPage(1)} className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300">
+          <button
+            type="button"
+            onClick={() => setPage(1)}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+          >
             1
           </button>
         )}
@@ -285,7 +315,11 @@ export default function TransactionsPage() {
         ))}
         {end < totalPages - 1 && <span className="text-gray-500">...</span>}
         {end < totalPages && (
-          <button type="button" onClick={() => setPage(totalPages)} className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300">
+          <button
+            type="button"
+            onClick={() => setPage(totalPages)}
+            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+          >
             {totalPages}
           </button>
         )}
@@ -350,15 +384,30 @@ export default function TransactionsPage() {
           <table className="w-full text-[12px] sm:text-sm">
             <thead>
               <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Placed At</th>
-                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">Order</th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Status</th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Customer</th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Payment</th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">Fulfillment</th>
-                <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">Amount</th>
-                <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">Profit</th>
-                <th className="text-right text-gray-400 font-semibold p-3 sm:p-4"></th>
+                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Placed At
+                </th>
+                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Order
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Status
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Customer
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Payment
+                </th>
+                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
+                  Fulfillment
+                </th>
+                <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">
+                  Amount
+                </th>
+                <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">
+                  Profit
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -367,19 +416,34 @@ export default function TransactionsPage() {
                 const createdAt = order.created_at ? new Date(order.created_at) : null;
                 const customerName = getCustomerName(order);
                 const paymentDisplay = getPaymentDisplay(order);
-                const fulfillmentLabel = order.fulfillment === "pickup" ? "Pickup" : "Ship";
+                const fulfillmentLabel =
+                  order.fulfillment === "pickup" ? "Pickup" : "Ship";
+                const orderHref = `/admin/transactions/${order.id}`;
 
                 return (
                   <tr
                     key={order.id}
-                    className="border-b border-zinc-800/70 hover:bg-zinc-800 transition-colors"
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`View transaction ${order.id}`}
+                    onClick={() => router.push(orderHref)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        router.push(orderHref);
+                      }
+                    }}
+                    className="border-b border-zinc-800/70 cursor-pointer transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800 focus-visible:outline-none"
                   >
                     <td className="p-3 sm:p-4 text-gray-400">
                       {createdAt ? (
                         <div className="space-y-0.5">
                           <div>{createdAt.toLocaleDateString()}</div>
                           <div className="text-xs text-gray-500">
-                            {createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            {createdAt.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
                         </div>
                       ) : (
@@ -407,21 +471,17 @@ export default function TransactionsPage() {
                     <td className="hidden md:table-cell p-3 sm:p-4 text-right">
                       {(() => {
                         const profit = getProfit(order);
-                        if (profit === null) return <span className="text-zinc-600">—</span>;
+                        if (profit === null) {
+                          return <span className="text-zinc-600">—</span>;
+                        }
                         return (
-                          <span className={profit >= 0 ? "text-emerald-400" : "text-red-400"}>
+                          <span
+                            className={profit >= 0 ? "text-emerald-400" : "text-red-400"}
+                          >
                             {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
                           </span>
                         );
                       })()}
-                    </td>
-                    <td className="p-3 sm:p-4 text-right">
-                      <Link
-                        href={`/admin/transactions/${order.id}`}
-                        className="text-sm text-red-400 hover:text-red-300 transition whitespace-nowrap"
-                      >
-                        View details
-                      </Link>
                     </td>
                   </tr>
                 );

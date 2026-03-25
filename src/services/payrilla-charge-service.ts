@@ -193,8 +193,8 @@ export class PayrillaChargeService {
       expiry_month: params.expiryMonth,
       expiry_year: params.expiryYear,
       ...(params.cardholderName ? { name: params.cardholderName } : {}),
-      ...(params.avsZip ? { avs_zip: params.avsZip } : {}),
-      ...(params.avsAddress ? { avs_address: params.avsAddress } : {}),
+      ...(params.avsZip && env.NODE_ENV === "production" ? { avs_zip: params.avsZip } : {}),
+      ...(params.avsAddress && env.NODE_ENV === "production" ? { avs_address: params.avsAddress } : {}),
       transaction_details: {
         order_number: params.orderId,
         description: `Order ${params.orderId}`,
@@ -271,6 +271,9 @@ export class PayrillaChargeService {
       referenceNumber: response.reference_number,
       statusCode: response.status_code,
       errorCode: response.error_code,
+      errorMessage: response.error_message,
+      avsResultCode: response.avs_result_code,
+      cvvResultCode: response.cvv2_result_code,
     });
 
     return {
