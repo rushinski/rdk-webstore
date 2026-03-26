@@ -1222,7 +1222,7 @@ export default function TransactionDetailPage() {
       )}
 
       {/* â”€â”€ Payment Method (only when payment was attempted) â”€â”€ */}
-      {paymentAttemptMade && (
+      {false && (
         <SectionCard title="Payment Method">
           {!paymentTx ? (
             <p className="text-zinc-500 text-sm">
@@ -1417,6 +1417,81 @@ export default function TransactionDetailPage() {
       )}
 
       {/* â”€â”€ Shipping Details (only when payment was attempted and order is shipping) â”€â”€ */}
+      {paymentAttemptMade && (
+        <SectionCard title="Payment Method">
+          {!paymentTx ? (
+            <p className="text-zinc-500 text-sm">
+              No payment data available for this order.
+            </p>
+          ) : (
+            <div className="space-y-0">
+              <DetailRow label="Payment ID">
+                <span className="font-mono text-xs">{paymentTx.id}</span>
+              </DetailRow>
+              <DetailRow label="Reference #">
+                {paymentTx.payrilla_reference_number?.toString() ?? "-"}
+              </DetailRow>
+              <DetailRow label="Card type">{paymentTx.card_type ?? "-"}</DetailRow>
+              <DetailRow label="Last 4">
+                {paymentTx.card_last4 ? `.... ${paymentTx.card_last4}` : "-"}
+              </DetailRow>
+              <DetailRow label="Expires">
+                {paymentTx.card_expiry_month && paymentTx.card_expiry_year
+                  ? `${String(paymentTx.card_expiry_month).padStart(2, "0")} / ${paymentTx.card_expiry_year}`
+                  : "-"}
+              </DetailRow>
+              <DetailRow label="Cardholder">{paymentTx.billing_name ?? "-"}</DetailRow>
+              <DetailRow label="Owner email">{customerEmail ?? "-"}</DetailRow>
+              <DetailRow label="CVV check">
+                <span className={getCvvLabel(paymentTx.cvv2_result_code).color}>
+                  {getCvvLabel(paymentTx.cvv2_result_code).label}
+                </span>
+              </DetailRow>
+              <DetailRow label="AVS result">
+                <span className={getAvsLabel(paymentTx.avs_result_code).color}>
+                  {getAvsLabel(paymentTx.avs_result_code).label}
+                </span>
+              </DetailRow>
+              <DetailRow label="Billing address">
+                {[
+                  paymentTx.billing_address,
+                  paymentTx.billing_city,
+                  paymentTx.billing_state,
+                  paymentTx.billing_zip,
+                  paymentTx.billing_country,
+                ]
+                  .filter(Boolean)
+                  .join(", ") || "-"}
+              </DetailRow>
+              <DetailRow label="Customer IP">{paymentTx.customer_ip ?? "-"}</DetailRow>
+              <DetailRow label="Auth code">
+                {paymentTx.payrilla_auth_code ?? "-"}
+              </DetailRow>
+              <DetailRow label="NoFraud decision">
+                {getNoFraudBadge(paymentTx.nofraud_decision)}
+              </DetailRow>
+              {paymentTx.nofraud_transaction_id && (
+                <DetailRow label="NoFraud ID">
+                  {paymentTx.nofraud_transaction_id}
+                </DetailRow>
+              )}
+              <DetailRow label="Amount authorized">
+                {paymentTx.amount_authorized !== null &&
+                paymentTx.amount_authorized !== undefined
+                  ? fmtMoney(paymentTx.amount_authorized)
+                  : "-"}
+              </DetailRow>
+              <DetailRow label="Amount captured">
+                {paymentTx.amount_captured !== null &&
+                paymentTx.amount_captured !== undefined
+                  ? fmtMoney(paymentTx.amount_captured)
+                  : "-"}
+              </DetailRow>
+            </div>
+          )}
+        </SectionCard>
+      )}
+
       {order.fulfillment === "ship" && paymentAttemptMade && (
         <SectionCard title="Shipping">
           <div className="space-y-0">
