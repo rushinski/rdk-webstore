@@ -59,6 +59,7 @@ type PayrillaWebhookEvent = {
   type: "succeeded" | "declined" | "updated" | "error" | "status" | string;
   subType?: "charge" | "refund" | "void" | "credit" | "adjust" | string;
   timestamp: string;
+  account?: string;
   data: PayrillaTransactionData;
 };
 

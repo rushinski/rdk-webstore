@@ -14,6 +14,7 @@
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { NoFraudDecision } from "@/services/nofraud-service";
+import type { Json } from "@/types/db/database.types";
 import { log, logError } from "@/lib/utils/log";
 
 type AddressSnapshot = {
@@ -161,7 +162,7 @@ export class EvidenceService {
           order_id: params.orderId,
           tenant_id: params.tenantId,
           order_snapshot: snapshot,
-          tax_calculation_snapshot: params.taxCalculationSnapshot ?? null,
+          tax_calculation_snapshot: params.taxCalculationSnapshot as Json | null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "order_id" },
@@ -291,7 +292,7 @@ export class EvidenceService {
           status: params.status,
           location: params.location ?? null,
           description: params.description ?? null,
-          raw_carrier_response: params.rawCarrierResponse ?? null,
+          raw_carrier_response: params.rawCarrierResponse as Json | null,
         });
 
       if (trackingError) {
@@ -324,7 +325,7 @@ export class EvidenceService {
               carrier: params.carrier,
               tracking_number: params.trackingNumber,
               delivery_confirmed_at: params.eventTimestamp.toISOString(),
-              delivery_event_snapshot: deliverySnapshot,
+              delivery_event_snapshot: deliverySnapshot as unknown as Json,
               updated_at: new Date().toISOString(),
             },
             { onConflict: "order_id" },
@@ -357,7 +358,7 @@ export class EvidenceService {
         layer: "service",
         message: "evidence_tracking_recorded",
         orderId: params.orderId,
-        status: params.status,
+        trackingStatus: params.status,
         carrier: params.carrier,
       });
     } catch (error) {
@@ -388,7 +389,7 @@ export class EvidenceService {
         tenant_id: params.tenantId,
         event_type: params.eventType,
         actor: params.actor,
-        data: params.data ?? null,
+        data: params.data as Json | null,
         ip_address: params.ipAddress ?? null,
         user_agent: params.userAgent ?? null,
         created_at: new Date().toISOString(),

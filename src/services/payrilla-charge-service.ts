@@ -380,7 +380,7 @@ export class PayrillaChargeService {
     }
 
     const body: Record<string, unknown> = { reference_number: referenceNumber };
-    if (params.amountCents !== null) {
+    if (params.amountCents !== undefined) {
       body.amount = params.amountCents / 100;
     }
 
@@ -392,7 +392,7 @@ export class PayrillaChargeService {
       message: "payrilla_refund_completed",
       tenantId: this.tenantId,
       referenceNumber,
-      amountUsd: params.amountCents !== null ? params.amountCents / 100 : "full",
+      amountUsd: params.amountCents !== undefined ? params.amountCents / 100 : "full",
     });
   }
 
@@ -417,7 +417,7 @@ export class PayrillaChargeService {
     }
 
     const body: Record<string, unknown> = { reference_number: referenceNumber };
-    if (params.amountCents !== null) {
+    if (params.amountCents !== undefined) {
       body.amount = params.amountCents / 100;
     }
 

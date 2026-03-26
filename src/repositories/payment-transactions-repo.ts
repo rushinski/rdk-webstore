@@ -4,6 +4,7 @@
 // payment_events is append-only — never update or delete rows.
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import type { Json } from "@/types/db/database.types";
 
 export type PaymentTransactionInsert = {
   orderId: string;
@@ -166,7 +167,7 @@ export class PaymentTransactionsRepository {
       order_id: params.orderId,
       tenant_id: params.tenantId ?? null,
       event_type: params.eventType,
-      event_data: params.eventData ?? {},
+      event_data: (params.eventData ?? {}) as Json,
     });
 
     if (error) {

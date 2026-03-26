@@ -11,6 +11,7 @@
 //   - No overage — service stops if limit hit (must upgrade)
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import type { Json } from "@/types/db/database.types";
 import { env } from "@/config/env";
 import { log, logError } from "@/lib/utils/log";
 
@@ -285,7 +286,7 @@ export class ZipTaxService {
         county_rate: rate.countyRate,
         city_rate: rate.cityRate,
         district_rate: rate.districtRate,
-        breakdown: rate.breakdown as unknown as Record<string, unknown>,
+        breakdown: rate.breakdown as unknown as Json,
         cached_at: new Date().toISOString(),
         expires_at: expiresAt.toISOString(),
       },
