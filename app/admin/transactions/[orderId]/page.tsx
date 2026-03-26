@@ -505,7 +505,6 @@ const SHIPPING_EMAIL_TYPES = [
 ] as const;
 const PICKUP_EMAIL_TYPES = ["order_confirmation", "pickup_instructions"] as const;
 
-
 export default function TransactionDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -1098,7 +1097,6 @@ export default function TransactionDetailPage() {
           </div>
         </SectionCard>
       )}
-
 
       {/* â”€â”€ Shipping Details (only when payment was attempted and order is shipping) â”€â”€ */}
       {paymentAttemptMade && (

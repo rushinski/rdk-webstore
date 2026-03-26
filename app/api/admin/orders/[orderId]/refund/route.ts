@@ -101,7 +101,7 @@ export async function POST(
     // Resolve PayRilla reference number from payment_transactions
     const paymentTx = await paymentTxRepo.getByOrderId(orderId);
     const payrillaReferenceNumber =
-      paymentTx?.payrilla_reference_number != null
+      paymentTx !== null && paymentTx.payrilla_reference_number !== null
         ? String(paymentTx.payrilla_reference_number)
         : null;
 

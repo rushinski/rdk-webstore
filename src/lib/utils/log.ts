@@ -207,7 +207,7 @@ function write(level: LogLevel, output: unknown) {
   } else if (level === "warn") {
     console.warn(line);
   } else if (level === "debug") {
-    console.debug(line);
+    console.info(line);
   } else {
     console.info(line); // ✅ allowed instead of console.log
   }

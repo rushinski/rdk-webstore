@@ -604,5 +604,4 @@ export class OrdersRepository {
     }
     return data;
   }
-
 }
