@@ -36,7 +36,11 @@ export async function GET(
 
     return json({ transaction, events, requestId }, 200);
   } catch (error) {
-    logError(error, { layer: "api", requestId, route: "/api/admin/orders/[orderId]/payment-events" });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/admin/orders/[orderId]/payment-events",
+    });
     return json({ error: "Internal server error", requestId }, 500);
   }
 }

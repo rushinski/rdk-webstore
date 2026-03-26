@@ -282,7 +282,10 @@ export function RefundOrderModal({
 
           {mode === "custom" && (
             <div className="space-y-2">
-              <label className="block text-sm text-zinc-400" htmlFor="custom-refund-amount">
+              <label
+                className="block text-sm text-zinc-400"
+                htmlFor="custom-refund-amount"
+              >
                 Refund amount
               </label>
               <input

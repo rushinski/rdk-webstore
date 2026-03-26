@@ -36,20 +36,22 @@ const POSTAL_KEY_PATTERN = /(postal|zip)/i;
 const IP_KEY_PATTERN = /ip/i;
 
 const truncateString = (value: string) =>
-  value.length > MAX_STRING_LENGTH
-    ? `${value.slice(0, MAX_STRING_LENGTH)}...`
-    : value;
+  value.length > MAX_STRING_LENGTH ? `${value.slice(0, MAX_STRING_LENGTH)}...` : value;
 
 const maskEmail = (value: string) => {
   const [localPart = "", domainPart = ""] = value.split("@");
-  if (!domainPart) return REDACTED_VALUE;
+  if (!domainPart) {
+    return REDACTED_VALUE;
+  }
   const visible = localPart.slice(0, 2);
   return `${visible}${"*".repeat(Math.max(0, localPart.length - visible.length))}@${domainPart}`;
 };
 
 const maskPhone = (value: string) => {
   const digits = value.replace(/\D/g, "");
-  if (!digits) return REDACTED_VALUE;
+  if (!digits) {
+    return REDACTED_VALUE;
+  }
   const last4 = digits.slice(-4);
   return `${"*".repeat(Math.max(0, digits.length - last4.length))}${last4}`;
 };
@@ -62,12 +64,16 @@ const maskWords = (value: string) =>
     .join(" ");
 
 const maskAddress = (value: string) => {
-  if (value.length <= 4) return REDACTED_VALUE;
+  if (value.length <= 4) {
+    return REDACTED_VALUE;
+  }
   return `${value.slice(0, 3)}***${value.slice(-2)}`;
 };
 
 const maskPostalCode = (value: string) => {
-  if (value.length <= 2) return REDACTED_VALUE;
+  if (value.length <= 2) {
+    return REDACTED_VALUE;
+  }
   return `${value.slice(0, 2)}***`;
 };
 
@@ -87,7 +93,7 @@ function sanitizePayloadValue(
   depth: number,
   seen: WeakSet<object>,
 ): unknown {
-  if (value == null || typeof value === "number" || typeof value === "boolean") {
+  if (value === null || typeof value === "number" || typeof value === "boolean") {
     return value;
   }
 
@@ -96,12 +102,24 @@ function sanitizePayloadValue(
   }
 
   if (typeof value === "string") {
-    if (EMAIL_KEY_PATTERN.test(key)) return maskEmail(value);
-    if (PHONE_KEY_PATTERN.test(key)) return maskPhone(value);
-    if (IP_KEY_PATTERN.test(key)) return maskIpAddress(value);
-    if (POSTAL_KEY_PATTERN.test(key)) return maskPostalCode(value);
-    if (ADDRESS_KEY_PATTERN.test(key)) return maskAddress(value);
-    if (NAME_KEY_PATTERN.test(key)) return maskWords(value);
+    if (EMAIL_KEY_PATTERN.test(key)) {
+      return maskEmail(value);
+    }
+    if (PHONE_KEY_PATTERN.test(key)) {
+      return maskPhone(value);
+    }
+    if (IP_KEY_PATTERN.test(key)) {
+      return maskIpAddress(value);
+    }
+    if (POSTAL_KEY_PATTERN.test(key)) {
+      return maskPostalCode(value);
+    }
+    if (ADDRESS_KEY_PATTERN.test(key)) {
+      return maskAddress(value);
+    }
+    if (NAME_KEY_PATTERN.test(key)) {
+      return maskWords(value);
+    }
     return truncateString(value);
   }
 
@@ -133,7 +151,9 @@ function sanitizePayloadValue(
 }
 
 const sanitizePayload = (payload: unknown) => {
-  if (payload == null) return null;
+  if (payload === null) {
+    return null;
+  }
   return sanitizePayloadValue("", payload, 0, new WeakSet<object>());
 };
 

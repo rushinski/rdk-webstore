@@ -81,10 +81,19 @@ export async function POST(
     }
 
     const currentStatus = order.status ?? "";
-    const refundableStatuses = new Set(["paid", "shipped", "partially_refunded", "refund_failed", "refund_pending"]);
+    const refundableStatuses = new Set([
+      "paid",
+      "shipped",
+      "partially_refunded",
+      "refund_failed",
+      "refund_pending",
+    ]);
     if (!refundableStatuses.has(currentStatus)) {
       return NextResponse.json(
-        { error: `Order cannot be refunded while in status "${currentStatus || "unknown"}"`, requestId },
+        {
+          error: `Order cannot be refunded while in status "${currentStatus || "unknown"}"`,
+          requestId,
+        },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -92,13 +101,16 @@ export async function POST(
     // Resolve PayRilla reference number from payment_transactions
     const paymentTx = await paymentTxRepo.getByOrderId(orderId);
     const payrillaReferenceNumber =
-      paymentTx?.payrilla_reference_number != null
+      paymentTx?.payrilla_reference_number !== null
         ? String(paymentTx.payrilla_reference_number)
         : null;
 
     if (!payrillaReferenceNumber) {
       return NextResponse.json(
-        { error: "Cannot refund: No PayRilla transaction found for this order", requestId },
+        {
+          error: "Cannot refund: No PayRilla transaction found for this order",
+          requestId,
+        },
         { status: 400, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -124,7 +136,9 @@ export async function POST(
     }
 
     const payload = parsedBody.data;
-    const orderItems = (Array.isArray(order.items) ? order.items : []) as OrderItemRefundCandidate[];
+    const orderItems = (
+      Array.isArray(order.items) ? order.items : []
+    ) as OrderItemRefundCandidate[];
     let requestedRefundCents = remainingRefundableCents;
     let selectedItems: OrderItemRefundCandidate[] = [];
 
@@ -187,7 +201,10 @@ export async function POST(
     });
 
     const refundedCents = requestedRefundCents;
-    const nextRefundAmountCents = Math.min(orderTotalCents, existingRefundCents + refundedCents);
+    const nextRefundAmountCents = Math.min(
+      orderTotalCents,
+      existingRefundCents + refundedCents,
+    );
     const isFullyRefunded = nextRefundAmountCents >= orderTotalCents;
     const nextStatus = isFullyRefunded ? "refunded" : "partially_refunded";
 
@@ -237,13 +254,21 @@ export async function POST(
             .filter((e) => e.quantity > 0),
         );
         const productService = new ProductService(supabase);
-        const touchedProductIds = Array.from(new Set(selectedItems.map((item) => item.product_id).filter(Boolean)));
+        const touchedProductIds = Array.from(
+          new Set(selectedItems.map((item) => item.product_id).filter(Boolean)),
+        );
         for (const productId of touchedProductIds) {
           await productService.syncSizeTags(productId);
         }
       } catch (inventoryError) {
-        inventoryWarning = "Refund completed, but product refund state could not be fully synced.";
-        logError(inventoryError, { layer: "api", requestId, message: "refund_inventory_sync_failed", orderId });
+        inventoryWarning =
+          "Refund completed, but product refund state could not be fully synced.";
+        logError(inventoryError, {
+          layer: "api",
+          requestId,
+          message: "refund_inventory_sync_failed",
+          orderId,
+        });
       }
     }
 
@@ -265,10 +290,19 @@ export async function POST(
         ? (await profilesRepo.getByUserId(order.user_id))?.email
         : order.guest_email;
       if (emailTo) {
-        await emailService.sendOrderRefunded({ to: emailTo, orderId: order.id, refundAmount: refundedCents });
+        await emailService.sendOrderRefunded({
+          to: emailTo,
+          orderId: order.id,
+          refundAmount: refundedCents,
+        });
       }
     } catch (emailError) {
-      logError(emailError, { layer: "api", requestId, message: "refund_email_failed", orderId });
+      logError(emailError, {
+        layer: "api",
+        requestId,
+        message: "refund_email_failed",
+        orderId,
+      });
     }
 
     void logCheckoutEvent(admin, {
@@ -291,11 +325,21 @@ export async function POST(
     });
 
     return NextResponse.json(
-      { success: true, status: nextStatus, refundAmount: nextRefundAmountCents, warning: inventoryWarning },
+      {
+        success: true,
+        status: nextStatus,
+        refundAmount: nextRefundAmountCents,
+        warning: inventoryWarning,
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: unknown) {
-    logError(error, { layer: "api", requestId, route: `/api/admin/orders/${orderId}/refund`, message: "refund_failed" });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: `/api/admin/orders/${orderId}/refund`,
+      message: "refund_failed",
+    });
     const admin = createSupabaseAdminClient();
     void logCheckoutEvent(admin, {
       orderId,
@@ -315,8 +359,7 @@ export async function POST(
     });
     return NextResponse.json(
       {
-        error:
-          error instanceof Error ? error.message : "Failed to process refund",
+        error: error instanceof Error ? error.message : "Failed to process refund",
         requestId,
       },
       { status: 500, headers: { "Cache-Control": "no-store" } },

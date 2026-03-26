@@ -68,7 +68,10 @@ export class PayrillaChargeService {
     // --- Flat env var credentials (temporary — replace with SSM once configured) ---
     if (env.PAYRILLA_SOURCE_KEY && env.PAYRILLA_TOKEN) {
       return {
-        apiKey: buildApiKey({ sourceKey: env.PAYRILLA_SOURCE_KEY, pin: env.PAYRILLA_PIN }),
+        apiKey: buildApiKey({
+          sourceKey: env.PAYRILLA_SOURCE_KEY,
+          pin: env.PAYRILLA_PIN,
+        }),
         tokenizationKey: env.PAYRILLA_TOKEN,
         merchantId: null,
       };
@@ -120,7 +123,7 @@ export class PayrillaChargeService {
         Authorization: this.authHeader(apiKey),
         "User-Agent": "SneakerEco/1.0",
       },
-      body: body != null ? JSON.stringify(body) : undefined,
+      body: body !== null ? JSON.stringify(body) : undefined,
     });
 
     if (!response.ok && response.status !== 200) {
@@ -193,8 +196,12 @@ export class PayrillaChargeService {
       expiry_month: params.expiryMonth,
       expiry_year: params.expiryYear,
       ...(params.cardholderName ? { name: params.cardholderName } : {}),
-      ...(params.avsZip && env.NODE_ENV === "production" ? { avs_zip: params.avsZip } : {}),
-      ...(params.avsAddress && env.NODE_ENV === "production" ? { avs_address: params.avsAddress } : {}),
+      ...(params.avsZip && env.NODE_ENV === "production"
+        ? { avs_zip: params.avsZip }
+        : {}),
+      ...(params.avsAddress && env.NODE_ENV === "production"
+        ? { avs_address: params.avsAddress }
+        : {}),
       transaction_details: {
         order_number: params.orderId,
         description: `Order ${params.orderId}`,
@@ -373,7 +380,7 @@ export class PayrillaChargeService {
     }
 
     const body: Record<string, unknown> = { reference_number: referenceNumber };
-    if (params.amountCents != null) {
+    if (params.amountCents !== null) {
       body.amount = params.amountCents / 100;
     }
 
@@ -385,7 +392,7 @@ export class PayrillaChargeService {
       message: "payrilla_refund_completed",
       tenantId: this.tenantId,
       referenceNumber,
-      amountUsd: params.amountCents != null ? params.amountCents / 100 : "full",
+      amountUsd: params.amountCents !== null ? params.amountCents / 100 : "full",
     });
   }
 
@@ -410,7 +417,7 @@ export class PayrillaChargeService {
     }
 
     const body: Record<string, unknown> = { reference_number: referenceNumber };
-    if (params.amountCents != null) {
+    if (params.amountCents !== null) {
       body.amount = params.amountCents / 100;
     }
 
@@ -489,7 +496,9 @@ export class PayrillaChargeService {
     log({
       level: isApproved ? "info" : "warn",
       layer: "service",
-      message: isApproved ? "payrilla_wallet_charge_approved" : "payrilla_wallet_charge_declined",
+      message: isApproved
+        ? "payrilla_wallet_charge_approved"
+        : "payrilla_wallet_charge_declined",
       tenantId: this.tenantId,
       orderId: params.orderId,
       walletType: params.walletType,

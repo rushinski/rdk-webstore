@@ -202,10 +202,10 @@ export class NoFraudService {
     if (request.cvvResultCode) {
       payload.cvvResultCode = request.cvvResultCode;
     }
-    if (request.cardAttempts != null) {
+    if (request.cardAttempts !== null) {
       payload.cardAttempts = request.cardAttempts;
     }
-    if (request.totalPreviousPurchases != null) {
+    if (request.totalPreviousPurchases !== null) {
       payload.totalPreviousPurchases = request.totalPreviousPurchases;
     }
     if (request.totalPurchaseValue) {
@@ -239,7 +239,9 @@ export class NoFraudService {
         state: request.billTo.state,
         zip: request.billTo.zip,
         country: request.billTo.country,
-        ...(request.billTo.phoneNumber ? { phoneNumber: request.billTo.phoneNumber } : {}),
+        ...(request.billTo.phoneNumber
+          ? { phoneNumber: request.billTo.phoneNumber }
+          : {}),
       };
     }
     if (request.shipTo) {
@@ -251,7 +253,9 @@ export class NoFraudService {
         state: request.shipTo.state,
         zip: request.shipTo.zip,
         country: request.shipTo.country,
-        ...(request.shipTo.phoneNumber ? { phoneNumber: request.shipTo.phoneNumber } : {}),
+        ...(request.shipTo.phoneNumber
+          ? { phoneNumber: request.shipTo.phoneNumber }
+          : {}),
       };
     }
     if (request.lineItems && request.lineItems.length > 0) {

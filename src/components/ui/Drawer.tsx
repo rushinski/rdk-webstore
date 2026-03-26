@@ -69,11 +69,7 @@ export function Drawer({
         className="absolute inset-0 bg-black/60"
         onClick={onClose}
       />
-      <div
-        className={panelClasses}
-        role="dialog"
-        aria-modal="true"
-      >
+      <div className={panelClasses} role="dialog" aria-modal="true">
         <div className="flex items-start justify-between gap-4 p-6 border-b border-zinc-800/70">
           <div>
             <h2 className="text-xl font-semibold text-white">{title}</h2>

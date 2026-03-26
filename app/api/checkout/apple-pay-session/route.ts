@@ -67,11 +67,14 @@ export async function POST(request: NextRequest) {
 
     if (!sessionResponse.ok) {
       const text = await sessionResponse.text().catch(() => "");
-      logError(new Error(`PayRilla Apple Pay session error ${sessionResponse.status}: ${text}`), {
-        layer: "api",
-        requestId,
-        route: "/api/checkout/apple-pay-session",
-      });
+      logError(
+        new Error(`PayRilla Apple Pay session error ${sessionResponse.status}: ${text}`),
+        {
+          layer: "api",
+          requestId,
+          route: "/api/checkout/apple-pay-session",
+        },
+      );
       return json({ error: "Merchant validation failed", requestId }, 502);
     }
 
@@ -81,7 +84,11 @@ export async function POST(request: NextRequest) {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error: unknown) {
-    logError(error, { layer: "api", requestId, route: "/api/checkout/apple-pay-session" });
+    logError(error, {
+      layer: "api",
+      requestId,
+      route: "/api/checkout/apple-pay-session",
+    });
     return json({ error: "Internal server error", requestId }, 500);
   }
 }

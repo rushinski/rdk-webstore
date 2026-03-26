@@ -72,7 +72,9 @@ export async function POST(
       .eq("id", orderId)
       .maybeSingle();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      throw orderError;
+    }
     if (!order) {
       return NextResponse.json(
         { error: "Order not found", requestId },
@@ -82,8 +84,7 @@ export async function POST(
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const orderAny = order as any;
-    const recipientEmail =
-      orderAny.profiles?.email ?? orderAny.guest_email ?? null;
+    const recipientEmail = orderAny.profiles?.email ?? orderAny.guest_email ?? null;
 
     if (!recipientEmail) {
       return NextResponse.json(

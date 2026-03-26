@@ -86,7 +86,13 @@ export const createCheckoutSchema = z
     // --- Card payment (PayRilla Hosted Tokenization) ---
     nonce: z.string().trim().min(1).optional().nullable(),
     expiryMonth: z.number().int().min(1).max(12).optional().nullable(),
-    expiryYear: z.number().int().min(new Date().getFullYear()).max(9999).optional().nullable(),
+    expiryYear: z
+      .number()
+      .int()
+      .min(new Date().getFullYear())
+      .max(9999)
+      .optional()
+      .nullable(),
     avsZip: z.string().trim().optional().nullable(),
     cardholderName: z.string().trim().max(255).optional().nullable(),
     // Device fingerprint token from NoFraud JS snippet cookie (optional but improves accuracy)
@@ -97,7 +103,7 @@ export const createCheckoutSchema = z
   })
   .strict()
   .superRefine((d, ctx) => {
-    if (d.nonce == null || d.expiryMonth == null || d.expiryYear == null) {
+    if (d.nonce === null || d.expiryMonth === null || d.expiryYear === null) {
       ctx.addIssue({
         code: "custom",
         path: ["nonce"],

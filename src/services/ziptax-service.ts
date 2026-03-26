@@ -195,10 +195,10 @@ export class ZipTaxService {
       zipCode: data.zip_code,
       stateCode: data.state_code ?? null,
       combinedRate: Number(data.combined_rate),
-      stateRate: data.state_rate != null ? Number(data.state_rate) : null,
-      countyRate: data.county_rate != null ? Number(data.county_rate) : null,
-      cityRate: data.city_rate != null ? Number(data.city_rate) : null,
-      districtRate: data.district_rate != null ? Number(data.district_rate) : null,
+      stateRate: data.state_rate !== null ? Number(data.state_rate) : null,
+      countyRate: data.county_rate !== null ? Number(data.county_rate) : null,
+      cityRate: data.city_rate !== null ? Number(data.city_rate) : null,
+      districtRate: data.district_rate !== null ? Number(data.district_rate) : null,
       breakdown: data.breakdown as ZipTaxApiResponse | null,
     };
   }

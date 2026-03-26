@@ -76,46 +76,73 @@ export class PaymentTransactionsRepository {
       .select("id")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data;
   }
 
   async update(id: string, params: PaymentTransactionUpdate): Promise<void> {
     const patch: Record<string, unknown> = {};
 
-    if (params.payrillaReferenceNumber !== undefined)
+    if (params.payrillaReferenceNumber !== undefined) {
       patch.payrilla_reference_number = params.payrillaReferenceNumber;
-    if (params.payrillaAuthCode !== undefined)
+    }
+    if (params.payrillaAuthCode !== undefined) {
       patch.payrilla_auth_code = params.payrillaAuthCode;
-    if (params.payrillaStatus !== undefined)
+    }
+    if (params.payrillaStatus !== undefined) {
       patch.payrilla_status = params.payrillaStatus;
-    if (params.cardType !== undefined) patch.card_type = params.cardType;
-    if (params.cardLast4 !== undefined) patch.card_last4 = params.cardLast4;
-    if (params.cardBin !== undefined) patch.card_bin = params.cardBin;
-    if (params.avsResultCode !== undefined) patch.avs_result_code = params.avsResultCode;
-    if (params.cvv2ResultCode !== undefined)
+    }
+    if (params.cardType !== undefined) {
+      patch.card_type = params.cardType;
+    }
+    if (params.cardLast4 !== undefined) {
+      patch.card_last4 = params.cardLast4;
+    }
+    if (params.cardBin !== undefined) {
+      patch.card_bin = params.cardBin;
+    }
+    if (params.avsResultCode !== undefined) {
+      patch.avs_result_code = params.avsResultCode;
+    }
+    if (params.cvv2ResultCode !== undefined) {
       patch.cvv2_result_code = params.cvv2ResultCode;
-    if (params.threeDsStatus !== undefined) patch.three_ds_status = params.threeDsStatus;
-    if (params.threeDsEci !== undefined) patch.three_ds_eci = params.threeDsEci;
-    if (params.nofraudTransactionId !== undefined)
+    }
+    if (params.threeDsStatus !== undefined) {
+      patch.three_ds_status = params.threeDsStatus;
+    }
+    if (params.threeDsEci !== undefined) {
+      patch.three_ds_eci = params.threeDsEci;
+    }
+    if (params.nofraudTransactionId !== undefined) {
       patch.nofraud_transaction_id = params.nofraudTransactionId;
-    if (params.nofraudDecision !== undefined)
+    }
+    if (params.nofraudDecision !== undefined) {
       patch.nofraud_decision = params.nofraudDecision;
-    if (params.amountAuthorized !== undefined)
+    }
+    if (params.amountAuthorized !== undefined) {
       patch.amount_authorized = params.amountAuthorized;
-    if (params.amountCaptured !== undefined)
+    }
+    if (params.amountCaptured !== undefined) {
       patch.amount_captured = params.amountCaptured;
-    if (params.amountRefunded !== undefined)
+    }
+    if (params.amountRefunded !== undefined) {
       patch.amount_refunded = params.amountRefunded;
+    }
 
-    if (Object.keys(patch).length === 0) return;
+    if (Object.keys(patch).length === 0) {
+      return;
+    }
 
     const { error } = await this.supabase
       .from("payment_transactions")
       .update(patch)
       .eq("id", id);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async getByOrderId(orderId: string): Promise<Record<string, unknown> | null> {
@@ -127,7 +154,9 @@ export class PaymentTransactionsRepository {
       .limit(1)
       .maybeSingle();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return data as Record<string, unknown> | null;
   }
 
@@ -140,7 +169,9 @@ export class PaymentTransactionsRepository {
       event_data: params.eventData ?? {},
     });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
   }
 
   async getEventsByOrderId(orderId: string): Promise<Record<string, unknown>[]> {
@@ -150,7 +181,9 @@ export class PaymentTransactionsRepository {
       .eq("order_id", orderId)
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return (data ?? []) as Record<string, unknown>[];
   }
 }
