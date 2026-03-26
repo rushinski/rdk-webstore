@@ -102,7 +102,7 @@ export default function NexusTrackerClient() {
   );
 
   const handleDownloadTaxDocs = () => {
-    window.open("https://dashboard.stripe.com/tax/reports", "_blank");
+    window.open("/admin/settings/taxes", "_self");
   };
 
   const getStateColor = (state: StateSummary | undefined) => {
@@ -384,7 +384,7 @@ export default function NexusTrackerClient() {
             ].join(" ")}
           >
             <Download className="w-4 h-4" />
-            View Tax Reports in Stripe
+            View Tax Reports
           </button>
 
           {/* Home state badge next to the home office button */}
@@ -669,9 +669,6 @@ export default function NexusTrackerClient() {
                         <CheckCircle className="w-4 h-4" />
                         Registered
                       </span>
-                      {state.stripeRegistered && (
-                        <span className="text-xs text-gray-500">With Stripe</span>
-                      )}
                     </div>
                   ) : (
                     <span className="flex items-center gap-1 text-sm text-gray-400">

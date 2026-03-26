@@ -141,12 +141,6 @@ export default function StateDetailModal({
                 </span>
               )}
 
-              {state.stripeRegistered && (
-                <span className="px-2 py-1 bg-green-600/15 border border-green-600/25 text-green-300 text-xs rounded-sm">
-                  Stripe Tax: Active
-                </span>
-              )}
-
               <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-white text-xs rounded-sm">
                 {state.nexusType === "physical" ? "Physical nexus" : "Economic nexus"}
               </span>

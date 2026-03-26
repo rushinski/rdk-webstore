@@ -1,14 +1,13 @@
 // app/api/webhooks/payrilla/route.ts
 //
-// PayRilla webhook handler. Replaces /api/webhooks/stripe.
+// PayRilla webhook handler.
 //
 // ⚠️  PARTIAL IMPLEMENTATION — AWAITING PAYRILLA DOCS
 // Webhook signature verification and event type names are TBD until
-// PayRilla API documentation is confirmed. The structural skeleton mirrors
-// the Stripe webhook handler (deduplication, audit trail, email dispatch).
+// PayRilla API documentation is confirmed.
 //
 // CSRF EXEMPTION: Add `/api/webhooks/payrilla` to the CSRF exemption list
-// in src/lib/middleware/csrf.ts (same as the Stripe webhook exemption).
+// in src/lib/middleware/csrf.ts.
 //
 // WEBHOOK SETUP (once PayRilla docs are reviewed):
 //   - Register this endpoint URL with PayRilla dashboard

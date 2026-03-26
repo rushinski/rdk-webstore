@@ -6,10 +6,6 @@ const prodConnectSrc = [
   "https://*.supabase.co",
   "wss://*.supabase.co",
   "https://api.goshippo.com",
-  // Stripe kept for admin Connect embeds — remove once Stripe is fully deprecated
-  "https://api.stripe.com",
-  "https://connect-js.stripe.com",
-  "https://*.stripe.com",
   "https://vitals.vercel-insights.com",
   "https://*.vercel-scripts.com",
   // PayRilla payment gateway
@@ -96,7 +92,6 @@ export const security = {
       maxOriginLength: 512,
 
       bypassPrefixes: [
-        "/api/webhooks/stripe",
         "/api/webhooks/payrilla",
         "/api/auth/2fa/challenge/verify",
       ],
@@ -135,8 +130,7 @@ export const security = {
           "default-src 'self'",
           "img-src 'self' data: https: blob:",
           "style-src 'self' 'unsafe-inline' https://*.payrillagateway.com",
-          // Stripe kept for admin Connect embeds — remove once Stripe is fully deprecated
-          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
+          "script-src 'self' 'unsafe-inline' https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
           "worker-src 'self' blob:",
           [
             "connect-src",
@@ -152,31 +146,25 @@ export const security = {
           "base-uri 'self'",
           "frame-ancestors 'none'",
           "font-src 'self' data:",
-          // PayRilla tokenization iframe + Stripe Connect embeds
-          "frame-src 'self' blob: https://*.payrillagateway.com https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
-          // Stripe kept in form-action for Connect redirects — remove once deprecated
-          "form-action 'self' https://*.stripe.com",
+          "frame-src 'self' blob: https://*.payrillagateway.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "form-action 'self'",
         ],
 
         prod: [
           "default-src 'self'",
           "img-src 'self' data: blob: https://*.supabase.co https://*.openstreetmap.org",
           "style-src 'self' 'unsafe-inline' https://*.payrillagateway.com",
-          // Stripe kept for admin Connect embeds — remove once Stripe is fully deprecated
-          "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
+          "script-src 'self' 'unsafe-inline' https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
           "worker-src 'self' blob:",
           "object-src 'none'",
           "base-uri 'self'",
 
-          // PayRilla + NoFraud + Google Pay added; Stripe kept for admin Connect embeds
           `connect-src ${prodConnectSrc}`,
 
           "frame-ancestors 'none'",
           "font-src 'self' data:",
-          // PayRilla tokenization iframe + Stripe Connect embeds
-          "frame-src 'self' blob: https://*.payrillagateway.com https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com https://www.openstreetmap.org https://*.openstreetmap.org",
-          // Stripe kept in form-action for Connect redirects — remove once deprecated
-          "form-action 'self' https://*.stripe.com",
+          "frame-src 'self' blob: https://*.payrillagateway.com https://www.openstreetmap.org https://*.openstreetmap.org",
+          "form-action 'self'",
         ],
       },
     },

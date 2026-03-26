@@ -1,7 +1,7 @@
 // src/repositories/payment-webhook-events-repo.ts
 //
-// Replaces stripe-events-repo.ts. Handles deduplication for PayRilla webhooks
-// using the `payment_webhook_events` table (renamed from `stripe_events`).
+// Handles deduplication for PayRilla webhooks
+// using the `payment_webhook_events` table.
 
 import type { PostgrestError } from "@supabase/supabase-js";
 

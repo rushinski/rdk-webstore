@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 export type LogLevel =
+  | "debug" // High-volume diagnostic logs for local investigation
   | "info" // Normal system operations
   | "warn" // Suspicious, abnormal, or security-relevant behavior
   | "error"; // Failures that break correctness or availability
@@ -13,9 +14,10 @@ export type LogLayer =
   | "service"
   | "repository"
   | "job"
-  | "stripe"
+  | "payrilla"
   | "cache"
   | "infra"
+  | "lib"
   | "observability"
   | "frontend"
   | "unknown";
@@ -32,7 +34,6 @@ export interface LogEntry {
   method?: string | null;
   status?: number | null;
   latencyMs?: number | null; // ✅ camelCase
-  stripeSessionId?: string | null;
 
   // extended metadata
   [key: string]: any;
@@ -51,7 +52,6 @@ const RESERVED_KEYS = new Set([
   "status",
   "latency_ms", // keep reserved to protect output schema
   "latencyMs", // also protect the camelCase input key
-  "stripeSessionId",
 ]);
 
 const SENSITIVE_KEYS = new Set([
@@ -206,6 +206,8 @@ function write(level: LogLevel, output: unknown) {
     console.error(line);
   } else if (level === "warn") {
     console.warn(line);
+  } else if (level === "debug") {
+    console.debug(line);
   } else {
     console.info(line); // ✅ allowed instead of console.log
   }
@@ -222,7 +224,6 @@ export function log(entry: LogEntry) {
     method = null,
     status = null,
     latencyMs = null,
-    stripeSessionId = null,
     ...extendedRaw
   } = entry;
 
@@ -240,7 +241,6 @@ export function log(entry: LogEntry) {
     method,
     status,
     latency_ms: latencyMs, // ✅ keep output schema snake_case if you want
-    stripeSessionId,
     ...extended,
   });
 }
@@ -260,7 +260,6 @@ export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
     method = null,
     status = null,
     latencyMs = null,
-    stripeSessionId = null,
     ...extendedRaw
   } = entry;
 
@@ -282,7 +281,6 @@ export function logError(error: unknown, entry: Partial<LogEntry> = {}) {
     method,
     status,
     latency_ms: latencyMs, // ✅ keep output schema snake_case
-    stripeSessionId,
     ...extended,
   });
 }

@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
     const pricingService = new CheckoutPricingService(adminSupabase);
     const pricing = await pricingService.recalculate({
       tenantId: order.tenant_id,
-      stripeAccountId: order.tenant_id, // unused; kept for API compatibility
       lineItems,
       fulfillment,
       shippingAddress,

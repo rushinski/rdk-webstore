@@ -31,7 +31,6 @@ export type StateSummary = {
   meetsTransactionThreshold?: boolean;
   both?: boolean;
 
-  stripeRegistered?: boolean; // <-- "Active in Stripe"
   resetDate?: string;
 
   // NEW: better calendar vs rolling display

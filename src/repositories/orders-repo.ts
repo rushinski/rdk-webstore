@@ -152,17 +152,6 @@ export class OrdersRepository {
     }
   }
 
-  async updateStripeSession(orderId: string, stripeSessionId: string): Promise<void> {
-    const { error } = await this.supabase
-      .from("orders")
-      .update({ stripe_session_id: stripeSessionId })
-      .eq("id", orderId);
-
-    if (error) {
-      throw error;
-    }
-  }
-
   async updatePaymentTransactionId(
     orderId: string,
     paymentTransactionId: string,
@@ -175,14 +164,6 @@ export class OrdersRepository {
     if (error) {
       throw error;
     }
-  }
-
-  /** @deprecated Use updatePaymentTransactionId */
-  async updateStripePaymentIntent(
-    orderId: string,
-    paymentTransactionId: string,
-  ): Promise<void> {
-    return this.updatePaymentTransactionId(orderId, paymentTransactionId);
   }
 
   async resetFailedOrderForRetry(orderId: string, expiresAt: Date): Promise<void> {
@@ -624,24 +605,4 @@ export class OrdersRepository {
     return data;
   }
 
-  async updateRefundStatus(
-    orderId: string,
-    status: string,
-    refundAmount: number,
-    stripeRefundId?: string,
-  ) {
-    const { error } = await this.supabase
-      .from("orders")
-      .update({
-        status,
-        refund_amount: refundAmount,
-        stripe_refund_id: stripeRefundId ?? null,
-        refunded_at: new Date().toISOString(),
-      })
-      .eq("id", orderId);
-
-    if (error) {
-      throw error;
-    }
-  }
 }

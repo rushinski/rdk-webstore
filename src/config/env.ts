@@ -37,6 +37,7 @@ const schema = z.object({
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
 
   PAYRILLA_WEBHOOK: z.string().optional().default(""),
+  PAYRILLA_WEBHOOK_SECRET: z.string().optional().default(""),
   PAYRILLA_API_URL: z
     .string()
     .url()
@@ -45,7 +46,12 @@ const schema = z.object({
   PAYRILLA_SOURCE_KEY: z.string().optional().default(""),
   PAYRILLA_PIN: z.string().optional().default(""),
   PAYRILLA_TOKEN: z.string().optional().default(""),
-  NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL: z.string,
+  NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL: z
+    .string()
+    .url()
+    .default("https://tokenization.sandbox.payrillagateway.com/tokenization/v0.3"),
+  NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID: z.string().optional().default(""),
+  NEXT_PUBLIC_GOOGLE_PAY_GATEWAY_MERCHANT_ID: z.string().optional().default(""),
 
   ZIPTAX_API_KEY: z.string().min(1),
 

@@ -144,26 +144,6 @@ export class ProfileRepository {
     return data?.payrilla_account_id ?? null;
   }
 
-  /** @deprecated Use getPayrillaAccountIdForTenant */
-  async getStripeAccountIdForTenant(tenantId: string): Promise<string | null> {
-    return this.getPayrillaAccountIdForTenant(tenantId);
-  }
-
-  async setStripeCustomerId(userId: string, stripeCustomerId: string) {
-    const { error } = await this.supabase
-      .from("profiles")
-      .update({ stripe_customer_id: stripeCustomerId })
-      .eq("id", userId);
-    if (error) {
-      throw error;
-    }
-  }
-
-  /** @deprecated Use setPayrillaAccountId instead */
-  async setStripeAccountId(userId: string, stripeAccountId: string) {
-    return this.setPayrillaAccountId(userId, stripeAccountId);
-  }
-
   async setPayrillaAccountId(userId: string, payrillaAccountId: string) {
     const { error } = await this.supabase
       .from("profiles")

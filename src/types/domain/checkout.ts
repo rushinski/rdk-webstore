@@ -5,11 +5,6 @@ import type { Tables } from "@/types/db/database.types";
 export type FulfillmentMethod = "ship" | "pickup";
 export type OrderStatus = Tables<"orders">["status"];
 
-/**
- * Supported Stripe payment method types.
- * Direct charges on Connect accounts support all of these
- * when properly configured in the Connect account's dashboard.
- */
 export const SUPPORTED_PAYMENT_METHODS = [
   "card",
   "affirm",
@@ -18,8 +13,6 @@ export const SUPPORTED_PAYMENT_METHODS = [
   "cashapp",
   "amazon_pay",
   "samsung_pay",
-  // Google Pay and Apple Pay are handled via the card payment method
-  // and the Payment Request Button / Express Checkout Element
 ] as const;
 
 export type SupportedPaymentMethod = (typeof SUPPORTED_PAYMENT_METHODS)[number];
@@ -55,7 +48,6 @@ export interface CreatePaymentIntentResponse {
   clientSecret: string;
   orderId: string;
   paymentIntentId: string;
-  stripeAccountId: string; // needed for Elements on the frontend
   subtotal: number;
   shipping: number;
   tax: number;

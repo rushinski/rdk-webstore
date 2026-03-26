@@ -1,7 +1,6 @@
 import { NEXUS_THRESHOLDS, STATE_NAMES } from "@/config/constants/nexus-thresholds";
 import type { NexusRepository } from "@/repositories/nexus-repo";
 import type { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
-import type { StripeTaxService } from "@/services/stripe-tax-service";
 
 type Window = "calendar year" | "rolling 12 months" | "none";
 
@@ -52,7 +51,6 @@ export class NexusSummaryService {
   constructor(
     private readonly nexusRepo: NexusRepository,
     private readonly taxSettingsRepo: TaxSettingsRepository,
-    private readonly stripeTax: StripeTaxService | null,
   ) {}
 
   async buildSummary(
@@ -66,11 +64,6 @@ export class NexusSummaryService {
     ]);
 
     const taxEnabled = taxSettings?.tax_enabled ?? false;
-    const stripeRegs =
-      taxEnabled && this.stripeTax
-        ? await this.stripeTax.getStripeRegistrations()
-        : new Map<string, { id: string; state: string; active: boolean }>();
-
     const homeState = taxSettings?.home_state ?? "SC";
     const now = new Date();
 
@@ -82,7 +75,6 @@ export class NexusSummaryService {
         (registrations.find((r: StateRegistration) => r.state_code === stateCode) as
           | StateRegistration
           | undefined) ?? null;
-      const stripeReg = stripeRegs.get(stateCode);
 
       const salesMap =
         window === "rolling 12 months"
@@ -168,8 +160,6 @@ export class NexusSummaryService {
         transactionThreshold: threshold.transactions ?? null,
         meetsTransactionThreshold,
         both: threshold.both ?? false,
-
-        stripeRegistered: stripeReg?.active ?? false,
 
         trackingStartDate,
         trackingEndDate,

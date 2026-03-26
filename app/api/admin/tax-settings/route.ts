@@ -9,7 +9,6 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 import { TenantContextService } from "@/services/tenant-context-service";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
-import { StripeTaxService } from "@/services/stripe-tax-service";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
 
 const taxSettingsSchema = z
@@ -94,18 +93,11 @@ export async function POST(request: NextRequest) {
     const repo = new TaxSettingsRepository(supabase);
     const existing = await repo.getByTenant(context.tenantId);
 
-    // If disabling tax, deactivate all Stripe Tax registrations for this tenant's Connect account
-    if (parsed.data.taxEnabled === false) {
-      const stripeTax = new StripeTaxService(supabase, context.stripeAccountId);
-      await stripeTax.deactivateStripeTaxRegistrations();
-    }
-
     const updated = await repo.upsert({
       tenantId: context.tenantId,
       homeState: existing?.home_state ?? "N/A",
       businessName: existing?.business_name ?? null,
       taxIdNumber: existing?.tax_id_number ?? null,
-      stripeTaxSettingsId: existing?.stripe_tax_settings_id ?? null,
       taxEnabled: parsed.data.taxEnabled,
       taxCodeOverrides: filteredOverrides,
     });
@@ -126,7 +118,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: message, requestId },
       {
-        status: message.includes("not configured") ? 400 : 500,
+        status: 500,
         headers: { "Cache-Control": "no-store" },
       },
     );

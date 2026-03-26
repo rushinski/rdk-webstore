@@ -9,7 +9,6 @@ import { logError } from "@/lib/utils/log";
 import { TenantContextService } from "@/services/tenant-context-service";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { TaxSettingsRepository } from "@/repositories/tax-settings-repo";
-import { StripeTaxService } from "@/services/stripe-tax-service";
 import { NexusSummaryService } from "@/services/nexus-service";
 
 export async function GET(request: NextRequest) {
@@ -24,9 +23,8 @@ export async function GET(request: NextRequest) {
 
     const nexusRepo = new NexusRepository(supabase);
     const taxSettingsRepo = new TaxSettingsRepository(supabase);
-    const stripeTax = new StripeTaxService(supabase, context.stripeAccountId);
 
-    const summaryService = new NexusSummaryService(nexusRepo, taxSettingsRepo, stripeTax);
+    const summaryService = new NexusSummaryService(nexusRepo, taxSettingsRepo);
     const summary = await summaryService.buildSummary(context.tenantId);
 
     return NextResponse.json(summary);

@@ -44,7 +44,6 @@ export async function POST(request: NextRequest) {
       registrationType: parsed.data.nexusType,
       isRegistered: existing?.is_registered ?? false,
       registeredAt: existing?.registered_at ?? null,
-      stripeRegistrationId: existing?.stripe_registration_id ?? null,
     });
 
     return NextResponse.json({ success: true });

@@ -137,7 +137,7 @@ export function TaxSettingsPanel() {
             Tax collection
           </h2>
           <p className="text-xs sm:text-sm text-gray-400">
-            Toggle Stripe Tax calculations and assign category tax codes.
+            Toggle tax calculations and assign category tax codes.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -165,20 +165,10 @@ export function TaxSettingsPanel() {
             Category tax codes
           </h3>
           <p className="text-xs sm:text-sm text-gray-400">
-            Stripe Tax uses these codes to determine the correct tax rules per category.
+            These codes determine the correct tax rules per category.
           </p>
           <div className="mt-2 text-[11px] sm:text-xs text-gray-500">
-            Tax codes are Stripe identifiers (ex: txcd_30011000) that map to product
-            taxability.{" "}
-            <a
-              href="https://docs.stripe.com/tax/tax-codes"
-              target="_blank"
-              rel="noreferrer"
-              className="text-red-400 hover:text-red-300 underline underline-offset-2"
-            >
-              View Stripe tax code list
-            </a>
-            .
+            Tax codes (ex: txcd_30011000) map to product taxability.
           </div>
         </div>
 
@@ -223,7 +213,7 @@ export function TaxSettingsPanel() {
               </div>
 
               <div className="text-[11px] sm:text-xs text-gray-500">
-                Leave blank to use the default Stripe tax code for this category.
+                Leave blank to use the default tax code for this category.
               </div>
             </div>
           ))}

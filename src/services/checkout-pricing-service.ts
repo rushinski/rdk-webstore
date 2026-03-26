@@ -23,8 +23,6 @@ import type {
 export interface ResolvedCheckout {
   tenantId: string;
   payrillaAccountId: string;
-  /** @deprecated Use payrillaAccountId */
-  stripeAccountId: string;
   lineItems: ResolvedLineItem[];
   pricing: CheckoutPricing;
 }
@@ -85,21 +83,18 @@ export class CheckoutPricingService {
         "Seller payment account not configured",
       );
     }
-    const stripeAccountId = payrillaAccountId; // backwards-compat alias
-
     // 4. Build line items with stock validation
     const lineItems = this.buildLineItems(items, productMap);
 
     // 5. Calculate pricing
     const pricing = await this.calculatePricing({
       tenantId,
-      stripeAccountId,
       lineItems,
       fulfillment,
       shippingAddress,
     });
 
-    return { tenantId, payrillaAccountId, stripeAccountId, lineItems, pricing };
+    return { tenantId, payrillaAccountId, lineItems, pricing };
   }
 
   /**
@@ -108,7 +103,6 @@ export class CheckoutPricingService {
    */
   async recalculate(params: {
     tenantId: string;
-    stripeAccountId: string;
     lineItems: ResolvedLineItem[];
     fulfillment: FulfillmentMethod;
     shippingAddress?: ShippingAddressPayload | null;
@@ -182,7 +176,6 @@ export class CheckoutPricingService {
 
   private async calculatePricing(params: {
     tenantId: string;
-    stripeAccountId: string;
     lineItems: ResolvedLineItem[];
     fulfillment: FulfillmentMethod;
     shippingAddress?: ShippingAddressPayload | null;

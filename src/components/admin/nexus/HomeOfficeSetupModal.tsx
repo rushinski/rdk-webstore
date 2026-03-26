@@ -502,7 +502,7 @@ export default function HomeOfficeSetupModal({
           <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
             <p className="text-sm text-zinc-400">
               <strong className="text-zinc-200">Note:</strong> This address will be used
-              as your tax registration headquarters with Stripe Tax.{" "}
+              as your tax registration headquarters.{" "}
               {!isConfigured && "It will mark your home state for physical nexus."}
             </p>
           </div>

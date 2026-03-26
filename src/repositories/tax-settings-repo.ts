@@ -8,8 +8,6 @@ export type TenantTaxSettings = {
   home_state: string;
   business_name: string | null;
   tax_id_number: string | null;
-  /** @deprecated column dropped in migration 20260320 */
-  stripe_tax_settings_id: string | null;
   tax_enabled: boolean;
   tax_code_overrides: Record<string, string> | null;
   created_at: string;
@@ -64,7 +62,6 @@ export class TaxSettingsRepository {
     homeState: string;
     businessName?: string | null;
     taxIdNumber?: string | null;
-    stripeTaxSettingsId?: string | null;
     taxEnabled?: boolean;
     taxCodeOverrides?: Record<string, string> | null;
   }): Promise<TenantTaxSettings> {
@@ -76,7 +73,7 @@ export class TaxSettingsRepository {
           home_state: settings.homeState,
           business_name: settings.businessName ?? null,
           tax_id_number: settings.taxIdNumber ?? null,
-          // stripe_tax_settings_id column was dropped — no longer sent to DB
+          // stripe_tax_settings_id column was dropped in migration 20260320 — not sent to DB
           tax_enabled: settings.taxEnabled ?? false,
           tax_code_overrides: settings.taxCodeOverrides ?? {},
           updated_at: new Date().toISOString(),
