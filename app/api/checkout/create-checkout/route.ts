@@ -34,6 +34,7 @@ import { log, logError } from "@/lib/utils/log";
 import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { env } from "@/config/env";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
+import { AddressesRepository } from "@/repositories/addresses-repo";
 import { normalizeCardTypeLabel } from "@/lib/payments/card-brand";
 import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
@@ -43,6 +44,17 @@ import { OrderAccessTokenService } from "@/services/order-access-token-service";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 10;
 const ipAttempts = new Map<string, number[]>();
+
+type CheckoutAddress = {
+  name: string;
+  phone?: string | null;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+};
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
@@ -56,6 +68,19 @@ function isRateLimited(ip: string): boolean {
   attempts.push(now);
   ipAttempts.set(ip, attempts);
   return false;
+}
+
+function toAddressSnapshot(address: CheckoutAddress) {
+  return {
+    name: address.name,
+    phone: address.phone ?? null,
+    line1: address.line1,
+    line2: address.line2 ?? null,
+    city: address.city,
+    state: address.state,
+    postalCode: address.postal_code,
+    country: address.country,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -218,6 +243,14 @@ export async function POST(request: NextRequest) {
     const guestAccessToken = order.user_id
       ? null
       : (await orderAccessTokens.createToken({ orderId: order.id })).token;
+
+    if (fulfillment === "ship" && shippingAddress) {
+      const addressesRepo = new AddressesRepository(adminSupabase);
+      await addressesRepo.upsertOrderShippingSnapshot(
+        order.id,
+        toAddressSnapshot(shippingAddress),
+      );
+    }
 
     // Save tax info
     await adminSupabase
@@ -802,6 +835,8 @@ export async function POST(request: NextRequest) {
           nofraudTransactionId: nofraudResponse?.id ?? null,
           nofraudDecision: nofraudResponse?.decision ?? null,
           customerIp,
+          billingAddress: billingAddress ? toAddressSnapshot(billingAddress) : null,
+          shippingAddress: shippingAddress ? toAddressSnapshot(shippingAddress) : null,
         });
       } catch {
         /* non-fatal */

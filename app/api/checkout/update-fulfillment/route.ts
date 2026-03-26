@@ -11,6 +11,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProductRepository } from "@/repositories/product-repo";
+import { AddressesRepository } from "@/repositories/addresses-repo";
 import { CheckoutPricingService } from "@/services/checkout-pricing-service";
 import { createCartHash } from "@/lib/utils/crypto";
 import { updateFulfillmentSchema } from "@/lib/validation/checkout";
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
 
     const { orderId, fulfillment, shippingAddress } = parsed.data;
     const ordersRepo = new OrdersRepository(adminSupabase);
+    const addressesRepo = new AddressesRepository(adminSupabase);
     const order = await ordersRepo.getById(orderId);
 
     if (!order) {
@@ -111,6 +113,19 @@ export async function POST(request: NextRequest) {
       })),
       fulfillment,
     );
+
+    if (fulfillment === "ship" && shippingAddress) {
+      await addressesRepo.upsertOrderShippingSnapshot(orderId, {
+        name: shippingAddress.name,
+        phone: shippingAddress.phone ?? null,
+        line1: shippingAddress.line1,
+        line2: shippingAddress.line2 ?? null,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        postalCode: shippingAddress.postal_code,
+        country: shippingAddress.country,
+      });
+    }
 
     // Update order in DB
     await adminSupabase
