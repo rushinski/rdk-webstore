@@ -178,6 +178,13 @@ type TransactionPayload = {
   emailLogs: EmailLog[];
   trackingEvents: TrackingEvent[];
   checkoutLogs: CheckoutLog[];
+  customer?: {
+    routeId: string;
+    displayId: string;
+    kind: "account" | "guest";
+    name: string;
+    email: string | null;
+  } | null;
 };
 
 type SessionEntry =
@@ -604,6 +611,7 @@ export default function TransactionDetailPage() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[]>([]);
   const [checkoutLogs, setCheckoutLogs] = useState<CheckoutLog[]>([]);
+  const [customerSummary, setCustomerSummary] = useState<TransactionPayload["customer"]>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emailPreview, setEmailPreview] = useState<EmailLog | null>(null);
@@ -617,6 +625,7 @@ export default function TransactionDetailPage() {
   const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(
     null,
   );
+  const [isPaymentDrawerVisible, setIsPaymentDrawerVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState<AdminOrderItem | null>(null);
   const [itemModalOpen, setItemModalOpen] = useState(false);
 
@@ -632,6 +641,7 @@ export default function TransactionDetailPage() {
       setEmailLogs(data.emailLogs);
       setTrackingEvents(data.trackingEvents);
       setCheckoutLogs(data.checkoutLogs);
+      setCustomerSummary(data.customer ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load transaction");
     } finally {
@@ -642,6 +652,32 @@ export default function TransactionDetailPage() {
   useEffect(() => {
     void loadTransaction();
   }, [orderId]);
+
+  useEffect(() => {
+    if (!selectedPaymentEventId) {
+      setIsPaymentDrawerVisible(false);
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      setIsPaymentDrawerVisible(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedPaymentEventId]);
+
+  useEffect(() => {
+    if (!selectedPaymentEventId && !emailPreview) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [emailPreview, selectedPaymentEventId]);
 
   const confirmRefund = async (payload: RefundRequestPayload) => {
     if (!order) {
@@ -824,6 +860,13 @@ export default function TransactionDetailPage() {
   const relatedCheckoutLogs = selectedPaymentEvent
     ? getRelatedCheckoutLogs(selectedPaymentEvent, checkoutLogs)
     : [];
+
+  const closePaymentDrawer = () => {
+    setIsPaymentDrawerVisible(false);
+    window.setTimeout(() => {
+      setSelectedPaymentEventId(null);
+    }, 220);
+  };
 
   const openItemModal = (item: OrderItem) => {
     setSelectedItem(item as unknown as AdminOrderItem);
@@ -1381,6 +1424,17 @@ export default function TransactionDetailPage() {
                             {log.delivery_status}
                           </span>
                         </div>
+                        <div className="shrink-0">
+                          {log.html_snapshot && (
+                            <button
+                              type="button"
+                              onClick={() => setEmailPreview(log)}
+                              className="text-xs text-zinc-400 transition-colors hover:text-white"
+                            >
+                              View details
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </li>
                   );
@@ -1464,6 +1518,17 @@ export default function TransactionDetailPage() {
 
           <SectionCard title="Customer">
             <div className="space-y-0">
+              {customerSummary && (
+                <DetailRow label="Customer ID">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/admin/customers/${customerSummary.routeId}`)}
+                    className="font-mono text-xs text-red-400 transition hover:text-red-300"
+                  >
+                    {customerSummary.displayId}
+                  </button>
+                </DetailRow>
+              )}
               <DetailRow label="Name">{customerName}</DetailRow>
               <DetailRow label="Email">{customerEmail ?? "-"}</DetailRow>
               <DetailRow label="Phone">{customerPhone ?? "-"}</DetailRow>
@@ -1517,14 +1582,14 @@ export default function TransactionDetailPage() {
 
       {selectedPaymentEvent && (
         <div
-          className="fixed inset-0 z-50 flex items-end bg-black/70"
-          onClick={() => setSelectedPaymentEventId(null)}
+          className={`fixed inset-0 z-50 flex items-end overflow-hidden bg-black/70 transition-opacity duration-200 ${isPaymentDrawerVisible ? "opacity-100" : "opacity-0"}`}
+          onClick={closePaymentDrawer}
         >
           <div
-            className="w-full rounded-t-2xl border-t border-zinc-800 bg-zinc-900 shadow-2xl"
+            className={`w-full rounded-t-2xl border-t border-zinc-800 bg-zinc-900 shadow-2xl transition-transform duration-300 ease-out ${isPaymentDrawerVisible ? "translate-y-0" : "translate-y-full"}`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mx-auto max-h-[80vh] w-full max-w-7xl overflow-hidden">
+            <div className="mx-auto flex max-h-[80vh] w-full max-w-7xl flex-col overflow-hidden">
               <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
@@ -1544,14 +1609,14 @@ export default function TransactionDetailPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setSelectedPaymentEventId(null)}
+                  onClick={closePaymentDrawer}
                   className="text-zinc-400 transition hover:text-white"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="max-h-[calc(80vh-88px)] overflow-y-auto px-6 py-6">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-6">
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
                   <div className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-3">

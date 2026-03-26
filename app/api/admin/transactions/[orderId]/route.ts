@@ -8,6 +8,10 @@ import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
+import {
+  buildCustomerDisplayId,
+  buildCustomerRouteId,
+} from "@/lib/admin/customer-identifiers";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
@@ -65,6 +69,21 @@ export async function GET(
       .order("created_at", { ascending: false })
       .limit(1);
     const paymentTx = paymentTxRows?.[0] ?? null;
+    const customerEmail =
+      order.profiles?.email ?? order.guest_email ?? paymentTx?.customer_email ?? null;
+    const customerName =
+      (Array.isArray(order.shipping_address)
+        ? order.shipping_address[0]?.name
+        : order.shipping_address?.name) ??
+      order.profiles?.full_name ??
+      paymentTx?.billing_name ??
+      customerEmail ??
+      "Customer";
+    const customerIdentity = order.user_id
+      ? { kind: "account" as const, userId: order.user_id }
+      : customerEmail
+        ? { kind: "guest" as const, email: customerEmail }
+        : null;
 
     // --- Payment events (checkout activity timeline) ---
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,6 +129,15 @@ export async function GET(
         emailLogs: emailLogs ?? [],
         trackingEvents: trackingEvents ?? [],
         checkoutLogs: checkoutLogs ?? [],
+        customer: customerIdentity
+          ? {
+              routeId: buildCustomerRouteId(customerIdentity),
+              displayId: buildCustomerDisplayId(customerIdentity),
+              kind: customerIdentity.kind,
+              name: customerName,
+              email: customerEmail,
+            }
+          : null,
         requestId,
       },
       { headers: { "Cache-Control": "no-store" } },
