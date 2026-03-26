@@ -73,6 +73,17 @@ jobs:
       # HERE
       HERE_MAPS_API_KEY: ${{ secrets.HERE_MAPS_API_KEY }}
 
+      PAYRILLA_API_URL: ${{ secrets.PAYRILLA_API_URL }}
+      PAYRILLA_SOURCE_KEY: ${{ secrets.PAYRILLA_SOURCE_KEY }}
+      PAYRILLA_PIN: ${{ secrets.PAYRILLA_PIN }}
+      PAYRILLA_TOKEN: ${{ secrets.PAYRILLA_TOKEN }}
+      PAYRILLA_WEBHOOK: ${{ secrets.PAYRILLA_WEBHOOK }}
+      NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL: ${{ secrets.NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL }}
+
+      NOFRAUD_API_KEY: ${{ secrets.NOFRAUD_API_KEY }}
+      NEXT_PUBLIC_NOFRAUD_CUSTOMER_CODE: ${{ secrets.NEXT_PUBLIC_NOFRAUD_CUSTOMER_CODE}}
+      ZIPTAX_API_KEY: ${{ secrets.ZIPTAX_API_KEY }}
+
       # Public Config (can use variables instead of secrets)
       NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://rdk-staging.vercel.app' }}
       NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: ${{ vars.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED || 'true' }}
