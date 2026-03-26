@@ -16,11 +16,14 @@ type CustomerRow = {
   paymentCount: number;
 };
 
-const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const fmtMoney = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 
 function fmtDate(iso: string | null | undefined) {
   if (!iso) {
-    return "—";
+    return "-";
   }
 
   return new Date(iso).toLocaleDateString("en-US", {
@@ -28,6 +31,14 @@ function fmtDate(iso: string | null | undefined) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+function getCustomerTypeMeta(kind: CustomerRow["kind"]) {
+  if (kind === "guest") {
+    return { label: "Guest", className: "text-amber-300" };
+  }
+
+  return { label: "Account", className: "text-emerald-300" };
 }
 
 export default function CustomersPage() {
@@ -75,87 +86,100 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="mb-2 text-3xl font-bold text-white">Customers</h1>
-        <p className="text-sm text-zinc-400">
-          Customer profiles built from order and payment history.
-        </p>
+        <p className="text-gray-400">Profiles built from account, order, and payment history</p>
       </div>
 
-      <div className="relative max-w-md">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+      <div className="flex items-center gap-2 border border-zinc-800/70 bg-zinc-900 px-3 py-2 max-w-md">
+        <Search className="h-4 w-4 text-gray-500" />
         <input
+          type="text"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder="Search customers"
-          className="w-full border border-zinc-800 bg-zinc-950 py-2 pl-10 pr-4 text-sm text-white outline-none transition focus:border-red-600"
+          placeholder="Search by customer, email, payment method, or ID"
+          className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
         />
       </div>
 
-      <div className="overflow-hidden border border-zinc-800 bg-zinc-950">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-zinc-800 bg-zinc-900/80 text-xs uppercase tracking-[0.18em] text-zinc-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Customer</th>
-                <th className="px-4 py-3 font-medium">Type</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Primary payment</th>
-                <th className="px-4 py-3 font-medium">Created</th>
-                <th className="px-4 py-3 font-medium">Total spend</th>
-                <th className="px-4 py-3 font-medium">Payments</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
-                    Loading customers…
-                  </td>
+      <div className="overflow-hidden rounded border border-zinc-800/70 bg-zinc-900">
+        {isLoading ? (
+          <div className="py-12 text-center text-gray-400">Loading...</div>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="py-12 text-center text-gray-500">No customers found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px] sm:text-sm">
+              <thead>
+                <tr className="border-b border-zinc-800/70 bg-zinc-800">
+                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">Created</th>
+                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">Customer</th>
+                  <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
+                    Type
+                  </th>
+                  <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
+                    Email
+                  </th>
+                  <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
+                    Payment
+                  </th>
+                  <th className="p-3 text-right font-semibold text-gray-400 sm:p-4">
+                    Total Spend
+                  </th>
+                  <th className="hidden md:table-cell p-3 text-right font-semibold text-gray-400 sm:p-4">
+                    Payments
+                  </th>
                 </tr>
-              ) : filteredCustomers.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-zinc-500">
-                    No customers found.
-                  </td>
-                </tr>
-              ) : (
-                filteredCustomers.map((customer) => (
-                  <tr
-                    key={customer.routeId}
-                    onClick={() => router.push(`/admin/customers/${customer.routeId}`)}
-                    className="cursor-pointer border-b border-zinc-800/70 text-zinc-200 transition hover:bg-zinc-900/60"
-                  >
-                    <td className="px-4 py-4">
-                      <div>
-                        <p className="text-sm text-white">{customer.name}</p>
-                        <p className="font-mono text-xs text-zinc-500">
-                          {customer.displayId}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={`inline-flex items-center border px-2 py-0.5 text-xs uppercase tracking-[0.16em] ${
-                          customer.kind === "guest"
-                            ? "border-amber-800 bg-amber-950/40 text-amber-300"
-                            : "border-emerald-800 bg-emerald-950/40 text-emerald-300"
-                        }`}
-                      >
-                        {customer.kind === "guest" ? "Guest" : "Account"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-zinc-300">{customer.email ?? "—"}</td>
-                    <td className="px-4 py-4 text-zinc-300">
-                      {customer.primaryPaymentMethod ?? "—"}
-                    </td>
-                    <td className="px-4 py-4 text-zinc-400">{fmtDate(customer.createdAt)}</td>
-                    <td className="px-4 py-4 text-white">{fmt.format(customer.totalSpend)}</td>
-                    <td className="px-4 py-4 text-zinc-300">{customer.paymentCount}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filteredCustomers.map((customer) => {
+                  const typeMeta = getCustomerTypeMeta(customer.kind);
+                  const customerHref = `/admin/customers/${customer.routeId}`;
+
+                  return (
+                    <tr
+                      key={customer.routeId}
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`View customer ${customer.displayId}`}
+                      onClick={() => router.push(customerHref)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(customerHref);
+                        }
+                      }}
+                      className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800 focus-visible:outline-none"
+                    >
+                      <td className="p-3 text-gray-400 sm:p-4">{fmtDate(customer.createdAt)}</td>
+                      <td className="p-3 sm:p-4">
+                        <div className="space-y-0.5">
+                          <div className="text-white">{customer.name}</div>
+                          <div className="font-mono text-xs text-gray-500">
+                            {customer.displayId}
+                          </div>
+                        </div>
+                      </td>
+                      <td className={`hidden md:table-cell p-3 sm:p-4 ${typeMeta.className}`}>
+                        {typeMeta.label}
+                      </td>
+                      <td className="hidden md:table-cell p-3 text-gray-400 sm:p-4">
+                        {customer.email ?? "-"}
+                      </td>
+                      <td className="hidden md:table-cell p-3 text-gray-400 sm:p-4">
+                        {customer.primaryPaymentMethod ?? "-"}
+                      </td>
+                      <td className="p-3 text-right text-white sm:p-4">
+                        {fmtMoney.format(customer.totalSpend)}
+                      </td>
+                      <td className="hidden md:table-cell p-3 text-right text-gray-400 sm:p-4">
+                        {customer.paymentCount}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

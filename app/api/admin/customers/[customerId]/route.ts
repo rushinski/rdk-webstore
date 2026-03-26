@@ -5,6 +5,7 @@ import { requireAdminApi } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import {
   buildCustomerDisplayId,
+  normalizeCustomerEmail,
   parseCustomerRouteId,
   type CustomerIdentity,
 } from "@/lib/admin/customer-identifiers";
@@ -172,37 +173,55 @@ export async function GET(
 
     const admin = createSupabaseAdminClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let ordersQuery = (admin as any)
-      .from("orders")
-      .select(
-        `
-        id,
-        user_id,
-        guest_email,
-        status,
-        total,
-        refund_amount,
-        created_at,
-        updated_at,
-        profiles!user_id(id, email, full_name, created_at, payrilla_customer_token),
-        shipping:order_shipping(*)
-        `,
-      )
-      .order("created_at", { ascending: false });
+    const buildOrdersQuery = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let ordersQuery = (admin as any)
+        .from("orders")
+        .select(
+          `
+          id,
+          user_id,
+          guest_email,
+          status,
+          total,
+          refund_amount,
+          created_at,
+          updated_at,
+          profiles!user_id(id, email, full_name, created_at, payrilla_customer_token),
+          shipping:order_shipping(*)
+          `,
+        )
+        .order("created_at", { ascending: false });
 
-    if (tenantId) {
-      ordersQuery = ordersQuery.eq("tenant_id", tenantId);
-    }
+      if (tenantId) {
+        ordersQuery = ordersQuery.eq("tenant_id", tenantId);
+      }
+
+      return ordersQuery;
+    };
+
+    let typedOrders: CustomerOrderRow[] = [];
 
     if (identity.kind === "account") {
-      ordersQuery = ordersQuery.eq("user_id", identity.userId);
+      const { data: orders } = await buildOrdersQuery().eq("user_id", identity.userId);
+      typedOrders = (orders ?? []) as CustomerOrderRow[];
     } else {
-      ordersQuery = ordersQuery.is("user_id", null).eq("guest_email", identity.email);
-    }
+      const { data: exactGuestOrders } = await buildOrdersQuery()
+        .is("user_id", null)
+        .eq("guest_email", identity.email);
 
-    const { data: orders } = await ordersQuery;
-    const typedOrders = (orders ?? []) as CustomerOrderRow[];
+      typedOrders = (exactGuestOrders ?? []) as CustomerOrderRow[];
+
+      if (typedOrders.length === 0) {
+        const { data: fallbackGuestOrders } = await buildOrdersQuery()
+          .is("user_id", null)
+          .not("guest_email", "is", null);
+
+        typedOrders = ((fallbackGuestOrders ?? []) as CustomerOrderRow[]).filter(
+          (order) => normalizeCustomerEmail(order.guest_email ?? "") === identity.email,
+        );
+      }
+    }
 
     if (typedOrders.length === 0) {
       return NextResponse.json(
@@ -271,7 +290,28 @@ export async function GET(
         .select("id, created_at, full_name, email, payrilla_customer_token")
         .eq("email", identity.email)
         .maybeSingle();
+
       matchedProfile = profile ?? null;
+
+      if (!matchedProfile) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: fallbackProfiles } = await (admin as any)
+          .from("profiles")
+          .select("id, created_at, full_name, email, payrilla_customer_token")
+          .not("email", "is", null);
+
+        matchedProfile =
+          (
+            (fallbackProfiles ?? []) as Array<{
+              id: string;
+              created_at?: string | null;
+              full_name?: string | null;
+              email?: string | null;
+              payrilla_customer_token?: string | null;
+            }>
+          ).find((candidate) => normalizeCustomerEmail(candidate.email ?? "") === identity.email) ??
+          null;
+      }
     }
 
     const latestOrder = typedOrders[0] ?? null;
