@@ -28,6 +28,10 @@ import {
 import { AdminOrderItemDetailsModal } from "@/components/admin/orders/OrderItemDetailsModal";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
 import { Toast } from "@/components/ui/Toast";
+import {
+  calculateCheckoutDisplayTotals,
+  PROCESSING_FEE_LABEL,
+} from "@/lib/checkout/display-pricing";
 import { shouldShowOrderProfit } from "@/lib/orders/metrics";
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -80,6 +84,7 @@ type Order = {
   status?: string | null;
   total?: number | null;
   subtotal?: number | null;
+  shipping?: number | null;
   tax_amount?: number | null;
   refund_amount?: number | null;
   refunded_at?: string | null;
@@ -94,7 +99,7 @@ type Order = {
   label_created_at?: string | null;
   profiles?: { email?: string | null; full_name?: string | null } | null;
   items?: OrderItem[];
-  shipping: OrderShipping | OrderShipping[] | null;
+  shipping_address?: OrderShipping | OrderShipping[] | null;
 };
 
 type PaymentTransaction = {
@@ -759,11 +764,20 @@ export default function TransactionDetailPage() {
   }
 
   const statusMeta = getOrderStatusMeta(order.status);
-  const shippingAddr = Array.isArray(order.shipping) ? order.shipping[0] : order.shipping;
+  const shippingAddr = Array.isArray(order.shipping_address)
+    ? order.shipping_address[0]
+    : order.shipping_address;
   const items = order.items ?? [];
   const subtotal = Number(order.subtotal ?? 0);
+  const shipping = Number(order.shipping ?? 0);
   const tax = Number(order.tax_amount ?? 0);
   const total = Number(order.total ?? 0);
+  const { processingFee, displayTotal } = calculateCheckoutDisplayTotals({
+    subtotal,
+    shipping,
+    tax,
+    fulfillment: order.fulfillment === "pickup" ? "pickup" : "ship",
+  });
   const refundedCents = Math.round(Number(order.refund_amount ?? 0));
   const showOrderProfit = shouldShowOrderProfit(order.status);
 
@@ -975,12 +989,22 @@ export default function TransactionDetailPage() {
             <span>Subtotal</span>
             <span>{fmtMoney(subtotal)}</span>
           </div>
+          {(shipping > 0 || order.fulfillment === "ship") && (
+            <div className="flex justify-between text-zinc-400">
+              <span>Shipping</span>
+              <span>{fmtMoney(shipping)}</span>
+            </div>
+          )}
           {tax > 0 && (
             <div className="flex justify-between text-zinc-400">
               <span>Tax</span>
               <span>{fmtMoney(tax)}</span>
             </div>
           )}
+          <div className="flex justify-between text-zinc-400">
+            <span>Processing fee ({PROCESSING_FEE_LABEL})</span>
+            <span>{fmtMoney(processingFee)}</span>
+          </div>
           {refundedCents > 0 && (
             <div className="flex justify-between text-red-400 text-xs">
               <span>Refunded</span>
@@ -988,7 +1012,11 @@ export default function TransactionDetailPage() {
             </div>
           )}
           <div className="flex justify-between text-white font-semibold pt-2 border-t border-zinc-800/70">
-            <span>Total</span>
+            <span>Customer total</span>
+            <span>{fmtMoney(displayTotal)}</span>
+          </div>
+          <div className="flex justify-between text-zinc-500 text-xs">
+            <span>Order total before fee</span>
             <span>{fmtMoney(total)}</span>
           </div>
         </div>

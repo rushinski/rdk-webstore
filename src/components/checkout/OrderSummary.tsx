@@ -5,6 +5,10 @@ import { Loader2, ShoppingBag } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { CartItem } from "@/types/domain/cart";
+import {
+  calculateCheckoutDisplayTotals,
+  PROCESSING_FEE_LABEL,
+} from "@/lib/checkout/display-pricing";
 
 import { ChevronPuller } from "./ChevronPuller";
 
@@ -13,7 +17,6 @@ interface OrderSummaryProps {
   subtotal: number;
   shipping: number;
   tax: number;
-  total: number; // can keep, but we will not trust it for display
   fulfillment: "ship" | "pickup";
   isUpdatingShipping?: boolean;
 }
@@ -29,15 +32,17 @@ export function OrderSummary({
   const [isOpen, setIsOpen] = useState(false);
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const effectiveShipping = fulfillment === "pickup" ? 0 : shipping;
 
-  const displayTotal = useMemo(() => {
-    const cents =
-      Math.round(subtotal * 100) +
-      Math.round(effectiveShipping * 100) +
-      Math.round(tax * 100);
-    return cents / 100;
-  }, [subtotal, effectiveShipping, tax]);
+  const { processingFee, displayTotal } = useMemo(
+    () =>
+      calculateCheckoutDisplayTotals({
+        subtotal,
+        shipping,
+        tax,
+        fulfillment,
+      }),
+    [subtotal, shipping, tax, fulfillment],
+  );
 
   const money = (n: number) => `$${n.toFixed(2)}`;
 
@@ -71,6 +76,22 @@ export function OrderSummary({
         </span>
       ) : (
         money(tax)
+      )}
+    </span>
+  );
+
+  const processingFeeValue = (
+    <span>
+      {isUpdatingShipping ? (
+        <span
+          className="inline-flex items-center gap-2 text-xs text-gray-400"
+          data-testid="processing-fee-loading"
+        >
+          <Loader2 className="w-3 h-3 animate-spin" />
+          Calculating...
+        </span>
+      ) : (
+        money(processingFee)
       )}
     </span>
   );
@@ -152,6 +173,11 @@ export function OrderSummary({
             {taxValue}
           </div>
 
+          <div className="flex justify-between text-gray-400">
+            <span>Processing fee ({PROCESSING_FEE_LABEL})</span>
+            {processingFeeValue}
+          </div>
+
           <div className="border-t border-zinc-800 pt-2 mt-2">
             <div className="flex justify-between text-lg font-bold text-white">
               <span>Total</span>
@@ -229,6 +255,12 @@ export function OrderSummary({
                   Tax:{" "}
                   <span className="text-white font-semibold">
                     {isUpdatingShipping ? "…" : money(tax)}
+                  </span>
+                </p>
+                <p className="text-gray-400">
+                  Fee:{" "}
+                  <span className="text-white font-semibold">
+                    {isUpdatingShipping ? "…" : money(processingFee)}
                   </span>
                 </p>
               </div>

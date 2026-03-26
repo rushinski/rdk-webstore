@@ -39,7 +39,6 @@ import { EvidenceService } from "@/services/evidence-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
-import { hashString } from "@/lib/utils/crypto";
 import type { Tables, TablesUpdate } from "@/types/db/database.types";
 
 type OrderRow = Tables<"orders">;
@@ -281,6 +280,13 @@ async function handleTransactionApproved(
 
   let didMarkPaid = false;
   try {
+    if (order.status === "failed") {
+      await ordersRepo.resetFailedOrderForRetry(
+        orderId,
+        new Date(Date.now() + 60 * 60 * 1000),
+      );
+    }
+
     didMarkPaid = await ordersRepo.markPaidTransactionally(
       orderId,
       transactionId,
@@ -306,9 +312,10 @@ async function handleTransactionApproved(
       .update({
         status: "paid",
         payment_transaction_id: transactionId,
+        failure_reason: null,
       })
       .eq("id", orderId)
-      .in("status", ["pending", "processing"])
+      .in("status", ["pending", "processing", "failed"])
       .select("id")
       .maybeSingle();
 
@@ -548,10 +555,12 @@ async function handleRefundCompleted(
 
   // auth_amount is in USD; store in cents for the refund_amount column
   const refundAmountCents =
-    event.data.auth_amount != null ? Math.round(event.data.auth_amount * 100) : null;
+    event.data.auth_amount !== null && event.data.auth_amount !== undefined
+      ? Math.round(event.data.auth_amount * 100)
+      : null;
 
   const updateData: TablesUpdate<"orders"> = {
-    ...(refundAmountCents != null ? { refund_amount: refundAmountCents } : {}),
+    ...(refundAmountCents !== null ? { refund_amount: refundAmountCents } : {}),
     refunded_at: new Date().toISOString(),
     status: "refunded",
   };

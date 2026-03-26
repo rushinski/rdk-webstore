@@ -40,13 +40,15 @@ export async function GET(
           ),
           variant:product_variants(id, size_label, price_cents, cost_cents)
         ),
-        shipping:order_shipping(*)
+        shipping_address:order_shipping(*)
         `,
       )
       .eq("id", orderId)
       .maybeSingle();
 
-    if (orderError) throw orderError;
+    if (orderError) {
+      throw orderError;
+    }
     if (!order) {
       return NextResponse.json(
         { error: "Order not found", requestId },
@@ -84,7 +86,9 @@ export async function GET(
     // --- Shipping tracking events ---
     const { data: trackingEvents } = await admin
       .from("shipping_tracking_events")
-      .select("id, status, description, location, event_timestamp, carrier, tracking_number")
+      .select(
+        "id, status, description, location, event_timestamp, carrier, tracking_number",
+      )
       .eq("order_id", orderId)
       .order("event_timestamp", { ascending: true });
 
@@ -92,7 +96,9 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: checkoutLogs } = await (admin as any)
       .from("checkout_api_logs")
-      .select("id, route, method, http_status, duration_ms, event_label, error_message, request_payload, response_payload, created_at")
+      .select(
+        "id, route, method, http_status, duration_ms, event_label, error_message, request_payload, response_payload, created_at",
+      )
       .eq("order_id", orderId)
       .order("created_at", { ascending: true });
 

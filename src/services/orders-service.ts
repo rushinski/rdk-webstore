@@ -72,6 +72,9 @@ export class OrdersService {
 
       try {
         order = await this.ordersRepo.getByIdAndUser(orderId, userId);
+        if (order) {
+          order = await this.reconcileCapturedPayment(order);
+        }
         log({
           level: "info",
           layer: "service",
@@ -211,6 +214,9 @@ export class OrdersService {
         });
 
         order = await this.adminOrdersRepo.getById(orderId);
+        if (order) {
+          order = await this.reconcileCapturedPayment(order);
+        }
 
         log({
           level: "info",
@@ -351,5 +357,128 @@ export class OrdersService {
     input: { carrier?: string | null; trackingNumber?: string | null },
   ) {
     return this.ordersRepo.markFulfilled(orderId, input);
+  }
+
+  private async reconcileCapturedPayment(order: OrderRow): Promise<OrderRow> {
+    if (!this.adminSupabase || !this.adminOrdersRepo || !this.adminEventsRepo) {
+      return order;
+    }
+
+    if (!["failed", "pending", "processing"].includes(order.status ?? "")) {
+      return order;
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: paymentTxRows } = await (this.adminSupabase as any)
+        .from("payment_transactions")
+        .select("payrilla_status, payrilla_reference_number")
+        .eq("order_id", order.id)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const latestTx = paymentTxRows?.[0] as
+        | { payrilla_status?: string | null; payrilla_reference_number?: number | null }
+        | undefined;
+
+      if (
+        latestTx?.payrilla_status !== "captured" ||
+        latestTx.payrilla_reference_number === null ||
+        latestTx.payrilla_reference_number === undefined
+      ) {
+        return order;
+      }
+
+      log({
+        level: "warn",
+        layer: "service",
+        message: "getOrderStatus_reconciling_captured_payment",
+        orderId: order.id,
+        orderStatus: order.status,
+        referenceNumber: latestTx.payrilla_reference_number,
+      });
+
+      if (order.status === "failed") {
+        await this.adminOrdersRepo.resetFailedOrderForRetry(
+          order.id,
+          new Date(Date.now() + 60 * 60 * 1000),
+        );
+      }
+
+      const orderItems = await this.adminOrdersRepo.getOrderItems(order.id);
+      let didMarkPaid = false;
+
+      try {
+        didMarkPaid = await this.adminOrdersRepo.markPaidTransactionally(
+          order.id,
+          String(latestTx.payrilla_reference_number),
+          orderItems.map((item) => ({
+            productId: item.product_id,
+            variantId: item.variant_id,
+            quantity: item.quantity,
+          })),
+        );
+      } catch (error) {
+        log({
+          level: "error",
+          layer: "service",
+          message: "getOrderStatus_reconcile_mark_paid_failed",
+          orderId: order.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      if (!didMarkPaid) {
+        const { data: fallbackRow, error: fallbackError } = await this.adminSupabase
+          .from("orders")
+          .update({
+            status: "paid",
+            payment_transaction_id: String(latestTx.payrilla_reference_number),
+            failure_reason: null,
+          })
+          .eq("id", order.id)
+          .in("status", ["pending", "processing", "failed"])
+          .select("id")
+          .maybeSingle();
+
+        if (fallbackError) {
+          log({
+            level: "error",
+            layer: "service",
+            message: "getOrderStatus_reconcile_fallback_failed",
+            orderId: order.id,
+            error: fallbackError.message,
+          });
+        } else {
+          didMarkPaid = Boolean(fallbackRow);
+        }
+      }
+
+      if (didMarkPaid) {
+        const hasPaidEvent = await this.adminEventsRepo.hasEvent(order.id, "paid");
+        if (!hasPaidEvent) {
+          await this.adminEventsRepo.insertEvent({
+            orderId: order.id,
+            type: "paid",
+            message: "Recovered after captured payment was detected.",
+          });
+        }
+
+        const refreshedOrder = await this.adminOrdersRepo.getById(order.id);
+        if (refreshedOrder) {
+          return refreshedOrder;
+        }
+      }
+    } catch (error) {
+      log({
+        level: "error",
+        layer: "service",
+        message: "getOrderStatus_reconcile_error",
+        orderId: order.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return order;
   }
 }

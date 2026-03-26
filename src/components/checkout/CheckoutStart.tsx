@@ -26,6 +26,7 @@ import { CartSnapshotService } from "@/services/cart-snapshot-service";
 import { clientEnv } from "@/config/client-env";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
 import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
+import { calculateCheckoutDisplayTotals } from "@/lib/checkout/display-pricing";
 
 const guestEnabled = clientEnv.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED === "true";
 
@@ -472,6 +473,12 @@ export function CheckoutStart() {
     tokenizationKey,
     items,
     total,
+    displayTotal: calculateCheckoutDisplayTotals({
+      subtotal,
+      shipping,
+      tax,
+      fulfillment,
+    }).displayTotal,
     fulfillment,
     shippingAddress,
     onShippingAddressChange: (addr: ShippingAddress | null) => {
@@ -516,7 +523,6 @@ export function CheckoutStart() {
             subtotal={subtotal}
             shipping={shipping}
             tax={tax}
-            total={total}
             fulfillment={fulfillment}
             isUpdatingShipping={isUpdatingFulfillment}
           />

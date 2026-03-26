@@ -105,15 +105,10 @@ export async function POST(request: NextRequest) {
       // If the previous payment attempt failed, reset the order to pending so the
       // customer can retry without needing to start a new checkout session.
       if (existingOrder.status === "failed") {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (adminSupabase as any)
-          .from("orders")
-          .update({
-            status: "pending",
-            failure_reason: null,
-            expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-          })
-          .eq("id", existingOrder.id);
+        await ordersRepo.resetFailedOrderForRetry(
+          existingOrder.id,
+          new Date(Date.now() + 60 * 60 * 1000),
+        );
         void logCheckoutEvent(adminSupabase, {
           orderId: existingOrder.id,
           tenantId: existingOrder.tenant_id,

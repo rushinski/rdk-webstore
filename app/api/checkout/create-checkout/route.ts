@@ -34,6 +34,7 @@ import { log, logError } from "@/lib/utils/log";
 import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { env } from "@/config/env";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
+import { normalizeCardTypeLabel } from "@/lib/payments/card-brand";
 
 // Simple sliding-window rate limiter: max 10 checkout attempts per IP per 60 s.
 // Works for traditional Node servers. Replace with Redis for serverless/multi-instance.
@@ -111,7 +112,14 @@ export async function POST(request: NextRequest) {
 
     // superRefine already guarantees these, but we narrow here so TypeScript
     // knows they're non-null for the rest of the function without ! assertions.
-    if (nonce == null || expiryMonth == null || expiryYear == null) {
+    if (
+      nonce === null ||
+      nonce === undefined ||
+      expiryMonth === null ||
+      expiryMonth === undefined ||
+      expiryYear === null ||
+      expiryYear === undefined
+    ) {
       return json({ error: "Invalid payload", requestId }, 400);
     }
 
@@ -141,6 +149,12 @@ export async function POST(request: NextRequest) {
       }
       if (existingOrder.status === "paid") {
         return json({ status: "paid", orderId: existingOrder.id, requestId }, 200);
+      }
+      if (existingOrder.status === "failed") {
+        await ordersRepo.resetFailedOrderForRetry(
+          existingOrder.id,
+          new Date(Date.now() + 60 * 60 * 1000),
+        );
       }
       if (!existingOrder.user_id && guestEmail && !existingOrder.guest_email) {
         await ordersRepo.updateGuestEmail(existingOrder.id, guestEmail);
@@ -206,7 +220,13 @@ export async function POST(request: NextRequest) {
       .select("id, name, category")
       .in("id", productIds);
     if (productRowsError) {
-      log({ level: "warn", layer: "api", message: "nofraud_product_fetch_failed", requestId, error: productRowsError.message });
+      log({
+        level: "warn",
+        layer: "api",
+        message: "nofraud_product_fetch_failed",
+        requestId,
+        error: productRowsError.message,
+      });
     }
     const productMap = new Map((productRows ?? []).map((p) => [p.id, p]));
     const nofraudLineItems = lineItems.map((li) => {
@@ -237,6 +257,7 @@ export async function POST(request: NextRequest) {
     const shippingNameParts = shippingName?.trim().split(/\s+/) ?? [];
     const shippingFirstName = shippingNameParts[0] ?? "";
     const shippingLastName = shippingNameParts.slice(1).join(" ") || shippingFirstName;
+    const normalizedSubmittedCardType = normalizeCardTypeLabel(submittedCardType);
 
     // Create payment_transaction row before charging
     let paymentTxId: string | null = null;
@@ -370,7 +391,10 @@ export async function POST(request: NextRequest) {
               payrillaStatus: authResult.status === "declined" ? "declined" : "error",
               avsResultCode: authResult.avsResultCode ?? null,
               cvv2ResultCode: authResult.cvvResultCode ?? null,
-              cardType: authResult.cardType ?? submittedCardType ?? null,
+              cardType:
+                normalizeCardTypeLabel(authResult.cardType) ??
+                normalizedSubmittedCardType ??
+                null,
               cardLast4: authResult.last4 ?? last4 ?? null,
             });
             await paymentTxRepo.logEvent({
@@ -432,7 +456,10 @@ export async function POST(request: NextRequest) {
             payrillaStatus: "authorized",
             avsResultCode: authResult.avsResultCode ?? null,
             cvv2ResultCode: authResult.cvvResultCode ?? null,
-            cardType: authResult.cardType ?? submittedCardType ?? null,
+            cardType:
+              normalizeCardTypeLabel(authResult.cardType) ??
+              normalizedSubmittedCardType ??
+              null,
             cardLast4: authResult.last4 ?? last4 ?? null,
             amountAuthorized: authResult.authAmount ?? pricing.total,
           });
@@ -470,12 +497,17 @@ export async function POST(request: NextRequest) {
         gatewayStatus: "approved",
         invoiceNumber: order.id,
         lineItems: nofraudLineItems,
-        payment: authResult.last4 || last4
-          ? {
-              cardType: (authResult.cardType ?? submittedCardType ?? "unknown").toLowerCase(),
-              last4: authResult.last4 ?? last4 ?? "",
-            }
-          : null,
+        payment:
+          authResult.last4 || last4
+            ? {
+                cardType: (
+                  normalizeCardTypeLabel(authResult.cardType) ??
+                  normalizedSubmittedCardType ??
+                  "unknown"
+                ).toLowerCase(),
+                last4: authResult.last4 ?? last4 ?? "",
+              }
+            : null,
         billTo: billingAddress
           ? {
               firstName: billingFirstName,
@@ -704,7 +736,7 @@ export async function POST(request: NextRequest) {
         .from("orders")
         .update({ status: "paid", payment_transaction_id: chargeResult.transactionId })
         .eq("id", order.id)
-        .in("status", ["pending", "processing"])
+        .in("status", ["pending", "processing", "failed"])
         .select("id")
         .maybeSingle();
       didMarkPaid = Boolean(fallback);
@@ -713,8 +745,8 @@ export async function POST(request: NextRequest) {
     if (didMarkPaid) {
       // Sync size tags
       const productService = new ProductService(adminSupabase);
-      const productIds = [...new Set(orderItems.map((i) => i.product_id))];
-      for (const pid of productIds) {
+      const orderItemProductIds = [...new Set(orderItems.map((i) => i.product_id))];
+      for (const pid of orderItemProductIds) {
         await productService.syncSizeTags(pid);
       }
 

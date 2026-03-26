@@ -3,6 +3,10 @@ import { env } from "@/config/env";
 import { EMAIL_COLORS, emailStyles } from "@/lib/email/theme";
 import { renderEmailLayout } from "@/lib/email/template";
 import type { AdminOrderPlacedEmailInput } from "@/types/domain/email";
+import {
+  calculateCheckoutDisplayTotals,
+  PROCESSING_FEE_LABEL,
+} from "@/lib/checkout/display-pricing";
 import { brandLine, buildEmailFooterText, formatMoney } from "@/lib/email/orders/utils";
 
 const buildAdminOrderUrl = (input: AdminOrderPlacedEmailInput) =>
@@ -14,6 +18,12 @@ export const buildAdminOrderPlacedEmail = (input: AdminOrderPlacedEmailInput) =>
   const fulfillmentLabel = input.fulfillment === "pickup" ? "Local pickup" : "Shipping";
   const itemLabel = `${input.itemCount} item${input.itemCount === 1 ? "" : "s"}`;
   const customerLabel = input.customerEmail?.trim() || "Guest checkout";
+  const { processingFee, displayTotal } = calculateCheckoutDisplayTotals({
+    subtotal: input.subtotal,
+    shipping: input.shipping,
+    tax: input.tax,
+    fulfillment: input.fulfillment,
+  });
 
   const contentHtml = `
     <tr>
@@ -38,7 +48,7 @@ export const buildAdminOrderPlacedEmail = (input: AdminOrderPlacedEmailInput) =>
             <td style="padding:12px;text-align:right;">
               <div style="${emailStyles.label}">Total</div>
               <div style="font-size:16px;color:#ffffff;font-weight:700;margin-top:4px;">
-                $${formatMoney(input.total)}
+                $${formatMoney(displayTotal)}
               </div>
             </td>
           </tr>
@@ -58,15 +68,29 @@ export const buildAdminOrderPlacedEmail = (input: AdminOrderPlacedEmailInput) =>
           </tr>
           <tr>
             <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
+              <div style="${emailStyles.label}">Processing fee (${PROCESSING_FEE_LABEL})</div>
+              <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+                $${formatMoney(processingFee)}
+              </div>
+            </td>
+            <td style="padding:12px;text-align:right;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
               <div style="${emailStyles.label}">Subtotal</div>
               <div style="font-size:14px;color:#ffffff;margin-top:4px;">
                 $${formatMoney(input.subtotal)}
               </div>
             </td>
-            <td style="padding:12px;text-align:right;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
+          </tr>
+          <tr>
+            <td style="padding:12px;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
               <div style="${emailStyles.label}">Shipping</div>
               <div style="font-size:14px;color:#ffffff;margin-top:4px;">
                 $${formatMoney(input.shipping)}
+              </div>
+            </td>
+            <td style="padding:12px;text-align:right;border-top:1px solid ${EMAIL_COLORS.panelBorder};">
+              <div style="${emailStyles.label}">Order total</div>
+              <div style="font-size:14px;color:#ffffff;margin-top:4px;">
+                $${formatMoney(input.total)}
               </div>
             </td>
           </tr>
@@ -100,7 +124,9 @@ export const buildAdminOrderPlacedEmail = (input: AdminOrderPlacedEmailInput) =>
     `Subtotal: $${formatMoney(input.subtotal)}`,
     `Tax: $${formatMoney(input.tax)}`,
     `Shipping: $${formatMoney(input.shipping)}`,
-    `Total: $${formatMoney(input.total)}`,
+    `Processing fee (${PROCESSING_FEE_LABEL}): $${formatMoney(processingFee)}`,
+    `Order total: $${formatMoney(input.total)}`,
+    `Customer total: $${formatMoney(displayTotal)}`,
     "",
     `Open admin sales: ${orderUrl}`,
     buildEmailFooterText(),

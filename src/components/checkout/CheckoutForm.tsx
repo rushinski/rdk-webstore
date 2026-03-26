@@ -14,6 +14,13 @@ import Link from "next/link";
 import type { CartItem } from "@/types/domain/cart";
 import type { HostedTokenizationInstance } from "@/types/domain/payrilla";
 import { normalizeCountryCode, normalizeUsStateCode } from "@/lib/address/codes";
+import {
+  getCardBrandIcon,
+  getCardBrandLabel,
+  normalizeCardTypeLabel,
+  resolveCardBrand,
+  type CardBrandId,
+} from "@/lib/payments/card-brand";
 import { clientEnv } from "@/config/client-env";
 import { getIdempotencyKeyFromStorage } from "@/lib/checkout/idempotency";
 
@@ -22,14 +29,6 @@ import { BillingAddressForm, type BillingAddress } from "./BillingAddressForm";
 
 const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
 const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
-
-// Maps PayRilla's cardType string → SVG filename in /icons/cards/
-const CARD_BRAND_ICON: Record<string, string> = {
-  Visa: "visa",
-  Mastercard: "mastercard",
-  "American Express": "american-express",
-  Discover: "discover",
-};
 
 const PAYRILLA_BASE_FIELD_STYLE = [
   "background: #26272b",
@@ -66,8 +65,10 @@ const PAYRILLA_HOSTED_STYLES: Record<string, string> = {
     "align-items: end",
     "vertical-align: top",
   ].join("; "),
-  
-  expiryMonth: [PAYRILLA_BASE_FIELD_STYLE, "width: 76px", "text-align: center"].join("; "),
+
+  expiryMonth: [PAYRILLA_BASE_FIELD_STYLE, "width: 76px", "text-align: center"].join(
+    "; ",
+  ),
   expirySeparator: [
     "color: #9ca3af",
     "font-size: 16px",
@@ -106,6 +107,7 @@ interface CheckoutFormProps {
   tokenizationKey: string | null;
   items: CartItem[];
   total: number;
+  displayTotal: number;
   fulfillment: "ship" | "pickup";
   shippingAddress: ShippingAddress | null;
   onShippingAddressChange: (address: ShippingAddress | null) => void;
@@ -228,7 +230,7 @@ export function CheckoutForm({
   orderId,
   tokenizationKey,
   items,
-  total,
+  displayTotal,
   fulfillment,
   shippingAddress,
   onShippingAddressChange,
@@ -248,7 +250,7 @@ export function CheckoutForm({
   const [isScriptLoaded, setIsScriptLoaded] = useState(
     typeof window !== "undefined" && typeof window.HostedTokenization === "function",
   );
-  const [cardType, setCardType] = useState<string | null>(null);
+  const [cardBrand, setCardBrand] = useState<CardBrandId>("unknown");
   const [payrillaFieldError, setPayrillaFieldError] = useState<string | null>(null);
   const [hasTouchedPayrilla, setHasTouchedPayrilla] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -368,16 +370,24 @@ export function CheckoutForm({
         setHasTouchedPayrilla(true);
         const errorMessage = getPayrillaErrorMessage(event.error);
         setPayrillaFieldError(errorMessage);
-        const detected = event.result?.cardType;
-        setCardType(detected && detected !== "" ? detected : null);
+        setCardBrand(
+          resolveCardBrand({
+            cardType: event.result?.cardType ?? null,
+            maskedCard: event.result?.maskedCard ?? null,
+          }),
+        );
       })
       .on("input", (event) => {
         setHasTouchedPayrilla(true);
         if (!event.error) {
           setPayrillaFieldError(null);
         }
-        const detected = event.result?.cardType;
-        setCardType(detected && detected !== "" ? detected : null);
+        setCardBrand(
+          resolveCardBrand({
+            cardType: event.result?.cardType ?? null,
+            maskedCard: event.result?.maskedCard ?? null,
+          }),
+        );
       });
 
     hostedTokenizationRef.current = instance;
@@ -387,7 +397,7 @@ export function CheckoutForm({
       hostedTokenizationRef.current = null;
       setIsPayrillaReady(false);
       setPayrillaLoadError(null);
-      setCardType(null);
+      setCardBrand("unknown");
       setPayrillaFieldError(null);
       setHasTouchedPayrilla(false);
     };
@@ -565,7 +575,7 @@ export function CheckoutForm({
         avsZip: billingAddress?.postal_code || null,
         cardholderName: billingAddress?.name || null,
         last4: nonceResult.last4 || null,
-        cardType: nonceResult.cardType || null,
+        cardType: normalizeCardTypeLabel(nonceResult.cardType) || null,
         billingAddress: toApiAddress(billingAddress),
       });
     } catch (err: unknown) {
@@ -759,21 +769,16 @@ export function CheckoutForm({
 
           {/* Card iframe with brand icon and accepted cards note */}
           <div className="relative max-w-[460px]">
-            <div
-              id="payrilla-card-form"
-              ref={cardFormRef}
-              className="min-h-[120px]"
-            />
+            <div id="payrilla-card-form" ref={cardFormRef} className="min-h-[120px]" />
 
             {/* Card brand icon — overlaid on the card number input row */}
             <div
               className="absolute right-3 flex items-center pointer-events-none"
               style={{ top: "4px", height: "44px", left: "480px" }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={`/icons/cards/${cardType && CARD_BRAND_ICON[cardType] ? CARD_BRAND_ICON[cardType] : "default"}.svg`}
-                alt={cardType && CARD_BRAND_ICON[cardType] ? cardType : "Credit card"}
+                src={`/icons/cards/${getCardBrandIcon(cardBrand)}.svg`}
+                alt={getCardBrandLabel(cardBrand) ?? "Credit card"}
                 className="h-7 w-auto"
               />
             </div>
@@ -783,7 +788,6 @@ export function CheckoutForm({
           <div className="flex items-center gap-3 mt-3">
             <span className="text-xs text-zinc-500">Accepted:</span>
             {["visa", "mastercard", "american-express", "discover"].map((brand) => (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={brand}
                 src={`/icons/cards/${brand}.svg`}
@@ -836,7 +840,7 @@ export function CheckoutForm({
             </>
           ) : (
             <>
-              <Lock className="w-5 h-5" /> Place Order — ${total.toFixed(2)}
+              <Lock className="w-5 h-5" /> Place Order — ${displayTotal.toFixed(2)}
             </>
           )}
         </button>

@@ -9,6 +9,10 @@ import { clearIdempotencyKeyFromStorage } from "@/lib/checkout/idempotency";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { useCart } from "@/components/cart/CartProvider";
 import { clearGuestShippingAddress } from "@/lib/checkout/guest-shipping-address";
+import {
+  calculateCheckoutDisplayTotals,
+  PROCESSING_FEE_LABEL,
+} from "@/lib/checkout/display-pricing";
 
 const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
 const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
@@ -244,6 +248,12 @@ function SuccessContent() {
   }
 
   const isPickup = status.fulfillment === "pickup" || isPickupParam;
+  const { processingFee, displayTotal } = calculateCheckoutDisplayTotals({
+    subtotal: status.subtotal,
+    shipping: status.shipping,
+    tax: status.tax,
+    fulfillment: status.fulfillment,
+  });
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-20 text-center">
@@ -272,10 +282,18 @@ function SuccessContent() {
                 : `$${status.shipping.toFixed(2)}`}
             </span>
           </div>
+          <div className="flex justify-between">
+            <span>Tax:</span>
+            <span className="text-white">${status.tax.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Processing fee ({PROCESSING_FEE_LABEL}):</span>
+            <span className="text-white">${processingFee.toFixed(2)}</span>
+          </div>
           <div className="border-t border-zinc-800/70 pt-2 mt-2">
             <div className="flex justify-between text-xl font-bold">
               <span className="text-white">Total:</span>
-              <span className="text-white">${status.total.toFixed(2)}</span>
+              <span className="text-white">${displayTotal.toFixed(2)}</span>
             </div>
           </div>
         </div>

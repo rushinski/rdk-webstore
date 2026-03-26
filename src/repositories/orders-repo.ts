@@ -185,6 +185,23 @@ export class OrdersRepository {
     return this.updatePaymentTransactionId(orderId, paymentTransactionId);
   }
 
+  async resetFailedOrderForRetry(orderId: string, expiresAt: Date): Promise<void> {
+    const { error } = await this.supabase
+      .from("orders")
+      .update({
+        status: "pending",
+        failure_reason: null,
+        payment_transaction_id: null,
+        expires_at: expiresAt.toISOString(),
+      })
+      .eq("id", orderId)
+      .eq("status", "failed");
+
+    if (error) {
+      throw error;
+    }
+  }
+
   async updatePricingAndFulfillment(
     orderId: string,
     input: {
@@ -344,9 +361,7 @@ export class OrdersRepository {
 
     if (params?.incomplete) {
       // Incomplete = checkout started (pending) but payment window has expired
-      query = query
-        .eq("status", "pending")
-        .lt("expires_at", new Date().toISOString());
+      query = query.eq("status", "pending").lt("expires_at", new Date().toISOString());
     } else if (params?.status?.length) {
       query = query.in("status", params.status);
     } else if (!params?.includeAll) {
