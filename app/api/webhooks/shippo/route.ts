@@ -10,10 +10,10 @@ import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderEmailService } from "@/services/order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
+import { extractShippoTrackingUpdate } from "@/lib/shippo/webhook";
 import { logError } from "@/lib/utils/log";
 import { SHIPPO_TRACKING_STATUS_MAP } from "@/config/constants/shipping";
 import {
-  shippoTrackingUpdateSchema,
   shippoWebhookEventSchema,
   shippoWebhookQuerySchema,
 } from "@/lib/validation/webhooks";
@@ -68,13 +68,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
-    // Only handle tracking updates
-    if (parsedEvent.data.event !== "track_updated") {
+    // Only handle tracking-related Shippo webhooks.
+    if (
+      parsedEvent.data.event !== "track_updated" &&
+      parsedEvent.data.event !== "transaction_updated"
+    ) {
       return NextResponse.json({ ok: true });
     }
 
-    const trackingEvent = shippoTrackingUpdateSchema.safeParse(parsedEvent.data);
-    if (!trackingEvent.success) {
+    const trackingUpdate = extractShippoTrackingUpdate(parsedEvent.data);
+    if (!trackingUpdate) {
       logError(new Error("Shippo webhook missing tracking data"), {
         layer: "api",
         route: "/api/webhooks/shippo",
@@ -83,25 +86,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const data = trackingEvent.data.data ?? {};
-
-    // Shippo webhook sends tracking_number and tracking_status
-    const trackingNumber: string | undefined =
-      data.tracking_number ?? data.trackingNumber;
-
-    const trackingStatus = data.tracking_status ?? data.trackingStatus;
-    const statusRaw: string | undefined = trackingStatus?.status;
-
-    if (!trackingNumber || !statusRaw) {
-      logError(new Error("Shippo webhook missing tracking data"), {
-        layer: "api",
-        route: "/api/webhooks/shippo",
-        hasTrackingNumber: !!trackingNumber,
-        hasStatus: !!statusRaw,
-        eventType: parsedEvent.data.event,
-      });
-      return NextResponse.json({ ok: true });
-    }
+    const { trackingNumber, statusRaw } = trackingUpdate;
 
     const status = String(statusRaw).toUpperCase();
     const newFulfillmentStatus = SHIPPO_TRACKING_STATUS_MAP[status];
@@ -177,9 +162,8 @@ export async function POST(req: NextRequest) {
 
         const emailService = new OrderEmailService();
 
-        const carrier = order.shipping_carrier ?? data.carrier ?? null;
-        const trackingUrl =
-          data.tracking_url_provider ?? data.trackingUrlProvider ?? null;
+        const carrier = order.shipping_carrier ?? trackingUpdate.carrier;
+        const trackingUrl = trackingUpdate.trackingUrl;
 
         let orderUrl: string | null = null;
         if (!order.user_id && order.guest_email) {

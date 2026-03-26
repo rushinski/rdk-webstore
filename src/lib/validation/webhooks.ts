@@ -12,6 +12,8 @@ const trackingStatusSchema = z
   })
   .passthrough();
 
+const shippoTrackingStatusValueSchema = z.union([trackingStatusSchema, z.string()]);
+
 export const shippoWebhookEventSchema = z
   .object({
     event: z.string(),
@@ -21,17 +23,18 @@ export const shippoWebhookEventSchema = z
 
 export const shippoTrackingUpdateSchema = z
   .object({
-    event: z.literal("track_updated"),
+    event: z.enum(["track_updated", "transaction_updated"]),
     data: z
       .object({
         tracking_number: z.string().optional(),
         trackingNumber: z.string().optional(),
-        tracking_status: trackingStatusSchema.optional(),
-        trackingStatus: trackingStatusSchema.optional(),
+        tracking_status: shippoTrackingStatusValueSchema.optional(),
+        trackingStatus: shippoTrackingStatusValueSchema.optional(),
         carrier: z.string().optional(),
         tracking_url_provider: z.string().optional(),
         trackingUrlProvider: z.string().optional(),
       })
-      .passthrough(),
+      .passthrough()
+      .optional(),
   })
   .passthrough();
