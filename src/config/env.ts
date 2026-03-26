@@ -37,7 +37,6 @@ const schema = z.object({
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
 
   PAYRILLA_WEBHOOK: z.string().optional().default(""),
-  PAYRILLA_WEBHOOK_SECRET: z.string().optional().default(""),
   PAYRILLA_API_URL: z
     .string()
     .url()

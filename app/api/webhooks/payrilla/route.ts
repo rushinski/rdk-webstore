@@ -100,7 +100,7 @@ type PayrillaTransactionData = {
 // See WEBHOOKS.md: "Verifying event data"
 
 function verifyWebhookSignature(body: string, signature: string | null): boolean {
-  if (!env.PAYRILLA_WEBHOOK_SECRET) {
+  if (!env.PAYRILLA_WEBHOOK) {
     log({ level: "warn", layer: "payrilla", message: "webhook_no_secret_configured" });
     return false;
   }
@@ -108,7 +108,7 @@ function verifyWebhookSignature(body: string, signature: string | null): boolean
     return false;
   }
   const expected = crypto
-    .createHmac("sha256", env.PAYRILLA_WEBHOOK_SECRET)
+    .createHmac("sha256", env.PAYRILLA_WEBHOOK)
     .update(body)
     .digest("hex");
   // Timing-safe comparison
