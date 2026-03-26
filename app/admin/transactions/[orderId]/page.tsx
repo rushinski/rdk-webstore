@@ -793,7 +793,7 @@ export default function TransactionDetailPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-6 max-w-8xl">
       <button
         type="button"
         onClick={() => router.push("/admin/transactions")}
