@@ -27,15 +27,12 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { PaymentWebhookEventsRepository } from "@/repositories/payment-webhook-events-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
-import { ProfileRepository } from "@/repositories/profile-repo";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { ProductService } from "@/services/product-service";
-import { OrderEmailService } from "@/services/order-email-service";
-import { AdminOrderEmailService } from "@/services/admin-order-email-service";
-import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { ChatService } from "@/services/chat-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
 import { EvidenceService } from "@/services/evidence-service";
+import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
@@ -43,8 +40,6 @@ import type { Tables, TablesUpdate } from "@/types/db/database.types";
 
 type OrderRow = Tables<"orders">;
 type OrderItemRow = Tables<"order_items">;
-
-const PLACEHOLDER_EMAIL_DOMAIN = "@placeholder.local";
 
 // ---------- PayRilla webhook payload shapes (from WEBHOOKS.md) ----------
 //
@@ -595,172 +590,15 @@ async function sendWebhookEmails(
   adminSupabase: AdminSupabaseClient,
   requestId: string,
 ) {
-  try {
-    const ordersRepo = new OrdersRepository(adminSupabase);
-    const orderEventsRepo = new OrderEventsRepository(adminSupabase);
-    const profilesRepo = new ProfileRepository(adminSupabase);
-    const addressesRepo = new AddressesRepository(adminSupabase);
-    const orderAccessTokens = new OrderAccessTokenService(adminSupabase);
-    const orderEmailService = new OrderEmailService(adminSupabase, order.tenant_id);
-
-    const freshOrder = await ordersRepo.getById(orderId);
-    const resolvedOrder = freshOrder ?? order;
-
-    let email: string | null = null;
-    if (resolvedOrder.user_id) {
-      const profile = await profilesRepo.getByUserId(resolvedOrder.user_id);
-      email = profile?.email ?? null;
-    }
-    if (!email) {
-      email = resolvedOrder.guest_email ?? null;
-    }
-    if (email?.endsWith(PLACEHOLDER_EMAIL_DOMAIN)) {
-      email = null;
-    }
-
-    if (!email) {
-      log({
-        level: "warn",
-        layer: "payrilla",
-        message: "webhook_email_not_found_skipping",
-        requestId,
-        orderId,
-      });
-      return;
-    }
-
-    let orderUrl: string | null = null;
-    if (!resolvedOrder.user_id) {
-      const { token } = await orderAccessTokens.createToken({ orderId });
-      orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${orderId}?token=${encodeURIComponent(token)}`;
-    }
-
-    const detailedItems = await ordersRepo.getOrderItemsDetailed(orderId);
-    const items = (
-      detailedItems as Array<{
-        product: {
-          title_display?: string | null;
-          brand?: string | null;
-          name?: string | null;
-        } | null;
-        variant: { size_label?: string | null } | null;
-        quantity: number;
-        unit_price: number | null;
-        line_total: number;
-      }>
-    ).map((item) => {
-      const product = item.product;
-      const title =
-        product?.title_display ??
-        (`${product?.brand ?? ""} ${product?.name ?? ""}`.trim() || "Item");
-      return {
-        title,
-        sizeLabel: item.variant?.size_label ?? null,
-        quantity: Number(item.quantity ?? 0),
-        unitPrice: Number(item.unit_price ?? 0),
-        lineTotal: Number(item.line_total ?? 0),
-      };
-    });
-
-    const shippingSnapshot =
-      fulfillment === "ship" ? await addressesRepo.getOrderShipping(orderId) : null;
-
-    const hasConfirmation = await orderEventsRepo.hasEvent(
-      orderId,
-      "confirmation_email_sent",
-    );
-    if (!hasConfirmation) {
-      await orderEmailService.sendOrderConfirmation({
-        to: email,
-        orderId,
-        createdAt: order.created_at ?? new Date().toISOString(),
-        fulfillment,
-        currency: order.currency ?? "USD",
-        subtotal: Number(order.subtotal ?? 0),
-        shipping: Number(order.shipping ?? 0),
-        tax: Number(order.tax_amount ?? 0),
-        total: Number(order.total ?? 0),
-        items,
-        orderUrl,
-        shippingAddress: shippingSnapshot
-          ? {
-              name: shippingSnapshot.name,
-              line1: shippingSnapshot.line1,
-              line2: shippingSnapshot.line2,
-              city: shippingSnapshot.city,
-              state: shippingSnapshot.state,
-              postalCode: shippingSnapshot.postal_code,
-              country: shippingSnapshot.country,
-            }
-          : null,
-      });
-      await orderEventsRepo.insertEvent({
-        orderId,
-        type: "confirmation_email_sent",
-        message: "Confirmation emailed.",
-      });
-    }
-
-    if (fulfillment === "pickup") {
-      const hasPickup = await orderEventsRepo.hasEvent(
-        orderId,
-        "pickup_instructions_sent",
-      );
-      if (!hasPickup) {
-        await orderEmailService.sendPickupInstructions({ to: email, orderId, orderUrl });
-        await orderEventsRepo.insertEvent({
-          orderId,
-          type: "pickup_instructions_sent",
-          message: "Pickup instructions emailed.",
-        });
-      }
-    }
-
-    // Admin emails
-    const hasAdminEmail = await orderEventsRepo.hasEvent(
-      orderId,
-      "admin_order_email_sent",
-    );
-    if (!hasAdminEmail) {
-      const staff = await profilesRepo.listStaffProfiles();
-      const recipients = staff.filter(
-        (s) => s.admin_order_notifications_enabled !== false && s.email,
-      );
-      if (recipients.length > 0) {
-        const adminEmailService = new AdminOrderEmailService();
-        const itemCount = orderItems.reduce((sum, i) => sum + Number(i.quantity ?? 0), 0);
-        await Promise.all(
-          recipients.map((admin) =>
-            adminEmailService.sendOrderPlaced({
-              to: admin.email ?? "",
-              orderId,
-              fulfillment,
-              subtotal: Number(order.subtotal ?? 0),
-              shipping: Number(order.shipping ?? 0),
-              tax: Number(order.tax_amount ?? 0),
-              total: Number(order.total ?? 0),
-              itemCount,
-              customerEmail: email,
-            }),
-          ),
-        );
-        await orderEventsRepo.insertEvent({
-          orderId,
-          type: "admin_order_email_sent",
-          message: "Admin notified.",
-        });
-      }
-    }
-  } catch (err) {
-    log({
-      level: "warn",
-      layer: "payrilla",
-      message: "webhook_email_failed",
-      requestId,
-      orderId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
+  await sendOrderCompletionEmailsIfNeeded({
+    order,
+    orderId,
+    orderItems,
+    fulfillment,
+    adminSupabase,
+    requestId,
+    logLayer: "payrilla",
+  });
 }
 
 function json(data: Record<string, unknown>, status: number) {

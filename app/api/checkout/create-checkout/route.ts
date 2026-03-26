@@ -35,6 +35,7 @@ import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { env } from "@/config/env";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 import { normalizeCardTypeLabel } from "@/lib/payments/card-brand";
+import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
 
 // Simple sliding-window rate limiter: max 10 checkout attempts per IP per 60 s.
 // Works for traditional Node servers. Replace with Redis for serverless/multi-instance.
@@ -794,6 +795,16 @@ export async function POST(request: NextRequest) {
         orderId: order.id,
         type: "paid",
         message: "Payment approved via PayRilla.",
+      });
+
+      await sendOrderCompletionEmailsIfNeeded({
+        order,
+        orderId: order.id,
+        orderItems,
+        fulfillment,
+        adminSupabase,
+        requestId,
+        logLayer: "api",
       });
 
       // Cache revalidation
