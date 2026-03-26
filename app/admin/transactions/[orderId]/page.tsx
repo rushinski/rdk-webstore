@@ -182,8 +182,7 @@ type TransactionPayload = {
 
 type SessionEntry =
   | { id: string; kind: "payment"; timestamp: string; data: PaymentEvent }
-  | { id: string; kind: "email"; timestamp: string; data: EmailLog }
-  | { id: string; kind: "api"; timestamp: string; data: CheckoutLog };
+  | { id: string; kind: "email"; timestamp: string; data: EmailLog };
 
 const SHIPPING_EMAIL_TYPES = [
   "order_confirmation",
@@ -529,6 +528,53 @@ function formatPayload(payload: unknown) {
   }
 }
 
+function getRelatedCheckoutLogs(event: PaymentEvent, logs: CheckoutLog[]) {
+  const eventTime = new Date(event.created_at).getTime();
+  const keywordsByType: Record<string, string[]> = {
+    payment_started: ["checkout"],
+    authorization_approved: ["approved", "response"],
+    authorization_declined: ["declined", "payment error"],
+    authorization_error: ["processing error", "payment error"],
+    fraud_check_pass: ["approved", "order complete"],
+    fraud_check_fail: ["fraud", "blocked"],
+    fraud_check_review: ["review"],
+    fraud_check_skipped: ["approved", "response"],
+    payment_captured: ["approved", "order complete", "response"],
+    payment_voided: ["void", "blocked", "fraud"],
+    payment_refunded: ["refund"],
+    payment_refund_partial: ["refund"],
+  };
+
+  const keywords = keywordsByType[event.event_type] ?? [];
+  const matched = logs.filter((log) => {
+    const haystack = [
+      log.event_label,
+      log.route,
+      log.method,
+      log.error_message,
+      formatPayload(log.response_payload),
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+
+  const nearby = logs.filter((log) => {
+    const logTime = new Date(log.created_at).getTime();
+    return Math.abs(logTime - eventTime) <= 2 * 60 * 1000;
+  });
+
+  return [...matched, ...nearby]
+    .filter((log, index, arr) => arr.findIndex((entry) => entry.id === log.id) === index)
+    .sort(
+      (a, b) =>
+        Math.abs(new Date(a.created_at).getTime() - eventTime) -
+        Math.abs(new Date(b.created_at).getTime() - eventTime),
+    );
+}
+
 function PayloadBlock({ label, payload }: { label: string; payload: unknown }) {
   const content = formatPayload(payload);
 
@@ -568,7 +614,7 @@ export default function TransactionDetailPage() {
     tone: "success" | "error" | "info";
   } | null>(null);
   const [resendingEmail, setResendingEmail] = useState<string | null>(null);
-  const [selectedSessionEntryId, setSelectedSessionEntryId] = useState<string | null>(
+  const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(
     null,
   );
   const [selectedItem, setSelectedItem] = useState<AdminOrderItem | null>(null);
@@ -771,21 +817,13 @@ export default function TransactionDetailPage() {
         data: log,
       }),
     ),
-    ...checkoutLogs.map(
-      (log): SessionEntry => ({
-        id: `api-${log.id}`,
-        kind: "api",
-        timestamp: log.created_at,
-        data: log,
-      }),
-    ),
   ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const selectedApiEntry =
-    sessionTimeline.find(
-      (entry): entry is Extract<SessionEntry, { kind: "api" }> =>
-        entry.kind === "api" && entry.id === selectedSessionEntryId,
-    ) ?? null;
+  const selectedPaymentEvent =
+    paymentEvents.find((event) => event.id === selectedPaymentEventId) ?? null;
+  const relatedCheckoutLogs = selectedPaymentEvent
+    ? getRelatedCheckoutLogs(selectedPaymentEvent, checkoutLogs)
+    : [];
 
   const openItemModal = (item: OrderItem) => {
     setSelectedItem(item as unknown as AdminOrderItem);
@@ -806,21 +844,15 @@ export default function TransactionDetailPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-bold text-white">Transaction</h1>
+            <h1 className="font-mono text-2xl font-bold text-white">
+              #{order.id.slice(0, 8)}
+            </h1>
             <span
               className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${statusMeta.cls}`}
             >
               {statusMeta.label}
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-400">
-            Created {fmtDate(order.created_at)}
-          </p>
-          {order.updated_at && order.updated_at !== order.created_at && (
-            <p className="mt-0.5 text-xs text-zinc-600">
-              Updated {fmtDate(order.updated_at)}
-            </p>
-          )}
           {order.failure_reason && (
             <p className="mt-1 text-sm text-red-400">{order.failure_reason}</p>
           )}
@@ -840,14 +872,6 @@ export default function TransactionDetailPage() {
               -{fmtMoney(refundedAmount)} refunded
             </div>
           )}
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-zinc-500">
-              Order number
-            </p>
-            <div className="font-mono text-2xl font-bold text-white">
-              #{order.id.slice(0, 8)}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -887,7 +911,7 @@ export default function TransactionDetailPage() {
                       key={item.id}
                       type="button"
                       onClick={() => openItemModal(item)}
-                      className={`group -mx-2 flex w-full items-center gap-4 rounded-sm border border-transparent px-2 py-3 text-left transition-colors hover:border-zinc-700/80 hover:bg-zinc-800/50 ${isRefunded ? "opacity-50" : ""}`}
+                      className={`group -mx-2 flex w-full items-start gap-4 rounded-sm border border-transparent px-2 py-3 text-left transition-colors hover:border-zinc-700/80 hover:bg-zinc-800/50 ${isRefunded ? "opacity-50" : ""}`}
                     >
                       <div className="h-10 w-10 shrink-0 overflow-hidden border border-zinc-800 bg-zinc-950">
                         <img
@@ -905,31 +929,46 @@ export default function TransactionDetailPage() {
                           Qty {item.quantity}
                           {isRefunded ? " · Refunded" : ""}
                         </p>
-                      </div>
-                      <div className="shrink-0 text-right">
                         {showPriceBreakdown ? (
-                          <>
-                            <p className="text-sm text-white">
-                              {fmtMoney(item.line_total)}
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              Cost {fmtMoney(itemCost)}
-                            </p>
-                            {showItemProfit && (
-                              <p
-                                className={`text-xs ${itemProfit >= 0 ? "text-emerald-500" : "text-red-400"}`}
-                              >
-                                Profit {itemProfit >= 0 ? "+" : ""}
-                                {fmtMoney(itemProfit)}
+                          <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                            <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                                Customer paid
                               </p>
+                              <p className="mt-1 text-sm font-semibold text-white">
+                                {fmtMoney(item.line_total)}
+                              </p>
+                            </div>
+                            <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                                Product cost
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-zinc-300">
+                                {fmtMoney(itemCost)}
+                              </p>
+                            </div>
+                            {showItemProfit && (
+                              <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
+                                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                                  Profit
+                                </p>
+                                <p
+                                  className={`mt-1 text-sm font-semibold ${itemProfit >= 0 ? "text-emerald-400" : "text-red-400"}`}
+                                >
+                                  {itemProfit >= 0 ? "+" : ""}
+                                  {fmtMoney(itemProfit)}
+                                </p>
+                              </div>
                             )}
-                          </>
+                          </div>
                         ) : (
-                          <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                          <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
                             Session item
                           </p>
                         )}
-                        <p className="mt-1 text-[10px] uppercase tracking-[0.18em] text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100">
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100">
                           View details
                         </p>
                       </div>
@@ -940,69 +979,85 @@ export default function TransactionDetailPage() {
             )}
 
             {showPriceBreakdown && (
-              <div className="space-y-2 border-t border-zinc-800/70 pt-4 text-sm">
-                <div className="flex justify-between text-zinc-400">
-                  <span>Subtotal</span>
-                  <span>{fmtMoney(subtotal)}</span>
-                </div>
-                {(shipping > 0 || order.fulfillment === "ship") && (
+              <div className="grid gap-3 border-t border-zinc-800/70 pt-4 text-sm lg:grid-cols-2">
+                <div className="space-y-2 rounded border border-zinc-800/70 bg-zinc-950/50 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                    Customer breakdown
+                  </p>
                   <div className="flex justify-between text-zinc-400">
-                    <span>Shipping</span>
-                    <span>{fmtMoney(shipping)}</span>
+                    <span>Subtotal</span>
+                    <span>{fmtMoney(subtotal)}</span>
                   </div>
-                )}
-                {tax > 0 && (
-                  <div className="flex justify-between text-zinc-400">
-                    <span>Tax</span>
-                    <span>{fmtMoney(tax)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t border-zinc-800/70 pt-2 font-semibold text-white">
-                  <span>Customer total</span>
-                  <span>{fmtMoney(displayTotal)}</span>
-                </div>
-                {isOrderPlaced ? (
-                  <>
-                    <div className="flex justify-between text-red-400">
-                      <span>Processing fee ({PROCESSING_FEE_LABEL})</span>
-                      <span>-{fmtMoney(processingFee)}</span>
+                  {(shipping > 0 || order.fulfillment === "ship") && (
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Shipping</span>
+                      <span>{fmtMoney(shipping)}</span>
                     </div>
-                    {refundedCents > 0 && (
+                  )}
+                  {tax > 0 && (
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Tax</span>
+                      <span>{fmtMoney(tax)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-zinc-800/70 pt-2 font-semibold text-white">
+                    <span>Customer total</span>
+                    <span>{fmtMoney(displayTotal)}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded border border-zinc-800/70 bg-zinc-950/50 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                    Seller breakdown
+                  </p>
+                  {isOrderPlaced ? (
+                    <>
                       <div className="flex justify-between text-red-400">
-                        <span>Refunded</span>
-                        <span>-{fmtMoney(refundedAmount)}</span>
+                        <span>Processing fee ({PROCESSING_FEE_LABEL})</span>
+                        <span>-{fmtMoney(processingFee)}</span>
                       </div>
-                    )}
-                    <div className="flex justify-between text-zinc-300">
-                      <span>Seller revenue</span>
-                      <span>{fmtMoney(sellerRevenue)}</span>
-                    </div>
-                    {showOrderProfit && (
-                      <>
+                      {refundedCents > 0 && (
                         <div className="flex justify-between text-red-400">
-                          <span>Product cost</span>
-                          <span>-{fmtMoney(effectiveItemCost)}</span>
+                          <span>Refunded</span>
+                          <span>-{fmtMoney(refundedAmount)}</span>
                         </div>
-                        <div className="flex justify-between border-t border-zinc-800/70 pt-2 font-semibold text-white">
-                          <span>Total profit</span>
-                          <span
-                            className={
-                              totalProfit >= 0 ? "text-emerald-400" : "text-red-400"
-                            }
-                          >
-                            {totalProfit >= 0 ? "+" : ""}
-                            {fmtMoney(totalProfit)}
-                          </span>
+                      )}
+                      <div className="flex justify-between text-zinc-300">
+                        <span>Seller revenue</span>
+                        <span>{fmtMoney(sellerRevenue)}</span>
+                      </div>
+                      {showOrderProfit ? (
+                        <>
+                          <div className="flex justify-between text-red-400">
+                            <span>Product cost</span>
+                            <span>-{fmtMoney(effectiveItemCost)}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-zinc-800/70 pt-2 font-semibold text-white">
+                            <span>Total profit</span>
+                            <span
+                              className={
+                                totalProfit >= 0 ? "text-emerald-400" : "text-red-400"
+                              }
+                            >
+                              {totalProfit >= 0 ? "+" : ""}
+                              {fmtMoney(totalProfit)}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between text-zinc-500">
+                          <span>Seller total before cost</span>
+                          <span>{fmtMoney(sellerRevenue)}</span>
                         </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex justify-between text-zinc-500">
-                    <span>Order total before fee</span>
-                    <span>{fmtMoney(total)}</span>
-                  </div>
-                )}
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex justify-between text-zinc-500">
+                      <span>Order total before fee</span>
+                      <span>{fmtMoney(total)}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </SectionCard>
@@ -1241,129 +1296,31 @@ export default function TransactionDetailPage() {
                     return (
                       <li
                         key={entry.id}
-                        className="rounded border border-zinc-800/60 bg-zinc-950/30 p-4"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 shrink-0">{meta.icon}</div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm text-white">{meta.label}</p>
-                            {meta.description && (
-                              <p className="mt-0.5 text-xs text-zinc-400">
-                                {meta.description}
-                              </p>
-                            )}
-                            <p className="mt-1 text-xs text-zinc-500">
-                              {fmtDate(event.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  }
-
-                  if (entry.kind === "api") {
-                    const log = entry.data;
-                    const isSelected = selectedApiEntry?.id === entry.id;
-                    const isError =
-                      log.http_status !== null && (log.http_status ?? 0) >= 400;
-                    const statusColor = isError ? "text-red-400" : "text-emerald-400";
-
-                    return (
-                      <li
-                        key={entry.id}
                         className="rounded border border-zinc-800/60 bg-zinc-950/30"
                       >
                         <button
                           type="button"
-                          onClick={() =>
-                            setSelectedSessionEntryId((current) =>
-                              current === entry.id ? null : entry.id,
-                            )
-                          }
-                          className="w-full px-4 py-4 text-left"
+                          onClick={() => setSelectedPaymentEventId(event.id)}
+                          className="w-full px-4 py-4 text-left transition hover:bg-zinc-900/60"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-start gap-3">
-                              <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
-                              <div className="min-w-0">
-                                <p className="truncate text-sm text-white">
-                                  {log.event_label ?? log.route}
-                                </p>
-                                <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">
-                                  {log.method} {log.route}
-                                </p>
-                                {log.error_message && (
-                                  <p className="mt-1 text-xs text-red-400">
-                                    {log.error_message}
+                              <div className="mt-0.5 shrink-0">{meta.icon}</div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm text-white">{meta.label}</p>
+                                {meta.description && (
+                                  <p className="mt-0.5 text-xs text-zinc-400">
+                                    {meta.description}
                                   </p>
                                 )}
                                 <p className="mt-1 text-xs text-zinc-500">
-                                  {fmtDate(log.created_at)}
+                                  {fmtDate(event.created_at)}
                                 </p>
                               </div>
                             </div>
-                            <div className="shrink-0 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                {log.http_status !== null &&
-                                  log.http_status !== undefined && (
-                                    <span className={`text-xs font-mono ${statusColor}`}>
-                                      {log.http_status}
-                                    </span>
-                                  )}
-                                {log.duration_ms !== null &&
-                                  log.duration_ms !== undefined && (
-                                    <span className="text-xs text-zinc-500">
-                                      {log.duration_ms}ms
-                                    </span>
-                                  )}
-                              </div>
-                              <p className="mt-1 text-xs text-red-400">
-                                {isSelected ? "Hide data" : "View data"}
-                              </p>
-                            </div>
+                            <p className="shrink-0 text-xs text-zinc-500">View details</p>
                           </div>
                         </button>
-
-                        {isSelected && (
-                          <div className="space-y-4 border-t border-zinc-800/70 px-4 py-4">
-                            <div className="grid gap-3 sm:grid-cols-3">
-                              <div className="rounded border border-zinc-800/70 bg-zinc-900/70 p-3">
-                                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                  API Call
-                                </p>
-                                <p className="mt-2 break-all font-mono text-sm text-zinc-200">
-                                  {log.method} {log.route}
-                                </p>
-                              </div>
-                              <div className="rounded border border-zinc-800/70 bg-zinc-900/70 p-3">
-                                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                  HTTP Status
-                                </p>
-                                <p
-                                  className={`mt-2 text-sm font-semibold ${statusColor}`}
-                                >
-                                  {log.http_status ?? "-"}
-                                </p>
-                              </div>
-                              <div className="rounded border border-zinc-800/70 bg-zinc-900/70 p-3">
-                                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
-                                  Response Time
-                                </p>
-                                <p className="mt-2 text-sm font-semibold text-zinc-200">
-                                  {log.duration_ms !== null &&
-                                  log.duration_ms !== undefined
-                                    ? `${log.duration_ms}ms`
-                                    : "-"}
-                                </p>
-                              </div>
-                            </div>
-                            <PayloadBlock label="Request" payload={log.request_payload} />
-                            <PayloadBlock
-                              label="Response"
-                              payload={log.response_payload}
-                            />
-                          </div>
-                        )}
                       </li>
                     );
                   }
@@ -1553,6 +1510,149 @@ export default function TransactionDetailPage() {
                 className="h-full min-h-[500px] w-full"
                 sandbox="allow-same-origin"
               />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedPaymentEvent && (
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/70"
+          onClick={() => setSelectedPaymentEventId(null)}
+        >
+          <div
+            className="w-full rounded-t-2xl border-t border-zinc-800 bg-zinc-900 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto max-h-[80vh] w-full max-w-7xl overflow-hidden">
+              <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-4">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                    Activity details
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-white">
+                    {
+                      getEventMeta(
+                        selectedPaymentEvent.event_type,
+                        selectedPaymentEvent.event_data,
+                      ).label
+                    }
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {fmtDate(selectedPaymentEvent.created_at)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentEventId(null)}
+                  className="text-zinc-400 transition hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="max-h-[calc(80vh-88px)] overflow-y-auto px-6 py-6">
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                          Event
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-white">
+                          {
+                            getEventMeta(
+                              selectedPaymentEvent.event_type,
+                              selectedPaymentEvent.event_data,
+                            ).label
+                          }
+                        </p>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                          Recorded
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-zinc-200">
+                          {fmtDate(selectedPaymentEvent.created_at)}
+                        </p>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                          Related logs
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-zinc-200">
+                          {relatedCheckoutLogs.length}
+                        </p>
+                      </div>
+                    </div>
+
+                    <PayloadBlock
+                      label="Event data"
+                      payload={selectedPaymentEvent.event_data}
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                        Related checkout logs
+                      </p>
+                      {relatedCheckoutLogs.length === 0 && (
+                        <span className="text-xs text-zinc-600">
+                          No related API logs found
+                        </span>
+                      )}
+                    </div>
+
+                    {relatedCheckoutLogs.map((log) => {
+                      const isError =
+                        log.http_status !== null && (log.http_status ?? 0) >= 400;
+                      const statusColor = isError ? "text-red-400" : "text-emerald-400";
+
+                      return (
+                        <div
+                          key={log.id}
+                          className="space-y-4 rounded border border-zinc-800/70 bg-zinc-950/60 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex min-w-0 items-start gap-3">
+                              <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                              <div className="min-w-0">
+                                <p className="text-sm text-white">
+                                  {log.event_label ?? log.route}
+                                </p>
+                                <p className="mt-0.5 break-all font-mono text-xs text-zinc-500">
+                                  {log.method} {log.route}
+                                </p>
+                                {log.error_message && (
+                                  <p className="mt-1 text-xs text-red-400">
+                                    {log.error_message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right">
+                              <p className={`text-sm font-semibold ${statusColor}`}>
+                                {log.http_status ?? "-"}
+                              </p>
+                              <p className="text-xs text-zinc-500">
+                                {log.duration_ms !== null && log.duration_ms !== undefined
+                                  ? `${log.duration_ms}ms`
+                                  : "-"}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="text-xs text-zinc-500">
+                            {fmtDate(log.created_at)}
+                          </p>
+                          <PayloadBlock label="Request" payload={log.request_payload} />
+                          <PayloadBlock label="Response" payload={log.response_payload} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
