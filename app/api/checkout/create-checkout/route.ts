@@ -36,6 +36,7 @@ import { env } from "@/config/env";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 import { normalizeCardTypeLabel } from "@/lib/payments/card-brand";
 import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
+import { OrderAccessTokenService } from "@/services/order-access-token-service";
 
 // Simple sliding-window rate limiter: max 10 checkout attempts per IP per 60 s.
 // Works for traditional Node servers. Replace with Redis for serverless/multi-instance.
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
 
     const adminSupabase = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
+    const orderAccessTokens = new OrderAccessTokenService(adminSupabase);
     const cartHash = createCartHash(items, fulfillment);
 
     // ---------- Idempotency ----------
@@ -149,7 +151,18 @@ export async function POST(request: NextRequest) {
         return json({ error: "CART_MISMATCH", code: "CART_MISMATCH", requestId }, 409);
       }
       if (existingOrder.status === "paid") {
-        return json({ status: "paid", orderId: existingOrder.id, requestId }, 200);
+        const guestAccessToken = existingOrder.user_id
+          ? null
+          : (await orderAccessTokens.createToken({ orderId: existingOrder.id })).token;
+        return json(
+          {
+            status: "paid",
+            orderId: existingOrder.id,
+            ...(guestAccessToken ? { guestAccessToken } : {}),
+            requestId,
+          },
+          200,
+        );
       }
       if (existingOrder.status === "failed") {
         await ordersRepo.resetFailedOrderForRetry(
@@ -201,6 +214,10 @@ export async function POST(request: NextRequest) {
           lineTotal: li.lineTotal,
         })),
       }));
+
+    const guestAccessToken = order.user_id
+      ? null
+      : (await orderAccessTokens.createToken({ orderId: order.id })).token;
 
     // Save tax info
     await adminSupabase
@@ -664,6 +681,7 @@ export async function POST(request: NextRequest) {
           {
             status: "under_review",
             orderId: order.id,
+            ...(guestAccessToken ? { guestAccessToken } : {}),
             requestId,
           },
           200,
@@ -872,6 +890,7 @@ export async function POST(request: NextRequest) {
         tax: pricing.tax,
         total: pricing.total,
         fulfillment,
+        ...(guestAccessToken ? { guestAccessToken } : {}),
         requestId,
       },
       200,

@@ -514,14 +514,20 @@ export function CheckoutForm({
 
     // Handle under_review status — order is on hold pending fraud review
     if ((data as { status?: string }).status === "under_review") {
+      const tokenQuery = guestAccessToken
+        ? `&token=${encodeURIComponent(guestAccessToken)}`
+        : "";
       router.push(
-        `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}&status=under_review`,
+        `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}&status=under_review${tokenQuery}`,
       );
       return;
     }
 
+    const tokenQuery = guestAccessToken
+      ? `&token=${encodeURIComponent(guestAccessToken)}`
+      : "";
     router.push(
-      `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}`,
+      `/checkout/success?orderId=${data.orderId as string}&fulfillment=${fulfillment}${tokenQuery}`,
     );
   }
 

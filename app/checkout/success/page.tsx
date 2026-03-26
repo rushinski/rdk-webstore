@@ -187,10 +187,10 @@ function SuccessContent() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <Mail className="w-16 h-16 text-red-600 mx-auto mb-6" />
-        <h1 className="text-3xl font-bold text-white mb-4">Order received</h1>
+        <h1 className="text-3xl font-bold text-white mb-4">Order Confirmed!</h1>
         <p className="text-gray-400 mb-6">
-          Thanks for your purchase. We are finalizing your order and will email a secure
-          order status link shortly.
+          Your payment was accepted. We could not load the full order details on this
+          device, but we will email your confirmation and secure order link shortly.
         </p>
         {isPickupParam && (
           <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
