@@ -13,7 +13,7 @@ export function buildCustomerRouteId(identity: CustomerIdentity) {
     return `acct_${identity.userId}`;
   }
 
-  return `guest_${Buffer.from(normalizeCustomerEmail(identity.email)).toString("base64url")}`;
+  return `guest_${encodeURIComponent(normalizeCustomerEmail(identity.email))}`;
 }
 
 export function parseCustomerRouteId(routeId: string): CustomerIdentity | null {
@@ -23,13 +23,20 @@ export function parseCustomerRouteId(routeId: string): CustomerIdentity | null {
   }
 
   if (routeId.startsWith("guest_")) {
-    const encoded = routeId.slice("guest_".length).trim();
-    if (!encoded) {
+    const rawValue = routeId.slice("guest_".length).trim();
+    if (!rawValue) {
       return null;
     }
 
     try {
-      const email = Buffer.from(encoded, "base64url").toString("utf8");
+      const decodedEmail = decodeURIComponent(rawValue);
+      if (decodedEmail.includes("@")) {
+        return { kind: "guest", email: normalizeCustomerEmail(decodedEmail) };
+      }
+    } catch {}
+
+    try {
+      const email = Buffer.from(rawValue, "base64url").toString("utf8");
       return email ? { kind: "guest", email: normalizeCustomerEmail(email) } : null;
     } catch {
       return null;

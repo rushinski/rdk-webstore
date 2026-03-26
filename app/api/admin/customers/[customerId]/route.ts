@@ -206,21 +206,72 @@ export async function GET(
       const { data: orders } = await buildOrdersQuery().eq("user_id", identity.userId);
       typedOrders = (orders ?? []) as CustomerOrderRow[];
     } else {
+      const guestOrdersById = new Map<string, CustomerOrderRow>();
+
       const { data: exactGuestOrders } = await buildOrdersQuery()
         .is("user_id", null)
         .eq("guest_email", identity.email);
 
-      typedOrders = (exactGuestOrders ?? []) as CustomerOrderRow[];
+      for (const order of (exactGuestOrders ?? []) as CustomerOrderRow[]) {
+        guestOrdersById.set(order.id, order);
+      }
 
-      if (typedOrders.length === 0) {
+      if (guestOrdersById.size === 0) {
         const { data: fallbackGuestOrders } = await buildOrdersQuery()
           .is("user_id", null)
           .not("guest_email", "is", null);
 
-        typedOrders = ((fallbackGuestOrders ?? []) as CustomerOrderRow[]).filter(
-          (order) => normalizeCustomerEmail(order.guest_email ?? "") === identity.email,
-        );
+        for (const order of (fallbackGuestOrders ?? []) as CustomerOrderRow[]) {
+          if (normalizeCustomerEmail(order.guest_email ?? "") === identity.email) {
+            guestOrdersById.set(order.id, order);
+          }
+        }
       }
+
+      // Some historical guest orders only have the checkout email on payment rows.
+      const buildGuestPaymentsQuery = () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let guestPaymentsQuery = (admin as any)
+          .from("payment_transactions")
+          .select("order_id, customer_email, created_at")
+          .not("customer_email", "is", null)
+          .order("created_at", { ascending: false });
+
+        if (tenantId) {
+          guestPaymentsQuery = guestPaymentsQuery.eq("tenant_id", tenantId);
+        }
+
+        return guestPaymentsQuery;
+      };
+
+      const { data: paymentEmailRows } = await buildGuestPaymentsQuery();
+      const paymentMatchedOrderIds = Array.from(
+        new Set(
+          ((paymentEmailRows ?? []) as Array<{
+            order_id?: string | null;
+            customer_email?: string | null;
+          }>).flatMap((payment) =>
+            payment.order_id &&
+            normalizeCustomerEmail(payment.customer_email ?? "") === identity.email
+              ? [payment.order_id]
+              : [],
+          ),
+        ),
+      );
+
+      if (paymentMatchedOrderIds.length > 0) {
+        const { data: paymentMatchedOrders } = await buildOrdersQuery()
+          .is("user_id", null)
+          .in("id", paymentMatchedOrderIds);
+
+        for (const order of (paymentMatchedOrders ?? []) as CustomerOrderRow[]) {
+          guestOrdersById.set(order.id, order);
+        }
+      }
+
+      typedOrders = Array.from(guestOrdersById.values()).sort((a, b) => {
+        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+      });
     }
 
     if (typedOrders.length === 0) {
