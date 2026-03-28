@@ -6,10 +6,8 @@ import { RotateCw } from "lucide-react";
 
 import { SixDigitCodeField } from "@/components/auth/ui/SixDigitCodeField";
 
-export interface SplitCodeInputWithResendProps extends Omit<
-  ComponentPropsWithoutRef<"input">,
-  "onChange" | "value"
-> {
+export interface SplitCodeInputWithResendProps
+  extends Omit<ComponentPropsWithoutRef<"input">, "onChange" | "value"> {
   id?: string;
   label?: string;
   length?: number;
