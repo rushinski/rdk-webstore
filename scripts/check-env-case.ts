@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// Starting from project root we create a absolute path to src/config/env.ts that works across all OS's and CI runners
+// Starting from project root we create a absolute path to src/config/env.ts that works across all OSs and CI runners
 const ENV_MODULE_PATH = path.join(process.cwd(), "src/config/env.ts");
 // Gets the plain text contents of env.ts
 const envSource = fs.readFileSync(ENV_MODULE_PATH, "utf8");
