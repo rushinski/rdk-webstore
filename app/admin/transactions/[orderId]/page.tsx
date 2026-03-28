@@ -611,7 +611,8 @@ export default function TransactionDetailPage() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [trackingEvents, setTrackingEvents] = useState<TrackingEvent[]>([]);
   const [checkoutLogs, setCheckoutLogs] = useState<CheckoutLog[]>([]);
-  const [customerSummary, setCustomerSummary] = useState<TransactionPayload["customer"]>(null);
+  const [customerSummary, setCustomerSummary] =
+    useState<TransactionPayload["customer"]>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emailPreview, setEmailPreview] = useState<EmailLog | null>(null);
@@ -1522,7 +1523,9 @@ export default function TransactionDetailPage() {
                 <DetailRow label="Customer ID">
                   <button
                     type="button"
-                    onClick={() => router.push(`/admin/customers/${customerSummary.routeId}`)}
+                    onClick={() =>
+                      router.push(`/admin/customers/${customerSummary.routeId}`)
+                    }
                     className="font-mono text-xs text-red-400 transition hover:text-red-300"
                   >
                     {customerSummary.displayId}

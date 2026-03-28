@@ -127,7 +127,9 @@ export default function CustomerDetailPage() {
 
         setData(payload);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : "Failed to load customer");
+        setError(
+          loadError instanceof Error ? loadError.message : "Failed to load customer",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -184,7 +186,9 @@ export default function CustomerDetailPage() {
               {data.customer.kind === "guest" ? "Guest customer" : "Account customer"}
             </span>
           </div>
-          <p className="mt-1 font-mono text-sm text-zinc-500">{data.customer.displayId}</p>
+          <p className="mt-1 font-mono text-sm text-zinc-500">
+            {data.customer.displayId}
+          </p>
         </div>
       </div>
 
@@ -192,7 +196,9 @@ export default function CustomerDetailPage() {
         <div className="space-y-6">
           <SectionCard title="Payments">
             {data.payments.length === 0 ? (
-              <p className="text-sm text-zinc-500">No payments recorded for this customer.</p>
+              <p className="text-sm text-zinc-500">
+                No payments recorded for this customer.
+              </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
@@ -208,12 +214,18 @@ export default function CustomerDetailPage() {
                     {data.payments.map((payment) => (
                       <tr
                         key={payment.id}
-                        onClick={() => router.push(`/admin/transactions/${payment.orderId}`)}
+                        onClick={() =>
+                          router.push(`/admin/transactions/${payment.orderId}`)
+                        }
                         className="cursor-pointer border-b border-zinc-800/50 text-zinc-300 transition hover:bg-zinc-950/60"
                       >
-                        <td className="py-3 text-white">{fmtMoney.format(payment.amount)}</td>
+                        <td className="py-3 text-white">
+                          {fmtMoney.format(payment.amount)}
+                        </td>
                         <td className="py-3">{payment.status}</td>
-                        <td className="py-3 text-zinc-400">{fmtDate(payment.createdAt)}</td>
+                        <td className="py-3 text-zinc-400">
+                          {fmtDate(payment.createdAt)}
+                        </td>
                         <td className="py-3 font-mono text-xs text-red-400">
                           #{payment.orderId.slice(0, 8)}
                         </td>
@@ -310,7 +322,9 @@ export default function CustomerDetailPage() {
                   >
                     <p className="text-sm text-white">{entry.title}</p>
                     <p className="mt-1 text-xs text-zinc-400">{entry.description}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{fmtDate(entry.createdAt)}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {fmtDate(entry.createdAt)}
+                    </p>
                   </li>
                 ))}
               </ol>
@@ -368,7 +382,9 @@ export default function CustomerDetailPage() {
               <DetailRow label="Customer since">
                 {fmtDate(data.customer.customerSince)}
               </DetailRow>
-              <DetailRow label="Last updated">{fmtDate(data.customer.lastUpdated)}</DetailRow>
+              <DetailRow label="Last updated">
+                {fmtDate(data.customer.lastUpdated)}
+              </DetailRow>
               <DetailRow label="Billing details">
                 {data.customer.billingDetails ?? "—"}
               </DetailRow>

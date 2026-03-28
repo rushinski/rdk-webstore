@@ -41,7 +41,9 @@ const readStatus = (value: unknown): string | undefined => {
   return readString(objectValue.status);
 };
 
-export function extractShippoTrackingUpdate(payload: unknown): ShippoTrackingUpdate | null {
+export function extractShippoTrackingUpdate(
+  payload: unknown,
+): ShippoTrackingUpdate | null {
   const parsed = shippoTrackingUpdateSchema.safeParse(payload);
   if (!parsed.success) {
     return null;
@@ -62,6 +64,8 @@ export function extractShippoTrackingUpdate(payload: unknown): ShippoTrackingUpd
     statusRaw,
     carrier: readString(data.carrier) ?? null,
     trackingUrl:
-      readString(data.tracking_url_provider) ?? readString(data.trackingUrlProvider) ?? null,
+      readString(data.tracking_url_provider) ??
+      readString(data.trackingUrlProvider) ??
+      null,
   };
 }

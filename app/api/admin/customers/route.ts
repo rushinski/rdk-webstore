@@ -135,7 +135,10 @@ export async function GET(request: NextRequest) {
         ? (order.shipping_address[0] ?? null)
         : (order.shipping_address ?? null);
       const email =
-        order.profiles?.email ?? order.guest_email ?? latestPayment?.customer_email ?? null;
+        order.profiles?.email ??
+        order.guest_email ??
+        latestPayment?.customer_email ??
+        null;
       const identity: CustomerIdentity | null = order.user_id
         ? { kind: "account", userId: order.user_id }
         : email
@@ -163,7 +166,10 @@ export async function GET(request: NextRequest) {
 
       const candidatePrimaryPaymentMethod =
         latestPayment?.card_type || latestPayment?.card_last4
-          ? [latestPayment.card_type ?? "", latestPayment.card_last4 ? `•••• ${latestPayment.card_last4}` : ""]
+          ? [
+              latestPayment.card_type ?? "",
+              latestPayment.card_last4 ? `•••• ${latestPayment.card_last4}` : "",
+            ]
               .filter(Boolean)
               .join(" ")
           : null;
@@ -207,7 +213,9 @@ export async function GET(request: NextRequest) {
       }
       if (
         existing.name === "Customer" &&
-        (shippingAddress?.name || order.profiles?.full_name || latestPayment?.billing_name)
+        (shippingAddress?.name ||
+          order.profiles?.full_name ||
+          latestPayment?.billing_name)
       ) {
         existing.name =
           shippingAddress?.name ??

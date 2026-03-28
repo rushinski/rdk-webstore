@@ -10,6 +10,7 @@ import {
   type CustomerIdentity,
 } from "@/lib/admin/customer-identifiers";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import type { Tables } from "@/types/db/database.types";
 import { logError } from "@/lib/utils/log";
 
 type CustomerOrderRow = {
@@ -77,18 +78,24 @@ type PaymentRow = {
   updated_at?: string | null;
 };
 
-type AddressRow = {
-  id: string;
-  created_at?: string | null;
-  name?: string | null;
-  phone?: string | null;
-  line1?: string | null;
-  line2?: string | null;
-  city?: string | null;
-  state?: string | null;
-  postal_code?: string | null;
-  country?: string | null;
-};
+type ProfileRow = Pick<
+  Tables<"profiles">,
+  "id" | "created_at" | "full_name" | "email" | "payrilla_customer_token"
+>;
+
+type AddressRow = Pick<
+  Tables<"user_addresses">,
+  | "id"
+  | "created_at"
+  | "name"
+  | "phone"
+  | "line1"
+  | "line2"
+  | "city"
+  | "state"
+  | "postal_code"
+  | "country"
+>;
 
 const SUCCESSFUL_ORDER_STATUSES = new Set([
   "paid",
@@ -247,10 +254,12 @@ export async function GET(
       const { data: paymentEmailRows } = await buildGuestPaymentsQuery();
       const paymentMatchedOrderIds = Array.from(
         new Set(
-          ((paymentEmailRows ?? []) as Array<{
-            order_id?: string | null;
-            customer_email?: string | null;
-          }>).flatMap((payment) =>
+          (
+            (paymentEmailRows ?? []) as Array<{
+              order_id?: string | null;
+              customer_email?: string | null;
+            }>
+          ).flatMap((payment) =>
             payment.order_id &&
             normalizeCustomerEmail(payment.customer_email ?? "") === identity.email
               ? [payment.order_id]
@@ -270,7 +279,9 @@ export async function GET(
       }
 
       typedOrders = Array.from(guestOrdersById.values()).sort((a, b) => {
-        return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+        return (
+          new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime()
+        );
       });
     }
 
@@ -301,35 +312,27 @@ export async function GET(
 
     let shippingAddresses: AddressRow[] = [];
     let billingAddresses: AddressRow[] = [];
-    let matchedProfile:
-      | {
-          id: string;
-          created_at?: string | null;
-          full_name?: string | null;
-          email?: string | null;
-          payrilla_customer_token?: string | null;
-        }
-      | null = null;
+    let matchedProfile: ProfileRow | null = null;
 
     if (identity.kind === "account") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const [{ data: profile }, { data: shipping }, { data: billing }] = await Promise.all([
-        (admin as any)
-          .from("profiles")
-          .select("id, created_at, full_name, email, payrilla_customer_token")
-          .eq("id", identity.userId)
-          .maybeSingle(),
-        (admin as any)
-          .from("user_addresses")
-          .select("*")
-          .eq("user_id", identity.userId)
-          .order("created_at", { ascending: false }),
-        (admin as any)
-          .from("user_billing_addresses")
-          .select("*")
-          .eq("user_id", identity.userId)
-          .order("created_at", { ascending: false }),
-      ]);
+      const [{ data: profile }, { data: shipping }, { data: billing }] =
+        await Promise.all([
+          admin
+            .from("profiles")
+            .select("id, created_at, full_name, email, payrilla_customer_token")
+            .eq("id", identity.userId)
+            .maybeSingle(),
+          admin
+            .from("user_addresses")
+            .select("*")
+            .eq("user_id", identity.userId)
+            .order("created_at", { ascending: false }),
+          admin
+            .from("user_billing_addresses")
+            .select("*")
+            .eq("user_id", identity.userId)
+            .order("created_at", { ascending: false }),
+        ]);
 
       matchedProfile = profile ?? null;
       shippingAddresses = (shipping ?? []) as AddressRow[];
@@ -352,16 +355,10 @@ export async function GET(
           .not("email", "is", null);
 
         matchedProfile =
-          (
-            (fallbackProfiles ?? []) as Array<{
-              id: string;
-              created_at?: string | null;
-              full_name?: string | null;
-              email?: string | null;
-              payrilla_customer_token?: string | null;
-            }>
-          ).find((candidate) => normalizeCustomerEmail(candidate.email ?? "") === identity.email) ??
-          null;
+          ((fallbackProfiles ?? []) as ProfileRow[]).find(
+            (candidate) =>
+              normalizeCustomerEmail(candidate.email ?? "") === identity.email,
+          ) ?? null;
       }
     }
 
@@ -386,9 +383,15 @@ export async function GET(
       "Customer";
     const customerSince =
       identity.kind === "account"
-        ? matchedProfile?.created_at ?? latestOrder?.created_at ?? latestPayment?.created_at
-        : typedOrders[typedOrders.length - 1]?.created_at ?? latestPayment?.created_at;
-    const lastUpdated = [latestOrder?.updated_at, latestPayment?.updated_at, latestPayment?.created_at]
+        ? (matchedProfile?.created_at ??
+          latestOrder?.created_at ??
+          latestPayment?.created_at)
+        : (typedOrders[typedOrders.length - 1]?.created_at ?? latestPayment?.created_at);
+    const lastUpdated = [
+      latestOrder?.updated_at,
+      latestPayment?.updated_at,
+      latestPayment?.created_at,
+    ]
       .filter(Boolean)
       .sort()
       .at(-1) as string | undefined;
@@ -396,7 +399,9 @@ export async function GET(
       if (!SUCCESSFUL_ORDER_STATUSES.has(order.status ?? "")) {
         return sum;
       }
-      return sum + Math.max(Number(order.total ?? 0) - Number(order.refund_amount ?? 0), 0);
+      return (
+        sum + Math.max(Number(order.total ?? 0) - Number(order.refund_amount ?? 0), 0)
+      );
     }, 0);
 
     const paymentRowsByOrderId = new Map<string, PaymentRow[]>();
@@ -454,7 +459,10 @@ export async function GET(
       if (!paymentMethodsMap.has(key)) {
         paymentMethodsMap.set(key, {
           id: payment.id,
-          label: [payment.card_type ?? "Card", payment.card_last4 ? `•••• ${payment.card_last4}` : ""]
+          label: [
+            payment.card_type ?? "Card",
+            payment.card_last4 ? `•••• ${payment.card_last4}` : "",
+          ]
             .filter(Boolean)
             .join(" "),
           lastUsedAt: payment.created_at,
@@ -562,10 +570,15 @@ export async function GET(
           kind: identity.kind,
           name: customerName,
           email: customerEmail,
-          phone: latestShipping?.phone ?? latestBilling?.phone ?? latestPayment?.billing_phone ?? null,
+          phone:
+            latestShipping?.phone ??
+            latestBilling?.phone ??
+            latestPayment?.billing_phone ??
+            null,
           customerSince: customerSince ?? null,
           lastUpdated: lastUpdated ?? null,
-          billingDetails: formatAddress(latestBilling) ?? formatAddress(latestPayment) ?? null,
+          billingDetails:
+            formatAddress(latestBilling) ?? formatAddress(latestPayment) ?? null,
           totalSpend,
           paymentCount: paymentsTable.length,
           primaryPaymentMethod: paymentMethodsMap.values().next().value?.label ?? null,

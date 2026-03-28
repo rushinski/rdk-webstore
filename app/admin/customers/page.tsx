@@ -86,7 +86,9 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="mb-2 text-3xl font-bold text-white">Customers</h1>
-        <p className="text-gray-400">Profiles built from account, order, and payment history</p>
+        <p className="text-gray-400">
+          Profiles built from account, order, and payment history
+        </p>
       </div>
 
       <div className="flex items-center gap-2 border border-zinc-800/70 bg-zinc-900 px-3 py-2 max-w-md">
@@ -110,8 +112,12 @@ export default function CustomersPage() {
             <table className="w-full text-[12px] sm:text-sm">
               <thead>
                 <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">Created</th>
-                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">Customer</th>
+                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">
+                    Created
+                  </th>
+                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">
+                    Customer
+                  </th>
                   <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
                     Type
                   </th>
@@ -149,7 +155,9 @@ export default function CustomersPage() {
                       }}
                       className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800 focus-visible:outline-none"
                     >
-                      <td className="p-3 text-gray-400 sm:p-4">{fmtDate(customer.createdAt)}</td>
+                      <td className="p-3 text-gray-400 sm:p-4">
+                        {fmtDate(customer.createdAt)}
+                      </td>
                       <td className="p-3 sm:p-4">
                         <div className="space-y-0.5">
                           <div className="text-white">{customer.name}</div>
@@ -158,7 +166,9 @@ export default function CustomersPage() {
                           </div>
                         </div>
                       </td>
-                      <td className={`hidden md:table-cell p-3 sm:p-4 ${typeMeta.className}`}>
+                      <td
+                        className={`hidden md:table-cell p-3 sm:p-4 ${typeMeta.className}`}
+                      >
                         {typeMeta.label}
                       </td>
                       <td className="hidden md:table-cell p-3 text-gray-400 sm:p-4">
