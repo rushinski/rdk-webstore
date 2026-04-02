@@ -3,6 +3,7 @@
 This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and primary validation sources.
 
 ## Conventions
+
 - Base URL: `/api`
 - JSON request/response unless noted.
 - `x-request-id` is set by the proxy and is included in error responses.
@@ -11,10 +12,12 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - Auth uses Supabase sessions. Admin routes additionally require an admin session cookie and role checks.
 
 ## Health
+
 - `GET /api/healthz` - liveness probe
 - `GET /api/readyz` - readiness probe
 
 ## Auth
+
 - `POST /api/auth/register` - create user (body: `registerSchema`)
 - `POST /api/auth/login` - sign in (body: `loginSchema`)
 - `POST /api/auth/logout` - sign out
@@ -33,6 +36,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/auth/2fa/challenge/verify` - verify MFA challenge (body: `twoFactorChallengeVerifySchema`)
 
 ## Account
+
 - `GET /api/me` - current user profile
 - `GET /api/account/orders` - list orders
 - `GET /api/account/addresses` - list addresses
@@ -45,6 +49,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/account/shipping` - update shipping profile (inline zod schema)
 
 ## Storefront
+
 - `GET /api/store/products` - list products (query: `storeProductsQuerySchema`)
 - `GET /api/store/products/{id}` - product details
 - `GET /api/store/filters` - list filter facets
@@ -52,11 +57,13 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `GET /api/store/catalog/brand-groups` - list brand groups
 
 ## Cart
+
 - `POST /api/cart/validate` - validate cart contents (body: `cartValidateSchema`)
 - `POST /api/cart/snapshot` - store cart snapshot for auth redirects (body: `cartSnapshotSchema`)
 - `GET /api/cart/restore` - restore cart snapshot
 
 ## Checkout
+
 - `POST /api/checkout/session` - create Stripe checkout session (body: `checkoutSessionSchema`, optional `guestEmail`)
 - `POST /api/checkout/create-payment-intent` - create or update payment intent (body: `checkoutSessionSchema`)
 - `POST /api/checkout/update-fulfillment` - update fulfillment (body: `updateFulfillmentSchema`)
@@ -64,16 +71,20 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/checkout/confirm-payment` - confirm payment (body: `confirmPaymentSchema`)
 
 ## Orders
+
 - `GET /api/orders/{orderId}` - order status + events (auth or guest token query)
 
 ## Email subscriptions
+
 - `POST /api/email/subscribe` - request subscription (body: `emailSubscribeSchema`)
 - `GET /api/email/confirm` - confirm subscription (redirects to `/email/confirm?status=...`)
 
 ## Contact
+
 - `POST /api/contact` - contact form submission (body: `contactSchema`)
 
 ## Chats
+
 - `GET /api/chats` - list chats (admin)
 - `POST /api/chats` - create chat
 - `GET /api/chats/current` - current chat for user
@@ -83,22 +94,29 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - Guest chat endpoints are disabled in MVP (return 403).
 
 ## Analytics
+
 - `POST /api/analytics/track` - record client events
 
 ## Invites
+
 - `POST /api/invites/accept` - accept admin invite (body: `adminInviteAcceptSchema`)
 
 ## Webhooks
+
 - `POST /api/webhooks/stripe` - Stripe webhook (signature required)
 - `POST /api/webhooks/shippo` - Shippo webhook (token required)
+- Intended use: carrier tracking lifecycle updates (`track_updated`, plus `transaction_updated` when it includes tracking data)
+- Not intended use: label-created notifications; those are sent during `POST /api/admin/shipping/labels`
 
 ## Admin (requires admin role)
 
 ### Profile and preferences
+
 - `GET /api/admin/profile` - current admin profile
 - `PATCH /api/admin/profile` - update admin notification preferences (body: `adminPreferencesSchema`)
 
 ### Products
+
 - `GET /api/admin/products` - list products
 - `POST /api/admin/products` - create product (body: `productCreateSchema`)
 - `PATCH /api/admin/products/{id}` - update product
@@ -106,11 +124,13 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/admin/products/{id}/duplicate` - duplicate product
 
 ### Orders
+
 - `GET /api/admin/orders` - list orders
 - `POST /api/admin/orders/{orderId}/refund` - refund order
 - `POST /api/admin/orders/{orderId}/fulfill` - fulfill order
 
 ### Catalog
+
 - `POST /api/admin/catalog/parse-title` - parse product title
 - `GET /api/admin/catalog/brands` - list brands
 - `POST /api/admin/catalog/brands` - create brand
@@ -129,6 +149,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/admin/catalog/candidates/{id}/reject` - reject candidate
 
 ### Shipping
+
 - `GET /api/admin/shipping/defaults` - list shipping defaults
 - `POST /api/admin/shipping/defaults` - update shipping defaults
 - `GET /api/admin/shipping/carriers` - list carriers
@@ -139,6 +160,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/admin/shipping/labels` - purchase label
 
 ### Stripe Connect (admin payouts)
+
 - `GET /api/admin/stripe/account` - get Stripe account summary
 - `POST /api/admin/stripe/account-session` - create account session
 - `POST /api/admin/stripe/payout-account` - create or update payout account
@@ -149,6 +171,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/admin/payout` - update payout settings (body: `payoutSettingsSchema`)
 
 ### Invites and notifications
+
 - `POST /api/admin/invites` - create admin invite (body: `adminInviteCreateSchema`)
 - `GET /api/admin/notifications` - list notifications
 - `PATCH /api/admin/notifications` - mark notifications read (body: `adminNotificationUpdateSchema`)
@@ -156,4 +179,5 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `GET /api/admin/notifications/unread-count` - unread count
 
 ### Analytics
+
 - `GET /api/admin/analytics` - admin metrics
