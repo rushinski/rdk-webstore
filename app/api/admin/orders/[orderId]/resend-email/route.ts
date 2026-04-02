@@ -4,10 +4,12 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { env } from "@/config/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrderEmailService } from "@/services/order-email-service";
+import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
@@ -53,6 +55,7 @@ export async function POST(
     const { emailType } = parsed.data;
     const supabase = await createSupabaseServerClient();
     const admin = createSupabaseAdminClient();
+    const accessTokenService = new OrderAccessTokenService(admin);
 
     // Load order with items and shipping
     const { data: order, error: orderError } = await admin
@@ -98,6 +101,12 @@ export async function POST(
 
     const shippingRaw = orderAny.shipping;
     const shippingAddr = Array.isArray(shippingRaw) ? shippingRaw[0] : shippingRaw;
+    let guestOrderUrl: string | null = null;
+
+    if (!order.user_id && orderAny.guest_email) {
+      const { token } = await accessTokenService.createToken({ orderId: order.id });
+      guestOrderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(token)}`;
+    }
 
     switch (emailType) {
       case "order_confirmation": {
@@ -141,6 +150,7 @@ export async function POST(
           orderId: order.id,
           carrier: orderAny.shipping_carrier ?? null,
           trackingNumber: orderAny.tracking_number ?? null,
+          orderUrl: guestOrderUrl,
         });
         break;
       }
@@ -150,6 +160,7 @@ export async function POST(
           orderId: order.id,
           carrier: orderAny.shipping_carrier ?? null,
           trackingNumber: orderAny.tracking_number ?? null,
+          orderUrl: guestOrderUrl,
         });
         break;
       }
@@ -159,6 +170,7 @@ export async function POST(
           orderId: order.id,
           carrier: orderAny.shipping_carrier ?? null,
           trackingNumber: orderAny.tracking_number ?? null,
+          orderUrl: guestOrderUrl,
         });
         break;
       }

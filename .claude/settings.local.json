@@ -14,7 +14,12 @@
       "WebSearch",
       "WebFetch(domain:portal.nofraud.com)",
       "Bash(npm install:*)",
-      "Bash(npm list:*)"
+      "Bash(npm list:*)",
+      "Bash(pnpm --filter @sneakereco/api exec tsc --noEmit)",
+      "Bash(pnpm --filter @sneakereco/db build)",
+      "Bash(sed -i 's/newId\\(\"\"thm\"\"\\)/newId\\(\"\"cfg\"\"\\)/g;:*)",
+      "Bash(sed -i 's/newId\\(\"\"whe\"\"\\)/newId\\(\"\"whk\"\"\\)/g;:*)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

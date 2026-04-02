@@ -5,12 +5,14 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { env } from "@/config/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippoService } from "@/services/shipping-label-service";
 import { OrderEmailService } from "@/services/order-email-service";
+import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
     const ordersRepo = new OrdersRepository(supabase);
     const profilesRepo = new ProfileRepository(supabase);
     const shippoService = new ShippoService();
+    const accessTokenService = new OrderAccessTokenService(supabase);
 
     const order = await ordersRepo.getById(orderId);
     if (!order) {
@@ -177,18 +180,29 @@ export async function POST(request: NextRequest) {
 
     // Send customer notification email
     try {
-      if (order.user_id) {
-        const profile = await profilesRepo.getByUserId(order.user_id);
-        if (profile?.email) {
-          const emailService = new OrderEmailService();
-          await emailService.sendOrderLabelCreated({
-            to: profile.email,
+      const profile = order.user_id
+        ? await profilesRepo.getByUserId(order.user_id)
+        : null;
+      const recipientEmail = profile?.email ?? order.guest_email ?? null;
+
+      if (recipientEmail) {
+        let orderUrl: string | null = null;
+        if (!order.user_id && order.guest_email) {
+          const { token: orderToken } = await accessTokenService.createToken({
             orderId: order.id,
-            carrier,
-            trackingNumber,
-            trackingUrl,
           });
+          orderUrl = `${env.NEXT_PUBLIC_SITE_URL}/order-status/${order.id}?token=${encodeURIComponent(orderToken)}`;
         }
+
+        const emailService = new OrderEmailService();
+        await emailService.sendOrderLabelCreated({
+          to: recipientEmail,
+          orderId: order.id,
+          carrier,
+          trackingNumber,
+          trackingUrl,
+          orderUrl,
+        });
       }
     } catch (emailError) {
       // Don't fail the request if email fails

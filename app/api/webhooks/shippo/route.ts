@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { env } from "@/config/env";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -11,7 +12,7 @@ import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderEmailService } from "@/services/order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { extractShippoTrackingUpdate } from "@/lib/shippo/webhook";
-import { logError } from "@/lib/utils/log";
+import { log, logError } from "@/lib/utils/log";
 import { SHIPPO_TRACKING_STATUS_MAP } from "@/config/constants/shipping";
 import {
   shippoWebhookEventSchema,
@@ -39,6 +40,8 @@ const getEmailTrigger = (
 };
 
 export async function POST(req: NextRequest) {
+  const requestId = getRequestIdFromHeaders(req.headers);
+
   try {
     // Verify webhook token
     const url = new URL(req.url);
@@ -47,6 +50,15 @@ export async function POST(req: NextRequest) {
     });
 
     if (!queryParsed.success) {
+      log({
+        level: "warn",
+        layer: "api",
+        message: "shippo_webhook_invalid_token",
+        requestId,
+        route: "/api/webhooks/shippo",
+        status: 401,
+        tokenPresent: false,
+      });
       return NextResponse.json({ error: "invalid token" }, { status: 401 });
     }
 
@@ -54,6 +66,15 @@ export async function POST(req: NextRequest) {
 
     if (env.SHIPPO_WEBHOOK_TOKEN) {
       if (!token || token !== env.SHIPPO_WEBHOOK_TOKEN) {
+        log({
+          level: "warn",
+          layer: "api",
+          message: "shippo_webhook_invalid_token",
+          requestId,
+          route: "/api/webhooks/shippo",
+          status: 401,
+          tokenPresent: Boolean(token),
+        });
         return NextResponse.json({ error: "invalid token" }, { status: 401 });
       }
     }
@@ -63,25 +84,57 @@ export async function POST(req: NextRequest) {
     if (!parsedEvent.success) {
       logError(new Error("Webhook received invalid JSON"), {
         layer: "api",
+        requestId,
         route: "/api/webhooks/shippo",
       });
       return NextResponse.json({ ok: false }, { status: 400 });
     }
 
+    const eventType = parsedEvent.data.event;
+    const shippoApiVersion = req.headers.get("Shippo-API-Version");
+
     // Only handle tracking-related Shippo webhooks.
-    if (
-      parsedEvent.data.event !== "track_updated" &&
-      parsedEvent.data.event !== "transaction_updated"
-    ) {
+    if (eventType === "transaction_created") {
+      log({
+        level: "info",
+        layer: "api",
+        message: "shippo_webhook_transaction_created_ignored",
+        requestId,
+        route: "/api/webhooks/shippo",
+        shippoApiVersion,
+        eventType,
+        note: "label_created_notifications_are_sent_during_admin_label_purchase",
+      });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (eventType !== "track_updated" && eventType !== "transaction_updated") {
+      log({
+        level: "info",
+        layer: "api",
+        message: "shippo_webhook_event_ignored",
+        requestId,
+        route: "/api/webhooks/shippo",
+        shippoApiVersion,
+        eventType,
+      });
       return NextResponse.json({ ok: true });
     }
 
     const trackingUpdate = extractShippoTrackingUpdate(parsedEvent.data);
     if (!trackingUpdate) {
-      logError(new Error("Shippo webhook missing tracking data"), {
+      log({
+        level: "info",
         layer: "api",
+        message: "shippo_webhook_missing_tracking_data",
+        requestId,
         route: "/api/webhooks/shippo",
-        eventType: parsedEvent.data.event,
+        shippoApiVersion,
+        eventType,
+        payloadKeys:
+          payload && typeof payload === "object" && !Array.isArray(payload)
+            ? Object.keys(payload as Record<string, unknown>)
+            : [],
       });
       return NextResponse.json({ ok: true });
     }
@@ -93,6 +146,17 @@ export async function POST(req: NextRequest) {
 
     // Ignore statuses we don't track
     if (newFulfillmentStatus === null || newFulfillmentStatus === undefined) {
+      log({
+        level: "info",
+        layer: "api",
+        message: "shippo_webhook_status_ignored",
+        requestId,
+        route: "/api/webhooks/shippo",
+        shippoApiVersion,
+        eventType,
+        trackingNumber,
+        trackingStatus: status,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -111,6 +175,17 @@ export async function POST(req: NextRequest) {
 
     if (!orders || orders.length === 0) {
       // Not an error - webhook might arrive before order is in our system
+      log({
+        level: "info",
+        layer: "api",
+        message: "shippo_webhook_order_not_found",
+        requestId,
+        route: "/api/webhooks/shippo",
+        shippoApiVersion,
+        eventType,
+        trackingNumber,
+        trackingStatus: status,
+      });
       return NextResponse.json({ ok: true });
     }
 
@@ -124,15 +199,16 @@ export async function POST(req: NextRequest) {
 
     // Create fulfillment events
     if (currentFulfillmentStatus !== newFulfillmentStatus) {
-      const eventType = newFulfillmentStatus === "delivered" ? "delivered" : "shipped";
+      const fulfillmentEventType =
+        newFulfillmentStatus === "delivered" ? "delivered" : "shipped";
       try {
-        const hasEvent = await orderEventsRepo.hasEvent(order.id, eventType);
+        const hasEvent = await orderEventsRepo.hasEvent(order.id, fulfillmentEventType);
         if (!hasEvent) {
           await orderEventsRepo.insertEvent({
             orderId: order.id,
-            type: eventType,
+            type: fulfillmentEventType,
             message:
-              eventType === "delivered"
+              fulfillmentEventType === "delivered"
                 ? "Order delivered."
                 : "Order is in transit with the carrier.",
           });
@@ -140,6 +216,7 @@ export async function POST(req: NextRequest) {
       } catch (eventError) {
         logError(eventError, {
           layer: "api",
+          requestId,
           route: "/api/webhooks/shippo",
           message: "Failed to create order event",
           orderId: order.id,
@@ -195,6 +272,7 @@ export async function POST(req: NextRequest) {
       } catch (emailError) {
         logError(emailError, {
           layer: "api",
+          requestId,
           route: "/api/webhooks/shippo",
           message: "Failed to send tracking status email",
           orderId: order.id,
@@ -202,9 +280,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    log({
+      level: "info",
+      layer: "api",
+      message: "shippo_webhook_processed",
+      requestId,
+      route: "/api/webhooks/shippo",
+      shippoApiVersion,
+      eventType,
+      orderId: order.id,
+      trackingNumber,
+      trackingStatus: status,
+      fulfillmentStatus: newFulfillmentStatus,
+      emailTrigger,
+    });
+
     return NextResponse.json({ ok: true });
   } catch (e: unknown) {
-    logError(e, { layer: "api", route: "/api/webhooks/shippo" });
+    logError(e, { layer: "api", requestId, route: "/api/webhooks/shippo" });
     return NextResponse.json({ error: "webhook processing failed" }, { status: 500 });
   }
 }
