@@ -3,10 +3,8 @@
 
 import type { ComponentPropsWithoutRef } from "react";
 
-export interface SixDigitCodeFieldProps extends Omit<
-  ComponentPropsWithoutRef<"input">,
-  "onChange" | "value"
-> {
+export interface SixDigitCodeFieldProps
+  extends Omit<ComponentPropsWithoutRef<"input">, "onChange" | "value"> {
   id: string;
   label?: string;
   length?: number;
