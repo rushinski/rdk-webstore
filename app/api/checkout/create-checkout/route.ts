@@ -639,7 +639,12 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (nofraudResult.ok && nofraudResult.response.decision === "fail") {
+      if (
+        nofraudResult.ok &&
+        (nofraudResult.response.decision === "fail" ||
+          nofraudResult.response.decision === "review")
+      ) {
+        const wasUnderReview = nofraudResult.response.decision === "review";
         try {
           await payrillaService.voidTransaction(authResult.transactionId);
           if (paymentTxId) {
@@ -658,7 +663,7 @@ export async function POST(request: NextRequest) {
         log({
           level: "warn",
           layer: "api",
-          message: "nofraud_fail_order_blocked",
+          message: wasUnderReview ? "nofraud_review_order_blocked" : "nofraud_fail_order_blocked",
           requestId,
           orderId: order.id,
         });
@@ -673,7 +678,9 @@ export async function POST(request: NextRequest) {
           route: "/api/checkout/create-checkout",
           httpStatus: 402,
           durationMs: Date.now() - startedAt,
-          eventLabel: "Blocked by fraud screening",
+          eventLabel: wasUnderReview
+            ? "Blocked by fraud review"
+            : "Blocked by fraud screening",
           errorMessage: "FRAUD_BLOCKED",
           requestPayload: body,
           responsePayload: {
@@ -685,39 +692,6 @@ export async function POST(request: NextRequest) {
         return json(
           { error: "Order could not be processed", code: "FRAUD_BLOCKED", requestId },
           402,
-        );
-      }
-
-      // NoFraud review — keep auth on hold, wait for resolution
-      if (nofraudResult.ok && nofraudResult.response.decision === "review") {
-        await adminSupabase
-          .from("orders")
-          .update({ status: "review" })
-          .eq("id", order.id);
-        void logCheckoutEvent(adminSupabase, {
-          orderId: order.id,
-          tenantId,
-          requestId,
-          route: "/api/checkout/create-checkout",
-          httpStatus: 200,
-          durationMs: Date.now() - startedAt,
-          eventLabel: "Order placed under review",
-          requestPayload: body,
-          responsePayload: {
-            status: "under_review",
-            orderId: order.id,
-            requestId,
-          },
-        });
-        // Return under_review so frontend can redirect appropriately
-        return json(
-          {
-            status: "under_review",
-            orderId: order.id,
-            ...(guestAccessToken ? { guestAccessToken } : {}),
-            requestId,
-          },
-          200,
         );
       }
 
