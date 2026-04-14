@@ -10,6 +10,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
 import { OrderEmailService } from "@/services/order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
+import { RefundNotificationService } from "@/services/refund-notification-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
@@ -22,6 +23,7 @@ const bodySchema = z.object({
     "label_created",
     "in_transit",
     "delivered",
+    "refund_notification",
   ]),
 });
 
@@ -98,6 +100,7 @@ export async function POST(
 
     const tenantId = orderAny.tenant_id ?? null;
     const emailService = new OrderEmailService(supabase, tenantId);
+    const refundNotifications = new RefundNotificationService(admin);
 
     const shippingRaw = orderAny.shipping;
     const shippingAddr = Array.isArray(shippingRaw) ? shippingRaw[0] : shippingRaw;
@@ -170,6 +173,32 @@ export async function POST(
           orderId: order.id,
           carrier: orderAny.shipping_carrier ?? null,
           trackingNumber: orderAny.tracking_number ?? null,
+          orderUrl: guestOrderUrl,
+        });
+        break;
+      }
+      case "refund_notification": {
+        const latestRefund = await refundNotifications.getLatestRefundNotification(
+          order.id,
+        );
+        const refundAmountCents =
+          latestRefund?.refundAmountCents ??
+          Math.max(0, Math.round(Number(orderAny.refund_amount ?? 0)));
+
+        if (refundAmountCents <= 0) {
+          return NextResponse.json(
+            {
+              error: "This order does not have a refundable email amount to resend",
+              requestId,
+            },
+            { status: 422, headers: { "Cache-Control": "no-store" } },
+          );
+        }
+
+        await emailService.sendOrderRefunded({
+          to: recipientEmail,
+          orderId: order.id,
+          refundAmount: refundAmountCents,
           orderUrl: guestOrderUrl,
         });
         break;

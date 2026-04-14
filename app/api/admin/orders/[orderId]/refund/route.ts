@@ -13,8 +13,7 @@ import { OrdersRepository } from "@/repositories/orders-repo";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 import { PayrillaChargeService } from "@/services/payrilla-charge-service";
 import { ProductService } from "@/services/product-service";
-import { OrderEmailService } from "@/services/order-email-service";
-import { ProfileRepository } from "@/repositories/profile-repo";
+import { RefundNotificationService } from "@/services/refund-notification-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { log, logError } from "@/lib/utils/log";
@@ -62,7 +61,6 @@ export async function POST(
     const supabase = await createSupabaseServerClient();
     const admin = createSupabaseAdminClient();
     const ordersRepo = new OrdersRepository(supabase);
-    const profilesRepo = new ProfileRepository(supabase);
     const paymentTxRepo = new PaymentTransactionsRepository(admin);
 
     const order = await ordersRepo.getOrderWithTenant(orderId);
@@ -285,17 +283,13 @@ export async function POST(
 
     // Send refund email
     try {
-      const emailService = new OrderEmailService();
-      const emailTo = order.user_id
-        ? (await profilesRepo.getByUserId(order.user_id))?.email
-        : order.guest_email;
-      if (emailTo) {
-        await emailService.sendOrderRefunded({
-          to: emailTo,
-          orderId: order.id,
-          refundAmount: refundedCents,
-        });
-      }
+      const refundNotificationService = new RefundNotificationService(admin);
+      await refundNotificationService.sendRefundNotification({
+        order,
+        refundAmountCents: refundedCents,
+        cumulativeRefundCents: nextRefundAmountCents,
+        requestId,
+      });
     } catch (emailError) {
       logError(emailError, {
         layer: "api",

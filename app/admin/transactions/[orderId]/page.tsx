@@ -198,6 +198,7 @@ const SHIPPING_EMAIL_TYPES = [
   "delivered",
 ] as const;
 const PICKUP_EMAIL_TYPES = ["order_confirmation", "pickup_instructions"] as const;
+const REFUND_EMAIL_TYPE = "refund_notification" as const;
 
 const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const fmtMoney = (value: number | null | undefined) => fmt.format(Number(value ?? 0));
@@ -473,6 +474,7 @@ function getEmailTypeMeta(type: string) {
         label: "Order confirmation",
         icon: <Package className="h-4 w-4 text-blue-400" />,
       };
+    case "refund_notification":
     case "order_refunded":
       return {
         label: "Refund confirmation",
@@ -835,7 +837,10 @@ export default function TransactionDetailPage() {
   const customerName =
     shippingAddr?.name ?? order.profiles?.full_name ?? paymentTx?.billing_name ?? "-";
   const customerPhone = shippingAddr?.phone ?? paymentTx?.billing_phone ?? null;
-  const checklistTypes = isPickup ? PICKUP_EMAIL_TYPES : SHIPPING_EMAIL_TYPES;
+  const checklistTypes = [
+    ...(isPickup ? PICKUP_EMAIL_TYPES : SHIPPING_EMAIL_TYPES),
+    ...(refundedCents > 0 ? [REFUND_EMAIL_TYPE] : []),
+  ];
 
   const sessionTimeline: SessionEntry[] = [
     ...paymentEvents.map(

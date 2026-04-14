@@ -24,6 +24,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { PaymentWebhookEventsRepository } from "@/repositories/payment-webhook-events-repo";
+import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { NexusRepository } from "@/repositories/nexus-repo";
@@ -32,6 +33,7 @@ import { ChatService } from "@/services/chat-service";
 import { AdminNotificationService } from "@/services/admin-notification-service";
 import { EvidenceService } from "@/services/evidence-service";
 import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
+import { RefundNotificationService } from "@/services/refund-notification-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
@@ -39,6 +41,8 @@ import type { Tables, TablesUpdate } from "@/types/db/database.types";
 
 type OrderRow = Tables<"orders">;
 type OrderItemRow = Tables<"order_items">;
+
+const RECENT_REFUND_DEDUPE_WINDOW_MS = 10 * 60 * 1000;
 
 // ---------- PayRilla webhook payload shapes (from WEBHOOKS.md) ----------
 //
@@ -548,26 +552,126 @@ async function handleRefundCompleted(
     return;
   }
 
-  // auth_amount is in USD; store in cents for the refund_amount column
   const refundAmountCents =
     event.data.auth_amount !== null && event.data.auth_amount !== undefined
       ? Math.round(event.data.auth_amount * 100)
       : null;
+  if (refundAmountCents === null || refundAmountCents <= 0) {
+    log({
+      level: "warn",
+      layer: "payrilla",
+      message: "refund_completed_missing_amount",
+      requestId,
+      orderId,
+      referenceNumber: event.data.reference_number,
+    });
+    return;
+  }
 
-  const updateData: TablesUpdate<"orders"> = {
-    ...(refundAmountCents !== null ? { refund_amount: refundAmountCents } : {}),
-    refunded_at: new Date().toISOString(),
-    status: "refunded",
-  };
+  const ordersRepo = new OrdersRepository(adminSupabase);
+  const order = await ordersRepo.getById(orderId);
+  if (!order) {
+    log({
+      level: "warn",
+      layer: "payrilla",
+      message: "refund_completed_order_not_found",
+      requestId,
+      orderId,
+    });
+    return;
+  }
 
-  await adminSupabase.from("orders").update(updateData).eq("id", orderId);
-
-  const orderEventsRepo = new OrderEventsRepository(adminSupabase);
-  await orderEventsRepo.insertEvent({
+  const orderTotalCents = Math.max(0, Math.round(Number(order.total ?? 0) * 100));
+  const existingRefundCents = Math.max(0, Math.round(Number(order.refund_amount ?? 0)));
+  const alreadyAppliedByAdmin = await hasRecentAdminRefundEvent({
+    adminSupabase,
     orderId,
-    type: "refunded",
-    message: "Refund completed via PayRilla.",
+    refundAmountCents,
+    currentRefundAmountCents: existingRefundCents,
   });
+
+  let nextRefundAmountCents = existingRefundCents;
+  let nextStatus: TablesUpdate<"orders">["status"] = order.status ?? "partially_refunded";
+
+  if (!alreadyAppliedByAdmin) {
+    nextRefundAmountCents = Math.min(
+      orderTotalCents,
+      existingRefundCents + refundAmountCents,
+    );
+    nextStatus =
+      nextRefundAmountCents >= orderTotalCents ? "refunded" : "partially_refunded";
+
+    await ordersRepo.updateRefundSummary(orderId, {
+      status: nextStatus,
+      refundAmount: nextRefundAmountCents,
+      refundedAt: new Date().toISOString(),
+    });
+
+    const paymentTxRepo = new PaymentTransactionsRepository(adminSupabase);
+    try {
+      const paymentTx = await paymentTxRepo.getByOrderId(orderId);
+      const paymentTxId =
+        paymentTx !== null && typeof paymentTx.id === "string" ? paymentTx.id : null;
+
+      if (paymentTxId) {
+        await paymentTxRepo.update(paymentTxId, {
+          amountRefunded: nextRefundAmountCents / 100,
+        });
+        await paymentTxRepo.logEvent({
+          paymentTransactionId: paymentTxId,
+          orderId,
+          tenantId: order.tenant_id ?? null,
+          eventType:
+            nextRefundAmountCents >= orderTotalCents
+              ? "payment_refunded"
+              : "payment_refund_partial",
+          eventData: {
+            refundType: "webhook",
+            refundedCents: refundAmountCents,
+            nextRefundAmountCents,
+            referenceNumber: event.data.reference_number,
+          },
+        });
+      }
+    } catch (paymentEventError) {
+      logError(paymentEventError, {
+        layer: "payrilla",
+        message: "refund_completed_payment_log_failed",
+        requestId,
+        orderId,
+      });
+    }
+
+    const orderEventsRepo = new OrderEventsRepository(adminSupabase);
+    await orderEventsRepo.insertEvent({
+      orderId,
+      type: "refunded",
+      message: "Refund completed via PayRilla.",
+    });
+  }
+
+  try {
+    const refundNotifications = new RefundNotificationService(adminSupabase);
+    await refundNotifications.sendRefundNotification({
+      order: {
+        ...order,
+        refund_amount: nextRefundAmountCents,
+        refunded_at: new Date().toISOString(),
+        status: nextStatus,
+      },
+      refundAmountCents,
+      cumulativeRefundCents: nextRefundAmountCents,
+      requestId,
+      skipIfAlreadySent: true,
+    });
+  } catch (emailError) {
+    logError(emailError, {
+      layer: "payrilla",
+      message: "refund_notification_failed",
+      requestId,
+      orderId,
+    });
+  }
 
   log({
     level: "info",
@@ -577,6 +681,40 @@ async function handleRefundCompleted(
     orderId,
     referenceNumber: event.data.reference_number,
     amountUsd: event.data.auth_amount,
+    alreadyAppliedByAdmin,
+    cumulativeRefundCents: nextRefundAmountCents,
+  });
+}
+
+async function hasRecentAdminRefundEvent(params: {
+  adminSupabase: AdminSupabaseClient;
+  orderId: string;
+  refundAmountCents: number;
+  currentRefundAmountCents: number;
+}) {
+  const cutoff = new Date(Date.now() - RECENT_REFUND_DEDUPE_WINDOW_MS).toISOString();
+  const { data, error } = await params.adminSupabase
+    .from("payment_events")
+    .select("event_data, created_at")
+    .eq("order_id", params.orderId)
+    .in("event_type", ["payment_refunded", "payment_refund_partial"])
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).some((event) => {
+    const eventData =
+      event.event_data && typeof event.event_data === "object"
+        ? (event.event_data as Record<string, unknown>)
+        : null;
+
+    return (
+      Number(eventData?.refundedCents ?? NaN) === params.refundAmountCents &&
+      Number(eventData?.nextRefundAmountCents ?? NaN) === params.currentRefundAmountCents
+    );
   });
 }
 
