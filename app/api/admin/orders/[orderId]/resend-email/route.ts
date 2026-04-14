@@ -178,14 +178,19 @@ export async function POST(
         break;
       }
       case "refund_notification": {
-        const latestRefund = await refundNotifications.getLatestRefundNotification(order.id);
+        const latestRefund = await refundNotifications.getLatestRefundNotification(
+          order.id,
+        );
         const refundAmountCents =
           latestRefund?.refundAmountCents ??
           Math.max(0, Math.round(Number(orderAny.refund_amount ?? 0)));
 
         if (refundAmountCents <= 0) {
           return NextResponse.json(
-            { error: "This order does not have a refundable email amount to resend", requestId },
+            {
+              error: "This order does not have a refundable email amount to resend",
+              requestId,
+            },
             { status: 422, headers: { "Cache-Control": "no-store" } },
           );
         }

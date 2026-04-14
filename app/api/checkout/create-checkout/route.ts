@@ -663,7 +663,9 @@ export async function POST(request: NextRequest) {
         log({
           level: "warn",
           layer: "api",
-          message: wasUnderReview ? "nofraud_review_order_blocked" : "nofraud_fail_order_blocked",
+          message: wasUnderReview
+            ? "nofraud_review_order_blocked"
+            : "nofraud_fail_order_blocked",
           requestId,
           orderId: order.id,
         });

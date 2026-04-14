@@ -104,7 +104,10 @@ export class RefundNotificationService {
     }
 
     const orderUrl = await this.buildOrderUrl(params.order);
-    const emailService = new OrderEmailService(this.adminSupabase, params.order.tenant_id);
+    const emailService = new OrderEmailService(
+      this.adminSupabase,
+      params.order.tenant_id,
+    );
 
     await emailService.sendOrderRefunded({
       to: recipientEmail,
@@ -123,7 +126,9 @@ export class RefundNotificationService {
     return { status: "sent", metadata };
   }
 
-  async getLatestRefundNotification(orderId: string): Promise<RefundNotificationMetadata | null> {
+  async getLatestRefundNotification(
+    orderId: string,
+  ): Promise<RefundNotificationMetadata | null> {
     const events = await this.listRefundNotificationEvents(orderId);
     for (const event of events) {
       const parsed = parseRefundMarker(event.message, event.created_at);
