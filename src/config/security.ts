@@ -8,7 +8,7 @@ const prodConnectSrc = [
   "https://api.goshippo.com",
   "https://vitals.vercel-insights.com",
   "https://*.vercel-scripts.com",
-  // PayRilla payment gateway
+  // PayRilla payment gateway!
   "https://api.payrillagateway.com",
   "https://api.sandbox.payrillagateway.com",
   // NoFraud device fingerprinting beacon
