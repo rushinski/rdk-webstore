@@ -61,6 +61,7 @@ export type InventoryExportRow = {
 
 type VariantExportRow = {
   size_label: string | null;
+  size_type: string | null;
   price_cents: number | null;
   cost_cents: number | null;
   stock: number | null;
@@ -177,7 +178,7 @@ export class ProductRepository {
     let query = this.supabase
       .from("product_variants")
       .select(
-        "size_label, price_cents, cost_cents, stock, product:products!inner(sku, brand, title_raw, description, condition, is_active, is_out_of_stock, tenant_id, category)",
+        "size_label, size_type, price_cents, cost_cents, stock, product:products!inner(sku, brand, title_raw, description, condition, is_active, is_out_of_stock, tenant_id, category)",
       )
       .eq("product.is_active", true);
 
@@ -234,11 +235,15 @@ export class ProductRepository {
         const brand = p?.brand?.trim() ?? "";
         const name = p?.title_raw?.trim() ?? "";
         const description = p?.description?.trim() ?? "";
-        const size = r.size_label?.trim() ?? "";
+        const sizeLabel = r.size_label?.trim() ?? "";
+        const size =
+          sizeLabel || r.size_type === "none" || r.size_type === "custom"
+            ? sizeLabel || "N/A"
+            : sizeLabel;
         const category = p?.category?.trim() ?? "";
         const condition = p?.condition?.trim() ?? "";
 
-        if (!sku || !name || !size || !condition) {
+        if (!sku || !name || !condition) {
           return null;
         }
 
