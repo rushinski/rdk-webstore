@@ -193,14 +193,14 @@ export class ProductRepository {
       query = query.eq("product.marketplace_id", filters.marketplaceId);
     }
 
-    // Stock filters: match the inventory UI semantics
+    // Stock filters: match the inventory UI semantics.
+    // Admin inventory uses the product-level is_out_of_stock flag, not variant stock.
     if (filters.stockStatus === "out_of_stock") {
       query = query.eq("product.is_out_of_stock", true);
-      // for out_of_stock export, keep all variants (sizes) for printing
     } else if (filters.stockStatus === "in_stock") {
-      query = query.eq("product.is_out_of_stock", false).gt("stock", 0);
+      query = query.eq("product.is_out_of_stock", false);
     } else if (!includeOutOfStock) {
-      query = query.eq("product.is_out_of_stock", false).gt("stock", 0);
+      query = query.eq("product.is_out_of_stock", false);
     }
 
     // Text search on product fields
