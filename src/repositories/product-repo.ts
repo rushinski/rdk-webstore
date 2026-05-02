@@ -49,9 +49,11 @@ export type CartVariantDetails = {
 
 export type InventoryExportRow = {
   sku: string;
+  brand: string;
   name: string;
+  description: string;
   size: string;
-  type: string;
+  category: string;
   condition: string;
   priceCents: number;
   costCents: number;
@@ -64,7 +66,9 @@ type VariantExportRow = {
   stock: number | null;
   product?: {
     sku: string | null;
+    brand: string | null;
     title_raw: string | null;
+    description: string | null;
     condition: string | null;
     is_active: boolean | null;
     is_out_of_stock: boolean | null;
@@ -173,7 +177,7 @@ export class ProductRepository {
     let query = this.supabase
       .from("product_variants")
       .select(
-        "size_label, price_cents, cost_cents, stock, product:products!inner(sku, title_raw, condition, is_active, is_out_of_stock, tenant_id, category)",
+        "size_label, price_cents, cost_cents, stock, product:products!inner(sku, brand, title_raw, description, condition, is_active, is_out_of_stock, tenant_id, category)",
       )
       .eq("product.is_active", true);
 
@@ -227,9 +231,11 @@ export class ProductRepository {
       .map((r) => {
         const p = r.product;
         const sku = p?.sku?.trim() ?? "";
+        const brand = p?.brand?.trim() ?? "";
         const name = p?.title_raw?.trim() ?? "";
+        const description = p?.description?.trim() ?? "";
         const size = r.size_label?.trim() ?? "";
-        const type = p?.category?.trim() ?? "";
+        const category = p?.category?.trim() ?? "";
         const condition = p?.condition?.trim() ?? "";
 
         if (!sku || !name || !size || !condition) {
@@ -238,9 +244,11 @@ export class ProductRepository {
 
         return {
           sku,
+          brand,
           name,
+          description,
           size,
-          type,
+          category,
           condition,
           priceCents: Number(r.price_cents ?? 0),
           costCents: Number(r.cost_cents ?? 0),

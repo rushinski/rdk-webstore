@@ -57,7 +57,19 @@ export async function GET(request: Request) {
   });
 
   const lines: string[] = [];
-  lines.push(["SKU", "Name", "Size", "Type", "Condition", "Price", "Cost"].join(","));
+  lines.push(
+    [
+      "SKU",
+      "Brand",
+      "Name",
+      "Description",
+      "Size",
+      "Category",
+      "Condition",
+      "Price",
+      "Cost",
+    ].join(","),
+  );
 
   const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -65,9 +77,11 @@ export async function GET(request: Request) {
     lines.push(
       [
         csvEscape(r.sku),
+        csvEscape(r.brand),
         csvEscape(r.name),
+        csvEscape(r.description),
         csvEscape(r.size),
-        csvEscape(r.type),
+        csvEscape(r.category),
         csvEscape(r.condition),
         csvEscape(formatMoney(r.priceCents)),
         csvEscape(formatMoney(r.costCents)),
@@ -75,7 +89,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const csv = lines.join("\n");
+  // Prepend BOM and use CRLF so Excel opens UTF-8 CSVs without mojibake.
+  const csv = `\uFEFF${lines.join("\r\n")}`;
   const today = new Date().toISOString().slice(0, 10);
 
   return new NextResponse(csv, {
