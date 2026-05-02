@@ -55,27 +55,8 @@ export type InventoryExportRow = {
   size: string;
   category: string;
   condition: string;
-  priceCents: number;
-  costCents: number;
-};
-
-type VariantExportRow = {
-  size_label: string | null;
-  size_type: string | null;
-  price_cents: number | null;
-  cost_cents: number | null;
-  stock: number | null;
-  product?: {
-    sku: string | null;
-    brand: string | null;
-    title_raw: string | null;
-    description: string | null;
-    condition: string | null;
-    is_active: boolean | null;
-    is_out_of_stock: boolean | null;
-    tenant_id: string | null;
-    category: string | null;
-  };
+  priceCents: number | null;
+  costCents: number | null;
 };
 
 type ProductInsert = TablesInsert<"products">;
@@ -173,93 +154,52 @@ export class ProductRepository {
   private readonly inventorySearchFields = ["sku", "title_raw"];
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
-    const includeOutOfStock = Boolean(filters.includeOutOfStock);
-
-    let query = this.supabase
-      .from("product_variants")
-      .select(
-        "size_label, size_type, price_cents, cost_cents, stock, product:products!inner(sku, brand, title_raw, description, condition, is_active, is_out_of_stock, tenant_id, category)",
-      )
-      .eq("product.is_active", true);
-
-    // Tenant scoping (admin inventory is tenant-scoped)
-    if (filters.tenantId) {
-      query = query.eq("product.tenant_id", filters.tenantId);
-    }
-    if (filters.sellerId) {
-      query = query.eq("product.seller_id", filters.sellerId);
-    }
-    if (filters.marketplaceId) {
-      query = query.eq("product.marketplace_id", filters.marketplaceId);
-    }
-
-    // Stock filters: match the inventory UI semantics.
-    // Admin inventory uses the product-level is_out_of_stock flag, not variant stock.
-    if (filters.stockStatus === "out_of_stock") {
-      query = query.eq("product.is_out_of_stock", true);
-    } else if (filters.stockStatus === "in_stock") {
-      query = query.eq("product.is_out_of_stock", false);
-    } else if (!includeOutOfStock) {
-      query = query.eq("product.is_out_of_stock", false);
-    }
-
-    // Text search on product fields
-    query = this.applyTextSearch(query, filters.q, this.inventorySearchFields, {
-      foreignTable: "product",
+    const { products } = await this.list({
+      ...filters,
+      page: 1,
+      limit: 20000,
+      searchMode: "inventory",
     });
 
-    // Category / condition filters
-    if (filters.category?.length) {
-      query = query.in("product.category", filters.category);
-    }
-    if (filters.condition?.length) {
-      query = query.in("product.condition", filters.condition);
-    }
+    const rows: InventoryExportRow[] = products.flatMap<InventoryExportRow>((product) => {
+      const base = {
+        sku: product.sku?.trim() ?? "",
+        brand: product.brand?.trim() ?? "",
+        name: product.title_raw?.trim() ?? "",
+        description: product.description?.trim() ?? "",
+        category: product.category?.trim() ?? "",
+        condition: product.condition?.trim() ?? "",
+      };
 
-    // Order for stable printing
-    query = query
-      .order("sku", { ascending: true, foreignTable: "product" })
-      .order("size_label", { ascending: true });
+      if (!base.sku || !base.name || !base.condition) {
+        return [];
+      }
 
-    const { data, error } = await query.limit(20000);
-    if (error) {
-      throw error;
-    }
+      if (!product.variants.length) {
+        return [
+          {
+            ...base,
+            size: "N/A",
+            priceCents: null,
+            costCents: product.cost_cents ?? null,
+          },
+        ];
+      }
 
-    const rows = (data ?? []) as VariantExportRow[];
+      return product.variants.map((variant) => ({
+        ...base,
+        size: variant.size_label?.trim() || "N/A",
+        priceCents: variant.price_cents ?? null,
+        costCents: variant.cost_cents ?? product.cost_cents ?? null,
+      }));
+    });
 
-    return rows
-      .map((r) => {
-        const p = r.product;
-        const sku = p?.sku?.trim() ?? "";
-        const brand = p?.brand?.trim() ?? "";
-        const name = p?.title_raw?.trim() ?? "";
-        const description = p?.description?.trim() ?? "";
-        const sizeLabel = r.size_label?.trim() ?? "";
-        const size =
-          sizeLabel || r.size_type === "none" || r.size_type === "custom"
-            ? sizeLabel || "N/A"
-            : sizeLabel;
-        const category = p?.category?.trim() ?? "";
-        const condition = p?.condition?.trim() ?? "";
-
-        if (!sku || !name || !condition) {
-          return null;
-        }
-
-        return {
-          sku,
-          brand,
-          name,
-          description,
-          size,
-          category,
-          condition,
-          priceCents: Number(r.price_cents ?? 0),
-          costCents: Number(r.cost_cents ?? 0),
-        } as InventoryExportRow;
-      })
-      .filter((x): x is InventoryExportRow => Boolean(x));
+    return rows.sort(
+      (a, b) =>
+        a.sku.localeCompare(b.sku) ||
+        a.name.localeCompare(b.name) ||
+        a.size.localeCompare(b.size),
+    );
   }
 
   async list(filters: ProductFilters = {}) {

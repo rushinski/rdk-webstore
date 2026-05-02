@@ -71,7 +71,8 @@ export async function GET(request: Request) {
     ].join(","),
   );
 
-  const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const formatMoney = (cents: number | null) =>
+    typeof cents === "number" ? `$${(cents / 100).toFixed(2)}` : "";
 
   for (const r of rows) {
     lines.push(
