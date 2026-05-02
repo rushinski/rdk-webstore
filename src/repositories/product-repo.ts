@@ -154,12 +154,48 @@ export class ProductRepository {
   private readonly inventorySearchFields = ["sku", "title_raw"];
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
-    const { products } = await this.list({
-      ...filters,
-      page: 1,
-      limit: 20000,
-      searchMode: "inventory",
-    });
+    let query = this.supabase
+      .from("products")
+      .select("*, variants:product_variants(*)")
+      .eq("is_active", true);
+
+    if (filters.tenantId) {
+      query = query.eq("tenant_id", filters.tenantId);
+    }
+    if (filters.sellerId) {
+      query = query.eq("seller_id", filters.sellerId);
+    }
+    if (filters.marketplaceId) {
+      query = query.eq("marketplace_id", filters.marketplaceId);
+    }
+
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
+      query = query.eq("is_out_of_stock", false);
+    } else if (!filters.includeOutOfStock) {
+      query = query.eq("is_out_of_stock", false);
+    }
+
+    query = this.applyTextSearch(query, filters.q, this.inventorySearchFields);
+
+    if (filters.category?.length) {
+      query = query.in("category", filters.category);
+    }
+    if (filters.condition?.length) {
+      query = query.in("condition", filters.condition);
+    }
+
+    query = query.order("sku", { ascending: true }).limit(20000);
+
+    const { data, error } = await query;
+    if (error) {
+      throw error;
+    }
+
+    const products = (data ?? []).map((raw) =>
+      this.transformProduct(raw as ProductWithRelations),
+    );
 
     const rows: InventoryExportRow[] = products.flatMap<InventoryExportRow>((product) => {
       const base = {
