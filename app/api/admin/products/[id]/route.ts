@@ -9,6 +9,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService } from "@/services/product-service";
+import { LightspeedProductSyncService } from "@/services/lightspeed-product-sync-service";
 import { productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
@@ -95,6 +96,11 @@ export async function PATCH(
     const product = await service.updateProduct(paramsParsed.data.id, payload, {
       userId: session.user.id,
       tenantId,
+    });
+    const syncService = new LightspeedProductSyncService(supabase);
+    await syncService.syncWebsiteProduct(product.id, {
+      tenantId,
+      source: "update",
     });
 
     try {

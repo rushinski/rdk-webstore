@@ -13,6 +13,7 @@ import type {
   Condition,
 } from "@/types/domain/product";
 import { InventoryProductDetailsModal } from "@/components/admin/inventory/InventoryProductDetailsModal";
+import { LightspeedSyncPanel } from "@/components/admin/inventory/LightspeedSyncPanel";
 import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
@@ -593,6 +594,8 @@ export function InventoryClient({
 
   return (
     <div className="space-y-6">
+      <LightspeedSyncPanel />
+
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory</h1>

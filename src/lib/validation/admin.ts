@@ -44,6 +44,45 @@ export const payoutSettingsSchema = z
   })
   .strict();
 
+export const storeAccessSettingsSchema = z
+  .object({
+    siteLockEnabled: z.boolean(),
+    siteUnlockAt: z.string().datetime({ offset: true }).nullable().optional(),
+    checkoutLockEnabled: z.boolean(),
+    checkoutLockMessage: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+
+export const lightspeedSettingsSchema = z
+  .object({
+    syncEnabled: z.boolean(),
+    domainPrefix: z.string().trim().min(1).max(120).nullable().optional(),
+  })
+  .strict();
+
+export const lightspeedSyncPreviewSchema = z
+  .object({
+    sourceOfTruth: z.enum(["lightspeed_inventory", "website_inventory"]),
+  })
+  .strict();
+
+export const lightspeedSyncApplySchema = z
+  .object({
+    syncRunId: z.string().uuid(),
+    mode: z.enum(["accept_all", "deny_all", "selective"]),
+    decisions: z
+      .array(
+        z
+          .object({
+            itemId: z.string().uuid(),
+            approved: z.boolean(),
+          })
+          .strict(),
+      )
+      .optional(),
+  })
+  .strict();
+
 const booleanFromQuery = z.preprocess((value) => {
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();

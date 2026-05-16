@@ -571,6 +571,22 @@ export class ProductRepository {
     return count ?? 0;
   }
 
+  async listSkusByPrefix(tenantId: string, prefix: string): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from("products")
+      .select("sku")
+      .eq("tenant_id", tenantId)
+      .like("sku", `${prefix}-%`);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? [])
+      .map((row) => row.sku)
+      .filter((sku): sku is string => typeof sku === "string" && sku.trim().length > 0);
+  }
+
   async createVariant(variant: VariantInsert) {
     const { data, error } = await this.supabase
       .from("product_variants")

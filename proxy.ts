@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { security, startsWithAny, isCsrfUnsafeMethod } from "@/config/security";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseProxyClient } from "@/lib/supabase/proxy";
 import { refreshSession } from "@/lib/supabase/session-refresh";
 import { generateRequestId } from "@/lib/http/request-id";
 import { applyRateLimit } from "@/proxy/rate-limit";
@@ -96,7 +96,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   const isExemptRoute = startsWithAny(pathname, security.proxy.adminGuard.exemptPrefixes);
 
   if (isAdminArea && !isExemptRoute) {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabaseProxyClient(request);
 
     const adminResponse = await protectAdminRoute(request, requestId, supabase);
 

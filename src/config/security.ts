@@ -131,7 +131,7 @@ export const security = {
           "default-src 'self'",
           "img-src 'self' data: https: blob:",
           "style-src 'self' 'unsafe-inline' https://*.payrillagateway.com",
-          "script-src 'self' 'unsafe-inline' https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
           "worker-src 'self' blob:",
           [
             "connect-src",

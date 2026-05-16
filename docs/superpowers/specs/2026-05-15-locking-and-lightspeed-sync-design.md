@@ -227,9 +227,10 @@ For records arriving from Lightspeed:
 
 1. match by linked external IDs first
 2. if unlinked, fall back to SKU matching
-3. if matched, transform to website shape
+3. if matched and edited in Lightspeed, transform and update the website shape
 4. if missing on website, prepare creation on website
-5. if conflict cannot be resolved safely, surface conflict instead of guessing
+5. if deleted or deactivated in Lightspeed, prepare the corresponding archive/delete action on the website according to sync rules
+6. if conflict cannot be resolved safely, surface conflict instead of guessing
 
 Inbound transformations include:
 
@@ -237,6 +238,7 @@ Inbound transformations include:
 - title cleanup
 - parser/tagging re-run
 - image mirroring
+- support for products that legitimately have no images
 - inventory mapping to local variant records
 
 ### Outbound: Website To Lightspeed
@@ -247,6 +249,8 @@ For records originating from the website:
 - generate POS-safe naming where uniqueness requires it
 - preserve clean website naming locally
 - create/update corresponding Lightspeed product family and variants
+- propagate website edits to the linked Lightspeed records
+- propagate website deletion/archive actions to the linked Lightspeed records
 - honor `go_live_at` scheduling rules
 
 ## Duplicate And Conflict Handling
@@ -344,6 +348,8 @@ Examples:
 - create website product from Lightspeed product
 - update Lightspeed product name to POS-safe unique form
 - adjust website variant stock from `0` to `1`
+- archive website product because linked Lightspeed product was deleted
+- delete/deactivate Lightspeed product because linked website product was deleted
 - skip due to conflicting SKU mapping
 
 ### Admin Approval
@@ -429,6 +435,9 @@ At minimum, verify:
 - preowned condition mapping
 - clean website naming from POS imports
 - POS-safe naming for outbound preowned products
+- cross-system edit propagation in both directions
+- cross-system delete/archive propagation in both directions
+- missing-image imports from Lightspeed
 - variant SKU handling for new products
 - duplicate/conflict detection
 - scheduled `go_live_at` behavior

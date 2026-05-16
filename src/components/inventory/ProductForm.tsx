@@ -1502,6 +1502,10 @@ export function ProductForm({
             <span className="sm:hidden">Add</span>
           </button>
         </div>
+        <p className="mb-4 text-xs text-gray-500 md:text-sm">
+          Website-generated SKUs are assigned automatically from condition, brand, model,
+          size, and sequence rules. Lightspeed variant SKUs are derived during sync.
+        </p>
 
         <DndContext
           sensors={variantDragSensors}

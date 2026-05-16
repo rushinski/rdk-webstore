@@ -9,6 +9,8 @@ import {
 import type { TablesInsert } from "@/types/db/database.types";
 import type { Category, Condition, ProductWithDetails } from "@/types/domain/product";
 import { CatalogRepository } from "@/repositories/catalog-repo";
+import { LightspeedMappingService } from "@/services/lightspeed-mapping-service";
+import { LightspeedSkuService } from "@/services/lightspeed-sku-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 
 import { buildSizeTags, upsertTags, type TagInputItem } from "./tag-service";
@@ -109,7 +111,13 @@ export class ProductService {
       tenantId: ctx.tenantId,
     });
 
-    const sku = this.generateSKU(parsed.brand.label);
+    const sku = await this.buildWebsiteSku({
+      tenantId: ctx.tenantId,
+      condition: input.condition,
+      brandLabel: parsed.brand.label,
+      modelLabel: parsed.model.label ?? parsed.name,
+      variants: normalizedVariants,
+    });
     const productCost = this.getProductCost(normalizedVariants);
 
     const product = await this.repo.create({
@@ -443,11 +451,50 @@ export class ProductService {
     return { archived: false };
   }
 
-  private generateSKU(brand: string): string {
-    const prefix = brand.substring(0, 3).toUpperCase();
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-    return `${prefix}-${timestamp}-${random}`;
+  private async buildWebsiteSku(input: {
+    tenantId: string;
+    condition: Condition;
+    brandLabel: string;
+    modelLabel: string;
+    variants: VariantInput[];
+  }) {
+    const mappingService = new LightspeedMappingService();
+    const skuService = new LightspeedSkuService();
+
+    const conditionCode = mappingService.toSkuConditionCode(input.condition);
+    const brandCode = mappingService.toCode(input.brandLabel, 3);
+    const modelCode = mappingService.toCode(input.modelLabel, 3);
+    const sizeCode = mappingService.toRepresentativeSizeCode(
+      input.variants.map((variant) => variant.size_label),
+    );
+    const prefix = `${conditionCode}-${brandCode}-${modelCode}-${sizeCode}`;
+    const existingSkus = await this.repo.listSkusByPrefix(input.tenantId, prefix);
+    const sequence = this.getNextSkuSequence(existingSkus, prefix);
+
+    return skuService.buildSku({
+      conditionCode,
+      brandCode,
+      modelCode,
+      sizeCode,
+      sequence,
+    });
+  }
+
+  private getNextSkuSequence(existingSkus: string[], prefix: string) {
+    const sequences = existingSkus
+      .map((sku) => {
+        const match = sku.match(
+          new RegExp(`^${prefix.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}-(\\d+)$`),
+        );
+        return match ? Number.parseInt(match[1], 10) : Number.NaN;
+      })
+      .filter((sequence) => Number.isFinite(sequence));
+
+    if (sequences.length === 0) {
+      return 1;
+    }
+
+    return Math.max(...sequences) + 1;
   }
 
   private getProductCost(variants: VariantInput[]): number {
