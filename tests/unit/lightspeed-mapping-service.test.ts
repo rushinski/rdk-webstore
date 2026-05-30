@@ -41,4 +41,40 @@ describe("LightspeedMappingService", () => {
     expect(lightspeedName).toBe("Jordan 4 Delta - P-NIK-J4D-09-12");
     expect(service.cleanWebsiteName(lightspeedName)).toBe("Jordan 4 Delta");
   });
+
+  it("normalizes a Lightspeed export-style row into website-friendly fields", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-product-1",
+        name: "A MA MANIERE JORDAN 5 - P-JDN-J05-9H-27",
+        description: "<p>OG BOX 11W / 9.5M</p>",
+        sku: "P-JDN-J05-9H-27",
+        brand_name: "Jordan",
+        product_category: "Sneakers",
+        active: true,
+        deleted_at: null,
+        variant_option_one_name: "Condition",
+        variant_option_one_value: "preowned",
+        variant_option_two_name: "Size",
+        variant_option_two_value: "9.5M / 11W",
+        inventory_Main_Outlet: 1,
+      },
+    ]);
+
+    expect(normalized).toEqual([
+      expect.objectContaining({
+        lightspeedProductId: "ls-product-1",
+        externalSku: "P-JDN-J05-9H-27",
+        rawName: "A MA MANIERE JORDAN 5 - P-JDN-J05-9H-27",
+        cleanName: "A MA MANIERE JORDAN 5",
+        condition: "used",
+        sizeLabel: "9.5M / 11W",
+        stock: 1,
+        brand: "Jordan",
+        category: "sneakers",
+        isActive: true,
+        isDeleted: false,
+      }),
+    ]);
+  });
 });

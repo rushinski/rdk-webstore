@@ -14,11 +14,16 @@ jest.mock("@/services/lightspeed-sync-preview-service", () => ({
   LightspeedSyncPreviewService: jest.fn(),
 }));
 
+jest.mock("@/repositories/lightspeed-settings-repo", () => ({
+  LightspeedSettingsRepository: jest.fn(),
+}));
+
 import type { NextRequest } from "next/server";
 
 import { requireAdminApi } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureTenantId } from "@/lib/auth/tenant";
+import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
 import { LightspeedSyncPreviewService } from "@/services/lightspeed-sync-preview-service";
 
 import { POST } from "../../app/api/admin/lightspeed/sync/preview/route";
@@ -26,6 +31,7 @@ import { POST } from "../../app/api/admin/lightspeed/sync/preview/route";
 const mockRequireAdminApi = jest.mocked(requireAdminApi);
 const mockCreateSupabaseServerClient = jest.mocked(createSupabaseServerClient);
 const mockEnsureTenantId = jest.mocked(ensureTenantId);
+const mockLightspeedSettingsRepository = jest.mocked(LightspeedSettingsRepository);
 const mockLightspeedSyncPreviewService = jest.mocked(LightspeedSyncPreviewService);
 
 describe("/api/admin/lightspeed/sync/preview", () => {
@@ -40,6 +46,17 @@ describe("/api/admin/lightspeed/sync/preview", () => {
     } as never);
     mockCreateSupabaseServerClient.mockResolvedValue({ from: jest.fn() } as never);
     mockEnsureTenantId.mockResolvedValue("tenant-1");
+    mockLightspeedSettingsRepository.mockImplementation(
+      () =>
+        ({
+          getConnectionByTenant: jest.fn().mockResolvedValue({
+            syncEnabled: false,
+            domainPrefix: null,
+            accessToken: null,
+            webhookSigningSecret: null,
+          }),
+        }) as never,
+    );
     mockLightspeedSyncPreviewService.mockImplementation(
       () =>
         ({

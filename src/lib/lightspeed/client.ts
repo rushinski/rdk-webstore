@@ -1,6 +1,8 @@
 import type {
   LightspeedCreateProductPayload,
+  LightspeedListResponse,
   LightspeedProductResponse,
+  LightspeedRemoteProduct,
   LightspeedUpdateProductPayload,
 } from "@/lib/lightspeed/types";
 
@@ -60,6 +62,14 @@ export class LightspeedClient {
 
   async listProducts(pageSize = 100) {
     const response = await this.request(`/products?page_size=${pageSize}`);
-    return response.json();
+    const payload =
+      (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
+    if (Array.isArray(payload.data)) {
+      return payload.data;
+    }
+    if (payload.data) {
+      return [payload.data];
+    }
+    return [];
   }
 }

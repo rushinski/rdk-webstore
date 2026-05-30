@@ -4,10 +4,12 @@ import { NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { LightspeedClient } from "@/lib/lightspeed/client";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { lightspeedSyncPreviewSchema } from "@/lib/validation/admin";
 import { logError } from "@/lib/utils/log";
 import { LightspeedLinksRepository } from "@/repositories/lightspeed-links-repo";
+import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { LightspeedSyncRunsRepository } from "@/repositories/lightspeed-sync-runs-repo";
 import { LightspeedSyncPreviewService } from "@/services/lightspeed-sync-preview-service";
@@ -19,6 +21,7 @@ export async function POST(request: NextRequest) {
     const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const tenantId = await ensureTenantId(session, supabase);
+    const settingsRepo = new LightspeedSettingsRepository(supabase);
 
     const body = await request.json().catch(() => null);
     const parsed = lightspeedSyncPreviewSchema.safeParse(body);
@@ -29,10 +32,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const connection = await settingsRepo.getConnectionByTenant(tenantId);
+    const lightspeedReader =
+      connection.syncEnabled && connection.domainPrefix && connection.accessToken
+        ? new LightspeedClient({
+            domainPrefix: connection.domainPrefix,
+            accessToken: connection.accessToken,
+          })
+        : undefined;
+
     const previewService = new LightspeedSyncPreviewService(
       new ProductRepository(supabase),
       new LightspeedLinksRepository(supabase),
       new LightspeedSyncRunsRepository(supabase),
+      lightspeedReader,
     );
 
     const preview = await previewService.previewSync({
