@@ -87,6 +87,16 @@ describe("/api/admin/lightspeed/sync/preview", () => {
   it("returns a preview for a valid POST payload", async () => {
     mockPreviewSync.mockResolvedValue({
       syncRunId: "run-1",
+      pagination: {
+        page: 2,
+        pageSize: 50,
+        hasNextPage: true,
+        hasPreviousPage: true,
+        totalProducts: 2000,
+        totalPages: 40,
+        totalGroupedItems: 1600,
+        totalChanges: 812,
+      },
       summary: {
         added: 1,
         modified: 0,
@@ -110,14 +120,35 @@ describe("/api/admin/lightspeed/sync/preview", () => {
           "content-type": "application/json",
           "x-request-id": "req-2",
         },
-        body: JSON.stringify({ sourceOfTruth: "lightspeed_inventory" }),
+        body: JSON.stringify({
+          sourceOfTruth: "lightspeed_full_override",
+          page: 2,
+          pageSize: 50,
+        }),
       }) as NextRequest,
     );
 
     expect(response.status).toBe(200);
+    expect(mockPreviewSync).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      startedBy: "user-1",
+      sourceOfTruth: "lightspeed_full_override",
+      page: 2,
+      pageSize: 50,
+    });
     await expect(response.json()).resolves.toEqual({
       preview: {
         syncRunId: "run-1",
+        pagination: {
+          page: 2,
+          pageSize: 50,
+          hasNextPage: true,
+          hasPreviousPage: true,
+          totalProducts: 2000,
+          totalPages: 40,
+          totalGroupedItems: 1600,
+          totalChanges: 812,
+        },
         summary: {
           added: 1,
           modified: 0,

@@ -62,7 +62,14 @@ export const lightspeedSettingsSchema = z
 
 export const lightspeedSyncPreviewSchema = z
   .object({
-    sourceOfTruth: z.enum(["lightspeed_inventory", "website_inventory"]),
+    sourceOfTruth: z.enum([
+      "lightspeed_inventory",
+      "website_inventory",
+      "lightspeed_full_override",
+      "website_full_override",
+    ]),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
   })
   .strict();
 

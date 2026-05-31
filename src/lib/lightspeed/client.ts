@@ -60,16 +60,46 @@ export class LightspeedClient {
     return (await response.json()) as LightspeedProductResponse;
   }
 
-  async listProducts(pageSize = 100) {
-    const response = await this.request(`/products?page_size=${pageSize}`);
+  async listProducts(page = 1, pageSize = 50) {
+    const response = await this.request(`/products?page=${page}&page_size=${pageSize}`);
     const payload =
       (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
-    if (Array.isArray(payload.data)) {
-      return payload.data;
-    }
-    if (payload.data) {
-      return [payload.data];
-    }
-    return [];
+    const products = Array.isArray(payload.data)
+      ? payload.data
+      : payload.data
+        ? [payload.data]
+        : [];
+
+    const pagination = payload.pagination ?? null;
+    const totalProducts =
+      pagination?.total ??
+      payload.count ??
+      (products.length < pageSize ? (page - 1) * pageSize + products.length : null);
+    const totalPages =
+      pagination?.total_pages ??
+      (typeof totalProducts === "number"
+        ? Math.max(1, Math.ceil(totalProducts / pageSize))
+        : null);
+    const hasNextPage =
+      typeof totalPages === "number"
+        ? page < totalPages
+        : typeof pagination?.next_page === "number"
+          ? pagination.next_page > page
+          : Boolean(pagination?.next) || products.length === pageSize;
+
+    const hasPreviousPage =
+      typeof pagination?.previous_page === "number"
+        ? pagination.previous_page >= 1
+        : Boolean(pagination?.previous) || page > 1;
+
+    return {
+      products,
+      page,
+      pageSize,
+      hasNextPage,
+      hasPreviousPage,
+      totalProducts,
+      totalPages,
+    };
   }
 }

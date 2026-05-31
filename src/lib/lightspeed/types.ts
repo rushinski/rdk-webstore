@@ -48,6 +48,17 @@ export type LightspeedRemoteProduct = {
 
 export type LightspeedListResponse<T> = {
   data?: T[] | T | null;
+  count?: number | null;
+  pagination?: {
+    page?: number | null;
+    page_size?: number | null;
+    next?: string | null;
+    next_page?: number | null;
+    previous?: string | null;
+    previous_page?: number | null;
+    total?: number | null;
+    total_pages?: number | null;
+  } | null;
   version?: {
     min?: number | null;
     max?: number | null;

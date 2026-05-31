@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       tenantId,
       startedBy: session.user.id,
       sourceOfTruth: parsed.data.sourceOfTruth,
+      page: parsed.data.page,
+      pageSize: parsed.data.pageSize,
     });
 
     return NextResponse.json(
