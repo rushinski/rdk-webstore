@@ -77,4 +77,25 @@ describe("LightspeedMappingService", () => {
       }),
     ]);
   });
+
+  it("normalizes category when Lightspeed returns an object instead of a string", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-product-2",
+        name: "ABOMINABLE TRACK SUIT - N-OTH-CLT-MD-30",
+        sku: "N-OTH-CLT-MD-30",
+        brand_name: "Other",
+        product_category: { name: "Clothing" } as never,
+        active: true,
+        deleted_at: null,
+        variant_option_one_name: "Condition",
+        variant_option_one_value: "new",
+        variant_option_two_name: "Size",
+        variant_option_two_value: "MEDIUM",
+        inventory_Main_Outlet: 1,
+      },
+    ]);
+
+    expect(normalized[0]?.category).toBe("clothing");
+  });
 });

@@ -594,12 +594,12 @@ export function InventoryClient({
 
   return (
     <div className="space-y-6">
-      <LightspeedSyncPanel />
-
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory</h1>
           <div className="flex items-center gap-3">
+            <LightspeedSyncPanel />
+
             <button
               type="button"
               onClick={() => void exportInventory()}

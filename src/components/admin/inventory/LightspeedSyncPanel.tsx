@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { RefreshCcw, X } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type PreviewGroups = {
   added: Array<{
@@ -56,6 +59,7 @@ const GROUP_LABELS: Record<keyof PreviewGroups, string> = {
 };
 
 export function LightspeedSyncPanel() {
+  const [isOpen, setIsOpen] = useState(false);
   const [sourceOfTruth, setSourceOfTruth] = useState<
     "lightspeed_inventory" | "website_inventory"
   >("lightspeed_inventory");
@@ -65,6 +69,21 @@ export function LightspeedSyncPanel() {
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [decisions, setDecisions] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isOpen]);
 
   const runPreview = async () => {
     setIsLoading(true);
@@ -169,164 +188,211 @@ export function LightspeedSyncPanel() {
   };
 
   return (
-    <section className="rounded border border-zinc-800/70 bg-zinc-950/70 p-4 sm:p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-white">Lightspeed Sync Preview</h2>
-          <p className="max-w-3xl text-sm text-zinc-400">
-            Build a dry-run reconciliation grouped by change type before applying any
-            inventory sync changes.
-          </p>
-        </div>
+    <>
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="flex items-center gap-1 rounded border border-zinc-800/70 bg-zinc-900 px-3 py-2 text-sm font-bold text-white transition hover:bg-zinc-800 sm:gap-2 sm:px-4 sm:text-base"
+      >
+        <RefreshCcw className="h-4 w-4 sm:h-5 sm:w-5" />
+        <span className="hidden sm:inline">Sync Inventory</span>
+      </button>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <label className="flex flex-col gap-1 text-sm text-zinc-300">
-            <span>Inventory source of truth</span>
-            <select
-              value={sourceOfTruth}
-              onChange={(event) =>
-                setSourceOfTruth(
-                  event.target.value as "lightspeed_inventory" | "website_inventory",
-                )
-              }
-              className="rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none"
-            >
-              <option value="lightspeed_inventory">Lightspeed</option>
-              <option value="website_inventory">Website</option>
-            </select>
-          </label>
-
-          <button
-            type="button"
-            onClick={() => void runPreview()}
-            disabled={isLoading}
-            className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isLoading ? "Building Preview..." : "Preview Sync"}
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mt-4 rounded border border-red-900/70 bg-red-950/30 px-3 py-2 text-sm text-red-200">
-          {error}
-        </div>
-      )}
-
-      {applyMessage && (
-        <div className="mt-4 rounded border border-emerald-900/70 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
-          {applyMessage}
-        </div>
-      )}
-
-      {preview && (
-        <div className="mt-5 space-y-5">
-          <div className="flex flex-wrap gap-2">
+      <ModalPortal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        zIndexClassName="z-[10000]"
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(event) => event.stopPropagation()}
+          className="flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded border border-zinc-800 bg-zinc-950"
+        >
+          <div className="flex items-start justify-between border-b border-zinc-800 px-5 py-4">
+            <div className="space-y-1 pr-4">
+              <h2 className="text-lg font-bold text-white">Lightspeed Sync Preview</h2>
+              <p className="max-w-3xl text-sm text-zinc-400">
+                Build a dry-run reconciliation grouped by change type before applying any
+                inventory sync changes.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                setDecisionForAll(true);
-                void applyPreview("accept_all");
-              }}
-              disabled={isApplying}
-              className="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => setIsOpen(false)}
+              className="rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-white"
+              aria-label="Close sync preview"
             >
-              Accept All
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDecisionForAll(false);
-                void applyPreview("deny_all");
-              }}
-              disabled={isApplying}
-              className="rounded bg-zinc-800 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Deny All
-            </button>
-            <button
-              type="button"
-              onClick={() => void applyPreview("selective")}
-              disabled={isApplying}
-              className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Apply Selected Decisions
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {(
-              Object.keys(preview.summary) as Array<keyof PreviewResponse["summary"]>
-            ).map((key) => (
-              <div
-                key={key}
-                className="rounded border border-zinc-800/70 bg-zinc-900/60 px-4 py-3"
-              >
-                <p className="text-xs uppercase tracking-wide text-zinc-500">
-                  {GROUP_LABELS[key]}
-                </p>
-                <p className="mt-1 text-2xl font-semibold text-white">
-                  {preview.summary[key]}
+          <div className="overflow-y-auto px-5 py-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm text-zinc-400">
+                  Choose which side owns inventory values for this preview, then build the
+                  proposed change set.
                 </p>
               </div>
-            ))}
-          </div>
 
-          <div className="space-y-4">
-            {(Object.keys(preview.groups) as Array<keyof PreviewGroups>).map((key) => {
-              const items = preview.groups[key];
-              if (items.length === 0) {
-                return null;
-              }
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label className="flex flex-col gap-1 text-sm text-zinc-300">
+                  <span>Inventory source of truth</span>
+                  <select
+                    value={sourceOfTruth}
+                    onChange={(event) =>
+                      setSourceOfTruth(
+                        event.target.value as
+                          | "lightspeed_inventory"
+                          | "website_inventory",
+                      )
+                    }
+                    className="rounded border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none"
+                  >
+                    <option value="lightspeed_inventory">Lightspeed</option>
+                    <option value="website_inventory">Website</option>
+                  </select>
+                </label>
 
-              return (
-                <div
-                  key={key}
-                  className="rounded border border-zinc-800/70 bg-zinc-900/30"
+                <button
+                  type="button"
+                  onClick={() => void runPreview()}
+                  disabled={isLoading}
+                  className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <div className="border-b border-zinc-800/70 px-4 py-3">
-                    <h3 className="text-sm font-semibold text-white">
-                      {GROUP_LABELS[key]}
-                    </h3>
-                  </div>
-                  <div className="divide-y divide-zinc-800/70">
-                    {items.map((item) => (
-                      <div key={`${key}-${item.entityKey}`} className="px-4 py-3">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-3">
-                            {item.itemId ? (
-                              <input
-                                type="checkbox"
-                                checked={decisions[item.itemId] ?? false}
-                                onChange={(event) =>
-                                  setDecisions((current) => ({
-                                    ...current,
-                                    [item.itemId as string]: event.target.checked,
-                                  }))
-                                }
-                                className="rdk-checkbox"
-                              />
-                            ) : null}
-                            <p className="text-sm font-medium text-white">
-                              {item.entityKey}
-                            </p>
-                          </div>
-                          <p className="text-xs uppercase tracking-wide text-zinc-500">
-                            {item.action.replaceAll("_", " ")}
-                          </p>
-                        </div>
-                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-zinc-400">
-                          {JSON.stringify(item.payload, null, 2)}
-                        </pre>
-                      </div>
-                    ))}
-                  </div>
+                  {isLoading ? "Building Preview..." : "Preview Sync"}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-4 rounded border border-red-900/70 bg-red-950/30 px-3 py-2 text-sm text-red-200">
+                {error}
+              </div>
+            )}
+
+            {applyMessage && (
+              <div className="mt-4 rounded border border-emerald-900/70 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-200">
+                {applyMessage}
+              </div>
+            )}
+
+            {preview && (
+              <div className="mt-5 space-y-5">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDecisionForAll(true);
+                      void applyPreview("accept_all");
+                    }}
+                    disabled={isApplying}
+                    className="rounded bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Accept All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDecisionForAll(false);
+                      void applyPreview("deny_all");
+                    }}
+                    disabled={isApplying}
+                    className="rounded bg-zinc-800 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Deny All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void applyPreview("selective")}
+                    disabled={isApplying}
+                    className="rounded bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Apply Selected Decisions
+                  </button>
                 </div>
-              );
-            })}
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  {(
+                    Object.keys(preview.summary) as Array<
+                      keyof PreviewResponse["summary"]
+                    >
+                  ).map((key) => (
+                    <div
+                      key={key}
+                      className="rounded border border-zinc-800/70 bg-zinc-900/60 px-4 py-3"
+                    >
+                      <p className="text-xs uppercase tracking-wide text-zinc-500">
+                        {GROUP_LABELS[key]}
+                      </p>
+                      <p className="mt-1 text-2xl font-semibold text-white">
+                        {preview.summary[key]}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-4">
+                  {(Object.keys(preview.groups) as Array<keyof PreviewGroups>).map(
+                    (key) => {
+                      const items = preview.groups[key];
+                      if (items.length === 0) {
+                        return null;
+                      }
+
+                      return (
+                        <div
+                          key={key}
+                          className="rounded border border-zinc-800/70 bg-zinc-900/30"
+                        >
+                          <div className="border-b border-zinc-800/70 px-4 py-3">
+                            <h3 className="text-sm font-semibold text-white">
+                              {GROUP_LABELS[key]}
+                            </h3>
+                          </div>
+                          <div className="divide-y divide-zinc-800/70">
+                            {items.map((item) => (
+                              <div key={`${key}-${item.entityKey}`} className="px-4 py-3">
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="flex items-center gap-3">
+                                    {item.itemId ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={decisions[item.itemId] ?? false}
+                                        onChange={(event) =>
+                                          setDecisions((current) => ({
+                                            ...current,
+                                            [item.itemId as string]: event.target.checked,
+                                          }))
+                                        }
+                                        className="rdk-checkbox"
+                                      />
+                                    ) : null}
+                                    <p className="text-sm font-medium text-white">
+                                      {item.entityKey}
+                                    </p>
+                                  </div>
+                                  <p className="text-xs uppercase tracking-wide text-zinc-500">
+                                    {item.action.replaceAll("_", " ")}
+                                  </p>
+                                </div>
+                                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs text-zinc-400">
+                                  {JSON.stringify(item.payload, null, 2)}
+                                </pre>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
-    </section>
+      </ModalPortal>
+    </>
   );
 }

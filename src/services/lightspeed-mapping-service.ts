@@ -223,12 +223,42 @@ export class LightspeedMappingService {
     return variantDefinition?.value?.trim() || null;
   }
 
-  private normalizeCategory(category: string | null) {
-    if (!category?.trim()) {
+  private normalizeCategory(category: unknown) {
+    const resolved = this.extractCategoryString(category);
+    if (!resolved) {
       return null;
     }
 
-    return category.trim().toLowerCase();
+    return resolved.toLowerCase();
+  }
+
+  private extractCategoryString(category: unknown): string | null {
+    if (typeof category === "string") {
+      const trimmed = category.trim();
+      return trimmed || null;
+    }
+
+    if (Array.isArray(category)) {
+      for (const value of category) {
+        const extracted = this.extractCategoryString(value);
+        if (extracted) {
+          return extracted;
+        }
+      }
+      return null;
+    }
+
+    if (category && typeof category === "object") {
+      const record = category as Record<string, unknown>;
+      return (
+        this.extractCategoryString(record.name) ??
+        this.extractCategoryString(record.label) ??
+        this.extractCategoryString(record.value) ??
+        null
+      );
+    }
+
+    return null;
   }
 
   private toBoolean(value: boolean | number | null | undefined) {
