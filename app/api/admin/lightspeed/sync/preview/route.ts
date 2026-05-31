@@ -12,6 +12,8 @@ import { LightspeedLinksRepository } from "@/repositories/lightspeed-links-repo"
 import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import { LightspeedSyncRunsRepository } from "@/repositories/lightspeed-sync-runs-repo";
+import { ProductTitleParserService } from "@/services/product-title-parser-service";
+import { ShippingDefaultsService } from "@/services/shipping-defaults-service";
 import { LightspeedSyncPreviewService } from "@/services/lightspeed-sync-preview-service";
 
 export async function POST(request: NextRequest) {
@@ -46,6 +48,11 @@ export async function POST(request: NextRequest) {
       new LightspeedLinksRepository(supabase),
       new LightspeedSyncRunsRepository(supabase),
       lightspeedReader,
+      {
+        parseTitle: (input) => new ProductTitleParserService(supabase).parseTitle(input),
+        listShippingDefaults: (forTenantId) =>
+          new ShippingDefaultsService(supabase).list(forTenantId),
+      },
     );
 
     const preview = await previewService.previewSync({

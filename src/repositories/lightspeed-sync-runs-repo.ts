@@ -23,7 +23,11 @@ export class LightspeedSyncRunsRepository {
   async createRun(input: {
     tenantId: string;
     startedBy: string | null;
-    sourceOfTruth: "lightspeed_inventory" | "website_inventory";
+    sourceOfTruth:
+      | "lightspeed_inventory"
+      | "website_inventory"
+      | "lightspeed_full_override"
+      | "website_full_override";
     status: "preview" | "applied";
     summary: LightspeedSyncRunSummary;
   }) {
