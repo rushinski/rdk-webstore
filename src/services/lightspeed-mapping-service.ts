@@ -108,9 +108,12 @@ export class LightspeedMappingService {
       cleanName: this.cleanWebsiteName(rawName),
       description: record.description?.trim() || parent?.description?.trim() || null,
       brand: record.brand_name?.trim() || parent?.brand_name?.trim() || null,
+      model: null,
       category,
       condition,
       sizeLabel: this.extractSizeLabel(record, parent),
+      priceCents: this.extractPriceCents(record, parent),
+      costCents: this.extractCostCents(record, parent),
       stock: this.extractStock(record, parent),
       isActive: this.toBoolean(
         record.is_active ?? record.active ?? parent?.is_active ?? parent?.active,
@@ -184,6 +187,28 @@ export class LightspeedMappingService {
 
     const parentInventory = this.sumInventory(parent?.inventory);
     return parentInventory ?? 0;
+  }
+
+  private extractPriceCents(
+    record: LightspeedRemoteProduct,
+    parent?: LightspeedRemoteProduct,
+  ) {
+    return (
+      this.extractMoneyCents(record.price_including_tax) ??
+      this.extractMoneyCents(record.retail_price) ??
+      this.extractMoneyCents(parent?.price_including_tax) ??
+      this.extractMoneyCents(parent?.retail_price)
+    );
+  }
+
+  private extractCostCents(
+    record: LightspeedRemoteProduct,
+    parent?: LightspeedRemoteProduct,
+  ) {
+    return (
+      this.extractMoneyCents(record.supply_price) ??
+      this.extractMoneyCents(parent?.supply_price)
+    );
   }
 
   private extractImages(
@@ -280,6 +305,11 @@ export class LightspeedMappingService {
       return Number.isFinite(parsed) ? parsed : null;
     }
     return null;
+  }
+
+  private extractMoneyCents(value: number | string | null | undefined) {
+    const amount = this.toNumber(value);
+    return amount === null ? null : Math.round(amount * 100);
   }
 
   private sumInventory(

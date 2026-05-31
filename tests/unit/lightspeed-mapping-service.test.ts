@@ -58,6 +58,9 @@ describe("LightspeedMappingService", () => {
         variant_option_two_name: "Size",
         variant_option_two_value: "9.5M / 11W",
         inventory_Main_Outlet: 1,
+        supply_price: 120,
+        price_including_tax: 160,
+        images: [{ url: "https://example.com/j5.jpg" }],
       },
     ]);
 
@@ -69,11 +72,15 @@ describe("LightspeedMappingService", () => {
         cleanName: "A MA MANIERE JORDAN 5",
         condition: "used",
         sizeLabel: "9.5M / 11W",
+        priceCents: 16000,
+        costCents: 12000,
         stock: 1,
         brand: "Jordan",
+        model: null,
         category: "sneakers",
         isActive: true,
         isDeleted: false,
+        imageUrls: ["https://example.com/j5.jpg"],
       }),
     ]);
   });
@@ -86,6 +93,8 @@ describe("LightspeedMappingService", () => {
         sku: "N-OTH-CLT-MD-30",
         brand_name: "Other",
         product_category: { name: "Clothing" } as never,
+        supply_price: 42.5,
+        retail_price: 80,
         active: true,
         deleted_at: null,
         variant_option_one_name: "Condition",
@@ -97,5 +106,7 @@ describe("LightspeedMappingService", () => {
     ]);
 
     expect(normalized[0]?.category).toBe("clothing");
+    expect(normalized[0]?.priceCents).toBe(8000);
+    expect(normalized[0]?.costCents).toBe(4250);
   });
 });

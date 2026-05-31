@@ -26,6 +26,9 @@ export type LightspeedRemoteProduct = {
   variant_name?: string | null;
   description?: string | null;
   sku?: string | null;
+  supply_price?: number | string | null;
+  price_including_tax?: number | string | null;
+  retail_price?: number | string | null;
   product_codes?: Array<{ code?: string | null; type?: string | null }> | null;
   brand_name?: string | null;
   product_category?: string | null;
@@ -72,9 +75,12 @@ export type NormalizedLightspeedProduct = {
   cleanName: string;
   description: string | null;
   brand: string | null;
+  model: string | null;
   category: string | null;
   condition: "new" | "used";
   sizeLabel: string;
+  priceCents: number | null;
+  costCents: number | null;
   stock: number;
   isActive: boolean;
   isDeleted: boolean;
