@@ -270,6 +270,7 @@ export class LightspeedSyncPreviewService {
     const remoteIds = new Set(
       normalizedRemote.map((remote) => remote.lightspeedProductId),
     );
+    const groupedNewRemoteAdds = new Map<string, ProjectedRemoteProduct[]>();
 
     for (const [externalSku, skuLinks] of linksByExternalSku.entries()) {
       if (skuLinks.length < 2) {
@@ -320,6 +321,14 @@ export class LightspeedSyncPreviewService {
 
       if (!linkedRecord && !localSkuMatch) {
         if (isLightspeedAuthoritative) {
+          if (remote.condition === "new" && projection.parserResult) {
+            const groupKey = this.buildRemoteGroupingKey(projection);
+            const existing = groupedNewRemoteAdds.get(groupKey) ?? [];
+            existing.push(projection);
+            groupedNewRemoteAdds.set(groupKey, existing);
+            continue;
+          }
+
           groups.added.push({
             changeType: "added",
             action: "create_website_product",
@@ -456,6 +465,38 @@ export class LightspeedSyncPreviewService {
           },
         });
       }
+    }
+
+    for (const [groupKey, projections] of groupedNewRemoteAdds.entries()) {
+      const first = projections[0];
+      if (!first) {
+        continue;
+      }
+
+      groups.added.push({
+        changeType: "added",
+        action: "create_website_product",
+        entityType: "product",
+        entityKey: groupKey,
+        payload: {
+          lightspeedProductIds: projections.map(
+            (projection) => projection.remote.lightspeedProductId,
+          ),
+          externalSkus: projections.map((projection) => projection.remote.externalSku),
+          rawNames: projections.map((projection) => projection.remote.rawName),
+          cleanName: first.remote.cleanName,
+          description: first.remote.description,
+          condition: first.remote.condition,
+          brand: first.parserResult?.brand.label ?? first.remote.brand,
+          model: first.parserResult?.model.label ?? first.remote.model,
+          category: first.remote.category,
+          imageUrls: projections.flatMap((projection) => projection.remote.imageUrls),
+          preview: {
+            current: null,
+            proposed: this.buildGroupedRemoteSnapshot(projections),
+          },
+        },
+      });
     }
 
     if (page === 1) {
@@ -712,6 +753,55 @@ export class LightspeedSyncPreviewService {
     const primary =
       product.images.find((image) => image.is_primary) ?? product.images[0] ?? null;
     return primary?.url ?? null;
+  }
+
+  private buildRemoteGroupingKey(projection: ProjectedRemoteProduct) {
+    const parsed = projection.parserResult;
+    const remote = projection.remote;
+
+    return [
+      parsed?.brand.label ?? remote.brand ?? "unknown",
+      parsed?.model.label ?? remote.model ?? remote.cleanName,
+      remote.category ?? "unknown",
+      remote.condition,
+    ]
+      .map((value) => value.trim().toLowerCase())
+      .join(":");
+  }
+
+  private buildGroupedRemoteSnapshot(
+    projections: ProjectedRemoteProduct[],
+  ): PreviewProductSnapshot {
+    const first = projections[0];
+    const firstRemote = first.remote;
+    const firstParser = first.parserResult;
+
+    const variants = projections.map((projection) => ({
+      sizeLabel: projection.remote.sizeLabel,
+      priceCents: projection.remote.priceCents,
+      costCents: projection.remote.costCents,
+      stock: projection.remote.stock,
+      sku: projection.remote.externalSku,
+    }));
+
+    return {
+      title: firstParser?.titleDisplay ?? firstRemote.cleanName,
+      imageUrl:
+        projections.flatMap((projection) => projection.remote.imageUrls)[0] ?? null,
+      condition: firstRemote.condition,
+      stock: variants.reduce((sum, variant) => sum + variant.stock, 0),
+      priceCents: firstRemote.priceCents,
+      costCents: firstRemote.costCents,
+      sku: firstRemote.externalSku,
+      brand: firstParser?.brand.label ?? firstRemote.brand,
+      model: firstParser?.model.label ?? firstRemote.model,
+      category: firstRemote.category,
+      description: firstRemote.description,
+      shippingCostCents: first.shippingCostCents,
+      tags: first.tags,
+      variants,
+      status: firstRemote.isActive ? "active" : "archived",
+    };
   }
 
   private async projectRemoteProducts(

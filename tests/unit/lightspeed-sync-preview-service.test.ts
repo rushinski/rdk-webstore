@@ -350,4 +350,133 @@ describe("LightspeedSyncPreviewService", () => {
       ]),
     );
   });
+
+  it("groups new Lightspeed variants into one website-style preview item", async () => {
+    const service = new LightspeedSyncPreviewService(
+      {
+        list: jest.fn().mockResolvedValue({
+          products: [],
+        }),
+      } as never,
+      {
+        listByTenant: jest.fn().mockResolvedValue([]),
+      } as never,
+      {
+        createRun: jest.fn().mockResolvedValue({ id: "run-2" }),
+        createItems: jest.fn().mockResolvedValue([]),
+      } as never,
+      {
+        listProducts: jest.fn().mockResolvedValue({
+          products: [
+            {
+              id: "ls-new-1",
+              name: "A MA MANIERE JORDAN 3 - N-JDN-J03-BH-01",
+              sku: "N-JDN-J03-BH-01",
+              brand_name: "Jordan",
+              product_category: "Sneakers",
+              active: true,
+              deleted_at: null,
+              variant_option_one_name: "Condition",
+              variant_option_one_value: "new",
+              variant_option_two_name: "Size",
+              variant_option_two_value: "11.5M / 13W",
+              inventory_Main_Outlet: 1,
+              price_including_tax: 220,
+              supply_price: 160,
+              images: [{ url: "https://example.com/jordan3-1.jpg" }],
+            },
+            {
+              id: "ls-new-2",
+              name: "A MA MANIERE JORDAN 3 - N-JDN-J03-C0-02",
+              sku: "N-JDN-J03-C0-02",
+              brand_name: "Jordan",
+              product_category: "Sneakers",
+              active: true,
+              deleted_at: null,
+              variant_option_one_name: "Condition",
+              variant_option_one_value: "new",
+              variant_option_two_name: "Size",
+              variant_option_two_value: "12M / 13.5W",
+              inventory_Main_Outlet: 2,
+              price_including_tax: 220,
+              supply_price: 160,
+              images: [{ url: "https://example.com/jordan3-2.jpg" }],
+            },
+          ],
+          page: 1,
+          pageSize: 50,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          totalProducts: 2,
+          totalPages: 1,
+        }),
+      } as never,
+      {
+        parseTitle: jest.fn().mockImplementation(({ titleRaw }) => ({
+          titleRaw,
+          titleDisplay: "A MA MANIERE JORDAN 3",
+          brand: {
+            id: "brand-1",
+            label: "Jordan",
+            isVerified: true,
+            confidence: 0.99,
+            source: "catalog",
+            groupKey: null,
+          },
+          model: {
+            id: "model-1",
+            label: "Jordan 3",
+            isVerified: true,
+            confidence: 0.99,
+            source: "catalog",
+          },
+          name: "A MA MANIERE JORDAN 3",
+          parseConfidence: 0.99,
+          parseVersion: "v1",
+          suggestions: {},
+          candidates: {},
+          matchedTokens: {},
+        })),
+        listShippingDefaults: jest
+          .fn()
+          .mockResolvedValue([{ category: "sneakers", shipping_cost_cents: 1500 }]),
+      } as never,
+    );
+
+    const preview = await service.previewSync({
+      tenantId: "tenant-1",
+      startedBy: "user-1",
+      sourceOfTruth: "lightspeed_full_override",
+      page: 1,
+      pageSize: 50,
+    });
+
+    expect(preview.groups.added).toHaveLength(1);
+    expect(preview.groups.added[0]).toEqual(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          preview: expect.objectContaining({
+            proposed: expect.objectContaining({
+              title: "A MA MANIERE JORDAN 3",
+              condition: "new",
+              variants: expect.arrayContaining([
+                expect.objectContaining({
+                  sizeLabel: "11.5M / 13W",
+                  priceCents: 22000,
+                  costCents: 16000,
+                  stock: 1,
+                }),
+                expect.objectContaining({
+                  sizeLabel: "12M / 13.5W",
+                  priceCents: 22000,
+                  costCents: 16000,
+                  stock: 2,
+                }),
+              ]),
+            }),
+          }),
+        }),
+      }),
+    );
+  });
 });
