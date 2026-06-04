@@ -479,4 +479,94 @@ describe("LightspeedSyncPreviewService", () => {
       }),
     );
   });
+
+  it("can build a page preview without fetching full-catalog totals", async () => {
+    const listProducts = jest.fn().mockResolvedValue({
+      products: [
+        {
+          id: "ls-product-1",
+          name: "A MA MANIERE JORDAN 3 - N-JDN-J03-BH-01",
+          sku: "N-JDN-J03-BH-01",
+          brand_name: "Jordan",
+          product_category: "Sneakers",
+          active: true,
+          deleted_at: null,
+          variant_option_one_name: "Condition",
+          variant_option_one_value: "new",
+          variant_option_two_name: "Size",
+          variant_option_two_value: "11.5M / 13W",
+          inventory_Main_Outlet: 1,
+        },
+      ],
+      page: 1,
+      pageSize: 50,
+      hasNextPage: true,
+      hasPreviousPage: false,
+      totalProducts: 2000,
+      totalPages: 40,
+    });
+
+    const service = new LightspeedSyncPreviewService(
+      {
+        list: jest.fn().mockResolvedValue({
+          products: [],
+        }),
+      } as never,
+      {
+        listByTenant: jest.fn().mockResolvedValue([]),
+      } as never,
+      {
+        createRun: jest.fn().mockResolvedValue({ id: "run-3" }),
+        createItems: jest.fn().mockResolvedValue([]),
+      } as never,
+      {
+        listProducts,
+      } as never,
+      {
+        parseTitle: jest.fn().mockImplementation(({ titleRaw }) => ({
+          titleRaw,
+          titleDisplay: titleRaw,
+          brand: {
+            id: "brand-1",
+            label: "Jordan",
+            isVerified: true,
+            confidence: 0.99,
+            source: "catalog",
+            groupKey: null,
+          },
+          model: {
+            id: "model-1",
+            label: "Jordan 3",
+            isVerified: true,
+            confidence: 0.99,
+            source: "catalog",
+          },
+          name: titleRaw,
+          parseConfidence: 0.99,
+          parseVersion: "v1",
+          suggestions: {},
+          candidates: {},
+          matchedTokens: {},
+        })),
+        listShippingDefaults: jest
+          .fn()
+          .mockResolvedValue([{ category: "sneakers", shipping_cost_cents: 1500 }]),
+      } as never,
+    );
+
+    const preview = await service.previewSync({
+      tenantId: "tenant-1",
+      startedBy: "user-1",
+      sourceOfTruth: "lightspeed_full_override",
+      page: 1,
+      pageSize: 50,
+      includeTotals: false,
+    });
+
+    expect(listProducts).toHaveBeenCalledTimes(1);
+    expect(preview.pagination.totalProducts).toBe(2000);
+    expect(preview.pagination.totalPages).toBe(40);
+    expect(preview.pagination.totalGroupedItems).toBeNull();
+    expect(preview.pagination.totalChanges).toBeNull();
+  });
 });

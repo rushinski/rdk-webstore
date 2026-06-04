@@ -102,15 +102,10 @@ export class LightspeedSyncPreviewService {
     sourceOfTruth: SyncPreviewSourceOfTruth;
     page: number;
     pageSize: number;
+    includeTotals?: boolean;
   }) {
-    const { products } = await this.productRepo.list({
-      tenantId: input.tenantId,
-      includeOutOfStock: true,
-      searchMode: "inventory",
-      page: 1,
-      limit: 5000,
-    });
-    const links = await this.linksRepo.listByTenant(input.tenantId);
+    const includeTotals = input.includeTotals ?? true;
+    const { products, links } = await this.loadLocalSyncContext(input.tenantId);
     const remoteResult = await this.lightspeedReader
       ?.listProducts(input.page, input.pageSize)
       .catch(() => ({
@@ -122,10 +117,6 @@ export class LightspeedSyncPreviewService {
         totalProducts: 0,
         totalPages: 0,
       }));
-    const allRemoteProducts = await this.fetchAllRemoteProducts(
-      remoteResult ?? null,
-      input.pageSize,
-    );
     const groups = await this.buildGroups(
       products,
       links,
@@ -135,21 +126,19 @@ export class LightspeedSyncPreviewService {
       input.tenantId,
     );
     const summary = this.buildSummary(groups);
-    const totalGroups = await this.buildGroups(
-      products,
-      links,
-      input.sourceOfTruth,
-      allRemoteProducts,
-      1,
-      input.tenantId,
-    );
-    const totalSummary = this.buildSummary(totalGroups);
-    const totalChangeCount =
-      totalSummary.added +
-      totalSummary.modified +
-      totalSummary.archived +
-      totalSummary.conflicts +
-      totalSummary.skipped;
+    let totalChangeCount: number | null = null;
+    if (includeTotals) {
+      const totals = await this.summarizeSync({
+        tenantId: input.tenantId,
+        sourceOfTruth: input.sourceOfTruth,
+        pageSize: input.pageSize,
+        localContext: {
+          products,
+          links,
+        },
+      });
+      totalChangeCount = totals.totalChanges;
+    }
 
     const run = await this.syncRunsRepo.createRun({
       tenantId: input.tenantId,
@@ -197,19 +186,86 @@ export class LightspeedSyncPreviewService {
         pageSize: remoteResult?.pageSize ?? input.pageSize,
         hasNextPage: remoteResult?.hasNextPage ?? false,
         hasPreviousPage: remoteResult?.hasPreviousPage ?? input.page > 1,
-        totalProducts: remoteResult?.totalProducts ?? allRemoteProducts.length,
+        totalProducts: remoteResult?.totalProducts ?? null,
         totalPages:
           remoteResult?.totalPages ??
-          Math.max(
-            1,
-            Math.ceil(
-              (remoteResult?.totalProducts ?? allRemoteProducts.length) / input.pageSize,
-            ),
-          ),
+          (typeof remoteResult?.totalProducts === "number"
+            ? Math.max(1, Math.ceil(remoteResult.totalProducts / input.pageSize))
+            : null),
         totalGroupedItems: totalChangeCount,
         totalChanges: totalChangeCount,
       },
     };
+  }
+
+  async summarizeSync(input: {
+    tenantId: string;
+    sourceOfTruth: SyncPreviewSourceOfTruth;
+    pageSize: number;
+    localContext?: {
+      products: ProductWithDetails[];
+      links: LightspeedLink[];
+    };
+  }) {
+    const localContext =
+      input.localContext ?? (await this.loadLocalSyncContext(input.tenantId));
+    const firstPage = await this.lightspeedReader
+      ?.listProducts(1, input.pageSize)
+      .catch(() => ({
+        products: [],
+        page: 1,
+        pageSize: input.pageSize,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        totalProducts: 0,
+        totalPages: 0,
+      }));
+    const allRemoteProducts = await this.fetchAllRemoteProducts(
+      firstPage ?? null,
+      input.pageSize,
+    );
+    const totalGroups = await this.buildGroups(
+      localContext.products,
+      localContext.links,
+      input.sourceOfTruth,
+      allRemoteProducts,
+      1,
+      input.tenantId,
+    );
+    const totalSummary = this.buildSummary(totalGroups);
+    const totalChangeCount =
+      totalSummary.added +
+      totalSummary.modified +
+      totalSummary.archived +
+      totalSummary.conflicts +
+      totalSummary.skipped;
+
+    return {
+      totalProducts: firstPage?.totalProducts ?? allRemoteProducts.length,
+      totalPages:
+        firstPage?.totalPages ??
+        Math.max(
+          1,
+          Math.ceil(
+            (firstPage?.totalProducts ?? allRemoteProducts.length) / input.pageSize,
+          ),
+        ),
+      totalGroupedItems: totalChangeCount,
+      totalChanges: totalChangeCount,
+    };
+  }
+
+  private async loadLocalSyncContext(tenantId: string) {
+    const { products } = await this.productRepo.list({
+      tenantId,
+      includeOutOfStock: true,
+      searchMode: "inventory",
+      page: 1,
+      limit: 5000,
+    });
+    const links = await this.linksRepo.listByTenant(tenantId);
+
+    return { products, links };
   }
 
   private async buildGroups(

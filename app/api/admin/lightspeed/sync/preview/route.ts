@@ -35,6 +35,8 @@ export async function POST(request: NextRequest) {
     }
 
     const connection = await settingsRepo.getConnectionByTenant(tenantId);
+    const parserService = new ProductTitleParserService(supabase);
+    const shippingDefaultsService = new ShippingDefaultsService(supabase);
     const lightspeedReader =
       connection.syncEnabled && connection.domainPrefix && connection.accessToken
         ? new LightspeedClient({
@@ -49,9 +51,8 @@ export async function POST(request: NextRequest) {
       new LightspeedSyncRunsRepository(supabase),
       lightspeedReader,
       {
-        parseTitle: (input) => new ProductTitleParserService(supabase).parseTitle(input),
-        listShippingDefaults: (forTenantId) =>
-          new ShippingDefaultsService(supabase).list(forTenantId),
+        parseTitle: (input) => parserService.parseTitle(input),
+        listShippingDefaults: (forTenantId) => shippingDefaultsService.list(forTenantId),
       },
     );
 
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
       sourceOfTruth: parsed.data.sourceOfTruth,
       page: parsed.data.page,
       pageSize: parsed.data.pageSize,
+      includeTotals: false,
     });
 
     return NextResponse.json(

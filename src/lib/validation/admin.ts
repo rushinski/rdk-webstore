@@ -73,6 +73,18 @@ export const lightspeedSyncPreviewSchema = z
   })
   .strict();
 
+export const lightspeedSyncSummarySchema = z
+  .object({
+    sourceOfTruth: z.enum([
+      "lightspeed_inventory",
+      "website_inventory",
+      "lightspeed_full_override",
+      "website_full_override",
+    ]),
+    pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+
 export const lightspeedSyncApplySchema = z
   .object({
     syncRunId: z.string().uuid(),

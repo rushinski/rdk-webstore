@@ -28,8 +28,13 @@ export class LightspeedSyncRunsRepository {
       | "website_inventory"
       | "lightspeed_full_override"
       | "website_full_override";
-    status: "preview" | "applied";
-    summary: LightspeedSyncRunSummary;
+    status:
+      | "preview"
+      | "applied"
+      | "summary_pending"
+      | "summary_complete"
+      | "summary_failed";
+    summary: Record<string, unknown>;
   }) {
     const { data, error } = await this.supabase
       .from("lightspeed_sync_runs")
@@ -147,6 +152,34 @@ export class LightspeedSyncRunsRepository {
         status: input.status,
         summary: input.summary as never,
         completed_at: new Date().toISOString(),
+      })
+      .eq("id", syncRunId);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async updateRun(
+    syncRunId: string,
+    input: {
+      status:
+        | "preview"
+        | "applied"
+        | "summary_pending"
+        | "summary_complete"
+        | "summary_failed";
+      summary?: Record<string, unknown>;
+      completedAt?: string | null;
+    },
+  ) {
+    const { error } = await this.supabase
+      .from("lightspeed_sync_runs")
+      .update({
+        status: input.status,
+        summary: (input.summary ?? {}) as never,
+        completed_at:
+          input.completedAt === undefined ? undefined : (input.completedAt as never),
       })
       .eq("id", syncRunId);
 

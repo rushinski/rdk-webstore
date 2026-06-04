@@ -221,7 +221,7 @@ function PreviewProductCard({
 }) {
   if (!product) {
     return (
-      <div className="flex h-full min-h-[26rem] flex-col items-center justify-center rounded border border-dashed border-zinc-800 bg-zinc-950/60 p-6 text-center text-sm text-zinc-500">
+      <div className="flex h-full min-h-[22rem] flex-col items-center justify-center rounded border border-dashed border-zinc-800 bg-zinc-950/60 p-6 text-center text-sm text-zinc-500">
         {placeholderLabel ?? "No item on this side"}
       </div>
     );
@@ -229,7 +229,7 @@ function PreviewProductCard({
 
   return (
     <div className="flex h-full flex-col overflow-hidden rounded border border-zinc-800/70 bg-zinc-900">
-      <div className="relative aspect-square bg-zinc-950">
+      <div className="relative h-28 bg-zinc-950 sm:h-32">
         {product.imageUrl ? (
           <img
             src={product.imageUrl}
@@ -264,7 +264,7 @@ function PreviewProductCard({
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex flex-1 flex-col gap-2.5 p-3">
         <div>
           <p className="line-clamp-2 text-sm font-bold text-white">{product.title}</p>
           <p className="mt-1 text-xs text-zinc-400">{getPrimaryVariantLabel(product)}</p>
@@ -365,6 +365,7 @@ export function LightspeedSyncPanel() {
   >("lightspeed_inventory");
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingTotals, setIsLoadingTotals] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applyMessage, setApplyMessage] = useState<string | null>(null);
@@ -386,7 +387,111 @@ export function LightspeedSyncPanel() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen]);
 
-  const runPreview = async (targetPage = page) => {
+  const pollTotals = async (syncRunId: string, attempts = 0) => {
+    try {
+      const response = await fetch(
+        `/api/admin/lightspeed/sync/summary?syncRunId=${encodeURIComponent(syncRunId)}`,
+        {
+          method: "GET",
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      );
+      const data = (await response.json()) as {
+        status?: string;
+        summary?: {
+          totalProducts: number | null;
+          totalPages: number | null;
+          totalGroupedItems: number | null;
+          totalChanges: number | null;
+        } | null;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setError(data.error ?? "Failed to load sync totals.");
+        setIsLoadingTotals(false);
+        return;
+      }
+
+      if (data.status === "summary_complete" && data.summary) {
+        const summary = data.summary;
+        setPreview((current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            pagination: {
+              ...current.pagination,
+              totalProducts: summary.totalProducts,
+              totalPages: summary.totalPages,
+              totalGroupedItems: summary.totalGroupedItems,
+              totalChanges: summary.totalChanges,
+            },
+          };
+        });
+        setIsLoadingTotals(false);
+        return;
+      }
+
+      if (data.status === "summary_failed") {
+        setError("Failed to load sync totals.");
+        setIsLoadingTotals(false);
+        return;
+      }
+
+      if (attempts < 40) {
+        window.setTimeout(() => {
+          void pollTotals(syncRunId, attempts + 1);
+        }, 1500);
+        return;
+      }
+
+      setError("Sync totals are taking too long to calculate.");
+      setIsLoadingTotals(false);
+    } catch {
+      setError("Failed to load sync totals.");
+      setIsLoadingTotals(false);
+    }
+  };
+
+  const loadTotals = async (
+    selectedSource: typeof sourceOfTruth,
+    targetPageSize: number,
+  ) => {
+    setIsLoadingTotals(true);
+
+    try {
+      const response = await fetch("/api/admin/lightspeed/sync/summary", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sourceOfTruth: selectedSource,
+          pageSize: targetPageSize,
+        }),
+      });
+      const data = (await response.json()) as {
+        syncRunId?: string;
+        status?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !data.syncRunId) {
+        setError(data.error ?? "Failed to load sync totals.");
+        return;
+      }
+      void pollTotals(data.syncRunId);
+    } catch {
+      setError("Failed to load sync totals.");
+    }
+  };
+
+  const runPreview = async (targetPage = page, refreshTotals = false) => {
     setIsLoading(true);
     setError(null);
 
@@ -412,6 +517,9 @@ export function LightspeedSyncPanel() {
       setPage(data.preview.pagination.page);
       setDecisions({});
       setApplyMessage(null);
+      if (refreshTotals) {
+        void loadTotals(sourceOfTruth, data.preview.pagination.pageSize);
+      }
     } catch {
       setError("Failed to build sync preview.");
     } finally {
@@ -537,7 +645,8 @@ export function LightspeedSyncPanel() {
                     Total Lightspeed Products
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-white">
-                    {preview.pagination.totalProducts ?? "—"}
+                    {preview.pagination.totalProducts ??
+                      (isLoadingTotals ? "Calculating..." : "—")}
                   </p>
                 </div>
                 <div className="rounded border border-zinc-800/70 bg-zinc-900/40 p-4">
@@ -545,7 +654,8 @@ export function LightspeedSyncPanel() {
                     Total Proposed Changes
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-white">
-                    {preview.pagination.totalChanges ?? "—"}
+                    {preview.pagination.totalChanges ??
+                      (isLoadingTotals ? "Calculating..." : "—")}
                   </p>
                 </div>
                 <div className="rounded border border-zinc-800/70 bg-zinc-900/40 p-4">
@@ -553,7 +663,8 @@ export function LightspeedSyncPanel() {
                     Total Review Items
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-white">
-                    {preview.pagination.totalGroupedItems ?? "—"}
+                    {preview.pagination.totalGroupedItems ??
+                      (isLoadingTotals ? "Calculating..." : "—")}
                   </p>
                 </div>
                 <div className="rounded border border-zinc-800/70 bg-zinc-900/40 p-4">
@@ -569,7 +680,8 @@ export function LightspeedSyncPanel() {
                     Total Pages
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-white">
-                    {preview.pagination.totalPages ?? "—"}
+                    {preview.pagination.totalPages ??
+                      (isLoadingTotals ? "Calculating..." : "—")}
                   </p>
                 </div>
               </div>
@@ -605,6 +717,7 @@ export function LightspeedSyncPanel() {
                       setDecisions({});
                       setApplyMessage(null);
                       setError(null);
+                      setIsLoadingTotals(false);
                     }}
                     className="rounded border border-zinc-800 bg-zinc-900 px-3 py-3 text-sm text-white outline-none"
                   >
@@ -619,7 +732,7 @@ export function LightspeedSyncPanel() {
 
                 <button
                   type="button"
-                  onClick={() => void runPreview(1)}
+                  onClick={() => void runPreview(1, true)}
                   disabled={isLoading}
                   className="rounded bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
@@ -761,8 +874,8 @@ export function LightspeedSyncPanel() {
                                   }
 
                                   return (
-                                    <div className="mt-4 grid gap-5 xl:grid-cols-2">
-                                      <div className="space-y-2">
+                                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                                      <div className="max-w-[28rem] space-y-2">
                                         <p className="text-xs uppercase tracking-wide text-zinc-500">
                                           {columns.leftLabel}
                                         </p>
@@ -771,7 +884,7 @@ export function LightspeedSyncPanel() {
                                           placeholderLabel="No item exists here yet"
                                         />
                                       </div>
-                                      <div className="space-y-2">
+                                      <div className="max-w-[28rem] space-y-2">
                                         <p className="text-xs uppercase tracking-wide text-zinc-500">
                                           {columns.rightLabel}
                                         </p>
