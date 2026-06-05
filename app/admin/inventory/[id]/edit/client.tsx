@@ -61,14 +61,12 @@ export function EditProductClient({
 
   const initialData = {
     id: product.id,
-    title_raw:
-      product.title_raw ||
-      `${product.brand} ${product.model ?? ""} ${product.name}`.trim(),
+    name: product.name,
     category: product.category,
     condition: product.condition,
-    condition_note: product.condition_note || undefined,
     description: product.description || undefined,
-    shipping_override_cents: product.shipping_override_cents ?? undefined,
+    size_type: product.size_type,
+    shipping_price_cents: product.shipping_price_cents ?? null,
     go_live_at: product.go_live_at ?? undefined,
     variants: product.variants,
     images: product.images,

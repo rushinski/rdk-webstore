@@ -56,9 +56,10 @@ interface ProductFormProps {
 type VariantDraft = {
   draft_id: string;
   id?: string;
+  sku: string;
   size_label: string;
-  price: string;
-  cost: string;
+  salePrice: string;
+  unitCost: string;
   stock: string;
 };
 
@@ -200,6 +201,11 @@ const getTagKey = (tag: { label: string; group_key: string }) =>
 const createVariantDraftId = () =>
   `variant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
+const createDraftSku = () =>
+  `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0")}`;
+
 function RequiredMark() {
   return <span className="text-red-500">*</span>;
 }
@@ -249,7 +255,7 @@ export function ProductForm({
 }: ProductFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
-  const initialTitle = initialData?.title_raw ?? "";
+  const initialTitle = initialData?.name ?? "";
   const [titleRaw, setTitleRaw] = useState(initialTitle);
 
   const [parseResult, setParseResult] = useState<TitleParseResult | null>(null);
@@ -266,7 +272,6 @@ export function ProductForm({
 
   const [category, setCategory] = useState<Category>(initialData?.category || "sneakers");
   const [condition, setCondition] = useState<Condition>(initialData?.condition || "new");
-  const [conditionNote, setConditionNote] = useState(initialData?.condition_note || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [publishMode, setPublishMode] = useState<"immediately" | "scheduled">(() => {
     const goLiveAt = initialData?.go_live_at;
@@ -284,9 +289,9 @@ export function ProductForm({
   );
 
   const [shippingPrice, setShippingPrice] = useState(() => {
-    const shippingOverrideCents = initialData?.shipping_override_cents;
-    if (shippingOverrideCents !== null && shippingOverrideCents !== undefined) {
-      return formatMoney(shippingOverrideCents / 100);
+    const shippingPriceCents = initialData?.shipping_price_cents;
+    if (shippingPriceCents !== null && shippingPriceCents !== undefined) {
+      return formatMoney(shippingPriceCents / 100);
     }
     return "";
   });
@@ -353,9 +358,10 @@ export function ProductForm({
     const mapped = sortedInitialVariants.map((variant) => ({
       draft_id: createVariantDraftId(),
       id: variant.id ?? undefined,
+      sku: variant.sku?.trim() || createDraftSku(),
       size_label: variant.size_label?.trim() ?? "",
-      price: formatMoney(variant.price_cents / 100),
-      cost: formatMoney((variant.cost_cents ?? 0) / 100),
+      salePrice: formatMoney(variant.sale_price_cents / 100),
+      unitCost: formatMoney((variant.unit_cost_cents ?? 0) / 100),
       stock: String(variant.stock ?? 0),
     }));
 
@@ -364,9 +370,10 @@ export function ProductForm({
       : [
           {
             draft_id: createVariantDraftId(),
+            sku: createDraftSku(),
             size_label: sizeType === "none" ? "N/A" : "",
-            price: "",
-            cost: "",
+            salePrice: "",
+            unitCost: "",
             stock: "1",
           },
         ];
@@ -686,9 +693,10 @@ export function ProductForm({
       ...current,
       {
         draft_id: createVariantDraftId(),
+        sku: createDraftSku(),
         size_label: sizeType === "none" ? "N/A" : "",
-        price: "",
-        cost: "",
+        salePrice: "",
+        unitCost: "",
         stock: "1",
       },
     ]);
@@ -1187,12 +1195,12 @@ export function ProductForm({
 
       const seenSizeKeys = new Set<string>();
       const preparedVariants = variants.map((variant, index) => {
-        const priceCents = parseMoneyToCents(variant.price);
+        const priceCents = parseMoneyToCents(variant.salePrice);
         if (priceCents === null) {
           throw new Error(`Variant ${index + 1} price is invalid.`);
         }
 
-        const costCents = parseMoneyToCents(variant.cost);
+        const costCents = parseMoneyToCents(variant.unitCost);
         if (costCents === null) {
           throw new Error(`Variant ${index + 1} cost is invalid.`);
         }
@@ -1214,10 +1222,10 @@ export function ProductForm({
 
         return {
           ...(variant.id ? { id: variant.id } : {}),
-          size_type: sizeType,
+          sku: variant.sku,
           size_label: sizeLabel,
-          price_cents: priceCents,
-          cost_cents: costCents,
+          sale_price_cents: priceCents,
+          unit_cost_cents: costCents,
           stock: stockCount,
           sort_order: index,
         };
@@ -1254,14 +1262,14 @@ export function ProductForm({
       }
 
       const data: ProductCreateInput = {
-        title_raw: trimmedTitle,
+        name: trimmedTitle,
         brand_override_id: brandOverrideId ?? undefined,
         model_override_id: modelOverrideId ?? undefined,
         category,
         condition,
-        condition_note: conditionNote || undefined,
+        size_type: sizeType,
         description: description || undefined,
-        shipping_override_cents: shippingCents ?? undefined,
+        shipping_price_cents: shippingCents,
         go_live_at: goLiveAt,
         variants: preparedVariants,
         images: preparedImages,
@@ -1465,18 +1473,6 @@ export function ProductForm({
           )}
         </div>
 
-        {condition === "used" && (
-          <div className="mt-4">
-            <label className="block text-gray-400 text-sm mb-1">Condition Note</label>
-            <textarea
-              value={conditionNote}
-              onChange={(e) => setConditionNote(e.target.value)}
-              rows={2}
-              className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
-            />
-          </div>
-        )}
-
         <div className="mt-4">
           <label className="block text-gray-400 text-sm mb-1">Description</label>
           <textarea
@@ -1502,11 +1498,6 @@ export function ProductForm({
             <span className="sm:hidden">Add</span>
           </button>
         </div>
-        <p className="mb-4 text-xs text-gray-500 md:text-sm">
-          Website-generated SKUs are assigned automatically from condition, brand, model,
-          size, and sequence rules. Lightspeed variant SKUs are derived during sync.
-        </p>
-
         <DndContext
           sensors={variantDragSensors}
           collisionDetection={closestCenter}
@@ -1535,7 +1526,17 @@ export function ProductForm({
                         isVariantOver ? "ring-2 ring-red-500/50" : "",
                       ].join(" ")}
                     >
-                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4">
+                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 md:gap-4">
+                        <div className="col-span-2 sm:col-span-1">
+                          <label className="block text-gray-400 text-xs mb-1">SKU</label>
+                          <input
+                            type="text"
+                            value={variant.sku}
+                            disabled
+                            className="w-full bg-zinc-900 text-zinc-300 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 font-mono"
+                          />
+                        </div>
+
                         <div className="col-span-2 sm:col-span-1">
                           <label className="block text-gray-400 text-xs mb-1">
                             Size <RequiredMark />
@@ -1598,9 +1599,9 @@ export function ProductForm({
                           <input
                             type="text"
                             inputMode="decimal"
-                            value={variant.price}
+                            value={variant.salePrice}
                             onChange={(e) =>
-                              updateVariant(index, "price", e.target.value)
+                              updateVariant(index, "salePrice", e.target.value)
                             }
                             required
                             className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
@@ -1614,8 +1615,10 @@ export function ProductForm({
                           <input
                             type="text"
                             inputMode="decimal"
-                            value={variant.cost}
-                            onChange={(e) => updateVariant(index, "cost", e.target.value)}
+                            value={variant.unitCost}
+                            onChange={(e) =>
+                              updateVariant(index, "unitCost", e.target.value)
+                            }
                             required
                             className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
                           />
