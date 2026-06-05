@@ -61,7 +61,7 @@ export class LightspeedProductSyncService {
         const existingLink = variantLinks[index];
         const externalSku =
           existingLink?.external_sku ??
-          this.buildVariantExternalSku(product.sku, {
+          this.buildVariantExternalSku(variant.sku, {
             condition: product.condition,
             brand: product.brand,
             model: product.model ?? product.name,
@@ -139,11 +139,10 @@ export class LightspeedProductSyncService {
       : never,
     resolvedVariants: Array<{
       externalSku: string;
-      variant: { size_label: string; price_cents: number };
+      variant: { size_label: string; sale_price_cents: number };
     }>,
   ): LightspeedCreateProductPayload {
-    const titleDisplay =
-      product.title_display?.trim() || `${product.brand} ${product.name}`.trim();
+    const titleDisplay = product.name.trim();
     const isUniqueUnit = product.condition === "used" || resolvedVariants.length === 1;
 
     if (resolvedVariants.length === 1) {
@@ -159,7 +158,7 @@ export class LightspeedProductSyncService {
         is_active: product.is_active,
         sku: resolvedVariants[0].externalSku,
         product_codes: [{ code: resolvedVariants[0].externalSku, type: "CUSTOM" }],
-        price_including_tax: resolvedVariants[0].variant.price_cents / 100,
+        price_including_tax: resolvedVariants[0].variant.sale_price_cents / 100,
       };
     }
 
@@ -171,7 +170,7 @@ export class LightspeedProductSyncService {
         name: titleDisplay,
         sku: entry.externalSku,
         product_codes: [{ code: entry.externalSku, type: "CUSTOM" }],
-        price_including_tax: entry.variant.price_cents / 100,
+        price_including_tax: entry.variant.sale_price_cents / 100,
         is_active: product.is_active,
         variant_definitions: [
           {
@@ -189,8 +188,7 @@ export class LightspeedProductSyncService {
       : never,
     sku: string | null,
   ): LightspeedUpdateProductPayload {
-    const titleDisplay =
-      product.title_display?.trim() || `${product.brand} ${product.name}`.trim();
+    const titleDisplay = product.name.trim();
 
     return {
       common: {

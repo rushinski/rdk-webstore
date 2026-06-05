@@ -18,7 +18,6 @@ type FeaturedItem = {
     name: string;
     brand: string;
     model: string | null;
-    title_display: string;
     category: string;
     is_active: boolean;
     is_out_of_stock: boolean;
@@ -29,7 +28,7 @@ type FeaturedItem = {
     }>;
     variants?: Array<{
       id: string;
-      price_cents: number;
+      sale_price_cents: number;
       stock: number;
     }>;
   };
@@ -39,10 +38,9 @@ type Product = {
   id: string;
   name: string;
   brand: string;
-  title_display: string;
   category: string;
   images: Array<{ url: string }>;
-  variants: Array<{ price_cents: number }>;
+  variants: Array<{ sale_price_cents: number }>;
 };
 
 export function FeaturedItemsManager() {
@@ -241,11 +239,11 @@ export function FeaturedItemsManager() {
 
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
-  const getMinPrice = (variants?: Array<{ price_cents: number }>) => {
+  const getMinPrice = (variants?: Array<{ sale_price_cents: number }>) => {
     if (!variants || variants.length === 0) {
       return 0;
     }
-    return Math.min(...variants.map((v) => v.price_cents));
+    return Math.min(...variants.map((v) => v.sale_price_cents));
   };
 
   const featuredProductIds = new Set(featuredItems.map((item) => item.product_id));
@@ -299,7 +297,7 @@ export function FeaturedItemsManager() {
                       <div className="relative w-16 h-16 bg-zinc-900 rounded overflow-hidden flex-shrink-0">
                         <Image
                           src={primaryImage}
-                          alt={product.title_display}
+                          alt={product.name}
                           fill
                           className="object-cover"
                         />
@@ -312,7 +310,7 @@ export function FeaturedItemsManager() {
 
                     <div className="flex-1 min-w-0">
                       <div className="text-white font-semibold truncate">
-                        {product.title_display}
+                        {product.name}
                       </div>
                       <div className="text-sm text-gray-400 truncate">
                         {product.category} • {formatPrice(minPrice)}
@@ -398,7 +396,7 @@ export function FeaturedItemsManager() {
                       <div className="relative w-16 h-16 bg-zinc-900 rounded overflow-hidden flex-shrink-0">
                         <Image
                           src={primaryImage}
-                          alt={item.product.title_display}
+                          alt={item.product.name}
                           fill
                           className="object-cover"
                         />
@@ -411,7 +409,7 @@ export function FeaturedItemsManager() {
 
                     <div className="flex-1 min-w-0">
                       <div className="text-white font-semibold truncate">
-                        {item.product.title_display}
+                        {item.product.name}
                       </div>
                       <div className="text-sm text-gray-400 truncate">
                         {item.product.category} • {formatPrice(minPrice)}

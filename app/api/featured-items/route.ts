@@ -22,13 +22,12 @@ export async function GET() {
       name: item.product.name,
       brand: item.product.brand,
       model: item.product.model,
-      titleDisplay:
-        item.product.title_raw ??
-        item.product.title_display ??
-        `${item.product.brand ?? ""} ${item.product.name ?? ""}`.trim(),
+      titleDisplay: item.product.name,
       category: item.product.category,
       primaryImage: item.product.images?.[0]?.url ?? null,
-      minPrice: Math.min(...(item.product.variants?.map((v) => v.price_cents) ?? [0])),
+      minPrice: Math.min(
+        ...(item.product.variants?.map((v) => v.sale_price_cents) ?? [0]),
+      ),
       sortOrder: item.sort_order,
       // Include variant info for size display
       variants:

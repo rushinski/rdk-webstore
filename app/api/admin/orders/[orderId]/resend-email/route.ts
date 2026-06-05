@@ -67,9 +67,10 @@ export async function POST(
         *,
         profiles!user_id(email),
         items:order_items(
+          product_name, brand, model, category, variant_sku, size_label,
           quantity, unit_price, line_total,
-          product:products(name, brand, model, category, sku, title_display, images:product_images(url, is_primary, sort_order)),
-          variant:product_variants(size_label)
+          product:products(name, brand, model, category, images:product_images(url, is_primary, sort_order)),
+          variant:product_variants(sku, size_label)
         ),
         shipping:order_shipping(*)
         `,

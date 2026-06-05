@@ -301,7 +301,12 @@ export class LightspeedSyncPreviewService {
 
     const productIds = new Set(products.map((product) => product.id));
     const productsById = new Map(products.map((product) => [product.id, product]));
-    const productsBySku = new Map(products.map((product) => [product.sku, product]));
+    const productsBySku = new Map<string, ProductWithDetails>();
+    for (const product of products) {
+      for (const variant of product.variants) {
+        productsBySku.set(variant.sku, product);
+      }
+    }
     const linksByVariantId = new Map(
       links
         .filter((link) => link.variant_id)
@@ -472,11 +477,7 @@ export class LightspeedSyncPreviewService {
         });
       }
 
-      const localName = (
-        localProduct.title_display ||
-        localProduct.title_raw ||
-        ""
-      ).trim();
+      const localName = localProduct.name.trim();
       if (
         isFullOverride &&
         isLightspeedAuthoritative &&
@@ -561,7 +562,10 @@ export class LightspeedSyncPreviewService {
           linksByVariantId.has(variant.id),
         );
 
-        if (!hasLinkedVariant && !normalizedRemoteBySku.has(product.sku)) {
+        const variantSkus = product.variants.map((variant) => variant.sku);
+        const hasRemoteSku = variantSkus.some((sku) => normalizedRemoteBySku.has(sku));
+
+        if (!hasLinkedVariant && !hasRemoteSku) {
           if (isWebsiteAuthoritative) {
             groups.added.push({
               changeType: "added",
@@ -570,8 +574,8 @@ export class LightspeedSyncPreviewService {
               entityKey: product.id,
               payload: {
                 productId: product.id,
-                sku: product.sku,
-                title: product.title_display || product.title_raw,
+                sku: variantSkus[0] ?? null,
+                title: product.name,
                 preview: {
                   current: this.buildWebsiteSnapshot(
                     product,
@@ -589,7 +593,7 @@ export class LightspeedSyncPreviewService {
               entityKey: product.id,
               payload: {
                 productId: product.id,
-                sku: product.sku,
+                sku: variantSkus[0] ?? null,
                 preview: {
                   current: this.buildWebsiteSnapshot(
                     product,
@@ -707,32 +711,28 @@ export class LightspeedSyncPreviewService {
     overrides?: Partial<PreviewProductSnapshot>,
   ): PreviewProductSnapshot {
     const base: PreviewProductSnapshot = {
-      title: (product.title_display || product.title_raw || product.name || "").trim(),
+      title: product.name.trim(),
       imageUrl: this.getPrimaryImageUrl(product),
       condition: product.condition,
       stock: variant?.stock ?? 0,
-      priceCents: variant?.price_cents ?? null,
-      costCents: variant?.cost_cents ?? null,
-      sku: product.sku,
+      priceCents: variant?.sale_price_cents ?? null,
+      costCents: variant?.unit_cost_cents ?? null,
+      sku: variant?.sku ?? "",
       brand: product.brand ?? null,
       model: product.model ?? null,
       category: product.category ?? null,
       description: product.description ?? null,
-      shippingCostCents:
-        product.shipping_override_cents ??
-        (typeof product.default_shipping_price === "number"
-          ? Math.round(product.default_shipping_price * 100)
-          : null),
+      shippingCostCents: product.shipping_price_cents ?? null,
       tags: product.tags.map((tag) => ({
         label: tag.label,
         groupKey: tag.group_key,
       })),
       variants: product.variants.map((entry) => ({
         sizeLabel: entry.size_label,
-        priceCents: entry.price_cents ?? null,
-        costCents: entry.cost_cents ?? null,
+        priceCents: entry.sale_price_cents ?? null,
+        costCents: entry.unit_cost_cents ?? null,
         stock: entry.stock ?? 0,
-        sku: product.sku,
+        sku: entry.sku,
       })),
       status: product.is_active ? "active" : "archived",
     };
@@ -886,9 +886,8 @@ export class LightspeedSyncPreviewService {
         const shippingCostCents =
           shippingDefaults.find((entry) => entry.category === category)
             ?.shipping_cost_cents ?? null;
-        const tags = buildSizeTags([
+        const tags = buildSizeTags(this.inferSizeType(remote.sizeLabel), [
           {
-            size_type: this.inferSizeType(remote.sizeLabel),
             size_label: remote.sizeLabel,
             stock: remote.stock,
           },

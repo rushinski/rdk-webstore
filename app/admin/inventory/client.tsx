@@ -328,7 +328,7 @@ export function InventoryClient({
   };
 
   const getProductRawTitle = (product: ProductWithDetails) =>
-    product.title_raw?.trim() || `${product.brand} ${product.name}`.trim() || "Item";
+    product.name?.trim() || "Item";
 
   const getPrimaryImageUrl = (product: ProductWithDetails) => {
     const primary =
@@ -938,7 +938,7 @@ export function InventoryClient({
                                         Selling Price
                                       </div>
                                       <div className="text-sm font-bold text-white">
-                                        ${(variant.price_cents / 100).toFixed(2)}
+                                        ${(variant.sale_price_cents / 100).toFixed(2)}
                                       </div>
                                     </div>
                                     <div className="w-32 flex-shrink-0">
@@ -946,10 +946,7 @@ export function InventoryClient({
                                         Bought For
                                       </div>
                                       <div className="text-sm font-medium text-zinc-200">
-                                        {variant.cost_cents !== null &&
-                                        variant.cost_cents !== undefined
-                                          ? `$${(variant.cost_cents / 100).toFixed(2)}`
-                                          : "-"}
+                                        ${(variant.unit_cost_cents / 100).toFixed(2)}
                                       </div>
                                     </div>
                                     <div className="w-24 flex-shrink-0">
@@ -1121,14 +1118,11 @@ export function InventoryClient({
                             </span>
                             <span>
                               <span className="text-zinc-500">Selling Price:</span> $
-                              {(variant.price_cents / 100).toFixed(2)}
+                              {(variant.sale_price_cents / 100).toFixed(2)}
                             </span>
                             <span>
                               <span className="text-zinc-500">Bought For:</span>{" "}
-                              {variant.cost_cents !== null &&
-                              variant.cost_cents !== undefined
-                                ? `$${(variant.cost_cents / 100).toFixed(2)}`
-                                : "-"}
+                              ${(variant.unit_cost_cents / 100).toFixed(2)}
                             </span>
                             <span>
                               <span className="text-zinc-500">Stock:</span>{" "}

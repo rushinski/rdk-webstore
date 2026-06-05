@@ -30,9 +30,6 @@ describe("LightspeedSyncPreviewService", () => {
           products: [
             {
               id: "product-1",
-              sku: "N-JDN-J03-BH-01",
-              title_raw: "A MA MANIERE JORDAN 3",
-              title_display: "A MA MANIERE JORDAN 3",
               condition: "new",
               brand: "Jordan",
               name: "A MA MANIERE JORDAN 3",
@@ -42,9 +39,11 @@ describe("LightspeedSyncPreviewService", () => {
               variants: [
                 {
                   id: "variant-1",
+                  sku: "N-JDN-J03-BH-01",
                   size_label: "11.5M / 13W",
                   stock: 1,
-                  price_cents: 22000,
+                  sale_price_cents: 22000,
+                  unit_cost_cents: 0,
                 },
               ],
               images: [
@@ -60,9 +59,6 @@ describe("LightspeedSyncPreviewService", () => {
             },
             {
               id: "product-2",
-              sku: "P-JDN-J05-9H-27",
-              title_raw: "A MA MANIERE JORDAN 5",
-              title_display: "A MA MANIERE JORDAN 5",
               condition: "used",
               brand: "Jordan",
               name: "A MA MANIERE JORDAN 5",
@@ -72,9 +68,11 @@ describe("LightspeedSyncPreviewService", () => {
               variants: [
                 {
                   id: "variant-2",
+                  sku: "P-JDN-J05-9H-27",
                   size_label: "9.5M / 11W",
                   stock: 0,
-                  price_cents: 10000,
+                  sale_price_cents: 10000,
+                  unit_cost_cents: 0,
                 },
               ],
               images: [
@@ -90,9 +88,6 @@ describe("LightspeedSyncPreviewService", () => {
             },
             {
               id: "product-3",
-              sku: "N-OTH-CLT-MD-30",
-              title_raw: "Abominable Black/White Track Suit",
-              title_display: "Abominable Black/White Track Suit",
               condition: "new",
               brand: "Other",
               name: "Abominable Black/White Track Suit",
@@ -102,9 +97,11 @@ describe("LightspeedSyncPreviewService", () => {
               variants: [
                 {
                   id: "variant-3",
+                  sku: "N-OTH-CLT-MD-30",
                   size_label: "MEDIUM",
                   stock: 1,
-                  price_cents: 25000,
+                  sale_price_cents: 25000,
+                  unit_cost_cents: 0,
                 },
               ],
               images: [
