@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
-  }
   public: {
     Tables: {
       admin_audit_log: {
@@ -1863,34 +1858,43 @@ export type Database = {
       }
       product_variants: {
         Row: {
-          cost_cents: number | null
+          created_at: string
           id: string
-          price_cents: number
           product_id: string
+          sale_price_cents: number
           size_label: string
-          size_type: string
+          sku: string
           sort_order: number
           stock: number
+          tenant_id: string
+          unit_cost_cents: number
+          updated_at: string
         }
         Insert: {
-          cost_cents?: number | null
+          created_at?: string
           id?: string
-          price_cents: number
           product_id: string
+          sale_price_cents: number
           size_label: string
-          size_type: string
+          sku: string
           sort_order?: number
           stock?: number
+          tenant_id: string
+          unit_cost_cents?: number
+          updated_at?: string
         }
         Update: {
-          cost_cents?: number | null
+          created_at?: string
           id?: string
-          price_cents?: number
           product_id?: string
+          sale_price_cents?: number
           size_label?: string
-          size_type?: string
+          sku?: string
           sort_order?: number
           stock?: number
+          tenant_id?: string
+          unit_cost_cents?: number
+          updated_at?: string
         }
         Relationships: [
           {
@@ -1900,117 +1904,71 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_variants_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
         ]
       }
       products: {
         Row: {
           brand: string
-          brand_is_verified: boolean
           category: string
           condition: string
-          condition_note: string | null
-          cost_cents: number
           created_at: string
-          created_by: string | null
-          default_shipping_price: number | null
           description: string | null
           excluded_auto_tag_keys: string[]
           go_live_at: string
           id: string
           is_active: boolean
           is_out_of_stock: boolean
-          marketplace_id: string | null
           model: string | null
-          model_is_verified: boolean
           name: string
-          parse_confidence: number | null
-          parse_version: string | null
-          seller_id: string | null
-          shipping_override_cents: number | null
-          sku: string
-          stripe_tax_code: string | null
+          shipping_price_cents: number | null
+          size_type: string
           tenant_id: string
-          title_display: string
-          title_raw: string
           updated_at: string
         }
         Insert: {
           brand: string
-          brand_is_verified?: boolean
           category: string
           condition: string
-          condition_note?: string | null
-          cost_cents?: number
           created_at?: string
-          created_by?: string | null
-          default_shipping_price?: number | null
           description?: string | null
           excluded_auto_tag_keys?: string[]
           go_live_at?: string
           id?: string
           is_active?: boolean
           is_out_of_stock?: boolean
-          marketplace_id?: string | null
           model?: string | null
-          model_is_verified?: boolean
           name: string
-          parse_confidence?: number | null
-          parse_version?: string | null
-          seller_id?: string | null
-          shipping_override_cents?: number | null
-          sku: string
-          stripe_tax_code?: string | null
+          shipping_price_cents?: number | null
+          size_type?: string
           tenant_id: string
-          title_display: string
-          title_raw: string
           updated_at?: string
         }
         Update: {
           brand?: string
-          brand_is_verified?: boolean
           category?: string
           condition?: string
-          condition_note?: string | null
-          cost_cents?: number
           created_at?: string
-          created_by?: string | null
-          default_shipping_price?: number | null
           description?: string | null
           excluded_auto_tag_keys?: string[]
           go_live_at?: string
           id?: string
           is_active?: boolean
           is_out_of_stock?: boolean
-          marketplace_id?: string | null
           model?: string | null
-          model_is_verified?: boolean
           name?: string
-          parse_confidence?: number | null
-          parse_version?: string | null
-          seller_id?: string | null
-          shipping_override_cents?: number | null
-          sku?: string
-          stripe_tax_code?: string | null
+          shipping_price_cents?: number | null
+          size_type?: string
           tenant_id?: string
-          title_display?: string
-          title_raw?: string
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "products_marketplace_id_fkey"
-            columns: ["marketplace_id"]
-            isOneToOne: false
-            referencedRelation: "marketplaces"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "products_seller_id_fkey"
-            columns: ["seller_id"]
-            isOneToOne: false
-            referencedRelation: "sellers"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "products_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -2465,47 +2423,6 @@ export type Database = {
         }
         Relationships: []
       }
-      tenant_payrilla_credentials: {
-        Row: {
-          api_key_encrypted: string
-          created_at: string
-          id: string
-          is_active: boolean
-          payrilla_merchant_id: string | null
-          tenant_id: string
-          tokenization_key_encrypted: string
-          updated_at: string
-        }
-        Insert: {
-          api_key_encrypted: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          payrilla_merchant_id?: string | null
-          tenant_id: string
-          tokenization_key_encrypted: string
-          updated_at?: string
-        }
-        Update: {
-          api_key_encrypted?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          payrilla_merchant_id?: string | null
-          tenant_id?: string
-          tokenization_key_encrypted?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tenant_payrilla_credentials_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: true
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       tenant_lightspeed_settings: {
         Row: {
           access_token: string | null
@@ -2554,6 +2471,47 @@ export type Database = {
             foreignKeyName: "tenant_lightspeed_settings_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_payrilla_credentials: {
+        Row: {
+          api_key_encrypted: string
+          created_at: string
+          id: string
+          is_active: boolean
+          payrilla_merchant_id: string | null
+          tenant_id: string
+          tokenization_key_encrypted: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_encrypted: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payrilla_merchant_id?: string | null
+          tenant_id: string
+          tokenization_key_encrypted: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_encrypted?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          payrilla_merchant_id?: string | null
+          tenant_id?: string
+          tokenization_key_encrypted?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_payrilla_credentials_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
             referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
@@ -2966,3 +2924,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
