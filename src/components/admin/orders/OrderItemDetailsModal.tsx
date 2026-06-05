@@ -329,7 +329,10 @@ export function AdminOrderItemDetailsModal({
                     value={item.category || item.product?.category || "-"}
                     icon={Layers}
                   />
-                  <DetailRow label="Model" value={item.model || item.product?.model || "-"} />
+                  <DetailRow
+                    label="Model"
+                    value={item.model || item.product?.model || "-"}
+                  />
                   <DetailRow
                     label="Size"
                     value={item.size_label || item.variant?.size_label || "N/A"}

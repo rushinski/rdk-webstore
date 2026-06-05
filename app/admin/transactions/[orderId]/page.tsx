@@ -973,7 +973,7 @@ export default function TransactionDetailPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-white">{title}</p>
                         <p className="text-xs text-zinc-500">
-                          {item.size_label ?? item.variant?.size_label
+                          {(item.size_label ?? item.variant?.size_label)
                             ? `Size ${item.size_label ?? item.variant?.size_label} · `
                             : ""}
                           Qty {item.quantity}

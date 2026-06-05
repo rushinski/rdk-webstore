@@ -21,12 +21,7 @@ import { upsertTags, type TagInputItem } from "./tag-service";
 
 type VariantWriteInput = Pick<
   TablesInsert<"product_variants">,
-  | "sku"
-  | "size_label"
-  | "sale_price_cents"
-  | "stock"
-  | "unit_cost_cents"
-  | "sort_order"
+  "sku" | "size_label" | "sale_price_cents" | "stock" | "unit_cost_cents" | "sort_order"
 >;
 
 type VariantInput = Partial<Pick<VariantWriteInput, "sku">> &
@@ -297,7 +292,10 @@ export class ProductService {
       await this.repo.updateVariant(id, payload);
     }
 
-    const newVariantsWithSkus = await this.assignVariantSkus(tenantId, incomingNewVariants);
+    const newVariantsWithSkus = await this.assignVariantSkus(
+      tenantId,
+      incomingNewVariants,
+    );
     for (const payload of newVariantsWithSkus) {
       await this.repo.createVariant({
         tenant_id: tenantId,

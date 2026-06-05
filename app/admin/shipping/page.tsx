@@ -959,8 +959,8 @@ export default function ShippingPage() {
                         <div className="min-w-0">
                           <div className="text-white truncate">{title}</div>
                           <div className="text-sm text-zinc-500">
-                            Size {item.size_label ?? item.variant?.size_label ?? "N/A"} - Qty{" "}
-                            {item.quantity}
+                            Size {item.size_label ?? item.variant?.size_label ?? "N/A"} -
+                            Qty {item.quantity}
                           </div>
                           <div className="text-sm font-medium text-white mt-0.5">
                             ${Number(item.line_total ?? 0).toFixed(2)}

@@ -1121,8 +1121,8 @@ export function InventoryClient({
                               {(variant.sale_price_cents / 100).toFixed(2)}
                             </span>
                             <span>
-                              <span className="text-zinc-500">Bought For:</span>{" "}
-                              ${(variant.unit_cost_cents / 100).toFixed(2)}
+                              <span className="text-zinc-500">Bought For:</span> $
+                              {(variant.unit_cost_cents / 100).toFixed(2)}
                             </span>
                             <span>
                               <span className="text-zinc-500">Stock:</span>{" "}

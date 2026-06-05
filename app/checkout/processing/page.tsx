@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
@@ -31,7 +31,7 @@ function readStoredGuestToken(orderId: string): string | null {
   return null;
 }
 
-export default function CheckoutProcessingPage() {
+function CheckoutProcessingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<"processing" | "success" | "error">("processing");
@@ -418,5 +418,19 @@ export default function CheckoutProcessingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function CheckoutProcessingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+          <Loader2 className="w-16 h-16 text-red-600 animate-spin" />
+        </div>
+      }
+    >
+      <CheckoutProcessingContent />
+    </Suspense>
   );
 }

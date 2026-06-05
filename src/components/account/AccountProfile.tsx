@@ -765,7 +765,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                       >
                         <span className="text-gray-300">
                           {item.product_name ?? item.product?.name ?? "Item"}
-                          {item.size_label ?? item.variant?.size_label
+                          {(item.size_label ?? item.variant?.size_label)
                             ? ` (${item.size_label ?? item.variant?.size_label})`
                             : ""}
                         </span>

@@ -318,7 +318,7 @@ describe("LightspeedSyncPreviewService", () => {
                 title: "A MA MANIERE JORDAN 5",
                 stock: 0,
                 imageUrl: "https://example.com/jordan5.jpg",
-                costCents: null,
+                costCents: 0,
               }),
               proposed: expect.objectContaining({
                 title: "A MA MANIERE JORDAN 5",

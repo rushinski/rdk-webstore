@@ -130,9 +130,9 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                   </div>
                   <div className="text-white font-bold">
                     $
-                    {(
-                      Number(product.variants?.[0]?.sale_price_cents ?? 0) / 100
-                    ).toFixed(2)}
+                    {(Number(product.variants?.[0]?.sale_price_cents ?? 0) / 100).toFixed(
+                      2,
+                    )}
                   </div>
                 </button>
               );

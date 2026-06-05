@@ -427,10 +427,9 @@ export class ProductRepository {
 
   async getById(
     id: string,
-    opts?: Pick<
-      ProductFilters,
-      "tenantId" | "includeOutOfStock"
-    > & { includeUnpublished?: boolean },
+    opts?: Pick<ProductFilters, "tenantId" | "includeOutOfStock"> & {
+      includeUnpublished?: boolean;
+    },
   ): Promise<ProductWithDetails | null> {
     let query = this.supabase
       .from("products")

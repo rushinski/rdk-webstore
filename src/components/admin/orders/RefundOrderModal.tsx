@@ -251,8 +251,8 @@ export function RefundOrderModal({
                           {getItemTitle(item)}
                         </div>
                         <div className="text-xs text-zinc-500">
-                          Size {item.size_label ?? item.variant?.size_label ?? "N/A"} · Qty{" "}
-                          {Number(item.quantity ?? 0)}
+                          Size {item.size_label ?? item.variant?.size_label ?? "N/A"} ·
+                          Qty {Number(item.quantity ?? 0)}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
