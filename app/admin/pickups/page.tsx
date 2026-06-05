@@ -184,9 +184,7 @@ export default function PickupsPage() {
   };
 
   const getOrderTitle = (item: OrderItem) =>
-    (item.product?.title_display ??
-      `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
-    "Item";
+    item.product_name ?? item.product?.name ?? "Item";
 
   const getPrimaryImage = (item: OrderItem) => {
     const images = item.product?.images ?? [];
@@ -215,7 +213,7 @@ export default function PickupsPage() {
         refundAmountRaw: order.refund_amount,
         items: order.items,
         resolveUnitCost: (item) =>
-          Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100),
+          Number(item.unit_cost ?? (item.variant?.unit_cost_cents ?? 0) / 100),
       });
     });
 
@@ -500,7 +498,7 @@ export default function PickupsPage() {
                   refundAmountRaw: order.refund_amount,
                   items: order.items,
                   resolveUnitCost: (item) =>
-                    Number(item.unit_cost ?? (item.variant?.cost_cents ?? 0) / 100),
+                    Number(item.unit_cost ?? (item.variant?.unit_cost_cents ?? 0) / 100),
                 });
                 const profitPrefix = profit >= 0 ? "+" : "-";
                 const profitClass = profit >= 0 ? "text-green-400" : "text-red-400";
@@ -666,7 +664,7 @@ export default function PickupsPage() {
                                         Size
                                       </div>
                                       <div className="text-sm font-medium text-gray-300">
-                                        {item.variant?.size_label ?? "N/A"}
+                                        {item.size_label ?? item.variant?.size_label ?? "N/A"}
                                       </div>
                                     </div>
 
@@ -809,7 +807,7 @@ export default function PickupsPage() {
                                         {getOrderTitle(item)}
                                       </div>
                                       <div className="text-sm text-gray-500">
-                                        Size {item.variant?.size_label ?? "N/A"} - Qty{" "}
+                                        Size {item.size_label ?? item.variant?.size_label ?? "N/A"} - Qty{" "}
                                         {item.quantity}
                                       </div>
                                       <div className="text-sm font-medium text-white mt-0.5">

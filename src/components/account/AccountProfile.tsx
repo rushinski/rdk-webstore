@@ -15,10 +15,10 @@ type ShippingProfile = Tables<"shipping_profiles">;
 
 type AccountOrderItem = {
   id: string;
+  product_name?: string | null;
+  size_label?: string | null;
   quantity?: number | null;
   product?: {
-    title_raw?: string | null;
-    title_display?: string | null;
     brand?: string | null;
     name?: string | null;
   } | null;
@@ -764,11 +764,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                         className="flex items-center justify-between text-[12px] sm:text-sm"
                       >
                         <span className="text-gray-300">
-                          {item.product?.title_raw ??
-                            item.product?.title_display ??
-                            `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()}
-                          {item.variant?.size_label
-                            ? ` (${item.variant.size_label})`
+                          {item.product_name ?? item.product?.name ?? "Item"}
+                          {item.size_label ?? item.variant?.size_label
+                            ? ` (${item.size_label ?? item.variant?.size_label})`
                             : ""}
                         </span>
                         <span className="text-gray-400">x{item.quantity}</span>

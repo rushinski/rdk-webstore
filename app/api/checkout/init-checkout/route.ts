@@ -215,6 +215,13 @@ export async function POST(request: NextRequest) {
         items: lineItems.map((li) => ({
           productId: li.productId,
           variantId: li.variantId,
+          variantSku: li.variantSku,
+          productName: li.titleDisplay,
+          brand: li.brand,
+          model: li.model,
+          category: li.category,
+          condition: li.condition,
+          sizeLabel: li.sizeLabel,
           quantity: li.quantity,
           unitPrice: li.unitPrice,
           unitCost: li.unitCost,
