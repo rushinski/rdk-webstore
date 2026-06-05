@@ -1526,18 +1526,21 @@ export function ProductForm({
                         isVariantOver ? "ring-2 ring-red-500/50" : "",
                       ].join(" ")}
                     >
-                      <div className="flex-1 grid grid-cols-2 sm:grid-cols-5 gap-2 md:gap-4">
-                        <div className="col-span-2 sm:col-span-1">
+                      <div className="flex-1 grid grid-cols-1 lg:grid-cols-[8rem_minmax(9rem,1fr)_7.5rem_7.5rem_5.5rem] xl:grid-cols-[9rem_minmax(10rem,1fr)_8rem_8rem_6rem] gap-2 md:gap-3">
+                        <div>
                           <label className="block text-gray-400 text-xs mb-1">SKU</label>
                           <input
                             type="text"
                             value={variant.sku}
-                            disabled
-                            className="w-full bg-zinc-900 text-zinc-300 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 font-mono"
+                            readOnly
+                            aria-readonly="true"
+                            tabIndex={-1}
+                            title="SKU is generated automatically and cannot be edited"
+                            className="w-full cursor-not-allowed select-none bg-zinc-900 text-zinc-400 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-700/80 font-mono"
                           />
                         </div>
 
-                        <div className="col-span-2 sm:col-span-1">
+                        <div>
                           <label className="block text-gray-400 text-xs mb-1">
                             Size <RequiredMark />
                           </label>
@@ -1594,7 +1597,7 @@ export function ProductForm({
 
                         <div>
                           <label className="block text-gray-400 text-xs mb-1">
-                            Price ($) <RequiredMark />
+                            Sale Price ($) <RequiredMark />
                           </label>
                           <input
                             type="text"
@@ -1610,7 +1613,7 @@ export function ProductForm({
 
                         <div>
                           <label className="block text-gray-400 text-xs mb-1">
-                            Cost ($) <RequiredMark />
+                            Unit Cost ($) <RequiredMark />
                           </label>
                           <input
                             type="text"
