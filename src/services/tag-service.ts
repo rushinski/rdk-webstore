@@ -53,10 +53,24 @@ export async function upsertTags(
 }
 
 export function buildSizeTags(
-  variants: Array<{ size_type: SizeType; size_label: string; stock?: number | null }>,
+  sizeType: SizeType,
+  variants: Array<{ size_label: string; stock?: number | null }>,
 ): TagInputItem[] {
   const tags: TagInputItem[] = [];
   const seen = new Set<string>();
+
+  const groupKey =
+    sizeType === "shoe"
+      ? "size_shoe"
+      : sizeType === "clothing"
+        ? "size_clothing"
+        : sizeType === "custom"
+          ? "size_custom"
+          : null;
+
+  if (!groupKey) {
+    return tags;
+  }
 
   for (const variant of variants) {
     if (variant.stock !== undefined && variant.stock !== null && variant.stock <= 0) {
@@ -65,20 +79,6 @@ export function buildSizeTags(
 
     const label = variant.size_label?.trim();
     if (!label) {
-      continue;
-    }
-
-    let groupKey: string | null = null;
-    if (variant.size_type === "shoe") {
-      groupKey = "size_shoe";
-    }
-    if (variant.size_type === "clothing") {
-      groupKey = "size_clothing";
-    }
-    if (variant.size_type === "custom") {
-      groupKey = "size_custom";
-    }
-    if (!groupKey) {
       continue;
     }
 

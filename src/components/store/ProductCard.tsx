@@ -16,8 +16,8 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
   const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
   const variants = product.variants;
 
-  const priceMin = Math.min(...variants.map((v) => v.price_cents));
-  const priceMax = Math.max(...variants.map((v) => v.price_cents));
+  const priceMin = Math.min(...variants.map((v) => v.sale_price_cents));
+  const priceMax = Math.max(...variants.map((v) => v.sale_price_cents));
   const isRange = priceMin !== priceMax;
 
   const fullPriceDisplay =
@@ -65,7 +65,7 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
           {primaryImage && (
             <Image
               src={primaryImage.url}
-              alt={product.title_raw ?? product.title_display ?? product.name}
+              alt={product.name}
               fill
               sizes="(min-width: 1024px) 20vw, (min-width: 640px) 33vw, 50vw"
               // OPTIMIZATION 2: Priority for first 8 cards, lazy for rest
@@ -89,7 +89,7 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
           {/* Title */}
           <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
             <h3 className="text-white font-bold text-sm truncate flex-1">
-              {product.title_raw ?? `${product.brand} ${product.name}`.trim()}
+              {product.name}
             </h3>
           </div>
 

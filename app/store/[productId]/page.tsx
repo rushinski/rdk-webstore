@@ -60,10 +60,7 @@ export async function generateMetadata({
   const firstVariant = product.variants[0];
 
   // Construct title
-  const title =
-    product.title_raw ??
-    product.title_display ??
-    `${product.brand} ${product.name}`.trim();
+  const title = product.name;
   const fullTitle = `${title} | Realdealkickzsc`;
 
   // Construct description
@@ -98,7 +95,7 @@ export async function generateMetadata({
     other: {
       // Additional product-specific meta tags
       "product:price:amount": firstVariant
-        ? (firstVariant.price_cents / 100).toString()
+        ? (firstVariant.sale_price_cents / 100).toString()
         : "",
       "product:price:currency": "USD",
       "product:condition": product.condition,
