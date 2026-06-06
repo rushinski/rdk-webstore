@@ -34,6 +34,7 @@ import { AdminNotificationService } from "@/services/admin-notification-service"
 import { EvidenceService } from "@/services/evidence-service";
 import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
 import { RefundNotificationService } from "@/services/refund-notification-service";
+import { syncLightspeedInventoryForVariants } from "@/services/lightspeed-inventory-propagation-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
@@ -333,17 +334,35 @@ async function handleTransactionApproved(
   }
 
   if (didMarkPaid) {
+    const inventorySyncTimestamp = new Date().toISOString();
+    const currentOrder = await ordersRepo.getById(orderId);
+    const postPaymentOrder = currentOrder ?? order;
+
     // Sync product size tags
     const productService = new ProductService(adminSupabase);
-    const productIds = [...new Set(orderItems.map((i) => i.product_id))];
+    const productIds = [
+      ...new Set(
+        orderItems
+          .map((item) => item.product_id)
+          .filter((productId): productId is string => typeof productId === "string"),
+      ),
+    ];
     for (const pid of productIds) {
       await productService.syncSizeTags(pid);
     }
 
-    // Record nexus sale
-    const currentOrder = await ordersRepo.getById(orderId);
-    const postPaymentOrder = currentOrder ?? order;
+    if (postPaymentOrder.tenant_id) {
+      await syncLightspeedInventoryForVariants({
+        supabase: adminSupabase,
+        tenantId: postPaymentOrder.tenant_id,
+        variantIds: orderItems
+          .map((item) => item.variant_id)
+          .filter((variantId): variantId is string => typeof variantId === "string"),
+        websiteModifiedAt: inventorySyncTimestamp,
+      });
+    }
 
+    // Record nexus sale
     if (postPaymentOrder.customer_state && postPaymentOrder.tenant_id) {
       try {
         const nexusRepo = new NexusRepository(adminSupabase);

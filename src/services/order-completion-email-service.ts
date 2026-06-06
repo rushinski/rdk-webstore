@@ -70,27 +70,40 @@ export async function sendOrderCompletionEmailsIfNeeded(params: {
     const detailedItems = await ordersRepo.getOrderItemsDetailed(params.orderId);
     const items = (
       detailedItems as Array<{
+        product_name?: string | null;
+        brand?: string | null;
+        model?: string | null;
+        category?: string | null;
+        variant_sku?: string | null;
+        size_label?: string | null;
         product: {
-          title_display?: string | null;
           brand?: string | null;
           name?: string | null;
+          model?: string | null;
+          category?: string | null;
+          images?: Array<{
+            url: string;
+            is_primary?: boolean | null;
+            sort_order?: number | null;
+          }> | null;
         } | null;
-        variant: { size_label?: string | null } | null;
+        variant: { sku?: string | null; size_label?: string | null } | null;
         quantity: number;
         unit_price: number | null;
         line_total: number;
       }>
     ).map((item) => {
       const product = item.product;
-      const title =
-        product?.title_display ??
-        (`${product?.brand ?? ""} ${product?.name ?? ""}`.trim() || "Item");
       return {
-        title,
-        sizeLabel: item.variant?.size_label ?? null,
+        title: item.product_name ?? product?.name ?? "Item",
+        sizeLabel: item.size_label ?? item.variant?.size_label ?? null,
         quantity: Number(item.quantity ?? 0),
         unitPrice: Number(item.unit_price ?? 0),
         lineTotal: Number(item.line_total ?? 0),
+        brand: item.brand ?? product?.brand ?? null,
+        model: item.model ?? product?.model ?? null,
+        category: item.category ?? product?.category ?? null,
+        sku: item.variant_sku ?? item.variant?.sku ?? null,
       };
     });
 

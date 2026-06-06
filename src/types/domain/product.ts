@@ -9,7 +9,7 @@ export type TagRow = Tables<"tags">;
 // Column-derived aliases (these will be `string` unless your DB types are enums)
 export type Category = ProductRow["category"];
 export type Condition = ProductRow["condition"];
-export type SizeType = ProductVariantRow["size_type"];
+export type SizeType = ProductRow["size_type"];
 export type TagGroupKey = TagRow["group_key"];
 
 export type ProductWithDetails = ProductRow & {

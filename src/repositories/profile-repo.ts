@@ -118,7 +118,7 @@ export class ProfileRepository {
     const { data, error } = await this.supabase
       .from("profiles")
       .select(
-        "id, email, role, chat_notifications_enabled, admin_order_notifications_enabled",
+        "id, email, role, tenant_id, chat_notifications_enabled, admin_order_notifications_enabled",
       )
       .in("role", ADMIN_ROLES as unknown as string[]);
 

@@ -858,28 +858,220 @@ export type Database = {
           },
         ];
       };
-      marketplaces: {
+      lightspeed_product_links: {
         Row: {
-          created_at: string | null;
+          created_at: string;
+          external_sku: string;
           id: string;
-          name: string;
-          tenant_id: string | null;
+          last_error: string | null;
+          last_lightspeed_modified_at: string | null;
+          last_sync_direction: string | null;
+          last_website_modified_at: string | null;
+          lightspeed_family_id: string | null;
+          lightspeed_inventory_item_id: string | null;
+          lightspeed_product_id: string | null;
+          lightspeed_variant_id: string | null;
+          product_id: string | null;
+          sync_state: string;
+          tenant_id: string;
+          tombstoned_at: string | null;
+          updated_at: string;
+          variant_id: string | null;
         };
         Insert: {
-          created_at?: string | null;
+          created_at?: string;
+          external_sku: string;
           id?: string;
-          name: string;
-          tenant_id?: string | null;
+          last_error?: string | null;
+          last_lightspeed_modified_at?: string | null;
+          last_sync_direction?: string | null;
+          last_website_modified_at?: string | null;
+          lightspeed_family_id?: string | null;
+          lightspeed_inventory_item_id?: string | null;
+          lightspeed_product_id?: string | null;
+          lightspeed_variant_id?: string | null;
+          product_id?: string | null;
+          sync_state?: string;
+          tenant_id: string;
+          tombstoned_at?: string | null;
+          updated_at?: string;
+          variant_id?: string | null;
         };
         Update: {
-          created_at?: string | null;
+          created_at?: string;
+          external_sku?: string;
           id?: string;
-          name?: string;
-          tenant_id?: string | null;
+          last_error?: string | null;
+          last_lightspeed_modified_at?: string | null;
+          last_sync_direction?: string | null;
+          last_website_modified_at?: string | null;
+          lightspeed_family_id?: string | null;
+          lightspeed_inventory_item_id?: string | null;
+          lightspeed_product_id?: string | null;
+          lightspeed_variant_id?: string | null;
+          product_id?: string | null;
+          sync_state?: string;
+          tenant_id?: string;
+          tombstoned_at?: string | null;
+          updated_at?: string;
+          variant_id?: string | null;
         };
         Relationships: [
           {
-            foreignKeyName: "marketplaces_tenant_id_fkey";
+            foreignKeyName: "lightspeed_product_links_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lightspeed_product_links_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lightspeed_product_links_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lightspeed_sync_run_items: {
+        Row: {
+          action: string;
+          apply_status: string | null;
+          approved: boolean | null;
+          change_type: string;
+          created_at: string;
+          entity_key: string;
+          entity_type: string;
+          failure_reason: string | null;
+          id: string;
+          payload: Json;
+          sync_run_id: string;
+          tenant_id: string;
+        };
+        Insert: {
+          action: string;
+          apply_status?: string | null;
+          approved?: boolean | null;
+          change_type: string;
+          created_at?: string;
+          entity_key: string;
+          entity_type: string;
+          failure_reason?: string | null;
+          id?: string;
+          payload?: Json;
+          sync_run_id: string;
+          tenant_id: string;
+        };
+        Update: {
+          action?: string;
+          apply_status?: string | null;
+          approved?: boolean | null;
+          change_type?: string;
+          created_at?: string;
+          entity_key?: string;
+          entity_type?: string;
+          failure_reason?: string | null;
+          id?: string;
+          payload?: Json;
+          sync_run_id?: string;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_sync_run_items_sync_run_id_fkey";
+            columns: ["sync_run_id"];
+            isOneToOne: false;
+            referencedRelation: "lightspeed_sync_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lightspeed_sync_run_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lightspeed_sync_runs: {
+        Row: {
+          completed_at: string | null;
+          created_at: string;
+          id: string;
+          source_of_truth: string;
+          started_by: string | null;
+          status: string;
+          summary: Json;
+          tenant_id: string;
+        };
+        Insert: {
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          source_of_truth: string;
+          started_by?: string | null;
+          status?: string;
+          summary?: Json;
+          tenant_id: string;
+        };
+        Update: {
+          completed_at?: string | null;
+          created_at?: string;
+          id?: string;
+          source_of_truth?: string;
+          started_by?: string | null;
+          status?: string;
+          summary?: Json;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_sync_runs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lightspeed_webhook_events: {
+        Row: {
+          created_at: string;
+          event_id: string;
+          id: string;
+          payload: Json;
+          processed_at: string | null;
+          tenant_id: string | null;
+          topic: string;
+        };
+        Insert: {
+          created_at?: string;
+          event_id: string;
+          id?: string;
+          payload: Json;
+          processed_at?: string | null;
+          tenant_id?: string | null;
+          topic: string;
+        };
+        Update: {
+          created_at?: string;
+          event_id?: string;
+          id?: string;
+          payload?: Json;
+          processed_at?: string | null;
+          tenant_id?: string | null;
+          topic?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lightspeed_webhook_events_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: false;
             referencedRelation: "tenants";
@@ -1060,43 +1252,64 @@ export type Database = {
       };
       order_items: {
         Row: {
+          brand: string | null;
+          category: string | null;
+          condition: string | null;
           created_at: string | null;
           id: string;
           line_total: number;
+          model: string | null;
           order_id: string;
-          product_id: string;
+          product_id: string | null;
+          product_name: string | null;
           quantity: number;
           refund_amount: number | null;
           refunded_at: string | null;
+          size_label: string | null;
           unit_cost: number | null;
           unit_price: number;
           variant_id: string | null;
+          variant_sku: string | null;
         };
         Insert: {
+          brand?: string | null;
+          category?: string | null;
+          condition?: string | null;
           created_at?: string | null;
           id?: string;
           line_total: number;
+          model?: string | null;
           order_id: string;
-          product_id: string;
+          product_id?: string | null;
+          product_name?: string | null;
           quantity: number;
           refund_amount?: number | null;
           refunded_at?: string | null;
+          size_label?: string | null;
           unit_cost?: number | null;
           unit_price: number;
           variant_id?: string | null;
+          variant_sku?: string | null;
         };
         Update: {
+          brand?: string | null;
+          category?: string | null;
+          condition?: string | null;
           created_at?: string | null;
           id?: string;
           line_total?: number;
+          model?: string | null;
           order_id?: string;
-          product_id?: string;
+          product_id?: string | null;
+          product_name?: string | null;
           quantity?: number;
           refund_amount?: number | null;
           refunded_at?: string | null;
+          size_label?: string | null;
           unit_cost?: number | null;
           unit_price?: number;
           variant_id?: string | null;
+          variant_sku?: string | null;
         };
         Relationships: [
           {
@@ -1190,7 +1403,6 @@ export type Database = {
           label_created_at: string | null;
           label_created_by: string | null;
           label_url: string | null;
-          marketplace_id: string | null;
           nofraud_decision: string | null;
           nofraud_transaction_id: string | null;
           payment_transaction_id: string | null;
@@ -1233,7 +1445,6 @@ export type Database = {
           label_created_at?: string | null;
           label_created_by?: string | null;
           label_url?: string | null;
-          marketplace_id?: string | null;
           nofraud_decision?: string | null;
           nofraud_transaction_id?: string | null;
           payment_transaction_id?: string | null;
@@ -1276,7 +1487,6 @@ export type Database = {
           label_created_at?: string | null;
           label_created_by?: string | null;
           label_url?: string | null;
-          marketplace_id?: string | null;
           nofraud_decision?: string | null;
           nofraud_transaction_id?: string | null;
           payment_transaction_id?: string | null;
@@ -1308,13 +1518,6 @@ export type Database = {
             columns: ["label_created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "orders_marketplace_id_fkey";
-            columns: ["marketplace_id"];
-            isOneToOne: false;
-            referencedRelation: "marketplaces";
             referencedColumns: ["id"];
           },
           {
@@ -1655,34 +1858,43 @@ export type Database = {
       };
       product_variants: {
         Row: {
-          cost_cents: number | null;
+          created_at: string;
           id: string;
-          price_cents: number;
           product_id: string;
+          sale_price_cents: number;
           size_label: string;
-          size_type: string;
+          sku: string;
           sort_order: number;
           stock: number;
+          tenant_id: string;
+          unit_cost_cents: number;
+          updated_at: string;
         };
         Insert: {
-          cost_cents?: number | null;
+          created_at?: string;
           id?: string;
-          price_cents: number;
           product_id: string;
+          sale_price_cents: number;
           size_label: string;
-          size_type: string;
+          sku: string;
           sort_order?: number;
           stock?: number;
+          tenant_id: string;
+          unit_cost_cents?: number;
+          updated_at?: string;
         };
         Update: {
-          cost_cents?: number | null;
+          created_at?: string;
           id?: string;
-          price_cents?: number;
           product_id?: string;
+          sale_price_cents?: number;
           size_label?: string;
-          size_type?: string;
+          sku?: string;
           sort_order?: number;
           stock?: number;
+          tenant_id?: string;
+          unit_cost_cents?: number;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -1692,117 +1904,71 @@ export type Database = {
             referencedRelation: "products";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "product_variants_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
         ];
       };
       products: {
         Row: {
           brand: string;
-          brand_is_verified: boolean;
           category: string;
           condition: string;
-          condition_note: string | null;
-          cost_cents: number;
           created_at: string;
-          created_by: string | null;
-          default_shipping_price: number | null;
           description: string | null;
           excluded_auto_tag_keys: string[];
           go_live_at: string;
           id: string;
           is_active: boolean;
           is_out_of_stock: boolean;
-          marketplace_id: string | null;
           model: string | null;
-          model_is_verified: boolean;
           name: string;
-          parse_confidence: number | null;
-          parse_version: string | null;
-          seller_id: string | null;
-          shipping_override_cents: number | null;
-          sku: string;
-          stripe_tax_code: string | null;
+          shipping_price_cents: number | null;
+          size_type: string;
           tenant_id: string;
-          title_display: string;
-          title_raw: string;
           updated_at: string;
         };
         Insert: {
           brand: string;
-          brand_is_verified?: boolean;
           category: string;
           condition: string;
-          condition_note?: string | null;
-          cost_cents?: number;
           created_at?: string;
-          created_by?: string | null;
-          default_shipping_price?: number | null;
           description?: string | null;
           excluded_auto_tag_keys?: string[];
           go_live_at?: string;
           id?: string;
           is_active?: boolean;
           is_out_of_stock?: boolean;
-          marketplace_id?: string | null;
           model?: string | null;
-          model_is_verified?: boolean;
           name: string;
-          parse_confidence?: number | null;
-          parse_version?: string | null;
-          seller_id?: string | null;
-          shipping_override_cents?: number | null;
-          sku: string;
-          stripe_tax_code?: string | null;
+          shipping_price_cents?: number | null;
+          size_type?: string;
           tenant_id: string;
-          title_display: string;
-          title_raw: string;
           updated_at?: string;
         };
         Update: {
           brand?: string;
-          brand_is_verified?: boolean;
           category?: string;
           condition?: string;
-          condition_note?: string | null;
-          cost_cents?: number;
           created_at?: string;
-          created_by?: string | null;
-          default_shipping_price?: number | null;
           description?: string | null;
           excluded_auto_tag_keys?: string[];
           go_live_at?: string;
           id?: string;
           is_active?: boolean;
           is_out_of_stock?: boolean;
-          marketplace_id?: string | null;
           model?: string | null;
-          model_is_verified?: boolean;
           name?: string;
-          parse_confidence?: number | null;
-          parse_version?: string | null;
-          seller_id?: string | null;
-          shipping_override_cents?: number | null;
-          sku?: string;
-          stripe_tax_code?: string | null;
+          shipping_price_cents?: number | null;
+          size_type?: string;
           tenant_id?: string;
-          title_display?: string;
-          title_raw?: string;
           updated_at?: string;
         };
         Relationships: [
-          {
-            foreignKeyName: "products_marketplace_id_fkey";
-            columns: ["marketplace_id"];
-            isOneToOne: false;
-            referencedRelation: "marketplaces";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "products_seller_id_fkey";
-            columns: ["seller_id"];
-            isOneToOne: false;
-            referencedRelation: "sellers";
-            referencedColumns: ["id"];
-          },
           {
             foreignKeyName: "products_tenant_id_fkey";
             columns: ["tenant_id"];
@@ -2257,6 +2423,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      tenant_lightspeed_settings: {
+        Row: {
+          access_token: string | null;
+          account_id: string | null;
+          created_at: string;
+          domain_prefix: string | null;
+          id: string;
+          refresh_token: string | null;
+          retailer_id: string | null;
+          sync_enabled: boolean;
+          tenant_id: string;
+          token_expires_at: string | null;
+          updated_at: string;
+          webhook_secret: string | null;
+        };
+        Insert: {
+          access_token?: string | null;
+          account_id?: string | null;
+          created_at?: string;
+          domain_prefix?: string | null;
+          id?: string;
+          refresh_token?: string | null;
+          retailer_id?: string | null;
+          sync_enabled?: boolean;
+          tenant_id: string;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          webhook_secret?: string | null;
+        };
+        Update: {
+          access_token?: string | null;
+          account_id?: string | null;
+          created_at?: string;
+          domain_prefix?: string | null;
+          id?: string;
+          refresh_token?: string | null;
+          retailer_id?: string | null;
+          sync_enabled?: boolean;
+          tenant_id?: string;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          webhook_secret?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_lightspeed_settings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tenant_payrilla_credentials: {
         Row: {
           api_key_encrypted: string;
@@ -2293,6 +2512,47 @@ export type Database = {
             foreignKeyName: "tenant_payrilla_credentials_tenant_id_fkey";
             columns: ["tenant_id"];
             isOneToOne: true;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      tenant_store_access_settings: {
+        Row: {
+          checkout_lock_enabled: boolean;
+          checkout_lock_message: string;
+          created_at: string;
+          id: string;
+          site_lock_enabled: boolean;
+          site_unlock_at: string | null;
+          tenant_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          checkout_lock_enabled?: boolean;
+          checkout_lock_message?: string;
+          created_at?: string;
+          id?: string;
+          site_lock_enabled?: boolean;
+          site_unlock_at?: string | null;
+          tenant_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          checkout_lock_enabled?: boolean;
+          checkout_lock_message?: string;
+          created_at?: string;
+          id?: string;
+          site_lock_enabled?: boolean;
+          site_unlock_at?: string | null;
+          tenant_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_store_access_settings_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
             referencedRelation: "tenants";
             referencedColumns: ["id"];
           },

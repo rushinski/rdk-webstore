@@ -5,6 +5,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import type { ProfileRole } from "@/config/constants/roles";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
+import { logError } from "@/lib/utils/log";
 
 export interface ServerSession {
   user: {
@@ -30,39 +31,48 @@ export class AuthError extends Error {
 }
 
 async function getServerSessionUncached(): Promise<ServerSession | null> {
-  const supabase = await createSupabaseServerClient();
+  try {
+    const supabase = await createSupabaseServerClient();
 
-  // ✅ Correct: validates user by contacting Supabase Auth server
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+    // ✅ Correct: validates user by contacting Supabase Auth server
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
 
-  if (error || !user) {
+    if (error || !user) {
+      return null;
+    }
+
+    const profileRepo = new ProfileRepository(supabase);
+    const row = await profileRepo.getByUserId(user.id);
+
+    const profile = row
+      ? {
+          id: row.id,
+          email: row.email ?? user.email ?? "",
+          role: isProfileRole(row.role) ? row.role : "customer",
+          full_name: row.full_name ?? null,
+          tenant_id: row.tenant_id ?? null,
+        }
+      : null;
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email ?? "",
+      },
+      profile,
+      role: profile?.role ?? "customer",
+    };
+  } catch (error) {
+    logError(error, {
+      layer: "auth",
+      route: "getServerSession",
+      message: "server_session_lookup_failed",
+    });
     return null;
   }
-
-  const profileRepo = new ProfileRepository(supabase);
-  const row = await profileRepo.getByUserId(user.id);
-
-  const profile = row
-    ? {
-        id: row.id,
-        email: row.email ?? user.email ?? "",
-        role: isProfileRole(row.role) ? row.role : "customer",
-        full_name: row.full_name ?? null,
-        tenant_id: row.tenant_id ?? null,
-      }
-    : null;
-
-  return {
-    user: {
-      id: user.id,
-      email: user.email ?? "",
-    },
-    profile,
-    role: profile?.role ?? "customer",
-  };
 }
 
 export const getServerSession = getServerSessionUncached;

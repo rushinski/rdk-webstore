@@ -57,7 +57,9 @@ export async function GET(request: Request) {
   });
 
   const lines: string[] = [];
-  lines.push(["SKU", "Name", "Size", "Type", "Condition", "Price", "Cost"].join(","));
+  lines.push(
+    ["SKU", "Name", "Size", "Type", "Condition", "Price", "Cost", "Stock"].join(","),
+  );
 
   const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
@@ -69,8 +71,9 @@ export async function GET(request: Request) {
         csvEscape(r.size),
         csvEscape(r.type),
         csvEscape(r.condition),
-        csvEscape(formatMoney(r.priceCents)),
-        csvEscape(formatMoney(r.costCents)),
+        csvEscape(formatMoney(r.salePriceCents)),
+        csvEscape(formatMoney(r.unitCostCents)),
+        String(r.stock),
       ].join(","),
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -13,7 +13,7 @@ type MeResponse = {
   profile: Record<string, unknown> | null;
 };
 
-export default function AdminInvitePage() {
+function AdminInviteContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
   const [state, setState] = useState<InviteState>("idle");
@@ -134,5 +134,13 @@ export default function AdminInvitePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AdminInvitePage() {
+  return (
+    <Suspense fallback={<div className="max-w-xl mx-auto px-6 py-16 text-zinc-400" />}>
+      <AdminInviteContent />
+    </Suspense>
   );
 }

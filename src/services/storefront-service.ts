@@ -60,10 +60,10 @@ export class StorefrontService {
         if (!existing) {
           brandMap.set(product.brand, {
             label: product.brand,
-            isVerified: Boolean(product.brand_is_verified),
+            isVerified: false,
           });
-        } else if (product.brand_is_verified) {
-          existing.isVerified = true;
+        } else {
+          existing.isVerified = existing.isVerified || false;
         }
       }
 

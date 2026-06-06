@@ -99,6 +99,8 @@ export interface OrderStatusResponse {
 export interface ResolvedLineItem {
   productId: string;
   variantId: string;
+  variantSku: string;
+  sizeLabel: string;
   quantity: number;
   unitPrice: number; // dollars
   unitCost: number; // dollars
@@ -106,7 +108,10 @@ export interface ResolvedLineItem {
   titleDisplay: string;
   brand: string;
   name: string;
+  model: string | null;
   category: string;
+  condition: string;
+  shippingPriceCents: number | null;
 }
 
 export interface CheckoutPricing {

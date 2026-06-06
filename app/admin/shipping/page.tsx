@@ -763,10 +763,7 @@ export default function ShippingPage() {
               <div className="flex flex-col">
                 {(order.items ?? []).map((item: OrderItem) => {
                   const imageUrl = getPrimaryImage(item);
-                  const title =
-                    (item.product?.title_display ??
-                      `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
-                    "Item";
+                  const title = item.product_name ?? item.product?.name ?? "Item";
                   const itemFinancials = getOrderItemFinancials(item);
                   const isPositive = itemFinancials.unitProfit >= 0;
                   const isRefunded = Boolean(item.refunded_at);
@@ -935,10 +932,7 @@ export default function ShippingPage() {
                 <div className="space-y-2">
                   {(order.items ?? []).map((item: OrderItem) => {
                     const imageUrl = getPrimaryImage(item);
-                    const title =
-                      (item.product?.title_display ??
-                        `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
-                      "Item";
+                    const title = item.product_name ?? item.product?.name ?? "Item";
                     const itemFinancials = getOrderItemFinancials(item);
                     const formattedUnitProfit = `${
                       itemFinancials.unitProfit >= 0 ? "+" : "-"
@@ -965,7 +959,8 @@ export default function ShippingPage() {
                         <div className="min-w-0">
                           <div className="text-white truncate">{title}</div>
                           <div className="text-sm text-zinc-500">
-                            Size {item.variant?.size_label ?? "N/A"} - Qty {item.quantity}
+                            Size {item.size_label ?? item.variant?.size_label ?? "N/A"} -
+                            Qty {item.quantity}
                           </div>
                           <div className="text-sm font-medium text-white mt-0.5">
                             ${Number(item.line_total ?? 0).toFixed(2)}

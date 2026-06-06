@@ -1,7 +1,7 @@
 // src/components/shell/ClientShell.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useCallback, useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -25,10 +25,10 @@ export function ClientShell({
   role?: ProfileRole | null;
 }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const openChat = useCallback(() => setChatOpen(true), []);
 
   useEffect(() => {
     const handleOpenSearch = () => setSearchOpen(true);
@@ -52,16 +52,6 @@ export function ClientShell({
     const routeValue = isAdminRoute ? "admin" : isAuthRoute ? "auth" : "store";
     document.body.dataset.route = routeValue;
   }, [pathname]);
-
-  useEffect(() => {
-    if (!searchParams) {
-      return;
-    }
-    const shouldOpenChat = searchParams.get("chat") === "1";
-    if (shouldOpenChat) {
-      setChatOpen(true);
-    }
-  }, [searchParams]);
 
   const isAdminRoute = pathname.startsWith("/admin");
   const isAuthRoute = pathname.startsWith("/auth");
@@ -138,6 +128,9 @@ export function ClientShell({
 
       <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
       <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <Suspense fallback={null}>
+        <ChatQueryOpener onOpenChat={openChat} />
+      </Suspense>
       {isStoreRoute && <ChatLauncher />}
       {isStoreRoute && (
         <ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />
@@ -146,4 +139,16 @@ export function ClientShell({
       {isStoreRoute && <MobileBottomNav />}
     </>
   );
+}
+
+function ChatQueryOpener({ onOpenChat }: { onOpenChat: () => void }) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("chat") === "1") {
+      onOpenChat();
+    }
+  }, [onOpenChat, searchParams]);
+
+  return null;
 }

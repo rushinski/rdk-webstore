@@ -75,16 +75,37 @@ export async function POST(request: NextRequest) {
       return json({ error: "Order has no items", requestId }, 400);
     }
 
-    const productIds = [...new Set(orderItems.map((i) => i.product_id))];
+    const productIds = [
+      ...new Set(
+        orderItems
+          .map((item) => item.product_id)
+          .filter((productId): productId is string => typeof productId === "string"),
+      ),
+    ];
     const productsRepo = new ProductRepository(adminSupabase);
     const products = await productsRepo.getProductsForCheckout(productIds);
     const productMap = new Map(products.map((p) => [p.id, p]));
 
     const lineItems = orderItems.map((item) => {
+      if (!item.product_id) {
+        throw new Error(
+          "Order item can no longer be repriced because the product was deleted.",
+        );
+      }
+
       const product = productMap.get(item.product_id);
+      if (!product) {
+        throw new Error(
+          `Order item ${item.id} can no longer be repriced because the product is unavailable.`,
+        );
+      }
+
+      const variant = product?.variants.find((entry) => entry.id === item.variant_id);
       return {
         productId: item.product_id,
         variantId: item.variant_id ?? "",
+        variantSku: variant?.sku ?? "",
+        sizeLabel: variant?.sizeLabel ?? "",
         quantity: item.quantity,
         unitPrice: Number(item.unit_price ?? 0),
         unitCost: Number(item.unit_cost ?? 0),
@@ -92,7 +113,10 @@ export async function POST(request: NextRequest) {
         titleDisplay: product?.titleDisplay ?? "",
         brand: product?.brand ?? "",
         name: product?.name ?? "",
+        model: product?.model ?? null,
         category: product?.category ?? "other",
+        condition: product?.condition ?? "",
+        shippingPriceCents: product?.shippingPriceCents ?? null,
       };
     });
 
@@ -107,7 +131,7 @@ export async function POST(request: NextRequest) {
 
     const cartHash = createCartHash(
       orderItems.map((i) => ({
-        productId: i.product_id,
+        productId: i.product_id ?? "",
         variantId: i.variant_id,
         quantity: i.quantity,
       })),

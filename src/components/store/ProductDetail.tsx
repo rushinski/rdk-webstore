@@ -48,7 +48,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
   const sizeOptions: RdkSelectOption[] = useMemo(() => {
     return product.variants.map((variant) => ({
       value: variant.id,
-      label: `${variant.size_label} - $${(variant.price_cents / 100).toFixed(2)} (${variant.stock} in stock)`,
+      label: `${variant.size_label} - $${(variant.sale_price_cents / 100).toFixed(2)} (${variant.stock} in stock)`,
       disabled: variant.stock === 0,
     }));
   }, [product.variants]);
@@ -64,10 +64,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
         ? "New"
         : product.condition;
 
-  const displayTitle =
-    product.title_raw ??
-    product.title_display ??
-    `${product.brand} ${product.name}`.trim();
+  const displayTitle = product.name;
 
   useEffect(() => {
     const current = product.variants.find((v) => v.id === selectedVariantId);
@@ -106,7 +103,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
       brand: product.brand,
       name: product.name,
       titleDisplay: displayTitle,
-      priceCents: selectedVariant.price_cents,
+      priceCents: selectedVariant.sale_price_cents,
       imageUrl: primaryImage?.url || "/placeholder.png",
       maxStock: selectedVariant.stock,
     });
@@ -167,7 +164,7 @@ export function ProductDetail({ product }: ProductDetailProps) {
 
           <div className="flex items-center gap-4 mb-6">
             <span className="text-3xl font-bold text-white">
-              ${(((selectedVariant?.price_cents ?? 0) as number) / 100).toFixed(2)}
+              ${(((selectedVariant?.sale_price_cents ?? 0) as number) / 100).toFixed(2)}
             </span>
             <span
               className={`px-3 py-1 rounded text-sm font-semibold ${
@@ -239,14 +236,6 @@ export function ProductDetail({ product }: ProductDetailProps) {
               <p className="text-gray-400 text-sm whitespace-pre-wrap">
                 {product.description}
               </p>
-            </div>
-          )}
-
-          {/* Condition Note */}
-          {product.condition === "used" && product.condition_note && (
-            <div className="mb-6">
-              <h3 className="text-white font-semibold mb-2">Condition Details</h3>
-              <p className="text-gray-400 text-sm">{product.condition_note}</p>
             </div>
           )}
 

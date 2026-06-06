@@ -39,6 +39,13 @@ type ProductImage = { url: string; is_primary?: boolean; sort_order?: number };
 
 type OrderItem = {
   id: string;
+  product_name?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  category?: string | null;
+  condition?: string | null;
+  variant_sku?: string | null;
+  size_label?: string | null;
   quantity: number;
   unit_price: number;
   unit_cost?: number | null;
@@ -50,11 +57,7 @@ type OrderItem = {
     name: string;
     brand?: string | null;
     model?: string | null;
-    title_display?: string | null;
-    title_raw?: string | null;
     category?: string | null;
-    sku?: string | null;
-    cost_cents?: number | null;
     description?: string | null;
     created_at?: string | null;
     images?: ProductImage[];
@@ -62,9 +65,10 @@ type OrderItem = {
   } | null;
   variant?: {
     id: string;
+    sku?: string | null;
     size_label?: string | null;
-    price_cents?: number | null;
-    cost_cents?: number | null;
+    sale_price_cents?: number | null;
+    unit_cost_cents?: number | null;
   } | null;
 };
 
@@ -941,10 +945,7 @@ export default function TransactionDetailPage() {
             ) : (
               <div className="space-y-0">
                 {items.map((item) => {
-                  const title =
-                    (item.product?.title_display ??
-                      `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
-                    "Item";
+                  const title = item.product_name ?? item.product?.name ?? "Item";
                   const imageUrl =
                     item.product?.images?.find((image) => image.is_primary)?.url ??
                     item.product?.images?.[0]?.url ??
@@ -972,8 +973,8 @@ export default function TransactionDetailPage() {
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm text-white">{title}</p>
                         <p className="text-xs text-zinc-500">
-                          {item.variant?.size_label
-                            ? `Size ${item.variant.size_label} · `
+                          {(item.size_label ?? item.variant?.size_label)
+                            ? `Size ${item.size_label ?? item.variant?.size_label} · `
                             : ""}
                           Qty {item.quantity}
                           {isRefunded ? " · Refunded" : ""}

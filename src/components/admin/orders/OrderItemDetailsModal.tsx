@@ -21,6 +21,13 @@ type AdminOrderItemTagLink = {
 
 export type AdminOrderItem = {
   id: string;
+  product_name?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  category?: string | null;
+  condition?: string | null;
+  variant_sku?: string | null;
+  size_label?: string | null;
   quantity?: number | null;
   line_total?: number | null;
   refund_amount?: number | null;
@@ -29,21 +36,19 @@ export type AdminOrderItem = {
   unit_price?: number | null;
   product?: {
     images?: AdminOrderItemImage[] | null;
-    title_display?: string | null;
     brand?: string | null;
     model?: string | null;
     name?: string | null;
     created_at?: string | null;
     category?: string | null;
     description?: string | null;
-    sku?: string | null;
-    cost_cents?: number | null;
     tags?: AdminOrderItemTagLink[] | null;
   } | null;
   variant?: {
+    sku?: string | null;
     size_label?: string | null;
-    price_cents?: number | null;
-    cost_cents?: number | null;
+    sale_price_cents?: number | null;
+    unit_cost_cents?: number | null;
   } | null;
 };
 
@@ -79,9 +84,7 @@ const formatDateTime = (value?: string | null) => {
 };
 
 const getTitle = (item: AdminOrderItem) =>
-  (item.product?.title_display ??
-    `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
-  "Item";
+  item.product_name ?? item.product?.name ?? "Item";
 
 export const getOrderItemFinancials = (
   item: AdminOrderItem,
@@ -92,16 +95,18 @@ export const getOrderItemFinancials = (
   const unitPrice =
     item.unit_price !== null && item.unit_price !== undefined
       ? Number(item.unit_price)
-      : item.variant?.price_cents !== null && item.variant?.price_cents !== undefined
-        ? Number(item.variant.price_cents) / 100
+      : item.variant?.sale_price_cents !== null &&
+          item.variant?.sale_price_cents !== undefined
+        ? Number(item.variant.sale_price_cents) / 100
         : fallbackUnitPrice;
 
   const unitCost =
     item.unit_cost !== null && item.unit_cost !== undefined
       ? Number(item.unit_cost)
-      : item.variant?.cost_cents !== null && item.variant?.cost_cents !== undefined
-        ? Number(item.variant.cost_cents) / 100
-        : Number(item.product?.cost_cents ?? 0) / 100;
+      : item.variant?.unit_cost_cents !== null &&
+          item.variant?.unit_cost_cents !== undefined
+        ? Number(item.variant.unit_cost_cents) / 100
+        : 0;
   const unitProfit = unitPrice - unitCost;
 
   return { quantity, unitCost, unitPrice, unitProfit };
@@ -238,7 +243,7 @@ export function AdminOrderItemDetailsModal({
                 <span className="font-semibold text-zinc-500">SKU:</span>
                 {/* UPDATED: Removed border/bg box styles */}
                 <span className="font-mono text-zinc-300">
-                  {item.product?.sku?.trim() || "N/A"}
+                  {item.variant_sku?.trim() || item.variant?.sku?.trim() || "N/A"}
                 </span>
               </div>
 
@@ -316,18 +321,21 @@ export function AdminOrderItemDetailsModal({
                 <div className="grid grid-cols-2 gap-y-4 gap-x-2">
                   <DetailRow
                     label="Brand"
-                    value={item.product?.brand || "-"}
+                    value={item.brand || item.product?.brand || "-"}
                     icon={Package}
                   />
                   <DetailRow
                     label="Category"
-                    value={item.product?.category || "-"}
+                    value={item.category || item.product?.category || "-"}
                     icon={Layers}
                   />
-                  <DetailRow label="Model" value={item.product?.model || "-"} />
+                  <DetailRow
+                    label="Model"
+                    value={item.model || item.product?.model || "-"}
+                  />
                   <DetailRow
                     label="Size"
-                    value={item.variant?.size_label || "N/A"}
+                    value={item.size_label || item.variant?.size_label || "N/A"}
                     icon={Hash}
                   />
                 </div>

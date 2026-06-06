@@ -17,8 +17,6 @@ export interface ProductFilters {
   includeOutOfStock?: boolean;
 
   tenantId?: string;
-  sellerId?: string;
-  marketplaceId?: string;
   searchMode?: "storefront" | "inventory";
 }
 
@@ -38,6 +36,7 @@ export type CartVariantDetails = {
   productId: string;
   sizeLabel: string;
   priceCents: number;
+  sku: string;
   stock: number;
   brand: string;
   name: string;
@@ -53,18 +52,19 @@ export type InventoryExportRow = {
   size: string;
   type: string;
   condition: string;
-  priceCents: number;
-  costCents: number;
+  salePriceCents: number;
+  unitCostCents: number;
+  stock: number;
 };
 
 type VariantExportRow = {
+  sku: string | null;
   size_label: string | null;
-  price_cents: number | null;
-  cost_cents: number | null;
+  sale_price_cents: number | null;
+  unit_cost_cents: number | null;
   stock: number | null;
   product?: {
-    sku: string | null;
-    title_raw: string | null;
+    name: string | null;
     condition: string | null;
     is_active: boolean | null;
     is_out_of_stock: boolean | null;
@@ -86,14 +86,14 @@ type TagInsert = TablesInsert<"tags">;
 type FilterDataRow = {
   brand: string | null;
   model: string | null;
-  brand_is_verified: boolean | null;
-  model_is_verified: boolean | null;
   category: string | null;
 };
 
 type SizeAvailabilityRow = {
   size_label: string | null;
-  size_type: string | null;
+  product?: {
+    size_type?: string | null;
+  };
 };
 
 type ProductWithRelations = ProductRow & {
@@ -104,7 +104,7 @@ type ProductWithRelations = ProductRow & {
 
 type VariantWithProduct = {
   product_id: string;
-  price_cents: number;
+  sale_price_cents: number;
   product?: {
     id: string;
   };
@@ -115,16 +115,16 @@ type CheckoutProductRow = {
   name: string;
   brand: string;
   model: string | null;
-  title_display: string;
   category: string;
+  condition: string;
   tenant_id: string | null;
-  default_shipping_price: number | null;
-  shipping_override_cents: number | null;
+  shipping_price_cents: number | null;
   variants?: Array<{
     id: string;
+    sku: string;
     size_label: string;
-    price_cents: number;
-    cost_cents: number | null;
+    sale_price_cents: number;
+    unit_cost_cents: number;
     stock: number;
   }>;
 };
@@ -132,15 +132,14 @@ type CheckoutProductRow = {
 type CartVariantRow = {
   id: string;
   product_id: string;
+  sku: string;
   size_label: string;
-  price_cents: number;
+  sale_price_cents: number;
   stock: number;
   product?: {
     id: string;
     brand: string;
     name: string;
-    title_raw: string | null;
-    title_display: string;
     is_active: boolean;
     is_out_of_stock: boolean;
     go_live_at: string | null;
@@ -157,15 +156,9 @@ type ProductImageRow = {
 export class ProductRepository {
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
-  private readonly storefrontSearchFields = [
-    "brand",
-    "name",
-    "model",
-    "title_raw",
-    "title_display",
-  ];
+  private readonly storefrontSearchFields = ["brand", "name", "model"];
 
-  private readonly inventorySearchFields = ["sku", "title_raw"];
+  private readonly inventorySearchFields = ["brand", "name", "model"];
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
     const includeOutOfStock = Boolean(filters.includeOutOfStock);
@@ -173,19 +166,13 @@ export class ProductRepository {
     let query = this.supabase
       .from("product_variants")
       .select(
-        "size_label, price_cents, cost_cents, stock, product:products!inner(sku, title_raw, condition, is_active, is_out_of_stock, tenant_id, category)",
+        "sku, size_label, sale_price_cents, unit_cost_cents, stock, product:products!inner(name, condition, is_active, is_out_of_stock, tenant_id, category)",
       )
       .eq("product.is_active", true);
 
     // Tenant scoping (admin inventory is tenant-scoped)
     if (filters.tenantId) {
       query = query.eq("product.tenant_id", filters.tenantId);
-    }
-    if (filters.sellerId) {
-      query = query.eq("product.seller_id", filters.sellerId);
-    }
-    if (filters.marketplaceId) {
-      query = query.eq("product.marketplace_id", filters.marketplaceId);
     }
 
     // Stock filters: match the inventory UI semantics
@@ -198,10 +185,12 @@ export class ProductRepository {
       query = query.eq("product.is_out_of_stock", false).gt("stock", 0);
     }
 
-    // Text search on product fields
     query = this.applyTextSearch(query, filters.q, this.inventorySearchFields, {
       foreignTable: "product",
     });
+    if (filters.q?.trim()) {
+      query = query.or(`sku.ilike.%${filters.q.trim().replace(/[(),]/g, " ")}%`);
+    }
 
     // Category / condition filters
     if (filters.category?.length) {
@@ -213,7 +202,7 @@ export class ProductRepository {
 
     // Order for stable printing
     query = query
-      .order("sku", { ascending: true, foreignTable: "product" })
+      .order("sku", { ascending: true })
       .order("size_label", { ascending: true });
 
     const { data, error } = await query.limit(20000);
@@ -226,8 +215,8 @@ export class ProductRepository {
     return rows
       .map((r) => {
         const p = r.product;
-        const sku = p?.sku?.trim() ?? "";
-        const name = p?.title_raw?.trim() ?? "";
+        const sku = r.sku?.trim() ?? "";
+        const name = p?.name?.trim() ?? "";
         const size = r.size_label?.trim() ?? "";
         const type = p?.category?.trim() ?? "";
         const condition = p?.condition?.trim() ?? "";
@@ -242,8 +231,9 @@ export class ProductRepository {
           size,
           type,
           condition,
-          priceCents: Number(r.price_cents ?? 0),
-          costCents: Number(r.cost_cents ?? 0),
+          salePriceCents: Number(r.sale_price_cents ?? 0),
+          unitCostCents: Number(r.unit_cost_cents ?? 0),
+          stock: Number(r.stock ?? 0),
         } as InventoryExportRow;
       })
       .filter((x): x is InventoryExportRow => Boolean(x));
@@ -295,15 +285,8 @@ export class ProductRepository {
         baseQuery = baseQuery.lte("go_live_at", nowIso);
       }
 
-      // Tenant/seller/marketplace scoping
       if (filters.tenantId) {
         baseQuery = baseQuery.eq("tenant_id", filters.tenantId);
-      }
-      if (filters.sellerId) {
-        baseQuery = baseQuery.eq("seller_id", filters.sellerId);
-      }
-      if (filters.marketplaceId) {
-        baseQuery = baseQuery.eq("marketplace_id", filters.marketplaceId);
       }
 
       if (filters.stockStatus === "out_of_stock") {
@@ -351,12 +334,12 @@ export class ProductRepository {
             break;
           case "name_asc":
             query = query
-              .order("title_display", { ascending: true })
+              .order("name", { ascending: true })
               .order("created_at", { ascending: false });
             break;
           case "name_desc":
             query = query
-              .order("title_display", { ascending: false })
+              .order("name", { ascending: false })
               .order("created_at", { ascending: false });
             break;
         }
@@ -403,12 +386,6 @@ export class ProductRepository {
     if (filters.tenantId) {
       detailQuery = detailQuery.eq("tenant_id", filters.tenantId);
     }
-    if (filters.sellerId) {
-      detailQuery = detailQuery.eq("seller_id", filters.sellerId);
-    }
-    if (filters.marketplaceId) {
-      detailQuery = detailQuery.eq("marketplace_id", filters.marketplaceId);
-    }
 
     const { data: details, error: detailsError } = await detailQuery;
 
@@ -450,10 +427,9 @@ export class ProductRepository {
 
   async getById(
     id: string,
-    opts?: Pick<
-      ProductFilters,
-      "tenantId" | "sellerId" | "marketplaceId" | "includeOutOfStock"
-    > & { includeUnpublished?: boolean },
+    opts?: Pick<ProductFilters, "tenantId" | "includeOutOfStock"> & {
+      includeUnpublished?: boolean;
+    },
   ): Promise<ProductWithDetails | null> {
     let query = this.supabase
       .from("products")
@@ -471,12 +447,6 @@ export class ProductRepository {
     }
     if (opts?.tenantId) {
       query = query.eq("tenant_id", opts.tenantId);
-    }
-    if (opts?.sellerId) {
-      query = query.eq("seller_id", opts.sellerId);
-    }
-    if (opts?.marketplaceId) {
-      query = query.eq("marketplace_id", opts.marketplaceId);
     }
 
     const { data, error } = await query.maybeSingle();
@@ -498,7 +468,7 @@ export class ProductRepository {
     let query = this.supabase
       .from("products")
       .select("*")
-      .eq("title_raw", titleRaw)
+      .eq("name", titleRaw)
       .eq("category", category)
       .eq("is_active", true);
 
@@ -569,6 +539,21 @@ export class ProductRepository {
     }
 
     return count ?? 0;
+  }
+
+  async listVariantSkus(tenantId: string): Promise<string[]> {
+    const { data, error } = await this.supabase
+      .from("product_variants")
+      .select("sku")
+      .eq("tenant_id", tenantId);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? [])
+      .map((row) => row.sku)
+      .filter((sku): sku is string => typeof sku === "string" && sku.trim().length > 0);
   }
 
   async createVariant(variant: VariantInsert) {
@@ -756,7 +741,7 @@ export class ProductRepository {
     const includeOutOfStock = Boolean(opts?.includeOutOfStock);
     let query = this.supabase
       .from("products")
-      .select("brand, model, brand_is_verified, model_is_verified, category")
+      .select("brand, model, category")
       .eq("is_active", true)
       .lte("go_live_at", new Date().toISOString());
 
@@ -772,8 +757,6 @@ export class ProductRepository {
     return (data ?? []).map((row) => ({
       brand: row.brand ?? null,
       model: row.model ?? null,
-      brand_is_verified: row.brand_is_verified ?? null,
-      model_is_verified: row.model_is_verified ?? null,
       category: row.category ?? null,
     }));
   }
@@ -782,19 +765,13 @@ export class ProductRepository {
     const includeOutOfStock = Boolean(filters?.includeOutOfStock);
     let query = this.supabase
       .from("product_variants")
-      .select("size_label, size_type, product:products!inner(is_active, is_out_of_stock)")
+      .select("size_label, product:products!inner(size_type, is_active, is_out_of_stock)")
       .gt("stock", 0)
       .eq("product.is_active", true)
       .lte("product.go_live_at", new Date().toISOString());
 
     if (filters?.tenantId) {
       query = query.eq("product.tenant_id", filters.tenantId);
-    }
-    if (filters?.sellerId) {
-      query = query.eq("product.seller_id", filters.sellerId);
-    }
-    if (filters?.marketplaceId) {
-      query = query.eq("product.marketplace_id", filters.marketplaceId);
     }
 
     if (filters?.stockStatus === "out_of_stock") {
@@ -820,25 +797,6 @@ export class ProductRepository {
     }
     if (filters?.condition?.length) {
       query = query.in("product.condition", filters.condition);
-    }
-
-    if (filters?.sizeShoe?.length || filters?.sizeClothing?.length) {
-      const sizeFilters: string[] = [];
-      if (filters.sizeShoe?.length) {
-        sizeFilters.push(
-          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
-        );
-      }
-      if (filters.sizeClothing?.length) {
-        sizeFilters.push(
-          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(
-            filters.sizeClothing,
-          )}))`,
-        );
-      }
-      if (sizeFilters.length > 0) {
-        query = query.or(sizeFilters.join(","));
-      }
     }
 
     const { data, error } = await query.limit(5000);
@@ -855,9 +813,9 @@ export class ProductRepository {
       if (!sizeLabel) {
         continue;
       }
-      if (row.size_type === "shoe") {
+      if (row.product?.size_type === "shoe") {
         shoe.add(sizeLabel);
-      } else if (row.size_type === "clothing") {
+      } else if (row.product?.size_type === "clothing") {
         clothing.add(sizeLabel);
       }
     }
@@ -870,7 +828,7 @@ export class ProductRepository {
     let query = this.supabase
       .from("product_variants")
       .select(
-        "size_label, size_type, product:products!inner(condition, is_active, is_out_of_stock)",
+        "size_label, product:products!inner(size_type, condition, is_active, is_out_of_stock)",
       )
       .gt("stock", 0)
       .eq("product.is_active", true)
@@ -878,12 +836,6 @@ export class ProductRepository {
 
     if (filters?.tenantId) {
       query = query.eq("product.tenant_id", filters.tenantId);
-    }
-    if (filters?.sellerId) {
-      query = query.eq("product.seller_id", filters.sellerId);
-    }
-    if (filters?.marketplaceId) {
-      query = query.eq("product.marketplace_id", filters.marketplaceId);
     }
 
     if (filters?.stockStatus === "out_of_stock") {
@@ -909,25 +861,6 @@ export class ProductRepository {
     }
     if (filters?.condition?.length) {
       query = query.in("product.condition", filters.condition);
-    }
-
-    if (filters?.sizeShoe?.length || filters?.sizeClothing?.length) {
-      const sizeFilters: string[] = [];
-      if (filters.sizeShoe?.length) {
-        sizeFilters.push(
-          `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
-        );
-      }
-      if (filters.sizeClothing?.length) {
-        sizeFilters.push(
-          `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(
-            filters.sizeClothing,
-          )}))`,
-        );
-      }
-      if (sizeFilters.length > 0) {
-        query = query.or(sizeFilters.join(","));
-      }
     }
 
     const { data, error } = await query.limit(5000);
@@ -1133,8 +1066,8 @@ export class ProductRepository {
         score += sequenceBonus;
       }
 
-      // Bonus for matches in title_raw (primary search field for inventory)
-      if (field === "title_raw") {
+      // Product name is the raw title and primary inventory search field.
+      if (field === "name") {
         score *= 1.5;
       }
     }
@@ -1172,15 +1105,9 @@ export class ProductRepository {
       countQuery = countQuery.lte("go_live_at", nowIso);
     }
 
-    // Tenant/seller/marketplace scoping
+    // Tenant scoping
     if (filters.tenantId) {
       countQuery = countQuery.eq("tenant_id", filters.tenantId);
-    }
-    if (filters.sellerId) {
-      countQuery = countQuery.eq("seller_id", filters.sellerId);
-    }
-    if (filters.marketplaceId) {
-      countQuery = countQuery.eq("marketplace_id", filters.marketplaceId);
     }
 
     if (filters.stockStatus === "out_of_stock") {
@@ -1228,8 +1155,8 @@ export class ProductRepository {
     while (orderedIds.length < targetCount) {
       let query = this.supabase
         .from("product_variants")
-        .select("product_id, price_cents, product:products!inner(id)")
-        .order("price_cents", { ascending: sort === "price_asc" })
+        .select("product_id, sale_price_cents, product:products!inner(id)")
+        .order("sale_price_cents", { ascending: sort === "price_asc" })
         .order("product_id", { ascending: true })
         .range(rangeStart, rangeStart + batchSize - 1);
 
@@ -1237,32 +1164,13 @@ export class ProductRepository {
         query = query.gt("stock", 0);
       }
 
-      if (filters.sizeShoe?.length || filters.sizeClothing?.length) {
-        const sizeFilters: string[] = [];
-        if (filters.sizeShoe?.length) {
-          sizeFilters.push(
-            `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
-          );
-        }
-        if (filters.sizeClothing?.length) {
-          sizeFilters.push(
-            `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`,
-          );
-        }
-        if (sizeFilters.length > 0) {
-          query = query.or(sizeFilters.join(","));
-        }
+      if (Array.isArray(sizeProductIds)) {
+        query = query.in("product_id", sizeProductIds);
       }
 
-      // Tenant/seller/marketplace scoping
+      // Tenant scoping
       if (filters.tenantId) {
         query = query.eq("product.tenant_id", filters.tenantId);
-      }
-      if (filters.sellerId) {
-        query = query.eq("product.seller_id", filters.sellerId);
-      }
-      if (filters.marketplaceId) {
-        query = query.eq("product.marketplace_id", filters.marketplaceId);
       }
 
       if (filters.stockStatus === "out_of_stock") {
@@ -1329,39 +1237,42 @@ export class ProductRepository {
   }
 
   private async listProductIdsForSizes(filters: ProductFilters) {
-    const sizeFilters: string[] = [];
-    if (filters.sizeShoe?.length) {
-      sizeFilters.push(
-        `and(size_type.eq.shoe,size_label.in.(${this.buildInClause(filters.sizeShoe)}))`,
-      );
-    }
-    if (filters.sizeClothing?.length) {
-      sizeFilters.push(
-        `and(size_type.eq.clothing,size_label.in.(${this.buildInClause(filters.sizeClothing)}))`,
-      );
-    }
+    const selectedSizeGroups = [
+      { sizeType: "shoe", labels: filters.sizeShoe ?? [] },
+      { sizeType: "clothing", labels: filters.sizeClothing ?? [] },
+    ].filter((group) => group.labels.length > 0);
 
-    if (sizeFilters.length === 0) {
+    if (selectedSizeGroups.length === 0) {
       return null;
     }
 
-    const { data, error } = await this.supabase
-      .from("product_variants")
-      .select("product_id")
-      .or(sizeFilters.join(","))
-      .gt("stock", 0);
+    const productIds = new Set<string>();
 
-    if (error) {
-      throw error;
+    for (const group of selectedSizeGroups) {
+      let query = this.supabase
+        .from("product_variants")
+        .select("product_id, product:products!inner(size_type)")
+        .eq("product.size_type", group.sizeType)
+        .in("size_label", group.labels)
+        .gt("stock", 0);
+
+      if (filters.tenantId) {
+        query = query.eq("tenant_id", filters.tenantId);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        throw error;
+      }
+
+      for (const row of data ?? []) {
+        if (row.product_id) {
+          productIds.add(row.product_id);
+        }
+      }
     }
 
-    return [
-      ...new Set(
-        (data ?? [])
-          .map((row) => row.product_id)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    ];
+    return Array.from(productIds);
   }
 
   async getProductsForCheckout(productIds: string[]): Promise<
@@ -1372,14 +1283,15 @@ export class ProductRepository {
       model: string | null;
       titleDisplay: string;
       category: string;
+      condition: string;
       tenantId: string | null;
-      defaultShippingPrice: number;
-      shippingOverrideCents: number | null;
+      shippingPriceCents: number | null;
       variants: Array<{
         id: string;
+        sku: string;
         sizeLabel: string;
-        priceCents: number;
-        costCents: number | null;
+        salePriceCents: number;
+        unitCostCents: number;
         stock: number;
       }>;
     }>
@@ -1388,7 +1300,7 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("products")
       .select(
-        "id, name, brand, model, title_display, category, tenant_id, default_shipping_price, shipping_override_cents, variants:product_variants(id, size_label, price_cents, cost_cents, stock)",
+        "id, name, brand, model, category, condition, tenant_id, shipping_price_cents, variants:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents, stock)",
       )
       .in("id", productIds)
       .eq("is_active", true)
@@ -1404,16 +1316,17 @@ export class ProductRepository {
       name: p.name,
       brand: p.brand,
       model: p.model ?? null,
-      titleDisplay: p.title_display,
+      titleDisplay: p.name,
       category: p.category,
+      condition: p.condition,
       tenantId: p.tenant_id ?? null,
-      defaultShippingPrice: p.default_shipping_price ?? 0,
-      shippingOverrideCents: p.shipping_override_cents ?? null,
+      shippingPriceCents: p.shipping_price_cents ?? null,
       variants: (p.variants ?? []).map((v) => ({
         id: v.id,
+        sku: v.sku,
         sizeLabel: v.size_label,
-        priceCents: v.price_cents,
-        costCents: v.cost_cents ?? null,
+        salePriceCents: v.sale_price_cents,
+        unitCostCents: v.unit_cost_cents,
         stock: v.stock,
       })),
     }));
@@ -1427,7 +1340,7 @@ export class ProductRepository {
     const { data, error } = await this.supabase
       .from("product_variants")
       .select(
-        "id, product_id, size_label, price_cents, stock, product:products(id, brand, name, title_raw, title_display, is_active, is_out_of_stock, go_live_at)",
+        "id, product_id, sku, size_label, sale_price_cents, stock, product:products(id, brand, name, is_active, is_out_of_stock, go_live_at)",
       )
       .in("id", variantIds);
 
@@ -1475,14 +1388,12 @@ export class ProductRepository {
         variantId: row.id,
         productId: product?.id ?? row.product_id,
         sizeLabel: row.size_label,
-        priceCents: row.price_cents,
+        priceCents: row.sale_price_cents,
+        sku: row.sku,
         stock: row.stock,
         brand: product?.brand ?? "",
         name: product?.name ?? "",
-        titleDisplay:
-          product?.title_raw ??
-          product?.title_display ??
-          `${product?.brand ?? ""} ${product?.name ?? ""}`.trim(),
+        titleDisplay: product?.name ?? "",
         isActive: (product?.is_active ?? false) && isLive,
         isOutOfStock: product?.is_out_of_stock ?? false,
         imageUrl: imageMap.get(product?.id ?? row.product_id) ?? null,
