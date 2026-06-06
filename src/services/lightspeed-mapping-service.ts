@@ -122,9 +122,7 @@ export class LightspeedMappingService {
     parent?: LightspeedRemoteProduct,
   ): NormalizedLightspeedProduct {
     const externalSku =
-      this.extractExternalSku(record) ??
-      this.extractExternalSku(parent) ??
-      record.id;
+      this.extractExternalSku(record) ?? this.extractExternalSku(parent) ?? record.id;
     const rawName = record.name?.trim() || parent?.name?.trim() || externalSku;
     const condition: NormalizedLightspeedProduct["condition"] = this.extractCondition(
       record,

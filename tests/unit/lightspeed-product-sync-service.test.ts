@@ -95,9 +95,7 @@ describe("LightspeedProductSyncService", () => {
 
     getByVariantIdMock.mockResolvedValue(null);
     getByExternalSkuMock.mockResolvedValue(null);
-    listVariantAttributesMock.mockResolvedValue([
-      { id: "attr-size-1", name: "Size" },
-    ]);
+    listVariantAttributesMock.mockResolvedValue([{ id: "attr-size-1", name: "Size" }]);
     createProductMock.mockResolvedValue({
       data: ["ls-family-1", "ls-child-1", "ls-child-2"],
     });

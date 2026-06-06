@@ -8,10 +8,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
-import {
-  ProductService,
-  type ProductCreateInput,
-} from "@/services/product-service";
+import { ProductService, type ProductCreateInput } from "@/services/product-service";
 import { LightspeedProductSyncService } from "@/services/lightspeed-product-sync-service";
 import { productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -244,7 +241,8 @@ export async function DELETE(
     if (isForeignKeyViolation(error, "order_items_product_id_fkey")) {
       return NextResponse.json(
         {
-          error: "Cannot delete this product because it is referenced by existing orders.",
+          error:
+            "Cannot delete this product because it is referenced by existing orders.",
           requestId,
         },
         { status: 409, headers: { "Cache-Control": "no-store" } },

@@ -133,7 +133,10 @@ export class LightspeedInboundSyncService {
       });
     }
 
-    const persistedLinks = await this.linksRepo.listByProductId(input.tenantId, linkedProductId);
+    const persistedLinks = await this.linksRepo.listByProductId(
+      input.tenantId,
+      linkedProductId,
+    );
     const incomingSkus = new Set(normalized.map((remote) => remote.externalSku));
 
     for (const link of persistedLinks) {
@@ -281,7 +284,11 @@ export class LightspeedInboundSyncService {
   private inferSizeType(sizeLabels: string[]): SizeType {
     const normalized = sizeLabels.map((label) => label.trim().toUpperCase());
 
-    if (normalized.some((label) => /^\d/.test(label) || label.includes("M") || label.endsWith("W"))) {
+    if (
+      normalized.some(
+        (label) => /^\d/.test(label) || label.includes("M") || label.endsWith("W"),
+      )
+    ) {
       return "shoe";
     }
 

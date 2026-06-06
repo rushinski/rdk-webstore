@@ -29,7 +29,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to import Lightspeed products",
+        error:
+          error instanceof Error ? error.message : "Failed to import Lightspeed products",
         requestId,
       },
       { status: 500, headers: { "Cache-Control": "no-store" } },

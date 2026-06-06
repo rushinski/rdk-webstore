@@ -88,7 +88,9 @@ export async function POST(request: NextRequest) {
 
     const lineItems = orderItems.map((item) => {
       if (!item.product_id) {
-        throw new Error("Order item can no longer be repriced because the product was deleted.");
+        throw new Error(
+          "Order item can no longer be repriced because the product was deleted.",
+        );
       }
 
       const product = productMap.get(item.product_id);

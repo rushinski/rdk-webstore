@@ -110,11 +110,7 @@ export class LightspeedProductSyncService {
         resolvedVariants.length > 1
           ? await this.ensureVariantAttributeId(client, "Size")
           : null;
-      const payload = this.buildCreatePayload(
-        product,
-        resolvedVariants,
-        sizeAttributeId,
-      );
+      const payload = this.buildCreatePayload(product, resolvedVariants, sizeAttributeId);
       const response = await client.createProduct(payload);
       const ids = Array.isArray(response.data)
         ? response.data
@@ -207,11 +203,14 @@ export class LightspeedProductSyncService {
       accessToken: connection.accessToken,
     });
 
-    await client.updateProduct(link.lightspeed_variant_id ?? link.lightspeed_product_id!, {
-      details: {
-        inventory: [{ current_amount: Math.max(0, input.stock) }],
+    await client.updateProduct(
+      link.lightspeed_variant_id ?? link.lightspeed_product_id!,
+      {
+        details: {
+          inventory: [{ current_amount: Math.max(0, input.stock) }],
+        },
       },
-    });
+    );
 
     await this.linksRepo.upsertLink({
       tenantId: input.tenantId,

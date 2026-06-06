@@ -121,9 +121,7 @@ export function LightspeedSettingsPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      const data = (await response
-        .json()
-        .catch(() => ({}))) as LightspeedImportResponse;
+      const data = (await response.json().catch(() => ({}))) as LightspeedImportResponse;
 
       if (!response.ok) {
         throw new Error(data.error ?? "Failed to import Lightspeed products.");
@@ -234,8 +232,8 @@ export function LightspeedSettingsPanel() {
             the Lightspeed store prefix used to target the correct API host.
           </p>
           <p className="mt-2 text-sm text-zinc-400">
-            Use manual import on staging to pull Lightspeed products if webhook delivery is
-            not yet configured or product creation events are delayed.
+            Use manual import on staging to pull Lightspeed products if webhook delivery
+            is not yet configured or product creation events are delayed.
           </p>
         </div>
       </aside>

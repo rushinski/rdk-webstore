@@ -98,7 +98,8 @@ export class LightspeedSaleSyncService {
       productId: link?.product_id ?? null,
       variantId,
       externalSku: link?.external_sku ?? payload.product_id,
-      lightspeedFamilyId: link?.lightspeed_family_id ?? link?.lightspeed_product_id ?? null,
+      lightspeedFamilyId:
+        link?.lightspeed_family_id ?? link?.lightspeed_product_id ?? null,
       lightspeedProductId: link?.lightspeed_product_id ?? null,
       lightspeedVariantId: link?.lightspeed_variant_id ?? payload.product_id,
       lightspeedInventoryItemId: link?.lightspeed_inventory_item_id ?? null,
