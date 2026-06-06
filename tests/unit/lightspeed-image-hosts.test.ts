@@ -1,5 +1,6 @@
-import nextConfig from "../../next.config";
 import { security } from "@/config/security";
+
+import nextConfig from "../../next.config";
 
 describe("Lightspeed image host configuration", () => {
   it("allows Lightspeed hosts in Next image remote patterns", () => {
