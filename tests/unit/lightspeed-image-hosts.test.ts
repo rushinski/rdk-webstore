@@ -10,7 +10,7 @@ describe("Lightspeed image host configuration", () => {
       expect.arrayContaining([
         expect.objectContaining({
           protocol: "https",
-          hostname: "**.retail.lightspeed.app",
+          hostname: "*.cloudfront.net",
         }),
         expect.objectContaining({
           protocol: "https",
@@ -25,7 +25,7 @@ describe("Lightspeed image host configuration", () => {
       entry.startsWith("img-src "),
     );
 
-    expect(prodCsp).toContain("https://**.retail.lightspeed.app");
+    expect(prodCsp).toContain("https://*.cloudfront.net");
     expect(prodCsp).toContain("https://cdn.shoplightspeed.com");
   });
 });

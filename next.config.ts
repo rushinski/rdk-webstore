@@ -37,7 +37,7 @@ const nextConfig = {
       } as const,
       {
         protocol: "https",
-        hostname: "**.retail.lightspeed.app",
+        hostname: "*.cloudfront.net",
       } as const,
       {
         protocol: "https",
