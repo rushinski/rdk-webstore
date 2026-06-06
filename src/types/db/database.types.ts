@@ -1061,35 +1061,6 @@ export type Database = {
           },
         ];
       };
-      marketplaces: {
-        Row: {
-          created_at: string | null;
-          id: string;
-          name: string;
-          tenant_id: string | null;
-        };
-        Insert: {
-          created_at?: string | null;
-          id?: string;
-          name: string;
-          tenant_id?: string | null;
-        };
-        Update: {
-          created_at?: string | null;
-          id?: string;
-          name?: string;
-          tenant_id?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "marketplaces_tenant_id_fkey";
-            columns: ["tenant_id"];
-            isOneToOne: false;
-            referencedRelation: "tenants";
-            referencedColumns: ["id"];
-          },
-        ];
-      };
       nexus_registrations: {
         Row: {
           created_at: string;
@@ -1414,7 +1385,6 @@ export type Database = {
           label_created_at: string | null;
           label_created_by: string | null;
           label_url: string | null;
-          marketplace_id: string | null;
           nofraud_decision: string | null;
           nofraud_transaction_id: string | null;
           payment_transaction_id: string | null;
@@ -1457,7 +1427,6 @@ export type Database = {
           label_created_at?: string | null;
           label_created_by?: string | null;
           label_url?: string | null;
-          marketplace_id?: string | null;
           nofraud_decision?: string | null;
           nofraud_transaction_id?: string | null;
           payment_transaction_id?: string | null;
@@ -1500,7 +1469,6 @@ export type Database = {
           label_created_at?: string | null;
           label_created_by?: string | null;
           label_url?: string | null;
-          marketplace_id?: string | null;
           nofraud_decision?: string | null;
           nofraud_transaction_id?: string | null;
           payment_transaction_id?: string | null;
@@ -1532,13 +1500,6 @@ export type Database = {
             columns: ["label_created_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "orders_marketplace_id_fkey";
-            columns: ["marketplace_id"];
-            isOneToOne: false;
-            referencedRelation: "marketplaces";
             referencedColumns: ["id"];
           },
           {

@@ -90,7 +90,6 @@ export class ProductService {
     ctx: {
       userId: string;
       tenantId: string;
-      marketplaceId?: string | null;
       sellerId?: string | null;
     },
   ) {
@@ -332,7 +331,6 @@ export class ProductService {
     ctx: {
       userId: string;
       tenantId: string;
-      marketplaceId?: string | null;
       sellerId?: string | null;
     },
   ) {

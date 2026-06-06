@@ -14,7 +14,6 @@ export interface CreatePendingOrderInput {
   guestEmail?: string | null;
   tenantId: string;
   sellerId?: string | null;
-  marketplaceId?: string | null;
   currency: string;
   subtotal: number;
   shipping: number;
@@ -107,7 +106,6 @@ export class OrdersRepository {
         guest_email: input.guestEmail ?? null,
         tenant_id: input.tenantId,
         seller_id: input.sellerId ?? null,
-        marketplace_id: input.marketplaceId ?? null,
         currency: input.currency,
         subtotal: input.subtotal,
         shipping: input.shipping,

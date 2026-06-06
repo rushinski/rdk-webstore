@@ -110,7 +110,6 @@ export async function POST(request: NextRequest) {
     const product = await service.createProduct(payload, {
       userId: session.user.id,
       tenantId,
-      marketplaceId: null,
       sellerId: null,
     });
 

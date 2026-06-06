@@ -1521,7 +1521,7 @@ export function ProductForm({
                   }) => (
                     <div
                       className={[
-                        "bg-zinc-800 p-3 md:p-4 rounded flex flex-col md:flex-row md:items-end gap-3 md:gap-4 transition-[box-shadow,opacity] duration-150",
+                        "relative bg-zinc-800 p-3 md:p-4 rounded flex flex-col md:flex-row md:items-end gap-3 md:gap-4 transition-[box-shadow,opacity] duration-150",
                         isVariantDragging ? "opacity-65 shadow-2xl" : "",
                         isVariantOver ? "ring-2 ring-red-500/50" : "",
                       ].join(" ")}
@@ -1645,7 +1645,7 @@ export function ProductForm({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 self-start md:self-auto md:pb-1">
+                      <div className="flex items-center gap-1 self-end md:h-[42px] shrink-0">
                         <button
                           ref={setActivatorNodeRef}
                           type="button"
