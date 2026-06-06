@@ -12,6 +12,16 @@ type LightspeedSettingsResponse = {
   error?: string;
 };
 
+type LightspeedImportResponse = {
+  result?: {
+    status?: string;
+    scanned?: number;
+    applied?: number;
+    skipped?: number;
+  };
+  error?: string;
+};
+
 function getConnectionStatusLabel(input: { syncEnabled: boolean; domainPrefix: string }) {
   if (!input.syncEnabled) {
     return "Sync disabled";
@@ -27,6 +37,7 @@ function getConnectionStatusLabel(input: { syncEnabled: boolean; domainPrefix: s
 export function LightspeedSettingsPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(false);
   const [domainPrefix, setDomainPrefix] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -101,6 +112,37 @@ export function LightspeedSettingsPanel() {
     }
   };
 
+  const runImport = async () => {
+    setIsImporting(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/lightspeed/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as LightspeedImportResponse;
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to import Lightspeed products.");
+      }
+
+      const summary = data.result ?? {};
+      setMessage(
+        `Import complete. Scanned ${summary.scanned ?? 0}, applied ${summary.applied ?? 0}, skipped ${summary.skipped ?? 0}.`,
+      );
+    } catch (error) {
+      logError(error, { layer: "frontend", event: "admin_lightspeed_import" });
+      setMessage(
+        error instanceof Error ? error.message : "Failed to import Lightspeed products.",
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   if (isLoading) {
     return <div className="text-sm text-zinc-400">Loading Lightspeed settings...</div>;
   }
@@ -148,16 +190,28 @@ export function LightspeedSettingsPanel() {
 
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm text-zinc-400">{message}</span>
-          <button
-            type="button"
-            onClick={() => {
-              void save();
-            }}
-            disabled={isSaving}
-            className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-zinc-700"
-          >
-            {isSaving ? "Saving..." : "Save Lightspeed settings"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                void runImport();
+              }}
+              disabled={isImporting || !syncEnabled || !domainPrefix.trim()}
+              className="rounded border border-zinc-800/70 bg-zinc-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-zinc-900 disabled:text-zinc-500"
+            >
+              {isImporting ? "Importing..." : "Run import"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void save();
+              }}
+              disabled={isSaving}
+              className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-zinc-700"
+            >
+              {isSaving ? "Saving..." : "Save Lightspeed settings"}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -178,6 +232,10 @@ export function LightspeedSettingsPanel() {
           <p className="mt-2 text-sm text-zinc-400">
             Private token authentication is read from server env. This setting only stores
             the Lightspeed store prefix used to target the correct API host.
+          </p>
+          <p className="mt-2 text-sm text-zinc-400">
+            Use manual import on staging to pull Lightspeed products if webhook delivery is
+            not yet configured or product creation events are delayed.
           </p>
         </div>
       </aside>

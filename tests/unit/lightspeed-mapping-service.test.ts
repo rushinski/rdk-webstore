@@ -25,6 +25,31 @@ describe("LightspeedMappingService", () => {
     expect(service.toWebsiteCondition("preowned")).toBe("used");
   });
 
+  it("prefers a CUSTOM product code when the remote SKU is missing", () => {
+    expect(
+      service.extractExternalSku({
+        id: "ls-product-3",
+        sku: null,
+        product_codes: [
+          { type: "EAN", code: "ignored-code" },
+          { type: "CUSTOM", code: "N-JDN-J03-BH-01" },
+        ],
+      }),
+    ).toBe("N-JDN-J03-BH-01");
+  });
+
+  it("builds Lightspeed variant definitions with attribute ids", () => {
+    expect(
+      service.buildVariantDefinitions([
+        {
+          attributeId: "size-attribute-id",
+          name: "Size",
+          value: "11.5M / 13W",
+        },
+      ]),
+    ).toEqual([{ attribute_id: "size-attribute-id", value: "11.5M / 13W" }]);
+  });
+
   it("uses MV when multiple size labels exist", () => {
     expect(service.toRepresentativeSizeCode(["9", "10"])).toBe("MV");
   });

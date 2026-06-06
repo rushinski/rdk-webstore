@@ -4,6 +4,8 @@ import type {
   LightspeedProductResponse,
   LightspeedRemoteProduct,
   LightspeedUpdateProductPayload,
+  LightspeedVariantAttribute,
+  LightspeedVariantAttributeResponse,
 } from "@/lib/lightspeed/types";
 
 export class LightspeedClient {
@@ -58,6 +60,39 @@ export class LightspeedClient {
     });
 
     return (await response.json()) as LightspeedProductResponse;
+  }
+
+  async deleteProduct(productId: string) {
+    await this.request(`/products/${productId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async listVariantAttributes() {
+    const response = await this.request("/variant_attributes");
+    const payload = (await response.json()) as LightspeedVariantAttributeResponse;
+
+    if (Array.isArray(payload.data)) {
+      return payload.data;
+    }
+
+    return payload.data ? [payload.data] : [];
+  }
+
+  async createVariantAttribute(name: string) {
+    const response = await this.request("/variant_attributes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const payload = (await response.json()) as LightspeedVariantAttributeResponse;
+    const attribute = Array.isArray(payload.data) ? payload.data[0] : payload.data;
+
+    if (!attribute) {
+      throw new Error("Lightspeed variant attribute response was empty.");
+    }
+
+    return attribute as LightspeedVariantAttribute;
   }
 
   async listProducts(page = 1, pageSize = 50) {

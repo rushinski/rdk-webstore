@@ -92,6 +92,7 @@ export const security = {
       maxOriginLength: 512,
 
       bypassPrefixes: [
+        "/api/webhooks/lightspeed",
         "/api/webhooks/payrilla",
         "/api/webhooks/shippo",
         "/api/auth/2fa/challenge/verify",

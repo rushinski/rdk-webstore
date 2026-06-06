@@ -1,53 +1,61 @@
 import { LightspeedLinksRepository } from "@/repositories/lightspeed-links-repo";
 import { ProductRepository } from "@/repositories/product-repo";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import type { LightspeedRemoteProduct } from "@/lib/lightspeed/types";
+import { LightspeedInboundSyncService } from "@/services/lightspeed-inbound-sync-service";
 
 type LightspeedProductPayload = {
   id?: string;
+  name?: string;
   active?: boolean;
+  is_active?: boolean;
   deleted_at?: string | null;
+  updated_at?: string | null;
+  variants?: LightspeedRemoteProduct[] | null;
 };
 
 type LightspeedInventoryPayload = {
   product_id?: string;
   count?: number | string | null;
+  updated_at?: string | null;
 };
 
 export class LightspeedSaleSyncService {
   private readonly linksRepo: LightspeedLinksRepository;
   private readonly productRepo: ProductRepository;
+  private readonly inboundSyncService: LightspeedInboundSyncService;
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.linksRepo = new LightspeedLinksRepository(supabase);
     this.productRepo = new ProductRepository(supabase);
+    this.inboundSyncService = new LightspeedInboundSyncService(supabase);
   }
 
   async handleProductUpdate(tenantId: string, payload: LightspeedProductPayload) {
     if (!payload.id) {
       return;
     }
+    const remoteModifiedAt = payload.updated_at ?? new Date().toISOString();
+    const shouldDelete =
+      Boolean(payload.deleted_at) ||
+      payload.active === false ||
+      payload.is_active === false;
 
-    const links = await this.linksRepo.getByLightspeedProductId(tenantId, payload.id);
-    const productIds = [
-      ...new Set(
-        links
-          .map((link) => link.product_id)
-          .filter((productId): productId is string => Boolean(productId)),
-      ),
-    ];
-
-    if (productIds.length === 0) {
+    if (shouldDelete) {
+      await this.inboundSyncService.applyDelete({
+        tenantId,
+        lightspeedFamilyId: payload.id,
+        remoteModifiedAt,
+      });
       return;
     }
 
-    const shouldArchive = Boolean(payload.deleted_at) || payload.active === false;
-    if (!shouldArchive) {
-      return;
-    }
-
-    for (const productId of productIds) {
-      await this.productRepo.archive(productId);
-    }
+    await this.inboundSyncService.applyProductPayload({
+      tenantId,
+      payload: payload as LightspeedRemoteProduct,
+      topic: "product.update",
+      remoteModifiedAt,
+    });
   }
 
   async handleInventoryUpdate(tenantId: string, payload: LightspeedInventoryPayload) {
@@ -55,16 +63,20 @@ export class LightspeedSaleSyncService {
       return;
     }
 
-    const links = await this.linksRepo.getByLightspeedProductId(
-      tenantId,
-      payload.product_id,
-    );
-    if (links.length !== 1) {
+    const link =
+      (await this.linksRepo.getByLightspeedVariantId(tenantId, payload.product_id)) ??
+      (await this.linksRepo.getByLightspeedProductId(tenantId, payload.product_id))[0] ??
+      null;
+    const variantId = link?.variant_id;
+    if (!variantId) {
       return;
     }
 
-    const variantId = links[0].variant_id;
-    if (!variantId) {
+    const remoteModifiedAt = payload.updated_at ?? new Date().toISOString();
+    if (
+      link?.last_website_modified_at &&
+      link.last_website_modified_at > remoteModifiedAt
+    ) {
       return;
     }
 
@@ -79,6 +91,20 @@ export class LightspeedSaleSyncService {
 
     await this.productRepo.updateVariant(variantId, {
       stock: Math.max(0, numericCount),
+    });
+
+    await this.linksRepo.upsertLink({
+      tenantId,
+      productId: link?.product_id ?? null,
+      variantId,
+      externalSku: link?.external_sku ?? payload.product_id,
+      lightspeedFamilyId: link?.lightspeed_family_id ?? link?.lightspeed_product_id ?? null,
+      lightspeedProductId: link?.lightspeed_product_id ?? null,
+      lightspeedVariantId: link?.lightspeed_variant_id ?? payload.product_id,
+      lightspeedInventoryItemId: link?.lightspeed_inventory_item_id ?? null,
+      syncState: "linked",
+      lastLightspeedModifiedAt: remoteModifiedAt,
+      lastSyncDirection: "lightspeed_to_website",
     });
   }
 

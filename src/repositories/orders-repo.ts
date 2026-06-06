@@ -225,7 +225,7 @@ export class OrdersRepository {
     orderId: string,
     paymentTransactionId: string,
     itemsToDecrement: Array<{
-      productId: string;
+      productId: string | null;
       variantId: string | null;
       quantity: number;
     }>,

@@ -3,6 +3,11 @@ export type LightspeedProductCode = {
   type: "CUSTOM";
 };
 
+export type LightspeedVariantAttribute = {
+  id: string;
+  name: string;
+};
+
 export type LightspeedRemoteVariantOption = {
   name?: string | null;
   value?: string | null;
@@ -23,6 +28,7 @@ export type LightspeedRemoteImage = {
 export type LightspeedRemoteProduct = {
   id: string;
   name?: string | null;
+  updated_at?: string | null;
   variant_name?: string | null;
   description?: string | null;
   sku?: string | null;
@@ -88,6 +94,12 @@ export type NormalizedLightspeedProduct = {
 };
 
 export type LightspeedVariantDefinition = {
+  attribute_id: string;
+  value: string;
+};
+
+export type LightspeedVariantDefinitionInput = {
+  attributeId: string;
   name: string;
   value: string;
 };
@@ -112,7 +124,7 @@ export type LightspeedCreateProductPayload = {
 };
 
 export type LightspeedUpdateProductPayload = {
-  common: {
+  common?: {
     name?: string;
     description?: string;
     is_active?: boolean;
@@ -122,6 +134,10 @@ export type LightspeedUpdateProductPayload = {
     product_codes?: LightspeedProductCode[];
     price_including_tax?: number;
     is_active?: boolean;
+    inventory?: Array<{
+      current_amount: number;
+      outlet_id?: string;
+    }>;
   };
 };
 
@@ -134,3 +150,7 @@ export type LightspeedProductResponse =
   | {
       data?: string[];
     };
+
+export type LightspeedVariantAttributeResponse = {
+  data?: LightspeedVariantAttribute | LightspeedVariantAttribute[] | null;
+};

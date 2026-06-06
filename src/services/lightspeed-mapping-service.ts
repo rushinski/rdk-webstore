@@ -2,6 +2,8 @@ import { LIGHTSPEED_CONDITION_MAP } from "@/config/constants/lightspeed";
 import type {
   LightspeedRemoteProduct,
   NormalizedLightspeedProduct,
+  LightspeedVariantDefinition,
+  LightspeedVariantDefinitionInput,
 } from "@/lib/lightspeed/types";
 import type { Condition } from "@/types/domain/product";
 
@@ -69,6 +71,39 @@ export class LightspeedMappingService {
     return rawName.replace(/\s+-\s+[A-Z]-[A-Z0-9-]+$/i, "").trim();
   }
 
+  extractExternalSku(
+    record?: Pick<LightspeedRemoteProduct, "id" | "sku" | "product_codes"> | null,
+  ) {
+    if (!record) {
+      return null;
+    }
+
+    const directSku = record.sku?.trim();
+    if (directSku) {
+      return directSku;
+    }
+
+    const customCode = record.product_codes?.find(
+      (code) => code.type?.trim().toUpperCase() === "CUSTOM" && code.code?.trim(),
+    );
+
+    if (customCode?.code?.trim()) {
+      return customCode.code.trim();
+    }
+
+    const firstCode = record.product_codes?.find((code) => code.code?.trim());
+    return firstCode?.code?.trim() || null;
+  }
+
+  buildVariantDefinitions(
+    definitions: LightspeedVariantDefinitionInput[],
+  ): LightspeedVariantDefinition[] {
+    return definitions.map((definition) => ({
+      attribute_id: definition.attributeId,
+      value: definition.value,
+    }));
+  }
+
   normalizeRemoteProducts(
     records: LightspeedRemoteProduct[],
   ): NormalizedLightspeedProduct[] {
@@ -86,7 +121,10 @@ export class LightspeedMappingService {
     record: LightspeedRemoteProduct,
     parent?: LightspeedRemoteProduct,
   ): NormalizedLightspeedProduct {
-    const externalSku = this.extractSku(record) ?? this.extractSku(parent) ?? record.id;
+    const externalSku =
+      this.extractExternalSku(record) ??
+      this.extractExternalSku(parent) ??
+      record.id;
     const rawName = record.name?.trim() || parent?.name?.trim() || externalSku;
     const condition: NormalizedLightspeedProduct["condition"] = this.extractCondition(
       record,
@@ -121,22 +159,6 @@ export class LightspeedMappingService {
       isDeleted: Boolean(record.deleted_at ?? parent?.deleted_at),
       imageUrls: this.extractImages(record, parent),
     };
-  }
-
-  private extractSku(record?: LightspeedRemoteProduct | null) {
-    if (!record) {
-      return null;
-    }
-
-    const directSku = record.sku?.trim();
-    if (directSku) {
-      return directSku;
-    }
-
-    const customCode = record.product_codes
-      ?.find((code) => code.code?.trim())
-      ?.code?.trim();
-    return customCode || null;
   }
 
   private extractCondition(

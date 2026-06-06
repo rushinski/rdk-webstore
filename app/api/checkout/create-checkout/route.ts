@@ -38,6 +38,7 @@ import { AddressesRepository } from "@/repositories/addresses-repo";
 import { normalizeCardTypeLabel } from "@/lib/payments/card-brand";
 import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
+import { syncLightspeedInventoryForVariants } from "@/services/lightspeed-inventory-propagation-service";
 
 // Simple sliding-window rate limiter: max 10 checkout attempts per IP per 60 s.
 // Works for traditional Node servers. Replace with Redis for serverless/multi-instance.
@@ -778,12 +779,29 @@ export async function POST(request: NextRequest) {
     }
 
     if (didMarkPaid) {
+      const inventorySyncTimestamp = new Date().toISOString();
+
       // Sync size tags
       const productService = new ProductService(adminSupabase);
-      const orderItemProductIds = [...new Set(orderItems.map((i) => i.product_id))];
+      const orderItemProductIds = [
+        ...new Set(
+          orderItems
+            .map((item) => item.product_id)
+            .filter((productId): productId is string => typeof productId === "string"),
+        ),
+      ];
       for (const pid of orderItemProductIds) {
         await productService.syncSizeTags(pid);
       }
+
+      await syncLightspeedInventoryForVariants({
+        supabase: adminSupabase,
+        tenantId,
+        variantIds: orderItems
+          .map((item) => item.variant_id)
+          .filter((variantId): variantId is string => typeof variantId === "string"),
+        websiteModifiedAt: inventorySyncTimestamp,
+      });
 
       // Nexus tracking
       if (pricing.customerState) {

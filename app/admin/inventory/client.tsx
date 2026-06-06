@@ -13,7 +13,6 @@ import type {
   Condition,
 } from "@/types/domain/product";
 import { InventoryProductDetailsModal } from "@/components/admin/inventory/InventoryProductDetailsModal";
-import { LightspeedSyncPanel } from "@/components/admin/inventory/LightspeedSyncPanel";
 import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
@@ -416,19 +415,7 @@ export function InventoryClient({
           : "Failed to delete product.";
 
       if (response.ok) {
-        const archived =
-          payload &&
-          typeof payload === "object" &&
-          Boolean((payload as { archived?: unknown }).archived);
-
-        if (archived) {
-          showToast(
-            `${label} has existing orders and was archived instead of deleted.`,
-            "info",
-          );
-        } else {
-          showToast(`Deleted ${label}.`, "success");
-        }
+        showToast(`Deleted ${label}.`, "success");
         await loadProducts({
           q: searchQuery,
           category: categoryFilter,
@@ -598,8 +585,6 @@ export function InventoryClient({
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory</h1>
           <div className="flex items-center gap-3">
-            <LightspeedSyncPanel />
-
             <button
               type="button"
               onClick={() => void exportInventory()}
