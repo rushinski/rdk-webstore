@@ -11,7 +11,7 @@ const querySchema = z.object({
   q: z.string().optional(),
   category: z.string().optional(),
   condition: z.string().optional(),
-  stockStatus: z.enum(["in_stock", "out_of_stock", "all"]).optional(),
+  stockStatus: z.enum(["in_stock", "out_of_stock", "archived", "all"]).optional(),
 });
 
 function csvEscape(value: string) {
@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     stockStatus: (url.searchParams.get("stockStatus") ?? undefined) as
       | "in_stock"
       | "out_of_stock"
+      | "archived"
       | "all"
       | undefined,
   });
@@ -58,34 +59,22 @@ export async function GET(request: Request) {
 
   const lines: string[] = [];
   lines.push(
-    [
-      "SKU",
-      "Brand",
-      "Name",
-      "Description",
-      "Size",
-      "Category",
-      "Condition",
-      "Price",
-      "Cost",
-    ].join(","),
+    ["SKU", "Name", "Size", "Type", "Condition", "Price", "Cost", "Stock"].join(","),
   );
 
-  const formatMoney = (cents: number | null) =>
-    typeof cents === "number" ? `$${(cents / 100).toFixed(2)}` : "";
+  const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   for (const r of rows) {
     lines.push(
       [
         csvEscape(r.sku),
-        csvEscape(r.brand),
         csvEscape(r.name),
-        csvEscape(r.description),
         csvEscape(r.size),
-        csvEscape(r.category),
+        csvEscape(r.type),
         csvEscape(r.condition),
-        csvEscape(formatMoney(r.priceCents)),
-        csvEscape(formatMoney(r.costCents)),
+        csvEscape(formatMoney(r.salePriceCents)),
+        csvEscape(formatMoney(r.unitCostCents)),
+        String(r.stock),
       ].join(","),
     );
   }

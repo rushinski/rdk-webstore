@@ -78,13 +78,9 @@ export function InventoryProductDetailsModal({
   }
 
   const activeImage = images[selectedImageIndex]?.url ?? "/images/rdk-logo.png";
-  const title =
-    product.title_raw?.trim() || product.title_display || product.name || "Item";
-  const listingPrice = formatMoney(variant.price_cents / 100);
-  const costBasis =
-    variant.cost_cents !== null && variant.cost_cents !== undefined
-      ? formatMoney(variant.cost_cents / 100)
-      : "-";
+  const title = product.name || "Item";
+  const salePrice = formatMoney(variant.sale_price_cents / 100);
+  const unitCost = formatMoney(variant.unit_cost_cents / 100);
   const variantStock = variant.stock ?? 0;
 
   return (
@@ -101,7 +97,7 @@ export function InventoryProductDetailsModal({
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               <div className="text-zinc-300">
                 <span className="font-semibold text-zinc-500">SKU:</span>{" "}
-                <span className="font-mono">{product.sku || "N/A"}</span>
+                <span className="font-mono">{variant.sku || "N/A"}</span>
               </div>
               <div className="text-zinc-300">
                 <span className="font-semibold text-zinc-500">Created:</span>{" "}
@@ -157,17 +153,15 @@ export function InventoryProductDetailsModal({
               <div className="grid grid-cols-2 gap-2">
                 <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
                   <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Bought For
+                    Unit Cost
                   </div>
-                  <div className="text-base font-semibold text-zinc-100">{costBasis}</div>
+                  <div className="text-base font-semibold text-zinc-100">{unitCost}</div>
                 </div>
                 <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
                   <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Listing Price
+                    Sale Price
                   </div>
-                  <div className="text-base font-semibold text-zinc-100">
-                    {listingPrice}
-                  </div>
+                  <div className="text-base font-semibold text-zinc-100">{salePrice}</div>
                 </div>
                 <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
                   <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">

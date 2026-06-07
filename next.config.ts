@@ -35,6 +35,18 @@ const nextConfig = {
         hostname: "*.supabase.co",
         pathname: "/storage/v1/object/public/**",
       } as const,
+      {
+        protocol: "https",
+        hostname: "*.cloudfront.net",
+      } as const,
+      {
+        protocol: "https",
+        hostname: "*.fastly.net",
+      } as const,
+      {
+        protocol: "https",
+        hostname: "cdn.shoplightspeed.com",
+      } as const,
     ],
   },
 

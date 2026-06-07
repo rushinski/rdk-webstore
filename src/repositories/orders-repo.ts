@@ -14,7 +14,6 @@ export interface CreatePendingOrderInput {
   guestEmail?: string | null;
   tenantId: string;
   sellerId?: string | null;
-  marketplaceId?: string | null;
   currency: string;
   subtotal: number;
   shipping: number;
@@ -28,6 +27,13 @@ export interface CreatePendingOrderInput {
   items: Array<{
     productId: string;
     variantId: string | null;
+    variantSku: string;
+    productName: string;
+    brand: string;
+    model: string | null;
+    category: string;
+    condition: string;
+    sizeLabel: string;
     quantity: number;
     unitPrice: number;
     unitCost: number;
@@ -100,7 +106,6 @@ export class OrdersRepository {
         guest_email: input.guestEmail ?? null,
         tenant_id: input.tenantId,
         seller_id: input.sellerId ?? null,
-        marketplace_id: input.marketplaceId ?? null,
         currency: input.currency,
         subtotal: input.subtotal,
         shipping: input.shipping,
@@ -124,6 +129,13 @@ export class OrdersRepository {
       order_id: order.id,
       product_id: item.productId,
       variant_id: item.variantId,
+      variant_sku: item.variantSku,
+      product_name: item.productName,
+      brand: item.brand,
+      model: item.model,
+      category: item.category,
+      condition: item.condition,
+      size_label: item.sizeLabel,
       quantity: item.quantity,
       unit_price: item.unitPrice,
       unit_cost: item.unitCost,
@@ -213,7 +225,7 @@ export class OrdersRepository {
     orderId: string,
     paymentTransactionId: string,
     itemsToDecrement: Array<{
-      productId: string;
+      productId: string | null;
       variantId: string | null;
       quantity: number;
     }>,
@@ -275,7 +287,7 @@ export class OrdersRepository {
     let query = this.supabase
       .from("orders")
       .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_raw, title_display, category, created_at, description, sku, cost_cents, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*)",
+        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, category, created_at, description, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)), shipping:order_shipping(*)",
       )
       .order("created_at", { ascending: false });
 
@@ -335,7 +347,7 @@ export class OrdersRepository {
     let query = this.supabase
       .from("orders")
       .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, title_raw, title_display, category, created_at, description, sku, cost_cents, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, size_label, price_cents, cost_cents)), shipping:order_shipping(*), payment:payment_transactions(card_type, card_last4, payrilla_status)",
+        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, category, created_at, description, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)), shipping:order_shipping(*), payment:payment_transactions(card_type, card_last4, payrilla_status)",
         { count: "exact" },
       )
       .order("created_at", { ascending: false });
@@ -374,7 +386,7 @@ export class OrdersRepository {
     const { data, error } = await this.supabase
       .from("order_items")
       .select(
-        "*, product:products(id, name, brand, model, title_raw, title_display, category, created_at, description, sku, cost_cents, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, size_label, price_cents, cost_cents)",
+        "*, product:products(id, name, brand, model, category, created_at, description, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)",
       )
       .eq("order_id", orderId);
 
@@ -388,7 +400,7 @@ export class OrdersRepository {
     const { data, error } = await this.supabase
       .from("orders")
       .select(
-        "*, items:order_items(*, product:products(id, name, brand, model, title_raw, title_display), variant:product_variants(id, size_label, price_cents))",
+        "*, items:order_items(*, product:products(id, name, brand, model), variant:product_variants(id, sku, size_label, sale_price_cents))",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });

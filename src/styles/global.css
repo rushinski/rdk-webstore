@@ -239,3 +239,50 @@ body[data-route='admin'] main {
 .modal-scroll {
   scrollbar-gutter: stable;
 }
+
+.variant-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.variant-row__fields {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.variant-row__field {
+  min-width: 0;
+}
+
+.variant-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  align-self: flex-start;
+}
+
+@media (min-width: 640px) {
+  .variant-row {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .variant-row__fields {
+    grid-template-columns: minmax(0, 7rem) minmax(0, 8rem) minmax(0, 6.5rem) minmax(0, 6.5rem) minmax(0, 4.5rem);
+    gap: 0.75rem;
+  }
+
+  .variant-row__actions {
+    align-self: center;
+  }
+}
+
+@media (min-width: 1280px) {
+  .variant-row__fields {
+    grid-template-columns: minmax(0, 8rem) minmax(0, 10rem) minmax(0, 7.5rem) minmax(0, 7.5rem) minmax(0, 5rem);
+  }
+}

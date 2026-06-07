@@ -1,9 +1,10 @@
 // app/too-many-requests/page.tsx
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function TooManyRequestsPage() {
+function TooManyRequestsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -54,5 +55,13 @@ export default function TooManyRequestsPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function TooManyRequestsPage() {
+  return (
+    <Suspense fallback={null}>
+      <TooManyRequestsContent />
+    </Suspense>
   );
 }

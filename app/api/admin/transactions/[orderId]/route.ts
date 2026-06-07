@@ -35,14 +35,14 @@ export async function GET(
         *,
         profiles!user_id(email, full_name),
         items:order_items(
-          id, quantity, unit_price, unit_cost, line_total, refund_amount, refunded_at,
+          id, product_name, brand, model, category, condition, variant_sku, size_label,
+          quantity, unit_price, unit_cost, line_total, refund_amount, refunded_at,
           product:products(
-            id, name, brand, model, title_display, title_raw, category,
-            sku, cost_cents, description, created_at,
+            id, name, brand, model, category, description, created_at,
             images:product_images(url, is_primary, sort_order),
             tags:product_tags(tag:tags(label, group_key))
           ),
-          variant:product_variants(id, size_label, price_cents, cost_cents)
+          variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)
         ),
         shipping_address:order_shipping(*)
         `,

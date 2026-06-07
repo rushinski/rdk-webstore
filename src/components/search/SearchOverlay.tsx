@@ -15,12 +15,10 @@ interface SearchOverlayProps {
 
 type SearchResult = {
   id: string;
-  title_raw?: string | null;
-  title_display?: string | null;
   name?: string | null;
   brand?: string | null;
   images?: Array<{ url?: string | null }> | null;
-  variants?: Array<{ price_cents?: number | null }> | null;
+  variants?: Array<{ sale_price_cents?: number | null }> | null;
 };
 
 export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
@@ -104,10 +102,7 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           <div className="space-y-2">
             <p className="text-gray-400 text-sm mb-3">Likely matches</p>
             {results.map((product) => {
-              const displayTitle =
-                product.title_raw ??
-                product.title_display ??
-                `${product.brand ?? ""} ${product.name ?? ""}`.trim();
+              const displayTitle = product.name ?? "";
 
               return (
                 <button
@@ -134,7 +129,10 @@ export function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
                     </h3>
                   </div>
                   <div className="text-white font-bold">
-                    ${(Number(product.variants?.[0]?.price_cents ?? 0) / 100).toFixed(2)}
+                    $
+                    {(Number(product.variants?.[0]?.sale_price_cents ?? 0) / 100).toFixed(
+                      2,
+                    )}
                   </div>
                 </button>
               );

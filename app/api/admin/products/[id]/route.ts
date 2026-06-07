@@ -8,10 +8,12 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
-import { ProductService } from "@/services/product-service";
+import { ProductService, type ProductCreateInput } from "@/services/product-service";
+import { LightspeedProductSyncService } from "@/services/lightspeed-product-sync-service";
 import { productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
+import type { ProductWithDetails } from "@/types/domain/product";
 
 const extractErrorMessage = (error: unknown): string | null => {
   if (error instanceof Error && error.message) {
@@ -58,6 +60,37 @@ const paramsSchema = z.object({
   id: z.string().uuid(),
 });
 
+function toProductWriteInput(product: ProductWithDetails): ProductCreateInput {
+  return {
+    name: product.name,
+    category: product.category,
+    condition: product.condition,
+    size_type: product.size_type,
+    description: product.description ?? undefined,
+    shipping_price_cents: product.shipping_price_cents ?? null,
+    go_live_at: product.go_live_at ?? undefined,
+    variants: product.variants.map((variant) => ({
+      id: variant.id,
+      sku: variant.sku,
+      size_label: variant.size_label,
+      sale_price_cents: variant.sale_price_cents,
+      stock: variant.stock,
+      unit_cost_cents: variant.unit_cost_cents ?? 0,
+      sort_order: variant.sort_order ?? 0,
+    })),
+    images: product.images.map((image) => ({
+      url: image.url,
+      sort_order: image.sort_order,
+      is_primary: image.is_primary,
+    })),
+    tags: product.tags.map((tag) => ({
+      label: tag.label,
+      group_key: tag.group_key,
+    })),
+    excluded_auto_tag_keys: product.excluded_auto_tag_keys ?? [],
+  };
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -78,6 +111,51 @@ export async function PATCH(
       );
     }
 
+    const tenantId = await ensureTenantId(session, supabase);
+    const action = request.nextUrl.searchParams.get("action");
+
+    if (action === "archive") {
+      const result = await service.archiveProduct(paramsParsed.data.id, tenantId);
+
+      try {
+        revalidateTag(`product:${paramsParsed.data.id}`, "max");
+        revalidateTag("products:list", "max");
+      } catch (cacheError) {
+        logError(cacheError, {
+          layer: "cache",
+          requestId,
+          route: "/api/admin/products/:id?action=archive",
+          event: "cache_revalidate_failed",
+          productId: paramsParsed.data.id,
+        });
+      }
+
+      return NextResponse.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
+    if (action === "restore") {
+      const result = await service.restoreProduct(paramsParsed.data.id, tenantId);
+
+      try {
+        revalidateTag(`product:${paramsParsed.data.id}`, "max");
+        revalidateTag("products:list", "max");
+      } catch (cacheError) {
+        logError(cacheError, {
+          layer: "cache",
+          requestId,
+          route: "/api/admin/products/:id?action=restore",
+          event: "cache_revalidate_failed",
+          productId: paramsParsed.data.id,
+        });
+      }
+
+      return NextResponse.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
     const body = await request.json().catch(() => null);
     const parsed = productCreateSchema.safeParse(body);
     if (!parsed.success) {
@@ -88,14 +166,42 @@ export async function PATCH(
     }
     const payload = {
       ...parsed.data,
-      condition_note: parsed.data.condition_note ?? undefined,
       description: parsed.data.description ?? undefined,
+      shipping_price_cents: parsed.data.shipping_price_cents ?? null,
     };
-    const tenantId = await ensureTenantId(session, supabase);
+    const previousProduct = await service.getProductById(paramsParsed.data.id, {
+      tenantId,
+      includeOutOfStock: true,
+      includeUnpublished: true,
+      archivedStatus: "all",
+    });
+    if (!previousProduct) {
+      return NextResponse.json(
+        { error: "Product not found", requestId },
+        { status: 404, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const product = await service.updateProduct(paramsParsed.data.id, payload, {
       userId: session.user.id,
       tenantId,
     });
+    const lightspeedSyncService = new LightspeedProductSyncService(supabase);
+
+    try {
+      await lightspeedSyncService.syncWebsiteProduct(product.id, {
+        tenantId,
+        source: "update",
+      });
+    } catch (syncError) {
+      await service
+        .updateProduct(paramsParsed.data.id, toProductWriteInput(previousProduct), {
+          userId: session.user.id,
+          tenantId,
+        })
+        .catch(() => undefined);
+      throw syncError;
+    }
 
     try {
       revalidateTag(`product:${product.id}`, "max");
@@ -134,7 +240,7 @@ export async function DELETE(
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    await requireAdminApi();
+    const session = await requireAdminApi();
     const supabase = await createSupabaseServerClient();
     const { id } = await params;
     const paramsParsed = paramsSchema.safeParse({ id });
@@ -146,6 +252,12 @@ export async function DELETE(
     }
 
     const service = new ProductService(supabase);
+    const tenantId = await ensureTenantId(session, supabase);
+    const lightspeedSyncService = new LightspeedProductSyncService(supabase);
+    await lightspeedSyncService.deleteWebsiteProduct({
+      tenantId,
+      productId: paramsParsed.data.id,
+    });
     const result = await service.deleteProduct(paramsParsed.data.id);
 
     try {
@@ -175,7 +287,7 @@ export async function DELETE(
       return NextResponse.json(
         {
           error:
-            "Cannot delete this product because it is referenced by existing orders. Archive it instead.",
+            "Cannot delete this product because it is referenced by existing orders.",
           requestId,
         },
         { status: 409, headers: { "Cache-Control": "no-store" } },

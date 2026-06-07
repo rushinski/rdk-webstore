@@ -1,7 +1,7 @@
 // app/admin/chats/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Send, XCircle } from "lucide-react";
 
@@ -35,7 +35,7 @@ type ChatMessage = {
   created_at: string;
 };
 
-export default function AdminChatsPage() {
+function AdminChatsContent() {
   const searchParams = useSearchParams();
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -483,5 +483,13 @@ export default function AdminChatsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminChatsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AdminChatsContent />
+    </Suspense>
   );
 }

@@ -6,6 +6,7 @@ import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
+import { syncLightspeedInventoryForVariants } from "@/services/lightspeed-inventory-propagation-service";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import type { Tables } from "@/types/db/database.types";
 import { env } from "@/config/env";
@@ -455,6 +456,16 @@ export class OrdersService {
       }
 
       if (didMarkPaid) {
+        if (order.tenant_id) {
+          await syncLightspeedInventoryForVariants({
+            supabase: this.adminSupabase,
+            tenantId: order.tenant_id,
+            variantIds: orderItems
+              .map((item) => item.variant_id)
+              .filter((variantId): variantId is string => typeof variantId === "string"),
+          });
+        }
+
         const hasPaidEvent = await this.adminEventsRepo.hasEvent(order.id, "paid");
         if (!hasPaidEvent) {
           await this.adminEventsRepo.insertEvent({

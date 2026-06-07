@@ -15,8 +15,6 @@ export type FeaturedItemWithProduct = FeaturedItemRow & {
     name: string;
     brand: string;
     model: string | null;
-    title_raw: string | null;
-    title_display: string;
     category: string;
     is_active: boolean;
     is_out_of_stock: boolean;
@@ -28,7 +26,7 @@ export type FeaturedItemWithProduct = FeaturedItemRow & {
     variants?: Array<{
       id: string;
       size_label: string;
-      price_cents: number;
+      sale_price_cents: number;
       stock: number;
     }>;
   };
@@ -69,13 +67,11 @@ export class FeaturedItemsRepository {
           name,
           brand,
           model,
-          title_raw,
-          title_display,
           category,
           is_active,
           is_out_of_stock,
           images:product_images(url, is_primary, sort_order),
-          variants:product_variants(id, size_label, price_cents, stock)
+          variants:product_variants(id, size_label, sale_price_cents, stock)
         )
       `,
       )

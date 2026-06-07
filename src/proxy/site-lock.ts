@@ -1,16 +1,12 @@
-// src/proxy/site-lock.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { security, startsWithAny } from "@/config/security";
 import { verifyAdminSessionToken } from "@/lib/http/admin-session";
-
-const SITE_UNLOCKS_AT_ISO: string | null = "2026-02-05T20:00:00-05:00";
-
-function parseUnlockAt(iso: string): Date | null {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
+import { createSupabaseProxyClient } from "@/lib/supabase/proxy";
+import { logError } from "@/lib/utils/log";
+import { TenantRepository } from "@/repositories/tenant-repo";
+import { StoreAccessSettingsService } from "@/services/store-access-settings-service";
 
 function isApiPath(pathname: string) {
   return pathname.startsWith("/api");
@@ -24,25 +20,51 @@ async function awaitMaybeVerify(token: string) {
   }
 }
 
+async function getLockSettings(request: NextRequest) {
+  const supabase = createSupabaseProxyClient(request);
+  const tenantRepo = new TenantRepository(supabase);
+  const tenantId = await tenantRepo.getFirstTenantId();
+
+  if (!tenantId) {
+    return null;
+  }
+
+  const service = new StoreAccessSettingsService(supabase);
+  const settings = await service.getSettings(tenantId);
+
+  return { service, settings };
+}
+
 export async function checkSiteLock(
   request: NextRequest,
   requestId: string,
 ): Promise<NextResponse | null> {
   const { pathname, search } = request.nextUrl;
+  let lockSettings: Awaited<ReturnType<typeof getLockSettings>>;
 
-  if (!SITE_UNLOCKS_AT_ISO) {
+  try {
+    lockSettings = await getLockSettings(request);
+  } catch (error) {
+    logError(error, {
+      layer: "proxy",
+      requestId,
+      route: pathname,
+      message: "site_lock_settings_lookup_failed",
+    });
     return null;
   }
 
-  const unlockAt = parseUnlockAt(SITE_UNLOCKS_AT_ISO);
-  if (!unlockAt) {
+  if (!lockSettings) {
     return null;
   }
 
-  const now = new Date();
-  if (now.getTime() >= unlockAt.getTime()) {
+  const { service, settings } = lockSettings;
+
+  if (!service.isSiteLocked(settings)) {
     return null;
   }
+
+  const unlockAt = settings.siteUnlockAt ? new Date(settings.siteUnlockAt) : null;
 
   const allowPrefixes = [
     "/locked",
@@ -57,7 +79,6 @@ export async function checkSiteLock(
     return null;
   }
 
-  // Admin bypass (valid admin session cookie)
   const adminCookieValue = request.cookies.get(
     security.proxy.adminSession.cookieName,
   )?.value;
@@ -73,7 +94,7 @@ export async function checkSiteLock(
       {
         ok: false,
         error: "Site is locked",
-        unlocksAt: unlockAt.toISOString(),
+        unlocksAt: unlockAt?.toISOString() ?? null,
         requestId,
       },
       { status: 423, headers: { "Cache-Control": "no-store" } },
@@ -83,7 +104,6 @@ export async function checkSiteLock(
   const accept = request.headers.get("accept") || "";
   const isHtmlNav = accept.includes("text/html");
 
-  // If it's not an HTML navigation, don't lock it (assets, images, many fetches)
   if (!isHtmlNav) {
     return null;
   }

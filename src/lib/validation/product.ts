@@ -2,17 +2,19 @@
 import { z } from "zod";
 
 const CATEGORY_VALUES = ["sneakers", "clothing", "accessories", "electronics"] as const;
+// Website condition values stay as-is; outbound Lightspeed sync maps "used" to "preowned".
 const CONDITION_VALUES = ["new", "used"] as const;
-const STOCK_STATUS_VALUES = ["in_stock", "out_of_stock", "all"] as const;
+const SIZE_TYPE_VALUES = ["shoe", "clothing", "custom", "none"] as const;
+const STOCK_STATUS_VALUES = ["in_stock", "out_of_stock", "archived", "all"] as const;
 
 const variantSchema = z
   .object({
     id: z.string().uuid().optional(),
-    size_type: z.string().trim().min(1),
+    sku: z.string().trim().min(1).optional(),
     size_label: z.string().trim().min(1),
-    price_cents: z.number().int().nonnegative(),
+    sale_price_cents: z.number().int().nonnegative(),
     stock: z.number().int().nonnegative(),
-    cost_cents: z.number().int().nonnegative().optional().nullable(),
+    unit_cost_cents: z.number().int().nonnegative().optional(),
     sort_order: z.number().int().nonnegative().optional(),
   })
   .strict();
@@ -58,14 +60,14 @@ const includeOutOfStockSchema = z.preprocess((value) => {
 
 export const productCreateSchema = z
   .object({
-    title_raw: z.string().trim().min(1),
+    name: z.string().trim().min(1),
     brand_override_id: z.string().uuid().nullable().optional(),
     model_override_id: z.string().uuid().nullable().optional(),
     category: z.enum(CATEGORY_VALUES),
     condition: z.enum(CONDITION_VALUES),
-    condition_note: z.string().trim().min(1).nullable().optional(),
+    size_type: z.enum(SIZE_TYPE_VALUES),
     description: z.string().trim().min(1).nullable().optional(),
-    shipping_override_cents: z.number().int().nonnegative().optional(),
+    shipping_price_cents: z.number().int().nonnegative().nullable().optional(),
     variants: z.array(variantSchema).min(1),
     images: z.array(imageSchema).min(1),
     go_live_at: z.string().datetime({ offset: true }).optional(),

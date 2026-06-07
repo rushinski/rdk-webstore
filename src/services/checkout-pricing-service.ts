@@ -121,11 +121,15 @@ export class CheckoutPricingService {
         titleDisplay: string;
         brand: string;
         name: string;
+        model: string | null;
         category: string;
+        condition: string;
+        shippingPriceCents: number | null;
         variants: Array<{
           id: string;
-          priceCents: number;
-          costCents: number | null;
+          sku: string;
+          salePriceCents: number;
+          unitCostCents: number;
           stock: number;
           sizeLabel: string;
         }>;
@@ -156,12 +160,14 @@ export class CheckoutPricingService {
         );
       }
 
-      const unitPrice = Number(variant.priceCents ?? 0) / 100;
-      const unitCost = Number(variant.costCents ?? 0) / 100;
+      const unitPrice = Number(variant.salePriceCents ?? 0) / 100;
+      const unitCost = Number(variant.unitCostCents ?? 0) / 100;
 
       return {
         productId: item.productId,
         variantId: item.variantId,
+        variantSku: variant.sku,
+        sizeLabel: variant.sizeLabel,
         quantity: item.quantity,
         unitPrice,
         unitCost,
@@ -169,7 +175,10 @@ export class CheckoutPricingService {
         titleDisplay: product.titleDisplay,
         brand: product.brand,
         name: product.name,
+        model: product.model,
         category: product.category,
+        condition: product.condition,
+        shippingPriceCents: product.shippingPriceCents,
       };
     });
   }
@@ -196,7 +205,10 @@ export class CheckoutPricingService {
 
     let shipping = 0;
     if (fulfillment === "ship") {
-      const costs = lineItems.map((li) => (shippingMap.get(li.category) ?? 0) / 100);
+      const costs = lineItems.map((li) => {
+        const categoryDefault = shippingMap.get(li.category) ?? 0;
+        return (li.shippingPriceCents ?? categoryDefault) / 100;
+      });
       shipping = Math.max(...costs, 0);
     }
 

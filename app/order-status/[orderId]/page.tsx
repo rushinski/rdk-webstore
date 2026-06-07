@@ -1,14 +1,14 @@
 // app/order-status/[orderId]/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import { OrderStatusView } from "@/components/orders/OrderStatusView";
 
-export default function OrderStatusPage() {
+function OrderStatusContent() {
   const router = useRouter();
   const params = useParams<{ orderId: string }>();
   const searchParams = useSearchParams();
@@ -78,4 +78,18 @@ export default function OrderStatusPage() {
   }
 
   return <OrderStatusView status={status} />;
+}
+
+export default function OrderStatusPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
+          <Loader2 className="w-16 h-16 text-red-600 mx-auto animate-spin" />
+        </div>
+      }
+    >
+      <OrderStatusContent />
+    </Suspense>
+  );
 }

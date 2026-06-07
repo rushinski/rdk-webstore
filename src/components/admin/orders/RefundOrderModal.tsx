@@ -38,9 +38,7 @@ const formatMoney = (value: number) =>
   }).format(value);
 
 const getItemTitle = (item: AdminOrderItem) =>
-  (item.product?.title_display ??
-    `${item.product?.brand ?? ""} ${item.product?.name ?? ""}`.trim()) ||
-  "Item";
+  item.product_name ?? item.product?.name ?? "Item";
 
 const getItemImage = (item: AdminOrderItem) => {
   const images = item.product?.images ?? [];
@@ -253,8 +251,8 @@ export function RefundOrderModal({
                           {getItemTitle(item)}
                         </div>
                         <div className="text-xs text-zinc-500">
-                          Size {item.variant?.size_label ?? "N/A"} · Qty{" "}
-                          {Number(item.quantity ?? 0)}
+                          Size {item.size_label ?? item.variant?.size_label ?? "N/A"} ·
+                          Qty {Number(item.quantity ?? 0)}
                         </div>
                       </div>
                       <div className="text-right shrink-0">

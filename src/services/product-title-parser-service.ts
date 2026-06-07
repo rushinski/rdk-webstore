@@ -12,6 +12,15 @@ import {
 
 export class ProductTitleParserService {
   private catalogRepo: CatalogRepository;
+  private catalogCache = new Map<
+    string,
+    Promise<{
+      brandAliases: CatalogBrandAlias[];
+      modelAliasesByBrand: Record<string, CatalogModelAlias[]>;
+      modelAliasesAll: CatalogModelAlias[];
+      preferredBrandIds: Set<string>;
+    }>
+  >();
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.catalogRepo = new CatalogRepository(supabase);
@@ -21,7 +30,26 @@ export class ProductTitleParserService {
     input: TitleParseInput & { tenantId?: string | null },
   ): Promise<TitleParseResult> {
     const tenantId = input.tenantId ?? null;
+    const cacheKey = tenantId ?? "__global__";
 
+    let catalogPromise = this.catalogCache.get(cacheKey);
+    if (!catalogPromise) {
+      catalogPromise = this.loadCatalog(tenantId);
+      this.catalogCache.set(cacheKey, catalogPromise);
+    }
+
+    const { brandAliases, modelAliasesByBrand, modelAliasesAll, preferredBrandIds } =
+      await catalogPromise;
+
+    return parseTitleWithCatalog(input, {
+      brandAliases,
+      modelAliasesByBrand,
+      modelAliasesAll,
+      preferredBrandIds,
+    });
+  }
+
+  private async loadCatalog(tenantId: string | null) {
     const [brands, brandAliases, models, modelAliases] = await Promise.all([
       this.catalogRepo.listBrandsWithGroups(tenantId),
       this.catalogRepo.listBrandAliases(tenantId),
@@ -134,11 +162,11 @@ export class ProductTitleParserService {
       modelAliasesByBrand[alias.brandId].push(alias);
     }
 
-    return parseTitleWithCatalog(input, {
+    return {
       brandAliases: brandAliasEntries,
       modelAliasesByBrand,
       modelAliasesAll: modelAliasEntries,
       preferredBrandIds,
-    });
+    };
   }
 }

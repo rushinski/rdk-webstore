@@ -36,16 +36,20 @@ type DetailedOrderItemRow = {
   quantity: number;
   unit_price?: number | null;
   line_total: number;
+  product_name?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  category?: string | null;
+  variant_sku?: string | null;
+  size_label?: string | null;
   product: {
     name?: string | null;
     brand?: string | null;
     model?: string | null;
     category?: string | null;
-    sku?: string | null;
-    title_display?: string | null;
     images?: ProductImageRow[] | null;
   } | null;
-  variant: { size_label?: string | null } | null;
+  variant: { sku?: string | null; size_label?: string | null } | null;
 };
 
 const safeHttpsUrl = (value?: string | null) => {
@@ -82,20 +86,20 @@ const pickPrimaryImage = (images?: ProductImageRow[] | null) => {
 const mapOrderItemsToEmailItems = (rows: DetailedOrderItemRow[]): OrderItemEmail[] =>
   rows.map((row) => {
     const product = row.product;
-    const title = product?.title_display ?? product?.name ?? "Item";
+    const title = row.product_name ?? product?.name ?? "Item";
 
     return {
       title,
-      sizeLabel: row.variant?.size_label ?? null,
+      sizeLabel: row.size_label ?? row.variant?.size_label ?? null,
       quantity: row.quantity,
       unitPrice: row.unit_price ?? 0,
       lineTotal: row.line_total,
 
       imageUrl: pickPrimaryImage(product?.images ?? null),
-      brand: product?.brand ?? null,
-      model: product?.model ?? null,
-      category: product?.category ?? null,
-      sku: product?.sku ?? null,
+      brand: row.brand ?? product?.brand ?? null,
+      model: row.model ?? product?.model ?? null,
+      category: row.category ?? product?.category ?? null,
+      sku: row.variant_sku ?? row.variant?.sku ?? null,
     };
   });
 
