@@ -1915,6 +1915,7 @@ export type Database = {
       };
       products: {
         Row: {
+          archived_at: string | null;
           brand: string;
           category: string;
           condition: string;
@@ -1933,6 +1934,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          archived_at?: string | null;
           brand: string;
           category: string;
           condition: string;
@@ -1951,6 +1953,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          archived_at?: string | null;
           brand?: string;
           category?: string;
           condition?: string;

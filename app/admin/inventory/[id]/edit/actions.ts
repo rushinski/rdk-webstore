@@ -24,6 +24,7 @@ export async function getEditFormInitialData(productId: string) {
         tenantId,
         includeOutOfStock: true,
         includeUnpublished: true,
+        archivedStatus: "all",
       }),
       shippingDefaultsService.list(tenantId),
       catalogRepo.listBrandsWithGroups(tenantId),

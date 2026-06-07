@@ -11,7 +11,7 @@ const querySchema = z.object({
   q: z.string().optional(),
   category: z.string().optional(),
   condition: z.string().optional(),
-  stockStatus: z.enum(["in_stock", "out_of_stock", "all"]).optional(),
+  stockStatus: z.enum(["in_stock", "out_of_stock", "archived", "all"]).optional(),
 });
 
 function csvEscape(value: string) {
@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     stockStatus: (url.searchParams.get("stockStatus") ?? undefined) as
       | "in_stock"
       | "out_of_stock"
+      | "archived"
       | "all"
       | undefined,
   });

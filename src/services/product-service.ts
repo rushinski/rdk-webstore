@@ -58,11 +58,12 @@ export class ProductService {
   }
 
   async exportInventory(filters: ProductFilters): Promise<InventoryExportRow[]> {
-    return this.repo.exportInventoryRows(filters);
+    const normalized = this.normalizeArchiveFilters(filters);
+    return this.repo.exportInventoryRows(normalized);
   }
 
   async listProducts(filters: ProductFilters) {
-    return this.repo.list(filters);
+    return this.repo.list(this.normalizeArchiveFilters(filters));
   }
 
   async getProductById(
@@ -71,11 +72,13 @@ export class ProductService {
       tenantId: string;
       includeOutOfStock?: boolean;
       includeUnpublished?: boolean;
+      archivedStatus?: "active" | "archived" | "all";
     },
   ): Promise<ProductWithDetails | null> {
     const product = await this.repo.getById(productId, {
       includeOutOfStock: options.includeOutOfStock,
       includeUnpublished: options.includeUnpublished,
+      archivedStatus: options.archivedStatus,
     });
 
     if (!product || product.tenant_id !== options.tenantId) {
@@ -165,12 +168,16 @@ export class ProductService {
     const existing = await this.repo.getById(productId, {
       includeOutOfStock: true,
       includeUnpublished: true,
+      archivedStatus: "all",
     });
     if (!existing) {
       throw new Error("Product not found");
     }
     if (!input.name?.trim()) {
       throw new Error("Product title is required.");
+    }
+    if (existing.archived_at) {
+      throw new Error("Archived products are read-only until restored.");
     }
 
     const normalizedVariants = this.normalizeVariantSortOrder(input.variants);
@@ -424,6 +431,217 @@ export class ProductService {
   async deleteProduct(productId: string): Promise<{ archived: boolean }> {
     await this.repo.delete(productId);
     return { archived: false };
+  }
+
+  async archiveProduct(productId: string, tenantId: string) {
+    const existing = await this.repo.getById(productId, {
+      tenantId,
+      includeOutOfStock: true,
+      includeUnpublished: true,
+      archivedStatus: "all",
+    });
+
+    if (!existing) {
+      throw new Error("Product not found");
+    }
+
+    if (existing.archived_at) {
+      return { archived: true };
+    }
+
+    await this.repo.archive(productId);
+    return { archived: true };
+  }
+
+  async restoreProduct(productId: string, tenantId: string) {
+    const existing = await this.repo.getById(productId, {
+      tenantId,
+      includeOutOfStock: true,
+      includeUnpublished: true,
+      archivedStatus: "all",
+    });
+
+    if (!existing) {
+      throw new Error("Product not found");
+    }
+
+    if (!existing.archived_at) {
+      return { restored: true };
+    }
+
+    await this.repo.restore(productId);
+    return { restored: true };
+  }
+
+  async archiveProductsByIds(productIds: string[], tenantId: string) {
+    const uniqueIds = [...new Set(productIds.filter(Boolean))];
+    if (uniqueIds.length === 0) {
+      return { archivedCount: 0 };
+    }
+
+    const allowedIds: string[] = [];
+    for (const productId of uniqueIds) {
+      const product = await this.repo.getById(productId, {
+        tenantId,
+        includeOutOfStock: true,
+        includeUnpublished: true,
+        archivedStatus: "all",
+      });
+
+      if (product && !product.archived_at) {
+        allowedIds.push(productId);
+      }
+    }
+
+    const archivedCount = await this.repo.archiveMany(allowedIds);
+    return { archivedCount };
+  }
+
+  async restoreProductsByIds(productIds: string[], tenantId: string) {
+    const uniqueIds = [...new Set(productIds.filter(Boolean))];
+    if (uniqueIds.length === 0) {
+      return { restoredCount: 0 };
+    }
+
+    const allowedIds: string[] = [];
+    for (const productId of uniqueIds) {
+      const product = await this.repo.getById(productId, {
+        tenantId,
+        includeOutOfStock: true,
+        includeUnpublished: true,
+        archivedStatus: "all",
+      });
+
+      if (product?.archived_at) {
+        allowedIds.push(productId);
+      }
+    }
+
+    const restoredCount = await this.repo.restoreMany(allowedIds);
+    return { restoredCount };
+  }
+
+  async archiveProductsByFilters(
+    tenantId: string,
+    filters: {
+      q?: string;
+      category?: string[];
+      condition?: string[];
+      stockStatus?: "in_stock" | "out_of_stock" | "archived" | "all";
+    },
+  ) {
+    const ids = await this.repo.listIds({
+      tenantId,
+      q: filters.q,
+      category: filters.category,
+      condition: filters.condition,
+      stockStatus: filters.stockStatus,
+      includeOutOfStock: true,
+      searchMode: "inventory",
+      archivedStatus: "active",
+    });
+
+    const archivedCount = await this.repo.archiveMany(ids);
+    return { archivedCount };
+  }
+
+  async restoreProductsByFilters(
+    tenantId: string,
+    filters: {
+      q?: string;
+      category?: string[];
+      condition?: string[];
+      stockStatus?: "in_stock" | "out_of_stock" | "archived" | "all";
+    },
+  ) {
+    const ids = await this.repo.listIds({
+      tenantId,
+      q: filters.q,
+      category: filters.category,
+      condition: filters.condition,
+      stockStatus: filters.stockStatus === "archived" ? "all" : filters.stockStatus,
+      includeOutOfStock: true,
+      searchMode: "inventory",
+      archivedStatus: "archived",
+    });
+
+    const restoredCount = await this.repo.restoreMany(ids);
+    return { restoredCount };
+  }
+
+  async deleteProductsByIds(
+    productIds: string[],
+    tenantId: string,
+    options?: {
+      onBeforeDelete?: (productId: string) => Promise<void>;
+    },
+  ) {
+    const uniqueIds = [...new Set(productIds.filter(Boolean))];
+    let deletedCount = 0;
+    let failedCount = 0;
+
+    for (const productId of uniqueIds) {
+      const product = await this.repo.getById(productId, {
+        tenantId,
+        includeOutOfStock: true,
+        includeUnpublished: true,
+        archivedStatus: "all",
+      });
+
+      if (!product) {
+        failedCount += 1;
+        continue;
+      }
+
+      try {
+        await options?.onBeforeDelete?.(productId);
+        await this.deleteProduct(productId);
+        deletedCount += 1;
+      } catch {
+        failedCount += 1;
+      }
+    }
+
+    return { deletedCount, failedCount };
+  }
+
+  async deleteProductsByFilters(
+    tenantId: string,
+    filters: {
+      q?: string;
+      category?: string[];
+      condition?: string[];
+      stockStatus?: "in_stock" | "out_of_stock" | "archived" | "all";
+    },
+    options?: {
+      onBeforeDelete?: (productId: string) => Promise<void>;
+    },
+  ) {
+    const normalizedFilters = this.normalizeArchiveFilters({
+      tenantId,
+      q: filters.q,
+      category: filters.category,
+      condition: filters.condition,
+      stockStatus: filters.stockStatus,
+      includeOutOfStock: true,
+      searchMode: "inventory",
+      archivedStatus: filters.stockStatus === "archived" ? "archived" : "active",
+    });
+
+    const ids = await this.repo.listIds(normalizedFilters);
+    return this.deleteProductsByIds(ids, tenantId, options);
+  }
+
+  private normalizeArchiveFilters(filters: ProductFilters): ProductFilters {
+    if (filters.stockStatus !== "archived") {
+      return filters;
+    }
+
+    return {
+      ...filters,
+      stockStatus: "all",
+      archivedStatus: "archived",
+    };
   }
 
   private async assignVariantSkus(

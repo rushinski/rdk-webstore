@@ -13,7 +13,8 @@ export interface ProductFilters {
   sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
   page?: number;
   limit?: number;
-  stockStatus?: "in_stock" | "out_of_stock" | "all";
+  stockStatus?: "in_stock" | "out_of_stock" | "archived" | "all";
+  archivedStatus?: "active" | "archived" | "all";
   includeOutOfStock?: boolean;
 
   tenantId?: string;
@@ -81,6 +82,7 @@ type VariantUpdate = TablesUpdate<"product_variants">;
 type ImageInsert = TablesInsert<"product_images">;
 
 type TagInsert = TablesInsert<"tags">;
+const BULK_MUTATION_BATCH_SIZE = 100;
 
 // Helper types for query results
 type FilterDataRow = {
@@ -160,6 +162,18 @@ export class ProductRepository {
 
   private readonly inventorySearchFields = ["brand", "name", "model"];
 
+  private applyArchivedFilter<
+    T extends { is: (column: string, value: null) => T; not: (column: string, operator: string, value: null) => T },
+  >(query: T, archivedStatus: ProductFilters["archivedStatus"] = "active"): T {
+    if (archivedStatus === "archived") {
+      return query.not("archived_at", "is", null);
+    }
+    if (archivedStatus === "all") {
+      return query;
+    }
+    return query.is("archived_at", null);
+  }
+
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
     const includeOutOfStock = Boolean(filters.includeOutOfStock);
 
@@ -173,6 +187,11 @@ export class ProductRepository {
     // Tenant scoping (admin inventory is tenant-scoped)
     if (filters.tenantId) {
       query = query.eq("product.tenant_id", filters.tenantId);
+    }
+    if (filters.archivedStatus === "archived") {
+      query = query.not("product.archived_at", "is", null);
+    } else if (filters.archivedStatus !== "all") {
+      query = query.is("product.archived_at", null);
     }
 
     // Stock filters: match the inventory UI semantics
@@ -241,6 +260,7 @@ export class ProductRepository {
 
   async list(filters: ProductFilters = {}) {
     const { page = 1, limit = 20, sort = "newest", searchMode = "storefront" } = filters;
+    const archivedStatus = filters.archivedStatus ?? "active";
     const offset = (page - 1) * limit;
     const isPriceSort = sort === "price_asc" || sort === "price_desc";
     const includeUnpublished = searchMode === "inventory";
@@ -280,6 +300,7 @@ export class ProductRepository {
       let baseQuery = this.supabase.from("products").select("id", { count: "exact" });
 
       baseQuery = baseQuery.eq("is_active", true);
+      baseQuery = this.applyArchivedFilter(baseQuery, archivedStatus);
 
       if (!includeUnpublished) {
         baseQuery = baseQuery.lte("go_live_at", nowIso);
@@ -370,6 +391,7 @@ export class ProductRepository {
       )
       .in("id", ids)
       .eq("is_active", true);
+    detailQuery = this.applyArchivedFilter(detailQuery, archivedStatus);
 
     if (!includeUnpublished) {
       detailQuery = detailQuery.lte("go_live_at", nowIso);
@@ -425,10 +447,64 @@ export class ProductRepository {
     };
   }
 
+  async listIds(filters: ProductFilters = {}): Promise<string[]> {
+    const includeUnpublished = filters.searchMode === "inventory";
+    const nowIso = new Date().toISOString();
+    const includeOutOfStock = Boolean(filters.includeOutOfStock);
+    const archivedStatus = filters.archivedStatus ?? "active";
+    const searchFields =
+      filters.searchMode === "inventory"
+        ? this.inventorySearchFields
+        : this.storefrontSearchFields;
+
+    let query = this.supabase.from("products").select("id").eq("is_active", true);
+    query = this.applyArchivedFilter(query, archivedStatus);
+
+    if (!includeUnpublished) {
+      query = query.lte("go_live_at", nowIso);
+    }
+
+    if (filters.tenantId) {
+      query = query.eq("tenant_id", filters.tenantId);
+    }
+
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
+      query = query.eq("is_out_of_stock", false);
+    } else if (!includeOutOfStock) {
+      query = query.eq("is_out_of_stock", false);
+    }
+
+    query = this.applyTextSearch(query, filters.q, searchFields);
+
+    if (filters.category?.length) {
+      query = query.in("category", filters.category);
+    }
+    if (filters.brand?.length) {
+      query = query.in("brand", filters.brand);
+    }
+    if (filters.model?.length) {
+      query = query.in("model", filters.model);
+    }
+    if (filters.condition?.length) {
+      query = query.in("condition", filters.condition);
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false }).limit(5000);
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((row: { id: string }) => row.id);
+  }
+
   async getById(
     id: string,
     opts?: Pick<ProductFilters, "tenantId" | "includeOutOfStock"> & {
       includeUnpublished?: boolean;
+      archivedStatus?: ProductFilters["archivedStatus"];
     },
   ): Promise<ProductWithDetails | null> {
     let query = this.supabase
@@ -438,6 +514,7 @@ export class ProductRepository {
       )
       .eq("id", id)
       .eq("is_active", true);
+    query = this.applyArchivedFilter(query, opts?.archivedStatus ?? "active");
 
     if (!opts?.includeOutOfStock) {
       query = query.eq("is_out_of_stock", false);
@@ -470,7 +547,8 @@ export class ProductRepository {
       .select("*")
       .eq("name", titleRaw)
       .eq("category", category)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .is("archived_at", null);
 
     if (tenantId) {
       query = query.eq("tenant_id", tenantId);
@@ -520,12 +598,76 @@ export class ProductRepository {
   async archive(id: string) {
     const { error } = await this.supabase
       .from("products")
-      .update({ is_active: false, is_out_of_stock: true })
+      .update({ archived_at: new Date().toISOString(), is_out_of_stock: true })
       .eq("id", id);
 
     if (error) {
       throw error;
     }
+  }
+
+  async restore(id: string) {
+    const { error } = await this.supabase
+      .from("products")
+      .update({ archived_at: null })
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  async restoreMany(ids: string[]) {
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    if (uniqueIds.length === 0) {
+      return 0;
+    }
+
+    let restoredCount = 0;
+
+    for (let index = 0; index < uniqueIds.length; index += BULK_MUTATION_BATCH_SIZE) {
+      const batch = uniqueIds.slice(index, index + BULK_MUTATION_BATCH_SIZE);
+      const { data, error } = await this.supabase
+        .from("products")
+        .update({ archived_at: null })
+        .in("id", batch)
+        .select("id");
+
+      if (error) {
+        throw error;
+      }
+
+      restoredCount += (data ?? []).length;
+    }
+
+    return restoredCount;
+  }
+
+  async archiveMany(ids: string[]) {
+    const uniqueIds = [...new Set(ids.filter(Boolean))];
+    if (uniqueIds.length === 0) {
+      return 0;
+    }
+
+    let archivedCount = 0;
+    const archivedAt = new Date().toISOString();
+
+    for (let index = 0; index < uniqueIds.length; index += BULK_MUTATION_BATCH_SIZE) {
+      const batch = uniqueIds.slice(index, index + BULK_MUTATION_BATCH_SIZE);
+      const { data, error } = await this.supabase
+        .from("products")
+        .update({ archived_at: archivedAt, is_out_of_stock: true })
+        .in("id", batch)
+        .select("id");
+
+      if (error) {
+        throw error;
+      }
+
+      archivedCount += (data ?? []).length;
+    }
+
+    return archivedCount;
   }
 
   async countOrderItemsForProduct(productId: string): Promise<number> {

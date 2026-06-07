@@ -44,10 +44,15 @@ export class LightspeedProductSyncService {
       tenantId: options.tenantId,
       includeOutOfStock: true,
       includeUnpublished: true,
+      archivedStatus: "all",
     });
 
     if (!product) {
       throw new Error("Product not found for Lightspeed sync.");
+    }
+
+    if (product.archived_at) {
+      return { status: "skipped" as const, reason: "product_archived" as const };
     }
 
     const variantLinks = await Promise.all(

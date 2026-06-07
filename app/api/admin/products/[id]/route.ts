@@ -111,6 +111,51 @@ export async function PATCH(
       );
     }
 
+    const tenantId = await ensureTenantId(session, supabase);
+    const action = request.nextUrl.searchParams.get("action");
+
+    if (action === "archive") {
+      const result = await service.archiveProduct(paramsParsed.data.id, tenantId);
+
+      try {
+        revalidateTag(`product:${paramsParsed.data.id}`, "max");
+        revalidateTag("products:list", "max");
+      } catch (cacheError) {
+        logError(cacheError, {
+          layer: "cache",
+          requestId,
+          route: "/api/admin/products/:id?action=archive",
+          event: "cache_revalidate_failed",
+          productId: paramsParsed.data.id,
+        });
+      }
+
+      return NextResponse.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
+    if (action === "restore") {
+      const result = await service.restoreProduct(paramsParsed.data.id, tenantId);
+
+      try {
+        revalidateTag(`product:${paramsParsed.data.id}`, "max");
+        revalidateTag("products:list", "max");
+      } catch (cacheError) {
+        logError(cacheError, {
+          layer: "cache",
+          requestId,
+          route: "/api/admin/products/:id?action=restore",
+          event: "cache_revalidate_failed",
+          productId: paramsParsed.data.id,
+        });
+      }
+
+      return NextResponse.json(result, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
     const body = await request.json().catch(() => null);
     const parsed = productCreateSchema.safeParse(body);
     if (!parsed.success) {
@@ -124,11 +169,11 @@ export async function PATCH(
       description: parsed.data.description ?? undefined,
       shipping_price_cents: parsed.data.shipping_price_cents ?? null,
     };
-    const tenantId = await ensureTenantId(session, supabase);
     const previousProduct = await service.getProductById(paramsParsed.data.id, {
       tenantId,
       includeOutOfStock: true,
       includeUnpublished: true,
+      archivedStatus: "all",
     });
     if (!previousProduct) {
       return NextResponse.json(

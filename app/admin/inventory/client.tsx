@@ -3,7 +3,16 @@
 
 import { Fragment, useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Plus, Trash2, MoreVertical, Search, Download, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  MoreVertical,
+  Search,
+  Download,
+  ChevronDown,
+  Archive,
+  RotateCcw,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -19,7 +28,7 @@ import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type StockStatus = "in_stock" | "out_of_stock";
+type StockStatus = "in_stock" | "out_of_stock" | "archived";
 
 const PAGE_SIZE = 100;
 const LIVE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -58,6 +67,7 @@ export function InventoryClient({
   const [products, setProducts] = useState<ProductWithDetails[]>(initialProducts);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectAllMatching, setSelectAllMatching] = useState(false);
   const [searchQuery, setSearchQuery] = useState(initialFilters.q || "");
   const [categoryFilter, setCategoryFilter] = useState<Category | "all">(
     initialFilters.category || "all",
@@ -81,6 +91,16 @@ export function InventoryClient({
     label: string;
   } | null>(null);
   const [pendingMassDelete, setPendingMassDelete] = useState(false);
+  const [pendingArchive, setPendingArchive] = useState<{
+    mode: "single" | "selected";
+    id?: string;
+    label?: string;
+    count?: number;
+  } | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<{
+    mode: "selected";
+    count?: number;
+  } | null>(null);
   const [toast, setToast] = useState<{
     message: string;
     tone: "success" | "error" | "info";
@@ -98,6 +118,10 @@ export function InventoryClient({
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const showingStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const showingEnd = totalCount === 0 ? 0 : Math.min(page * PAGE_SIZE, totalCount);
+  const currentPageIds = products.map((product) => product.id);
+  const currentPageAllSelected =
+    currentPageIds.length > 0 && currentPageIds.every((id) => selectedIds.includes(id));
+  const selectedCount = selectAllMatching ? totalCount : selectedIds.length;
 
   const exportInventory = async () => {
     try {
@@ -239,6 +263,7 @@ export function InventoryClient({
 
   useEffect(() => {
     setSelectedIds([]);
+    setSelectAllMatching(false);
     setExpandedVariants({});
   }, [page, searchQuery, categoryFilter, conditionFilter, stockStatusFilter]);
 
@@ -339,6 +364,15 @@ export function InventoryClient({
     product.variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
 
   const getProductLiveState = (product: ProductWithDetails) => {
+    if (product.archived_at) {
+      return {
+        isLive: false,
+        label: "Archived",
+        detail: "Website only",
+        detailTooltip: "Archived products are hidden from customers and read-only",
+      };
+    }
+
     if (!product.is_active) {
       return {
         isLive: false,
@@ -397,6 +431,15 @@ export function InventoryClient({
     setPendingDelete({ id: product.id, label: label || "this product" });
   };
 
+  const requestArchive = (product: ProductWithDetails) => {
+    setOpenMenuId(null);
+    setPendingArchive({
+      mode: "single",
+      id: product.id,
+      label: getProductRawTitle(product) || "this product",
+    });
+  };
+
   const confirmDelete = async () => {
     if (!pendingDelete) {
       return;
@@ -433,26 +476,50 @@ export function InventoryClient({
 
   const confirmMassDelete = async () => {
     setPendingMassDelete(false);
-    if (selectedIds.length === 0) {
+    if (selectedCount === 0) {
       return;
     }
 
     try {
-      const results = await Promise.all(
-        selectedIds.map((id) => fetch(`/api/admin/products/${id}`, { method: "DELETE" })),
-      );
-      const failed = results.filter((res) => !res.ok).length;
+      const response = await fetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          selectAllMatching
+            ? {
+                action: "delete",
+                selectionMode: "filtered",
+                filters: {
+                  q: searchQuery || undefined,
+                  category: categoryFilter !== "all" ? [categoryFilter] : undefined,
+                  condition: conditionFilter !== "all" ? [conditionFilter] : undefined,
+                  stockStatus: stockStatusFilter,
+                },
+              }
+            : {
+                action: "delete",
+                selectionMode: "ids",
+                ids: selectedIds,
+              },
+        ),
+      });
+      const payload = await response.json().catch(() => null);
 
-      if (failed > 0) {
-        showToast(
-          `Deleted ${selectedIds.length - failed} items, ${failed} failed.`,
-          "error",
-        );
-      } else {
-        showToast(`Deleted ${selectedIds.length} items.`, "success");
+      if (!response.ok) {
+        showToast(payload?.error || "Failed to delete selected items.", "error");
+        return;
       }
 
-      setSelectedIds([]);
+      const deletedCount = Number(payload?.deletedCount ?? 0);
+      const failedCount = Number(payload?.failedCount ?? 0);
+
+      if (failedCount > 0) {
+        showToast(`Deleted ${deletedCount} items, ${failedCount} failed.`, "error");
+      } else {
+        showToast(`Deleted ${deletedCount} items.`, "success");
+      }
+
+      clearSelection();
       await loadProducts({
         q: searchQuery,
         category: categoryFilter,
@@ -462,6 +529,86 @@ export function InventoryClient({
       });
     } catch {
       showToast("Error deleting selected items.", "error");
+    }
+  };
+
+  const restoreProduct = async (productId: string) => {
+    setOpenMenuId(null);
+    try {
+      const response = await fetch(`/api/admin/products/${productId}?action=restore`, {
+        method: "PATCH",
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showToast(payload?.error || "Failed to restore product.", "error");
+        return;
+      }
+
+      showToast("Product restored.", "success");
+      setSelectedIds((prev) => prev.filter((id) => id !== productId));
+      await loadProducts({
+        q: searchQuery,
+        category: categoryFilter,
+        condition: conditionFilter,
+        stockStatus: stockStatusFilter,
+        page,
+      });
+    } catch {
+      showToast("Error restoring product.", "error");
+    }
+  };
+
+  const confirmRestore = async () => {
+    if (!pendingRestore || selectedCount === 0) {
+      setPendingRestore(null);
+      return;
+    }
+
+    setPendingRestore(null);
+
+    try {
+      const response = await fetch("/api/admin/products", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          selectAllMatching
+            ? {
+                action: "restore",
+                selectionMode: "filtered",
+                filters: {
+                  q: searchQuery || undefined,
+                  category: categoryFilter !== "all" ? [categoryFilter] : undefined,
+                  condition: conditionFilter !== "all" ? [conditionFilter] : undefined,
+                  stockStatus: "archived",
+                },
+              }
+            : {
+                action: "restore",
+                selectionMode: "ids",
+                ids: selectedIds,
+              },
+        ),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        showToast(payload?.error || "Failed to restore selected products.", "error");
+        return;
+      }
+
+      showToast(
+        `Restored ${payload?.restoredCount ?? pendingRestore.count ?? selectedCount} products.`,
+        "success",
+      );
+      clearSelection();
+      await loadProducts({
+        q: searchQuery,
+        category: categoryFilter,
+        condition: conditionFilter,
+        stockStatus: stockStatusFilter,
+        page,
+      });
+    } catch {
+      showToast("Error restoring selected products.", "error");
     }
   };
 
@@ -489,16 +636,123 @@ export function InventoryClient({
   };
 
   const toggleSelection = (id: string) => {
+    setSelectAllMatching(false);
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
     );
   };
 
+  const toggleSelectCurrentPage = (checked: boolean) => {
+    setSelectAllMatching(false);
+    setSelectedIds(checked ? currentPageIds : []);
+  };
+
   const handleMassDelete = () => {
-    if (selectedIds.length === 0) {
+    if (selectedCount === 0) {
       return;
     }
     setPendingMassDelete(true);
+  };
+
+  const handleMassRestore = () => {
+    if (selectedCount === 0 || stockStatusFilter !== "archived") {
+      return;
+    }
+
+    setPendingRestore({
+      mode: "selected",
+      count: selectedCount,
+    });
+  };
+
+  const handleSelectAllMatching = () => {
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    setSelectAllMatching(true);
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+    setSelectAllMatching(false);
+  };
+
+  const confirmArchive = async () => {
+    if (!pendingArchive) {
+      return;
+    }
+
+    const archiveTarget = pendingArchive;
+    setPendingArchive(null);
+
+    try {
+      if (archiveTarget.mode === "single" && archiveTarget.id) {
+        const response = await fetch(`/api/admin/products/${archiveTarget.id}?action=archive`, {
+          method: "PATCH",
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          showToast(payload?.error || "Failed to archive product.", "error");
+          return;
+        }
+        showToast(`Archived ${archiveTarget.label}.`, "success");
+      } else {
+        const response = await fetch("/api/admin/products", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            selectAllMatching
+              ? {
+                  action: "archive",
+                  selectionMode: "filtered",
+                  filters: {
+                    q: searchQuery || undefined,
+                    category: categoryFilter !== "all" ? [categoryFilter] : undefined,
+                    condition: conditionFilter !== "all" ? [conditionFilter] : undefined,
+                    stockStatus: stockStatusFilter === "archived" ? "all" : stockStatusFilter,
+                  },
+                }
+              : {
+                  action: "archive",
+                  selectionMode: "ids",
+                  ids: selectedIds,
+                },
+          ),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          showToast(payload?.error || "Failed to archive selected products.", "error");
+          return;
+        }
+        showToast(
+          `Archived ${payload?.archivedCount ?? archiveTarget.count ?? selectedCount} products.`,
+          "success",
+        );
+        clearSelection();
+      }
+
+      await loadProducts({
+        q: searchQuery,
+        category: categoryFilter,
+        condition: conditionFilter,
+        stockStatus: stockStatusFilter,
+        page,
+      });
+    } catch {
+      showToast("Error archiving product.", "error");
+    }
+  };
+
+  const handleMassArchive = () => {
+    if (selectedCount === 0 || stockStatusFilter === "archived") {
+      return;
+    }
+
+    setPendingArchive({
+      mode: "selected",
+      count: selectedCount,
+    });
   };
 
   const renderPagination = () => {
@@ -639,6 +893,17 @@ export function InventoryClient({
         >
           Out of Stock
         </button>
+        <button
+          onClick={() => setStockStatusFilter("archived")}
+          className={`py-3 text-sm font-medium transition-colors ${
+            stockStatusFilter === "archived"
+              ? "text-white border-b-2 border-red-600"
+              : "text-gray-400 hover:text-white"
+          }`}
+          data-testid="inventory-filter-archived"
+        >
+          Archived
+        </button>
       </div>
 
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -686,16 +951,57 @@ export function InventoryClient({
         </div>
       </div>
 
-      {selectedIds.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 flex items-center justify-between">
-          <span className="text-white">{selectedIds.length} selected</span>
-          <button
-            onClick={handleMassDelete}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded text-sm transition cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete Selected
-          </button>
+      {selectedCount > 0 && (
+        <div className="flex flex-col gap-3 rounded border border-zinc-800/70 bg-zinc-900 p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <span className="text-white">
+              {selectAllMatching ? `All ${selectedCount} matching products selected` : `${selectedCount} selected`}
+            </span>
+            {!selectAllMatching &&
+              currentPageAllSelected &&
+              totalCount > selectedIds.length && (
+                <button
+                  type="button"
+                  onClick={handleSelectAllMatching}
+                  className="text-red-400 transition hover:text-red-300"
+                >
+                  Select all {totalCount} products
+                </button>
+              )}
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-zinc-400 transition hover:text-white"
+            >
+              Clear selection
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {stockStatusFilter === "archived" ? (
+              <button
+                onClick={handleMassRestore}
+                className="flex cursor-pointer items-center gap-2 rounded bg-emerald-600 px-4 py-2 text-sm text-white transition hover:bg-emerald-700"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Unarchive Selected
+              </button>
+            ) : (
+              <button
+                onClick={handleMassArchive}
+                className="flex cursor-pointer items-center gap-2 rounded bg-red-600 px-4 py-2 text-sm text-white transition hover:bg-red-700"
+              >
+                <Archive className="h-4 w-4" />
+                Archive Selected
+              </button>
+            )}
+            <button
+              onClick={handleMassDelete}
+              className="flex items-center gap-2 rounded border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-white transition hover:bg-zinc-800 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Selected
+            </button>
+          </div>
         </div>
       )}
 
@@ -723,16 +1029,8 @@ export function InventoryClient({
                     <input
                       type="checkbox"
                       className="rdk-checkbox"
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(products.map((p) => p.id));
-                        } else {
-                          setSelectedIds([]);
-                        }
-                      }}
-                      checked={
-                        selectedIds.length === products.length && products.length > 0
-                      }
+                      onChange={(e) => toggleSelectCurrentPage(e.target.checked)}
+                      checked={currentPageAllSelected}
                     />
                   </th>
                   <th className="text-left text-gray-400 font-semibold px-4 py-3">
@@ -873,25 +1171,48 @@ export function InventoryClient({
                                     onClick={() => setOpenMenuId(null)}
                                     className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
                                   >
-                                    Edit
+                                    {product.archived_at ? "View" : "Edit"}
                                   </Link>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      void handleDuplicate(product.id);
-                                    }}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
-                                  >
-                                    Duplicate
-                                  </button>
-                                  <div className="h-px bg-zinc-800/70" />
-                                  <button
-                                    type="button"
-                                    onClick={() => requestDelete(product)}
-                                    className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
-                                  >
-                                    Delete
-                                  </button>
+                                  {product.archived_at ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        void restoreProduct(product.id);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-emerald-300 hover:bg-zinc-800 cursor-pointer"
+                                    >
+                                      <RotateCcw className="h-4 w-4" />
+                                      Restore
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          void handleDuplicate(product.id);
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
+                                      >
+                                        Duplicate
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => requestArchive(product)}
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-amber-300 hover:bg-zinc-800 cursor-pointer"
+                                      >
+                                        <Archive className="h-4 w-4" />
+                                        Archive
+                                      </button>
+                                      <div className="h-px bg-zinc-800/70" />
+                                      <button
+                                        type="button"
+                                        onClick={() => requestDelete(product)}
+                                        className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1055,25 +1376,48 @@ export function InventoryClient({
                               onClick={() => setOpenMenuId(null)}
                               className="block px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
                             >
-                              Edit
+                              {product.archived_at ? "View" : "Edit"}
                             </Link>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                void handleDuplicate(product.id);
-                              }}
-                              className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
-                            >
-                              Duplicate
-                            </button>
-                            <div className="h-px bg-zinc-800/70" />
-                            <button
-                              type="button"
-                              onClick={() => requestDelete(product)}
-                              className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
-                            >
-                              Delete
-                            </button>
+                            {product.archived_at ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void restoreProduct(product.id);
+                                }}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-emerald-300 hover:bg-zinc-800 cursor-pointer"
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                                Restore
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void handleDuplicate(product.id);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800 cursor-pointer"
+                                >
+                                  Duplicate
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => requestArchive(product)}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-amber-300 hover:bg-zinc-800 cursor-pointer"
+                                >
+                                  <Archive className="h-4 w-4" />
+                                  Archive
+                                </button>
+                                <div className="h-px bg-zinc-800/70" />
+                                <button
+                                  type="button"
+                                  onClick={() => requestDelete(product)}
+                                  className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800 cursor-pointer"
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1167,12 +1511,42 @@ export function InventoryClient({
       <ConfirmDialog
         isOpen={pendingMassDelete}
         title="Delete selected products?"
-        description={`This will permanently remove ${selectedIds.length} products and their variants.`}
+        description={`This will permanently remove ${selectedCount} products and their variants.`}
         confirmLabel="Delete all"
         onConfirm={() => {
           void confirmMassDelete();
         }}
         onCancel={() => setPendingMassDelete(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingArchive)}
+        title={
+          pendingArchive?.mode === "selected" ? "Archive selected products?" : "Archive product?"
+        }
+        description={
+          pendingArchive?.mode === "selected"
+            ? `This will move ${pendingArchive.count ?? selectedCount} products to the Archived tab. This is a website-only state and will not change Lightspeed.`
+            : pendingArchive?.label
+              ? `This will move ${pendingArchive.label} to the Archived tab. This is a website-only state and will not change Lightspeed.`
+              : undefined
+        }
+        confirmLabel="Archive"
+        onConfirm={() => {
+          void confirmArchive();
+        }}
+        onCancel={() => setPendingArchive(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingRestore)}
+        title="Unarchive selected products?"
+        description={`This will restore ${pendingRestore?.count ?? selectedCount} products to active inventory so they can appear in the normal tabs again.`}
+        confirmLabel="Unarchive"
+        onConfirm={() => {
+          void confirmRestore();
+        }}
+        onCancel={() => setPendingRestore(null)}
       />
 
       <Toast

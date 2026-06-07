@@ -5,7 +5,7 @@ import type { Category, Condition } from "@/types/domain/product";
 import { getInventoryProducts } from "./actions";
 import { InventoryClient } from "./client";
 
-type StockStatus = "in_stock" | "out_of_stock";
+type StockStatus = "in_stock" | "out_of_stock" | "archived";
 
 interface InventoryPageProps {
   searchParams: Promise<{
