@@ -2,6 +2,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
+import { z } from "zod";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
@@ -11,7 +12,6 @@ import { LightspeedProductSyncService } from "@/services/lightspeed-product-sync
 import { adminProductsQuerySchema, productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
-import { z } from "zod";
 
 const bulkActionSchema = z
   .object({

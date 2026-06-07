@@ -688,9 +688,12 @@ export function InventoryClient({
 
     try {
       if (archiveTarget.mode === "single" && archiveTarget.id) {
-        const response = await fetch(`/api/admin/products/${archiveTarget.id}?action=archive`, {
-          method: "PATCH",
-        });
+        const response = await fetch(
+          `/api/admin/products/${archiveTarget.id}?action=archive`,
+          {
+            method: "PATCH",
+          },
+        );
         const payload = await response.json().catch(() => null);
         if (!response.ok) {
           showToast(payload?.error || "Failed to archive product.", "error");
@@ -710,7 +713,8 @@ export function InventoryClient({
                     q: searchQuery || undefined,
                     category: categoryFilter !== "all" ? [categoryFilter] : undefined,
                     condition: conditionFilter !== "all" ? [conditionFilter] : undefined,
-                    stockStatus: stockStatusFilter === "archived" ? "all" : stockStatusFilter,
+                    stockStatus:
+                      stockStatusFilter === "archived" ? "all" : stockStatusFilter,
                   },
                 }
               : {
@@ -955,7 +959,9 @@ export function InventoryClient({
         <div className="flex flex-col gap-3 rounded border border-zinc-800/70 bg-zinc-900 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-3 text-sm">
             <span className="text-white">
-              {selectAllMatching ? `All ${selectedCount} matching products selected` : `${selectedCount} selected`}
+              {selectAllMatching
+                ? `All ${selectedCount} matching products selected`
+                : `${selectedCount} selected`}
             </span>
             {!selectAllMatching &&
               currentPageAllSelected &&
@@ -1522,7 +1528,9 @@ export function InventoryClient({
       <ConfirmDialog
         isOpen={Boolean(pendingArchive)}
         title={
-          pendingArchive?.mode === "selected" ? "Archive selected products?" : "Archive product?"
+          pendingArchive?.mode === "selected"
+            ? "Archive selected products?"
+            : "Archive product?"
         }
         description={
           pendingArchive?.mode === "selected"

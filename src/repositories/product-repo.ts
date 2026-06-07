@@ -163,7 +163,10 @@ export class ProductRepository {
   private readonly inventorySearchFields = ["brand", "name", "model"];
 
   private applyArchivedFilter<
-    T extends { is: (column: string, value: null) => T; not: (column: string, operator: string, value: null) => T },
+    T extends {
+      is: (column: string, value: null) => T;
+      not: (column: string, operator: string, value: null) => T;
+    },
   >(query: T, archivedStatus: ProductFilters["archivedStatus"] = "active"): T {
     if (archivedStatus === "archived") {
       return query.not("archived_at", "is", null);
@@ -491,7 +494,9 @@ export class ProductRepository {
       query = query.in("condition", filters.condition);
     }
 
-    const { data, error } = await query.order("created_at", { ascending: false }).limit(5000);
+    const { data, error } = await query
+      .order("created_at", { ascending: false })
+      .limit(5000);
 
     if (error) {
       throw error;

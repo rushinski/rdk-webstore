@@ -10,7 +10,8 @@ import type { Condition } from "@/types/domain/product";
 
 export class LightspeedMappingService {
   private readonly normalizedShoeSizeMap = this.buildNormalizedSizeMap(SHOE_SIZES);
-  private readonly normalizedClothingSizeMap = this.buildNormalizedSizeMap(CLOTHING_SIZES);
+  private readonly normalizedClothingSizeMap =
+    this.buildNormalizedSizeMap(CLOTHING_SIZES);
   private readonly shoeTokenToCanonical = this.buildShoeTokenMap(SHOE_SIZES);
 
   toLightspeedCondition(condition: Condition) {
@@ -323,8 +324,8 @@ export class LightspeedMappingService {
       return variantOption.value.trim();
     }
 
-    const variantDefinition = record.variant_definitions?.find(
-      (definition) => this.optionNameMatches(definition.name, optionName),
+    const variantDefinition = record.variant_definitions?.find((definition) =>
+      this.optionNameMatches(definition.name, optionName),
     );
 
     return variantDefinition?.value?.trim() || null;

@@ -42,10 +42,11 @@ jest.mock("@/services/lightspeed-product-sync-service", () => ({
   LightspeedProductSyncService: jest.fn(),
 }));
 
+import { NextRequest } from "next/server";
+
 import { requireAdminApi } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureTenantId } from "@/lib/auth/tenant";
-import { NextRequest } from "next/server";
 
 import { PATCH as bulkPatch } from "../../app/api/admin/products/route";
 import { PATCH as itemPatch } from "../../app/api/admin/products/[id]/route";
@@ -88,10 +89,7 @@ describe("product archive admin api", () => {
     );
 
     expect(archiveProductsByIdsMock).toHaveBeenCalledWith(
-      [
-        "11111111-1111-1111-8111-111111111111",
-        "22222222-2222-2222-8222-222222222222",
-      ],
+      ["11111111-1111-1111-8111-111111111111", "22222222-2222-2222-8222-222222222222"],
       "tenant-1",
     );
     expect(response.status).toBe(200);

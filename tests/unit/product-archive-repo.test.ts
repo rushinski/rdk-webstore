@@ -13,7 +13,11 @@ type QueryChain = {
   update: jest.Mock;
 };
 
-function createQueryChain(result: { data: unknown; error: unknown; count?: number | null }) {
+function createQueryChain(result: {
+  data: unknown;
+  error: unknown;
+  count?: number | null;
+}) {
   const chain: QueryChain = {
     select: jest.fn(),
     eq: jest.fn(),
@@ -116,10 +120,7 @@ describe("ProductRepository archive behavior", () => {
       error: null,
     });
     const supabase = {
-      from: jest
-        .fn()
-        .mockReturnValueOnce(firstBatch)
-        .mockReturnValueOnce(secondBatch),
+      from: jest.fn().mockReturnValueOnce(firstBatch).mockReturnValueOnce(secondBatch),
     };
 
     const repo = new ProductRepository(supabase as never);
@@ -147,10 +148,7 @@ describe("ProductRepository archive behavior", () => {
       error: null,
     });
     const supabase = {
-      from: jest
-        .fn()
-        .mockReturnValueOnce(firstBatch)
-        .mockReturnValueOnce(secondBatch),
+      from: jest.fn().mockReturnValueOnce(firstBatch).mockReturnValueOnce(secondBatch),
     };
 
     const repo = new ProductRepository(supabase as never);
