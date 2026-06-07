@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
 import { env } from "@/config/env";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
-import { logError } from "@/lib/utils/log";
+import { log, logError } from "@/lib/utils/log";
 import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
 import { LightspeedWebhookEventsRepository } from "@/repositories/lightspeed-webhook-events-repo";
 import { LightspeedSaleSyncService } from "@/services/lightspeed-sale-sync-service";
@@ -23,10 +23,43 @@ export async function POST(request: NextRequest) {
       env.LIGHTSPEED_WEBHOOK_SIGNING_SECRET || null,
     );
 
-    await service.processIncomingWebhook({
+    const accepted = await service.ingestIncomingWebhook({
       rawBody,
       signatureHeader: request.headers.get("x-signature"),
       contentType: request.headers.get("content-type"),
+    });
+
+    after(async () => {
+      if (accepted.status !== "accepted") {
+        return;
+      }
+
+      try {
+        await service.processPersistedEvent(accepted.event);
+      } catch (error) {
+        logError(error, {
+          layer: "job",
+          requestId,
+          route: "/api/webhooks/lightspeed",
+          message: "lightspeed_webhook_background_processing_failed",
+          topic: accepted.topic,
+          tenantId: accepted.tenantId,
+          eventId: accepted.event.id,
+        });
+      }
+    });
+
+    log({
+      level: "info",
+      layer: "api",
+      message: "lightspeed_webhook_accepted",
+      requestId,
+      route: "/api/webhooks/lightspeed",
+      method: "POST",
+      topic: accepted.topic,
+      tenantId: accepted.tenantId,
+      ingestStatus: accepted.status,
+      eventId: accepted.event?.id ?? null,
     });
 
     return NextResponse.json({ ok: true, requestId }, { status: 200 });

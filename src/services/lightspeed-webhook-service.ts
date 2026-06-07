@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 
+import type { LightspeedWebhookEvent } from "@/repositories/lightspeed-webhook-events-repo";
 import type { LightspeedWebhookEventsRepository } from "@/repositories/lightspeed-webhook-events-repo";
 import type { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
 
@@ -42,7 +43,7 @@ export class LightspeedWebhookService {
     private readonly sharedSecret: string | null,
   ) {}
 
-  async processIncomingWebhook(input: ProcessIncomingWebhookInput) {
+  async ingestIncomingWebhook(input: ProcessIncomingWebhookInput) {
     this.assertValidSignature(input.rawBody, input.signatureHeader);
 
     const parsed = this.parseBody(input.rawBody, input.contentType);
@@ -66,19 +67,56 @@ export class LightspeedWebhookService {
         status: "duplicate" as const,
         topic: parsed.topic,
         tenantId,
+        event: persisted.event,
       };
     }
 
-    if (tenantId) {
-      await this.dispatch(tenantId, parsed.topic, parsed.payload);
-      await this.eventsRepo.markProcessed(persisted.event.id);
+    return {
+      status: "accepted" as const,
+      topic: parsed.topic,
+      tenantId,
+      event: persisted.event,
+    };
+  }
+
+  async processPersistedEvent(
+    event: Pick<LightspeedWebhookEvent, "id" | "tenant_id" | "topic" | "payload">,
+  ) {
+    if (!event.tenant_id) {
+      return {
+        status: "ignored" as const,
+        topic: event.topic,
+        tenantId: null,
+      };
     }
+
+    const payload =
+      event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+        ? (event.payload as Record<string, unknown>)
+        : {};
+
+    await this.dispatch(event.tenant_id, event.topic, payload);
+    await this.eventsRepo.markProcessed(event.id);
 
     return {
       status: "processed" as const,
-      topic: parsed.topic,
-      tenantId,
+      topic: event.topic,
+      tenantId: event.tenant_id,
     };
+  }
+
+  async processIncomingWebhook(input: ProcessIncomingWebhookInput) {
+    const ingested = await this.ingestIncomingWebhook(input);
+
+    if (ingested.status !== "accepted") {
+      return {
+        status: ingested.status,
+        topic: ingested.topic,
+        tenantId: ingested.tenantId,
+      };
+    }
+
+    return this.processPersistedEvent(ingested.event);
   }
 
   private async dispatch(

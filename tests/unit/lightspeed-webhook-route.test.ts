@@ -1,3 +1,11 @@
+jest.mock("next/server", () => {
+  const actual = jest.requireActual("next/server");
+  return {
+    ...actual,
+    after: jest.fn((callback: () => Promise<void> | void) => callback()),
+  };
+});
+
 jest.mock("@/config/env", () => ({
   env: {
     LIGHTSPEED_WEBHOOK_SIGNING_SECRET: "webhook-signing-secret",
@@ -43,7 +51,8 @@ const mockLightspeedSaleSyncService = jest.mocked(LightspeedSaleSyncService);
 const mockLightspeedWebhookService = jest.mocked(LightspeedWebhookService);
 
 describe("/api/webhooks/lightspeed", () => {
-  const mockProcessIncomingWebhook = jest.fn();
+  const mockIngestIncomingWebhook = jest.fn();
+  const mockProcessPersistedEvent = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -54,14 +63,28 @@ describe("/api/webhooks/lightspeed", () => {
     mockLightspeedWebhookService.mockImplementation(
       () =>
         ({
-          processIncomingWebhook: mockProcessIncomingWebhook,
+          ingestIncomingWebhook: mockIngestIncomingWebhook,
+          processPersistedEvent: mockProcessPersistedEvent,
         }) as never,
     );
   });
 
-  it("constructs the webhook service with the configured signing secret", async () => {
-    mockProcessIncomingWebhook.mockResolvedValue({
+  it("constructs the webhook service with the configured signing secret and acknowledges before background processing", async () => {
+    mockIngestIncomingWebhook.mockResolvedValue({
+      status: "accepted",
+      topic: "product.update",
+      tenantId: "tenant-1",
+      event: {
+        id: "event-1",
+        tenant_id: "tenant-1",
+        topic: "product.update",
+        payload: {},
+      },
+    });
+    mockProcessPersistedEvent.mockResolvedValue({
       status: "processed",
+      topic: "product.update",
+      tenantId: "tenant-1",
     });
 
     const response = await POST(
@@ -82,6 +105,17 @@ describe("/api/webhooks/lightspeed", () => {
       expect.anything(),
       "webhook-signing-secret",
     );
+    expect(mockIngestIncomingWebhook).toHaveBeenCalledWith({
+      rawBody: "type=product.update&payload=%7B%7D",
+      signatureHeader: "signature=test,algorithm=HMAC-SHA256",
+      contentType: "application/x-www-form-urlencoded",
+    });
+    expect(mockProcessPersistedEvent).toHaveBeenCalledWith({
+      id: "event-1",
+      tenant_id: "tenant-1",
+      topic: "product.update",
+      payload: {},
+    });
     expect(response.status).toBe(200);
   });
 });
