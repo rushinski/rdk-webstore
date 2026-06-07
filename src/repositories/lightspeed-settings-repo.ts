@@ -4,6 +4,7 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 export type LightspeedSettings = {
   syncEnabled: boolean;
   domainPrefix: string | null;
+  retailerId?: string | null;
 };
 
 type LightspeedSettingsRow = {
@@ -30,6 +31,7 @@ export class LightspeedSettingsRepository {
     return {
       syncEnabled: row?.sync_enabled ?? false,
       domainPrefix: row?.domain_prefix?.trim() || null,
+      retailerId: row?.retailer_id?.trim() || null,
     };
   }
 
@@ -45,8 +47,25 @@ export class LightspeedSettingsRepository {
   }
 
   async findTenantIdByRetailerOrDomainPrefix(input: {
+    retailerId?: string | null;
     domainPrefix?: string | null;
   }): Promise<string | null> {
+    if (input.retailerId?.trim()) {
+      const { data, error } = await this.supabase
+        .from("tenant_lightspeed_settings")
+        .select("tenant_id")
+        .eq("retailer_id", input.retailerId.trim())
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.tenant_id) {
+        return data.tenant_id;
+      }
+    }
+
     if (!input.domainPrefix?.trim()) {
       return null;
     }
@@ -62,6 +81,25 @@ export class LightspeedSettingsRepository {
     }
 
     return data?.tenant_id ?? null;
+  }
+
+  async saveRetailerIdForTenant(tenantId: string, retailerId: string): Promise<void> {
+    const normalizedRetailerId = retailerId.trim();
+    if (!normalizedRetailerId) {
+      return;
+    }
+
+    const { error } = await this.supabase
+      .from("tenant_lightspeed_settings")
+      .update({
+        retailer_id: normalizedRetailerId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("tenant_id", tenantId);
+
+    if (error) {
+      throw error;
+    }
   }
 
   private async fetchRow(tenantId: string): Promise<LightspeedSettingsRow | null> {
@@ -86,6 +124,7 @@ export class LightspeedSettingsRepository {
           tenant_id: tenantId,
           sync_enabled: input.syncEnabled,
           domain_prefix: input.domainPrefix,
+          retailer_id: input.retailerId ?? null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "tenant_id" },
@@ -101,6 +140,7 @@ export class LightspeedSettingsRepository {
     return {
       syncEnabled: row.sync_enabled ?? false,
       domainPrefix: row.domain_prefix?.trim() || null,
+      retailerId: row.retailer_id?.trim() || null,
     };
   }
 }

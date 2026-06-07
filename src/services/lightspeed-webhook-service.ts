@@ -32,7 +32,7 @@ export class LightspeedWebhookService {
   constructor(
     private readonly settingsRepo: Pick<
       LightspeedSettingsRepository,
-      "findTenantIdByRetailerOrDomainPrefix"
+      "findTenantIdByRetailerOrDomainPrefix" | "saveRetailerIdForTenant"
     >,
     private readonly eventsRepo: Pick<
       LightspeedWebhookEventsRepository,
@@ -47,8 +47,12 @@ export class LightspeedWebhookService {
 
     const parsed = this.parseBody(input.rawBody, input.contentType);
     const tenantId = await this.settingsRepo.findTenantIdByRetailerOrDomainPrefix({
+      retailerId: parsed.retailerId,
       domainPrefix: parsed.domainPrefix,
     });
+    if (tenantId && parsed.retailerId?.trim()) {
+      await this.settingsRepo.saveRetailerIdForTenant(tenantId, parsed.retailerId);
+    }
     const eventId = this.buildEventId(parsed.topic, input.rawBody);
     const persisted = await this.eventsRepo.insertIfAbsent({
       tenantId,

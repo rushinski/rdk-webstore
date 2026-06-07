@@ -68,6 +68,16 @@ export class LightspeedClient {
     });
   }
 
+  async getProduct(productId: string) {
+    const response = await this.request(`/products/${productId}`);
+    const payload =
+      (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
+    if (Array.isArray(payload.data)) {
+      return payload.data[0] ?? null;
+    }
+    return payload.data ?? null;
+  }
+
   async listVariantAttributes() {
     const response = await this.request("/variant_attributes");
     const payload = (await response.json()) as LightspeedVariantAttributeResponse;

@@ -67,6 +67,7 @@ describe("/api/admin/lightspeed/settings", () => {
     mockGetByTenant.mockResolvedValue({
       syncEnabled: true,
       domainPrefix: "store-1",
+      retailerId: null,
     });
 
     const response = await GET(

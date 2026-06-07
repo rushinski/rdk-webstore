@@ -38,6 +38,7 @@ describe("LightspeedSettingsRepository", () => {
     await expect(repo.getByTenant("tenant-1")).resolves.toEqual({
       syncEnabled: false,
       domainPrefix: null,
+      retailerId: null,
     });
   });
 
@@ -51,5 +52,34 @@ describe("LightspeedSettingsRepository", () => {
       accessToken: "env-access-token",
       webhookSigningSecret: null,
     });
+  });
+
+  it("matches tenants by retailer_id before falling back to domain_prefix", async () => {
+    const retailerChain = {
+      select: jest.fn(),
+      eq: jest.fn(),
+      maybeSingle: jest.fn(),
+    };
+    retailerChain.select.mockReturnValue(retailerChain);
+    retailerChain.eq.mockReturnValue(retailerChain);
+    retailerChain.maybeSingle.mockResolvedValueOnce({
+      data: { tenant_id: "tenant-1" },
+      error: null,
+    });
+
+    const supabase = {
+      from: jest.fn(() => retailerChain),
+    };
+
+    const repo = new LightspeedSettingsRepository(supabase as never);
+
+    await expect(
+      repo.findTenantIdByRetailerOrDomainPrefix({
+        retailerId: "retailer-1",
+        domainPrefix: "demo-store",
+      }),
+    ).resolves.toBe("tenant-1");
+
+    expect(retailerChain.eq).toHaveBeenCalledWith("retailer_id", "retailer-1");
   });
 });

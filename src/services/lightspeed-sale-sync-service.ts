@@ -3,6 +3,8 @@ import { ProductRepository } from "@/repositories/product-repo";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { LightspeedRemoteProduct } from "@/lib/lightspeed/types";
 import { LightspeedInboundSyncService } from "@/services/lightspeed-inbound-sync-service";
+import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
+import { LightspeedClient } from "@/lib/lightspeed/client";
 
 type LightspeedProductPayload = {
   id?: string;
@@ -23,11 +25,13 @@ type LightspeedInventoryPayload = {
 export class LightspeedSaleSyncService {
   private readonly linksRepo: LightspeedLinksRepository;
   private readonly productRepo: ProductRepository;
+  private readonly settingsRepo: LightspeedSettingsRepository;
   private readonly inboundSyncService: LightspeedInboundSyncService;
 
   constructor(private readonly supabase: TypedSupabaseClient) {
     this.linksRepo = new LightspeedLinksRepository(supabase);
     this.productRepo = new ProductRepository(supabase);
+    this.settingsRepo = new LightspeedSettingsRepository(supabase);
     this.inboundSyncService = new LightspeedInboundSyncService(supabase);
   }
 
@@ -50,11 +54,27 @@ export class LightspeedSaleSyncService {
       return;
     }
 
+    const connection = await this.settingsRepo.getConnectionByTenant(tenantId);
+    if (!connection.domainPrefix || !connection.accessToken) {
+      throw new Error(
+        "Lightspeed sync is enabled but the store is not fully connected yet.",
+      );
+    }
+
+    const client = new LightspeedClient({
+      domainPrefix: connection.domainPrefix,
+      accessToken: connection.accessToken,
+    });
+    const fullProduct = await client.getProduct(payload.id);
+    if (!fullProduct) {
+      return;
+    }
+
     await this.inboundSyncService.applyProductPayload({
       tenantId,
-      payload: payload as LightspeedRemoteProduct,
+      payload: fullProduct as LightspeedRemoteProduct,
       topic: "product.update",
-      remoteModifiedAt,
+      remoteModifiedAt: fullProduct.updated_at ?? remoteModifiedAt,
     });
   }
 
