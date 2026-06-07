@@ -83,6 +83,9 @@ jobs:
       NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
       NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED: ${{ vars.NEXT_PUBLIC_GUEST_CHECKOUT_ENABLED || 'true' }}
 
+      LIGHTSPEED_ACCESS_TOKEN: ${{ secrets.LIGHTSPEED_ACCESS_TOKEN }}
+      LIGHTSPEED_DOMAIN_PREFIX: ${{ secrets.LIGHTSPEED_DOMAIN_PREFIX }}
+
       # Local DB for validation
       LOCAL_SUPABASE_DB_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
 
