@@ -28,17 +28,20 @@ export class LightspeedSettingsRepository {
 
   async getByTenant(tenantId: string): Promise<LightspeedSettings> {
     const row = await this.fetchRow(tenantId);
+    const envSyncEnabled = this.isEnvBackedSyncEnabled();
     return {
-      syncEnabled: row?.sync_enabled ?? false,
-      domainPrefix: row?.domain_prefix?.trim() || null,
+      syncEnabled: envSyncEnabled || row?.sync_enabled === true,
+      domainPrefix:
+        row?.domain_prefix?.trim() || env.LIGHTSPEED_DOMAIN_PREFIX.trim() || null,
       retailerId: row?.retailer_id?.trim() || null,
     };
   }
 
   async getConnectionByTenant(tenantId: string): Promise<LightspeedConnection> {
     const row = await this.fetchRow(tenantId);
+    const envSyncEnabled = this.isEnvBackedSyncEnabled();
     return {
-      syncEnabled: row?.sync_enabled ?? false,
+      syncEnabled: envSyncEnabled || row?.sync_enabled === true,
       domainPrefix:
         row?.domain_prefix?.trim() || env.LIGHTSPEED_DOMAIN_PREFIX.trim() || null,
       accessToken: env.LIGHTSPEED_ACCESS_TOKEN.trim() || null,
@@ -80,7 +83,11 @@ export class LightspeedSettingsRepository {
       throw error;
     }
 
-    return data?.tenant_id ?? null;
+    if (data?.tenant_id) {
+      return data.tenant_id;
+    }
+
+    return this.getDefaultTenantId();
   }
 
   async saveRetailerIdForTenant(tenantId: string, retailerId: string): Promise<void> {
@@ -114,6 +121,27 @@ export class LightspeedSettingsRepository {
     }
 
     return (data ?? null) as LightspeedSettingsRow | null;
+  }
+
+  private async getDefaultTenantId(): Promise<string | null> {
+    const { data, error } = await this.supabase
+      .from("tenants")
+      .select("id")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data?.id ?? null;
+  }
+
+  private isEnvBackedSyncEnabled(): boolean {
+    return Boolean(
+      env.LIGHTSPEED_ACCESS_TOKEN.trim() && env.LIGHTSPEED_DOMAIN_PREFIX.trim(),
+    );
   }
 
   async upsert(tenantId: string, input: LightspeedSettings): Promise<LightspeedSettings> {
