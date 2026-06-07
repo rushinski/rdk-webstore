@@ -14,6 +14,10 @@ describe("Lightspeed image host configuration", () => {
         }),
         expect.objectContaining({
           protocol: "https",
+          hostname: "*.fastly.net",
+        }),
+        expect.objectContaining({
+          protocol: "https",
           hostname: "cdn.shoplightspeed.com",
         }),
       ]),
@@ -26,6 +30,7 @@ describe("Lightspeed image host configuration", () => {
     );
 
     expect(prodCsp).toContain("https://*.cloudfront.net");
+    expect(prodCsp).toContain("https://*.fastly.net");
     expect(prodCsp).toContain("https://cdn.shoplightspeed.com");
   });
 });

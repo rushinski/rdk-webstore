@@ -1,4 +1,5 @@
 import { LIGHTSPEED_CONDITION_MAP } from "@/config/constants/lightspeed";
+import { CLOTHING_SIZES, SHOE_SIZES } from "@/config/constants/sizes";
 import type {
   LightspeedRemoteProduct,
   NormalizedLightspeedProduct,
@@ -8,6 +9,10 @@ import type {
 import type { Condition } from "@/types/domain/product";
 
 export class LightspeedMappingService {
+  private readonly normalizedShoeSizeMap = this.buildNormalizedSizeMap(SHOE_SIZES);
+  private readonly normalizedClothingSizeMap = this.buildNormalizedSizeMap(CLOTHING_SIZES);
+  private readonly shoeTokenToCanonical = this.buildShoeTokenMap(SHOE_SIZES);
+
   toLightspeedCondition(condition: Condition) {
     return condition === "used"
       ? LIGHTSPEED_CONDITION_MAP.used
@@ -225,11 +230,15 @@ export class LightspeedMappingService {
     record: LightspeedRemoteProduct,
     parent?: LightspeedRemoteProduct,
   ) {
-    return (
+    const rawSize =
       this.findVariantOptionValue(record, "size") ??
-      this.findVariantOptionValue(parent, "size") ??
-      "One Size"
-    );
+      this.findVariantOptionValue(parent, "size");
+
+    if (!rawSize) {
+      return "One Size";
+    }
+
+    return this.normalizeImportedSizeLabel(rawSize);
   }
 
   private extractStock(
@@ -281,7 +290,7 @@ export class LightspeedMappingService {
     record: LightspeedRemoteProduct,
     parent?: LightspeedRemoteProduct,
   ) {
-    const images = record.images?.length ? record.images : (parent?.images ?? []);
+    const images = parent?.images?.length ? parent.images : (record.images ?? []);
     return images
       .map((image) => image.url?.trim() || image.src?.trim() || null)
       .filter((value): value is string => Boolean(value));
@@ -302,16 +311,95 @@ export class LightspeedMappingService {
     ] as const;
 
     for (const [name, value] of optionPairs) {
-      if (name?.trim().toLowerCase() === optionName && value?.trim()) {
+      if (this.optionNameMatches(name, optionName) && value?.trim()) {
         return value.trim();
       }
     }
 
+    const variantOption = record.variant_options?.find((option) =>
+      this.optionNameMatches(option.name, optionName),
+    );
+    if (variantOption?.value?.trim()) {
+      return variantOption.value.trim();
+    }
+
     const variantDefinition = record.variant_definitions?.find(
-      (definition) => definition.name?.trim().toLowerCase() === optionName,
+      (definition) => this.optionNameMatches(definition.name, optionName),
     );
 
     return variantDefinition?.value?.trim() || null;
+  }
+
+  private optionNameMatches(name: string | null | undefined, optionName: string) {
+    const normalizedName = name?.trim().toLowerCase();
+    if (!normalizedName) {
+      return false;
+    }
+
+    return (
+      normalizedName === optionName ||
+      normalizedName.includes(optionName) ||
+      optionName.includes(normalizedName)
+    );
+  }
+
+  private normalizeImportedSizeLabel(rawSize: string) {
+    const trimmed = rawSize.trim();
+    if (!trimmed) {
+      return "One Size";
+    }
+
+    const normalizedKey = this.normalizeSizeKey(trimmed);
+    const exactShoe = this.normalizedShoeSizeMap.get(normalizedKey);
+    if (exactShoe) {
+      return exactShoe;
+    }
+
+    const exactClothing = this.normalizedClothingSizeMap.get(normalizedKey);
+    if (exactClothing) {
+      return exactClothing;
+    }
+
+    const tokenMatch = this.extractSingleShoeToken(trimmed);
+    if (tokenMatch) {
+      return this.shoeTokenToCanonical.get(tokenMatch) ?? trimmed;
+    }
+
+    return trimmed;
+  }
+
+  private buildNormalizedSizeMap(sizes: readonly string[]) {
+    const map = new Map<string, string>();
+    for (const size of sizes) {
+      map.set(this.normalizeSizeKey(size), size);
+    }
+    return map;
+  }
+
+  private buildShoeTokenMap(sizes: readonly string[]) {
+    const map = new Map<string, string>();
+    for (const size of sizes) {
+      const tokens = size.match(/\b\d+(?:\.\d+)?[MYW]\b/g) ?? [];
+      for (const token of tokens) {
+        if (!map.has(token.toUpperCase())) {
+          map.set(token.toUpperCase(), size);
+        }
+      }
+    }
+    return map;
+  }
+
+  private normalizeSizeKey(value: string) {
+    return value.trim().toUpperCase().replace(/\s+/g, "");
+  }
+
+  private extractSingleShoeToken(value: string) {
+    const compact = value.trim().toUpperCase().replace(/\s+/g, "");
+    const directMatch = compact.match(/^\d+(?:\.\d+)?[MYW]$/);
+    if (directMatch) {
+      return directMatch[0];
+    }
+    return null;
   }
 
   private normalizeCategory(category: unknown) {

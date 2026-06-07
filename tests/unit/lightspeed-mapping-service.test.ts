@@ -134,4 +134,40 @@ describe("LightspeedMappingService", () => {
     expect(normalized[0]?.priceCents).toBe(8000);
     expect(normalized[0]?.costCents).toBe(4250);
   });
+
+  it("reads size from variant_options arrays and maps single shoe tokens to canonical website sizes", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-family-3",
+        name: "Adidas Campus 00s",
+        images: [{ url: "https://example.com/product.jpg" }],
+        variants: [
+          {
+            id: "ls-child-3",
+            sku: "N-ADI-CMP-10-01",
+            variant_options: [{ name: "Size", value: "10.5M" }],
+            images: [{ url: "https://example.com/variant.jpg" }],
+            inventory_Main_Outlet: 1,
+          },
+        ],
+      },
+    ]);
+
+    expect(normalized[0]?.sizeLabel).toBe("10.5M / 12W");
+    expect(normalized[0]?.imageUrls).toEqual(["https://example.com/product.jpg"]);
+  });
+
+  it("preserves raw imported sizes when no canonical mapping exists", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-product-4",
+        name: "Custom Ring",
+        sku: "N-OTH-ACC-RAW-01",
+        variant_options: [{ name: "Ring Size", value: "7.25" }],
+        inventory_Main_Outlet: 1,
+      },
+    ]);
+
+    expect(normalized[0]?.sizeLabel).toBe("7.25");
+  });
 });

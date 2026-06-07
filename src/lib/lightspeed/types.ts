@@ -44,6 +44,7 @@ export type LightspeedRemoteProduct = {
   deleted_at?: string | null;
   inventory?: LightspeedRemoteInventoryLevel[] | null;
   images?: LightspeedRemoteImage[] | null;
+  variant_options?: LightspeedRemoteVariantOption[] | null;
   variant_definitions?: LightspeedRemoteVariantOption[] | null;
   variant_option_one_name?: string | null;
   variant_option_one_value?: string | null;
