@@ -67,8 +67,49 @@ export class LightspeedMappingService {
     return `${input.titleDisplay} - ${input.sku}`;
   }
 
-  cleanWebsiteName(rawName: string) {
-    return rawName.replace(/\s+-\s+[A-Z]-[A-Z0-9-]+$/i, "").trim();
+  cleanWebsiteName(
+    rawName: string,
+    options?: {
+      externalSku?: string | null;
+      sizeLabel?: string | null;
+      condition?: "new" | "used" | null;
+    },
+  ) {
+    let cleaned = rawName.trim();
+
+    const suffixes = [
+      options?.externalSku?.trim() || null,
+      options?.sizeLabel?.trim() || null,
+      options?.condition === "used"
+        ? "Preowned"
+        : options?.condition === "new"
+          ? "New"
+          : null,
+      options?.condition === "used" ? "Used" : null,
+    ].filter((value): value is string => Boolean(value));
+
+    for (const suffix of suffixes) {
+      const escaped = suffix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const patterns = [
+        new RegExp(`\\s+-\\s+${escaped}$`, "i"),
+        new RegExp(`\\s+\\(${escaped}\\)$`, "i"),
+        new RegExp(`\\s+${escaped}$`, "i"),
+      ];
+
+      let changed = true;
+      while (changed) {
+        changed = false;
+        for (const pattern of patterns) {
+          const next = cleaned.replace(pattern, "").trim();
+          if (next !== cleaned) {
+            cleaned = next;
+            changed = true;
+          }
+        }
+      }
+    }
+
+    return cleaned.replace(/\s+-\s+[A-Z]-[A-Z0-9-]+$/i, "").trim();
   }
 
   extractExternalSku(
@@ -123,12 +164,13 @@ export class LightspeedMappingService {
   ): NormalizedLightspeedProduct {
     const externalSku =
       this.extractExternalSku(record) ?? this.extractExternalSku(parent) ?? record.id;
-    const rawName = record.name?.trim() || parent?.name?.trim() || externalSku;
     const condition: NormalizedLightspeedProduct["condition"] = this.extractCondition(
       record,
       parent,
       externalSku,
     );
+    const sizeLabel = this.extractSizeLabel(record, parent);
+    const rawName = record.name?.trim() || parent?.name?.trim() || externalSku;
     const category = this.normalizeCategory(
       record.product_category ??
         record.product_category_name ??
@@ -141,13 +183,17 @@ export class LightspeedMappingService {
       lightspeedProductId: record.id,
       externalSku,
       rawName,
-      cleanName: this.cleanWebsiteName(rawName),
+      cleanName: this.cleanWebsiteName(rawName, {
+        externalSku,
+        sizeLabel,
+        condition,
+      }),
       description: record.description?.trim() || parent?.description?.trim() || null,
       brand: record.brand_name?.trim() || parent?.brand_name?.trim() || null,
       model: null,
       category,
       condition,
-      sizeLabel: this.extractSizeLabel(record, parent),
+      sizeLabel,
       priceCents: this.extractPriceCents(record, parent),
       costCents: this.extractCostCents(record, parent),
       stock: this.extractStock(record, parent),

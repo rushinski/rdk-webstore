@@ -7,6 +7,8 @@ const deleteImagesByProductMock = jest.fn();
 const deleteVariantMock = jest.fn();
 const deleteProductMock = jest.fn();
 const getProductByIdMock = jest.fn();
+const unlinkProductTagsMock = jest.fn();
+const linkProductTagMock = jest.fn();
 
 const getByLightspeedVariantIdMock = jest.fn();
 const getByExternalSkuMock = jest.fn();
@@ -14,6 +16,8 @@ const getByLightspeedProductIdMock = jest.fn();
 const listByProductIdMock = jest.fn();
 const upsertLinkMock = jest.fn();
 const updateLinkByIdMock = jest.fn();
+const parseTitleMock = jest.fn();
+const upsertTagsMock = jest.fn();
 
 jest.mock("@/repositories/product-repo", () => ({
   ProductRepository: jest.fn().mockImplementation(() => ({
@@ -26,6 +30,8 @@ jest.mock("@/repositories/product-repo", () => ({
     deleteVariant: deleteVariantMock,
     delete: deleteProductMock,
     getById: getProductByIdMock,
+    unlinkProductTags: unlinkProductTagsMock,
+    linkProductTag: linkProductTagMock,
   })),
 }));
 
@@ -40,6 +46,20 @@ jest.mock("@/repositories/lightspeed-links-repo", () => ({
   })),
 }));
 
+jest.mock("@/services/product-title-parser-service", () => ({
+  ProductTitleParserService: jest.fn().mockImplementation(() => ({
+    parseTitle: parseTitleMock,
+  })),
+}));
+
+jest.mock("@/services/tag-service", () => {
+  const actual = jest.requireActual("@/services/tag-service");
+  return {
+    ...actual,
+    upsertTags: jest.fn((...args) => upsertTagsMock(...args)),
+  };
+});
+
 import { LightspeedInboundSyncService } from "@/services/lightspeed-inbound-sync-service";
 
 describe("LightspeedInboundSyncService", () => {
@@ -53,12 +73,28 @@ describe("LightspeedInboundSyncService", () => {
     deleteVariantMock.mockReset();
     deleteProductMock.mockReset();
     getProductByIdMock.mockReset();
+    unlinkProductTagsMock.mockReset();
+    linkProductTagMock.mockReset();
     getByLightspeedVariantIdMock.mockReset();
     getByExternalSkuMock.mockReset();
     getByLightspeedProductIdMock.mockReset();
     listByProductIdMock.mockReset();
     upsertLinkMock.mockReset();
     updateLinkByIdMock.mockReset();
+    parseTitleMock.mockReset();
+    upsertTagsMock.mockReset();
+
+    parseTitleMock.mockResolvedValue({
+      brand: { label: "Jordan", groupKey: null },
+      model: { label: "Jordan 4" },
+    });
+    upsertTagsMock.mockResolvedValue([
+      { id: "tag-brand" },
+      { id: "tag-model" },
+      { id: "tag-category" },
+      { id: "tag-condition" },
+      { id: "tag-size" },
+    ]);
   });
 
   it("creates a website product from an unlinked Lightspeed variant family", async () => {
@@ -110,11 +146,14 @@ describe("LightspeedInboundSyncService", () => {
         tenant_id: "tenant-1",
         name: "Jordan 4 Delta",
         brand: "Jordan",
+        model: "Jordan 4",
         category: "sneakers",
         condition: "new",
       }),
     );
     expect(createVariantMock).toHaveBeenCalledTimes(2);
+    expect(unlinkProductTagsMock).toHaveBeenCalledWith("product-1");
+    expect(linkProductTagMock).toHaveBeenCalledTimes(5);
     expect(upsertLinkMock).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -166,6 +205,50 @@ describe("LightspeedInboundSyncService", () => {
     expect(updateMock).not.toHaveBeenCalled();
     expect(updateVariantMock).not.toHaveBeenCalled();
     expect(result).toEqual({ status: "skipped", reason: "stale_remote_write" });
+  });
+
+  it("uses parser normalization to canonicalize imported brands before saving", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "product-2" });
+    createVariantMock.mockResolvedValue({ id: "variant-3" });
+    parseTitleMock.mockResolvedValue({
+      brand: { label: "Adidas", groupKey: null },
+      model: { label: null },
+    });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-product-2",
+        name: "Campus 00s - New - 10.5 - N-ADI-CMP-10-01",
+        brand_name: "Addidas",
+        sku: "N-ADI-CMP-10-01",
+        product_category: "Sneakers",
+        active: true,
+        variant_option_one_name: "Size",
+        variant_option_one_value: "10.5",
+        inventory_Main_Outlet: 1,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-07T19:30:00.000Z",
+    });
+
+    expect(parseTitleMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titleRaw: "Addidas Campus 00s",
+        category: "sneakers",
+        tenantId: "tenant-1",
+      }),
+    );
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Campus 00s",
+        brand: "Adidas",
+      }),
+    );
   });
 
   it("hard deletes linked website records when Lightspeed deletes the family", async () => {

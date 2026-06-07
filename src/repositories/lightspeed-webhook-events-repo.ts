@@ -21,11 +21,6 @@ export class LightspeedWebhookEventsRepository {
     inserted: boolean;
     event: LightspeedWebhookEvent;
   }> {
-    const existing = await this.getByEventId(input.eventId);
-    if (existing) {
-      return { inserted: false, event: existing };
-    }
-
     const { data, error } = await this.supabase
       .from("lightspeed_webhook_events")
       .insert({
@@ -55,19 +50,5 @@ export class LightspeedWebhookEventsRepository {
     if (error) {
       throw error;
     }
-  }
-
-  private async getByEventId(eventId: string): Promise<LightspeedWebhookEvent | null> {
-    const { data, error } = await this.supabase
-      .from("lightspeed_webhook_events")
-      .select("*")
-      .eq("event_id", eventId)
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    return (data ?? null) as LightspeedWebhookEvent | null;
   }
 }

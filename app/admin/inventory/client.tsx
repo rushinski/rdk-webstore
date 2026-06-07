@@ -910,6 +910,14 @@ export function InventoryClient({
                                     onClick={() => openDetailsModal(product, variant)}
                                     className="group flex cursor-pointer items-center justify-start gap-8 px-6 py-4 transition-colors hover:bg-zinc-800/70"
                                   >
+                                    <div className="w-36 flex-shrink-0">
+                                      <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
+                                        SKU
+                                      </div>
+                                      <div className="text-sm font-mono text-zinc-200">
+                                        {variant.sku || "N/A"}
+                                      </div>
+                                    </div>
                                     <div className="w-28 flex-shrink-0">
                                       <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
                                         Size
@@ -920,18 +928,18 @@ export function InventoryClient({
                                     </div>
                                     <div className="w-32 flex-shrink-0">
                                       <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
-                                        Selling Price
+                                        Unit Cost
                                       </div>
-                                      <div className="text-sm font-bold text-white">
-                                        ${(variant.sale_price_cents / 100).toFixed(2)}
+                                      <div className="text-sm font-medium text-zinc-200">
+                                        ${(variant.unit_cost_cents / 100).toFixed(2)}
                                       </div>
                                     </div>
                                     <div className="w-32 flex-shrink-0">
                                       <div className="mb-0.5 text-[10px] uppercase tracking-tight text-zinc-500">
-                                        Bought For
+                                        Sale Price
                                       </div>
-                                      <div className="text-sm font-medium text-zinc-200">
-                                        ${(variant.unit_cost_cents / 100).toFixed(2)}
+                                      <div className="text-sm font-bold text-white">
+                                        ${(variant.sale_price_cents / 100).toFixed(2)}
                                       </div>
                                     </div>
                                     <div className="w-24 flex-shrink-0">
@@ -1098,16 +1106,20 @@ export function InventoryClient({
                         >
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-200">
                             <span>
+                              <span className="text-zinc-500">SKU:</span>{" "}
+                              <span className="font-mono">{variant.sku || "N/A"}</span>
+                            </span>
+                            <span>
                               <span className="text-zinc-500">Size:</span>{" "}
                               {variant.size_label}
                             </span>
                             <span>
-                              <span className="text-zinc-500">Selling Price:</span> $
-                              {(variant.sale_price_cents / 100).toFixed(2)}
+                              <span className="text-zinc-500">Unit Cost:</span> $
+                              {(variant.unit_cost_cents / 100).toFixed(2)}
                             </span>
                             <span>
-                              <span className="text-zinc-500">Bought For:</span> $
-                              {(variant.unit_cost_cents / 100).toFixed(2)}
+                              <span className="text-zinc-500">Sale Price:</span> $
+                              {(variant.sale_price_cents / 100).toFixed(2)}
                             </span>
                             <span>
                               <span className="text-zinc-500">Stock:</span>{" "}
