@@ -37,6 +37,34 @@ const syncBodySchema = z.union([
     .strict(),
   z
     .object({
+      action: z.literal("apply_edit_chunk"),
+      edits: z.array(
+        z
+          .object({
+            websiteProductId: z.string().uuid(),
+            remoteProductId: z.string(),
+            reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
+          })
+          .strict(),
+      ).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("apply_restore_chunk"),
+      restores: z.array(
+        z
+          .object({
+            websiteProductId: z.string().uuid(),
+            remoteProductId: z.string(),
+            reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
+          })
+          .strict(),
+      ).min(1),
+    })
+    .strict(),
+  z
+    .object({
       action: z.literal("apply_archive_chunk"),
       websiteProductIds: z.array(z.string().uuid()).min(1),
     })
@@ -106,6 +134,16 @@ export async function POST(request: Request) {
                 tenantId,
                 remoteProductIds: parsed.data.remoteProductIds,
               })
+            : parsed.data.action === "apply_edit_chunk"
+              ? await service.applyEditChunk({
+                  tenantId,
+                  edits: parsed.data.edits,
+                })
+            : parsed.data.action === "apply_restore_chunk"
+              ? await service.applyRestoreChunk({
+                  tenantId,
+                  restores: parsed.data.restores,
+                })
             : await service.applyArchiveChunk({
                 tenantId,
                 websiteProductIds: parsed.data.websiteProductIds,

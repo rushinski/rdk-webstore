@@ -22,6 +22,7 @@ import type {
   Condition,
 } from "@/types/domain/product";
 import { InventoryProductDetailsModal } from "@/components/admin/inventory/InventoryProductDetailsModal";
+import { SyncProductPreviewModal } from "@/components/admin/inventory/SyncProductPreviewModal";
 import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
@@ -58,31 +59,95 @@ interface InventoryClientProps {
 }
 
 type ReconciliationPreview = {
-  matchedCount: number;
+  noChangeCount: number;
   importCount: number;
+  editCount: number;
+  restoreCount: number;
   archiveCount: number;
   conflictCount: number;
-  matched: Array<{
+  noChanges: Array<{
     websiteProductId: string;
     remoteProductId: string;
     reason: "link" | "sku";
     skuMatches: string[];
+    title: string;
+  }>;
+  edits: Array<{
+    websiteProductId: string;
+    remoteProductId: string;
+    reason: "link" | "sku";
+    skuMatches: string[];
+    title: string;
+    website: ComparableProduct;
+    remote: ComparableProduct;
+    diff: ComparableDiff;
   }>;
   imports: Array<{
     remoteProductId: string;
     title: string;
     skuSample: string | null;
+    remote: ComparableProduct;
+  }>;
+  restores: Array<{
+    websiteProductId: string;
+    remoteProductId: string;
+    title: string;
+    skuSample: string | null;
+    reason: "link" | "sku";
+    website: ComparableProduct;
+    remote: ComparableProduct;
+    diff: ComparableDiff | null;
   }>;
   archives: Array<{
     websiteProductId: string;
     title: string;
     skuSample: string | null;
+    website: ComparableProduct;
   }>;
   conflicts: Array<{
     remoteProductId: string;
     title: string;
     candidateWebsiteProductIds: string[];
     skuMatches: string[];
+    remote: ComparableProduct;
+  }>;
+};
+
+type ComparableVariant = {
+  sku: string;
+  sizeLabel: string;
+  salePriceCents: number;
+  unitCostCents: number;
+  stock: number;
+  sortOrder: number;
+};
+
+type ComparableTag = {
+  label: string;
+  groupKey: string;
+};
+
+type ComparableProduct = {
+  title: string;
+  description: string | null;
+  brand: string;
+  model: string | null;
+  category: string;
+  condition: string;
+  sizeType: string;
+  isActive: boolean;
+  isOutOfStock: boolean;
+  imageUrls: string[];
+  tags: ComparableTag[];
+  variants: ComparableVariant[];
+};
+
+type ComparableDiff = {
+  fields: string[];
+  variantChanges: Array<{
+    sku: string;
+    fields: string[];
+    changeType: "added" | "removed" | "changed";
   }>;
 };
 
@@ -90,6 +155,7 @@ type WebsiteArchiveCandidate = {
   websiteProductId: string;
   title: string;
   skuSample: string | null;
+  website: ComparableProduct;
 };
 
 type SyncModalStage = "preview_scanning" | "preview_summary" | "applying";
@@ -100,19 +166,31 @@ type PreviewScanState = {
   processedCount: number;
   totalCount: number | null;
   currentPage: number;
-  matchedCount: number;
+  noChangeCount: number;
   importCount: number;
+  editCount: number;
+  restoreCount: number;
   archiveCount: number;
   conflictCount: number;
   estimatedSecondsRemaining: number | null;
 };
 
 type SyncProgressState = {
-  phase: "preparing" | "importing" | "archiving" | "finishing" | "complete" | "error";
+  phase:
+    | "preparing"
+    | "restoring"
+    | "importing"
+    | "editing"
+    | "archiving"
+    | "finishing"
+    | "complete"
+    | "error";
   completedUnits: number;
   totalUnits: number;
   currentLabel: string;
   importedCount: number;
+  editedCount: number;
+  restoredCount: number;
   archivedCount: number;
   failedCount: number;
 };
@@ -139,6 +217,8 @@ type PreviewScanChunkResponse = {
 };
 
 const IMPORT_CHUNK_SIZE = 10;
+const EDIT_CHUNK_SIZE = 10;
+const RESTORE_CHUNK_SIZE = 10;
 const ARCHIVE_CHUNK_SIZE = 25;
 const PREVIEW_SCAN_PAGE_SIZE = 25;
 
@@ -198,6 +278,14 @@ export function InventoryClient({
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const [syncModalStage, setSyncModalStage] = useState<SyncModalStage>("preview_summary");
   const [syncLoading, setSyncLoading] = useState(false);
+  const [syncDetailsSelection, setSyncDetailsSelection] = useState<{
+    mode: "add" | "edit" | "restore" | "archive" | "conflict";
+    title: string;
+    websiteProduct?: ComparableProduct | null;
+    remoteProduct?: ComparableProduct | null;
+    diff?: ComparableDiff | null;
+    conflictCandidateCount?: number;
+  } | null>(null);
   const [previewScanState, setPreviewScanState] = useState<PreviewScanState | null>(null);
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null);
   const [toast, setToast] = useState<{
@@ -279,8 +367,10 @@ export function InventoryClient({
         processedCount: 0,
         totalCount: null,
         currentPage: 0,
-        matchedCount: 0,
+        noChangeCount: 0,
         importCount: 0,
+        editCount: 0,
+        restoreCount: 0,
         archiveCount: 0,
         conflictCount: 0,
         estimatedSecondsRemaining: null,
@@ -289,8 +379,10 @@ export function InventoryClient({
       const websiteCandidates = new Map<string, WebsiteArchiveCandidate>();
       const matchedWebsiteProductIds = new Set<string>();
       const conflictWebsiteProductIds = new Set<string>();
-      const matched: ReconciliationPreview["matched"] = [];
+      const noChanges: ReconciliationPreview["noChanges"] = [];
+      const edits: ReconciliationPreview["edits"] = [];
       const imports: ReconciliationPreview["imports"] = [];
+      const restores: ReconciliationPreview["restores"] = [];
       const conflicts: ReconciliationPreview["conflicts"] = [];
       let processedCount = 0;
       let scanChunkIndex = 1;
@@ -325,12 +417,19 @@ export function InventoryClient({
         for (const candidate of chunkWebsiteCandidates) {
           websiteCandidates.set(candidate.websiteProductId, candidate);
         }
-        for (const item of chunkPreview?.matched ?? []) {
-          matched.push(item);
+        for (const item of chunkPreview?.noChanges ?? []) {
+          noChanges.push(item);
+          matchedWebsiteProductIds.add(item.websiteProductId);
+        }
+        for (const item of chunkPreview?.edits ?? []) {
+          edits.push(item);
           matchedWebsiteProductIds.add(item.websiteProductId);
         }
         for (const item of chunkPreview?.imports ?? []) {
           imports.push(item);
+        }
+        for (const item of chunkPreview?.restores ?? []) {
+          restores.push(item);
         }
         for (const item of chunkPreview?.conflicts ?? []) {
           conflicts.push(item);
@@ -367,8 +466,10 @@ export function InventoryClient({
           processedCount,
           totalCount: remoteTotalCount,
           currentPage: Number(result?.chunkIndex ?? scanChunkIndex),
-          matchedCount: matched.length,
+          noChangeCount: noChanges.length,
           importCount: imports.length,
+          editCount: edits.length,
+          restoreCount: restores.length,
           archiveCount,
           conflictCount: conflicts.length,
           estimatedSecondsRemaining,
@@ -386,12 +487,16 @@ export function InventoryClient({
       );
 
       setSyncPreview({
-        matchedCount: matched.length,
+        noChangeCount: noChanges.length,
         importCount: imports.length,
+        editCount: edits.length,
+        restoreCount: restores.length,
         archiveCount: archives.length,
         conflictCount: conflicts.length,
-        matched,
+        noChanges,
+        edits,
         imports,
+        restores,
         archives,
         conflicts,
       });
@@ -401,6 +506,9 @@ export function InventoryClient({
           ? {
               ...prev,
               currentLabel: "Preview scan complete.",
+              noChangeCount: noChanges.length,
+              editCount: edits.length,
+              restoreCount: restores.length,
               archiveCount: archives.length,
             }
           : prev,
@@ -414,8 +522,10 @@ export function InventoryClient({
         processedCount: prev?.processedCount ?? 0,
         totalCount: prev?.totalCount ?? null,
         currentPage: prev?.currentPage ?? 0,
-        matchedCount: prev?.matchedCount ?? 0,
+        noChangeCount: prev?.noChangeCount ?? 0,
         importCount: prev?.importCount ?? 0,
+        editCount: prev?.editCount ?? 0,
+        restoreCount: prev?.restoreCount ?? 0,
         archiveCount: prev?.archiveCount ?? 0,
         conflictCount: prev?.conflictCount ?? 0,
         estimatedSecondsRemaining: prev?.estimatedSecondsRemaining ?? null,
@@ -434,7 +544,20 @@ export function InventoryClient({
     try {
       setSyncLoading(true);
       setSyncModalStage("applying");
-      const totalUnits = syncPreview.importCount + syncPreview.archiveCount;
+      const totalUnits =
+        syncPreview.importCount +
+        syncPreview.editCount +
+        syncPreview.restoreCount +
+        syncPreview.archiveCount;
+      const editChunks = chunkArray(
+        syncPreview.edits.map((item) => ({
+          websiteProductId: item.websiteProductId,
+          remoteProductId: item.remoteProductId,
+          reason: item.reason,
+        })),
+        EDIT_CHUNK_SIZE,
+      );
+      const restoreChunks = chunkArray(syncPreview.restores, RESTORE_CHUNK_SIZE);
       const importChunks = chunkArray(
         syncPreview.imports.map((item) => item.remoteProductId),
         IMPORT_CHUNK_SIZE,
@@ -450,10 +573,14 @@ export function InventoryClient({
         totalUnits,
         currentLabel: totalUnits === 0 ? "Nothing to sync." : "Preparing sync...",
         importedCount: 0,
+        editedCount: 0,
+        restoredCount: 0,
         archivedCount: 0,
         failedCount: 0,
       });
       let importedCount = 0;
+      let editedCount = 0;
+      let restoredCount = 0;
       let archivedCount = 0;
       let failedCount = 0;
 
@@ -461,6 +588,45 @@ export function InventoryClient({
         showToast("Sync complete. Nothing needed to change.", "success");
         await loadProducts(filtersRef.current);
         return;
+      }
+
+      for (const [index, chunk] of restoreChunks.entries()) {
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: "restoring",
+                currentLabel: `Restoring ${Math.min(index * RESTORE_CHUNK_SIZE + 1, syncPreview.restoreCount)}-${Math.min((index + 1) * RESTORE_CHUNK_SIZE, syncPreview.restoreCount)} of ${syncPreview.restoreCount}`,
+              }
+            : prev,
+        );
+
+        const response = await fetch("/api/admin/lightspeed/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "apply_restore_chunk",
+            restores: chunk,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to apply inventory sync.");
+        }
+
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                completedUnits: prev.completedUnits + chunk.length,
+                restoredCount:
+                  prev.restoredCount + Number(payload?.result?.restoredCount ?? 0),
+                failedCount: prev.failedCount + Number(payload?.result?.failedCount ?? 0),
+              }
+            : prev,
+        );
+        restoredCount += Number(payload?.result?.restoredCount ?? 0);
+        failedCount += Number(payload?.result?.failedCount ?? 0);
       }
 
       for (const [index, chunk] of importChunks.entries()) {
@@ -499,6 +665,44 @@ export function InventoryClient({
             : prev,
         );
         importedCount += Number(payload?.result?.importedCount ?? 0);
+        failedCount += Number(payload?.result?.failedCount ?? 0);
+      }
+
+      for (const [index, chunk] of editChunks.entries()) {
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: "editing",
+                currentLabel: `Editing ${Math.min(index * EDIT_CHUNK_SIZE + 1, syncPreview.editCount)}-${Math.min((index + 1) * EDIT_CHUNK_SIZE, syncPreview.editCount)} of ${syncPreview.editCount}`,
+              }
+            : prev,
+        );
+
+        const response = await fetch("/api/admin/lightspeed/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "apply_edit_chunk",
+            edits: chunk,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to apply inventory sync.");
+        }
+
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                completedUnits: prev.completedUnits + chunk.length,
+                editedCount: prev.editedCount + Number(payload?.result?.editedCount ?? 0),
+                failedCount: prev.failedCount + Number(payload?.result?.failedCount ?? 0),
+              }
+            : prev,
+        );
+        editedCount += Number(payload?.result?.editedCount ?? 0);
         failedCount += Number(payload?.result?.failedCount ?? 0);
       }
 
@@ -564,7 +768,7 @@ export function InventoryClient({
       );
 
       showToast(
-        `Sync complete. Imported ${importedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}${failedCount > 0 ? `, failures ${failedCount}` : ""}.`,
+        `Sync complete. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}${failedCount > 0 ? `, failures ${failedCount}` : ""}.`,
         "success",
       );
     } catch (error) {
@@ -803,6 +1007,43 @@ export function InventoryClient({
 
   const getProductTotalStock = (product: ProductWithDetails) =>
     product.variants.reduce((sum, variant) => sum + (variant.stock ?? 0), 0);
+
+  const openSyncDetails = (
+    selection:
+      | {
+          mode: "add";
+          title: string;
+          remoteProduct: ComparableProduct;
+        }
+      | {
+          mode: "edit" | "restore";
+          title: string;
+          websiteProduct: ComparableProduct;
+          remoteProduct: ComparableProduct;
+          diff: ComparableDiff | null;
+        }
+      | {
+          mode: "archive";
+          title: string;
+          websiteProduct: ComparableProduct;
+        }
+      | {
+          mode: "conflict";
+          title: string;
+          remoteProduct: ComparableProduct;
+          conflictCandidateCount: number;
+        },
+  ) => {
+    setSyncDetailsSelection({
+      mode: selection.mode,
+      title: selection.title,
+      websiteProduct: "websiteProduct" in selection ? selection.websiteProduct : null,
+      remoteProduct: "remoteProduct" in selection ? selection.remoteProduct : null,
+      diff: "diff" in selection ? selection.diff : null,
+      conflictCandidateCount:
+        "conflictCandidateCount" in selection ? selection.conflictCandidateCount : undefined,
+    });
+  };
 
   const getProductLiveState = (product: ProductWithDetails) => {
     if (product.archived_at) {
@@ -2083,13 +2324,13 @@ export function InventoryClient({
                         style={{ width: `${previewScanPercent}%` }}
                       />
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="grid gap-3 sm:grid-cols-6">
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
                         <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Matched
+                          No Change
                         </div>
                         <div className="mt-1 text-xl font-semibold text-white">
-                          {previewScanState.matchedCount}
+                          {previewScanState.noChangeCount}
                         </div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
@@ -2098,6 +2339,22 @@ export function InventoryClient({
                         </div>
                         <div className="mt-1 text-xl font-semibold text-emerald-300">
                           {previewScanState.importCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Edits
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-blue-300">
+                          {previewScanState.editCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Restores
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-sky-300">
+                          {previewScanState.restoreCount}
                         </div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
@@ -2116,6 +2373,10 @@ export function InventoryClient({
                           {previewScanState.conflictCount}
                         </div>
                       </div>
+                    </div>
+                    <div className="rounded border border-zinc-800/70 bg-zinc-900/40 p-3 text-xs text-zinc-400">
+                      <span className="font-semibold text-zinc-200">Key:</span>{" "}
+                      <span>`No Change` means the remote product already matches the active website product. `Imports` add missing Lightspeed products to the website. `Edits` overwrite active website products that differ from Lightspeed. `Restores` bring archived website products back because they still exist in Lightspeed. `Archives` move active website-only products out of live inventory. `Conflicts` are ambiguous matches that are skipped automatically.</span>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
                       <span>Current page: {previewScanState.currentPage || 1}</span>
@@ -2167,7 +2428,23 @@ export function InventoryClient({
                         style={{ width: `${syncProgressPercent}%` }}
                       />
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-5">
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Edited
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-blue-300">
+                          {syncProgress.editedCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Restored
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-sky-300">
+                          {syncProgress.restoredCount}
+                        </div>
+                      </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
                         <div className="text-xs uppercase tracking-wide text-zinc-500">
                           Imported
@@ -2201,21 +2478,37 @@ export function InventoryClient({
                 </div>
               ) : syncPreview ? (
                 <div className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-6">
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Matched
+                        No Change
                       </div>
                       <div className="mt-1 text-2xl font-semibold text-white">
-                        {syncPreview.matchedCount}
+                        {syncPreview.noChangeCount}
                       </div>
                     </div>
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Import
+                        Add
                       </div>
                       <div className="mt-1 text-2xl font-semibold text-emerald-300">
                         {syncPreview.importCount}
+                      </div>
+                    </div>
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Edit
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-blue-300">
+                        {syncPreview.editCount}
+                      </div>
+                    </div>
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Restore
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-sky-300">
+                        {syncPreview.restoreCount}
                       </div>
                     </div>
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
@@ -2236,7 +2529,11 @@ export function InventoryClient({
                     </div>
                   </div>
 
-                  <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="rounded border border-zinc-800 bg-zinc-950/50 p-3 text-sm text-zinc-300">
+                    <span className="font-semibold text-white">Key:</span> No Change means the Lightspeed product already matches the active website product. Add means the product exists in Lightspeed but not on the website. Edit means the product matches an active website product but the website needs to be updated. Restore means the matching website product is archived and should be brought back instead of duplicating it. Archive means an active website product is missing from Lightspeed. Conflicts are ambiguous matches and are skipped.
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-5">
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="text-sm font-semibold text-white">Add To Website</h3>
                       <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
@@ -2256,6 +2553,104 @@ export function InventoryClient({
                               <div className="mt-1 text-xs text-zinc-500">
                                 SKU: {item.skuSample || "N/A"}
                               </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "add",
+                                    title: item.title,
+                                    remoteProduct: item.remote,
+                                  })
+                                }
+                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                              >
+                                Details
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <h3 className="text-sm font-semibold text-white">Edit On Website</h3>
+                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
+                        {syncPreview.edits.length === 0 ? (
+                          <p className="text-sm text-zinc-500">
+                            No active website products need updates.
+                          </p>
+                        ) : (
+                          syncPreview.edits.map((item) => (
+                            <div
+                              key={`${item.websiteProductId}-${item.remoteProductId}`}
+                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                Diff fields: {item.diff.fields.join(", ")}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "edit",
+                                    title: item.title,
+                                    websiteProduct: item.website,
+                                    remoteProduct: item.remote,
+                                    diff: item.diff,
+                                  })
+                                }
+                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                              >
+                                Details
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <h3 className="text-sm font-semibold text-white">
+                        Restore On Website
+                      </h3>
+                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
+                        {syncPreview.restores.length === 0 ? (
+                          <p className="text-sm text-zinc-500">
+                            No archived website products need restoration.
+                          </p>
+                        ) : (
+                          syncPreview.restores.map((item) => (
+                            <div
+                              key={`${item.websiteProductId}-${item.remoteProductId}`}
+                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                SKU: {item.skuSample || "N/A"}
+                              </div>
+                              <div className="mt-1 text-xs text-sky-300">
+                                Restore by {item.reason === "link" ? "existing link" : "SKU match"}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "restore",
+                                    title: item.title,
+                                    websiteProduct: item.website,
+                                    remoteProduct: item.remote,
+                                    diff: item.diff,
+                                  })
+                                }
+                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                              >
+                                Details
+                              </button>
                             </div>
                           ))
                         )}
@@ -2283,6 +2678,19 @@ export function InventoryClient({
                               <div className="mt-1 text-xs text-zinc-500">
                                 SKU: {item.skuSample || "N/A"}
                               </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "archive",
+                                    title: item.title,
+                                    websiteProduct: item.website,
+                                  })
+                                }
+                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                              >
+                                Details
+                              </button>
                             </div>
                           ))
                         )}
@@ -2312,6 +2720,20 @@ export function InventoryClient({
                                 Multiple website candidates:{" "}
                                 {item.candidateWebsiteProductIds.length}
                               </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "conflict",
+                                    title: item.title,
+                                    remoteProduct: item.remote,
+                                    conflictCandidateCount: item.candidateWebsiteProductIds.length,
+                                  })
+                                }
+                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                              >
+                                Details
+                              </button>
                             </div>
                           ))
                         )}
@@ -2326,8 +2748,10 @@ export function InventoryClient({
 
             <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-5 py-4">
               <p className="text-xs text-zinc-500">
-                This sync only changes website inventory. It imports missing Lightspeed
-                products and archives website-only products.
+                This sync only changes website inventory. It imports missing
+                Lightspeed products, edits active website products that differ,
+                restores archived website products that still exist in Lightspeed,
+                and archives website-only products.
               </p>
               <div className="flex items-center gap-2">
                 <button
@@ -2338,6 +2762,7 @@ export function InventoryClient({
                     setSyncPreview(null);
                     setPreviewScanState(null);
                     setSyncProgress(null);
+                    setSyncDetailsSelection(null);
                   }}
                   className="rounded border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500"
                   disabled={
@@ -2373,6 +2798,17 @@ export function InventoryClient({
         message={toast?.message ?? ""}
         tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
+      />
+
+      <SyncProductPreviewModal
+        open={Boolean(syncDetailsSelection)}
+        mode={syncDetailsSelection?.mode ?? "add"}
+        title={syncDetailsSelection?.title ?? ""}
+        websiteProduct={syncDetailsSelection?.websiteProduct ?? null}
+        remoteProduct={syncDetailsSelection?.remoteProduct ?? null}
+        diff={syncDetailsSelection?.diff ?? null}
+        conflictCandidateCount={syncDetailsSelection?.conflictCandidateCount}
+        onClose={() => setSyncDetailsSelection(null)}
       />
     </div>
   );

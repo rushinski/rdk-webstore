@@ -13,6 +13,8 @@ jest.mock("@/lib/auth/tenant", () => ({
 const previewMock = jest.fn();
 const applyMock = jest.fn();
 const applyImportChunkMock = jest.fn();
+const applyEditChunkMock = jest.fn();
+const applyRestoreChunkMock = jest.fn();
 const applyArchiveChunkMock = jest.fn();
 const scanPreviewChunkMock = jest.fn();
 
@@ -21,6 +23,8 @@ jest.mock("@/services/lightspeed-reconciliation-sync-service", () => ({
     preview: previewMock,
     apply: applyMock,
     applyImportChunk: applyImportChunkMock,
+    applyEditChunk: applyEditChunkMock,
+    applyRestoreChunk: applyRestoreChunkMock,
     applyArchiveChunk: applyArchiveChunkMock,
     scanPreviewChunk: scanPreviewChunkMock,
   })),
@@ -49,12 +53,16 @@ describe("/api/admin/lightspeed/sync", () => {
 
   it("returns a preview summary for manual sync", async () => {
     previewMock.mockResolvedValue({
-      matchedCount: 3,
+      noChangeCount: 3,
       importCount: 2,
+      editCount: 4,
+      restoreCount: 1,
       archiveCount: 1,
       conflictCount: 1,
-      matched: [],
+      noChanges: [],
+      edits: [],
       imports: [],
+      restores: [],
       archives: [],
       conflicts: [],
     });
@@ -70,12 +78,16 @@ describe("/api/admin/lightspeed/sync", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       preview: {
-        matchedCount: 3,
+        noChangeCount: 3,
         importCount: 2,
+        editCount: 4,
+        restoreCount: 1,
         archiveCount: 1,
         conflictCount: 1,
-        matched: [],
+        noChanges: [],
+        edits: [],
         imports: [],
+        restores: [],
         archives: [],
         conflicts: [],
       },
@@ -85,8 +97,10 @@ describe("/api/admin/lightspeed/sync", () => {
 
   it("applies manual sync when requested", async () => {
     applyMock.mockResolvedValue({
-      matchedCount: 3,
+      noChangeCount: 3,
       importedCount: 2,
+      editedCount: 4,
+      restoredCount: 1,
       archivedCount: 1,
       conflictCount: 1,
       failedCount: 0,
@@ -107,8 +121,10 @@ describe("/api/admin/lightspeed/sync", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       result: {
-        matchedCount: 3,
+        noChangeCount: 3,
         importedCount: 2,
+        editedCount: 4,
+        restoredCount: 1,
         archivedCount: 1,
         conflictCount: 1,
         failedCount: 0,
@@ -148,6 +164,91 @@ describe("/api/admin/lightspeed/sync", () => {
         failedCount: 0,
       },
       requestId: "req-import-chunk",
+    });
+  });
+
+  it("applies an edit chunk", async () => {
+    applyEditChunkMock.mockResolvedValue({
+      editedCount: 2,
+      failedCount: 0,
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/lightspeed/sync", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req-edit-chunk",
+        },
+        body: JSON.stringify({
+          action: "apply_edit_chunk",
+          edits: [
+            {
+              websiteProductId: "11111111-1111-1111-8111-111111111111",
+              remoteProductId: "ls-edit",
+              reason: "link",
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(applyEditChunkMock).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      edits: [
+        {
+          websiteProductId: "11111111-1111-1111-8111-111111111111",
+          remoteProductId: "ls-edit",
+          reason: "link",
+        },
+      ],
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it("applies a restore chunk", async () => {
+    applyRestoreChunkMock.mockResolvedValue({
+      restoredCount: 1,
+      failedCount: 0,
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/lightspeed/sync", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req-restore-chunk",
+        },
+        body: JSON.stringify({
+          action: "apply_restore_chunk",
+          restores: [
+            {
+              websiteProductId: "11111111-1111-1111-8111-111111111111",
+              remoteProductId: "ls-restore",
+              reason: "sku",
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(applyRestoreChunkMock).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      restores: [
+        {
+          websiteProductId: "11111111-1111-1111-8111-111111111111",
+          remoteProductId: "ls-restore",
+          reason: "sku",
+        },
+      ],
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      result: {
+        restoredCount: 1,
+        failedCount: 0,
+      },
+      requestId: "req-restore-chunk",
     });
   });
 
@@ -196,12 +297,16 @@ describe("/api/admin/lightspeed/sync", () => {
       hasNextPage: true,
       nextPage: 2,
       preview: {
-        matchedCount: 10,
+        noChangeCount: 10,
         importCount: 8,
+        editCount: 4,
+        restoreCount: 3,
         archiveCount: 0,
         conflictCount: 2,
-        matched: [],
+        noChanges: [],
+        edits: [],
         imports: [],
+        restores: [],
         archives: [],
         conflicts: [],
       },
@@ -242,12 +347,16 @@ describe("/api/admin/lightspeed/sync", () => {
         hasNextPage: true,
         nextPage: 2,
         preview: {
-          matchedCount: 10,
+          noChangeCount: 10,
           importCount: 8,
+          editCount: 4,
+          restoreCount: 3,
           archiveCount: 0,
           conflictCount: 2,
-          matched: [],
+          noChanges: [],
+          edits: [],
           imports: [],
+          restores: [],
           archives: [],
           conflicts: [],
         },
@@ -268,12 +377,16 @@ describe("/api/admin/lightspeed/sync", () => {
       hasNextPage: true,
       nextPage: 2,
       preview: {
-        matchedCount: 10,
+        noChangeCount: 10,
         importCount: 8,
+        editCount: 4,
+        restoreCount: 3,
         archiveCount: 0,
         conflictCount: 2,
-        matched: [],
+        noChanges: [],
+        edits: [],
         imports: [],
+        restores: [],
         archives: [],
         conflicts: [],
       },

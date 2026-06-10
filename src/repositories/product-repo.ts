@@ -177,15 +177,22 @@ export class ProductRepository {
     return query.is("archived_at", null);
   }
 
-  async listForReconciliation(tenantId: string): Promise<ProductWithDetails[]> {
-    const { data, error } = await this.supabase
+  async listForReconciliation(
+    tenantId: string,
+    archivedStatus: ProductFilters["archivedStatus"] = "active",
+  ): Promise<ProductWithDetails[]> {
+    let query = this.supabase
       .from("products")
       .select(
         "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
       )
-      .eq("tenant_id", tenantId)
-      .is("archived_at", null)
-      .order("created_at", { ascending: false });
+      .eq("tenant_id", tenantId);
+
+    query = this.applyArchivedFilter(query, archivedStatus).order("created_at", {
+      ascending: false,
+    });
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
