@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 
 import { CheckoutLockedNotice } from "@/components/checkout/CheckoutLockedNotice";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getServerSession } from "@/lib/auth/session";
 import { getStoreAccessSettings } from "@/lib/store-access/get-store-access-settings";
 import { CheckoutGate } from "@/components/checkout/CheckoutGate";
 
@@ -12,10 +12,8 @@ export default async function CheckoutGatePage() {
     return <CheckoutLockedNotice message={storeAccess.settings.checkoutLockMessage} />;
   }
 
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const session = await getServerSession();
+  const user = session?.user ?? null;
 
   if (user) {
     redirect("/checkout/start");

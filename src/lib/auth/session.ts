@@ -1,5 +1,5 @@
 // src/lib/auth/session.ts
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -66,6 +66,8 @@ async function getServerSessionUncached(): Promise<ServerSession | null> {
       role: profile?.role ?? "customer",
     };
   } catch (error) {
+    unstable_rethrow(error);
+
     logError(error, {
       layer: "auth",
       route: "getServerSession",
