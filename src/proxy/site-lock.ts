@@ -1,10 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import { security, startsWithAny } from "@/config/security";
 import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 import { createSupabaseProxyClient } from "@/lib/supabase/proxy";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { logError } from "@/lib/utils/log";
+import { ProfileRepository } from "@/repositories/profile-repo";
 import { TenantRepository } from "@/repositories/tenant-repo";
 import { StoreAccessSettingsService } from "@/services/store-access-settings-service";
 
@@ -20,8 +23,8 @@ async function awaitMaybeVerify(token: string) {
   }
 }
 
-async function getLockSettings(request: NextRequest) {
-  const supabase = createSupabaseProxyClient(request);
+async function getLockSettings() {
+  const supabase = createSupabaseAdminClient();
   const tenantRepo = new TenantRepository(supabase);
   const tenantId = await tenantRepo.getFirstTenantId();
 
@@ -35,6 +38,24 @@ async function getLockSettings(request: NextRequest) {
   return { service, settings };
 }
 
+async function isSignedInAdmin(request: NextRequest): Promise<boolean> {
+  const supabase = createSupabaseProxyClient(request);
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return false;
+  }
+
+  const profileRepo = new ProfileRepository(supabase);
+  const profile = await profileRepo.getByUserId(user.id);
+  const role = isProfileRole(profile?.role) ? profile.role : "customer";
+
+  return isAdminRole(role);
+}
+
 export async function checkSiteLock(
   request: NextRequest,
   requestId: string,
@@ -43,7 +64,7 @@ export async function checkSiteLock(
   let lockSettings: Awaited<ReturnType<typeof getLockSettings>>;
 
   try {
-    lockSettings = await getLockSettings(request);
+    lockSettings = await getLockSettings();
   } catch (error) {
     logError(error, {
       layer: "proxy",
@@ -87,6 +108,19 @@ export async function checkSiteLock(
     if (session) {
       return null;
     }
+  }
+
+  try {
+    if (await isSignedInAdmin(request)) {
+      return null;
+    }
+  } catch (error) {
+    logError(error, {
+      layer: "proxy",
+      requestId,
+      route: pathname,
+      message: "site_lock_admin_bypass_lookup_failed",
+    });
   }
 
   if (isApiPath(pathname)) {

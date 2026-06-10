@@ -1,9 +1,9 @@
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { TenantRepository } from "@/repositories/tenant-repo";
 import { StoreAccessSettingsService } from "@/services/store-access-settings-service";
 
 export async function getStoreAccessSettings() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
   const tenantRepo = new TenantRepository(supabase);
   const tenantId = await tenantRepo.getFirstTenantId();
 

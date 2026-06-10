@@ -57,6 +57,78 @@ interface InventoryClientProps {
   };
 }
 
+type ReconciliationPreview = {
+  matchedCount: number;
+  importCount: number;
+  archiveCount: number;
+  conflictCount: number;
+  matched: Array<{
+    websiteProductId: string;
+    remoteProductId: string;
+    reason: "link" | "sku";
+    skuMatches: string[];
+  }>;
+  imports: Array<{
+    remoteProductId: string;
+    title: string;
+    skuSample: string | null;
+  }>;
+  archives: Array<{
+    websiteProductId: string;
+    title: string;
+    skuSample: string | null;
+  }>;
+  conflicts: Array<{
+    remoteProductId: string;
+    title: string;
+    candidateWebsiteProductIds: string[];
+    skuMatches: string[];
+  }>;
+};
+
+type WebsiteArchiveCandidate = {
+  websiteProductId: string;
+  title: string;
+  skuSample: string | null;
+};
+
+type SyncModalStage = "preview_scanning" | "preview_summary" | "applying";
+
+type PreviewScanState = {
+  status: "scanning" | "error";
+  currentLabel: string;
+  processedCount: number;
+  totalCount: number | null;
+  currentPage: number;
+  matchedCount: number;
+  importCount: number;
+  archiveCount: number;
+  conflictCount: number;
+  estimatedSecondsRemaining: number | null;
+};
+
+type SyncProgressState = {
+  phase: "preparing" | "importing" | "archiving" | "finishing" | "complete" | "error";
+  completedUnits: number;
+  totalUnits: number;
+  currentLabel: string;
+  importedCount: number;
+  archivedCount: number;
+  failedCount: number;
+};
+
+const IMPORT_CHUNK_SIZE = 10;
+const ARCHIVE_CHUNK_SIZE = 25;
+const PREVIEW_SCAN_PAGE_SIZE = 25;
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 export function InventoryClient({
   initialProducts,
   initialTotal,
@@ -101,6 +173,12 @@ export function InventoryClient({
     mode: "selected";
     count?: number;
   } | null>(null);
+  const [syncPreview, setSyncPreview] = useState<ReconciliationPreview | null>(null);
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncModalStage, setSyncModalStage] = useState<SyncModalStage>("preview_summary");
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [previewScanState, setPreviewScanState] = useState<PreviewScanState | null>(null);
+  const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null);
   const [toast, setToast] = useState<{
     message: string;
     tone: "success" | "error" | "info";
@@ -164,6 +242,319 @@ export function InventoryClient({
       showToast("Inventory exported.", "success");
     } catch {
       showToast("Error exporting inventory.", "error");
+    }
+  };
+
+  const loadSyncPreview = async () => {
+    try {
+      setSyncDialogOpen(true);
+      setSyncLoading(true);
+      setSyncModalStage("preview_scanning");
+      setSyncPreview(null);
+      setSyncProgress(null);
+      setPreviewScanState({
+        status: "scanning",
+        currentLabel: "Preparing preview scan...",
+        processedCount: 0,
+        totalCount: null,
+        currentPage: 0,
+        matchedCount: 0,
+        importCount: 0,
+        archiveCount: 0,
+        conflictCount: 0,
+        estimatedSecondsRemaining: null,
+      });
+
+      const websiteCandidates = new Map<string, WebsiteArchiveCandidate>();
+      const matchedWebsiteProductIds = new Set<string>();
+      const conflictWebsiteProductIds = new Set<string>();
+      const matched: ReconciliationPreview["matched"] = [];
+      const imports: ReconciliationPreview["imports"] = [];
+      const conflicts: ReconciliationPreview["conflicts"] = [];
+      let processedCount = 0;
+      let scanPage = 1;
+      let hasNextPage = true;
+      const startedAtMs = Date.now();
+
+      while (hasNextPage) {
+        const response = await fetch("/api/admin/lightspeed/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "scan_preview_chunk",
+            page: scanPage,
+            pageSize: PREVIEW_SCAN_PAGE_SIZE,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to preview inventory sync.");
+        }
+
+        const result = payload?.result;
+        const chunkPreview = result?.preview;
+        const chunkWebsiteCandidates = Array.isArray(result?.websiteCandidates)
+          ? (result.websiteCandidates as WebsiteArchiveCandidate[])
+          : [];
+
+        for (const candidate of chunkWebsiteCandidates) {
+          websiteCandidates.set(candidate.websiteProductId, candidate);
+        }
+        for (const item of chunkPreview?.matched ?? []) {
+          matched.push(item);
+          matchedWebsiteProductIds.add(item.websiteProductId);
+        }
+        for (const item of chunkPreview?.imports ?? []) {
+          imports.push(item);
+        }
+        for (const item of chunkPreview?.conflicts ?? []) {
+          conflicts.push(item);
+          for (const websiteProductId of item.candidateWebsiteProductIds) {
+            conflictWebsiteProductIds.add(websiteProductId);
+          }
+        }
+
+        processedCount += Number(result?.processedCount ?? 0);
+        hasNextPage = Boolean(result?.hasNextPage);
+        const remoteTotalCount =
+          typeof result?.totalRemoteProducts === "number"
+            ? result.totalRemoteProducts
+            : null;
+        const elapsedSeconds = Math.max(1, (Date.now() - startedAtMs) / 1000);
+        const rate = processedCount / elapsedSeconds;
+        const remainingCount =
+          typeof remoteTotalCount === "number"
+            ? Math.max(remoteTotalCount - processedCount, 0)
+            : null;
+        const estimatedSecondsRemaining =
+          remainingCount !== null && rate > 0
+            ? Math.max(Math.round(remainingCount / rate), 0)
+            : null;
+        const archiveCount = Math.max(
+          websiteCandidates.size -
+            new Set([...matchedWebsiteProductIds, ...conflictWebsiteProductIds]).size,
+          0,
+        );
+
+        setPreviewScanState({
+          status: "scanning",
+          currentLabel: `Scanning page ${result?.page ?? scanPage}${remoteTotalCount ? ` of ~${Math.max(Math.ceil(remoteTotalCount / PREVIEW_SCAN_PAGE_SIZE), 1)}` : ""}`,
+          processedCount,
+          totalCount: remoteTotalCount,
+          currentPage: Number(result?.page ?? scanPage),
+          matchedCount: matched.length,
+          importCount: imports.length,
+          archiveCount,
+          conflictCount: conflicts.length,
+          estimatedSecondsRemaining,
+        });
+
+        scanPage = Number(result?.nextPage ?? scanPage + 1);
+      }
+
+      const archives = Array.from(websiteCandidates.values()).filter(
+        (candidate) =>
+          !matchedWebsiteProductIds.has(candidate.websiteProductId) &&
+          !conflictWebsiteProductIds.has(candidate.websiteProductId),
+      );
+
+      setSyncPreview({
+        matchedCount: matched.length,
+        importCount: imports.length,
+        archiveCount: archives.length,
+        conflictCount: conflicts.length,
+        matched,
+        imports,
+        archives,
+        conflicts,
+      });
+      setSyncModalStage("preview_summary");
+      setPreviewScanState((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentLabel: "Preview scan complete.",
+              archiveCount: archives.length,
+            }
+          : prev,
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Error previewing inventory sync.";
+      setPreviewScanState((prev) => ({
+        status: "error",
+        currentLabel: message,
+        processedCount: prev?.processedCount ?? 0,
+        totalCount: prev?.totalCount ?? null,
+        currentPage: prev?.currentPage ?? 0,
+        matchedCount: prev?.matchedCount ?? 0,
+        importCount: prev?.importCount ?? 0,
+        archiveCount: prev?.archiveCount ?? 0,
+        conflictCount: prev?.conflictCount ?? 0,
+        estimatedSecondsRemaining: prev?.estimatedSecondsRemaining ?? null,
+      }));
+      showToast(message, "error");
+    } finally {
+      setSyncLoading(false);
+    }
+  };
+
+  const applySync = async () => {
+    if (!syncPreview) {
+      return;
+    }
+
+    try {
+      setSyncLoading(true);
+      setSyncModalStage("applying");
+      const totalUnits = syncPreview.importCount + syncPreview.archiveCount;
+      const importChunks = chunkArray(
+        syncPreview.imports.map((item) => item.remoteProductId),
+        IMPORT_CHUNK_SIZE,
+      );
+      const archiveChunks = chunkArray(
+        syncPreview.archives.map((item) => item.websiteProductId),
+        ARCHIVE_CHUNK_SIZE,
+      );
+
+      setSyncProgress({
+        phase: totalUnits === 0 ? "complete" : "preparing",
+        completedUnits: 0,
+        totalUnits,
+        currentLabel: totalUnits === 0 ? "Nothing to sync." : "Preparing sync...",
+        importedCount: 0,
+        archivedCount: 0,
+        failedCount: 0,
+      });
+      let importedCount = 0;
+      let archivedCount = 0;
+      let failedCount = 0;
+
+      if (totalUnits === 0) {
+        showToast("Sync complete. Nothing needed to change.", "success");
+        await loadProducts(filtersRef.current);
+        return;
+      }
+
+      for (const [index, chunk] of importChunks.entries()) {
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: "importing",
+                currentLabel: `Importing ${Math.min(index * IMPORT_CHUNK_SIZE + 1, syncPreview.importCount)}-${Math.min((index + 1) * IMPORT_CHUNK_SIZE, syncPreview.importCount)} of ${syncPreview.importCount}`,
+              }
+            : prev,
+        );
+
+        const response = await fetch("/api/admin/lightspeed/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "apply_import_chunk",
+            remoteProductIds: chunk,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to apply inventory sync.");
+        }
+
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                completedUnits: prev.completedUnits + chunk.length,
+                importedCount:
+                  prev.importedCount + Number(payload?.result?.importedCount ?? 0),
+                failedCount: prev.failedCount + Number(payload?.result?.failedCount ?? 0),
+              }
+            : prev,
+        );
+        importedCount += Number(payload?.result?.importedCount ?? 0);
+        failedCount += Number(payload?.result?.failedCount ?? 0);
+      }
+
+      for (const [index, chunk] of archiveChunks.entries()) {
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: "archiving",
+                currentLabel: `Archiving ${Math.min(index * ARCHIVE_CHUNK_SIZE + 1, syncPreview.archiveCount)}-${Math.min((index + 1) * ARCHIVE_CHUNK_SIZE, syncPreview.archiveCount)} of ${syncPreview.archiveCount}`,
+              }
+            : prev,
+        );
+
+        const response = await fetch("/api/admin/lightspeed/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "apply_archive_chunk",
+            websiteProductIds: chunk,
+          }),
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.error || "Failed to apply inventory sync.");
+        }
+
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                completedUnits: prev.completedUnits + chunk.length,
+                archivedCount:
+                  prev.archivedCount + Number(payload?.result?.archivedCount ?? 0),
+                failedCount: prev.failedCount + Number(payload?.result?.failedCount ?? 0),
+              }
+            : prev,
+        );
+        archivedCount += Number(payload?.result?.archivedCount ?? 0);
+        failedCount += Number(payload?.result?.failedCount ?? 0);
+      }
+
+      setSyncProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              phase: "finishing",
+              currentLabel: "Refreshing inventory...",
+            }
+          : prev,
+      );
+
+      await loadProducts(filtersRef.current);
+
+      setSyncProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              phase: "complete",
+              currentLabel: "Sync complete.",
+            }
+          : prev,
+      );
+
+      showToast(
+        `Sync complete. Imported ${importedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}${failedCount > 0 ? `, failures ${failedCount}` : ""}.`,
+        "success",
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Error applying inventory sync.";
+      setSyncProgress((prev) =>
+        prev
+          ? {
+              ...prev,
+              phase: "error",
+              currentLabel: message,
+            }
+          : prev,
+      );
+      showToast(message, "error");
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -350,6 +741,29 @@ export function InventoryClient({
   const showToast = (message: string, tone: "success" | "error" | "info" = "info") => {
     setToast({ message, tone });
   };
+
+  const syncProgressPercent = syncProgress
+    ? syncProgress.totalUnits > 0
+      ? Math.min(
+          100,
+          Math.round((syncProgress.completedUnits / syncProgress.totalUnits) * 100),
+        )
+      : 100
+    : 0;
+  const previewScanPercent = previewScanState
+    ? previewScanState.totalCount && previewScanState.totalCount > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (previewScanState.processedCount / previewScanState.totalCount) * 100,
+          ),
+        )
+      : 10
+    : 0;
+  const previewItemsRemaining =
+    previewScanState && typeof previewScanState.totalCount === "number"
+      ? Math.max(previewScanState.totalCount - previewScanState.processedCount, 0)
+      : null;
 
   const getProductRawTitle = (product: ProductWithDetails) =>
     product.name?.trim() || "Item";
@@ -843,6 +1257,23 @@ export function InventoryClient({
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Inventory</h1>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                void loadSyncPreview();
+              }}
+              aria-label="Sync inventory"
+              disabled={syncLoading}
+              className="flex items-center gap-1 rounded border border-zinc-800/70 bg-zinc-900 px-3 py-2 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 sm:gap-2 sm:px-4 sm:py-2 sm:text-base"
+            >
+              <RotateCcw
+                className={`h-4 w-4 sm:h-5 sm:w-5 ${syncLoading ? "animate-spin" : ""}`}
+              />
+              <span className="hidden sm:inline">
+                {syncLoading ? "Syncing..." : "Sync Inventory"}
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => void exportInventory()}
@@ -1556,6 +1987,359 @@ export function InventoryClient({
         }}
         onCancel={() => setPendingRestore(null)}
       />
+
+      {syncDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => {
+              if (!syncLoading) {
+                setSyncDialogOpen(false);
+              }
+            }}
+          />
+          <div className="relative max-h-[85vh] w-full max-w-3xl overflow-hidden rounded border border-zinc-800 bg-zinc-900 shadow-xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">
+                  Sync Website Inventory
+                </h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Compare active website inventory to Lightspeed before applying changes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!syncLoading) {
+                    setSyncDialogOpen(false);
+                  }
+                }}
+                className="text-gray-400 transition hover:text-white"
+                aria-label="Close sync preview"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+              {syncModalStage === "preview_scanning" && previewScanState ? (
+                <div className="space-y-5">
+                  <div className="space-y-3 rounded border border-zinc-800 bg-zinc-950/60 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {previewScanState.status === "error"
+                            ? "Preview Scan Stopped"
+                            : "Scanning Lightspeed Inventory"}
+                        </div>
+                        <div className="mt-1 text-sm text-zinc-400">
+                          {previewScanState.currentLabel}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-semibold text-white">
+                          {previewScanState.totalCount
+                            ? `${previewScanState.processedCount}/${previewScanState.totalCount}`
+                            : previewScanState.processedCount}
+                        </div>
+                        <div className="text-xs text-zinc-500">items scanned</div>
+                      </div>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded bg-zinc-800">
+                      <div
+                        className={`h-full transition-all ${
+                          previewScanState.status === "error"
+                            ? "bg-amber-500"
+                            : "bg-red-600"
+                        }`}
+                        style={{ width: `${previewScanPercent}%` }}
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Matched
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-white">
+                          {previewScanState.matchedCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Imports
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-emerald-300">
+                          {previewScanState.importCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Archives
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-amber-300">
+                          {previewScanState.archiveCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Conflicts
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-red-300">
+                          {previewScanState.conflictCount}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
+                      <span>Current page: {previewScanState.currentPage || 1}</span>
+                      <span>
+                        {previewItemsRemaining === null
+                          ? "Items remaining: estimating..."
+                          : `Items remaining: ${previewItemsRemaining}`}
+                      </span>
+                      <span>
+                        {previewScanState.estimatedSecondsRemaining === null
+                          ? "ETA: estimating..."
+                          : `ETA: ~${previewScanState.estimatedSecondsRemaining}s`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      Archived website products are excluded from this scan and do not
+                      count toward the preview totals.
+                    </p>
+                  </div>
+                </div>
+              ) : syncModalStage === "applying" && syncProgress ? (
+                <div className="space-y-5">
+                  <div className="space-y-3 rounded border border-zinc-800 bg-zinc-950/60 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-white">
+                          {syncProgress.phase === "complete"
+                            ? "Sync Complete"
+                            : syncProgress.phase === "error"
+                              ? "Sync Stopped"
+                              : "Sync In Progress"}
+                        </div>
+                        <div className="mt-1 text-sm text-zinc-400">
+                          {syncProgress.currentLabel}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-semibold text-white">
+                          {syncProgress.completedUnits}/{syncProgress.totalUnits}
+                        </div>
+                        <div className="text-xs text-zinc-500">work units</div>
+                      </div>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded bg-zinc-800">
+                      <div
+                        className={`h-full transition-all ${
+                          syncProgress.phase === "error" ? "bg-amber-500" : "bg-red-600"
+                        }`}
+                        style={{ width: `${syncProgressPercent}%` }}
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Imported
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-emerald-300">
+                          {syncProgress.importedCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Archived
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-amber-300">
+                          {syncProgress.archivedCount}
+                        </div>
+                      </div>
+                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Failures
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-red-300">
+                          {syncProgress.failedCount}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      Archived website products are excluded from this sync and do not
+                      count toward progress.
+                    </p>
+                  </div>
+                </div>
+              ) : syncPreview ? (
+                <div className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-4">
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Matched
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-white">
+                        {syncPreview.matchedCount}
+                      </div>
+                    </div>
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Import
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-emerald-300">
+                        {syncPreview.importCount}
+                      </div>
+                    </div>
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Archive
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-amber-300">
+                        {syncPreview.archiveCount}
+                      </div>
+                    </div>
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <div className="text-xs uppercase tracking-wide text-zinc-500">
+                        Conflicts
+                      </div>
+                      <div className="mt-1 text-2xl font-semibold text-red-300">
+                        {syncPreview.conflictCount}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <h3 className="text-sm font-semibold text-white">Add To Website</h3>
+                      <div className="mt-3 space-y-2">
+                        {syncPreview.imports.length === 0 ? (
+                          <p className="text-sm text-zinc-500">
+                            No missing Lightspeed products.
+                          </p>
+                        ) : (
+                          syncPreview.imports.slice(0, 8).map((item) => (
+                            <div
+                              key={item.remoteProductId}
+                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                SKU: {item.skuSample || "N/A"}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <h3 className="text-sm font-semibold text-white">
+                        Archive On Website
+                      </h3>
+                      <div className="mt-3 space-y-2">
+                        {syncPreview.archives.length === 0 ? (
+                          <p className="text-sm text-zinc-500">
+                            No website-only products found.
+                          </p>
+                        ) : (
+                          syncPreview.archives.slice(0, 8).map((item) => (
+                            <div
+                              key={item.websiteProductId}
+                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                SKU: {item.skuSample || "N/A"}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                      <h3 className="text-sm font-semibold text-white">Conflicts</h3>
+                      <div className="mt-3 space-y-2">
+                        {syncPreview.conflicts.length === 0 ? (
+                          <p className="text-sm text-zinc-500">
+                            No ambiguous SKU matches.
+                          </p>
+                        ) : (
+                          syncPreview.conflicts.slice(0, 8).map((item) => (
+                            <div
+                              key={item.remoteProductId}
+                              className="rounded border border-red-900/40 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                SKU: {item.skuMatches.join(", ") || "N/A"}
+                              </div>
+                              <div className="mt-1 text-xs text-red-300">
+                                Multiple website candidates:{" "}
+                                {item.candidateWebsiteProductIds.length}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-zinc-300">Loading preview...</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-5 py-4">
+              <p className="text-xs text-zinc-500">
+                This sync only changes website inventory. It imports missing Lightspeed
+                products and archives website-only products.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSyncDialogOpen(false);
+                    setSyncModalStage("preview_summary");
+                    setSyncPreview(null);
+                    setPreviewScanState(null);
+                    setSyncProgress(null);
+                  }}
+                  className="rounded border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500"
+                  disabled={
+                    syncLoading &&
+                    syncModalStage !== "preview_summary" &&
+                    syncProgress?.phase !== "complete" &&
+                    syncProgress?.phase !== "error" &&
+                    previewScanState?.status !== "error"
+                  }
+                >
+                  {syncModalStage === "preview_summary" ? "Cancel" : "Close"}
+                </button>
+                {syncModalStage === "preview_summary" && !syncProgress && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void applySync();
+                    }}
+                    className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={syncLoading || !syncPreview}
+                  >
+                    {syncLoading ? "Applying..." : "Apply Sync"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Toast
         open={Boolean(toast)}

@@ -177,6 +177,23 @@ export class ProductRepository {
     return query.is("archived_at", null);
   }
 
+  async listForReconciliation(tenantId: string): Promise<ProductWithDetails[]> {
+    const { data, error } = await this.supabase
+      .from("products")
+      .select(
+        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
+      )
+      .eq("tenant_id", tenantId)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).map((row) => this.transformProduct(row as ProductWithRelations));
+  }
+
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
     const includeOutOfStock = Boolean(filters.includeOutOfStock);
 

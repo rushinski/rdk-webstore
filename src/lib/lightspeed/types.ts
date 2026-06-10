@@ -27,6 +27,7 @@ export type LightspeedRemoteImage = {
 
 export type LightspeedRemoteProduct = {
   id: string;
+  created_at?: string | null;
   name?: string | null;
   updated_at?: string | null;
   variant_name?: string | null;

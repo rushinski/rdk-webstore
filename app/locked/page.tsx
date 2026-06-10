@@ -1,6 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
+import { isAdminRole } from "@/config/constants/roles";
+import { getServerSession } from "@/lib/auth/session";
 import { getStoreAccessSettings } from "@/lib/store-access/get-store-access-settings";
 
 import { UnlockTimer } from "./unlock-timer";
@@ -28,9 +31,14 @@ export default async function LockedPage(props: {
 }) {
   const sp = props.searchParams ? await Promise.resolve(props.searchParams) : undefined;
   const next = sp?.next || "/";
+  const session = await getServerSession();
+  if (session && isAdminRole(session.role)) {
+    redirect(next);
+  }
+
   const storeAccess = await getStoreAccessSettings();
   const unlockAtIso = storeAccess?.settings.siteUnlockAt ?? null;
-  const unlockFullDate = unlockAtIso ? formatUnlock(unlockAtIso) : "soon";
+  const unlockFullDate = unlockAtIso ? formatUnlock(unlockAtIso) : null;
 
   return (
     <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
@@ -61,8 +69,11 @@ export default async function LockedPage(props: {
             </div>
 
             <h1 className="text-2xl font-semibold text-white sm:text-4xl">
-              We&apos;re not open yet
+              The site is currently locked
             </h1>
+            <p className="mt-3 text-sm text-zinc-300 sm:text-base">
+              We&apos;re temporarily closed to the public while we prepare the site.
+            </p>
 
             <div className="mt-4 flex flex-col items-center gap-1">
               <p className="text-sm text-zinc-300 sm:text-base">
@@ -71,7 +82,9 @@ export default async function LockedPage(props: {
                   {unlockAtIso ? <UnlockTimer unlockAtIso={unlockAtIso} /> : "soon"}
                 </span>
               </p>
-              <p className="text-xs italic text-zinc-500">{unlockFullDate}</p>
+              {unlockFullDate ? (
+                <p className="text-xs italic text-zinc-500">{unlockFullDate}</p>
+              ) : null}
             </div>
 
             <div className="mt-8 flex flex-col items-center gap-3">
@@ -79,7 +92,7 @@ export default async function LockedPage(props: {
                 href={`/auth/login?next=${encodeURIComponent(next)}`}
                 className="inline-flex items-center justify-center rounded-xl bg-red-600 px-6 py-3 text-sm font-semibold text-white transition-all shadow-lg shadow-red-600/25 hover:scale-105 hover:bg-red-700"
               >
-                Admin login
+                If you&apos;re an admin, sign in here
               </Link>
 
               <p className="text-xs text-zinc-500">
