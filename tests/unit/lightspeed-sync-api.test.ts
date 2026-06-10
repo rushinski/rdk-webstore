@@ -256,4 +256,51 @@ describe("/api/admin/lightspeed/sync", () => {
       requestId: "req-scan-chunk",
     });
   });
+
+  it("accepts the legacy page-based preview scan payload", async () => {
+    scanPreviewChunkMock.mockResolvedValue({
+      chunkIndex: 1,
+      after: null,
+      nextAfter: 100,
+      pageSize: 25,
+      processedCount: 25,
+      totalRemoteProducts: 100,
+      hasNextPage: true,
+      nextPage: 2,
+      preview: {
+        matchedCount: 10,
+        importCount: 8,
+        archiveCount: 0,
+        conflictCount: 2,
+        matched: [],
+        imports: [],
+        archives: [],
+        conflicts: [],
+      },
+      websiteCandidates: [],
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/lightspeed/sync", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req-scan-legacy",
+        },
+        body: JSON.stringify({
+          action: "scan_preview_chunk",
+          page: 1,
+          pageSize: 25,
+        }),
+      }),
+    );
+
+    expect(scanPreviewChunkMock).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      after: null,
+      pageSize: 25,
+      chunkIndex: 1,
+    });
+    expect(response.status).toBe(200);
+  });
 });

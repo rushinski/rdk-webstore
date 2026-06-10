@@ -8,13 +8,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import { LightspeedReconciliationSyncService } from "@/services/lightspeed-reconciliation-sync-service";
 
-const syncBodySchema = z.discriminatedUnion("action", [
+const syncBodySchema = z.union([
   z
     .object({
       action: z.literal("scan_preview_chunk"),
       after: z.number().int().min(0).nullable(),
       pageSize: z.number().int().min(1).max(100),
       chunkIndex: z.number().int().min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("scan_preview_chunk"),
+      page: z.number().int().min(1),
+      pageSize: z.number().int().min(1).max(100),
     })
     .strict(),
   z
@@ -88,9 +95,9 @@ export async function POST(request: Request) {
       parsed.data.action === "scan_preview_chunk"
         ? await service.scanPreviewChunk({
             tenantId,
-            after: parsed.data.after,
+            after: "after" in parsed.data ? parsed.data.after : null,
             pageSize: parsed.data.pageSize,
-            chunkIndex: parsed.data.chunkIndex,
+            chunkIndex: "chunkIndex" in parsed.data ? parsed.data.chunkIndex : parsed.data.page,
           })
         : parsed.data.action === "apply"
           ? await service.apply({ tenantId })

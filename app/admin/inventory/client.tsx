@@ -2025,7 +2025,7 @@ export function InventoryClient({
               }
             }}
           />
-          <div className="relative max-h-[85vh] w-full max-w-3xl overflow-hidden rounded border border-zinc-800 bg-zinc-900 shadow-xl">
+          <div className="relative max-h-[85vh] w-full max-w-5xl overflow-hidden rounded border border-zinc-800 bg-zinc-900 shadow-xl">
             <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-white">
@@ -2049,7 +2049,7 @@ export function InventoryClient({
               </button>
             </div>
 
-            <div className="max-h-[60vh] overflow-y-auto px-5 py-4">
+            <div className="max-h-[68vh] overflow-y-auto px-5 py-4">
               {syncModalStage === "preview_scanning" && previewScanState ? (
                 <div className="space-y-5">
                   <div className="space-y-3 rounded border border-zinc-800 bg-zinc-950/60 p-4">
@@ -2239,13 +2239,13 @@ export function InventoryClient({
                   <div className="grid gap-4 lg:grid-cols-3">
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="text-sm font-semibold text-white">Add To Website</h3>
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.imports.length === 0 ? (
                           <p className="text-sm text-zinc-500">
                             No missing Lightspeed products.
                           </p>
                         ) : (
-                          syncPreview.imports.slice(0, 8).map((item) => (
+                          syncPreview.imports.map((item) => (
                             <div
                               key={item.remoteProductId}
                               className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
@@ -2266,13 +2266,13 @@ export function InventoryClient({
                       <h3 className="text-sm font-semibold text-white">
                         Archive On Website
                       </h3>
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.archives.length === 0 ? (
                           <p className="text-sm text-zinc-500">
                             No website-only products found.
                           </p>
                         ) : (
-                          syncPreview.archives.slice(0, 8).map((item) => (
+                          syncPreview.archives.map((item) => (
                             <div
                               key={item.websiteProductId}
                               className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
@@ -2291,13 +2291,13 @@ export function InventoryClient({
 
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="text-sm font-semibold text-white">Conflicts</h3>
-                      <div className="mt-3 space-y-2">
+                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.conflicts.length === 0 ? (
                           <p className="text-sm text-zinc-500">
                             No ambiguous SKU matches.
                           </p>
                         ) : (
-                          syncPreview.conflicts.slice(0, 8).map((item) => (
+                          syncPreview.conflicts.map((item) => (
                             <div
                               key={item.remoteProductId}
                               className="rounded border border-red-900/40 bg-zinc-900/70 p-2"
