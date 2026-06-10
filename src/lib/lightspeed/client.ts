@@ -1,5 +1,6 @@
 import type {
   LightspeedCreateProductPayload,
+  LightspeedListProductsResult,
   LightspeedListResponse,
   LightspeedProductResponse,
   LightspeedRemoteProduct,
@@ -105,8 +106,24 @@ export class LightspeedClient {
     return attribute as LightspeedVariantAttribute;
   }
 
-  async listProducts(page = 1, pageSize = 50) {
-    const response = await this.request(`/products?page=${page}&page_size=${pageSize}`);
+  async listProducts(input?: {
+    after?: number | null;
+    pageSize?: number;
+    includeImages?: boolean;
+  }): Promise<LightspeedListProductsResult> {
+    const after = input?.after ?? null;
+    const pageSize = input?.pageSize ?? 50;
+    const includeImages = input?.includeImages ?? true;
+    const params = new URLSearchParams();
+    params.set("page_size", String(pageSize));
+    if (typeof after === "number" && Number.isFinite(after) && after > 0) {
+      params.set("after", String(after));
+    }
+    if (!includeImages) {
+      params.set("include_images", "false");
+    }
+
+    const response = await this.request(`/products?${params.toString()}`);
     const payload =
       (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
     const products = Array.isArray(payload.data)
@@ -115,36 +132,19 @@ export class LightspeedClient {
         ? [payload.data]
         : [];
 
-    const pagination = payload.pagination ?? null;
-    const totalProducts =
-      pagination?.total ??
-      payload.count ??
-      (products.length < pageSize ? (page - 1) * pageSize + products.length : null);
-    const totalPages =
-      pagination?.total_pages ??
-      (typeof totalProducts === "number"
-        ? Math.max(1, Math.ceil(totalProducts / pageSize))
-        : null);
-    const hasNextPage =
-      typeof totalPages === "number"
-        ? page < totalPages
-        : typeof pagination?.next_page === "number"
-          ? pagination.next_page > page
-          : Boolean(pagination?.next) || products.length === pageSize;
-
-    const hasPreviousPage =
-      typeof pagination?.previous_page === "number"
-        ? pagination.previous_page >= 1
-        : Boolean(pagination?.previous) || page > 1;
+    const maxVersion = payload.version?.max ?? null;
+    const totalProducts = payload.pagination?.total ?? payload.count ?? null;
+    const nextAfter =
+      typeof maxVersion === "number" && Number.isFinite(maxVersion) ? maxVersion : null;
+    const hasNextPage = products.length > 0 && nextAfter !== null;
 
     return {
       products,
-      page,
+      after,
       pageSize,
       hasNextPage,
-      hasPreviousPage,
+      nextAfter,
       totalProducts,
-      totalPages,
     };
   }
 }

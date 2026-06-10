@@ -27,10 +27,13 @@ export type LightspeedRemoteImage = {
 
 export type LightspeedRemoteProduct = {
   id: string;
+  version?: number | null;
   created_at?: string | null;
   name?: string | null;
   updated_at?: string | null;
   variant_name?: string | null;
+  variant_parent_id?: string | null;
+  has_variants?: boolean | null;
   description?: string | null;
   sku?: string | null;
   supply_price?: number | string | null;
@@ -74,6 +77,15 @@ export type LightspeedListResponse<T> = {
     min?: number | null;
     max?: number | null;
   } | null;
+};
+
+export type LightspeedListProductsResult = {
+  products: LightspeedRemoteProduct[];
+  after: number | null;
+  pageSize: number;
+  hasNextPage: boolean;
+  nextAfter: number | null;
+  totalProducts: number | null;
 };
 
 export type NormalizedLightspeedProduct = {

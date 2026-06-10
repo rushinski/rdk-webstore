@@ -12,8 +12,9 @@ const syncBodySchema = z.discriminatedUnion("action", [
   z
     .object({
       action: z.literal("scan_preview_chunk"),
-      page: z.number().int().min(1),
+      after: z.number().int().min(0).nullable(),
       pageSize: z.number().int().min(1).max(100),
+      chunkIndex: z.number().int().min(1),
     })
     .strict(),
   z
@@ -87,8 +88,9 @@ export async function POST(request: Request) {
       parsed.data.action === "scan_preview_chunk"
         ? await service.scanPreviewChunk({
             tenantId,
-            page: parsed.data.page,
+            after: parsed.data.after,
             pageSize: parsed.data.pageSize,
+            chunkIndex: parsed.data.chunkIndex,
           })
         : parsed.data.action === "apply"
           ? await service.apply({ tenantId })

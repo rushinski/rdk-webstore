@@ -56,12 +56,15 @@ describe("LightspeedReconciliationSyncService", () => {
       {
         id: "ls-linked",
         name: "Linked Product",
+        version: 101,
         updated_at: "2026-06-08T10:00:00.000Z",
+        has_variants: true,
         variants: [{ id: "ls-linked-variant", sku: "LINK-001", name: "Linked Product" }],
       },
       {
         id: "ls-import",
         name: "Import Product",
+        version: 102,
         updated_at: "2026-06-08T11:00:00.000Z",
         variants: [
           { id: "ls-import-variant", sku: "IMPORT-001", name: "Import Product" },
@@ -70,12 +73,14 @@ describe("LightspeedReconciliationSyncService", () => {
       {
         id: "ls-sku",
         name: "SKU Match Product",
+        version: 103,
         updated_at: "2026-06-08T12:00:00.000Z",
         variants: [{ id: "ls-sku-variant", sku: "SKU-001", name: "SKU Match Product" }],
       },
       {
         id: "ls-conflict",
         name: "Conflict Product",
+        version: 104,
         updated_at: "2026-06-08T13:00:00.000Z",
         variants: [
           { id: "ls-conflict-variant", sku: "CONFLICT-001", name: "Conflict Product" },
@@ -89,9 +94,11 @@ describe("LightspeedReconciliationSyncService", () => {
     });
     listProductsMock.mockResolvedValue({
       products: remoteProducts,
-      page: 1,
+      after: null,
       pageSize: 50,
       hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 4,
     });
     listForReconciliationMock.mockResolvedValue([
       {
@@ -259,17 +266,64 @@ describe("LightspeedReconciliationSyncService", () => {
 
     const result = await service.scanPreviewChunk({
       tenantId: "tenant-1",
-      page: 1,
+      after: null,
       pageSize: 2,
+      chunkIndex: 1,
     });
 
-    expect(listProductsMock).toHaveBeenCalledWith(1, 2);
+    expect(listProductsMock).toHaveBeenCalledWith({
+      after: null,
+      pageSize: 2,
+      includeImages: false,
+    });
     expect(result.processedCount).toBe(4);
-    expect(result.totalRemoteProducts).toBeNull();
+    expect(result.totalRemoteProducts).toBe(4);
     expect(result.hasNextPage).toBe(false);
     expect(result.preview.matchedCount).toBe(2);
     expect(result.preview.importCount).toBe(1);
     expect(result.preview.conflictCount).toBe(1);
     expect(result.websiteCandidates).toHaveLength(5);
+  });
+
+  it("ignores child variant rows during preview scans", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "family-parent",
+          version: 201,
+          name: "Family Product",
+          has_variants: true,
+          variants: [
+            { id: "family-child-a", sku: "FAM-001", name: "Family Product" },
+            { id: "family-child-b", sku: "FAM-002", name: "Family Product" },
+          ],
+        },
+        {
+          id: "family-child-a",
+          version: 202,
+          name: "Family Product",
+          variant_parent_id: "family-parent",
+          sku: "FAM-001",
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 2,
+    });
+    listForReconciliationMock.mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.scanPreviewChunk({
+      tenantId: "tenant-1",
+      after: null,
+      pageSize: 50,
+      chunkIndex: 1,
+    });
+
+    expect(result.processedCount).toBe(1);
+    expect(result.preview.importCount).toBe(1);
   });
 });

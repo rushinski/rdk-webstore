@@ -33,19 +33,24 @@ export class LightspeedManualImportService {
     let scanned = 0;
     let applied = 0;
     let skipped = 0;
-    let page = 1;
+    let after: number | null = null;
     let hasNextPage = true;
+    let safetyCounter = 0;
+    const seenCursors = new Set<number>();
 
-    while (hasNextPage) {
-      const result = await client.listProducts(page, 50);
+    while (hasNextPage && safetyCounter < 1000) {
+      const result = await client.listProducts({ after, pageSize: 50 });
 
-      for (const product of result.products as LightspeedRemoteProduct[]) {
+      for (const product of this.getTopLevelRemoteProducts(
+        result.products as LightspeedRemoteProduct[],
+      )) {
         scanned += 1;
+        const fullProduct = (await client.getProduct(product.id)) ?? product;
         const syncResult = await this.inboundSyncService.applyProductPayload({
           tenantId: input.tenantId,
-          payload: product,
+          payload: fullProduct,
           topic: "product.update",
-          remoteModifiedAt: product.updated_at ?? new Date().toISOString(),
+          remoteModifiedAt: fullProduct.updated_at ?? new Date().toISOString(),
         });
 
         if (syncResult.status === "applied") {
@@ -56,7 +61,15 @@ export class LightspeedManualImportService {
       }
 
       hasNextPage = result.hasNextPage;
-      page += 1;
+      if (!hasNextPage) {
+        break;
+      }
+      if (result.nextAfter === null || seenCursors.has(result.nextAfter)) {
+        break;
+      }
+      seenCursors.add(result.nextAfter);
+      after = result.nextAfter;
+      safetyCounter += 1;
     }
 
     return {
@@ -65,5 +78,9 @@ export class LightspeedManualImportService {
       applied,
       skipped,
     };
+  }
+
+  private getTopLevelRemoteProducts(products: LightspeedRemoteProduct[]) {
+    return products.filter((product) => !product.variant_parent_id);
   }
 }

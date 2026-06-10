@@ -117,6 +117,27 @@ type SyncProgressState = {
   failedCount: number;
 };
 
+type PreviewScanChunkResult = {
+  chunkIndex: number;
+  after: number | null;
+  nextAfter: number | null;
+  pageSize: number;
+  processedCount: number;
+  totalRemoteProducts: number | null;
+  hasNextPage: boolean;
+  nextPage: number | null;
+  preview: Omit<ReconciliationPreview, "archives" | "archiveCount"> & {
+    archiveCount: 0;
+    archives: [];
+  };
+  websiteCandidates: WebsiteArchiveCandidate[];
+};
+
+type PreviewScanChunkResponse = {
+  error?: string;
+  result?: PreviewScanChunkResult;
+};
+
 const IMPORT_CHUNK_SIZE = 10;
 const ARCHIVE_CHUNK_SIZE = 25;
 const PREVIEW_SCAN_PAGE_SIZE = 25;
@@ -272,26 +293,30 @@ export function InventoryClient({
       const imports: ReconciliationPreview["imports"] = [];
       const conflicts: ReconciliationPreview["conflicts"] = [];
       let processedCount = 0;
-      let scanPage = 1;
+      let scanChunkIndex = 1;
+      let scanAfter: number | null = null;
       let hasNextPage = true;
       const startedAtMs = Date.now();
 
       while (hasNextPage) {
-        const response = await fetch("/api/admin/lightspeed/sync", {
+        const response: Response = await fetch("/api/admin/lightspeed/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "scan_preview_chunk",
-            page: scanPage,
+            after: scanAfter,
             pageSize: PREVIEW_SCAN_PAGE_SIZE,
+            chunkIndex: scanChunkIndex,
           }),
         });
-        const payload = await response.json().catch(() => null);
+        const payload: PreviewScanChunkResponse | null = await response
+          .json()
+          .catch(() => null);
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to preview inventory sync.");
         }
 
-        const result = payload?.result;
+        const result: PreviewScanChunkResult | undefined = payload?.result;
         const chunkPreview = result?.preview;
         const chunkWebsiteCandidates = Array.isArray(result?.websiteCandidates)
           ? (result.websiteCandidates as WebsiteArchiveCandidate[])
@@ -338,10 +363,10 @@ export function InventoryClient({
 
         setPreviewScanState({
           status: "scanning",
-          currentLabel: `Scanning page ${result?.page ?? scanPage}${remoteTotalCount ? ` of ~${Math.max(Math.ceil(remoteTotalCount / PREVIEW_SCAN_PAGE_SIZE), 1)}` : ""}`,
+          currentLabel: `Scanning chunk ${result?.chunkIndex ?? scanChunkIndex}${remoteTotalCount ? ` of up to ~${Math.max(Math.ceil(remoteTotalCount / PREVIEW_SCAN_PAGE_SIZE), 1)}` : ""}`,
           processedCount,
           totalCount: remoteTotalCount,
-          currentPage: Number(result?.page ?? scanPage),
+          currentPage: Number(result?.chunkIndex ?? scanChunkIndex),
           matchedCount: matched.length,
           importCount: imports.length,
           archiveCount,
@@ -349,7 +374,9 @@ export function InventoryClient({
           estimatedSecondsRemaining,
         });
 
-        scanPage = Number(result?.nextPage ?? scanPage + 1);
+        scanAfter =
+          typeof result?.nextAfter === "number" ? Number(result.nextAfter) : null;
+        scanChunkIndex = Number(result?.nextPage ?? scanChunkIndex + 1);
       }
 
       const archives = Array.from(websiteCandidates.values()).filter(

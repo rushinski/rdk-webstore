@@ -187,7 +187,9 @@ describe("/api/admin/lightspeed/sync", () => {
 
   it("returns a preview scan chunk", async () => {
     scanPreviewChunkMock.mockResolvedValue({
-      page: 1,
+      chunkIndex: 1,
+      after: null,
+      nextAfter: 100,
       pageSize: 25,
       processedCount: 25,
       totalRemoteProducts: 100,
@@ -215,21 +217,25 @@ describe("/api/admin/lightspeed/sync", () => {
         },
         body: JSON.stringify({
           action: "scan_preview_chunk",
-          page: 1,
+          after: null,
           pageSize: 25,
+          chunkIndex: 1,
         }),
       }),
     );
 
     expect(scanPreviewChunkMock).toHaveBeenCalledWith({
       tenantId: "tenant-1",
-      page: 1,
+      after: null,
       pageSize: 25,
+      chunkIndex: 1,
     });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       result: {
-        page: 1,
+        chunkIndex: 1,
+        after: null,
+        nextAfter: 100,
         pageSize: 25,
         processedCount: 25,
         totalRemoteProducts: 100,

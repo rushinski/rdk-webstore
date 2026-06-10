@@ -63,7 +63,9 @@ export type LightspeedReconciliationWebsiteCandidate = {
 };
 
 export type LightspeedReconciliationPreviewScanResult = {
-  page: number;
+  chunkIndex: number;
+  after: number | null;
+  nextAfter: number | null;
   pageSize: number;
   processedCount: number;
   totalRemoteProducts: number | null;
@@ -133,29 +135,36 @@ export class LightspeedReconciliationSyncService {
 
   async scanPreviewChunk(input: {
     tenantId: string;
-    page: number;
+    after: number | null;
     pageSize: number;
+    chunkIndex: number;
   }): Promise<LightspeedReconciliationPreviewScanResult> {
     const client = await this.getClient(input.tenantId);
     const [pageResult, websiteProducts, links] = await Promise.all([
-      client.listProducts(input.page, input.pageSize),
+      client.listProducts({
+        after: input.after,
+        pageSize: input.pageSize,
+        includeImages: false,
+      }),
       this.productRepo.listForReconciliation(input.tenantId),
       this.linksRepo.listByTenant(input.tenantId),
     ]);
 
     const classification = this.classifyRemoteProducts({
-      remoteProducts: pageResult.products,
+      remoteProducts: this.getTopLevelRemoteProducts(pageResult.products),
       websiteProducts,
       links,
     });
 
     return {
-      page: input.page,
+      chunkIndex: input.chunkIndex,
+      after: input.after,
+      nextAfter: pageResult.hasNextPage ? pageResult.nextAfter : null,
       pageSize: input.pageSize,
-      processedCount: pageResult.products.length,
+      processedCount: classification.matched.length + classification.imports.length + classification.conflicts.length,
       totalRemoteProducts: pageResult.totalProducts ?? null,
       hasNextPage: pageResult.hasNextPage,
-      nextPage: pageResult.hasNextPage ? input.page + 1 : null,
+      nextPage: pageResult.hasNextPage ? input.chunkIndex + 1 : null,
       preview: {
         matchedCount: classification.matched.length,
         importCount: classification.imports.length,
@@ -311,17 +320,31 @@ export class LightspeedReconciliationSyncService {
 
   private async listAllRemoteProducts(client: LightspeedClient) {
     const products: LightspeedRemoteProduct[] = [];
-    let page = 1;
+    let after: number | null = null;
     let hasNextPage = true;
+    let safetyCounter = 0;
+    const seenCursors = new Set<number>();
 
-    while (hasNextPage) {
-      const result = await client.listProducts(page, 50);
-      products.push(...result.products);
+    while (hasNextPage && safetyCounter < 1000) {
+      const result = await client.listProducts({ after, pageSize: 50 });
+      products.push(...this.getTopLevelRemoteProducts(result.products));
       hasNextPage = result.hasNextPage;
-      page += 1;
+      if (!hasNextPage) {
+        break;
+      }
+      if (result.nextAfter === null || seenCursors.has(result.nextAfter)) {
+        break;
+      }
+      seenCursors.add(result.nextAfter);
+      after = result.nextAfter;
+      safetyCounter += 1;
     }
 
     return products;
+  }
+
+  private getTopLevelRemoteProducts(products: LightspeedRemoteProduct[]) {
+    return products.filter((product) => !product.variant_parent_id);
   }
 
   private classifyRemoteProducts(input: {
