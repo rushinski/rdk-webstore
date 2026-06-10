@@ -10,10 +10,11 @@ jest.mock("@/repositories/profile-repo", () => ({
   ProfileRepository: jest.fn(),
 }));
 
+import { unstable_rethrow } from "next/navigation";
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { getServerSession } from "@/lib/auth/session";
-import { unstable_rethrow } from "next/navigation";
 
 const mockCreateSupabaseServerClient = jest.mocked(createSupabaseServerClient);
 const mockProfileRepository = jest.mocked(ProfileRepository);
