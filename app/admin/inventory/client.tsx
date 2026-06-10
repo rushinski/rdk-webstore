@@ -12,6 +12,8 @@ import {
   ChevronDown,
   Archive,
   RotateCcw,
+  X,
+  Info,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -230,6 +232,64 @@ function chunkArray<T>(items: T[], size: number) {
   return chunks;
 }
 
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <>
+      {" "}
+      <span className="group relative inline-flex cursor-help">
+        <Info className="h-3 w-3 text-zinc-600 group-hover:text-zinc-400" />
+        <span className="pointer-events-none absolute left-1/2 top-full z-[10020] mt-1.5 w-52 -translate-x-1/2 rounded border border-zinc-700 bg-zinc-900 p-2 text-[11px] leading-snug text-zinc-300 opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+          {text}
+        </span>
+      </span>
+    </>
+  );
+}
+
+function ScanCounter({
+  label,
+  value,
+  color,
+  tooltip,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  tooltip: string;
+}) {
+  return (
+    <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
+      <div className="flex items-center text-xs uppercase tracking-wide text-zinc-500">
+        {label}
+        <InfoTooltip text={tooltip} />
+      </div>
+      <div className={`mt-1 text-xl font-semibold ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  color,
+  tooltip,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  tooltip: string;
+}) {
+  return (
+    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+      <div className="flex items-center text-xs uppercase tracking-wide text-zinc-500">
+        {label}
+        <InfoTooltip text={tooltip} />
+      </div>
+      <div className={`mt-1 text-2xl font-semibold ${color}`}>{value}</div>
+    </div>
+  );
+}
+
 export function InventoryClient({
   initialProducts,
   initialTotal,
@@ -279,12 +339,13 @@ export function InventoryClient({
   const [syncModalStage, setSyncModalStage] = useState<SyncModalStage>("preview_summary");
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncDetailsSelection, setSyncDetailsSelection] = useState<{
-    mode: "add" | "edit" | "restore" | "archive" | "conflict";
+    mode: "add" | "edit" | "archive" | "conflict";
     title: string;
     websiteProduct?: ComparableProduct | null;
     remoteProduct?: ComparableProduct | null;
     diff?: ComparableDiff | null;
     conflictCandidateCount?: number;
+    isRestoreFromArchive?: boolean;
   } | null>(null);
   const [previewScanState, setPreviewScanState] = useState<PreviewScanState | null>(null);
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null);
@@ -301,6 +362,7 @@ export function InventoryClient({
     page?: number;
   }>({});
   const refreshTimerRef = useRef<number | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const showingStart = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
@@ -354,7 +416,24 @@ export function InventoryClient({
     }
   };
 
+  const closeSyncDialog = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setSyncDialogOpen(false);
+    setSyncModalStage("preview_summary");
+    setSyncPreview(null);
+    setPreviewScanState(null);
+    setSyncProgress(null);
+    setSyncDetailsSelection(null);
+    setSyncLoading(false);
+  };
+
   const loadSyncPreview = async () => {
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       setSyncDialogOpen(true);
       setSyncLoading(true);
@@ -385,6 +464,8 @@ export function InventoryClient({
       const restores: ReconciliationPreview["restores"] = [];
       const conflicts: ReconciliationPreview["conflicts"] = [];
       let processedCount = 0;
+      let restoresNoDiffTotal = 0;
+      let restoresWithDiffTotal = 0;
       let scanChunkIndex = 1;
       let scanAfter: number | null = null;
       let hasNextPage = true;
@@ -400,6 +481,7 @@ export function InventoryClient({
             pageSize: PREVIEW_SCAN_PAGE_SIZE,
             chunkIndex: scanChunkIndex,
           }),
+          signal: abortController.signal,
         });
         const payload: PreviewScanChunkResponse | null = await response
           .json()
@@ -414,8 +496,13 @@ export function InventoryClient({
           ? (result.websiteCandidates as WebsiteArchiveCandidate[])
           : [];
 
-        for (const candidate of chunkWebsiteCandidates) {
-          websiteCandidates.set(candidate.websiteProductId, candidate);
+        // Only populate website candidates from the first chunk — they're the same every chunk
+        // and starting with all candidates on chunk 1 would make archive count appear inflated
+        // before enough Lightspeed products have been scanned to match against them.
+        if (scanChunkIndex === 1) {
+          for (const candidate of chunkWebsiteCandidates) {
+            websiteCandidates.set(candidate.websiteProductId, candidate);
+          }
         }
         for (const item of chunkPreview?.noChanges ?? []) {
           noChanges.push(item);
@@ -430,6 +517,11 @@ export function InventoryClient({
         }
         for (const item of chunkPreview?.restores ?? []) {
           restores.push(item);
+          if (item.diff) {
+            restoresWithDiffTotal += 1;
+          } else {
+            restoresNoDiffTotal += 1;
+          }
         }
         for (const item of chunkPreview?.conflicts ?? []) {
           conflicts.push(item);
@@ -454,11 +546,6 @@ export function InventoryClient({
           remainingCount !== null && rate > 0
             ? Math.max(Math.round(remainingCount / rate), 0)
             : null;
-        const archiveCount = Math.max(
-          websiteCandidates.size -
-            new Set([...matchedWebsiteProductIds, ...conflictWebsiteProductIds]).size,
-          0,
-        );
 
         setPreviewScanState({
           status: "scanning",
@@ -467,10 +554,11 @@ export function InventoryClient({
           totalCount: remoteTotalCount,
           currentPage: Number(result?.chunkIndex ?? scanChunkIndex),
           noChangeCount: noChanges.length,
-          importCount: imports.length,
-          editCount: edits.length,
-          restoreCount: restores.length,
-          archiveCount,
+          // Restores folded into add/edit counts during scan
+          importCount: imports.length + restoresNoDiffTotal,
+          editCount: edits.length + restoresWithDiffTotal,
+          restoreCount: 0,
+          archiveCount: 0, // Not meaningful until scan completes — computed at the end
           conflictCount: conflicts.length,
           estimatedSecondsRemaining,
         });
@@ -514,6 +602,9 @@ export function InventoryClient({
           : prev,
       );
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        return;
+      }
       const message =
         error instanceof Error ? error.message : "Error previewing inventory sync.";
       setPreviewScanState((prev) => ({
@@ -533,6 +624,7 @@ export function InventoryClient({
       showToast(message, "error");
     } finally {
       setSyncLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -981,20 +1073,34 @@ export function InventoryClient({
         )
       : 100
     : 0;
-  const previewScanPercent = previewScanState
-    ? previewScanState.totalCount && previewScanState.totalCount > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (previewScanState.processedCount / previewScanState.totalCount) * 100,
-          ),
-        )
-      : 10
+  const previewScanTotalKnown =
+    typeof previewScanState?.totalCount === "number" && previewScanState.totalCount > 0;
+  const previewScanPercent = previewScanTotalKnown
+    ? Math.min(
+        100,
+        Math.round(
+          (previewScanState!.processedCount / previewScanState!.totalCount!) * 100,
+        ),
+      )
     : 0;
-  const previewItemsRemaining =
-    previewScanState && typeof previewScanState.totalCount === "number"
-      ? Math.max(previewScanState.totalCount - previewScanState.processedCount, 0)
-      : null;
+  const previewItemsRemaining = previewScanTotalKnown
+    ? Math.max(previewScanState!.totalCount! - previewScanState!.processedCount, 0)
+    : null;
+
+  // Split restores into "no-diff" (merge into Add) and "with-diff" (merge into Edit)
+  const restoresNoDiff = syncPreview?.restores.filter((r) => !r.diff) ?? [];
+  const restoresWithDiff = syncPreview?.restores.filter((r) => Boolean(r.diff)) ?? [];
+  const effectiveAddCount = (syncPreview?.importCount ?? 0) + restoresNoDiff.length;
+  const effectiveEditCount = (syncPreview?.editCount ?? 0) + restoresWithDiff.length;
+
+  // Whether it's safe to close/cancel the sync dialog (not mid-apply)
+  const canCloseSyncDialog =
+    !syncLoading ||
+    syncModalStage === "preview_scanning" ||
+    syncModalStage === "preview_summary" ||
+    syncProgress?.phase === "complete" ||
+    syncProgress?.phase === "error" ||
+    previewScanState?.status === "error";
 
   const getProductRawTitle = (product: ProductWithDetails) =>
     product.name?.trim() || "Item";
@@ -1014,13 +1120,15 @@ export function InventoryClient({
           mode: "add";
           title: string;
           remoteProduct: ComparableProduct;
+          isRestoreFromArchive?: boolean;
         }
       | {
-          mode: "edit" | "restore";
+          mode: "edit";
           title: string;
           websiteProduct: ComparableProduct;
           remoteProduct: ComparableProduct;
           diff: ComparableDiff | null;
+          isRestoreFromArchive?: boolean;
         }
       | {
           mode: "archive";
@@ -1042,6 +1150,8 @@ export function InventoryClient({
       diff: "diff" in selection ? selection.diff : null,
       conflictCandidateCount:
         "conflictCandidateCount" in selection ? selection.conflictCandidateCount : undefined,
+      isRestoreFromArchive:
+        "isRestoreFromArchive" in selection ? selection.isRestoreFromArchive : undefined,
     });
   };
 
@@ -2260,14 +2370,11 @@ export function InventoryClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div
             className="absolute inset-0 bg-black/60"
-            onClick={() => {
-              if (!syncLoading) {
-                setSyncDialogOpen(false);
-              }
-            }}
+            onClick={() => { if (canCloseSyncDialog) closeSyncDialog(); }}
           />
-          <div className="relative max-h-[85vh] w-full max-w-5xl overflow-hidden rounded border border-zinc-800 bg-zinc-900 shadow-xl">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+          <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col rounded border border-zinc-800 bg-zinc-900 shadow-xl">
+            {/* Header */}
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-zinc-800 px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold text-white">
                   Sync Website Inventory
@@ -2278,19 +2385,17 @@ export function InventoryClient({
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (!syncLoading) {
-                    setSyncDialogOpen(false);
-                  }
-                }}
-                className="text-gray-400 transition hover:text-white"
+                onClick={closeSyncDialog}
+                disabled={!canCloseSyncDialog}
+                className="rounded p-1.5 text-gray-400 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Close sync preview"
               >
-                ×
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="max-h-[68vh] overflow-y-auto px-5 py-4">
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 py-4">
               {syncModalStage === "preview_scanning" && previewScanState ? (
                 <div className="space-y-5">
                   <div className="space-y-3 rounded border border-zinc-800 bg-zinc-950/60 p-4">
@@ -2307,93 +2412,20 @@ export function InventoryClient({
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-semibold text-white">
-                          {previewScanState.totalCount
-                            ? `${previewScanState.processedCount}/${previewScanState.totalCount}`
-                            : previewScanState.processedCount}
+                          {previewScanState.processedCount}
                         </div>
                         <div className="text-xs text-zinc-500">items scanned</div>
                       </div>
                     </div>
-                    <div className="h-2 overflow-hidden rounded bg-zinc-800">
-                      <div
-                        className={`h-full transition-all ${
-                          previewScanState.status === "error"
-                            ? "bg-amber-500"
-                            : "bg-red-600"
-                        }`}
-                        style={{ width: `${previewScanPercent}%` }}
-                      />
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-6">
-                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          No Change
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-white">
-                          {previewScanState.noChangeCount}
-                        </div>
-                      </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Imports
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-emerald-300">
-                          {previewScanState.importCount}
-                        </div>
-                      </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Edits
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-blue-300">
-                          {previewScanState.editCount}
-                        </div>
-                      </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Restores
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-sky-300">
-                          {previewScanState.restoreCount}
-                        </div>
-                      </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Archives
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-amber-300">
-                          {previewScanState.archiveCount}
-                        </div>
-                      </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Conflicts
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-red-300">
-                          {previewScanState.conflictCount}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded border border-zinc-800/70 bg-zinc-900/40 p-3 text-xs text-zinc-400">
-                      <span className="font-semibold text-zinc-200">Key:</span>{" "}
-                      <span>`No Change` means the remote product already matches the active website product. `Imports` add missing Lightspeed products to the website. `Edits` overwrite active website products that differ from Lightspeed. `Restores` bring archived website products back because they still exist in Lightspeed. `Archives` move active website-only products out of live inventory. `Conflicts` are ambiguous matches that are skipped automatically.</span>
-                    </div>
-                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-zinc-500">
-                      <span>Current page: {previewScanState.currentPage || 1}</span>
-                      <span>
-                        {previewItemsRemaining === null
-                          ? "Items remaining: estimating..."
-                          : `Items remaining: ${previewItemsRemaining}`}
-                      </span>
-                      <span>
-                        {previewScanState.estimatedSecondsRemaining === null
-                          ? "ETA: estimating..."
-                          : `ETA: ~${previewScanState.estimatedSecondsRemaining}s`}
-                      </span>
+                    {/* Running counters — Restores folded into Add/Edit; Archives shown only at completion */}
+                    <div className="grid gap-3 sm:grid-cols-4">
+                      <ScanCounter label="No Change" value={previewScanState.noChangeCount} color="text-white" tooltip="The Lightspeed product already matches the active website product — no action needed." />
+                      <ScanCounter label="Add" value={previewScanState.importCount} color="text-emerald-300" tooltip="Product exists in Lightspeed but not on the website, or is an archived product being restored with no changes." />
+                      <ScanCounter label="Edit" value={previewScanState.editCount} color="text-blue-300" tooltip="Product matches an active website product but fields differ, or is an archived product being restored with updates." />
+                      <ScanCounter label="Conflicts" value={previewScanState.conflictCount} color="text-red-300" tooltip="Ambiguous match with multiple website candidates — skipped automatically." />
                     </div>
                     <p className="text-xs text-zinc-500">
-                      Archived website products are excluded from this scan and do not
-                      count toward the preview totals.
+                      Archived website products that match a Lightspeed product are included in the Add or Edit counts above, not separately.
                     </p>
                   </div>
                 </div>
@@ -2422,7 +2454,7 @@ export function InventoryClient({
                     </div>
                     <div className="h-2 overflow-hidden rounded bg-zinc-800">
                       <div
-                        className={`h-full transition-all ${
+                        className={`h-full transition-all duration-300 ${
                           syncProgress.phase === "error" ? "bg-amber-500" : "bg-red-600"
                         }`}
                         style={{ width: `${syncProgressPercent}%` }}
@@ -2430,263 +2462,138 @@ export function InventoryClient({
                     </div>
                     <div className="grid gap-3 sm:grid-cols-5">
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Edited
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-blue-300">
-                          {syncProgress.editedCount}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">Edited</div>
+                        <div className="mt-1 text-xl font-semibold text-blue-300">{syncProgress.editedCount}</div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Restored
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-sky-300">
-                          {syncProgress.restoredCount}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">Restored</div>
+                        <div className="mt-1 text-xl font-semibold text-sky-300">{syncProgress.restoredCount}</div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Imported
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-emerald-300">
-                          {syncProgress.importedCount}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">Imported</div>
+                        <div className="mt-1 text-xl font-semibold text-emerald-300">{syncProgress.importedCount}</div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Archived
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-amber-300">
-                          {syncProgress.archivedCount}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">Archived</div>
+                        <div className="mt-1 text-xl font-semibold text-amber-300">{syncProgress.archivedCount}</div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">
-                          Failures
-                        </div>
-                        <div className="mt-1 text-xl font-semibold text-red-300">
-                          {syncProgress.failedCount}
-                        </div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">Failures</div>
+                        <div className="mt-1 text-xl font-semibold text-red-300">{syncProgress.failedCount}</div>
                       </div>
                     </div>
-                    <p className="text-xs text-zinc-500">
-                      Archived website products are excluded from this sync and do not
-                      count toward progress.
-                    </p>
                   </div>
                 </div>
               ) : syncPreview ? (
                 <div className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-6">
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        No Change
-                      </div>
-                      <div className="mt-1 text-2xl font-semibold text-white">
-                        {syncPreview.noChangeCount}
-                      </div>
-                    </div>
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Add
-                      </div>
-                      <div className="mt-1 text-2xl font-semibold text-emerald-300">
-                        {syncPreview.importCount}
-                      </div>
-                    </div>
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Edit
-                      </div>
-                      <div className="mt-1 text-2xl font-semibold text-blue-300">
-                        {syncPreview.editCount}
-                      </div>
-                    </div>
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Restore
-                      </div>
-                      <div className="mt-1 text-2xl font-semibold text-sky-300">
-                        {syncPreview.restoreCount}
-                      </div>
-                    </div>
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Archive
-                      </div>
-                      <div className="mt-1 text-2xl font-semibold text-amber-300">
-                        {syncPreview.archiveCount}
-                      </div>
-                    </div>
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <div className="text-xs uppercase tracking-wide text-zinc-500">
-                        Conflicts
-                      </div>
-                      <div className="mt-1 text-2xl font-semibold text-red-300">
-                        {syncPreview.conflictCount}
-                      </div>
-                    </div>
+                  {/* Summary cards — Restores are folded into Add / Edit */}
+                  <div className="grid gap-3 sm:grid-cols-5">
+                    <SummaryCard label="No Change" value={syncPreview.noChangeCount} color="text-white" tooltip="The Lightspeed product already matches the active website product — no action needed." />
+                    <SummaryCard label="Add" value={effectiveAddCount} color="text-emerald-300" tooltip="Product exists in Lightspeed but not on the website (or is archived and needs no update) — will be added or restored as-is." />
+                    <SummaryCard label="Edit" value={effectiveEditCount} color="text-blue-300" tooltip="Product matches an active website product but fields differ, or is archived and needs updating — website will be overwritten with Lightspeed data." />
+                    <SummaryCard label="Archive" value={syncPreview.archiveCount} color="text-amber-300" tooltip="Active website product has no matching Lightspeed product — will be archived (website-only action, Lightspeed is not changed)." />
+                    <SummaryCard label="Conflicts" value={syncPreview.conflictCount} color="text-red-300" tooltip="Ambiguous match with multiple website candidates — skipped automatically, no changes made." />
                   </div>
 
-                  <div className="rounded border border-zinc-800 bg-zinc-950/50 p-3 text-sm text-zinc-300">
-                    <span className="font-semibold text-white">Key:</span> No Change means the Lightspeed product already matches the active website product. Add means the product exists in Lightspeed but not on the website. Edit means the product matches an active website product but the website needs to be updated. Restore means the matching website product is archived and should be brought back instead of duplicating it. Archive means an active website product is missing from Lightspeed. Conflicts are ambiguous matches and are skipped.
-                  </div>
-
-                  <div className="grid gap-4 lg:grid-cols-5">
+                  {/* Detail lists */}
+                  <div className="grid gap-4 lg:grid-cols-4">
+                    {/* Add To Website — imports + no-diff restores */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="text-sm font-semibold text-white">Add To Website</h3>
-                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
-                        {syncPreview.imports.length === 0 ? (
-                          <p className="text-sm text-zinc-500">
-                            No missing Lightspeed products.
-                          </p>
+                      <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                        {syncPreview.imports.length === 0 && restoresNoDiff.length === 0 ? (
+                          <p className="text-sm text-zinc-500">No products to add.</p>
                         ) : (
-                          syncPreview.imports.map((item) => (
-                            <div
-                              key={item.remoteProductId}
-                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
-                            >
-                              <div className="text-sm font-medium text-zinc-100">
-                                {item.title}
+                          <>
+                            {syncPreview.imports.map((item) => (
+                              <div key={item.remoteProductId} className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2">
+                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+                                <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuSample || "N/A"}</div>
+                                <button
+                                  type="button"
+                                  onClick={() => openSyncDetails({ mode: "add", title: item.title, remoteProduct: item.remote })}
+                                  className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                                >
+                                  Details
+                                </button>
                               </div>
-                              <div className="mt-1 text-xs text-zinc-500">
-                                SKU: {item.skuSample || "N/A"}
+                            ))}
+                            {restoresNoDiff.map((item) => (
+                              <div key={`${item.websiteProductId}-${item.remoteProductId}`} className="rounded border border-sky-900/40 bg-zinc-900/70 p-2">
+                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+                                <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuSample || "N/A"}</div>
+                                <div className="mt-1 text-xs text-sky-300">Restore from archive</div>
+                                <button
+                                  type="button"
+                                  onClick={() => openSyncDetails({ mode: "add", title: item.title, remoteProduct: item.remote, isRestoreFromArchive: true })}
+                                  className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                                >
+                                  Details
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openSyncDetails({
-                                    mode: "add",
-                                    title: item.title,
-                                    remoteProduct: item.remote,
-                                  })
-                                }
-                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
-                              >
-                                Details
-                              </button>
-                            </div>
-                          ))
+                            ))}
+                          </>
                         )}
                       </div>
                     </div>
 
+                    {/* Edit On Website — active edits + diff restores */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="text-sm font-semibold text-white">Edit On Website</h3>
-                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
-                        {syncPreview.edits.length === 0 ? (
-                          <p className="text-sm text-zinc-500">
-                            No active website products need updates.
-                          </p>
+                      <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                        {syncPreview.edits.length === 0 && restoresWithDiff.length === 0 ? (
+                          <p className="text-sm text-zinc-500">No products to update.</p>
                         ) : (
-                          syncPreview.edits.map((item) => (
-                            <div
-                              key={`${item.websiteProductId}-${item.remoteProductId}`}
-                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
-                            >
-                              <div className="text-sm font-medium text-zinc-100">
-                                {item.title}
+                          <>
+                            {syncPreview.edits.map((item) => (
+                              <div key={`${item.websiteProductId}-${item.remoteProductId}`} className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2">
+                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+                                <div className="mt-1 text-xs text-zinc-500">Changes: {item.diff.fields.join(", ")}</div>
+                                <button
+                                  type="button"
+                                  onClick={() => openSyncDetails({ mode: "edit", title: item.title, websiteProduct: item.website, remoteProduct: item.remote, diff: item.diff })}
+                                  className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                                >
+                                  Details
+                                </button>
                               </div>
-                              <div className="mt-1 text-xs text-zinc-500">
-                                Diff fields: {item.diff.fields.join(", ")}
+                            ))}
+                            {restoresWithDiff.map((item) => (
+                              <div key={`${item.websiteProductId}-${item.remoteProductId}`} className="rounded border border-sky-900/40 bg-zinc-900/70 p-2">
+                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+                                <div className="mt-1 text-xs text-zinc-500">Changes: {item.diff?.fields.join(", ") || "—"}</div>
+                                <div className="mt-1 text-xs text-sky-300">Restore from archive</div>
+                                <button
+                                  type="button"
+                                  onClick={() => openSyncDetails({ mode: "edit", title: item.title, websiteProduct: item.website, remoteProduct: item.remote, diff: item.diff, isRestoreFromArchive: true })}
+                                  className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
+                                >
+                                  Details
+                                </button>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openSyncDetails({
-                                    mode: "edit",
-                                    title: item.title,
-                                    websiteProduct: item.website,
-                                    remoteProduct: item.remote,
-                                    diff: item.diff,
-                                  })
-                                }
-                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
-                              >
-                                Details
-                              </button>
-                            </div>
-                          ))
+                            ))}
+                          </>
                         )}
                       </div>
                     </div>
 
+                    {/* Archive On Website */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <h3 className="text-sm font-semibold text-white">
-                        Restore On Website
-                      </h3>
-                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
-                        {syncPreview.restores.length === 0 ? (
-                          <p className="text-sm text-zinc-500">
-                            No archived website products need restoration.
-                          </p>
-                        ) : (
-                          syncPreview.restores.map((item) => (
-                            <div
-                              key={`${item.websiteProductId}-${item.remoteProductId}`}
-                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
-                            >
-                              <div className="text-sm font-medium text-zinc-100">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs text-zinc-500">
-                                SKU: {item.skuSample || "N/A"}
-                              </div>
-                              <div className="mt-1 text-xs text-sky-300">
-                                Restore by {item.reason === "link" ? "existing link" : "SKU match"}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openSyncDetails({
-                                    mode: "restore",
-                                    title: item.title,
-                                    websiteProduct: item.website,
-                                    remoteProduct: item.remote,
-                                    diff: item.diff,
-                                  })
-                                }
-                                className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
-                              >
-                                Details
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <h3 className="text-sm font-semibold text-white">
-                        Archive On Website
-                      </h3>
-                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
+                      <h3 className="text-sm font-semibold text-white">Archive On Website</h3>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        Active website products with no matching Lightspeed product. They exist in your website database but not in Lightspeed — this sync will archive them.
+                      </p>
+                      <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.archives.length === 0 ? (
-                          <p className="text-sm text-zinc-500">
-                            No website-only products found.
-                          </p>
+                          <p className="text-sm text-zinc-500">No website-only products.</p>
                         ) : (
                           syncPreview.archives.map((item) => (
-                            <div
-                              key={item.websiteProductId}
-                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
-                            >
-                              <div className="text-sm font-medium text-zinc-100">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs text-zinc-500">
-                                SKU: {item.skuSample || "N/A"}
-                              </div>
+                            <div key={item.websiteProductId} className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2">
+                              <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+                              <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuSample || "N/A"}</div>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  openSyncDetails({
-                                    mode: "archive",
-                                    title: item.title,
-                                    websiteProduct: item.website,
-                                  })
-                                }
+                                onClick={() => openSyncDetails({ mode: "archive", title: item.title, websiteProduct: item.website })}
                                 className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                               >
                                 Details
@@ -2697,39 +2604,21 @@ export function InventoryClient({
                       </div>
                     </div>
 
+                    {/* Conflicts */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="text-sm font-semibold text-white">Conflicts</h3>
-                      <div className="mt-3 max-h-96 space-y-2 overflow-y-auto pr-1">
+                      <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.conflicts.length === 0 ? (
-                          <p className="text-sm text-zinc-500">
-                            No ambiguous SKU matches.
-                          </p>
+                          <p className="text-sm text-zinc-500">No ambiguous matches.</p>
                         ) : (
                           syncPreview.conflicts.map((item) => (
-                            <div
-                              key={item.remoteProductId}
-                              className="rounded border border-red-900/40 bg-zinc-900/70 p-2"
-                            >
-                              <div className="text-sm font-medium text-zinc-100">
-                                {item.title}
-                              </div>
-                              <div className="mt-1 text-xs text-zinc-500">
-                                SKU: {item.skuMatches.join(", ") || "N/A"}
-                              </div>
-                              <div className="mt-1 text-xs text-red-300">
-                                Multiple website candidates:{" "}
-                                {item.candidateWebsiteProductIds.length}
-                              </div>
+                            <div key={item.remoteProductId} className="rounded border border-red-900/40 bg-zinc-900/70 p-2">
+                              <div className="text-sm font-medium text-zinc-100">{item.title}</div>
+                              <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuMatches.join(", ") || "N/A"}</div>
+                              <div className="mt-1 text-xs text-red-300">{item.candidateWebsiteProductIds.length} website candidates</div>
                               <button
                                 type="button"
-                                onClick={() =>
-                                  openSyncDetails({
-                                    mode: "conflict",
-                                    title: item.title,
-                                    remoteProduct: item.remote,
-                                    conflictCandidateCount: item.candidateWebsiteProductIds.length,
-                                  })
-                                }
+                                onClick={() => openSyncDetails({ mode: "conflict", title: item.title, remoteProduct: item.remote, conflictCandidateCount: item.candidateWebsiteProductIds.length })}
                                 className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                               >
                                 Details
@@ -2746,41 +2635,24 @@ export function InventoryClient({
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 border-t border-zinc-800 px-5 py-4">
+            {/* Footer */}
+            <div className="flex flex-shrink-0 items-center justify-between gap-3 border-t border-zinc-800 px-5 py-4">
               <p className="text-xs text-zinc-500">
-                This sync only changes website inventory. It imports missing
-                Lightspeed products, edits active website products that differ,
-                restores archived website products that still exist in Lightspeed,
-                and archives website-only products.
+                This sync only changes website inventory. Lightspeed is not modified.
               </p>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSyncDialogOpen(false);
-                    setSyncModalStage("preview_summary");
-                    setSyncPreview(null);
-                    setPreviewScanState(null);
-                    setSyncProgress(null);
-                    setSyncDetailsSelection(null);
-                  }}
-                  className="rounded border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500"
-                  disabled={
-                    syncLoading &&
-                    syncModalStage !== "preview_summary" &&
-                    syncProgress?.phase !== "complete" &&
-                    syncProgress?.phase !== "error" &&
-                    previewScanState?.status !== "error"
-                  }
+                  onClick={closeSyncDialog}
+                  disabled={!canCloseSyncDialog}
+                  className="rounded border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:border-zinc-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {syncModalStage === "preview_summary" ? "Cancel" : "Close"}
                 </button>
                 {syncModalStage === "preview_summary" && !syncProgress && (
                   <button
                     type="button"
-                    onClick={() => {
-                      void applySync();
-                    }}
+                    onClick={() => { void applySync(); }}
                     className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={syncLoading || !syncPreview}
                   >
@@ -2808,6 +2680,7 @@ export function InventoryClient({
         remoteProduct={syncDetailsSelection?.remoteProduct ?? null}
         diff={syncDetailsSelection?.diff ?? null}
         conflictCandidateCount={syncDetailsSelection?.conflictCandidateCount}
+        isRestoreFromArchive={syncDetailsSelection?.isRestoreFromArchive}
         onClose={() => setSyncDetailsSelection(null)}
       />
     </div>
