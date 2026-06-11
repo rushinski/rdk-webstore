@@ -32,6 +32,7 @@ export type ReconciliationComparableTag = {
 
 export type ReconciliationComparableProduct = {
   title: string;
+  createdAt: string | null;
   description: string | null;
   brand: string;
   model: string | null;
@@ -227,16 +228,26 @@ export class LightspeedReconciliationSyncService {
       client.listProducts({
         after: input.after,
         pageSize: input.pageSize,
-        includeImages: false,
       }),
       this.productRepo.listForReconciliation(input.tenantId, "active"),
       this.productRepo.listForReconciliation(input.tenantId, "archived"),
       this.linksRepo.listByTenant(input.tenantId),
     ]);
 
+    const topLevelProducts = this.getTopLevelRemoteProducts(pageResult.products);
+    const hydratedRemoteProducts = await Promise.all(
+      topLevelProducts.map(async (product) => {
+        try {
+          return (await client.getProduct(product.id)) ?? product;
+        } catch {
+          return product;
+        }
+      }),
+    );
+
     const classification = await this.classifyRemoteProducts({
       tenantId: input.tenantId,
-      remoteProducts: this.getTopLevelRemoteProducts(pageResult.products),
+      remoteProducts: hydratedRemoteProducts,
       activeWebsiteProducts: websiteProducts,
       archivedWebsiteProducts,
       links,
@@ -248,11 +259,7 @@ export class LightspeedReconciliationSyncService {
       nextAfter: pageResult.hasNextPage ? pageResult.nextAfter : null,
       pageSize: input.pageSize,
       processedCount:
-        classification.noChanges.length +
-        classification.edits.length +
-        classification.imports.length +
-        classification.restores.length +
-        classification.conflicts.length,
+        hydratedRemoteProducts.length,
       totalRemoteProducts: pageResult.totalProducts ?? null,
       hasNextPage: pageResult.hasNextPage,
       nextPage: pageResult.hasNextPage ? input.chunkIndex + 1 : null,
@@ -360,6 +367,12 @@ export class LightspeedReconciliationSyncService {
     remoteProductIds: string[];
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const archivedWebsiteProducts =
+      (await this.productRepo.listForReconciliation(input.tenantId, "archived")) ?? [];
+    const archivedWebsiteProductById = new Map(
+      archivedWebsiteProducts.map((product) => [product.id, product] as const),
+    );
+    const archivedSkuIndex = this.buildWebsiteSkuIndex(archivedWebsiteProducts, new Set());
     let importedCount = 0;
     let failedCount = 0;
 
@@ -380,6 +393,43 @@ export class LightspeedReconciliationSyncService {
 
         if (result.status === "applied") {
           importedCount += 1;
+          continue;
+        }
+
+        const archivedFallback = this.findSingleArchivedSkuCandidate(
+          remoteProduct,
+          archivedSkuIndex,
+        );
+        if (!archivedFallback) {
+          failedCount += 1;
+          continue;
+        }
+
+        const archivedProduct = archivedWebsiteProductById.get(archivedFallback);
+        if (!archivedProduct) {
+          failedCount += 1;
+          continue;
+        }
+
+        await this.productService.restoreProduct(archivedProduct.id, input.tenantId);
+        await this.attachSkuFallbackLinks(
+          input.tenantId,
+          archivedProduct.id,
+          remoteProduct,
+          remoteProduct.updated_at ?? new Date().toISOString(),
+        );
+
+        const restoredResult = await this.inboundSyncService.applyProductPayload({
+          tenantId: input.tenantId,
+          payload: remoteProduct,
+          topic: "product.update",
+          remoteModifiedAt: remoteProduct.updated_at ?? new Date().toISOString(),
+        });
+
+        if (restoredResult.status === "applied") {
+          importedCount += 1;
+        } else {
+          failedCount += 1;
         }
       } catch {
         failedCount += 1;
@@ -877,6 +927,27 @@ export class LightspeedReconciliationSyncService {
     return value.length > 0 ? value : null;
   }
 
+  private findSingleArchivedSkuCandidate(
+    remoteProduct: LightspeedRemoteProduct,
+    archivedSkuIndex: Map<string, string[]>,
+  ) {
+    const normalizedVariants = this.mappingService.normalizeRemoteProducts([remoteProduct]);
+    const productIds = new Set<string>();
+
+    for (const variant of normalizedVariants) {
+      const normalizedSku = this.normalizeSku(variant.externalSku);
+      if (!normalizedSku) {
+        continue;
+      }
+
+      for (const productId of archivedSkuIndex.get(normalizedSku) ?? []) {
+        productIds.add(productId);
+      }
+    }
+
+    return productIds.size === 1 ? Array.from(productIds)[0] : null;
+  }
+
   private async toComparableRemoteProduct(
     tenantId: string,
     remoteProduct: LightspeedRemoteProduct,
@@ -886,6 +957,7 @@ export class LightspeedReconciliationSyncService {
     if (!first) {
       return {
         title: remoteProduct.name?.trim() || "Lightspeed product",
+        createdAt: remoteProduct.created_at ?? null,
         description: remoteProduct.description?.trim() || null,
         brand: "Unknown",
         model: null,
@@ -924,6 +996,7 @@ export class LightspeedReconciliationSyncService {
 
     return {
       title: first.cleanName,
+      createdAt: remoteProduct.created_at ?? null,
       description: first.description,
       brand: resolvedBrand,
       model: resolvedModel,
@@ -986,6 +1059,7 @@ export class LightspeedReconciliationSyncService {
 
     return {
       title: product.name,
+      createdAt: product.created_at ?? null,
       description: product.description?.trim() || null,
       brand: product.brand,
       model: product.model?.trim() || null,

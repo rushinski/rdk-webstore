@@ -2,6 +2,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import {
   Plus,
@@ -27,6 +28,7 @@ import { InventoryProductDetailsModal } from "@/components/admin/inventory/Inven
 import { SyncProductPreviewModal } from "@/components/admin/inventory/SyncProductPreviewModal";
 import { logError } from "@/lib/utils/log";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -131,6 +133,7 @@ type ComparableTag = {
 
 type ComparableProduct = {
   title: string;
+  createdAt: string | null;
   description: string | null;
   brand: string;
   model: string | null;
@@ -172,7 +175,7 @@ type PreviewScanState = {
   importCount: number;
   editCount: number;
   restoreCount: number;
-  archiveCount: number;
+  archiveCount: number | null;
   conflictCount: number;
   estimatedSecondsRemaining: number | null;
 };
@@ -233,16 +236,89 @@ function chunkArray<T>(items: T[], size: number) {
 }
 
 function InfoTooltip({ text }: { text: string }) {
+  const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [position, setPosition] = useState<{ top: number; left: number; side: "top" | "bottom" } | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) {
+      return;
+    }
+
+    const rect = anchor.getBoundingClientRect();
+    const estimatedWidth = 320;
+    const estimatedHeight = 84;
+    const margin = 12;
+    const canRenderAbove = rect.top > estimatedHeight + margin;
+    const side = canRenderAbove ? "top" : "bottom";
+    const top = canRenderAbove ? rect.top - 10 : rect.bottom + 10;
+    const unclampedLeft = rect.left + rect.width / 2;
+    const left = Math.min(
+      Math.max(unclampedLeft, estimatedWidth / 2 + margin),
+      window.innerWidth - estimatedWidth / 2 - margin,
+    );
+
+    setPosition({ top, left, side });
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    updatePosition();
+    const onScroll = () => updatePosition();
+    const onResize = () => updatePosition();
+    window.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [open, updatePosition]);
+
   return (
-    <>
-      {" "}
-      <span className="group relative inline-flex cursor-help">
-        <Info className="h-3 w-3 text-zinc-600 group-hover:text-zinc-400" />
-        <span className="pointer-events-none absolute left-1/2 top-full z-[10020] mt-1.5 w-52 -translate-x-1/2 rounded border border-zinc-700 bg-zinc-900 p-2 text-[11px] leading-snug text-zinc-300 opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-          {text}
-        </span>
-      </span>
-    </>
+    <span
+      ref={anchorRef}
+      className="inline-flex flex-shrink-0 cursor-help items-center justify-center"
+      onMouseEnter={() => {
+        updatePosition();
+        setOpen(true);
+      }}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => {
+        updatePosition();
+        setOpen(true);
+      }}
+      onBlur={() => setOpen(false)}
+    >
+      <Info className="h-3.5 w-3.5 text-zinc-500 transition-colors hover:text-zinc-200" />
+      {mounted && open && position
+        ? createPortal(
+            <span
+              className="pointer-events-none fixed w-80 rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-[11px] leading-snug text-zinc-200 shadow-2xl"
+              style={{
+                zIndex: 140000,
+                top: position.top,
+                left: position.left,
+                transform:
+                  position.side === "top"
+                    ? "translate(-50%, -100%)"
+                    : "translate(-50%, 0)",
+              }}
+            >
+              {text}
+            </span>,
+            document.body,
+          )
+        : null}
+    </span>
   );
 }
 
@@ -259,7 +335,7 @@ function ScanCounter({
 }) {
   return (
     <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-      <div className="flex items-center text-xs uppercase tracking-wide text-zinc-500">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
         {label}
         <InfoTooltip text={tooltip} />
       </div>
@@ -280,12 +356,12 @@ function SummaryCard({
   tooltip: string;
 }) {
   return (
-    <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-      <div className="flex items-center text-xs uppercase tracking-wide text-zinc-500">
+    <div className="h-full min-w-[140px] flex-1 rounded border border-zinc-800 bg-zinc-950/60 p-2.5">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
         {label}
         <InfoTooltip text={tooltip} />
       </div>
-      <div className={`mt-1 text-2xl font-semibold ${color}`}>{value}</div>
+      <div className={`mt-1 text-xl font-semibold ${color}`}>{value}</div>
     </div>
   );
 }
@@ -450,7 +526,7 @@ export function InventoryClient({
         importCount: 0,
         editCount: 0,
         restoreCount: 0,
-        archiveCount: 0,
+        archiveCount: null,
         conflictCount: 0,
         estimatedSecondsRemaining: null,
       });
@@ -464,8 +540,6 @@ export function InventoryClient({
       const restores: ReconciliationPreview["restores"] = [];
       const conflicts: ReconciliationPreview["conflicts"] = [];
       let processedCount = 0;
-      let restoresNoDiffTotal = 0;
-      let restoresWithDiffTotal = 0;
       let scanChunkIndex = 1;
       let scanAfter: number | null = null;
       let hasNextPage = true;
@@ -517,11 +591,6 @@ export function InventoryClient({
         }
         for (const item of chunkPreview?.restores ?? []) {
           restores.push(item);
-          if (item.diff) {
-            restoresWithDiffTotal += 1;
-          } else {
-            restoresNoDiffTotal += 1;
-          }
         }
         for (const item of chunkPreview?.conflicts ?? []) {
           conflicts.push(item);
@@ -554,11 +623,10 @@ export function InventoryClient({
           totalCount: remoteTotalCount,
           currentPage: Number(result?.chunkIndex ?? scanChunkIndex),
           noChangeCount: noChanges.length,
-          // Restores folded into add/edit counts during scan
-          importCount: imports.length + restoresNoDiffTotal,
-          editCount: edits.length + restoresWithDiffTotal,
-          restoreCount: 0,
-          archiveCount: 0, // Not meaningful until scan completes — computed at the end
+          importCount: imports.length,
+          editCount: edits.length,
+          restoreCount: restores.length,
+          archiveCount: null,
           conflictCount: conflicts.length,
           estimatedSecondsRemaining,
         });
@@ -617,7 +685,7 @@ export function InventoryClient({
         importCount: prev?.importCount ?? 0,
         editCount: prev?.editCount ?? 0,
         restoreCount: prev?.restoreCount ?? 0,
-        archiveCount: prev?.archiveCount ?? 0,
+        archiveCount: prev?.archiveCount ?? null,
         conflictCount: prev?.conflictCount ?? 0,
         estimatedSecondsRemaining: prev?.estimatedSecondsRemaining ?? null,
       }));
@@ -649,7 +717,14 @@ export function InventoryClient({
         })),
         EDIT_CHUNK_SIZE,
       );
-      const restoreChunks = chunkArray(syncPreview.restores, RESTORE_CHUNK_SIZE);
+      const restoreChunks = chunkArray(
+        syncPreview.restores.map((item) => ({
+          websiteProductId: item.websiteProductId,
+          remoteProductId: item.remoteProductId,
+          reason: item.reason,
+        })),
+        RESTORE_CHUNK_SIZE,
+      );
       const importChunks = chunkArray(
         syncPreview.imports.map((item) => item.remoteProductId),
         IMPORT_CHUNK_SIZE,
@@ -1087,9 +1162,8 @@ export function InventoryClient({
     ? Math.max(previewScanState!.totalCount! - previewScanState!.processedCount, 0)
     : null;
 
-  // Split restores into "no-diff" (merge into Add) and "with-diff" (merge into Edit)
-  const restoresNoDiff = syncPreview?.restores.filter((r) => !r.diff) ?? [];
-  const restoresWithDiff = syncPreview?.restores.filter((r) => Boolean(r.diff)) ?? [];
+  const restoresNoDiff = syncPreview?.restores.filter((item) => !item.diff) ?? [];
+  const restoresWithDiff = syncPreview?.restores.filter((item) => Boolean(item.diff)) ?? [];
   const effectiveAddCount = (syncPreview?.importCount ?? 0) + restoresNoDiff.length;
   const effectiveEditCount = (syncPreview?.editCount ?? 0) + restoresWithDiff.length;
 
@@ -2367,12 +2441,20 @@ export function InventoryClient({
       />
 
       {syncDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+        <ModalPortal
+          open={syncDialogOpen}
+          onClose={() => {
+            if (canCloseSyncDialog) {
+              closeSyncDialog();
+            }
+          }}
+          zIndexClassName="z-[120000]"
+          zIndex={120000}
+        >
           <div
-            className="absolute inset-0 bg-black/60"
-            onClick={() => { if (canCloseSyncDialog) closeSyncDialog(); }}
-          />
-          <div className="relative flex max-h-[90vh] w-full max-w-5xl flex-col rounded border border-zinc-800 bg-zinc-900 shadow-xl">
+            className="relative flex max-h-[90vh] w-full max-w-5xl flex-col rounded border border-zinc-800 bg-zinc-900 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex flex-shrink-0 items-center justify-between border-b border-zinc-800 px-5 py-4">
               <div>
@@ -2417,16 +2499,10 @@ export function InventoryClient({
                         <div className="text-xs text-zinc-500">items scanned</div>
                       </div>
                     </div>
-                    {/* Running counters — Restores folded into Add/Edit; Archives shown only at completion */}
-                    <div className="grid gap-3 sm:grid-cols-4">
-                      <ScanCounter label="No Change" value={previewScanState.noChangeCount} color="text-white" tooltip="The Lightspeed product already matches the active website product — no action needed." />
-                      <ScanCounter label="Add" value={previewScanState.importCount} color="text-emerald-300" tooltip="Product exists in Lightspeed but not on the website, or is an archived product being restored with no changes." />
-                      <ScanCounter label="Edit" value={previewScanState.editCount} color="text-blue-300" tooltip="Product matches an active website product but fields differ, or is an archived product being restored with updates." />
-                      <ScanCounter label="Conflicts" value={previewScanState.conflictCount} color="text-red-300" tooltip="Ambiguous match with multiple website candidates — skipped automatically." />
-                    </div>
                     <p className="text-xs text-zinc-500">
-                      Archived website products that match a Lightspeed product are included in the Add or Edit counts above, not separately.
+                      Counts for no change, add, edit, archive, and conflicts are shown after the full preview scan completes.
                     </p>
+
                   </div>
                 </div>
               ) : syncModalStage === "applying" && syncProgress ? (
@@ -2460,7 +2536,7 @@ export function InventoryClient({
                         style={{ width: `${syncProgressPercent}%` }}
                       />
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-5">
+                  <div className="grid grid-cols-5 gap-3">
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
                         <div className="text-xs uppercase tracking-wide text-zinc-500">Edited</div>
                         <div className="mt-1 text-xl font-semibold text-blue-300">{syncProgress.editedCount}</div>
@@ -2487,19 +2563,22 @@ export function InventoryClient({
               ) : syncPreview ? (
                 <div className="space-y-5">
                   {/* Summary cards — Restores are folded into Add / Edit */}
-                  <div className="grid gap-3 sm:grid-cols-5">
-                    <SummaryCard label="No Change" value={syncPreview.noChangeCount} color="text-white" tooltip="The Lightspeed product already matches the active website product — no action needed." />
-                    <SummaryCard label="Add" value={effectiveAddCount} color="text-emerald-300" tooltip="Product exists in Lightspeed but not on the website (or is archived and needs no update) — will be added or restored as-is." />
-                    <SummaryCard label="Edit" value={effectiveEditCount} color="text-blue-300" tooltip="Product matches an active website product but fields differ, or is archived and needs updating — website will be overwritten with Lightspeed data." />
-                    <SummaryCard label="Archive" value={syncPreview.archiveCount} color="text-amber-300" tooltip="Active website product has no matching Lightspeed product — will be archived (website-only action, Lightspeed is not changed)." />
-                    <SummaryCard label="Conflicts" value={syncPreview.conflictCount} color="text-red-300" tooltip="Ambiguous match with multiple website candidates — skipped automatically, no changes made." />
+                  <div className="overflow-x-auto">
+                    <div className="flex min-w-[820px] gap-3">
+                      <SummaryCard label="No Change" value={syncPreview.noChangeCount} color="text-white" tooltip="The Lightspeed product already matches the active website product ??? no action needed." />
+                      <SummaryCard label="Add" value={effectiveAddCount} color="text-emerald-300" tooltip="Product exists in Lightspeed but not on the website (or is archived and needs no update) ??? will be added or restored as-is." />
+                      <SummaryCard label="Edit" value={effectiveEditCount} color="text-blue-300" tooltip="Product matches an active website product but fields differ, or is archived and needs updating ??? website will be overwritten with Lightspeed data." />
+                      <SummaryCard label="Archive" value={syncPreview.archiveCount} color="text-amber-300" tooltip="Active website product has no matching Lightspeed product ??? will be archived (website-only action, Lightspeed is not changed)." />
+                      <SummaryCard label="Conflicts" value={syncPreview.conflictCount} color="text-red-300" tooltip="Ambiguous match with multiple website candidates ??? skipped automatically, no changes made." />
+                    </div>
                   </div>
-
-                  {/* Detail lists */}
                   <div className="grid gap-4 lg:grid-cols-4">
                     {/* Add To Website — imports + no-diff restores */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <h3 className="text-sm font-semibold text-white">Add To Website</h3>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                        Add To Website
+                        <InfoTooltip text="Product exists in Lightspeed but not on the website, or is an archived product that can be restored without any changes needed." />
+                      </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.imports.length === 0 && restoresNoDiff.length === 0 ? (
                           <p className="text-sm text-zinc-500">No products to add.</p>
@@ -2539,7 +2618,10 @@ export function InventoryClient({
 
                     {/* Edit On Website — active edits + diff restores */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <h3 className="text-sm font-semibold text-white">Edit On Website</h3>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                        Edit On Website
+                        <InfoTooltip text="Product matches an active website product but fields differ, or is an archived product being restored and updated to match Lightspeed." />
+                      </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.edits.length === 0 && restoresWithDiff.length === 0 ? (
                           <p className="text-sm text-zinc-500">No products to update.</p>
@@ -2579,10 +2661,10 @@ export function InventoryClient({
 
                     {/* Archive On Website */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <h3 className="text-sm font-semibold text-white">Archive On Website</h3>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        Active website products with no matching Lightspeed product. They exist in your website database but not in Lightspeed — this sync will archive them.
-                      </p>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                        Archive On Website
+                        <InfoTooltip text="Active website products that have no matching Lightspeed product. They exist in your website database but not in Lightspeed. This sync will archive them (hide from website). They are NOT deleted and can be restored later." />
+                      </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.archives.length === 0 ? (
                           <p className="text-sm text-zinc-500">No website-only products.</p>
@@ -2606,7 +2688,10 @@ export function InventoryClient({
 
                     {/* Conflicts */}
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
-                      <h3 className="text-sm font-semibold text-white">Conflicts</h3>
+                      <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
+                        Conflicts
+                        <InfoTooltip text="A Lightspeed product matched multiple website candidates and cannot be resolved safely. No changes are made — you must manually resolve these." />
+                      </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.conflicts.length === 0 ? (
                           <p className="text-sm text-zinc-500">No ambiguous matches.</p>
@@ -2662,7 +2747,20 @@ export function InventoryClient({
               </div>
             </div>
           </div>
-        </div>
+
+          {/* Details panel — rendered inside the fixed container so absolute inset-0 covers the full screen */}
+          <SyncProductPreviewModal
+            open={Boolean(syncDetailsSelection)}
+            mode={syncDetailsSelection?.mode ?? "add"}
+            title={syncDetailsSelection?.title ?? ""}
+            websiteProduct={syncDetailsSelection?.websiteProduct ?? null}
+            remoteProduct={syncDetailsSelection?.remoteProduct ?? null}
+            diff={syncDetailsSelection?.diff ?? null}
+            conflictCandidateCount={syncDetailsSelection?.conflictCandidateCount}
+            isRestoreFromArchive={syncDetailsSelection?.isRestoreFromArchive}
+            onClose={() => setSyncDetailsSelection(null)}
+          />
+        </ModalPortal>
       )}
 
       <Toast
@@ -2670,18 +2768,6 @@ export function InventoryClient({
         message={toast?.message ?? ""}
         tone={toast?.tone ?? "info"}
         onClose={() => setToast(null)}
-      />
-
-      <SyncProductPreviewModal
-        open={Boolean(syncDetailsSelection)}
-        mode={syncDetailsSelection?.mode ?? "add"}
-        title={syncDetailsSelection?.title ?? ""}
-        websiteProduct={syncDetailsSelection?.websiteProduct ?? null}
-        remoteProduct={syncDetailsSelection?.remoteProduct ?? null}
-        diff={syncDetailsSelection?.diff ?? null}
-        conflictCandidateCount={syncDetailsSelection?.conflictCandidateCount}
-        isRestoreFromArchive={syncDetailsSelection?.isRestoreFromArchive}
-        onClose={() => setSyncDetailsSelection(null)}
       />
     </div>
   );

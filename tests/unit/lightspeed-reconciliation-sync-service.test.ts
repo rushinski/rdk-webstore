@@ -605,7 +605,6 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(listProductsMock).toHaveBeenCalledWith({
       after: null,
       pageSize: 2,
-      includeImages: false,
     });
     expect(result.processedCount).toBe(4);
     expect(result.totalRemoteProducts).toBe(4);

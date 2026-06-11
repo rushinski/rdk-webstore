@@ -188,6 +188,10 @@ export class ProductRepository {
       )
       .eq("tenant_id", tenantId);
 
+    if (archivedStatus === "active") {
+      query = query.eq("is_active", true);
+    }
+
     query = this.applyArchivedFilter(query, archivedStatus).order("created_at", {
       ascending: false,
     });

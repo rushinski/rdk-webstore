@@ -9,6 +9,7 @@ type Props = {
   onClose: () => void;
   children: React.ReactNode;
   zIndexClassName?: string; // default z-[9999]
+  zIndex?: number;
 };
 
 export function ModalPortal({
@@ -16,6 +17,7 @@ export function ModalPortal({
   onClose,
   children,
   zIndexClassName = "z-[9999]",
+  zIndex,
 }: Props) {
   const [mounted, setMounted] = useState(false);
 
@@ -38,14 +40,22 @@ export function ModalPortal({
   }
 
   return createPortal(
-    <div className={`fixed inset-0 ${zIndexClassName}`}>
+    <div
+      className={`fixed inset-0 isolate overscroll-contain ${zIndexClassName}`}
+      style={zIndex ? { zIndex } : undefined}
+    >
       <div
         className="absolute inset-0 bg-black/80"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
         aria-hidden="true"
       />
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        {children}
+        <div
+          className="max-h-full max-w-full"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
