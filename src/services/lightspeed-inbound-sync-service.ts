@@ -98,7 +98,9 @@ export class LightspeedInboundSyncService {
         is_out_of_stock: normalized.every((item) => item.stock <= 0),
         excluded_auto_tag_keys: [],
         go_live_at: new Date().toISOString(),
-        created_at: input.payload.created_at ?? new Date().toISOString(),
+        product_created_at: input.payload.created_at ?? new Date().toISOString(),
+        product_updated_at:
+          input.payload.updated_at ?? input.remoteModifiedAt ?? new Date().toISOString(),
       });
 
       for (const [index, remote] of normalized.entries()) {
@@ -151,6 +153,9 @@ export class LightspeedInboundSyncService {
       description: first.description,
       is_active: first.isActive && !first.isDeleted,
       is_out_of_stock: normalized.every((item) => item.stock <= 0),
+      product_created_at: input.payload.created_at ?? undefined,
+      product_updated_at:
+        input.payload.updated_at ?? input.remoteModifiedAt ?? new Date().toISOString(),
     });
 
     await this.productRepo.deleteImagesByProduct(linkedProductId);

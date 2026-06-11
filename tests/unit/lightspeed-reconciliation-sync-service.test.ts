@@ -66,6 +66,7 @@ describe("LightspeedReconciliationSyncService", () => {
         id: "ls-linked",
         name: "Linked Product",
         version: 101,
+        created_at: "2026-06-01T10:00:00.000Z",
         updated_at: "2026-06-08T10:00:00.000Z",
         active: true,
         has_variants: true,
@@ -85,6 +86,7 @@ describe("LightspeedReconciliationSyncService", () => {
         id: "ls-import",
         name: "Import Product",
         version: 102,
+        created_at: "2026-06-02T11:00:00.000Z",
         updated_at: "2026-06-08T11:00:00.000Z",
         variants: [
           { id: "ls-import-variant", sku: "IMPORT-001", name: "Import Product" },
@@ -94,13 +96,23 @@ describe("LightspeedReconciliationSyncService", () => {
         id: "ls-sku",
         name: "SKU Match Product",
         version: 103,
+        created_at: "2026-06-03T12:00:00.000Z",
         updated_at: "2026-06-08T12:00:00.000Z",
-        variants: [{ id: "ls-sku-variant", sku: "SKU-001", name: "SKU Match Product" }],
+        variants: [
+          {
+            id: "ls-sku-variant",
+            sku: "SKU-001",
+            name: "SKU Match Product",
+            inventory_Main_Outlet: 3,
+            inventory: [{ current_amount: 0 }],
+          },
+        ],
       },
       {
         id: "ls-conflict",
         name: "Conflict Product",
         version: 104,
+        created_at: "2026-06-04T13:00:00.000Z",
         updated_at: "2026-06-08T13:00:00.000Z",
         variants: [
           { id: "ls-conflict-variant", sku: "CONFLICT-001", name: "Conflict Product" },
@@ -133,6 +145,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
           variants: [
             {
               id: "variant-linked",
@@ -163,6 +178,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-02T10:00:00.000Z",
+          product_created_at: "2026-06-02T10:00:00.000Z",
+          product_updated_at: "2026-06-02T10:00:00.000Z",
           variants: [{ id: "variant-archive", sku: "ARCHIVE-001" }],
           images: [],
           tags: [],
@@ -178,6 +196,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-03T12:00:00.000Z",
+          product_created_at: "2026-06-03T12:00:00.000Z",
+          product_updated_at: "2026-06-03T12:00:00.000Z",
           variants: [
             {
               id: "variant-sku",
@@ -203,6 +224,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-04T13:00:00.000Z",
+          product_created_at: "2026-06-04T13:00:00.000Z",
+          product_updated_at: "2026-06-04T13:00:00.000Z",
           variants: [
             {
               id: "variant-conflict-a",
@@ -228,6 +252,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-04T13:05:00.000Z",
+          product_created_at: "2026-06-04T13:05:00.000Z",
+          product_updated_at: "2026-06-04T13:05:00.000Z",
           variants: [
             {
               id: "variant-conflict-b",
@@ -255,6 +282,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-02T11:00:00.000Z",
+          product_created_at: "2026-06-02T11:00:00.000Z",
+          product_updated_at: "2026-06-02T11:00:00.000Z",
           variants: [
             {
               id: "variant-archived-linked",
@@ -304,6 +334,9 @@ describe("LightspeedReconciliationSyncService", () => {
       description: null,
       is_active: true,
       is_out_of_stock: false,
+      created_at: "2026-06-03T12:00:00.000Z",
+      product_created_at: "2026-06-03T12:00:00.000Z",
+      product_updated_at: "2026-06-03T12:00:00.000Z",
       variants: [
         {
           id: "variant-sku",
@@ -359,8 +392,21 @@ describe("LightspeedReconciliationSyncService", () => {
           reason: "sku",
           skuMatches: ["SKU-001"],
           diff: expect.objectContaining({
-            fields: expect.arrayContaining(["sizeType", "isActive", "tags"]),
+            fields: expect.arrayContaining(["sizeType", "isActive", "tags", "variants"]),
           }),
+        }),
+      ]),
+    );
+    expect(
+      result.edits.find((item) => item.remoteProductId === "ls-sku")?.remote.variants[0]?.stock,
+    ).toBe(3);
+    expect(
+      result.edits.find((item) => item.remoteProductId === "ls-sku")?.diff.variantChanges,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sku: "SKU-001",
+          fields: expect.arrayContaining(["stock"]),
         }),
       ]),
     );
@@ -454,6 +500,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
           variants: [
             {
               id: "variant-linked",
@@ -484,6 +533,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-02T10:00:00.000Z",
+          product_created_at: "2026-06-02T10:00:00.000Z",
+          product_updated_at: "2026-06-02T10:00:00.000Z",
           variants: [{ id: "variant-archive", sku: "ARCHIVE-001" }],
           images: [],
           tags: [],
@@ -499,6 +551,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-03T12:00:00.000Z",
+          product_created_at: "2026-06-03T12:00:00.000Z",
+          product_updated_at: "2026-06-03T12:00:00.000Z",
           variants: [
             {
               id: "variant-sku",
@@ -524,6 +579,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-04T13:00:00.000Z",
+          product_created_at: "2026-06-04T13:00:00.000Z",
+          product_updated_at: "2026-06-04T13:00:00.000Z",
           variants: [
             {
               id: "variant-conflict-a",
@@ -549,6 +607,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-04T13:05:00.000Z",
+          product_created_at: "2026-06-04T13:05:00.000Z",
+          product_updated_at: "2026-06-04T13:05:00.000Z",
           variants: [
             {
               id: "variant-conflict-b",
@@ -576,6 +637,9 @@ describe("LightspeedReconciliationSyncService", () => {
           description: null,
           is_active: true,
           is_out_of_stock: false,
+          created_at: "2026-06-02T11:00:00.000Z",
+          product_created_at: "2026-06-02T11:00:00.000Z",
+          product_updated_at: "2026-06-02T11:00:00.000Z",
           variants: [
             {
               id: "variant-archived-linked",

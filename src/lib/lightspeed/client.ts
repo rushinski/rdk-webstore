@@ -1,5 +1,6 @@
 import type {
   LightspeedCreateProductPayload,
+  LightspeedRemoteInventoryLevel,
   LightspeedListProductsResult,
   LightspeedListResponse,
   LightspeedProductResponse,
@@ -73,10 +74,15 @@ export class LightspeedClient {
     const response = await this.request(`/products/${productId}`);
     const payload =
       (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
-    if (Array.isArray(payload.data)) {
-      return payload.data[0] ?? null;
+    const product = Array.isArray(payload.data)
+      ? (payload.data[0] ?? null)
+      : (payload.data ?? null);
+
+    if (!product) {
+      return null;
     }
-    return payload.data ?? null;
+
+    return this.hydrateProductInventory(product);
   }
 
   async listVariantAttributes() {
@@ -145,6 +151,66 @@ export class LightspeedClient {
       hasNextPage,
       nextAfter,
       totalProducts,
+    };
+  }
+
+  private async listInventory(input: { productId: string; variants?: boolean }) {
+    const params = new URLSearchParams();
+    params.set("page_size", "5000");
+    params.set("variants", input.variants ? "true" : "false");
+    const response = await this.request(
+      `/inventory/${input.productId}?${params.toString()}`,
+    );
+    const raw = await response.json();
+
+    // X-Series returns a raw array; older API versions wrap in { data: [...] }
+    if (Array.isArray(raw)) {
+      return raw as LightspeedRemoteInventoryLevel[];
+    }
+
+    if (Array.isArray(raw?.data)) {
+      return raw.data as LightspeedRemoteInventoryLevel[];
+    }
+
+    return raw?.data ? [raw.data as LightspeedRemoteInventoryLevel] : [];
+  }
+
+  private async hydrateProductInventory(product: LightspeedRemoteProduct) {
+    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+    const inventory = await this.listInventory({
+      productId: product.id,
+      variants: hasVariants,
+    });
+
+    if (inventory.length === 0) {
+      return product;
+    }
+
+    if (!hasVariants) {
+      return {
+        ...product,
+        inventory,
+      };
+    }
+
+    const inventoryByProductId = new Map<string, LightspeedRemoteInventoryLevel[]>();
+    for (const level of inventory) {
+      const inventoryProductId = level.product_id?.trim();
+      if (!inventoryProductId) {
+        continue;
+      }
+
+      const existing = inventoryByProductId.get(inventoryProductId) ?? [];
+      existing.push(level);
+      inventoryByProductId.set(inventoryProductId, existing);
+    }
+
+    return {
+      ...product,
+      variants: product.variants!.map((variant) => ({
+        ...variant,
+        inventory: inventoryByProductId.get(variant.id) ?? variant.inventory ?? null,
+      })),
     };
   }
 }

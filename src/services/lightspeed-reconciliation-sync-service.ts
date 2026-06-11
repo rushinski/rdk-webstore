@@ -32,7 +32,9 @@ export type ReconciliationComparableTag = {
 
 export type ReconciliationComparableProduct = {
   title: string;
-  createdAt: string | null;
+  rowCreatedAt: string | null;
+  productCreatedAt: string | null;
+  productUpdatedAt: string | null;
   description: string | null;
   brand: string;
   model: string | null;
@@ -957,7 +959,9 @@ export class LightspeedReconciliationSyncService {
     if (!first) {
       return {
         title: remoteProduct.name?.trim() || "Lightspeed product",
-        createdAt: remoteProduct.created_at ?? null,
+        rowCreatedAt: null,
+        productCreatedAt: remoteProduct.created_at ?? null,
+        productUpdatedAt: remoteProduct.updated_at ?? null,
         description: remoteProduct.description?.trim() || null,
         brand: "Unknown",
         model: null,
@@ -996,7 +1000,9 @@ export class LightspeedReconciliationSyncService {
 
     return {
       title: first.cleanName,
-      createdAt: remoteProduct.created_at ?? null,
+      rowCreatedAt: null,
+      productCreatedAt: remoteProduct.created_at ?? null,
+      productUpdatedAt: remoteProduct.updated_at ?? null,
       description: first.description,
       brand: resolvedBrand,
       model: resolvedModel,
@@ -1059,7 +1065,9 @@ export class LightspeedReconciliationSyncService {
 
     return {
       title: product.name,
-      createdAt: product.created_at ?? null,
+      rowCreatedAt: product.created_at ?? null,
+      productCreatedAt: product.product_created_at ?? product.created_at ?? null,
+      productUpdatedAt: product.product_updated_at ?? product.updated_at ?? null,
       description: product.description?.trim() || null,
       brand: product.brand,
       model: product.model?.trim() || null,
@@ -1084,6 +1092,12 @@ export class LightspeedReconciliationSyncService {
     }
     if ((website.description ?? null) !== (remote.description ?? null)) {
       fields.push("description");
+    }
+    if ((website.productCreatedAt ?? null) !== (remote.productCreatedAt ?? null)) {
+      fields.push("productCreatedAt");
+    }
+    if ((website.productUpdatedAt ?? null) !== (remote.productUpdatedAt ?? null)) {
+      fields.push("productUpdatedAt");
     }
     if (website.brand !== remote.brand) {
       fields.push("brand");

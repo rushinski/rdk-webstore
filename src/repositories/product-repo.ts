@@ -591,9 +591,14 @@ export class ProductRepository {
   }
 
   async create(product: ProductInsert) {
+    const now = new Date().toISOString();
     const { data, error } = await this.supabase
       .from("products")
-      .insert(product)
+      .insert({
+        ...product,
+        product_created_at: product.product_created_at ?? now,
+        product_updated_at: product.product_updated_at ?? now,
+      })
       .select()
       .single();
 
@@ -604,9 +609,13 @@ export class ProductRepository {
   }
 
   async update(id: string, product: ProductUpdate) {
+    const now = new Date().toISOString();
     const { data, error } = await this.supabase
       .from("products")
-      .update(product)
+      .update({
+        ...product,
+        product_updated_at: product.product_updated_at ?? now,
+      })
       .eq("id", id)
       .select()
       .single();
@@ -625,9 +634,10 @@ export class ProductRepository {
   }
 
   async archive(id: string) {
+    const now = new Date().toISOString();
     const { error } = await this.supabase
       .from("products")
-      .update({ archived_at: new Date().toISOString(), is_out_of_stock: true })
+      .update({ archived_at: now, is_out_of_stock: true, product_updated_at: now })
       .eq("id", id);
 
     if (error) {
@@ -636,9 +646,10 @@ export class ProductRepository {
   }
 
   async restore(id: string) {
+    const now = new Date().toISOString();
     const { error } = await this.supabase
       .from("products")
-      .update({ archived_at: null })
+      .update({ archived_at: null, product_updated_at: now })
       .eq("id", id);
 
     if (error) {
@@ -658,7 +669,10 @@ export class ProductRepository {
       const batch = uniqueIds.slice(index, index + BULK_MUTATION_BATCH_SIZE);
       const { data, error } = await this.supabase
         .from("products")
-        .update({ archived_at: null })
+        .update({
+          archived_at: null,
+          product_updated_at: new Date().toISOString(),
+        })
         .in("id", batch)
         .select("id");
 
@@ -685,7 +699,11 @@ export class ProductRepository {
       const batch = uniqueIds.slice(index, index + BULK_MUTATION_BATCH_SIZE);
       const { data, error } = await this.supabase
         .from("products")
-        .update({ archived_at: archivedAt, is_out_of_stock: true })
+        .update({
+          archived_at: archivedAt,
+          is_out_of_stock: true,
+          product_updated_at: archivedAt,
+        })
         .in("id", batch)
         .select("id");
 

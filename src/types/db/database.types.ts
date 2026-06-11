@@ -1928,6 +1928,8 @@ export type Database = {
           is_out_of_stock: boolean;
           model: string | null;
           name: string;
+          product_created_at: string;
+          product_updated_at: string;
           shipping_price_cents: number | null;
           size_type: string;
           tenant_id: string;
@@ -1947,6 +1949,8 @@ export type Database = {
           is_out_of_stock?: boolean;
           model?: string | null;
           name: string;
+          product_created_at?: string;
+          product_updated_at?: string;
           shipping_price_cents?: number | null;
           size_type?: string;
           tenant_id: string;
@@ -1966,6 +1970,8 @@ export type Database = {
           is_out_of_stock?: boolean;
           model?: string | null;
           name?: string;
+          product_created_at?: string;
+          product_updated_at?: string;
           shipping_price_cents?: number | null;
           size_type?: string;
           tenant_id?: string;

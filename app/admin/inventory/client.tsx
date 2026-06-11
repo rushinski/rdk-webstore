@@ -133,7 +133,9 @@ type ComparableTag = {
 
 type ComparableProduct = {
   title: string;
-  createdAt: string | null;
+  rowCreatedAt: string | null;
+  productCreatedAt: string | null;
+  productUpdatedAt: string | null;
   description: string | null;
   brand: string;
   model: string | null;

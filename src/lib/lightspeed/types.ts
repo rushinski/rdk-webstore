@@ -15,6 +15,8 @@ export type LightspeedRemoteVariantOption = {
 
 export type LightspeedRemoteInventoryLevel = {
   outlet_id?: string | null;
+  product_id?: string | null;
+  count?: number | string | null;
   current_amount?: number | null;
   current_inventory_level?: number | null;
 };

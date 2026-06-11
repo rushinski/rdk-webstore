@@ -1,6 +1,6 @@
 "use client";
 
-import { X, ArchiveRestore } from "lucide-react";
+import { ArchiveRestore, ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -21,7 +21,9 @@ type ComparableTag = {
 
 type ComparableProduct = {
   title: string;
-  createdAt: string | null;
+  rowCreatedAt: string | null;
+  productCreatedAt: string | null;
+  productUpdatedAt: string | null;
   description: string | null;
   brand: string;
   model: string | null;
@@ -61,25 +63,6 @@ const formatMoney = (amountCents: number) =>
     style: "currency",
     currency: "USD",
   }).format((amountCents ?? 0) / 100);
-
-const formatCreatedAt = (value: string | null | undefined) => {
-  if (!value) {
-    return "Unknown";
-  }
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return "Unknown";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(parsed);
-};
 
 function ProductPreviewPanel({
   label,
@@ -172,8 +155,7 @@ function ProductPreviewPanel({
                   {product.title}
                 </div>
               </div>
-              {[
-                ["Created", formatCreatedAt(product.createdAt), false],
+              {[ 
                 ["Brand", product.brand, hasFieldChange("brand")],
                 ["Model", product.model || "-", hasFieldChange("model")],
                 ["Category", product.category || "-", hasFieldChange("category")],
@@ -330,7 +312,7 @@ export function SyncProductPreviewModal({
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[92vh] w-full max-w-7xl flex-col overflow-hidden rounded border border-zinc-800 bg-zinc-950"
+        className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded border border-zinc-800 bg-zinc-950 shadow-xl"
       >
         <div className="flex flex-shrink-0 items-start justify-between border-b border-zinc-800 px-5 py-4">
           <div className="min-w-0 pr-4">
@@ -347,9 +329,9 @@ export function SyncProductPreviewModal({
             type="button"
             onClick={onClose}
             className="flex-shrink-0 rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-white"
-            aria-label="Close sync details"
+            aria-label="Back to sync preview"
           >
-            <X className="h-5 w-5" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
         </div>
 

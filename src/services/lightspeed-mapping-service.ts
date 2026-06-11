@@ -469,7 +469,11 @@ export class LightspeedMappingService {
 
   private sumInventory(
     levels:
-      | Array<{ current_amount?: number | null; current_inventory_level?: number | null }>
+      | Array<{
+          count?: number | string | null;
+          current_amount?: number | null;
+          current_inventory_level?: number | null;
+        }>
       | null
       | undefined,
   ) {
@@ -477,9 +481,22 @@ export class LightspeedMappingService {
       return null;
     }
 
-    return levels.reduce((total, level) => {
-      const amount = level.current_inventory_level ?? level.current_amount ?? 0;
-      return total + amount;
+    let sawValue = false;
+
+    const total = levels.reduce((sum, level) => {
+      const amount =
+        this.toNumber(level.current_amount) ??
+        this.toNumber(level.current_inventory_level) ??
+        this.toNumber(level.count);
+
+      if (amount === null) {
+        return sum;
+      }
+
+      sawValue = true;
+      return sum + amount;
     }, 0);
+
+    return sawValue ? total : null;
   }
 }
