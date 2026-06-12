@@ -36,6 +36,8 @@ function isMissingLastErrorColumn(error: unknown) {
 }
 
 export class LightspeedLinksRepository {
+  private static readonly PAGE_SIZE = 1000;
+
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   async getByVariantId(tenantId: string, variantId: string) {
@@ -112,16 +114,31 @@ export class LightspeedLinksRepository {
   }
 
   async listByTenant(tenantId: string) {
-    const { data, error } = await this.supabase
-      .from("lightspeed_product_links")
-      .select("*")
-      .eq("tenant_id", tenantId);
+    const rows: LightspeedLinkRow[] = [];
+    let offset = 0;
 
-    if (error) {
-      throw error;
+    while (true) {
+      const { data, error } = await this.supabase
+        .from("lightspeed_product_links")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .range(offset, offset + LightspeedLinksRepository.PAGE_SIZE - 1);
+
+      if (error) {
+        throw error;
+      }
+
+      const page = (data ?? []) as LightspeedLinkRow[];
+      rows.push(...page);
+
+      if (page.length < LightspeedLinksRepository.PAGE_SIZE) {
+        break;
+      }
+
+      offset += LightspeedLinksRepository.PAGE_SIZE;
     }
 
-    return (data ?? []) as LightspeedLinkRow[];
+    return rows;
   }
 
   async updateLinkById(

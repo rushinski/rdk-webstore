@@ -156,6 +156,8 @@ type ProductImageRow = {
 };
 
 export class ProductRepository {
+  private static readonly RECONCILIATION_PAGE_SIZE = 1000;
+
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   private readonly storefrontSearchFields = ["brand", "name", "model"];
@@ -181,24 +183,41 @@ export class ProductRepository {
     tenantId: string,
     archivedStatus: ProductFilters["archivedStatus"] = "active",
   ): Promise<ProductWithDetails[]> {
-    let query = this.supabase
-      .from("products")
-      .select(
-        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
-      )
-      .eq("tenant_id", tenantId);
+    const rows: ProductWithRelations[] = [];
+    let offset = 0;
 
-    query = this.applyArchivedFilter(query, archivedStatus).order("created_at", {
-      ascending: false,
-    });
+    while (true) {
+      let query = this.supabase
+        .from("products")
+        .select(
+          "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
+        )
+        .eq("tenant_id", tenantId);
 
-    const { data, error } = await query;
+      query = this.applyArchivedFilter(query, archivedStatus).order("created_at", {
+        ascending: false,
+      });
 
-    if (error) {
-      throw error;
+      const { data, error } = await query.range(
+        offset,
+        offset + ProductRepository.RECONCILIATION_PAGE_SIZE - 1,
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const page = (data ?? []) as ProductWithRelations[];
+      rows.push(...page);
+
+      if (page.length < ProductRepository.RECONCILIATION_PAGE_SIZE) {
+        break;
+      }
+
+      offset += ProductRepository.RECONCILIATION_PAGE_SIZE;
     }
 
-    return (data ?? []).map((row) => this.transformProduct(row as ProductWithRelations));
+    return rows.map((row) => this.transformProduct(row));
   }
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {

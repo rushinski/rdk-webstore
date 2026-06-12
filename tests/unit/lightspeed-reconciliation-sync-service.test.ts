@@ -392,7 +392,12 @@ describe("LightspeedReconciliationSyncService", () => {
           reason: "sku",
           skuMatches: ["SKU-001"],
           diff: expect.objectContaining({
-            fields: expect.arrayContaining(["sizeType", "isActive", "tags", "variants"]),
+            fields: expect.arrayContaining([
+              "productUpdatedAt",
+              "sizeType",
+              "tags",
+              "variants",
+            ]),
           }),
         }),
       ]),

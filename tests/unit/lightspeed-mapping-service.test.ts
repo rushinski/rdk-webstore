@@ -184,6 +184,19 @@ describe("LightspeedMappingService", () => {
     expect(normalized[0]?.stock).toBe(0);
   });
 
+  it("defaults missing active flags to true for non-deleted remote products", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-product-6",
+        name: "Missing Active Flag Product",
+        sku: "ACTIVE-DEFAULT-001",
+        deleted_at: null,
+      },
+    ]);
+
+    expect(normalized[0]?.isActive).toBe(true);
+  });
+
   it("uses child ids when variant families are missing child skus", () => {
     const normalized = service.normalizeRemoteProducts([
       {

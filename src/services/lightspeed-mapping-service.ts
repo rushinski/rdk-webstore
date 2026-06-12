@@ -219,6 +219,7 @@ export class LightspeedMappingService {
       stock: this.extractStock(record, parent),
       isActive: this.toBoolean(
         record.is_active ?? record.active ?? parent?.is_active ?? parent?.active,
+        !(record.deleted_at ?? parent?.deleted_at),
       ),
       isDeleted: Boolean(record.deleted_at ?? parent?.deleted_at),
       imageUrls: this.extractImages(record, parent),
@@ -455,14 +456,14 @@ export class LightspeedMappingService {
     return null;
   }
 
-  private toBoolean(value: boolean | number | null | undefined) {
+  private toBoolean(value: boolean | number | null | undefined, fallback = false) {
     if (typeof value === "boolean") {
       return value;
     }
     if (typeof value === "number") {
       return value !== 0;
     }
-    return false;
+    return fallback;
   }
 
   private toNumber(value: number | string | null | undefined) {
