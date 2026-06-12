@@ -1,6 +1,7 @@
 const createProductMock = jest.fn();
 const updateProductMock = jest.fn();
 const deleteProductMock = jest.fn();
+const getProductMock = jest.fn();
 const listVariantAttributesMock = jest.fn();
 const createVariantAttributeMock = jest.fn();
 
@@ -11,12 +12,14 @@ const getByExternalSkuMock = jest.fn();
 const listByProductIdMock = jest.fn();
 const updateLinkByIdMock = jest.fn();
 const upsertLinkMock = jest.fn();
+const recordDeletionMock = jest.fn();
 
 jest.mock("@/lib/lightspeed/client", () => ({
   LightspeedClient: jest.fn().mockImplementation(() => ({
     createProduct: createProductMock,
     updateProduct: updateProductMock,
     deleteProduct: deleteProductMock,
+    getProduct: getProductMock,
     listVariantAttributes: listVariantAttributesMock,
     createVariantAttribute: createVariantAttributeMock,
   })),
@@ -44,6 +47,12 @@ jest.mock("@/repositories/lightspeed-links-repo", () => ({
   })),
 }));
 
+jest.mock("@/repositories/deleted-product-recovery-repo", () => ({
+  DeletedProductRecoveryRepository: jest.fn().mockImplementation(() => ({
+    recordDeletion: recordDeletionMock,
+  })),
+}));
+
 import { LightspeedProductSyncService } from "@/services/lightspeed-product-sync-service";
 
 describe("LightspeedProductSyncService", () => {
@@ -51,6 +60,7 @@ describe("LightspeedProductSyncService", () => {
     createProductMock.mockReset();
     updateProductMock.mockReset();
     deleteProductMock.mockReset();
+    getProductMock.mockReset();
     listVariantAttributesMock.mockReset();
     createVariantAttributeMock.mockReset();
     getByIdMock.mockReset();
@@ -60,6 +70,7 @@ describe("LightspeedProductSyncService", () => {
     listByProductIdMock.mockReset();
     updateLinkByIdMock.mockReset();
     upsertLinkMock.mockReset();
+    recordDeletionMock.mockReset();
   });
 
   it("stores family and child ids per variant after a multi-variant create", async () => {
@@ -152,6 +163,38 @@ describe("LightspeedProductSyncService", () => {
       domainPrefix: "demo-store",
       accessToken: "token",
     });
+    getByIdMock.mockResolvedValue({
+      id: "product-1",
+      tenant_id: "tenant-1",
+      name: "Jordan 4 Delta",
+      brand: "Jordan",
+      model: "Delta",
+      category: "sneakers",
+      condition: "new",
+      size_type: "shoe",
+      description: "desc",
+      is_active: true,
+      is_out_of_stock: false,
+      archived_at: null,
+      created_at: "2026-06-01T00:00:00.000Z",
+      product_created_at: "2026-06-01T00:00:00.000Z",
+      product_updated_at: "2026-06-05T20:30:00.000Z",
+      variants: [
+        {
+          id: "variant-1",
+          sku: "SKU-1",
+          size_label: "10",
+          sale_price_cents: 20000,
+          unit_cost_cents: 10000,
+          stock: 1,
+          sort_order: 0,
+        },
+      ],
+      images: [
+        { id: "image-1", url: "https://img.test/1.jpg", sort_order: 0, is_primary: true },
+      ],
+      tags: [{ id: "tag-1", label: "Jordan", group_key: "brand" }],
+    });
     listByProductIdMock.mockResolvedValue([
       {
         id: "link-1",
@@ -168,6 +211,14 @@ describe("LightspeedProductSyncService", () => {
         lightspeed_product_id: "ls-family-1",
       },
     ]);
+    getProductMock.mockResolvedValue({
+      id: "ls-family-1",
+      name: "Jordan 4 Delta",
+      sku: "SKU-1",
+      created_at: "2026-06-01T00:00:00.000Z",
+      updated_at: "2026-06-05T20:30:00.000Z",
+    });
+    recordDeletionMock.mockResolvedValue({ id: "recovery-1" });
     updateLinkByIdMock.mockResolvedValue({});
 
     const service = new LightspeedProductSyncService({} as never);
@@ -176,8 +227,31 @@ describe("LightspeedProductSyncService", () => {
       tenantId: "tenant-1",
       productId: "product-1",
       websiteModifiedAt: "2026-06-05T20:30:00.000Z",
+      deletedByUserId: "user-1",
     });
 
+    expect(recordDeletionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        productId: "product-1",
+        deletedByUserId: "user-1",
+        lightspeedProductSnapshots: [
+          expect.objectContaining({
+            remoteId: "ls-family-1",
+            payload: expect.objectContaining({
+              id: "ls-family-1",
+              sku: "SKU-1",
+            }),
+          }),
+        ],
+        links: expect.arrayContaining([
+          expect.objectContaining({
+            id: "link-1",
+            lightspeed_family_id: "ls-family-1",
+          }),
+        ]),
+      }),
+    );
     expect(deleteProductMock).toHaveBeenCalledTimes(1);
     expect(deleteProductMock).toHaveBeenCalledWith("ls-family-1");
     expect(updateLinkByIdMock).toHaveBeenCalledTimes(2);

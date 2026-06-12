@@ -763,4 +763,84 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result.processedCount).toBe(1);
     expect(result.preview.importCount).toBe(1);
   });
+
+  it("diagnoses why a remote product classified as a no-change link match", async () => {
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-linked",
+          name: "Linked Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "variant-linked",
+              sku: "LINK-001",
+              size_label: "9M / 10.5W",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "9M / 10.5W", group_key: "size_shoe" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([
+      {
+        id: "link-1",
+        tenant_id: "tenant-1",
+        product_id: "website-linked",
+        variant_id: "variant-linked",
+        lightspeed_family_id: "ls-linked",
+        lightspeed_product_id: "ls-linked",
+        lightspeed_variant_id: "ls-linked-variant",
+        lightspeed_inventory_item_id: null,
+        external_sku: "LINK-001",
+        sync_state: "linked",
+        last_website_modified_at: null,
+        last_lightspeed_modified_at: null,
+        last_sync_direction: null,
+        tombstoned_at: null,
+        last_error: null,
+      },
+    ]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+
+    const result = await service.diagnoseRemoteProduct({
+      tenantId: "tenant-1",
+      remoteProductId: "ls-linked",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        remoteProductId: "ls-linked",
+        classification: "no_change",
+        matchReason: "link",
+        linkedActiveWebsiteProductIds: ["website-linked"],
+        linkedArchivedWebsiteProductIds: [],
+        candidateActiveWebsiteProductIds: [],
+        candidateArchivedWebsiteProductIds: [],
+        skuMatches: [],
+      }),
+    );
+  });
 });

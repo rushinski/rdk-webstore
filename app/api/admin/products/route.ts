@@ -223,6 +223,7 @@ export async function PATCH(request: NextRequest) {
                 await lightspeedSyncService.deleteWebsiteProduct({
                   tenantId,
                   productId,
+                  deletedByUserId: session.user.id,
                 });
               },
             })
@@ -239,6 +240,7 @@ export async function PATCH(request: NextRequest) {
                   await lightspeedSyncService.deleteWebsiteProduct({
                     tenantId,
                     productId,
+                    deletedByUserId: session.user.id,
                   });
                 },
               },

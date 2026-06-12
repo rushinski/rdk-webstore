@@ -148,6 +148,26 @@ export type LightspeedReconciliationWebsiteCandidate = {
   website: ReconciliationComparableProduct;
 };
 
+export type LightspeedReconciliationDiagnosis = {
+  remoteProductId: string;
+  remoteProductKind: ReturnType<LightspeedMappingService["getRemoteProductKind"]>;
+  remoteIds: string[];
+  normalizedExternalSkus: string[];
+  linkedActiveWebsiteProductIds: string[];
+  linkedArchivedWebsiteProductIds: string[];
+  candidateActiveWebsiteProductIds: string[];
+  candidateArchivedWebsiteProductIds: string[];
+  skuMatches: string[];
+  classification:
+    | "missing_remote"
+    | "no_change"
+    | "edit"
+    | "restore"
+    | "conflict"
+    | "import";
+  matchReason: ReconciliationMatchReason | null;
+};
+
 export type LightspeedReconciliationPreviewScanResult = {
   chunkIndex: number;
   after: number | null;
@@ -296,6 +316,169 @@ export class LightspeedReconciliationSyncService {
         skuSample: product.variants[0]?.sku ?? null,
         website: this.toComparableWebsiteProduct(product),
       })),
+    };
+  }
+
+  async diagnoseRemoteProduct(input: {
+    tenantId: string;
+    remoteProductId: string;
+  }): Promise<LightspeedReconciliationDiagnosis> {
+    const client = await this.getClient(input.tenantId);
+    const [remoteProduct, activeWebsiteProducts, archivedWebsiteProducts, links] =
+      await Promise.all([
+        client.getProduct(input.remoteProductId),
+        this.productRepo.listForReconciliation(input.tenantId, "active"),
+        this.productRepo.listForReconciliation(input.tenantId, "archived"),
+        this.linksRepo.listByTenant(input.tenantId),
+      ]);
+
+    if (!remoteProduct) {
+      return {
+        remoteProductId: input.remoteProductId,
+        remoteProductKind: "standard",
+        remoteIds: [],
+        normalizedExternalSkus: [],
+        linkedActiveWebsiteProductIds: [],
+        linkedArchivedWebsiteProductIds: [],
+        candidateActiveWebsiteProductIds: [],
+        candidateArchivedWebsiteProductIds: [],
+        skuMatches: [],
+        classification: "missing_remote",
+        matchReason: null,
+      };
+    }
+
+    const activeLinks = links.filter((link) => !link.tombstoned_at && link.product_id);
+    const linkByRemoteId = this.buildLinkIndex(activeLinks);
+    const activeWebsiteProductIds = new Set(
+      activeWebsiteProducts.map((product) => product.id),
+    );
+    const archivedWebsiteProductIds = new Set(
+      archivedWebsiteProducts.map((product) => product.id),
+    );
+    const linkedActiveWebsiteProductIds = new Set(
+      activeLinks
+        .map((link) => link.product_id)
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && activeWebsiteProductIds.has(value),
+        ),
+    );
+    const linkedArchivedWebsiteProductIds = new Set(
+      activeLinks
+        .map((link) => link.product_id)
+        .filter(
+          (value): value is string =>
+            typeof value === "string" && archivedWebsiteProductIds.has(value),
+        ),
+    );
+    const activeSkuIndex = this.buildWebsiteSkuIndex(
+      activeWebsiteProducts,
+      linkedActiveWebsiteProductIds,
+    );
+    const archivedSkuIndex = this.buildWebsiteSkuIndex(
+      archivedWebsiteProducts,
+      linkedArchivedWebsiteProductIds,
+    );
+
+    const normalizedVariants = this.mappingService.normalizeRemoteProducts([
+      remoteProduct,
+    ]);
+    const remoteIds = new Set<string>([
+      remoteProduct.id,
+      ...normalizedVariants.map((variant) => variant.lightspeedProductId).filter(Boolean),
+    ]);
+    const linkedActiveProductIds = new Set<string>();
+    const linkedArchivedProductIds = new Set<string>();
+    for (const remoteId of remoteIds) {
+      const linked = linkByRemoteId.get(remoteId);
+      if (linked?.product_id) {
+        if (activeWebsiteProductIds.has(linked.product_id)) {
+          linkedActiveProductIds.add(linked.product_id);
+        } else if (archivedWebsiteProductIds.has(linked.product_id)) {
+          linkedArchivedProductIds.add(linked.product_id);
+        }
+      }
+    }
+
+    const candidateActiveProductIds = new Set<string>();
+    const candidateArchivedProductIds = new Set<string>();
+    const skuMatches = new Set<string>();
+    for (const variant of normalizedVariants) {
+      const normalizedSku = this.normalizeSku(variant.externalSku);
+      if (!normalizedSku) {
+        continue;
+      }
+      const activeProductIds = activeSkuIndex.get(normalizedSku) ?? [];
+      for (const productId of activeProductIds) {
+        candidateActiveProductIds.add(productId);
+        skuMatches.add(normalizedSku);
+      }
+      const archivedProductIds = archivedSkuIndex.get(normalizedSku) ?? [];
+      for (const productId of archivedProductIds) {
+        candidateArchivedProductIds.add(productId);
+        skuMatches.add(normalizedSku);
+      }
+    }
+
+    let classification: LightspeedReconciliationDiagnosis["classification"] = "import";
+    let matchReason: ReconciliationMatchReason | null = null;
+
+    if (linkedActiveProductIds.size === 1 && linkedArchivedProductIds.size === 0) {
+      const classificationResult = await this.classifyRemoteProducts({
+        tenantId: input.tenantId,
+        remoteProducts: [remoteProduct],
+        activeWebsiteProducts,
+        archivedWebsiteProducts,
+        links,
+      });
+      classification = classificationResult.edits.length > 0 ? "edit" : "no_change";
+      matchReason = "link";
+    } else if (linkedArchivedProductIds.size === 1 && linkedActiveProductIds.size === 0) {
+      classification = "restore";
+      matchReason = "link";
+    } else if (
+      candidateActiveProductIds.size === 1 &&
+      candidateArchivedProductIds.size === 0
+    ) {
+      const classificationResult = await this.classifyRemoteProducts({
+        tenantId: input.tenantId,
+        remoteProducts: [remoteProduct],
+        activeWebsiteProducts,
+        archivedWebsiteProducts,
+        links,
+      });
+      classification = classificationResult.edits.length > 0 ? "edit" : "no_change";
+      matchReason = "sku";
+    } else if (
+      candidateArchivedProductIds.size === 1 &&
+      candidateActiveProductIds.size === 0
+    ) {
+      classification = "restore";
+      matchReason = "sku";
+    } else {
+      const totalCandidateCount =
+        linkedActiveProductIds.size +
+        linkedArchivedProductIds.size +
+        candidateActiveProductIds.size +
+        candidateArchivedProductIds.size;
+      if (totalCandidateCount > 1) {
+        classification = "conflict";
+      }
+    }
+
+    return {
+      remoteProductId: remoteProduct.id,
+      remoteProductKind: this.mappingService.getRemoteProductKind(remoteProduct),
+      remoteIds: Array.from(remoteIds),
+      normalizedExternalSkus: normalizedVariants.map((variant) => variant.externalSku),
+      linkedActiveWebsiteProductIds: Array.from(linkedActiveProductIds),
+      linkedArchivedWebsiteProductIds: Array.from(linkedArchivedProductIds),
+      candidateActiveWebsiteProductIds: Array.from(candidateActiveProductIds),
+      candidateArchivedWebsiteProductIds: Array.from(candidateArchivedProductIds),
+      skuMatches: Array.from(skuMatches),
+      classification,
+      matchReason,
     };
   }
 

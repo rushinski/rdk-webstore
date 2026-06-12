@@ -257,6 +257,7 @@ export async function DELETE(
     await lightspeedSyncService.deleteWebsiteProduct({
       tenantId,
       productId: paramsParsed.data.id,
+      deletedByUserId: session.user.id,
     });
     const result = await service.deleteProduct(paramsParsed.data.id);
 

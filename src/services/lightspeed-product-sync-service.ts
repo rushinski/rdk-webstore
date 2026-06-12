@@ -6,6 +6,7 @@ import type {
 import { ProductRepository } from "@/repositories/product-repo";
 import { LightspeedLinksRepository } from "@/repositories/lightspeed-links-repo";
 import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
+import { DeletedProductRecoveryRepository } from "@/repositories/deleted-product-recovery-repo";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { LightspeedMappingService } from "@/services/lightspeed-mapping-service";
 import { LightspeedSkuService } from "@/services/lightspeed-sku-service";
@@ -14,6 +15,7 @@ export class LightspeedProductSyncService {
   private readonly productRepo: ProductRepository;
   private readonly settingsRepo: LightspeedSettingsRepository;
   private readonly linksRepo: LightspeedLinksRepository;
+  private readonly deletedProductRecoveryRepo: DeletedProductRecoveryRepository;
   private readonly mappingService: LightspeedMappingService;
   private readonly skuService: LightspeedSkuService;
 
@@ -21,6 +23,7 @@ export class LightspeedProductSyncService {
     this.productRepo = new ProductRepository(supabase);
     this.settingsRepo = new LightspeedSettingsRepository(supabase);
     this.linksRepo = new LightspeedLinksRepository(supabase);
+    this.deletedProductRecoveryRepo = new DeletedProductRecoveryRepository(supabase);
     this.mappingService = new LightspeedMappingService();
     this.skuService = new LightspeedSkuService();
   }
@@ -240,6 +243,7 @@ export class LightspeedProductSyncService {
     tenantId: string;
     productId: string;
     websiteModifiedAt?: string;
+    deletedByUserId?: string;
   }) {
     const connection = await this.settingsRepo.getConnectionByTenant(input.tenantId);
     if (!connection.syncEnabled) {
@@ -255,6 +259,16 @@ export class LightspeedProductSyncService {
     const links = await this.linksRepo.listByProductId(input.tenantId, input.productId);
     if (links.length === 0) {
       return { status: "skipped" as const, reason: "missing_remote_link" as const };
+    }
+
+    const product = await this.productRepo.getById(input.productId, {
+      tenantId: input.tenantId,
+      includeOutOfStock: true,
+      includeUnpublished: true,
+      archivedStatus: "all",
+    });
+    if (!product) {
+      throw new Error("Product snapshot could not be loaded before delete.");
     }
 
     const client = new LightspeedClient({
@@ -280,11 +294,36 @@ export class LightspeedProductSyncService {
             ),
           ];
 
+    const lightspeedProductSnapshots = await Promise.all(
+      remoteIds.map(async (remoteId) => ({
+        remoteId,
+        payload: await client.getProduct(remoteId),
+      })),
+    );
+    if (lightspeedProductSnapshots.some((snapshot) => !snapshot.payload)) {
+      throw new Error("Lightspeed product snapshot could not be loaded before delete.");
+    }
+
+    const syncTimestamp = input.websiteModifiedAt ?? new Date().toISOString();
+    await this.deletedProductRecoveryRepo.recordDeletion({
+      tenantId: input.tenantId,
+      productId: product.id,
+      deletedByUserId: input.deletedByUserId ?? null,
+      deletedAt: syncTimestamp,
+      localProductSnapshot: product,
+      lightspeedProductSnapshots,
+      links,
+      metadata: {
+        domainPrefix: connection.domainPrefix,
+        deletedRemoteIds: remoteIds,
+        syncDirection: "website_to_lightspeed",
+      },
+    });
+
     for (const remoteId of remoteIds) {
       await client.deleteProduct(remoteId);
     }
 
-    const syncTimestamp = input.websiteModifiedAt ?? new Date().toISOString();
     for (const link of links) {
       await this.linksRepo.updateLinkById(link.id, {
         syncState: "deleted",

@@ -813,6 +813,57 @@ export type Database = {
         };
         Relationships: [];
       };
+      deleted_product_recovery: {
+        Row: {
+          deleted_at: string;
+          deleted_by_user_id: string | null;
+          id: string;
+          lightspeed_link_snapshots: Json;
+          lightspeed_product_snapshots: Json;
+          local_product_snapshot: Json;
+          metadata: Json;
+          product_id: string | null;
+          tenant_id: string;
+        };
+        Insert: {
+          deleted_at?: string;
+          deleted_by_user_id?: string | null;
+          id?: string;
+          lightspeed_link_snapshots?: Json;
+          lightspeed_product_snapshots?: Json;
+          local_product_snapshot?: Json;
+          metadata?: Json;
+          product_id?: string | null;
+          tenant_id: string;
+        };
+        Update: {
+          deleted_at?: string;
+          deleted_by_user_id?: string | null;
+          id?: string;
+          lightspeed_link_snapshots?: Json;
+          lightspeed_product_snapshots?: Json;
+          local_product_snapshot?: Json;
+          metadata?: Json;
+          product_id?: string | null;
+          tenant_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "deleted_product_recovery_deleted_by_user_id_fkey";
+            columns: ["deleted_by_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "deleted_product_recovery_tenant_id_fkey";
+            columns: ["tenant_id"];
+            isOneToOne: false;
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       featured_items: {
         Row: {
           created_at: string;
