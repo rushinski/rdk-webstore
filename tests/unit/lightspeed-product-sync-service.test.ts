@@ -157,6 +157,162 @@ describe("LightspeedProductSyncService", () => {
     });
   });
 
+  it("retries a used-product create with sku in the name after a duplicate-name error", async () => {
+    getConnectionByTenantMock.mockResolvedValue({
+      syncEnabled: true,
+      domainPrefix: "demo-store",
+      accessToken: "token",
+    });
+
+    getByIdMock.mockResolvedValue({
+      id: "product-1",
+      name: "Air Jordan 3",
+      condition: "used",
+      brand: "Jordan",
+      model: "Jordan 3",
+      description: "desc",
+      is_active: true,
+      variants: [
+        {
+          id: "variant-1",
+          sku: "123456",
+          size_label: "10M / 11.5W",
+          sale_price_cents: 20000,
+        },
+      ],
+    });
+
+    getByVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createProductMock
+      .mockRejectedValueOnce(new Error("Product with this name already exists"))
+      .mockResolvedValueOnce({ data: { id: "ls-family-1" } });
+
+    const service = new LightspeedProductSyncService({} as never);
+
+    await service.syncWebsiteProduct("product-1", {
+      tenantId: "tenant-1",
+      source: "create",
+    });
+
+    expect(createProductMock).toHaveBeenCalledTimes(2);
+    expect(createProductMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ name: "Air Jordan 3" }),
+    );
+    expect(createProductMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ name: expect.stringMatching(/^Air Jordan 3 - /) }),
+    );
+  });
+
+  it("does not retry a new-product create when Lightspeed rejects a duplicate name", async () => {
+    getConnectionByTenantMock.mockResolvedValue({
+      syncEnabled: true,
+      domainPrefix: "demo-store",
+      accessToken: "token",
+    });
+
+    getByIdMock.mockResolvedValue({
+      id: "product-1",
+      name: "Air Jordan 3",
+      condition: "new",
+      brand: "Jordan",
+      model: "Jordan 3",
+      description: "desc",
+      is_active: true,
+      variants: [
+        {
+          id: "variant-1",
+          sku: "123456",
+          size_label: "10M / 11.5W",
+          sale_price_cents: 20000,
+        },
+      ],
+    });
+
+    getByVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createProductMock.mockRejectedValueOnce(
+      new Error("Product with this name already exists"),
+    );
+
+    const service = new LightspeedProductSyncService({} as never);
+
+    await expect(
+      service.syncWebsiteProduct("product-1", {
+        tenantId: "tenant-1",
+        source: "create",
+      }),
+    ).rejects.toThrow("Product with this name already exists");
+
+    expect(createProductMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a used-product update with sku in the name after a duplicate-name error", async () => {
+    getConnectionByTenantMock.mockResolvedValue({
+      syncEnabled: true,
+      domainPrefix: "demo-store",
+      accessToken: "token",
+    });
+
+    getByIdMock.mockResolvedValue({
+      id: "product-1",
+      name: "Air Jordan 3",
+      condition: "used",
+      brand: "Jordan",
+      model: "Jordan 3",
+      description: "desc",
+      is_active: true,
+      variants: [
+        {
+          id: "variant-1",
+          sku: "123456",
+          size_label: "10M / 11.5W",
+          sale_price_cents: 20000,
+        },
+      ],
+    });
+
+    getByVariantIdMock.mockResolvedValue({
+      id: "link-1",
+      variant_id: "variant-1",
+      lightspeed_family_id: "ls-family-1",
+      lightspeed_product_id: "ls-family-1",
+      lightspeed_variant_id: null,
+      external_sku: "N-JDN-J03-BH-01",
+    });
+    getByExternalSkuMock.mockResolvedValue(null);
+    updateProductMock
+      .mockRejectedValueOnce(new Error("Product with this name already exists"))
+      .mockResolvedValueOnce({});
+
+    const service = new LightspeedProductSyncService({} as never);
+
+    await service.syncWebsiteProduct("product-1", {
+      tenantId: "tenant-1",
+      source: "update",
+    });
+
+    expect(updateProductMock).toHaveBeenCalledTimes(2);
+    expect(updateProductMock).toHaveBeenNthCalledWith(
+      1,
+      "ls-family-1",
+      expect.objectContaining({
+        common: expect.objectContaining({ name: "Air Jordan 3" }),
+      }),
+    );
+    expect(updateProductMock).toHaveBeenNthCalledWith(
+      2,
+      "ls-family-1",
+      expect.objectContaining({
+        common: expect.objectContaining({
+          name: expect.stringMatching(/^Air Jordan 3 - /),
+        }),
+      }),
+    );
+  });
+
   it("hard deletes a linked Lightspeed family before local delete completes", async () => {
     getConnectionByTenantMock.mockResolvedValue({
       syncEnabled: true,

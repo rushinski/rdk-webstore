@@ -11,6 +11,12 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import { LightspeedMappingService } from "@/services/lightspeed-mapping-service";
 import { LightspeedSkuService } from "@/services/lightspeed-sku-service";
 
+type WebsiteProduct = Exclude<Awaited<ReturnType<ProductRepository["getById"]>>, null>;
+type ResolvedVariant = {
+  externalSku: string;
+  variant: { size_label: string; sale_price_cents: number };
+};
+
 export class LightspeedProductSyncService {
   private readonly productRepo: ProductRepository;
   private readonly settingsRepo: LightspeedSettingsRepository;
@@ -108,18 +114,25 @@ export class LightspeedProductSyncService {
     const syncTimestamp = new Date().toISOString();
 
     if (lightspeedFamilyId) {
-      const payload = this.buildUpdatePayload(
+      await this.updateProductWithDuplicateNameRetry({
+        client,
         product,
-        resolvedVariants[0]?.externalSku ?? null,
-      );
-      await client.updateProduct(lightspeedFamilyId, payload);
+        lightspeedFamilyId,
+        sku: resolvedVariants[0]?.externalSku ?? null,
+      });
     } else {
       const sizeAttributeId =
         resolvedVariants.length > 1
           ? await this.ensureVariantAttributeId(client, "Size")
           : null;
       const payload = this.buildCreatePayload(product, resolvedVariants, sizeAttributeId);
-      const response = await client.createProduct(payload);
+      const response = await this.createProductWithDuplicateNameRetry({
+        client,
+        product,
+        resolvedVariants,
+        sizeAttributeId,
+        payload,
+      });
       const ids = Array.isArray(response.data)
         ? response.data
         : response.data?.id
@@ -341,27 +354,16 @@ export class LightspeedProductSyncService {
   }
 
   private buildCreatePayload(
-    product: Awaited<ReturnType<ProductRepository["getById"]>> extends infer T
-      ? Exclude<T, null>
-      : never,
-    resolvedVariants: Array<{
-      externalSku: string;
-      variant: { size_label: string; sale_price_cents: number };
-    }>,
+    product: WebsiteProduct,
+    resolvedVariants: ResolvedVariant[],
     sizeAttributeId: string | null,
+    nameOverride?: string | null,
   ): LightspeedCreateProductPayload {
-    const titleDisplay = product.name.trim();
-    const isUniqueUnit = product.condition === "used" || resolvedVariants.length === 1;
+    const titleDisplay = nameOverride?.trim() || product.name.trim();
 
     if (resolvedVariants.length === 1) {
       return {
-        name: this.mappingService.buildLightspeedName({
-          titleDisplay,
-          sku: resolvedVariants[0].externalSku,
-          condition: product.condition,
-          sizeLabel: resolvedVariants[0].variant.size_label,
-          isUniqueUnit,
-        }),
+        name: titleDisplay,
         description: product.description ?? undefined,
         is_active: product.is_active,
         sku: resolvedVariants[0].externalSku,
@@ -405,12 +407,11 @@ export class LightspeedProductSyncService {
   }
 
   private buildUpdatePayload(
-    product: Awaited<ReturnType<ProductRepository["getById"]>> extends infer T
-      ? Exclude<T, null>
-      : never,
+    product: WebsiteProduct,
     sku: string | null,
+    nameOverride?: string | null,
   ): LightspeedUpdateProductPayload {
-    const titleDisplay = product.name.trim();
+    const titleDisplay = nameOverride?.trim() || product.name.trim();
 
     return {
       common: {
@@ -425,6 +426,89 @@ export class LightspeedProductSyncService {
           }
         : undefined,
     };
+  }
+
+  private isDuplicateNameError(error: unknown) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
+
+    const normalized = message.toLowerCase();
+    return (
+      normalized.includes("name already exists") ||
+      normalized.includes("product with this name already exists")
+    );
+  }
+
+  private buildFallbackLightspeedName(productName: string, sku: string | null) {
+    const cleanName = productName.trim();
+    const cleanSku = sku?.trim() || null;
+    if (!cleanSku) {
+      return null;
+    }
+
+    return `${cleanName} - ${cleanSku}`;
+  }
+
+  private async createProductWithDuplicateNameRetry(input: {
+    client: LightspeedClient;
+    product: WebsiteProduct;
+    resolvedVariants: ResolvedVariant[];
+    sizeAttributeId: string | null;
+    payload: LightspeedCreateProductPayload;
+  }) {
+    try {
+      return await input.client.createProduct(input.payload);
+    } catch (error) {
+      const fallbackSku = input.resolvedVariants[0]?.externalSku ?? null;
+      const fallbackName =
+        input.product.condition === "used"
+          ? this.buildFallbackLightspeedName(input.product.name, fallbackSku)
+          : null;
+
+      if (!fallbackName || !this.isDuplicateNameError(error)) {
+        throw error;
+      }
+
+      return input.client.createProduct(
+        this.buildCreatePayload(
+          input.product,
+          input.resolvedVariants,
+          input.sizeAttributeId,
+          fallbackName,
+        ),
+      );
+    }
+  }
+
+  private async updateProductWithDuplicateNameRetry(input: {
+    client: LightspeedClient;
+    product: WebsiteProduct;
+    lightspeedFamilyId: string;
+    sku: string | null;
+  }) {
+    const payload = this.buildUpdatePayload(input.product, input.sku);
+
+    try {
+      await input.client.updateProduct(input.lightspeedFamilyId, payload);
+    } catch (error) {
+      const fallbackName =
+        input.product.condition === "used"
+          ? this.buildFallbackLightspeedName(input.product.name, input.sku)
+          : null;
+
+      if (!fallbackName || !this.isDuplicateNameError(error)) {
+        throw error;
+      }
+
+      await input.client.updateProduct(
+        input.lightspeedFamilyId,
+        this.buildUpdatePayload(input.product, input.sku, fallbackName),
+      );
+    }
   }
 
   private buildVariantExternalSku(
