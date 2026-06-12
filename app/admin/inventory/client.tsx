@@ -202,6 +202,26 @@ type SyncProgressState = {
   failedCount: number;
 };
 
+type SyncFailureDetail = {
+  operation: "import" | "edit" | "restore" | "archive";
+  message: string;
+  reason?: string;
+  remoteProductId?: string;
+  websiteProductId?: string;
+};
+
+type ApplyChunkResponse = {
+  error?: string;
+  result?: {
+    importedCount?: number;
+    editedCount?: number;
+    restoredCount?: number;
+    archivedCount?: number;
+    failedCount?: number;
+    failureDetails?: SyncFailureDetail[];
+  };
+};
+
 type PreviewScanChunkResult = {
   chunkIndex: number;
   after: number | null;
@@ -229,6 +249,19 @@ const RESTORE_CHUNK_SIZE = 10;
 const ARCHIVE_CHUNK_SIZE = 25;
 const PREVIEW_SCAN_PAGE_SIZE = 25;
 
+function formatSyncFailureDetail(detail: SyncFailureDetail) {
+  const subject = detail.remoteProductId ?? detail.websiteProductId ?? "unknown item";
+  const reasonSuffix = detail.reason ? ` (${detail.reason})` : "";
+  return `${detail.operation} ${subject}: ${detail.message}${reasonSuffix}`;
+}
+
+function summarizeSyncFailures(details: SyncFailureDetail[]) {
+  return details
+    .slice(0, 3)
+    .map((detail) => formatSyncFailureDetail(detail))
+    .join(" | ");
+}
+
 function chunkArray<T>(items: T[], size: number) {
   const chunks: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -241,7 +274,11 @@ function InfoTooltip({ text }: { text: string }) {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number; side: "top" | "bottom" } | null>(null);
+  const [position, setPosition] = useState<{
+    top: number;
+    left: number;
+    side: "top" | "bottom";
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -321,28 +358,6 @@ function InfoTooltip({ text }: { text: string }) {
           )
         : null}
     </span>
-  );
-}
-
-function ScanCounter({
-  label,
-  value,
-  color,
-  tooltip,
-}: {
-  label: string;
-  value: number;
-  color: string;
-  tooltip: string;
-}) {
-  return (
-    <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-zinc-500">
-        {label}
-        <InfoTooltip text={tooltip} />
-      </div>
-      <div className={`mt-1 text-xl font-semibold ${color}`}>{value}</div>
-    </div>
   );
 }
 
@@ -752,6 +767,7 @@ export function InventoryClient({
       let restoredCount = 0;
       let archivedCount = 0;
       let failedCount = 0;
+      const failureDetails: SyncFailureDetail[] = [];
 
       if (totalUnits === 0) {
         showToast("Sync complete. Nothing needed to change.", "success");
@@ -778,10 +794,13 @@ export function InventoryClient({
             restores: chunk,
           }),
         });
-        const payload = await response.json().catch(() => null);
+        const payload = (await response
+          .json()
+          .catch(() => null)) as ApplyChunkResponse | null;
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
+        failureDetails.push(...(payload?.result?.failureDetails ?? []));
 
         setSyncProgress((prev) =>
           prev
@@ -817,10 +836,13 @@ export function InventoryClient({
             remoteProductIds: chunk,
           }),
         });
-        const payload = await response.json().catch(() => null);
+        const payload = (await response
+          .json()
+          .catch(() => null)) as ApplyChunkResponse | null;
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
+        failureDetails.push(...(payload?.result?.failureDetails ?? []));
 
         setSyncProgress((prev) =>
           prev
@@ -856,10 +878,13 @@ export function InventoryClient({
             edits: chunk,
           }),
         });
-        const payload = await response.json().catch(() => null);
+        const payload = (await response
+          .json()
+          .catch(() => null)) as ApplyChunkResponse | null;
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
+        failureDetails.push(...(payload?.result?.failureDetails ?? []));
 
         setSyncProgress((prev) =>
           prev
@@ -894,10 +919,13 @@ export function InventoryClient({
             websiteProductIds: chunk,
           }),
         });
-        const payload = await response.json().catch(() => null);
+        const payload = (await response
+          .json()
+          .catch(() => null)) as ApplyChunkResponse | null;
         if (!response.ok) {
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
+        failureDetails.push(...(payload?.result?.failureDetails ?? []));
 
         setSyncProgress((prev) =>
           prev
@@ -926,6 +954,26 @@ export function InventoryClient({
 
       await loadProducts(filtersRef.current);
 
+      if (failedCount > 0) {
+        const failureSummary = summarizeSyncFailures(failureDetails);
+        setSyncProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                phase: "error",
+                currentLabel: failureSummary
+                  ? `Sync finished with failures. ${failureSummary}`
+                  : "Sync finished with failures.",
+              }
+            : prev,
+        );
+        showToast(
+          `Sync finished with failures. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}, failures ${failedCount}.${failureSummary ? ` ${failureSummary}` : ""}`,
+          "error",
+        );
+        return;
+      }
+
       setSyncProgress((prev) =>
         prev
           ? {
@@ -937,7 +985,7 @@ export function InventoryClient({
       );
 
       showToast(
-        `Sync complete. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}${failedCount > 0 ? `, failures ${failedCount}` : ""}.`,
+        `Sync complete. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}.`,
         "success",
       );
     } catch (error) {
@@ -1150,22 +1198,9 @@ export function InventoryClient({
         )
       : 100
     : 0;
-  const previewScanTotalKnown =
-    typeof previewScanState?.totalCount === "number" && previewScanState.totalCount > 0;
-  const previewScanPercent = previewScanTotalKnown
-    ? Math.min(
-        100,
-        Math.round(
-          (previewScanState!.processedCount / previewScanState!.totalCount!) * 100,
-        ),
-      )
-    : 0;
-  const previewItemsRemaining = previewScanTotalKnown
-    ? Math.max(previewScanState!.totalCount! - previewScanState!.processedCount, 0)
-    : null;
-
   const restoresNoDiff = syncPreview?.restores.filter((item) => !item.diff) ?? [];
-  const restoresWithDiff = syncPreview?.restores.filter((item) => Boolean(item.diff)) ?? [];
+  const restoresWithDiff =
+    syncPreview?.restores.filter((item) => Boolean(item.diff)) ?? [];
   const effectiveAddCount = (syncPreview?.importCount ?? 0) + restoresNoDiff.length;
   const effectiveEditCount = (syncPreview?.editCount ?? 0) + restoresWithDiff.length;
 
@@ -1225,7 +1260,9 @@ export function InventoryClient({
       remoteProduct: "remoteProduct" in selection ? selection.remoteProduct : null,
       diff: "diff" in selection ? selection.diff : null,
       conflictCandidateCount:
-        "conflictCandidateCount" in selection ? selection.conflictCandidateCount : undefined,
+        "conflictCandidateCount" in selection
+          ? selection.conflictCandidateCount
+          : undefined,
       isRestoreFromArchive:
         "isRestoreFromArchive" in selection ? selection.isRestoreFromArchive : undefined,
     });
@@ -2502,9 +2539,9 @@ export function InventoryClient({
                       </div>
                     </div>
                     <p className="text-xs text-zinc-500">
-                      Counts for no change, add, edit, archive, and conflicts are shown after the full preview scan completes.
+                      Counts for no change, add, edit, archive, and conflicts are shown
+                      after the full preview scan completes.
                     </p>
-
                   </div>
                 </div>
               ) : syncModalStage === "applying" && syncProgress ? (
@@ -2538,26 +2575,46 @@ export function InventoryClient({
                         style={{ width: `${syncProgressPercent}%` }}
                       />
                     </div>
-                  <div className="grid grid-cols-5 gap-3">
+                    <div className="grid grid-cols-5 gap-3">
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">Edited</div>
-                        <div className="mt-1 text-xl font-semibold text-blue-300">{syncProgress.editedCount}</div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Edited
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-blue-300">
+                          {syncProgress.editedCount}
+                        </div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">Restored</div>
-                        <div className="mt-1 text-xl font-semibold text-sky-300">{syncProgress.restoredCount}</div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Restored
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-sky-300">
+                          {syncProgress.restoredCount}
+                        </div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">Imported</div>
-                        <div className="mt-1 text-xl font-semibold text-emerald-300">{syncProgress.importedCount}</div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Imported
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-emerald-300">
+                          {syncProgress.importedCount}
+                        </div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">Archived</div>
-                        <div className="mt-1 text-xl font-semibold text-amber-300">{syncProgress.archivedCount}</div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Archived
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-amber-300">
+                          {syncProgress.archivedCount}
+                        </div>
                       </div>
                       <div className="rounded border border-zinc-800/70 bg-zinc-900/60 p-3">
-                        <div className="text-xs uppercase tracking-wide text-zinc-500">Failures</div>
-                        <div className="mt-1 text-xl font-semibold text-red-300">{syncProgress.failedCount}</div>
+                        <div className="text-xs uppercase tracking-wide text-zinc-500">
+                          Failures
+                        </div>
+                        <div className="mt-1 text-xl font-semibold text-red-300">
+                          {syncProgress.failedCount}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2567,11 +2624,36 @@ export function InventoryClient({
                   {/* Summary cards — Restores are folded into Add / Edit */}
                   <div className="overflow-x-auto">
                     <div className="flex min-w-[820px] gap-3">
-                      <SummaryCard label="No Change" value={syncPreview.noChangeCount} color="text-white" tooltip="The Lightspeed product already matches the active website product ??? no action needed." />
-                      <SummaryCard label="Add" value={effectiveAddCount} color="text-emerald-300" tooltip="Product exists in Lightspeed but not on the website (or is archived and needs no update) ??? will be added or restored as-is." />
-                      <SummaryCard label="Edit" value={effectiveEditCount} color="text-blue-300" tooltip="Product matches an active website product but fields differ, or is archived and needs updating ??? website will be overwritten with Lightspeed data." />
-                      <SummaryCard label="Archive" value={syncPreview.archiveCount} color="text-amber-300" tooltip="Active website product has no matching Lightspeed product ??? will be archived (website-only action, Lightspeed is not changed)." />
-                      <SummaryCard label="Conflicts" value={syncPreview.conflictCount} color="text-red-300" tooltip="Ambiguous match with multiple website candidates ??? skipped automatically, no changes made." />
+                      <SummaryCard
+                        label="No Change"
+                        value={syncPreview.noChangeCount}
+                        color="text-white"
+                        tooltip="The Lightspeed product already matches the active website product ??? no action needed."
+                      />
+                      <SummaryCard
+                        label="Add"
+                        value={effectiveAddCount}
+                        color="text-emerald-300"
+                        tooltip="Product exists in Lightspeed but not on the website (or is archived and needs no update) ??? will be added or restored as-is."
+                      />
+                      <SummaryCard
+                        label="Edit"
+                        value={effectiveEditCount}
+                        color="text-blue-300"
+                        tooltip="Product matches an active website product but fields differ, or is archived and needs updating ??? website will be overwritten with Lightspeed data."
+                      />
+                      <SummaryCard
+                        label="Archive"
+                        value={syncPreview.archiveCount}
+                        color="text-amber-300"
+                        tooltip="Active website product has no matching Lightspeed product ??? will be archived (website-only action, Lightspeed is not changed)."
+                      />
+                      <SummaryCard
+                        label="Conflicts"
+                        value={syncPreview.conflictCount}
+                        color="text-red-300"
+                        tooltip="Ambiguous match with multiple website candidates ??? skipped automatically, no changes made."
+                      />
                     </div>
                   </div>
                   <div className="grid gap-4 lg:grid-cols-4">
@@ -2582,17 +2664,31 @@ export function InventoryClient({
                         <InfoTooltip text="Product exists in Lightspeed but not on the website, or is an archived product that can be restored without any changes needed." />
                       </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
-                        {syncPreview.imports.length === 0 && restoresNoDiff.length === 0 ? (
+                        {syncPreview.imports.length === 0 &&
+                        restoresNoDiff.length === 0 ? (
                           <p className="text-sm text-zinc-500">No products to add.</p>
                         ) : (
                           <>
                             {syncPreview.imports.map((item) => (
-                              <div key={item.remoteProductId} className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2">
-                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
-                                <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuSample || "N/A"}</div>
+                              <div
+                                key={item.remoteProductId}
+                                className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                              >
+                                <div className="text-sm font-medium text-zinc-100">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-zinc-500">
+                                  SKU: {item.skuSample || "N/A"}
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => openSyncDetails({ mode: "add", title: item.title, remoteProduct: item.remote })}
+                                  onClick={() =>
+                                    openSyncDetails({
+                                      mode: "add",
+                                      title: item.title,
+                                      remoteProduct: item.remote,
+                                    })
+                                  }
                                   className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                                 >
                                   Details
@@ -2600,13 +2696,29 @@ export function InventoryClient({
                               </div>
                             ))}
                             {restoresNoDiff.map((item) => (
-                              <div key={`${item.websiteProductId}-${item.remoteProductId}`} className="rounded border border-sky-900/40 bg-zinc-900/70 p-2">
-                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
-                                <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuSample || "N/A"}</div>
-                                <div className="mt-1 text-xs text-sky-300">Restore from archive</div>
+                              <div
+                                key={`${item.websiteProductId}-${item.remoteProductId}`}
+                                className="rounded border border-sky-900/40 bg-zinc-900/70 p-2"
+                              >
+                                <div className="text-sm font-medium text-zinc-100">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-zinc-500">
+                                  SKU: {item.skuSample || "N/A"}
+                                </div>
+                                <div className="mt-1 text-xs text-sky-300">
+                                  Restore from archive
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => openSyncDetails({ mode: "add", title: item.title, remoteProduct: item.remote, isRestoreFromArchive: true })}
+                                  onClick={() =>
+                                    openSyncDetails({
+                                      mode: "add",
+                                      title: item.title,
+                                      remoteProduct: item.remote,
+                                      isRestoreFromArchive: true,
+                                    })
+                                  }
                                   className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                                 >
                                   Details
@@ -2625,17 +2737,33 @@ export function InventoryClient({
                         <InfoTooltip text="Product matches an active website product but fields differ, or is an archived product being restored and updated to match Lightspeed." />
                       </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
-                        {syncPreview.edits.length === 0 && restoresWithDiff.length === 0 ? (
+                        {syncPreview.edits.length === 0 &&
+                        restoresWithDiff.length === 0 ? (
                           <p className="text-sm text-zinc-500">No products to update.</p>
                         ) : (
                           <>
                             {syncPreview.edits.map((item) => (
-                              <div key={`${item.websiteProductId}-${item.remoteProductId}`} className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2">
-                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
-                                <div className="mt-1 text-xs text-zinc-500">Changes: {item.diff.fields.join(", ")}</div>
+                              <div
+                                key={`${item.websiteProductId}-${item.remoteProductId}`}
+                                className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                              >
+                                <div className="text-sm font-medium text-zinc-100">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-zinc-500">
+                                  Changes: {item.diff.fields.join(", ")}
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => openSyncDetails({ mode: "edit", title: item.title, websiteProduct: item.website, remoteProduct: item.remote, diff: item.diff })}
+                                  onClick={() =>
+                                    openSyncDetails({
+                                      mode: "edit",
+                                      title: item.title,
+                                      websiteProduct: item.website,
+                                      remoteProduct: item.remote,
+                                      diff: item.diff,
+                                    })
+                                  }
                                   className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                                 >
                                   Details
@@ -2643,13 +2771,31 @@ export function InventoryClient({
                               </div>
                             ))}
                             {restoresWithDiff.map((item) => (
-                              <div key={`${item.websiteProductId}-${item.remoteProductId}`} className="rounded border border-sky-900/40 bg-zinc-900/70 p-2">
-                                <div className="text-sm font-medium text-zinc-100">{item.title}</div>
-                                <div className="mt-1 text-xs text-zinc-500">Changes: {item.diff?.fields.join(", ") || "—"}</div>
-                                <div className="mt-1 text-xs text-sky-300">Restore from archive</div>
+                              <div
+                                key={`${item.websiteProductId}-${item.remoteProductId}`}
+                                className="rounded border border-sky-900/40 bg-zinc-900/70 p-2"
+                              >
+                                <div className="text-sm font-medium text-zinc-100">
+                                  {item.title}
+                                </div>
+                                <div className="mt-1 text-xs text-zinc-500">
+                                  Changes: {item.diff?.fields.join(", ") || "—"}
+                                </div>
+                                <div className="mt-1 text-xs text-sky-300">
+                                  Restore from archive
+                                </div>
                                 <button
                                   type="button"
-                                  onClick={() => openSyncDetails({ mode: "edit", title: item.title, websiteProduct: item.website, remoteProduct: item.remote, diff: item.diff, isRestoreFromArchive: true })}
+                                  onClick={() =>
+                                    openSyncDetails({
+                                      mode: "edit",
+                                      title: item.title,
+                                      websiteProduct: item.website,
+                                      remoteProduct: item.remote,
+                                      diff: item.diff,
+                                      isRestoreFromArchive: true,
+                                    })
+                                  }
                                   className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                                 >
                                   Details
@@ -2669,15 +2815,30 @@ export function InventoryClient({
                       </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.archives.length === 0 ? (
-                          <p className="text-sm text-zinc-500">No website-only products.</p>
+                          <p className="text-sm text-zinc-500">
+                            No website-only products.
+                          </p>
                         ) : (
                           syncPreview.archives.map((item) => (
-                            <div key={item.websiteProductId} className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2">
-                              <div className="text-sm font-medium text-zinc-100">{item.title}</div>
-                              <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuSample || "N/A"}</div>
+                            <div
+                              key={item.websiteProductId}
+                              className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                SKU: {item.skuSample || "N/A"}
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => openSyncDetails({ mode: "archive", title: item.title, websiteProduct: item.website })}
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "archive",
+                                    title: item.title,
+                                    websiteProduct: item.website,
+                                  })
+                                }
                                 className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                               >
                                 Details
@@ -2699,13 +2860,31 @@ export function InventoryClient({
                           <p className="text-sm text-zinc-500">No ambiguous matches.</p>
                         ) : (
                           syncPreview.conflicts.map((item) => (
-                            <div key={item.remoteProductId} className="rounded border border-red-900/40 bg-zinc-900/70 p-2">
-                              <div className="text-sm font-medium text-zinc-100">{item.title}</div>
-                              <div className="mt-1 text-xs text-zinc-500">SKU: {item.skuMatches.join(", ") || "N/A"}</div>
-                              <div className="mt-1 text-xs text-red-300">{item.candidateWebsiteProductIds.length} website candidates</div>
+                            <div
+                              key={item.remoteProductId}
+                              className="rounded border border-red-900/40 bg-zinc-900/70 p-2"
+                            >
+                              <div className="text-sm font-medium text-zinc-100">
+                                {item.title}
+                              </div>
+                              <div className="mt-1 text-xs text-zinc-500">
+                                SKU: {item.skuMatches.join(", ") || "N/A"}
+                              </div>
+                              <div className="mt-1 text-xs text-red-300">
+                                {item.candidateWebsiteProductIds.length} website
+                                candidates
+                              </div>
                               <button
                                 type="button"
-                                onClick={() => openSyncDetails({ mode: "conflict", title: item.title, remoteProduct: item.remote, conflictCandidateCount: item.candidateWebsiteProductIds.length })}
+                                onClick={() =>
+                                  openSyncDetails({
+                                    mode: "conflict",
+                                    title: item.title,
+                                    remoteProduct: item.remote,
+                                    conflictCandidateCount:
+                                      item.candidateWebsiteProductIds.length,
+                                  })
+                                }
                                 className="mt-2 text-xs font-semibold text-zinc-300 underline-offset-4 transition hover:text-white hover:underline"
                               >
                                 Details
@@ -2739,7 +2918,9 @@ export function InventoryClient({
                 {syncModalStage === "preview_summary" && !syncProgress && (
                   <button
                     type="button"
-                    onClick={() => { void applySync(); }}
+                    onClick={() => {
+                      void applySync();
+                    }}
                     className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
                     disabled={syncLoading || !syncPreview}
                   >

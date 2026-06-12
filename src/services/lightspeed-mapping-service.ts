@@ -151,13 +151,28 @@ export class LightspeedMappingService {
     }));
   }
 
+  getRemoteProductKind(record: LightspeedRemoteProduct) {
+    if (record.variant_parent_id) {
+      return "variant_child" as const;
+    }
+
+    if (Array.isArray(record.variants) && record.variants.length > 0) {
+      return "variant_family" as const;
+    }
+
+    return "standard" as const;
+  }
+
   normalizeRemoteProducts(
     records: LightspeedRemoteProduct[],
   ): NormalizedLightspeedProduct[] {
     return records.flatMap((record) => {
-      const nested = Array.isArray(record.variants) ? record.variants : [];
-      if (nested.length > 0) {
-        return nested.map((variant) => this.normalizeRemoteProduct(variant, record));
+      const kind = this.getRemoteProductKind(record);
+
+      if (kind === "variant_family") {
+        return (record.variants ?? []).map((variant) =>
+          this.normalizeRemoteProduct(variant, record),
+        );
       }
 
       return [this.normalizeRemoteProduct(record)];
@@ -168,8 +183,7 @@ export class LightspeedMappingService {
     record: LightspeedRemoteProduct,
     parent?: LightspeedRemoteProduct,
   ): NormalizedLightspeedProduct {
-    const externalSku =
-      this.extractExternalSku(record) ?? this.extractExternalSku(parent) ?? record.id;
+    const externalSku = this.extractExternalSku(record) ?? record.id;
     const condition: NormalizedLightspeedProduct["condition"] = this.extractCondition(
       record,
       parent,
@@ -248,21 +262,21 @@ export class LightspeedMappingService {
   ) {
     const direct = this.toNumber(record.inventory_Main_Outlet);
     if (direct !== null) {
-      return direct;
+      return Math.max(0, direct);
     }
 
     const recordInventory = this.sumInventory(record.inventory);
     if (recordInventory !== null) {
-      return recordInventory;
+      return Math.max(0, recordInventory);
     }
 
     const parentDirect = this.toNumber(parent?.inventory_Main_Outlet);
     if (parentDirect !== null) {
-      return parentDirect;
+      return Math.max(0, parentDirect);
     }
 
     const parentInventory = this.sumInventory(parent?.inventory);
-    return parentInventory ?? 0;
+    return Math.max(0, parentInventory ?? 0);
   }
 
   private extractPriceCents(

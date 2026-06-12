@@ -398,7 +398,8 @@ describe("LightspeedReconciliationSyncService", () => {
       ]),
     );
     expect(
-      result.edits.find((item) => item.remoteProductId === "ls-sku")?.remote.variants[0]?.stock,
+      result.edits.find((item) => item.remoteProductId === "ls-sku")?.remote.variants[0]
+        ?.stock,
     ).toBe(3);
     expect(
       result.edits.find((item) => item.remoteProductId === "ls-sku")?.diff.variantChanges,
@@ -440,7 +441,10 @@ describe("LightspeedReconciliationSyncService", () => {
         lightspeedFamilyId: "ls-sku",
       }),
     );
-    expect(restoreProductMock).toHaveBeenCalledWith("website-archived-linked", "tenant-1");
+    expect(restoreProductMock).toHaveBeenCalledWith(
+      "website-archived-linked",
+      "tenant-1",
+    );
     expect(applyProductPayloadMock).toHaveBeenCalledTimes(2);
     expect(archiveProductMock).toHaveBeenCalledWith("website-archive", "tenant-1");
     expect(result).toEqual({
@@ -451,6 +455,7 @@ describe("LightspeedReconciliationSyncService", () => {
       archivedCount: 1,
       conflictCount: 1,
       failedCount: 0,
+      failureDetails: [],
     });
   });
 
@@ -466,6 +471,41 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result).toEqual({
       importedCount: 2,
       failedCount: 0,
+      failureDetails: [],
+    });
+  });
+
+  it("counts skipped edit sync results as failures with details", async () => {
+    applyProductPayloadMock.mockResolvedValueOnce({
+      status: "skipped",
+      reason: "stale_remote_write",
+    });
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+
+    const result = await service.applyEditChunk({
+      tenantId: "tenant-1",
+      edits: [
+        {
+          websiteProductId: "website-sku",
+          remoteProductId: "ls-sku",
+          reason: "sku",
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      editedCount: 0,
+      failedCount: 1,
+      failureDetails: [
+        {
+          operation: "edit",
+          websiteProductId: "website-sku",
+          remoteProductId: "ls-sku",
+          message: "Lightspeed inbound sync skipped this product.",
+          reason: "stale_remote_write",
+        },
+      ],
     });
   });
 
@@ -482,6 +522,7 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result).toEqual({
       archivedCount: 2,
       failedCount: 0,
+      failureDetails: [],
     });
   });
 

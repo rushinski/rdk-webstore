@@ -1,6 +1,7 @@
 import { LightspeedClient } from "@/lib/lightspeed/client";
 import type { LightspeedRemoteProduct } from "@/lib/lightspeed/types";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 import {
   LightspeedLinksRepository,
   type LightspeedLink,
@@ -120,6 +121,7 @@ export type LightspeedReconciliationApplyResult = {
   archivedCount: number;
   conflictCount: number;
   failedCount: number;
+  failureDetails: LightspeedReconciliationFailureDetail[];
 };
 
 export type LightspeedReconciliationChunkResult = {
@@ -128,6 +130,15 @@ export type LightspeedReconciliationChunkResult = {
   restoredCount?: number;
   archivedCount?: number;
   failedCount: number;
+  failureDetails?: LightspeedReconciliationFailureDetail[];
+};
+
+export type LightspeedReconciliationFailureDetail = {
+  operation: "import" | "edit" | "restore" | "archive";
+  message: string;
+  reason?: string;
+  remoteProductId?: string;
+  websiteProductId?: string;
 };
 
 export type LightspeedReconciliationWebsiteCandidate = {
@@ -226,15 +237,16 @@ export class LightspeedReconciliationSyncService {
     chunkIndex: number;
   }): Promise<LightspeedReconciliationPreviewScanResult> {
     const client = await this.getClient(input.tenantId);
-    const [pageResult, websiteProducts, archivedWebsiteProducts, links] = await Promise.all([
-      client.listProducts({
-        after: input.after,
-        pageSize: input.pageSize,
-      }),
-      this.productRepo.listForReconciliation(input.tenantId, "active"),
-      this.productRepo.listForReconciliation(input.tenantId, "archived"),
-      this.linksRepo.listByTenant(input.tenantId),
-    ]);
+    const [pageResult, websiteProducts, archivedWebsiteProducts, links] =
+      await Promise.all([
+        client.listProducts({
+          after: input.after,
+          pageSize: input.pageSize,
+        }),
+        this.productRepo.listForReconciliation(input.tenantId, "active"),
+        this.productRepo.listForReconciliation(input.tenantId, "archived"),
+        this.linksRepo.listByTenant(input.tenantId),
+      ]);
 
     const topLevelProducts = this.getTopLevelRemoteProducts(pageResult.products);
     const hydratedRemoteProducts = await Promise.all(
@@ -260,8 +272,7 @@ export class LightspeedReconciliationSyncService {
       after: input.after,
       nextAfter: pageResult.hasNextPage ? pageResult.nextAfter : null,
       pageSize: input.pageSize,
-      processedCount:
-        hydratedRemoteProducts.length,
+      processedCount: hydratedRemoteProducts.length,
       totalRemoteProducts: pageResult.totalProducts ?? null,
       hasNextPage: pageResult.hasNextPage,
       nextPage: pageResult.hasNextPage ? input.chunkIndex + 1 : null,
@@ -295,6 +306,7 @@ export class LightspeedReconciliationSyncService {
     let restoredCount = 0;
     let archivedCount = 0;
     let failedCount = 0;
+    const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const match of preview.edits.filter((item) => item.reason === "sku")) {
       try {
@@ -303,6 +315,12 @@ export class LightspeedReconciliationSyncService {
         );
         if (!remoteProduct) {
           failedCount += 1;
+          failureDetails.push({
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            message: "Lightspeed product was not found during sync apply.",
+          });
           continue;
         }
 
@@ -313,15 +331,35 @@ export class LightspeedReconciliationSyncService {
           remoteProduct.updated_at ?? new Date().toISOString(),
         );
 
-        await this.inboundSyncService.applyProductPayload({
+        const result = await this.inboundSyncService.applyProductPayload({
           tenantId: input.tenantId,
           payload: remoteProduct,
           topic: "product.update",
           remoteModifiedAt: remoteProduct.updated_at ?? new Date().toISOString(),
         });
-        editedCount += 1;
-      } catch {
+
+        if (result.status === "applied") {
+          editedCount += 1;
+        } else {
+          failedCount += 1;
+          failureDetails.push({
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
+        }
+      } catch (error) {
         failedCount += 1;
+        failureDetails.push(
+          this.buildFailureDetail({
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            error,
+          }),
+        );
       }
     }
 
@@ -331,6 +369,7 @@ export class LightspeedReconciliationSyncService {
     });
     restoredCount += restoreResult.restoredCount ?? 0;
     failedCount += restoreResult.failedCount;
+    failureDetails.push(...(restoreResult.failureDetails ?? []));
 
     const importResult = await this.applyImportChunk({
       tenantId: input.tenantId,
@@ -338,6 +377,7 @@ export class LightspeedReconciliationSyncService {
     });
     importedCount += importResult.importedCount ?? 0;
     failedCount += importResult.failedCount;
+    failureDetails.push(...(importResult.failureDetails ?? []));
 
     const editResult = await this.applyEditChunk({
       tenantId: input.tenantId,
@@ -345,6 +385,7 @@ export class LightspeedReconciliationSyncService {
     });
     editedCount += editResult.editedCount ?? 0;
     failedCount += editResult.failedCount;
+    failureDetails.push(...(editResult.failureDetails ?? []));
 
     const archiveResult = await this.applyArchiveChunk({
       tenantId: input.tenantId,
@@ -352,6 +393,7 @@ export class LightspeedReconciliationSyncService {
     });
     archivedCount += archiveResult.archivedCount ?? 0;
     failedCount += archiveResult.failedCount;
+    failureDetails.push(...(archiveResult.failureDetails ?? []));
 
     return {
       noChangeCount: preview.noChangeCount,
@@ -361,6 +403,7 @@ export class LightspeedReconciliationSyncService {
       archivedCount,
       conflictCount: preview.conflictCount,
       failedCount,
+      failureDetails,
     };
   }
 
@@ -374,15 +417,24 @@ export class LightspeedReconciliationSyncService {
     const archivedWebsiteProductById = new Map(
       archivedWebsiteProducts.map((product) => [product.id, product] as const),
     );
-    const archivedSkuIndex = this.buildWebsiteSkuIndex(archivedWebsiteProducts, new Set());
+    const archivedSkuIndex = this.buildWebsiteSkuIndex(
+      archivedWebsiteProducts,
+      new Set(),
+    );
     let importedCount = 0;
     let failedCount = 0;
+    const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const remoteProductId of input.remoteProductIds) {
       try {
         const remoteProduct = await client.getProduct(remoteProductId);
         if (!remoteProduct) {
           failedCount += 1;
+          failureDetails.push({
+            operation: "import",
+            remoteProductId,
+            message: "Lightspeed product was not found during sync import.",
+          });
           continue;
         }
 
@@ -397,6 +449,16 @@ export class LightspeedReconciliationSyncService {
           importedCount += 1;
           continue;
         }
+        if (result.status === "skipped") {
+          failedCount += 1;
+          failureDetails.push({
+            operation: "import",
+            remoteProductId,
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
+          continue;
+        }
 
         const archivedFallback = this.findSingleArchivedSkuCandidate(
           remoteProduct,
@@ -404,12 +466,23 @@ export class LightspeedReconciliationSyncService {
         );
         if (!archivedFallback) {
           failedCount += 1;
+          failureDetails.push({
+            operation: "import",
+            remoteProductId,
+            message: "No archived website product matched this Lightspeed SKU fallback.",
+          });
           continue;
         }
 
         const archivedProduct = archivedWebsiteProductById.get(archivedFallback);
         if (!archivedProduct) {
           failedCount += 1;
+          failureDetails.push({
+            operation: "import",
+            remoteProductId,
+            websiteProductId: archivedFallback,
+            message: "Archived website product disappeared before restore fallback.",
+          });
           continue;
         }
 
@@ -432,15 +505,30 @@ export class LightspeedReconciliationSyncService {
           importedCount += 1;
         } else {
           failedCount += 1;
+          failureDetails.push({
+            operation: "import",
+            remoteProductId,
+            websiteProductId: archivedProduct.id,
+            message: "Lightspeed inbound sync skipped this restored fallback product.",
+            reason: restoredResult.reason,
+          });
         }
-      } catch {
+      } catch (error) {
         failedCount += 1;
+        failureDetails.push(
+          this.buildFailureDetail({
+            operation: "import",
+            remoteProductId,
+            error,
+          }),
+        );
       }
     }
 
     return {
       importedCount,
       failedCount,
+      failureDetails,
     };
   }
 
@@ -455,12 +543,19 @@ export class LightspeedReconciliationSyncService {
     const client = await this.getClient(input.tenantId);
     let editedCount = 0;
     let failedCount = 0;
+    const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const edit of input.edits) {
       try {
         const remoteProduct = await client.getProduct(edit.remoteProductId);
         if (!remoteProduct) {
           failedCount += 1;
+          failureDetails.push({
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            message: "Lightspeed product was not found during sync edit.",
+          });
           continue;
         }
 
@@ -482,15 +577,33 @@ export class LightspeedReconciliationSyncService {
 
         if (result.status === "applied") {
           editedCount += 1;
+        } else {
+          failedCount += 1;
+          failureDetails.push({
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
         }
-      } catch {
+      } catch (error) {
         failedCount += 1;
+        failureDetails.push(
+          this.buildFailureDetail({
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            error,
+          }),
+        );
       }
     }
 
     return {
       editedCount,
       failedCount,
+      failureDetails,
     };
   }
 
@@ -500,6 +613,7 @@ export class LightspeedReconciliationSyncService {
   }): Promise<LightspeedReconciliationChunkResult> {
     let archivedCount = 0;
     let failedCount = 0;
+    const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const websiteProductId of input.websiteProductIds) {
       try {
@@ -510,14 +624,22 @@ export class LightspeedReconciliationSyncService {
         if (result.archived) {
           archivedCount += 1;
         }
-      } catch {
+      } catch (error) {
         failedCount += 1;
+        failureDetails.push(
+          this.buildFailureDetail({
+            operation: "archive",
+            websiteProductId,
+            error,
+          }),
+        );
       }
     }
 
     return {
       archivedCount,
       failedCount,
+      failureDetails,
     };
   }
 
@@ -532,16 +654,26 @@ export class LightspeedReconciliationSyncService {
     const client = await this.getClient(input.tenantId);
     let restoredCount = 0;
     let failedCount = 0;
+    const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const restore of input.restores) {
       try {
         const remoteProduct = await client.getProduct(restore.remoteProductId);
         if (!remoteProduct) {
           failedCount += 1;
+          failureDetails.push({
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            message: "Lightspeed product was not found during sync restore.",
+          });
           continue;
         }
 
-        await this.productService.restoreProduct(restore.websiteProductId, input.tenantId);
+        await this.productService.restoreProduct(
+          restore.websiteProductId,
+          input.tenantId,
+        );
 
         if (restore.reason === "sku") {
           await this.attachSkuFallbackLinks(
@@ -561,15 +693,33 @@ export class LightspeedReconciliationSyncService {
 
         if (result.status === "applied") {
           restoredCount += 1;
+        } else {
+          failedCount += 1;
+          failureDetails.push({
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
         }
-      } catch {
+      } catch (error) {
         failedCount += 1;
+        failureDetails.push(
+          this.buildFailureDetail({
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            error,
+          }),
+        );
       }
     }
 
     return {
       restoredCount,
       failedCount,
+      failureDetails,
     };
   }
 
@@ -775,7 +925,10 @@ export class LightspeedReconciliationSyncService {
         }
       }
 
-      if (candidateActiveProductIds.size === 1 && candidateArchivedProductIds.size === 0) {
+      if (
+        candidateActiveProductIds.size === 1 &&
+        candidateArchivedProductIds.size === 0
+      ) {
         const websiteProductId = Array.from(candidateActiveProductIds)[0];
         const websiteProduct = activeWebsiteProductById.get(websiteProductId);
         if (!websiteProduct) {
@@ -933,7 +1086,9 @@ export class LightspeedReconciliationSyncService {
     remoteProduct: LightspeedRemoteProduct,
     archivedSkuIndex: Map<string, string[]>,
   ) {
-    const normalizedVariants = this.mappingService.normalizeRemoteProducts([remoteProduct]);
+    const normalizedVariants = this.mappingService.normalizeRemoteProducts([
+      remoteProduct,
+    ]);
     const productIds = new Set<string>();
 
     for (const variant of normalizedVariants) {
@@ -1128,7 +1283,9 @@ export class LightspeedReconciliationSyncService {
     }
 
     const variantChanges: ReconciliationDiff["variantChanges"] = [];
-    const websiteBySku = new Map(website.variants.map((variant) => [variant.sku, variant]));
+    const websiteBySku = new Map(
+      website.variants.map((variant) => [variant.sku, variant]),
+    );
     const remoteBySku = new Map(remote.variants.map((variant) => [variant.sku, variant]));
     const allSkus = new Set([...websiteBySku.keys(), ...remoteBySku.keys()]);
 
@@ -1288,5 +1445,30 @@ export class LightspeedReconciliationSyncService {
         lastError: null,
       });
     }
+  }
+
+  private buildFailureDetail(input: {
+    operation: LightspeedReconciliationFailureDetail["operation"];
+    error: unknown;
+    remoteProductId?: string;
+    websiteProductId?: string;
+  }): LightspeedReconciliationFailureDetail {
+    logError(input.error, {
+      layer: "service",
+      service: "LightspeedReconciliationSyncService",
+      operation: input.operation,
+      remoteProductId: input.remoteProductId ?? null,
+      websiteProductId: input.websiteProductId ?? null,
+    });
+
+    return {
+      operation: input.operation,
+      remoteProductId: input.remoteProductId,
+      websiteProductId: input.websiteProductId,
+      message:
+        input.error instanceof Error
+          ? input.error.message
+          : "Unexpected error applying Lightspeed sync.",
+    };
   }
 }
