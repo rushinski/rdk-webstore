@@ -29,6 +29,28 @@ const bulkActionSchema = z
   })
   .strict();
 
+const extractErrorMessage = (error: unknown): string | null => {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message.trim()) {
+      return record.message;
+    }
+    if (typeof record.error === "string" && record.error.trim()) {
+      return record.error;
+    }
+    if (typeof record.details === "string" && record.details.trim()) {
+      return record.details;
+    }
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return null;
+};
+
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
@@ -165,8 +187,9 @@ export async function POST(request: NextRequest) {
       requestId,
       route: "/api/admin/products",
     });
+    const message = extractErrorMessage(error) ?? "Failed to create product";
     return NextResponse.json(
-      { error: "Failed to create product", requestId },
+      { error: message, requestId },
       { status: 500, headers: { "Cache-Control": "no-store" } },
     );
   }

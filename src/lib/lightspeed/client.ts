@@ -5,6 +5,8 @@ import type {
   LightspeedListResponse,
   LightspeedProductResponse,
   LightspeedRemoteProduct,
+  LightspeedOutlet,
+  LightspeedOutletsResponse,
   LightspeedUpdateProductPayload,
   LightspeedVariantAttribute,
   LightspeedVariantAttributeResponse,
@@ -94,6 +96,17 @@ export class LightspeedClient {
     }
 
     return payload.data ? [payload.data] : [];
+  }
+
+  async listOutlets() {
+    const response = await this.request("/outlets?page_size=1000");
+    const payload = (await response.json()) as LightspeedOutletsResponse;
+
+    if (Array.isArray(payload.data)) {
+      return payload.data as LightspeedOutlet[];
+    }
+
+    return payload.data ? ([payload.data] as LightspeedOutlet[]) : [];
   }
 
   async createVariantAttribute(name: string) {

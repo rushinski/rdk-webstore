@@ -14,7 +14,12 @@ import { LightspeedSkuService } from "@/services/lightspeed-sku-service";
 type WebsiteProduct = Exclude<Awaited<ReturnType<ProductRepository["getById"]>>, null>;
 type ResolvedVariant = {
   externalSku: string;
-  variant: { size_label: string; sale_price_cents: number };
+  variant: {
+    size_label: string;
+    sale_price_cents: number;
+    unit_cost_cents?: number;
+    stock?: number;
+  };
 };
 
 export class LightspeedProductSyncService {
@@ -75,6 +80,7 @@ export class LightspeedProductSyncService {
         const existingLink = variantLinks[index];
         const externalSku =
           existingLink?.external_sku ??
+          variant.sku?.trim() ??
           this.buildVariantExternalSku(variant.sku, {
             condition: product.condition,
             brand: product.brand,
@@ -114,23 +120,31 @@ export class LightspeedProductSyncService {
     const syncTimestamp = new Date().toISOString();
 
     if (lightspeedFamilyId) {
+      const attributeIds = await this.ensureVariantAttributeIds(client);
+      const defaultOutletId = await this.resolveDefaultOutletId(client);
       await this.updateProductWithDuplicateNameRetry({
         client,
         product,
         lightspeedFamilyId,
-        sku: resolvedVariants[0]?.externalSku ?? null,
+        resolvedVariants,
+        attributeIds,
+        defaultOutletId,
       });
     } else {
-      const sizeAttributeId =
-        resolvedVariants.length > 1
-          ? await this.ensureVariantAttributeId(client, "Size")
-          : null;
-      const payload = this.buildCreatePayload(product, resolvedVariants, sizeAttributeId);
+      const attributeIds = await this.ensureVariantAttributeIds(client);
+      const defaultOutletId = await this.resolveDefaultOutletId(client);
+      const payload = this.buildCreatePayload(
+        product,
+        resolvedVariants,
+        attributeIds,
+        defaultOutletId,
+      );
       const response = await this.createProductWithDuplicateNameRetry({
         client,
         product,
         resolvedVariants,
-        sizeAttributeId,
+        attributeIds,
+        defaultOutletId,
         payload,
       });
       const ids = Array.isArray(response.data)
@@ -356,21 +370,11 @@ export class LightspeedProductSyncService {
   private buildCreatePayload(
     product: WebsiteProduct,
     resolvedVariants: ResolvedVariant[],
-    sizeAttributeId: string | null,
+    attributeIds: { conditionAttributeId: string; sizeAttributeId: string },
+    defaultOutletId: string,
     nameOverride?: string | null,
   ): LightspeedCreateProductPayload {
     const titleDisplay = nameOverride?.trim() || product.name.trim();
-
-    if (resolvedVariants.length === 1) {
-      return {
-        name: titleDisplay,
-        description: product.description ?? undefined,
-        is_active: product.is_active,
-        sku: resolvedVariants[0].externalSku,
-        product_codes: [{ code: resolvedVariants[0].externalSku, type: "CUSTOM" }],
-        price_including_tax: resolvedVariants[0].variant.sale_price_cents / 100,
-      };
-    }
 
     return {
       name: titleDisplay,
@@ -380,17 +384,55 @@ export class LightspeedProductSyncService {
         name: titleDisplay,
         sku: entry.externalSku,
         product_codes: [{ code: entry.externalSku, type: "CUSTOM" }],
-        price_including_tax: entry.variant.sale_price_cents / 100,
+        price_excluding_tax: entry.variant.sale_price_cents / 100,
+        supply_price:
+          entry.variant.unit_cost_cents !== undefined
+            ? entry.variant.unit_cost_cents / 100
+            : undefined,
         is_active: product.is_active,
+        inventory: [
+          {
+            current_amount: Math.max(0, entry.variant.stock ?? 0),
+            outlet_id: defaultOutletId,
+          },
+        ],
         variant_definitions: this.mappingService.buildVariantDefinitions([
           {
-            attributeId: sizeAttributeId ?? "size",
+            attributeId: attributeIds.conditionAttributeId,
+            name: "Condition",
+            value: this.toLightspeedConditionVariantValue(product.condition),
+          },
+          {
+            attributeId: attributeIds.sizeAttributeId,
             name: "Size",
             value: entry.variant.size_label,
           },
         ]),
       })),
     };
+  }
+
+  private async ensureVariantAttributeIds(client: LightspeedClient) {
+    const [conditionAttributeId, sizeAttributeId] = await Promise.all([
+      this.ensureVariantAttributeId(client, "Condition"),
+      this.ensureVariantAttributeId(client, "Size"),
+    ]);
+
+    return { conditionAttributeId, sizeAttributeId };
+  }
+
+  private async resolveDefaultOutletId(client: LightspeedClient) {
+    const outlets = await client.listOutlets();
+    const outlet =
+      outlets.find((entry) => entry.is_default === true || entry.default === true) ??
+      outlets[0];
+
+    const outletId = outlet?.id?.trim();
+    if (!outletId) {
+      throw new Error("Lightspeed outlet lookup returned no usable outlet id.");
+    }
+
+    return outletId;
   }
 
   private async ensureVariantAttributeId(client: LightspeedClient, name: string) {
@@ -406,9 +448,12 @@ export class LightspeedProductSyncService {
     return (await client.createVariantAttribute(name)).id;
   }
 
-  private buildUpdatePayload(
+  private toLightspeedConditionVariantValue(condition: "new" | "used") {
+    return condition === "used" ? "Preowned" : "New";
+  }
+
+  private buildUpdateCommonPayload(
     product: WebsiteProduct,
-    sku: string | null,
     nameOverride?: string | null,
   ): LightspeedUpdateProductPayload {
     const titleDisplay = nameOverride?.trim() || product.name.trim();
@@ -417,14 +462,38 @@ export class LightspeedProductSyncService {
       common: {
         name: titleDisplay,
         description: product.description ?? undefined,
-        is_active: product.is_active,
+        track_inventory: true,
       },
-      details: sku
-        ? {
-            sku,
-            product_codes: [{ code: sku, type: "CUSTOM" }],
-          }
-        : undefined,
+    };
+  }
+
+  private buildVariantUpdatePayload(
+    product: WebsiteProduct,
+    resolvedVariant: ResolvedVariant,
+    attributeIds: { conditionAttributeId: string; sizeAttributeId: string },
+    defaultOutletId: string,
+  ): LightspeedUpdateProductPayload {
+    return {
+      details: {
+        product_codes: [{ code: resolvedVariant.externalSku, type: "CUSTOM" }],
+        inventory: [
+          {
+            current_amount: Math.max(0, resolvedVariant.variant.stock ?? 0),
+            outlet_id: defaultOutletId,
+          },
+        ],
+        is_active: product.is_active,
+        variant_attribute_values: [
+          {
+            attribute_id: attributeIds.conditionAttributeId,
+            attribute_value: this.toLightspeedConditionVariantValue(product.condition),
+          },
+          {
+            attribute_id: attributeIds.sizeAttributeId,
+            attribute_value: resolvedVariant.variant.size_label,
+          },
+        ],
+      },
     };
   }
 
@@ -457,7 +526,8 @@ export class LightspeedProductSyncService {
     client: LightspeedClient;
     product: WebsiteProduct;
     resolvedVariants: ResolvedVariant[];
-    sizeAttributeId: string | null;
+    attributeIds: { conditionAttributeId: string; sizeAttributeId: string };
+    defaultOutletId: string;
     payload: LightspeedCreateProductPayload;
   }) {
     try {
@@ -477,7 +547,8 @@ export class LightspeedProductSyncService {
         this.buildCreatePayload(
           input.product,
           input.resolvedVariants,
-          input.sizeAttributeId,
+          input.attributeIds,
+          input.defaultOutletId,
           fallbackName,
         ),
       );
@@ -488,16 +559,26 @@ export class LightspeedProductSyncService {
     client: LightspeedClient;
     product: WebsiteProduct;
     lightspeedFamilyId: string;
-    sku: string | null;
+    resolvedVariants: Array<
+      ResolvedVariant & {
+        existingLink?: {
+          lightspeed_variant_id?: string | null;
+          lightspeed_product_id?: string | null;
+        } | null;
+      }
+    >;
+    attributeIds: { conditionAttributeId: string; sizeAttributeId: string };
+    defaultOutletId: string;
   }) {
-    const payload = this.buildUpdatePayload(input.product, input.sku);
+    const primarySku = input.resolvedVariants[0]?.externalSku ?? null;
+    const payload = this.buildUpdateCommonPayload(input.product);
 
     try {
       await input.client.updateProduct(input.lightspeedFamilyId, payload);
     } catch (error) {
       const fallbackName =
         input.product.condition === "used"
-          ? this.buildFallbackLightspeedName(input.product.name, input.sku)
+          ? this.buildFallbackLightspeedName(input.product.name, primarySku)
           : null;
 
       if (!fallbackName || !this.isDuplicateNameError(error)) {
@@ -506,7 +587,24 @@ export class LightspeedProductSyncService {
 
       await input.client.updateProduct(
         input.lightspeedFamilyId,
-        this.buildUpdatePayload(input.product, input.sku, fallbackName),
+        this.buildUpdateCommonPayload(input.product, fallbackName),
+      );
+    }
+
+    for (const resolvedVariant of input.resolvedVariants) {
+      const targetProductId =
+        resolvedVariant.existingLink?.lightspeed_variant_id ??
+        resolvedVariant.existingLink?.lightspeed_product_id ??
+        input.lightspeedFamilyId;
+
+      await input.client.updateProduct(
+        targetProductId,
+        this.buildVariantUpdatePayload(
+          input.product,
+          resolvedVariant,
+          input.attributeIds,
+          input.defaultOutletId,
+        ),
       );
     }
   }

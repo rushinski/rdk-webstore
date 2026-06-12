@@ -8,6 +8,13 @@ export type LightspeedVariantAttribute = {
   name: string;
 };
 
+export type LightspeedOutlet = {
+  id: string;
+  name?: string | null;
+  is_default?: boolean | null;
+  default?: boolean | null;
+};
+
 export type LightspeedRemoteVariantOption = {
   name?: string | null;
   value?: string | null;
@@ -120,12 +127,19 @@ export type LightspeedVariantDefinitionInput = {
   value: string;
 };
 
+export type LightspeedProductInventoryPayload = {
+  current_amount: number;
+  outlet_id?: string;
+};
+
 export type LightspeedProductVariantPayload = {
   name: string;
   sku: string;
   product_codes: LightspeedProductCode[];
-  price_including_tax: number;
+  price_excluding_tax: number;
+  supply_price?: number;
   is_active: boolean;
+  inventory?: LightspeedProductInventoryPayload[];
   variant_definitions: LightspeedVariantDefinition[];
 };
 
@@ -133,9 +147,6 @@ export type LightspeedCreateProductPayload = {
   name: string;
   description?: string;
   is_active: boolean;
-  sku?: string;
-  product_codes?: LightspeedProductCode[];
-  price_including_tax?: number;
   variants?: LightspeedProductVariantPayload[];
 };
 
@@ -143,16 +154,18 @@ export type LightspeedUpdateProductPayload = {
   common?: {
     name?: string;
     description?: string;
-    is_active?: boolean;
+    track_inventory?: boolean;
   };
   details?: {
-    sku?: string;
     product_codes?: LightspeedProductCode[];
-    price_including_tax?: number;
-    is_active?: boolean;
     inventory?: Array<{
       current_amount: number;
       outlet_id?: string;
+    }>;
+    is_active?: boolean;
+    variant_attribute_values?: Array<{
+      attribute_id: string;
+      attribute_value: string;
     }>;
   };
 };
@@ -169,4 +182,8 @@ export type LightspeedProductResponse =
 
 export type LightspeedVariantAttributeResponse = {
   data?: LightspeedVariantAttribute | LightspeedVariantAttribute[] | null;
+};
+
+export type LightspeedOutletsResponse = {
+  data?: LightspeedOutlet | LightspeedOutlet[] | null;
 };

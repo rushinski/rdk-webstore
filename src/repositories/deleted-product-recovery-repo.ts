@@ -1,3 +1,4 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 
 type DeletedProductRecoveryRow = {
@@ -5,7 +6,15 @@ type DeletedProductRecoveryRow = {
 };
 
 export class DeletedProductRecoveryRepository {
-  constructor(private readonly supabase: TypedSupabaseClient) {}
+  private readonly writeClient: TypedSupabaseClient;
+
+  constructor(
+    private readonly supabase: TypedSupabaseClient,
+    writeClient?: TypedSupabaseClient,
+  ) {
+    this.writeClient =
+      writeClient ?? (createSupabaseAdminClient() as TypedSupabaseClient);
+  }
 
   async recordDeletion(input: {
     tenantId: string;
@@ -17,7 +26,7 @@ export class DeletedProductRecoveryRepository {
     links: unknown[];
     metadata?: Record<string, unknown>;
   }) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.writeClient
       .from("deleted_product_recovery")
       .insert({
         tenant_id: input.tenantId,
@@ -32,6 +41,8 @@ export class DeletedProductRecoveryRepository {
       .select("id")
       .single();
 
+    // Deletes fail closed: if recovery capture cannot be persisted, the caller
+    // must stop before remote Lightspeed delete.
     if (error) {
       throw error;
     }
