@@ -433,6 +433,120 @@ describe("LightspeedReconciliationSyncService", () => {
     );
   });
 
+  it("hydrates remote products during preview so inventory matches the chunked scanner", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "ls-hydrate",
+          name: "Hydrated Product",
+          version: 501,
+          created_at: "2026-06-01T10:00:00.000Z",
+          updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "ls-hydrate-variant",
+              sku: "HYD-001",
+              name: "Hydrated Product",
+              inventory: [{ current_amount: 0 }],
+              variant_options: [{ name: "Size", value: "One Size" }],
+            },
+          ],
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 1,
+    });
+    getProductMock.mockImplementation((productId: string) =>
+      Promise.resolve(
+        productId !== "ls-hydrate"
+          ? null
+          : {
+              id: "ls-hydrate",
+              name: "Hydrated Product",
+              version: 501,
+              created_at: "2026-06-01T10:00:00.000Z",
+              updated_at: "2026-06-08T10:00:00.000Z",
+              variants: [
+                {
+                  id: "ls-hydrate-variant",
+                  sku: "HYD-001",
+                  name: "Hydrated Product",
+                  inventory: [{ current_amount: 1 }],
+                  variant_options: [{ name: "Size", value: "One Size" }],
+                },
+              ],
+            },
+      ),
+    );
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-hydrate",
+          name: "Hydrated Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "custom",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "variant-hydrate",
+              sku: "HYD-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "One Size", group_key: "size_custom" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([
+      {
+        id: "link-hydrate",
+        tenant_id: "tenant-1",
+        product_id: "website-hydrate",
+        variant_id: "variant-hydrate",
+        lightspeed_family_id: "ls-hydrate",
+        lightspeed_product_id: "ls-hydrate",
+        lightspeed_variant_id: "ls-hydrate-variant",
+        lightspeed_inventory_item_id: null,
+        external_sku: "HYD-001",
+        sync_state: "linked",
+        last_website_modified_at: null,
+        last_lightspeed_modified_at: null,
+        last_sync_direction: null,
+        tombstoned_at: null,
+        last_error: null,
+      },
+    ]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.preview({ tenantId: "tenant-1" });
+
+    expect(getProductMock).toHaveBeenCalledWith("ls-hydrate");
+    expect(result.editCount).toBe(0);
+    expect(result.noChangeCount).toBe(1);
+  });
+
   it("restores archived products and archives website-only products on apply", async () => {
     const service = new LightspeedReconciliationSyncService({} as never);
 

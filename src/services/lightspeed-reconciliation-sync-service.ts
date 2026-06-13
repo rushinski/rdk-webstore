@@ -213,9 +213,19 @@ export class LightspeedReconciliationSyncService {
         this.linksRepo.listByTenant(input.tenantId),
       ]);
 
+    const hydratedRemoteProducts = await Promise.all(
+      remoteProducts.map(async (product) => {
+        try {
+          return (await client.getProduct(product.id)) ?? product;
+        } catch {
+          return product;
+        }
+      }),
+    );
+
     const classification = await this.classifyRemoteProducts({
       tenantId: input.tenantId,
-      remoteProducts,
+      remoteProducts: hydratedRemoteProducts,
       activeWebsiteProducts: websiteProducts,
       archivedWebsiteProducts,
       links,
