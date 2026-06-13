@@ -18,10 +18,12 @@ jest.mock("@/components/checkout/CheckoutGate", () => ({
   CheckoutGate: () => "checkout-gate",
 }));
 
-import CheckoutGatePage from "../../app/checkout/page";
 import { redirect } from "next/navigation";
+
 import { getServerSession } from "@/lib/auth/session";
 import { getStoreAccessSettings } from "@/lib/store-access/get-store-access-settings";
+
+import CheckoutGatePage from "../../app/checkout/page";
 
 const mockRedirect = jest.mocked(redirect);
 const mockGetServerSession = jest.mocked(getServerSession);
