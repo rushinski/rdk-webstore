@@ -548,6 +548,7 @@ export class ProductRepository {
     id: string,
     opts?: Pick<ProductFilters, "tenantId" | "includeOutOfStock"> & {
       includeUnpublished?: boolean;
+      includeInactive?: boolean;
       archivedStatus?: ProductFilters["archivedStatus"];
     },
   ): Promise<ProductWithDetails | null> {
@@ -556,8 +557,10 @@ export class ProductRepository {
       .select(
         "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
       )
-      .eq("id", id)
-      .eq("is_active", true);
+      .eq("id", id);
+    if (!opts?.includeInactive) {
+      query = query.eq("is_active", true);
+    }
     query = this.applyArchivedFilter(query, opts?.archivedStatus ?? "active");
 
     if (!opts?.includeOutOfStock) {

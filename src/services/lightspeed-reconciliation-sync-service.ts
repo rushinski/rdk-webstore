@@ -1578,6 +1578,7 @@ export class LightspeedReconciliationSyncService {
     const websiteProduct = await this.productRepo.getById(websiteProductId, {
       tenantId,
       includeOutOfStock: true,
+      includeInactive: true,
       includeUnpublished: true,
       archivedStatus: "all",
     });

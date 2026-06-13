@@ -514,6 +514,70 @@ describe("LightspeedReconciliationSyncService", () => {
     });
   });
 
+  it("applies sku-matched edits for inactive website products", async () => {
+    getByIdMock.mockImplementation(
+      (productId: string, opts?: { includeInactive?: boolean }) =>
+        Promise.resolve(
+          productId !== "website-sku" || !opts?.includeInactive
+            ? null
+            : {
+                id: "website-sku",
+                name: "SKU Match Product",
+                brand: "Unknown",
+                model: null,
+                category: "sneakers",
+                condition: "new",
+                size_type: "shoe",
+                description: null,
+                is_active: false,
+                is_out_of_stock: false,
+                created_at: "2026-06-03T12:00:00.000Z",
+                product_created_at: "2026-06-03T12:00:00.000Z",
+                product_updated_at: "2026-06-03T12:00:00.000Z",
+                variants: [
+                  {
+                    id: "variant-sku",
+                    sku: "SKU-001",
+                    size_label: "One Size",
+                    sale_price_cents: 0,
+                    unit_cost_cents: 0,
+                    stock: 0,
+                    sort_order: 0,
+                  },
+                ],
+                images: [],
+                tags: [],
+              },
+        ),
+    );
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+
+    const result = await service.applyEditChunk({
+      tenantId: "tenant-1",
+      edits: [
+        {
+          websiteProductId: "website-sku",
+          remoteProductId: "ls-sku",
+          reason: "sku",
+        },
+      ],
+    });
+
+    expect(upsertLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: "website-sku",
+        variantId: "variant-sku",
+        externalSku: "SKU-001",
+      }),
+    );
+    expect(result).toEqual({
+      editedCount: 1,
+      failedCount: 0,
+      failureDetails: [],
+    });
+  });
+
   it("archives a specific chunk of website products", async () => {
     const service = new LightspeedReconciliationSyncService({} as never);
 
