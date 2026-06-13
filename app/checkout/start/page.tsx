@@ -5,6 +5,8 @@ import { CheckoutLockedNotice } from "@/components/checkout/CheckoutLockedNotice
 import { CheckoutStart } from "@/components/checkout/CheckoutStart";
 import { getStoreAccessSettings } from "@/lib/store-access/get-store-access-settings";
 
+export const dynamic = "force-dynamic";
+
 function CheckoutStartFallback() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-20 text-center">

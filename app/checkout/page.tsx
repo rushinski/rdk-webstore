@@ -6,6 +6,8 @@ import { getServerSession } from "@/lib/auth/session";
 import { getStoreAccessSettings } from "@/lib/store-access/get-store-access-settings";
 import { CheckoutGate } from "@/components/checkout/CheckoutGate";
 
+export const dynamic = "force-dynamic";
+
 export default async function CheckoutGatePage() {
   const storeAccess = await getStoreAccessSettings();
   if (storeAccess?.settings.checkoutLockEnabled) {
