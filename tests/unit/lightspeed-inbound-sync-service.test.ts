@@ -251,6 +251,35 @@ describe("LightspeedInboundSyncService", () => {
     );
   });
 
+  it("creates standard products as active when Lightspeed omits active flags", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "product-3" });
+    createVariantMock.mockResolvedValue({ id: "variant-4" });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-product-3",
+        name: "Default Active Product",
+        sku: "DEFAULT-ACTIVE-001",
+        product_category: "Sneakers",
+        deleted_at: null,
+        inventory_Main_Outlet: 1,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-07T19:30:00.000Z",
+    });
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        is_active: true,
+      }),
+    );
+  });
+
   it("hard deletes linked website records when Lightspeed deletes the family", async () => {
     getByLightspeedProductIdMock.mockResolvedValue([
       {

@@ -1,8 +1,12 @@
 import type {
   LightspeedCreateProductPayload,
+  LightspeedRemoteInventoryLevel,
+  LightspeedListProductsResult,
   LightspeedListResponse,
   LightspeedProductResponse,
   LightspeedRemoteProduct,
+  LightspeedOutlet,
+  LightspeedOutletsResponse,
   LightspeedUpdateProductPayload,
   LightspeedVariantAttribute,
   LightspeedVariantAttributeResponse,
@@ -72,10 +76,15 @@ export class LightspeedClient {
     const response = await this.request(`/products/${productId}`);
     const payload =
       (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
-    if (Array.isArray(payload.data)) {
-      return payload.data[0] ?? null;
+    const product = Array.isArray(payload.data)
+      ? (payload.data[0] ?? null)
+      : (payload.data ?? null);
+
+    if (!product) {
+      return null;
     }
-    return payload.data ?? null;
+
+    return this.hydrateProductInventory(product);
   }
 
   async listVariantAttributes() {
@@ -87,6 +96,17 @@ export class LightspeedClient {
     }
 
     return payload.data ? [payload.data] : [];
+  }
+
+  async listOutlets() {
+    const response = await this.request("/outlets?page_size=1000");
+    const payload = (await response.json()) as LightspeedOutletsResponse;
+
+    if (Array.isArray(payload.data)) {
+      return payload.data as LightspeedOutlet[];
+    }
+
+    return payload.data ? ([payload.data] as LightspeedOutlet[]) : [];
   }
 
   async createVariantAttribute(name: string) {
@@ -105,8 +125,24 @@ export class LightspeedClient {
     return attribute as LightspeedVariantAttribute;
   }
 
-  async listProducts(page = 1, pageSize = 50) {
-    const response = await this.request(`/products?page=${page}&page_size=${pageSize}`);
+  async listProducts(input?: {
+    after?: number | null;
+    pageSize?: number;
+    includeImages?: boolean;
+  }): Promise<LightspeedListProductsResult> {
+    const after = input?.after ?? null;
+    const pageSize = input?.pageSize ?? 50;
+    const includeImages = input?.includeImages ?? true;
+    const params = new URLSearchParams();
+    params.set("page_size", String(pageSize));
+    if (typeof after === "number" && Number.isFinite(after) && after > 0) {
+      params.set("after", String(after));
+    }
+    if (!includeImages) {
+      params.set("include_images", "false");
+    }
+
+    const response = await this.request(`/products?${params.toString()}`);
     const payload =
       (await response.json()) as LightspeedListResponse<LightspeedRemoteProduct>;
     const products = Array.isArray(payload.data)
@@ -115,36 +151,79 @@ export class LightspeedClient {
         ? [payload.data]
         : [];
 
-    const pagination = payload.pagination ?? null;
-    const totalProducts =
-      pagination?.total ??
-      payload.count ??
-      (products.length < pageSize ? (page - 1) * pageSize + products.length : null);
-    const totalPages =
-      pagination?.total_pages ??
-      (typeof totalProducts === "number"
-        ? Math.max(1, Math.ceil(totalProducts / pageSize))
-        : null);
-    const hasNextPage =
-      typeof totalPages === "number"
-        ? page < totalPages
-        : typeof pagination?.next_page === "number"
-          ? pagination.next_page > page
-          : Boolean(pagination?.next) || products.length === pageSize;
-
-    const hasPreviousPage =
-      typeof pagination?.previous_page === "number"
-        ? pagination.previous_page >= 1
-        : Boolean(pagination?.previous) || page > 1;
+    const maxVersion = payload.version?.max ?? null;
+    const totalProducts = payload.pagination?.total ?? payload.count ?? null;
+    const nextAfter =
+      typeof maxVersion === "number" && Number.isFinite(maxVersion) ? maxVersion : null;
+    const hasNextPage = products.length > 0 && nextAfter !== null;
 
     return {
       products,
-      page,
+      after,
       pageSize,
       hasNextPage,
-      hasPreviousPage,
+      nextAfter,
       totalProducts,
-      totalPages,
+    };
+  }
+
+  private async listInventory(input: { productId: string; variants?: boolean }) {
+    const params = new URLSearchParams();
+    params.set("page_size", "5000");
+    params.set("variants", input.variants ? "true" : "false");
+    const response = await this.request(
+      `/inventory/${input.productId}?${params.toString()}`,
+    );
+    const raw = await response.json();
+
+    // X-Series returns a raw array; older API versions wrap in { data: [...] }
+    if (Array.isArray(raw)) {
+      return raw as LightspeedRemoteInventoryLevel[];
+    }
+
+    if (Array.isArray(raw?.data)) {
+      return raw.data as LightspeedRemoteInventoryLevel[];
+    }
+
+    return raw?.data ? [raw.data as LightspeedRemoteInventoryLevel] : [];
+  }
+
+  private async hydrateProductInventory(product: LightspeedRemoteProduct) {
+    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0;
+    const inventory = await this.listInventory({
+      productId: product.id,
+      variants: hasVariants,
+    });
+
+    if (inventory.length === 0) {
+      return product;
+    }
+
+    if (!hasVariants) {
+      return {
+        ...product,
+        inventory,
+      };
+    }
+
+    const inventoryByProductId = new Map<string, LightspeedRemoteInventoryLevel[]>();
+    for (const level of inventory) {
+      const inventoryProductId = level.product_id?.trim();
+      if (!inventoryProductId) {
+        continue;
+      }
+
+      const existing = inventoryByProductId.get(inventoryProductId) ?? [];
+      existing.push(level);
+      inventoryByProductId.set(inventoryProductId, existing);
+    }
+
+    return {
+      ...product,
+      variants: product.variants!.map((variant) => ({
+        ...variant,
+        inventory: inventoryByProductId.get(variant.id) ?? variant.inventory ?? null,
+      })),
     };
   }
 }

@@ -156,6 +156,8 @@ type ProductImageRow = {
 };
 
 export class ProductRepository {
+  private static readonly RECONCILIATION_PAGE_SIZE = 1000;
+
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   private readonly storefrontSearchFields = ["brand", "name", "model"];
@@ -177,21 +179,45 @@ export class ProductRepository {
     return query.is("archived_at", null);
   }
 
-  async listForReconciliation(tenantId: string): Promise<ProductWithDetails[]> {
-    const { data, error } = await this.supabase
-      .from("products")
-      .select(
-        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
-      )
-      .eq("tenant_id", tenantId)
-      .is("archived_at", null)
-      .order("created_at", { ascending: false });
+  async listForReconciliation(
+    tenantId: string,
+    archivedStatus: ProductFilters["archivedStatus"] = "active",
+  ): Promise<ProductWithDetails[]> {
+    const rows: ProductWithRelations[] = [];
+    let offset = 0;
 
-    if (error) {
-      throw error;
+    while (true) {
+      let query = this.supabase
+        .from("products")
+        .select(
+          "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
+        )
+        .eq("tenant_id", tenantId);
+
+      query = this.applyArchivedFilter(query, archivedStatus).order("created_at", {
+        ascending: false,
+      });
+
+      const { data, error } = await query.range(
+        offset,
+        offset + ProductRepository.RECONCILIATION_PAGE_SIZE - 1,
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      const page = (data ?? []) as ProductWithRelations[];
+      rows.push(...page);
+
+      if (page.length < ProductRepository.RECONCILIATION_PAGE_SIZE) {
+        break;
+      }
+
+      offset += ProductRepository.RECONCILIATION_PAGE_SIZE;
     }
 
-    return (data ?? []).map((row) => this.transformProduct(row as ProductWithRelations));
+    return rows.map((row) => this.transformProduct(row));
   }
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
@@ -580,9 +606,14 @@ export class ProductRepository {
   }
 
   async create(product: ProductInsert) {
+    const now = new Date().toISOString();
     const { data, error } = await this.supabase
       .from("products")
-      .insert(product)
+      .insert({
+        ...product,
+        product_created_at: product.product_created_at ?? now,
+        product_updated_at: product.product_updated_at ?? now,
+      })
       .select()
       .single();
 
@@ -593,9 +624,13 @@ export class ProductRepository {
   }
 
   async update(id: string, product: ProductUpdate) {
+    const now = new Date().toISOString();
     const { data, error } = await this.supabase
       .from("products")
-      .update(product)
+      .update({
+        ...product,
+        product_updated_at: product.product_updated_at ?? now,
+      })
       .eq("id", id)
       .select()
       .single();
@@ -614,9 +649,10 @@ export class ProductRepository {
   }
 
   async archive(id: string) {
+    const now = new Date().toISOString();
     const { error } = await this.supabase
       .from("products")
-      .update({ archived_at: new Date().toISOString(), is_out_of_stock: true })
+      .update({ archived_at: now, is_out_of_stock: true, product_updated_at: now })
       .eq("id", id);
 
     if (error) {
@@ -625,9 +661,10 @@ export class ProductRepository {
   }
 
   async restore(id: string) {
+    const now = new Date().toISOString();
     const { error } = await this.supabase
       .from("products")
-      .update({ archived_at: null })
+      .update({ archived_at: null, product_updated_at: now })
       .eq("id", id);
 
     if (error) {
@@ -647,7 +684,10 @@ export class ProductRepository {
       const batch = uniqueIds.slice(index, index + BULK_MUTATION_BATCH_SIZE);
       const { data, error } = await this.supabase
         .from("products")
-        .update({ archived_at: null })
+        .update({
+          archived_at: null,
+          product_updated_at: new Date().toISOString(),
+        })
         .in("id", batch)
         .select("id");
 
@@ -674,7 +714,11 @@ export class ProductRepository {
       const batch = uniqueIds.slice(index, index + BULK_MUTATION_BATCH_SIZE);
       const { data, error } = await this.supabase
         .from("products")
-        .update({ archived_at: archivedAt, is_out_of_stock: true })
+        .update({
+          archived_at: archivedAt,
+          is_out_of_stock: true,
+          product_updated_at: archivedAt,
+        })
         .in("id", batch)
         .select("id");
 

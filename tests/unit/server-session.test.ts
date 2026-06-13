@@ -10,14 +10,20 @@ jest.mock("@/repositories/profile-repo", () => ({
   ProfileRepository: jest.fn(),
 }));
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProfileRepository } from "@/repositories/profile-repo";
+jest.mock("@/lib/utils/log", () => ({
+  logError: jest.fn(),
+}));
+
+import { DynamicServerError } from "next/dist/client/components/hooks-server-context";
+
 import { getServerSession } from "@/lib/auth/session";
-import { unstable_rethrow } from "next/navigation";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
+import { ProfileRepository } from "@/repositories/profile-repo";
 
 const mockCreateSupabaseServerClient = jest.mocked(createSupabaseServerClient);
 const mockProfileRepository = jest.mocked(ProfileRepository);
-const mockUnstableRethrow = jest.mocked(unstable_rethrow);
+const mockLogError = jest.mocked(logError);
 
 describe("getServerSession", () => {
   beforeEach(() => {
@@ -42,6 +48,18 @@ describe("getServerSession", () => {
     mockCreateSupabaseServerClient.mockRejectedValue(new Error("supabase unavailable"));
 
     await expect(getServerSession()).resolves.toBeNull();
+    expect(mockLogError).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null without logging when next raises a dynamic server error", async () => {
+    mockCreateSupabaseServerClient.mockRejectedValue(
+      new DynamicServerError(
+        "Route /admin/customers couldn't be rendered statically because it used `cookies`.",
+      ),
+    );
+
+    await expect(getServerSession()).resolves.toBeNull();
+    expect(mockLogError).not.toHaveBeenCalled();
   });
 
   it("returns session data when auth lookup succeeds", async () => {

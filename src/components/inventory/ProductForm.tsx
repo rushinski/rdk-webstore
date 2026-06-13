@@ -1239,10 +1239,6 @@ export function ProductForm({
         }))
         .filter((image) => image.url);
 
-      if (preparedImages.length === 0) {
-        throw new Error("Please add at least one product image.");
-      }
-
       let goLiveAt = new Date().toISOString();
       if (publishMode === "scheduled") {
         const value = scheduledGoLiveAt.trim();
@@ -1837,7 +1833,7 @@ export function ProductForm({
         </div>
 
         <div className="mt-2 md:mt-3 text-xs text-gray-500">
-          Add at least one image. Tap any thumbnail to set as primary.
+          Images are optional. Tap any thumbnail to set as primary.
         </div>
       </div>
 
