@@ -8,7 +8,15 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import { LightspeedReconciliationSyncService } from "@/services/lightspeed-reconciliation-sync-service";
 
-const syncBodySchema = z.discriminatedUnion("action", [
+const syncBodySchema = z.union([
+  z
+    .object({
+      action: z.literal("scan_preview_chunk"),
+      after: z.number().int().min(0).nullable(),
+      pageSize: z.number().int().min(1).max(100),
+      chunkIndex: z.number().int().min(1),
+    })
+    .strict(),
   z
     .object({
       action: z.literal("scan_preview_chunk"),
@@ -25,6 +33,38 @@ const syncBodySchema = z.discriminatedUnion("action", [
     .object({
       action: z.literal("apply_import_chunk"),
       remoteProductIds: z.array(z.string()).min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("apply_edit_chunk"),
+      edits: z
+        .array(
+          z
+            .object({
+              websiteProductId: z.string().uuid(),
+              remoteProductId: z.string(),
+              reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
+            })
+            .strict(),
+        )
+        .min(1),
+    })
+    .strict(),
+  z
+    .object({
+      action: z.literal("apply_restore_chunk"),
+      restores: z
+        .array(
+          z
+            .object({
+              websiteProductId: z.string().uuid(),
+              remoteProductId: z.string(),
+              reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
+            })
+            .strict(),
+        )
+        .min(1),
     })
     .strict(),
   z
@@ -87,8 +127,10 @@ export async function POST(request: Request) {
       parsed.data.action === "scan_preview_chunk"
         ? await service.scanPreviewChunk({
             tenantId,
-            page: parsed.data.page,
+            after: "after" in parsed.data ? parsed.data.after : null,
             pageSize: parsed.data.pageSize,
+            chunkIndex:
+              "chunkIndex" in parsed.data ? parsed.data.chunkIndex : parsed.data.page,
           })
         : parsed.data.action === "apply"
           ? await service.apply({ tenantId })
@@ -97,10 +139,20 @@ export async function POST(request: Request) {
                 tenantId,
                 remoteProductIds: parsed.data.remoteProductIds,
               })
-            : await service.applyArchiveChunk({
-                tenantId,
-                websiteProductIds: parsed.data.websiteProductIds,
-              });
+            : parsed.data.action === "apply_edit_chunk"
+              ? await service.applyEditChunk({
+                  tenantId,
+                  edits: parsed.data.edits,
+                })
+              : parsed.data.action === "apply_restore_chunk"
+                ? await service.applyRestoreChunk({
+                    tenantId,
+                    restores: parsed.data.restores,
+                  })
+                : await service.applyArchiveChunk({
+                    tenantId,
+                    websiteProductIds: parsed.data.websiteProductIds,
+                  });
 
     return NextResponse.json(
       { result, requestId },

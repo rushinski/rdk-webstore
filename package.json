@@ -14,6 +14,7 @@
     "test:rls": "node ./tests/rls/rls-check.ts",
     "format": "prettier --write .",
     "backfill:lightspeed-created-at": "tsx scripts/backfill-lightspeed-created-at.ts",
+    "recover:lightspeed-deleted-products": "tsx scripts/recover-lightspeed-deleted-products.ts",
     "dev": "next dev",
     "dev:test": "next dev -p 3000",
     "build": "next build",

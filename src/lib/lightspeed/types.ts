@@ -8,6 +8,13 @@ export type LightspeedVariantAttribute = {
   name: string;
 };
 
+export type LightspeedOutlet = {
+  id: string;
+  name?: string | null;
+  is_default?: boolean | null;
+  default?: boolean | null;
+};
+
 export type LightspeedRemoteVariantOption = {
   name?: string | null;
   value?: string | null;
@@ -15,6 +22,8 @@ export type LightspeedRemoteVariantOption = {
 
 export type LightspeedRemoteInventoryLevel = {
   outlet_id?: string | null;
+  product_id?: string | null;
+  count?: number | string | null;
   current_amount?: number | null;
   current_inventory_level?: number | null;
 };
@@ -27,10 +36,13 @@ export type LightspeedRemoteImage = {
 
 export type LightspeedRemoteProduct = {
   id: string;
+  version?: number | null;
   created_at?: string | null;
   name?: string | null;
   updated_at?: string | null;
   variant_name?: string | null;
+  variant_parent_id?: string | null;
+  has_variants?: boolean | null;
   description?: string | null;
   sku?: string | null;
   supply_price?: number | string | null;
@@ -76,6 +88,15 @@ export type LightspeedListResponse<T> = {
   } | null;
 };
 
+export type LightspeedListProductsResult = {
+  products: LightspeedRemoteProduct[];
+  after: number | null;
+  pageSize: number;
+  hasNextPage: boolean;
+  nextAfter: number | null;
+  totalProducts: number | null;
+};
+
 export type NormalizedLightspeedProduct = {
   lightspeedProductId: string;
   externalSku: string;
@@ -106,12 +127,19 @@ export type LightspeedVariantDefinitionInput = {
   value: string;
 };
 
+export type LightspeedProductInventoryPayload = {
+  current_amount: number;
+  outlet_id?: string;
+};
+
 export type LightspeedProductVariantPayload = {
   name: string;
   sku: string;
   product_codes: LightspeedProductCode[];
-  price_including_tax: number;
+  price_excluding_tax: number;
+  supply_price?: number;
   is_active: boolean;
+  inventory?: LightspeedProductInventoryPayload[];
   variant_definitions: LightspeedVariantDefinition[];
 };
 
@@ -119,9 +147,6 @@ export type LightspeedCreateProductPayload = {
   name: string;
   description?: string;
   is_active: boolean;
-  sku?: string;
-  product_codes?: LightspeedProductCode[];
-  price_including_tax?: number;
   variants?: LightspeedProductVariantPayload[];
 };
 
@@ -129,16 +154,18 @@ export type LightspeedUpdateProductPayload = {
   common?: {
     name?: string;
     description?: string;
-    is_active?: boolean;
+    track_inventory?: boolean;
   };
   details?: {
-    sku?: string;
     product_codes?: LightspeedProductCode[];
-    price_including_tax?: number;
-    is_active?: boolean;
     inventory?: Array<{
       current_amount: number;
       outlet_id?: string;
+    }>;
+    is_active?: boolean;
+    variant_attribute_values?: Array<{
+      attribute_id: string;
+      attribute_value: string;
     }>;
   };
 };
@@ -155,4 +182,8 @@ export type LightspeedProductResponse =
 
 export type LightspeedVariantAttributeResponse = {
   data?: LightspeedVariantAttribute | LightspeedVariantAttribute[] | null;
+};
+
+export type LightspeedOutletsResponse = {
+  data?: LightspeedOutlet | LightspeedOutlet[] | null;
 };

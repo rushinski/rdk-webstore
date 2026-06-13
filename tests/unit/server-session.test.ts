@@ -1,7 +1,3 @@
-jest.mock("next/navigation", () => ({
-  unstable_rethrow: jest.fn(),
-}));
-
 jest.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: jest.fn(),
 }));
@@ -10,39 +6,35 @@ jest.mock("@/repositories/profile-repo", () => ({
   ProfileRepository: jest.fn(),
 }));
 
-import { unstable_rethrow } from "next/navigation";
-
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { logError } from "@/lib/utils/log";
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { getServerSession } from "@/lib/auth/session";
 
 const mockCreateSupabaseServerClient = jest.mocked(createSupabaseServerClient);
 const mockProfileRepository = jest.mocked(ProfileRepository);
-const mockUnstableRethrow = jest.mocked(unstable_rethrow);
+const mockLogError = jest.mocked(logError);
 
 describe("getServerSession", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUnstableRethrow.mockImplementation(() => {});
-  });
-
-  it("rethrows Next dynamic server errors", async () => {
-    const dynamicError = new Error(
-      "Dynamic server usage: Route /checkout couldn't be rendered statically because it used `cookies`.",
-    );
-
-    mockCreateSupabaseServerClient.mockRejectedValue(dynamicError);
-    mockUnstableRethrow.mockImplementation((error) => {
-      throw error;
-    });
-
-    await expect(getServerSession()).rejects.toBe(dynamicError);
   });
 
   it("returns null when supabase auth lookup throws", async () => {
     mockCreateSupabaseServerClient.mockRejectedValue(new Error("supabase unavailable"));
 
     await expect(getServerSession()).resolves.toBeNull();
+    expect(mockLogError).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null without logging when next raises a dynamic server error", async () => {
+    mockCreateSupabaseServerClient.mockRejectedValue(
+      new DynamicServerError(
+        "Route /admin/customers couldn't be rendered statically because it used `cookies`.",
+      ),
+    );
+
+    await expect(getServerSession()).resolves.toBeNull();
+    expect(mockLogError).not.toHaveBeenCalled();
   });
 
   it("returns session data when auth lookup succeeds", async () => {

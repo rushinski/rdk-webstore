@@ -22,7 +22,22 @@ type LightspeedLinkRow = {
 
 export type LightspeedLink = LightspeedLinkRow;
 
+function isMissingLastErrorColumn(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const record = error as { code?: unknown; message?: unknown };
+  return (
+    record.code === "PGRST204" &&
+    typeof record.message === "string" &&
+    record.message.includes("'last_error' column")
+  );
+}
+
 export class LightspeedLinksRepository {
+  private static readonly PAGE_SIZE = 1000;
+
   constructor(private readonly supabase: TypedSupabaseClient) {}
 
   async getByVariantId(tenantId: string, variantId: string) {
@@ -99,16 +114,31 @@ export class LightspeedLinksRepository {
   }
 
   async listByTenant(tenantId: string) {
-    const { data, error } = await this.supabase
-      .from("lightspeed_product_links")
-      .select("*")
-      .eq("tenant_id", tenantId);
+    const rows: LightspeedLinkRow[] = [];
+    let offset = 0;
 
-    if (error) {
-      throw error;
+    while (true) {
+      const { data, error } = await this.supabase
+        .from("lightspeed_product_links")
+        .select("*")
+        .eq("tenant_id", tenantId)
+        .range(offset, offset + LightspeedLinksRepository.PAGE_SIZE - 1);
+
+      if (error) {
+        throw error;
+      }
+
+      const page = (data ?? []) as LightspeedLinkRow[];
+      rows.push(...page);
+
+      if (page.length < LightspeedLinksRepository.PAGE_SIZE) {
+        break;
+      }
+
+      offset += LightspeedLinksRepository.PAGE_SIZE;
     }
 
-    return (data ?? []) as LightspeedLinkRow[];
+    return rows;
   }
 
   async updateLinkById(
@@ -124,22 +154,42 @@ export class LightspeedLinksRepository {
       lastError?: string | null;
     },
   ) {
-    const { data, error } = await this.supabase
+    const payload = {
+      product_id: input.productId,
+      variant_id: input.variantId,
+      sync_state: input.syncState,
+      last_website_modified_at: input.lastWebsiteModifiedAt,
+      last_lightspeed_modified_at: input.lastLightspeedModifiedAt,
+      last_sync_direction: input.lastSyncDirection,
+      tombstoned_at: input.tombstonedAt,
+      last_error: input.lastError,
+      updated_at: new Date().toISOString(),
+    };
+
+    let { data, error } = await this.supabase
       .from("lightspeed_product_links")
-      .update({
-        product_id: input.productId,
-        variant_id: input.variantId,
-        sync_state: input.syncState,
-        last_website_modified_at: input.lastWebsiteModifiedAt,
-        last_lightspeed_modified_at: input.lastLightspeedModifiedAt,
-        last_sync_direction: input.lastSyncDirection,
-        tombstoned_at: input.tombstonedAt,
-        last_error: input.lastError,
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq("id", id)
       .select("*")
       .single();
+
+    if (error && isMissingLastErrorColumn(error)) {
+      ({ data, error } = await this.supabase
+        .from("lightspeed_product_links")
+        .update({
+          product_id: payload.product_id,
+          variant_id: payload.variant_id,
+          sync_state: payload.sync_state,
+          last_website_modified_at: payload.last_website_modified_at,
+          last_lightspeed_modified_at: payload.last_lightspeed_modified_at,
+          last_sync_direction: payload.last_sync_direction,
+          tombstoned_at: payload.tombstoned_at,
+          updated_at: payload.updated_at,
+        })
+        .eq("id", id)
+        .select("*")
+        .single());
+    }
 
     if (error) {
       throw error;
@@ -164,30 +214,38 @@ export class LightspeedLinksRepository {
     tombstonedAt?: string | null;
     lastError?: string | null;
   }) {
-    const { data, error } = await this.supabase
+    const payload = {
+      tenant_id: input.tenantId,
+      product_id: input.productId ?? null,
+      variant_id: input.variantId ?? null,
+      external_sku: input.externalSku,
+      lightspeed_family_id: input.lightspeedFamilyId ?? null,
+      lightspeed_product_id: input.lightspeedProductId ?? null,
+      lightspeed_variant_id: input.lightspeedVariantId ?? null,
+      lightspeed_inventory_item_id: input.lightspeedInventoryItemId ?? null,
+      sync_state: input.syncState ?? "linked",
+      last_website_modified_at: input.lastWebsiteModifiedAt ?? null,
+      last_lightspeed_modified_at: input.lastLightspeedModifiedAt ?? null,
+      last_sync_direction: input.lastSyncDirection ?? null,
+      tombstoned_at: input.tombstonedAt ?? null,
+      last_error: input.lastError ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let { data, error } = await this.supabase
       .from("lightspeed_product_links")
-      .upsert(
-        {
-          tenant_id: input.tenantId,
-          product_id: input.productId ?? null,
-          variant_id: input.variantId ?? null,
-          external_sku: input.externalSku,
-          lightspeed_family_id: input.lightspeedFamilyId ?? null,
-          lightspeed_product_id: input.lightspeedProductId ?? null,
-          lightspeed_variant_id: input.lightspeedVariantId ?? null,
-          lightspeed_inventory_item_id: input.lightspeedInventoryItemId ?? null,
-          sync_state: input.syncState ?? "linked",
-          last_website_modified_at: input.lastWebsiteModifiedAt ?? null,
-          last_lightspeed_modified_at: input.lastLightspeedModifiedAt ?? null,
-          last_sync_direction: input.lastSyncDirection ?? null,
-          tombstoned_at: input.tombstonedAt ?? null,
-          last_error: input.lastError ?? null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "tenant_id,variant_id" },
-      )
+      .upsert(payload, { onConflict: "tenant_id,variant_id" })
       .select("*")
       .single();
+
+    if (error && isMissingLastErrorColumn(error)) {
+      const { last_error: _lastError, ...payloadWithoutLastError } = payload;
+      ({ data, error } = await this.supabase
+        .from("lightspeed_product_links")
+        .upsert(payloadWithoutLastError, { onConflict: "tenant_id,variant_id" })
+        .select("*")
+        .single());
+    }
 
     if (error) {
       throw error;

@@ -69,7 +69,7 @@ export const productCreateSchema = z
     description: z.string().trim().min(1).nullable().optional(),
     shipping_price_cents: z.number().int().nonnegative().nullable().optional(),
     variants: z.array(variantSchema).min(1),
-    images: z.array(imageSchema).min(1),
+    images: z.array(imageSchema),
     go_live_at: z.string().datetime({ offset: true }).optional(),
     tags: z.array(tagSchema).optional(),
     excluded_auto_tag_keys: z.array(z.string()).optional(),

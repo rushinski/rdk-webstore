@@ -151,13 +151,28 @@ export class LightspeedMappingService {
     }));
   }
 
+  getRemoteProductKind(record: LightspeedRemoteProduct) {
+    if (record.variant_parent_id) {
+      return "variant_child" as const;
+    }
+
+    if (Array.isArray(record.variants) && record.variants.length > 0) {
+      return "variant_family" as const;
+    }
+
+    return "standard" as const;
+  }
+
   normalizeRemoteProducts(
     records: LightspeedRemoteProduct[],
   ): NormalizedLightspeedProduct[] {
     return records.flatMap((record) => {
-      const nested = Array.isArray(record.variants) ? record.variants : [];
-      if (nested.length > 0) {
-        return nested.map((variant) => this.normalizeRemoteProduct(variant, record));
+      const kind = this.getRemoteProductKind(record);
+
+      if (kind === "variant_family") {
+        return (record.variants ?? []).map((variant) =>
+          this.normalizeRemoteProduct(variant, record),
+        );
       }
 
       return [this.normalizeRemoteProduct(record)];
@@ -168,8 +183,7 @@ export class LightspeedMappingService {
     record: LightspeedRemoteProduct,
     parent?: LightspeedRemoteProduct,
   ): NormalizedLightspeedProduct {
-    const externalSku =
-      this.extractExternalSku(record) ?? this.extractExternalSku(parent) ?? record.id;
+    const externalSku = this.extractExternalSku(record) ?? record.id;
     const condition: NormalizedLightspeedProduct["condition"] = this.extractCondition(
       record,
       parent,
@@ -205,6 +219,7 @@ export class LightspeedMappingService {
       stock: this.extractStock(record, parent),
       isActive: this.toBoolean(
         record.is_active ?? record.active ?? parent?.is_active ?? parent?.active,
+        !(record.deleted_at ?? parent?.deleted_at),
       ),
       isDeleted: Boolean(record.deleted_at ?? parent?.deleted_at),
       imageUrls: this.extractImages(record, parent),
@@ -248,21 +263,21 @@ export class LightspeedMappingService {
   ) {
     const direct = this.toNumber(record.inventory_Main_Outlet);
     if (direct !== null) {
-      return direct;
+      return Math.max(0, direct);
     }
 
     const recordInventory = this.sumInventory(record.inventory);
     if (recordInventory !== null) {
-      return recordInventory;
+      return Math.max(0, recordInventory);
     }
 
     const parentDirect = this.toNumber(parent?.inventory_Main_Outlet);
     if (parentDirect !== null) {
-      return parentDirect;
+      return Math.max(0, parentDirect);
     }
 
     const parentInventory = this.sumInventory(parent?.inventory);
-    return parentInventory ?? 0;
+    return Math.max(0, parentInventory ?? 0);
   }
 
   private extractPriceCents(
@@ -441,14 +456,14 @@ export class LightspeedMappingService {
     return null;
   }
 
-  private toBoolean(value: boolean | number | null | undefined) {
+  private toBoolean(value: boolean | number | null | undefined, fallback = false) {
     if (typeof value === "boolean") {
       return value;
     }
     if (typeof value === "number") {
       return value !== 0;
     }
-    return false;
+    return fallback;
   }
 
   private toNumber(value: number | string | null | undefined) {
@@ -469,7 +484,11 @@ export class LightspeedMappingService {
 
   private sumInventory(
     levels:
-      | Array<{ current_amount?: number | null; current_inventory_level?: number | null }>
+      | Array<{
+          count?: number | string | null;
+          current_amount?: number | null;
+          current_inventory_level?: number | null;
+        }>
       | null
       | undefined,
   ) {
@@ -477,9 +496,22 @@ export class LightspeedMappingService {
       return null;
     }
 
-    return levels.reduce((total, level) => {
-      const amount = level.current_inventory_level ?? level.current_amount ?? 0;
-      return total + amount;
+    let sawValue = false;
+
+    const total = levels.reduce((sum, level) => {
+      const amount =
+        this.toNumber(level.current_amount) ??
+        this.toNumber(level.current_inventory_level) ??
+        this.toNumber(level.count);
+
+      if (amount === null) {
+        return sum;
+      }
+
+      sawValue = true;
+      return sum + amount;
     }, 0);
+
+    return sawValue ? total : null;
   }
 }

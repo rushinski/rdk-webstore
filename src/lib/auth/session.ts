@@ -1,5 +1,6 @@
 // src/lib/auth/session.ts
-import { redirect, unstable_rethrow } from "next/navigation";
+import { redirect } from "next/navigation";
+import { isDynamicServerError } from "next/dist/client/components/hooks-server-context";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { ProfileRepository } from "@/repositories/profile-repo";
@@ -66,7 +67,9 @@ async function getServerSessionUncached(): Promise<ServerSession | null> {
       role: profile?.role ?? "customer",
     };
   } catch (error) {
-    unstable_rethrow(error);
+    if (isDynamicServerError(error)) {
+      return null;
+    }
 
     logError(error, {
       layer: "auth",

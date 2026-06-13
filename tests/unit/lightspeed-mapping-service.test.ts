@@ -170,4 +170,82 @@ describe("LightspeedMappingService", () => {
 
     expect(normalized[0]?.sizeLabel).toBe("7.25");
   });
+
+  it("clamps negative remote stock to zero", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-product-5",
+        name: "Negative Inventory Product",
+        sku: "NEG-001",
+        inventory_Main_Outlet: -3,
+      },
+    ]);
+
+    expect(normalized[0]?.stock).toBe(0);
+  });
+
+  it("defaults missing active flags to true for non-deleted remote products", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-product-6",
+        name: "Missing Active Flag Product",
+        sku: "ACTIVE-DEFAULT-001",
+        deleted_at: null,
+      },
+    ]);
+
+    expect(normalized[0]?.isActive).toBe(true);
+  });
+
+  it("uses child ids when variant families are missing child skus", () => {
+    const normalized = service.normalizeRemoteProducts([
+      {
+        id: "ls-family-4",
+        name: "Family Product",
+        sku: "PARENT-SKU",
+        variants: [
+          {
+            id: "ls-child-4a",
+            sku: null,
+            variant_options: [{ name: "Size", value: "9M" }],
+          },
+          {
+            id: "ls-child-4b",
+            sku: null,
+            variant_options: [{ name: "Size", value: "10M" }],
+          },
+        ],
+      },
+    ]);
+
+    expect(normalized.map((item) => item.externalSku)).toEqual([
+      "ls-child-4a",
+      "ls-child-4b",
+    ]);
+  });
+
+  it("classifies standard, variant-family, and child variant Lightspeed products", () => {
+    expect(
+      service.getRemoteProductKind({
+        id: "ls-standard-1",
+        sku: "STD-001",
+      }),
+    ).toBe("standard");
+
+    expect(
+      service.getRemoteProductKind({
+        id: "ls-family-5",
+        has_variants: true,
+        variants: [{ id: "ls-child-5a", sku: "FAM-001" }],
+      }),
+    ).toBe("variant_family");
+
+    expect(
+      service.getRemoteProductKind({
+        id: "ls-child-5a",
+        variant_parent_id: "ls-family-5",
+        sku: "FAM-001",
+      }),
+    ).toBe("variant_child");
+  });
 });

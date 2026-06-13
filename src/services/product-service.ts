@@ -129,6 +129,8 @@ export class ProductService {
       go_live_at: this.normalizeGoLiveAt(input.go_live_at),
       is_active: true,
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
+      product_created_at: new Date().toISOString(),
+      product_updated_at: new Date().toISOString(),
     });
 
     for (const variant of variantsWithSkus) {
@@ -209,6 +211,7 @@ export class ProductService {
       shipping_price_cents: input.shipping_price_cents ?? null,
       go_live_at: goLiveAt,
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
+      product_updated_at: new Date().toISOString(),
     });
 
     const existingVariants = existing.variants ?? [];

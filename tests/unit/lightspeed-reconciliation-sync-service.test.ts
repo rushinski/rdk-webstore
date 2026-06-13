@@ -5,8 +5,10 @@ const listForReconciliationMock = jest.fn();
 const listByTenantMock = jest.fn();
 const applyProductPayloadMock = jest.fn();
 const archiveProductMock = jest.fn();
+const restoreProductMock = jest.fn();
 const getByIdMock = jest.fn();
 const upsertLinkMock = jest.fn();
+const parseTitleMock = jest.fn();
 
 jest.mock("@/lib/lightspeed/client", () => ({
   LightspeedClient: jest.fn().mockImplementation(() => ({
@@ -41,9 +43,16 @@ jest.mock("@/services/lightspeed-inbound-sync-service", () => ({
   })),
 }));
 
+jest.mock("@/services/product-title-parser-service", () => ({
+  ProductTitleParserService: jest.fn().mockImplementation(() => ({
+    parseTitle: parseTitleMock,
+  })),
+}));
+
 jest.mock("@/services/product-service", () => ({
   ProductService: jest.fn().mockImplementation(() => ({
     archiveProduct: archiveProductMock,
+    restoreProduct: restoreProductMock,
   })),
 }));
 
@@ -56,12 +65,28 @@ describe("LightspeedReconciliationSyncService", () => {
       {
         id: "ls-linked",
         name: "Linked Product",
+        version: 101,
+        created_at: "2026-06-01T10:00:00.000Z",
         updated_at: "2026-06-08T10:00:00.000Z",
-        variants: [{ id: "ls-linked-variant", sku: "LINK-001", name: "Linked Product" }],
+        active: true,
+        has_variants: true,
+        variants: [
+          {
+            id: "ls-linked-variant",
+            sku: "LINK-001",
+            name: "Linked Product",
+            variant_options: [{ name: "Size", value: "9M / 10.5W" }],
+            inventory_Main_Outlet: 1,
+            retail_price: 0,
+            supply_price: 0,
+          },
+        ],
       },
       {
         id: "ls-import",
         name: "Import Product",
+        version: 102,
+        created_at: "2026-06-02T11:00:00.000Z",
         updated_at: "2026-06-08T11:00:00.000Z",
         variants: [
           { id: "ls-import-variant", sku: "IMPORT-001", name: "Import Product" },
@@ -70,12 +95,24 @@ describe("LightspeedReconciliationSyncService", () => {
       {
         id: "ls-sku",
         name: "SKU Match Product",
+        version: 103,
+        created_at: "2026-06-03T12:00:00.000Z",
         updated_at: "2026-06-08T12:00:00.000Z",
-        variants: [{ id: "ls-sku-variant", sku: "SKU-001", name: "SKU Match Product" }],
+        variants: [
+          {
+            id: "ls-sku-variant",
+            sku: "SKU-001",
+            name: "SKU Match Product",
+            inventory_Main_Outlet: 3,
+            inventory: [{ current_amount: 0 }],
+          },
+        ],
       },
       {
         id: "ls-conflict",
         name: "Conflict Product",
+        version: 104,
+        created_at: "2026-06-04T13:00:00.000Z",
         updated_at: "2026-06-08T13:00:00.000Z",
         variants: [
           { id: "ls-conflict-variant", sku: "CONFLICT-001", name: "Conflict Product" },
@@ -89,47 +126,181 @@ describe("LightspeedReconciliationSyncService", () => {
     });
     listProductsMock.mockResolvedValue({
       products: remoteProducts,
-      page: 1,
+      after: null,
       pageSize: 50,
       hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 4,
     });
-    listForReconciliationMock.mockResolvedValue([
-      {
-        id: "website-linked",
-        name: "Linked Product",
-        variants: [{ id: "variant-linked", sku: "LINK-001" }],
-        images: [],
-        tags: [],
-      },
-      {
-        id: "website-archive",
-        name: "Archive Product",
-        variants: [{ id: "variant-archive", sku: "ARCHIVE-001" }],
-        images: [],
-        tags: [],
-      },
-      {
-        id: "website-sku",
-        name: "SKU Match Product",
-        variants: [{ id: "variant-sku", sku: "SKU-001" }],
-        images: [],
-        tags: [],
-      },
-      {
-        id: "website-conflict-a",
-        name: "Conflict A",
-        variants: [{ id: "variant-conflict-a", sku: "CONFLICT-001" }],
-        images: [],
-        tags: [],
-      },
-      {
-        id: "website-conflict-b",
-        name: "Conflict B",
-        variants: [{ id: "variant-conflict-b", sku: "CONFLICT-001" }],
-        images: [],
-        tags: [],
-      },
-    ]);
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-linked",
+          name: "Linked Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "variant-linked",
+              sku: "LINK-001",
+              size_label: "9M / 10.5W",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "9M / 10.5W", group_key: "size_shoe" },
+          ],
+        },
+        {
+          id: "website-archive",
+          name: "Archive Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-02T10:00:00.000Z",
+          product_created_at: "2026-06-02T10:00:00.000Z",
+          product_updated_at: "2026-06-02T10:00:00.000Z",
+          variants: [{ id: "variant-archive", sku: "ARCHIVE-001" }],
+          images: [],
+          tags: [],
+        },
+        {
+          id: "website-sku",
+          name: "SKU Match Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-03T12:00:00.000Z",
+          product_created_at: "2026-06-03T12:00:00.000Z",
+          product_updated_at: "2026-06-03T12:00:00.000Z",
+          variants: [
+            {
+              id: "variant-sku",
+              sku: "SKU-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+        },
+        {
+          id: "website-conflict-a",
+          name: "Conflict A",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-04T13:00:00.000Z",
+          product_created_at: "2026-06-04T13:00:00.000Z",
+          product_updated_at: "2026-06-04T13:00:00.000Z",
+          variants: [
+            {
+              id: "variant-conflict-a",
+              sku: "CONFLICT-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+        },
+        {
+          id: "website-conflict-b",
+          name: "Conflict B",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-04T13:05:00.000Z",
+          product_created_at: "2026-06-04T13:05:00.000Z",
+          product_updated_at: "2026-06-04T13:05:00.000Z",
+          variants: [
+            {
+              id: "variant-conflict-b",
+              sku: "CONFLICT-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "website-archived-linked",
+          name: "Archived Linked Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-02T11:00:00.000Z",
+          product_created_at: "2026-06-02T11:00:00.000Z",
+          product_updated_at: "2026-06-02T11:00:00.000Z",
+          variants: [
+            {
+              id: "variant-archived-linked",
+              sku: "IMPORT-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+          archived_at: "2026-06-01T00:00:00.000Z",
+        },
+      ]);
     listByTenantMock.mockResolvedValue([
       {
         id: "link-1",
@@ -155,7 +326,28 @@ describe("LightspeedReconciliationSyncService", () => {
     getByIdMock.mockResolvedValue({
       id: "website-sku",
       name: "SKU Match Product",
-      variants: [{ id: "variant-sku", sku: "SKU-001" }],
+      brand: "Unknown",
+      model: null,
+      category: "sneakers",
+      condition: "new",
+      size_type: "shoe",
+      description: null,
+      is_active: true,
+      is_out_of_stock: false,
+      created_at: "2026-06-03T12:00:00.000Z",
+      product_created_at: "2026-06-03T12:00:00.000Z",
+      product_updated_at: "2026-06-03T12:00:00.000Z",
+      variants: [
+        {
+          id: "variant-sku",
+          sku: "SKU-001",
+          size_label: "One Size",
+          sale_price_cents: 0,
+          unit_cost_cents: 0,
+          stock: 0,
+          sort_order: 0,
+        },
+      ],
       images: [],
       tags: [],
     });
@@ -164,30 +356,72 @@ describe("LightspeedReconciliationSyncService", () => {
       productId: "product-1",
     });
     archiveProductMock.mockResolvedValue({ archived: true });
+    restoreProductMock.mockResolvedValue({ restored: true });
     upsertLinkMock.mockResolvedValue({});
+    parseTitleMock.mockResolvedValue({
+      brand: { label: null, groupKey: null },
+      model: { label: null },
+    });
   });
 
-  it("classifies linked matches, imports, archives, and conflicts", async () => {
+  it("classifies no-change, edit, restore, archive, and conflict buckets", async () => {
     const service = new LightspeedReconciliationSyncService({} as never);
 
     const result = await service.preview({ tenantId: "tenant-1" });
 
-    expect(result.matchedCount).toBe(2);
-    expect(result.importCount).toBe(1);
+    expect(result.noChangeCount).toBe(1);
+    expect(result.importCount).toBe(0);
+    expect(result.editCount).toBe(1);
+    expect(result.restoreCount).toBe(1);
     expect(result.archiveCount).toBe(1);
     expect(result.conflictCount).toBe(1);
-    expect(result.matched).toEqual(
+    expect(result.noChanges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           websiteProductId: "website-linked",
           remoteProductId: "ls-linked",
           reason: "link",
         }),
+      ]),
+    );
+    expect(result.edits).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({
           websiteProductId: "website-sku",
           remoteProductId: "ls-sku",
           reason: "sku",
           skuMatches: ["SKU-001"],
+          diff: expect.objectContaining({
+            fields: expect.arrayContaining([
+              "productUpdatedAt",
+              "sizeType",
+              "tags",
+              "variants",
+            ]),
+          }),
+        }),
+      ]),
+    );
+    expect(
+      result.edits.find((item) => item.remoteProductId === "ls-sku")?.remote.variants[0]
+        ?.stock,
+    ).toBe(3);
+    expect(
+      result.edits.find((item) => item.remoteProductId === "ls-sku")?.diff.variantChanges,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sku: "SKU-001",
+          fields: expect.arrayContaining(["stock"]),
+        }),
+      ]),
+    );
+    expect(result.restores).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          websiteProductId: "website-archived-linked",
+          remoteProductId: "ls-import",
+          reason: "sku",
         }),
       ]),
     );
@@ -199,7 +433,121 @@ describe("LightspeedReconciliationSyncService", () => {
     );
   });
 
-  it("imports missing products and archives website-only products on apply", async () => {
+  it("hydrates remote products during preview so inventory matches the chunked scanner", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "ls-hydrate",
+          name: "Hydrated Product",
+          version: 501,
+          created_at: "2026-06-01T10:00:00.000Z",
+          updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "ls-hydrate-variant",
+              sku: "HYD-001",
+              name: "Hydrated Product",
+              inventory: [{ current_amount: 0 }],
+              variant_options: [{ name: "Size", value: "One Size" }],
+            },
+          ],
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 1,
+    });
+    getProductMock.mockImplementation((productId: string) =>
+      Promise.resolve(
+        productId !== "ls-hydrate"
+          ? null
+          : {
+              id: "ls-hydrate",
+              name: "Hydrated Product",
+              version: 501,
+              created_at: "2026-06-01T10:00:00.000Z",
+              updated_at: "2026-06-08T10:00:00.000Z",
+              variants: [
+                {
+                  id: "ls-hydrate-variant",
+                  sku: "HYD-001",
+                  name: "Hydrated Product",
+                  inventory: [{ current_amount: 1 }],
+                  variant_options: [{ name: "Size", value: "One Size" }],
+                },
+              ],
+            },
+      ),
+    );
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-hydrate",
+          name: "Hydrated Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "custom",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "variant-hydrate",
+              sku: "HYD-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "One Size", group_key: "size_custom" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([
+      {
+        id: "link-hydrate",
+        tenant_id: "tenant-1",
+        product_id: "website-hydrate",
+        variant_id: "variant-hydrate",
+        lightspeed_family_id: "ls-hydrate",
+        lightspeed_product_id: "ls-hydrate",
+        lightspeed_variant_id: "ls-hydrate-variant",
+        lightspeed_inventory_item_id: null,
+        external_sku: "HYD-001",
+        sync_state: "linked",
+        last_website_modified_at: null,
+        last_lightspeed_modified_at: null,
+        last_sync_direction: null,
+        tombstoned_at: null,
+        last_error: null,
+      },
+    ]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.preview({ tenantId: "tenant-1" });
+
+    expect(getProductMock).toHaveBeenCalledWith("ls-hydrate");
+    expect(result.editCount).toBe(0);
+    expect(result.noChangeCount).toBe(1);
+  });
+
+  it("restores archived products and archives website-only products on apply", async () => {
     const service = new LightspeedReconciliationSyncService({} as never);
 
     const result = await service.apply({ tenantId: "tenant-1" });
@@ -212,14 +560,21 @@ describe("LightspeedReconciliationSyncService", () => {
         lightspeedFamilyId: "ls-sku",
       }),
     );
+    expect(restoreProductMock).toHaveBeenCalledWith(
+      "website-archived-linked",
+      "tenant-1",
+    );
     expect(applyProductPayloadMock).toHaveBeenCalledTimes(2);
     expect(archiveProductMock).toHaveBeenCalledWith("website-archive", "tenant-1");
     expect(result).toEqual({
-      matchedCount: 2,
-      importedCount: 1,
+      noChangeCount: 1,
+      importedCount: 0,
+      editedCount: 1,
+      restoredCount: 1,
       archivedCount: 1,
       conflictCount: 1,
       failedCount: 0,
+      failureDetails: [],
     });
   });
 
@@ -235,6 +590,105 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result).toEqual({
       importedCount: 2,
       failedCount: 0,
+      failureDetails: [],
+    });
+  });
+
+  it("counts skipped edit sync results as failures with details", async () => {
+    applyProductPayloadMock.mockResolvedValueOnce({
+      status: "skipped",
+      reason: "stale_remote_write",
+    });
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+
+    const result = await service.applyEditChunk({
+      tenantId: "tenant-1",
+      edits: [
+        {
+          websiteProductId: "website-sku",
+          remoteProductId: "ls-sku",
+          reason: "sku",
+        },
+      ],
+    });
+
+    expect(result).toEqual({
+      editedCount: 0,
+      failedCount: 1,
+      failureDetails: [
+        {
+          operation: "edit",
+          websiteProductId: "website-sku",
+          remoteProductId: "ls-sku",
+          message: "Lightspeed inbound sync skipped this product.",
+          reason: "stale_remote_write",
+        },
+      ],
+    });
+  });
+
+  it("applies sku-matched edits for inactive website products", async () => {
+    getByIdMock.mockImplementation(
+      (productId: string, opts?: { includeInactive?: boolean }) =>
+        Promise.resolve(
+          productId !== "website-sku" || !opts?.includeInactive
+            ? null
+            : {
+                id: "website-sku",
+                name: "SKU Match Product",
+                brand: "Unknown",
+                model: null,
+                category: "sneakers",
+                condition: "new",
+                size_type: "shoe",
+                description: null,
+                is_active: false,
+                is_out_of_stock: false,
+                created_at: "2026-06-03T12:00:00.000Z",
+                product_created_at: "2026-06-03T12:00:00.000Z",
+                product_updated_at: "2026-06-03T12:00:00.000Z",
+                variants: [
+                  {
+                    id: "variant-sku",
+                    sku: "SKU-001",
+                    size_label: "One Size",
+                    sale_price_cents: 0,
+                    unit_cost_cents: 0,
+                    stock: 0,
+                    sort_order: 0,
+                  },
+                ],
+                images: [],
+                tags: [],
+              },
+        ),
+    );
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+
+    const result = await service.applyEditChunk({
+      tenantId: "tenant-1",
+      edits: [
+        {
+          websiteProductId: "website-sku",
+          remoteProductId: "ls-sku",
+          reason: "sku",
+        },
+      ],
+    });
+
+    expect(upsertLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: "website-sku",
+        variantId: "variant-sku",
+        externalSku: "SKU-001",
+      }),
+    );
+    expect(result).toEqual({
+      editedCount: 1,
+      failedCount: 0,
+      failureDetails: [],
     });
   });
 
@@ -251,25 +705,325 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result).toEqual({
       archivedCount: 2,
       failedCount: 0,
+      failureDetails: [],
     });
   });
 
   it("returns a preview scan chunk with cumulative counts", async () => {
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-linked",
+          name: "Linked Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "variant-linked",
+              sku: "LINK-001",
+              size_label: "9M / 10.5W",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "9M / 10.5W", group_key: "size_shoe" },
+          ],
+        },
+        {
+          id: "website-archive",
+          name: "Archive Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-02T10:00:00.000Z",
+          product_created_at: "2026-06-02T10:00:00.000Z",
+          product_updated_at: "2026-06-02T10:00:00.000Z",
+          variants: [{ id: "variant-archive", sku: "ARCHIVE-001" }],
+          images: [],
+          tags: [],
+        },
+        {
+          id: "website-sku",
+          name: "SKU Match Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-03T12:00:00.000Z",
+          product_created_at: "2026-06-03T12:00:00.000Z",
+          product_updated_at: "2026-06-03T12:00:00.000Z",
+          variants: [
+            {
+              id: "variant-sku",
+              sku: "SKU-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+        },
+        {
+          id: "website-conflict-a",
+          name: "Conflict A",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-04T13:00:00.000Z",
+          product_created_at: "2026-06-04T13:00:00.000Z",
+          product_updated_at: "2026-06-04T13:00:00.000Z",
+          variants: [
+            {
+              id: "variant-conflict-a",
+              sku: "CONFLICT-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+        },
+        {
+          id: "website-conflict-b",
+          name: "Conflict B",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-04T13:05:00.000Z",
+          product_created_at: "2026-06-04T13:05:00.000Z",
+          product_updated_at: "2026-06-04T13:05:00.000Z",
+          variants: [
+            {
+              id: "variant-conflict-b",
+              sku: "CONFLICT-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "website-archived-linked",
+          name: "Archived Linked Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-02T11:00:00.000Z",
+          product_created_at: "2026-06-02T11:00:00.000Z",
+          product_updated_at: "2026-06-02T11:00:00.000Z",
+          variants: [
+            {
+              id: "variant-archived-linked",
+              sku: "IMPORT-001",
+              size_label: "One Size",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [],
+          archived_at: "2026-06-01T00:00:00.000Z",
+        },
+      ]);
+
     const service = new LightspeedReconciliationSyncService({} as never);
 
     const result = await service.scanPreviewChunk({
       tenantId: "tenant-1",
-      page: 1,
+      after: null,
       pageSize: 2,
+      chunkIndex: 1,
     });
 
-    expect(listProductsMock).toHaveBeenCalledWith(1, 2);
+    expect(listProductsMock).toHaveBeenCalledWith({
+      after: null,
+      pageSize: 2,
+    });
     expect(result.processedCount).toBe(4);
-    expect(result.totalRemoteProducts).toBeNull();
+    expect(result.totalRemoteProducts).toBe(4);
     expect(result.hasNextPage).toBe(false);
-    expect(result.preview.matchedCount).toBe(2);
-    expect(result.preview.importCount).toBe(1);
+    expect(result.preview.noChangeCount).toBe(1);
+    expect(result.preview.importCount).toBe(0);
+    expect(result.preview.editCount).toBe(1);
+    expect(result.preview.restoreCount).toBe(1);
     expect(result.preview.conflictCount).toBe(1);
     expect(result.websiteCandidates).toHaveLength(5);
+  });
+
+  it("ignores child variant rows during preview scans", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "family-parent",
+          version: 201,
+          name: "Family Product",
+          has_variants: true,
+          variants: [
+            { id: "family-child-a", sku: "FAM-001", name: "Family Product" },
+            { id: "family-child-b", sku: "FAM-002", name: "Family Product" },
+          ],
+        },
+        {
+          id: "family-child-a",
+          version: 202,
+          name: "Family Product",
+          variant_parent_id: "family-parent",
+          sku: "FAM-001",
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 2,
+    });
+    listForReconciliationMock.mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.scanPreviewChunk({
+      tenantId: "tenant-1",
+      after: null,
+      pageSize: 50,
+      chunkIndex: 1,
+    });
+
+    expect(result.processedCount).toBe(1);
+    expect(result.preview.importCount).toBe(1);
+  });
+
+  it("diagnoses why a remote product classified as a no-change link match", async () => {
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-linked",
+          name: "Linked Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-01T10:00:00.000Z",
+          product_created_at: "2026-06-01T10:00:00.000Z",
+          product_updated_at: "2026-06-08T10:00:00.000Z",
+          variants: [
+            {
+              id: "variant-linked",
+              sku: "LINK-001",
+              size_label: "9M / 10.5W",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "9M / 10.5W", group_key: "size_shoe" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([
+      {
+        id: "link-1",
+        tenant_id: "tenant-1",
+        product_id: "website-linked",
+        variant_id: "variant-linked",
+        lightspeed_family_id: "ls-linked",
+        lightspeed_product_id: "ls-linked",
+        lightspeed_variant_id: "ls-linked-variant",
+        lightspeed_inventory_item_id: null,
+        external_sku: "LINK-001",
+        sync_state: "linked",
+        last_website_modified_at: null,
+        last_lightspeed_modified_at: null,
+        last_sync_direction: null,
+        tombstoned_at: null,
+        last_error: null,
+      },
+    ]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+
+    const result = await service.diagnoseRemoteProduct({
+      tenantId: "tenant-1",
+      remoteProductId: "ls-linked",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        remoteProductId: "ls-linked",
+        classification: "no_change",
+        matchReason: "link",
+        linkedActiveWebsiteProductIds: ["website-linked"],
+        linkedArchivedWebsiteProductIds: [],
+        candidateActiveWebsiteProductIds: [],
+        candidateArchivedWebsiteProductIds: [],
+        skuMatches: [],
+      }),
+    );
   });
 });
