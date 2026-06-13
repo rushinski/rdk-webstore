@@ -46,7 +46,10 @@ export function ModalPortal({
     >
       <div
         className="absolute inset-0 bg-black/80"
-        onClick={(e) => { e.stopPropagation(); onClose(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         aria-hidden="true"
       />
       <div className="absolute inset-0 flex items-center justify-center p-4">

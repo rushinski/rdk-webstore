@@ -38,29 +38,33 @@ const syncBodySchema = z.union([
   z
     .object({
       action: z.literal("apply_edit_chunk"),
-      edits: z.array(
-        z
-          .object({
-            websiteProductId: z.string().uuid(),
-            remoteProductId: z.string(),
-            reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
-          })
-          .strict(),
-      ).min(1),
+      edits: z
+        .array(
+          z
+            .object({
+              websiteProductId: z.string().uuid(),
+              remoteProductId: z.string(),
+              reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
+            })
+            .strict(),
+        )
+        .min(1),
     })
     .strict(),
   z
     .object({
       action: z.literal("apply_restore_chunk"),
-      restores: z.array(
-        z
-          .object({
-            websiteProductId: z.string().uuid(),
-            remoteProductId: z.string(),
-            reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
-          })
-          .strict(),
-      ).min(1),
+      restores: z
+        .array(
+          z
+            .object({
+              websiteProductId: z.string().uuid(),
+              remoteProductId: z.string(),
+              reason: z.union([z.literal("link"), z.literal("sku")]).optional(),
+            })
+            .strict(),
+        )
+        .min(1),
     })
     .strict(),
   z
@@ -125,7 +129,8 @@ export async function POST(request: Request) {
             tenantId,
             after: "after" in parsed.data ? parsed.data.after : null,
             pageSize: parsed.data.pageSize,
-            chunkIndex: "chunkIndex" in parsed.data ? parsed.data.chunkIndex : parsed.data.page,
+            chunkIndex:
+              "chunkIndex" in parsed.data ? parsed.data.chunkIndex : parsed.data.page,
           })
         : parsed.data.action === "apply"
           ? await service.apply({ tenantId })
@@ -139,15 +144,15 @@ export async function POST(request: Request) {
                   tenantId,
                   edits: parsed.data.edits,
                 })
-            : parsed.data.action === "apply_restore_chunk"
-              ? await service.applyRestoreChunk({
-                  tenantId,
-                  restores: parsed.data.restores,
-                })
-            : await service.applyArchiveChunk({
-                tenantId,
-                websiteProductIds: parsed.data.websiteProductIds,
-              });
+              : parsed.data.action === "apply_restore_chunk"
+                ? await service.applyRestoreChunk({
+                    tenantId,
+                    restores: parsed.data.restores,
+                  })
+                : await service.applyArchiveChunk({
+                    tenantId,
+                    websiteProductIds: parsed.data.websiteProductIds,
+                  });
 
     return NextResponse.json(
       { result, requestId },

@@ -20,7 +20,9 @@ async function main() {
     "@/services/lightspeed-reconciliation-sync-service"
   );
   const { ProductRepository } = await import("@/repositories/product-repo");
-  const { LightspeedLinksRepository } = await import("@/repositories/lightspeed-links-repo");
+  const { LightspeedLinksRepository } = await import(
+    "@/repositories/lightspeed-links-repo"
+  );
 
   const supabase = createSupabaseAdminClient();
   const reconciliationService = new LightspeedReconciliationSyncService(supabase);
@@ -32,8 +34,17 @@ async function main() {
       process.env.LIGHTSPEED_AUDIT_ACCESS_TOKEN?.trim() || env.LIGHTSPEED_ACCESS_TOKEN,
   });
 
-  const [variants, linksBySku, linksByRemote, remote, diagnosis, preview, activeProducts, archivedProducts, allLinks] =
-    await Promise.all([
+  const [
+    variants,
+    linksBySku,
+    linksByRemote,
+    remote,
+    diagnosis,
+    preview,
+    activeProducts,
+    archivedProducts,
+    allLinks,
+  ] = await Promise.all([
     supabase
       .from("product_variants")
       .select(
@@ -60,16 +71,18 @@ async function main() {
     linksRepo.listByTenant(tenantId),
   ]);
 
-  const importMatch = preview.imports.find((item) => item.remoteProductId === remoteId) ?? null;
+  const importMatch =
+    preview.imports.find((item) => item.remoteProductId === remoteId) ?? null;
   const noChangeMatch =
     preview.noChanges.find((item) => item.remoteProductId === remoteId) ?? null;
-  const editMatch = preview.edits.find((item) => item.remoteProductId === remoteId) ?? null;
+  const editMatch =
+    preview.edits.find((item) => item.remoteProductId === remoteId) ?? null;
   const restoreMatch =
     preview.restores.find((item) => item.remoteProductId === remoteId) ?? null;
   const conflictMatch =
     preview.conflicts.find((item) => item.remoteProductId === remoteId) ?? null;
 
-  console.log(
+  console.info(
     JSON.stringify(
       {
         variantsError: variants.error?.message ?? null,
@@ -83,14 +96,14 @@ async function main() {
         activeContainsProduct: activeProducts.some(
           (product) =>
             product.id ===
-            ((variants.data?.[0] as { product?: { id?: string } } | undefined)?.product?.id ??
-              null),
+            ((variants.data?.[0] as { product?: { id?: string } } | undefined)?.product
+              ?.id ?? null),
         ),
         archivedContainsProduct: archivedProducts.some(
           (product) =>
             product.id ===
-            ((variants.data?.[0] as { product?: { id?: string } } | undefined)?.product?.id ??
-              null),
+            ((variants.data?.[0] as { product?: { id?: string } } | undefined)?.product
+              ?.id ?? null),
         ),
         activeProductCount: activeProducts.length,
         archivedProductCount: archivedProducts.length,
@@ -117,7 +130,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  const message = error instanceof Error ? error.stack ?? error.message : String(error);
+  const message = error instanceof Error ? (error.stack ?? error.message) : String(error);
   console.error(message);
   process.exitCode = 1;
 });

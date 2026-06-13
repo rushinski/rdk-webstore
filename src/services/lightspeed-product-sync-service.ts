@@ -448,8 +448,8 @@ export class LightspeedProductSyncService {
     return (await client.createVariantAttribute(name)).id;
   }
 
-  private toLightspeedConditionVariantValue(condition: "new" | "used") {
-    return condition === "used" ? "Preowned" : "New";
+  private toLightspeedConditionVariantValue(condition: string) {
+    return condition.trim().toLowerCase() === "used" ? "Preowned" : "New";
   }
 
   private buildUpdateCommonPayload(

@@ -17,26 +17,28 @@ describe("LightspeedClient", () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          includes: null,
-          data: {
-            id: "ls-xseries-1",
-            name: "Jordan 4",
-            has_inventory: true,
-          },
-        }),
+        json: () =>
+          Promise.resolve({
+            includes: null,
+            data: {
+              id: "ls-xseries-1",
+              name: "Jordan 4",
+              has_inventory: true,
+            },
+          }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
         // X-Series returns a raw array, not { data: [...] }
-        json: async () => [
-          {
-            id: "inv-1",
-            outlet_id: "outlet-1",
-            product_id: "ls-xseries-1",
-            current_inventory_level: 3,
-          },
-        ],
+        json: () =>
+          Promise.resolve([
+            {
+              id: "inv-1",
+              outlet_id: "outlet-1",
+              product_id: "ls-xseries-1",
+              current_inventory_level: 3,
+            },
+          ]),
       } as Response);
 
     const client = new LightspeedClient({
@@ -57,39 +59,41 @@ describe("LightspeedClient", () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          data: {
-            id: "ls-family-1",
-            name: "Jordan 4 Delta",
-            variants: [
-              {
-                id: "ls-child-1",
-                sku: "N-JDN-DEL-11-01",
-              },
-              {
-                id: "ls-child-2",
-                sku: "N-JDN-DEL-12-02",
-              },
-            ],
-          },
-        }),
+        json: () =>
+          Promise.resolve({
+            data: {
+              id: "ls-family-1",
+              name: "Jordan 4 Delta",
+              variants: [
+                {
+                  id: "ls-child-1",
+                  sku: "N-JDN-DEL-11-01",
+                },
+                {
+                  id: "ls-child-2",
+                  sku: "N-JDN-DEL-12-02",
+                },
+              ],
+            },
+          }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({
-          data: [
-            {
-              product_id: "ls-child-1",
-              outlet_id: "outlet-1",
-              count: 2,
-            },
-            {
-              product_id: "ls-child-2",
-              outlet_id: "outlet-1",
-              count: 5,
-            },
-          ],
-        }),
+        json: () =>
+          Promise.resolve({
+            data: [
+              {
+                product_id: "ls-child-1",
+                outlet_id: "outlet-1",
+                count: 2,
+              },
+              {
+                product_id: "ls-child-2",
+                outlet_id: "outlet-1",
+                count: 5,
+              },
+            ],
+          }),
       } as Response);
 
     const client = new LightspeedClient({

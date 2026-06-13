@@ -92,7 +92,10 @@ function ProductPreviewPanel({
     product.imageUrls[0] ??
     "/images/rdk-logo.png";
   const changedVariantMap = new Map(
-    (diff?.variantChanges ?? []).map((variantChange) => [variantChange.sku, variantChange]),
+    (diff?.variantChanges ?? []).map((variantChange) => [
+      variantChange.sku,
+      variantChange,
+    ]),
   );
   const hasFieldChange = (field: string) => Boolean(diff?.fields.includes(field));
 
@@ -151,22 +154,34 @@ function ProductPreviewPanel({
                 <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                   Name
                 </div>
-                <div className={`text-base font-semibold ${hasFieldChange("title") ? "text-blue-300" : "text-white"}`}>
+                <div
+                  className={`text-base font-semibold ${hasFieldChange("title") ? "text-blue-300" : "text-white"}`}
+                >
                   {product.title}
                 </div>
               </div>
-              {[ 
+              {[
                 ["Brand", product.brand, hasFieldChange("brand")],
                 ["Model", product.model || "-", hasFieldChange("model")],
                 ["Category", product.category || "-", hasFieldChange("category")],
                 ["Condition", product.condition || "-", hasFieldChange("condition")],
-                ["Status", product.isActive ? (product.isOutOfStock ? "Out of stock" : "Active") : "Inactive", hasFieldChange("isActive") || hasFieldChange("isOutOfStock")],
+                [
+                  "Status",
+                  product.isActive
+                    ? product.isOutOfStock
+                      ? "Out of stock"
+                      : "Active"
+                    : "Inactive",
+                  hasFieldChange("isActive") || hasFieldChange("isOutOfStock"),
+                ],
               ].map(([labelText, value, changed]) => (
                 <div key={String(labelText)}>
                   <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                     {labelText}
                   </div>
-                  <div className={`text-sm font-medium ${changed ? "text-blue-300" : "text-zinc-200"}`}>
+                  <div
+                    className={`text-sm font-medium ${changed ? "text-blue-300" : "text-zinc-200"}`}
+                  >
                     {value}
                   </div>
                 </div>
@@ -175,7 +190,9 @@ function ProductPreviewPanel({
                 <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                   Description
                 </div>
-                <div className={`mt-1 whitespace-pre-wrap text-sm ${hasFieldChange("description") ? "text-blue-300" : "text-zinc-300"}`}>
+                <div
+                  className={`mt-1 whitespace-pre-wrap text-sm ${hasFieldChange("description") ? "text-blue-300" : "text-zinc-300"}`}
+                >
                   {product.description?.trim() || "-"}
                 </div>
               </div>
@@ -235,18 +252,29 @@ function ProductPreviewPanel({
                         : "";
 
                 return (
-                  <tr key={variant.sku} className={`border-t border-zinc-800 ${rowClass}`}>
+                  <tr
+                    key={variant.sku}
+                    className={`border-t border-zinc-800 ${rowClass}`}
+                  >
                     <td className="px-4 py-2 font-mono text-zinc-200">{variant.sku}</td>
-                    <td className={`px-4 py-2 ${variantChange?.fields.includes("sizeLabel") ? "text-blue-300" : "text-zinc-300"}`}>
+                    <td
+                      className={`px-4 py-2 ${variantChange?.fields.includes("sizeLabel") ? "text-blue-300" : "text-zinc-300"}`}
+                    >
                       {variant.sizeLabel}
                     </td>
-                    <td className={`px-4 py-2 ${variantChange?.fields.includes("unitCostCents") ? "text-blue-300" : "text-zinc-300"}`}>
+                    <td
+                      className={`px-4 py-2 ${variantChange?.fields.includes("unitCostCents") ? "text-blue-300" : "text-zinc-300"}`}
+                    >
                       {formatMoney(variant.unitCostCents)}
                     </td>
-                    <td className={`px-4 py-2 ${variantChange?.fields.includes("salePriceCents") ? "text-blue-300" : "text-zinc-300"}`}>
+                    <td
+                      className={`px-4 py-2 ${variantChange?.fields.includes("salePriceCents") ? "text-blue-300" : "text-zinc-300"}`}
+                    >
                       {formatMoney(variant.salePriceCents)}
                     </td>
-                    <td className={`px-4 py-2 ${variantChange?.fields.includes("stock") ? "text-blue-300" : "text-zinc-300"}`}>
+                    <td
+                      className={`px-4 py-2 ${variantChange?.fields.includes("stock") ? "text-blue-300" : "text-zinc-300"}`}
+                    >
                       {variant.stock}
                     </td>
                   </tr>
@@ -316,7 +344,9 @@ export function SyncProductPreviewModal({
       >
         <div className="flex flex-shrink-0 items-start justify-between border-b border-zinc-800 px-5 py-4">
           <div className="min-w-0 pr-4">
-            <h2 className="truncate text-lg font-bold text-white">Sync Product Details</h2>
+            <h2 className="truncate text-lg font-bold text-white">
+              Sync Product Details
+            </h2>
             <div className="mt-1 text-sm text-zinc-400">{subtitle}</div>
             {isRestoreFromArchive && (
               <div className="mt-2 inline-flex items-center gap-1.5 rounded border border-sky-800/60 bg-sky-950/40 px-2 py-1 text-xs font-medium text-sky-300">
@@ -337,20 +367,40 @@ export function SyncProductPreviewModal({
 
         {isSideBySide && (
           <div className="flex-shrink-0 border-b border-zinc-800 bg-zinc-900/40 px-5 py-2 text-xs text-zinc-400">
-            <span className="font-semibold text-zinc-200">Website (left)</span> shows the current state. <span className="font-semibold text-zinc-200">Lightspeed (right)</span> shows what will be applied. Fields highlighted in <span className="font-semibold text-blue-300">blue</span> will change.
+            <span className="font-semibold text-zinc-200">Website (left)</span> shows the
+            current state.{" "}
+            <span className="font-semibold text-zinc-200">Lightspeed (right)</span> shows
+            what will be applied. Fields highlighted in{" "}
+            <span className="font-semibold text-blue-300">blue</span> will change.
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto p-5">
           {isSideBySide ? (
             <div className="grid gap-5 lg:grid-cols-2">
-              <ProductPreviewPanel label="Website (Current)" product={websiteProduct} diff={diff} />
-              <ProductPreviewPanel label="Lightspeed (Incoming)" product={remoteProduct} diff={diff} />
+              <ProductPreviewPanel
+                label="Website (Current)"
+                product={websiteProduct}
+                diff={diff}
+              />
+              <ProductPreviewPanel
+                label="Lightspeed (Incoming)"
+                product={remoteProduct}
+                diff={diff}
+              />
             </div>
           ) : mode === "archive" ? (
-            <ProductPreviewPanel label="Website (Current)" product={websiteProduct} diff={null} />
+            <ProductPreviewPanel
+              label="Website (Current)"
+              product={websiteProduct}
+              diff={null}
+            />
           ) : (
-            <ProductPreviewPanel label={isRestoreFromArchive ? `Lightspeed (${title})` : "Lightspeed"} product={remoteProduct} diff={null} />
+            <ProductPreviewPanel
+              label={isRestoreFromArchive ? `Lightspeed (${title})` : "Lightspeed"}
+              product={remoteProduct}
+              diff={null}
+            />
           )}
         </div>
       </div>
