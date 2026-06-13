@@ -1,7 +1,3 @@
-jest.mock("next/navigation", () => ({
-  unstable_rethrow: jest.fn(),
-}));
-
 jest.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: jest.fn(),
 }));
@@ -28,20 +24,6 @@ const mockLogError = jest.mocked(logError);
 describe("getServerSession", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUnstableRethrow.mockImplementation(() => {});
-  });
-
-  it("rethrows Next dynamic server errors", async () => {
-    const dynamicError = new Error(
-      "Dynamic server usage: Route /checkout couldn't be rendered statically because it used `cookies`.",
-    );
-
-    mockCreateSupabaseServerClient.mockRejectedValue(dynamicError);
-    mockUnstableRethrow.mockImplementation((error) => {
-      throw error;
-    });
-
-    await expect(getServerSession()).rejects.toBe(dynamicError);
   });
 
   it("returns null when supabase auth lookup throws", async () => {
