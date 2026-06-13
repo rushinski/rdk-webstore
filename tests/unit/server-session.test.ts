@@ -6,6 +6,13 @@ jest.mock("@/repositories/profile-repo", () => ({
   ProfileRepository: jest.fn(),
 }));
 
+jest.mock("@/lib/utils/log", () => ({
+  logError: jest.fn(),
+}));
+
+import { DynamicServerError } from "next/dist/client/components/hooks-server-context";
+
+import { getServerSession } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import { ProfileRepository } from "@/repositories/profile-repo";
