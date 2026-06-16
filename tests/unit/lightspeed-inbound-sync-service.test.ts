@@ -280,6 +280,70 @@ describe("LightspeedInboundSyncService", () => {
     );
   });
 
+  it("does not delete sibling website variants when Lightspeed sends a single child variant update", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue({
+      id: "link-child-1",
+      product_id: "product-9",
+      variant_id: "variant-1",
+      lightspeed_product_id: "ls-family-9",
+      lightspeed_family_id: "ls-family-9",
+      external_sku: "SKU-1",
+      last_website_modified_at: null,
+    });
+    getByExternalSkuMock.mockResolvedValue(null);
+    listByProductIdMock.mockResolvedValue([
+      {
+        id: "link-child-1",
+        product_id: "product-9",
+        variant_id: "variant-1",
+        lightspeed_product_id: "ls-family-9",
+        lightspeed_family_id: "ls-family-9",
+        external_sku: "SKU-1",
+      },
+      {
+        id: "link-child-2",
+        product_id: "product-9",
+        variant_id: "variant-2",
+        lightspeed_product_id: "ls-family-9",
+        lightspeed_family_id: "ls-family-9",
+        external_sku: "SKU-2",
+      },
+    ]);
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-child-1",
+        variant_parent_id: "ls-family-9",
+        name: "Jordan 4 Delta",
+        sku: "SKU-1",
+        product_category: "Sneakers",
+        variant_option_one_name: "Size",
+        variant_option_one_value: "11.5M / 13W",
+        inventory_Main_Outlet: 1,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-05T20:30:00.000Z",
+    });
+
+    expect(deleteVariantMock).not.toHaveBeenCalled();
+    expect(updateLinkByIdMock).not.toHaveBeenCalledWith(
+      "link-child-2",
+      expect.objectContaining({
+        syncState: "deleted",
+      }),
+    );
+    expect(upsertLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lightspeedFamilyId: "ls-family-9",
+        lightspeedProductId: "ls-family-9",
+        lightspeedVariantId: "ls-child-1",
+      }),
+    );
+  });
+
   it("hard deletes linked website records when Lightspeed deletes the family", async () => {
     getByLightspeedProductIdMock.mockResolvedValue([
       {

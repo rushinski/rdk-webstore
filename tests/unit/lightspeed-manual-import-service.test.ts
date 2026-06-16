@@ -84,4 +84,147 @@ describe("LightspeedManualImportService", () => {
       skipped: 1,
     });
   });
+
+  it("prefers the fullest variant family payload when getProduct returns an incomplete family", async () => {
+    getConnectionByTenantMock.mockResolvedValue({
+      syncEnabled: true,
+      domainPrefix: "demo-store",
+      accessToken: "token",
+    });
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "ls-family-9",
+          updated_at: "2026-06-15T10:00:00.000Z",
+          variants: Array.from({ length: 9 }, (_, index) => ({
+            id: `ls-child-${index + 1}`,
+            sku: `SKU-${index + 1}`,
+          })),
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 1,
+    });
+    getProductMock.mockResolvedValueOnce({
+      id: "ls-family-9",
+      updated_at: "2026-06-15T10:00:00.000Z",
+      variants: [{ id: "ls-child-1", sku: "SKU-1" }],
+    });
+    applyProductPayloadMock.mockResolvedValueOnce({
+      status: "applied",
+      productId: "product-9",
+    });
+
+    const service = new LightspeedManualImportService({} as never);
+
+    await service.importProducts({ tenantId: "tenant-1" });
+
+    expect(applyProductPayloadMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          id: "ls-family-9",
+          variants: expect.arrayContaining([
+            expect.objectContaining({ id: "ls-child-1", sku: "SKU-1" }),
+            expect.objectContaining({ id: "ls-child-9", sku: "SKU-9" }),
+          ]),
+        }),
+      }),
+    );
+    expect(
+      (
+        applyProductPayloadMock.mock.calls[0]?.[0] as {
+          payload?: { variants?: unknown[] };
+        }
+      ).payload?.variants,
+    ).toHaveLength(9);
+  });
+
+  it("assembles family children from separate Lightspeed rows when the parent payload is not expanded", async () => {
+    getConnectionByTenantMock.mockResolvedValue({
+      syncEnabled: true,
+      domainPrefix: "demo-store",
+      accessToken: "token",
+    });
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "ls-family-6",
+          updated_at: "2026-06-16T10:00:00.000Z",
+          has_variants: true,
+        },
+        {
+          id: "ls-child-1",
+          variant_parent_id: "ls-family-6",
+          sku: "SKU-1",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "28",
+        },
+        {
+          id: "ls-child-2",
+          variant_parent_id: "ls-family-6",
+          sku: "SKU-2",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "30",
+        },
+        {
+          id: "ls-child-3",
+          variant_parent_id: "ls-family-6",
+          sku: "SKU-3",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "32",
+        },
+        {
+          id: "ls-child-4",
+          variant_parent_id: "ls-family-6",
+          sku: "SKU-4",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "34",
+        },
+        {
+          id: "ls-child-5",
+          variant_parent_id: "ls-family-6",
+          sku: "SKU-5",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "36",
+        },
+        {
+          id: "ls-child-6",
+          variant_parent_id: "ls-family-6",
+          sku: "SKU-6",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "38",
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 7,
+    });
+    getProductMock.mockResolvedValueOnce({
+      id: "ls-family-6",
+      updated_at: "2026-06-16T10:00:00.000Z",
+      has_variants: true,
+      variants: [{ id: "ls-child-1", sku: "SKU-1" }],
+    });
+    applyProductPayloadMock.mockResolvedValueOnce({
+      status: "applied",
+      productId: "product-6",
+    });
+
+    const service = new LightspeedManualImportService({} as never);
+
+    await service.importProducts({ tenantId: "tenant-1" });
+
+    expect(
+      (
+        applyProductPayloadMock.mock.calls[0]?.[0] as {
+          payload?: { variants?: Array<{ id: string }> };
+        }
+      ).payload?.variants,
+    ).toHaveLength(6);
+  });
 });

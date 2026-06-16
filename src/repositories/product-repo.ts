@@ -316,7 +316,7 @@ export class ProductRepository {
       ? null
       : await this.listProductIdsForSizes(filters);
     if (Array.isArray(sizeProductIds) && sizeProductIds.length === 0) {
-      return { products: [], total: 0, page, limit };
+      return { products: [], total: 0, skuTotal: 0, inventoryUnitTotal: 0, page, limit };
     }
 
     // IMPORTANT:
@@ -325,6 +325,8 @@ export class ProductRepository {
     const includeOutOfStock = Boolean(filters.includeOutOfStock);
 
     let total = 0;
+    let skuTotal = 0;
+    let inventoryUnitTotal = 0;
     let ids: string[] = [];
 
     if (isPriceSort) {
@@ -337,6 +339,8 @@ export class ProductRepository {
       );
       ids = result.ids;
       total = result.total;
+      skuTotal = result.total;
+      inventoryUnitTotal = 0;
     } else {
       // Build the base query with all filters
       let baseQuery = this.supabase.from("products").select("id", { count: "exact" });
@@ -355,7 +359,9 @@ export class ProductRepository {
       if (filters.stockStatus === "out_of_stock") {
         baseQuery = baseQuery.eq("is_out_of_stock", true);
       } else if (filters.stockStatus === "in_stock") {
-        baseQuery = baseQuery.eq("is_out_of_stock", false);
+        if (searchMode !== "inventory") {
+          baseQuery = baseQuery.eq("is_out_of_stock", false);
+        }
       } else if (!includeOutOfStock) {
         // default (storefront-safe)
         baseQuery = baseQuery.eq("is_out_of_stock", false);
@@ -421,9 +427,27 @@ export class ProductRepository {
 
       ids = (data ?? []).map((row: { id: string }) => row.id);
       total = count ?? 0;
+      skuTotal =
+        searchMode === "inventory"
+          ? await this.countDistinctInventorySkus({
+              filters,
+              archivedStatus,
+              includeUnpublished,
+              nowIso,
+            })
+          : total;
+      inventoryUnitTotal =
+        searchMode === "inventory"
+          ? await this.countTotalInventoryUnits({
+              filters,
+              archivedStatus,
+              includeUnpublished,
+              nowIso,
+            })
+          : 0;
     }
     if (ids.length === 0) {
-      return { products: [], total, page, limit };
+      return { products: [], total, skuTotal, inventoryUnitTotal, page, limit };
     }
 
     let detailQuery = this.supabase
@@ -442,7 +466,9 @@ export class ProductRepository {
     if (filters.stockStatus === "out_of_stock") {
       detailQuery = detailQuery.eq("is_out_of_stock", true);
     } else if (filters.stockStatus === "in_stock") {
-      detailQuery = detailQuery.eq("is_out_of_stock", false);
+      if (searchMode !== "inventory") {
+        detailQuery = detailQuery.eq("is_out_of_stock", false);
+      }
     } else if (!includeOutOfStock) {
       detailQuery = detailQuery.eq("is_out_of_stock", false);
     }
@@ -484,9 +510,187 @@ export class ProductRepository {
     return {
       products,
       total,
+      skuTotal,
+      inventoryUnitTotal,
       page,
       limit,
     };
+  }
+
+  private async countDistinctInventorySkus(input: {
+    filters: ProductFilters;
+    archivedStatus: ProductFilters["archivedStatus"];
+    includeUnpublished: boolean;
+    nowIso: string;
+  }) {
+    const { filters, archivedStatus, includeUnpublished, nowIso } = input;
+    const searchFields = this.inventorySearchFields;
+    let query = this.supabase
+      .from("product_variants")
+      .select(
+        "sku, product:products!inner(id, brand, name, model, category, condition, tenant_id, is_active, is_out_of_stock, archived_at, go_live_at)",
+      )
+      .eq("product.is_active", true);
+
+    if (!includeUnpublished) {
+      query = query.lte("product.go_live_at", nowIso);
+    }
+
+    if (filters.tenantId) {
+      query = query.eq("product.tenant_id", filters.tenantId);
+    }
+
+    if (archivedStatus === "archived") {
+      query = query.not("product.archived_at", "is", null);
+    } else if (archivedStatus !== "all") {
+      query = query.is("product.archived_at", null);
+    }
+
+    const shouldFilterOutOfStockProducts =
+      filters.searchMode !== "inventory" &&
+      (filters.stockStatus === "out_of_stock"
+        ? false
+        : filters.stockStatus === "in_stock"
+          ? true
+          : !Boolean(filters.includeOutOfStock));
+
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("product.is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
+      if (filters.searchMode !== "inventory") {
+        query = query.eq("product.is_out_of_stock", false);
+      }
+    } else if (shouldFilterOutOfStockProducts) {
+      query = query.eq("product.is_out_of_stock", false);
+    }
+
+    query = this.applyTextSearch(query, filters.q, searchFields, {
+      foreignTable: "product",
+    });
+    if (filters.q?.trim()) {
+      query = query.or(`sku.ilike.%${filters.q.trim().replace(/[(),]/g, " ")}%`);
+    }
+
+    if (filters.category?.length) {
+      query = query.in("product.category", filters.category);
+    }
+    if (filters.brand?.length) {
+      query = query.in("product.brand", filters.brand);
+    }
+    if (filters.model?.length) {
+      query = query.in("product.model", filters.model);
+    }
+    if (filters.condition?.length) {
+      query = query.in("product.condition", filters.condition);
+    }
+
+    const sizeProductIds = await this.listProductIdsForSizes(filters);
+    if (Array.isArray(sizeProductIds)) {
+      if (sizeProductIds.length === 0) {
+        return 0;
+      }
+      query = query.in("product.id", sizeProductIds);
+    }
+
+    const { data, error } = await query.limit(20000);
+    if (error) {
+      throw error;
+    }
+
+    return new Set(
+      (data ?? [])
+        .map((row) => {
+          const record = row as { sku?: string | null };
+          return record.sku?.trim() ?? null;
+        })
+        .filter((sku): sku is string => Boolean(sku)),
+    ).size;
+  }
+
+  private async countTotalInventoryUnits(input: {
+    filters: ProductFilters;
+    archivedStatus: ProductFilters["archivedStatus"];
+    includeUnpublished: boolean;
+    nowIso: string;
+  }) {
+    const { filters, archivedStatus, includeUnpublished, nowIso } = input;
+    const searchFields = this.inventorySearchFields;
+    let query = this.supabase
+      .from("product_variants")
+      .select(
+        "stock, product:products!inner(id, brand, name, model, category, condition, tenant_id, is_active, is_out_of_stock, archived_at, go_live_at)",
+      )
+      .eq("product.is_active", true);
+
+    if (!includeUnpublished) {
+      query = query.lte("product.go_live_at", nowIso);
+    }
+
+    if (filters.tenantId) {
+      query = query.eq("product.tenant_id", filters.tenantId);
+    }
+
+    if (archivedStatus === "archived") {
+      query = query.not("product.archived_at", "is", null);
+    } else if (archivedStatus !== "all") {
+      query = query.is("product.archived_at", null);
+    }
+
+    const shouldFilterOutOfStockProducts =
+      filters.searchMode !== "inventory" &&
+      (filters.stockStatus === "out_of_stock"
+        ? false
+        : filters.stockStatus === "in_stock"
+          ? true
+          : !Boolean(filters.includeOutOfStock));
+
+    if (filters.stockStatus === "out_of_stock") {
+      query = query.eq("product.is_out_of_stock", true);
+    } else if (filters.stockStatus === "in_stock") {
+      if (filters.searchMode !== "inventory") {
+        query = query.eq("product.is_out_of_stock", false);
+      }
+    } else if (shouldFilterOutOfStockProducts) {
+      query = query.eq("product.is_out_of_stock", false);
+    }
+
+    query = this.applyTextSearch(query, filters.q, searchFields, {
+      foreignTable: "product",
+    });
+    if (filters.q?.trim()) {
+      query = query.or(`sku.ilike.%${filters.q.trim().replace(/[(),]/g, " ")}%`);
+    }
+
+    if (filters.category?.length) {
+      query = query.in("product.category", filters.category);
+    }
+    if (filters.brand?.length) {
+      query = query.in("product.brand", filters.brand);
+    }
+    if (filters.model?.length) {
+      query = query.in("product.model", filters.model);
+    }
+    if (filters.condition?.length) {
+      query = query.in("product.condition", filters.condition);
+    }
+
+    const sizeProductIds = await this.listProductIdsForSizes(filters);
+    if (Array.isArray(sizeProductIds)) {
+      if (sizeProductIds.length === 0) {
+        return 0;
+      }
+      query = query.in("product.id", sizeProductIds);
+    }
+
+    const { data, error } = await query.limit(20000);
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? []).reduce((sum, row) => {
+      const record = row as { stock?: number | null };
+      return sum + Number(record.stock ?? 0);
+    }, 0);
   }
 
   async listIds(filters: ProductFilters = {}): Promise<string[]> {
@@ -513,7 +717,9 @@ export class ProductRepository {
     if (filters.stockStatus === "out_of_stock") {
       query = query.eq("is_out_of_stock", true);
     } else if (filters.stockStatus === "in_stock") {
-      query = query.eq("is_out_of_stock", false);
+      if (filters.searchMode !== "inventory") {
+        query = query.eq("is_out_of_stock", false);
+      }
     } else if (!includeOutOfStock) {
       query = query.eq("is_out_of_stock", false);
     }

@@ -213,14 +213,9 @@ export class LightspeedReconciliationSyncService {
         this.linksRepo.listByTenant(input.tenantId),
       ]);
 
-    const hydratedRemoteProducts = await Promise.all(
-      remoteProducts.map(async (product) => {
-        try {
-          return (await client.getProduct(product.id)) ?? product;
-        } catch {
-          return product;
-        }
-      }),
+    const hydratedRemoteProducts = await this.hydrateRemoteFamilies(
+      client,
+      remoteProducts,
     );
 
     const classification = await this.classifyRemoteProducts({
@@ -278,15 +273,10 @@ export class LightspeedReconciliationSyncService {
         this.linksRepo.listByTenant(input.tenantId),
       ]);
 
-    const topLevelProducts = this.getTopLevelRemoteProducts(pageResult.products);
-    const hydratedRemoteProducts = await Promise.all(
-      topLevelProducts.map(async (product) => {
-        try {
-          return (await client.getProduct(product.id)) ?? product;
-        } catch {
-          return product;
-        }
-      }),
+    const familyProducts = this.buildRemoteFamilies(pageResult.products);
+    const hydratedRemoteProducts = await this.hydrateRemoteFamilies(
+      client,
+      familyProducts,
     );
 
     const classification = await this.classifyRemoteProducts({
@@ -334,9 +324,12 @@ export class LightspeedReconciliationSyncService {
     remoteProductId: string;
   }): Promise<LightspeedReconciliationDiagnosis> {
     const client = await this.getClient(input.tenantId);
+    const resolvedRemoteProduct = await this.resolveRemoteFamiliesByIds(client, [
+      input.remoteProductId,
+    ]);
     const [remoteProduct, activeWebsiteProducts, archivedWebsiteProducts, links] =
       await Promise.all([
-        client.getProduct(input.remoteProductId),
+        Promise.resolve(resolvedRemoteProduct.get(input.remoteProductId) ?? null),
         this.productRepo.listForReconciliation(input.tenantId, "active"),
         this.productRepo.listForReconciliation(input.tenantId, "archived"),
         this.linksRepo.listByTenant(input.tenantId),
@@ -503,8 +496,13 @@ export class LightspeedReconciliationSyncService {
 
     for (const match of preview.edits.filter((item) => item.reason === "sku")) {
       try {
-        const remoteProduct = await this.getClient(input.tenantId).then((client) =>
-          client.getProduct(match.remoteProductId),
+        const remoteProduct = await this.getClient(input.tenantId).then(
+          async (client) => {
+            const families = await this.resolveRemoteFamiliesByIds(client, [
+              match.remoteProductId,
+            ]);
+            return families.get(match.remoteProductId) ?? null;
+          },
         );
         if (!remoteProduct) {
           failedCount += 1;
@@ -605,6 +603,10 @@ export class LightspeedReconciliationSyncService {
     remoteProductIds: string[];
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const remoteProductsById = await this.resolveRemoteFamiliesByIds(
+      client,
+      input.remoteProductIds,
+    );
     const archivedWebsiteProducts =
       (await this.productRepo.listForReconciliation(input.tenantId, "archived")) ?? [];
     const archivedWebsiteProductById = new Map(
@@ -620,7 +622,7 @@ export class LightspeedReconciliationSyncService {
 
     for (const remoteProductId of input.remoteProductIds) {
       try {
-        const remoteProduct = await client.getProduct(remoteProductId);
+        const remoteProduct = remoteProductsById.get(remoteProductId) ?? null;
         if (!remoteProduct) {
           failedCount += 1;
           failureDetails.push({
@@ -734,13 +736,17 @@ export class LightspeedReconciliationSyncService {
     }>;
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const remoteProductsById = await this.resolveRemoteFamiliesByIds(
+      client,
+      input.edits.map((edit) => edit.remoteProductId),
+    );
     let editedCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const edit of input.edits) {
       try {
-        const remoteProduct = await client.getProduct(edit.remoteProductId);
+        const remoteProduct = remoteProductsById.get(edit.remoteProductId) ?? null;
         if (!remoteProduct) {
           failedCount += 1;
           failureDetails.push({
@@ -845,13 +851,17 @@ export class LightspeedReconciliationSyncService {
     }>;
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const remoteProductsById = await this.resolveRemoteFamiliesByIds(
+      client,
+      input.restores.map((restore) => restore.remoteProductId),
+    );
     let restoredCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
 
     for (const restore of input.restores) {
       try {
-        const remoteProduct = await client.getProduct(restore.remoteProductId);
+        const remoteProduct = remoteProductsById.get(restore.remoteProductId) ?? null;
         if (!remoteProduct) {
           failedCount += 1;
           failureDetails.push({
@@ -939,7 +949,7 @@ export class LightspeedReconciliationSyncService {
 
     while (hasNextPage && safetyCounter < 1000) {
       const result = await client.listProducts({ after, pageSize: 50 });
-      products.push(...this.getTopLevelRemoteProducts(result.products));
+      products.push(...result.products);
       hasNextPage = result.hasNextPage;
       if (!hasNextPage) {
         break;
@@ -952,11 +962,119 @@ export class LightspeedReconciliationSyncService {
       safetyCounter += 1;
     }
 
-    return products;
+    return this.buildRemoteFamilies(products);
   }
 
-  private getTopLevelRemoteProducts(products: LightspeedRemoteProduct[]) {
-    return products.filter((product) => !product.variant_parent_id);
+  private buildRemoteFamilies(products: LightspeedRemoteProduct[]) {
+    const childRowsByParentId = new Map<string, LightspeedRemoteProduct[]>();
+
+    for (const product of products) {
+      const parentId = product.variant_parent_id?.trim();
+      if (!parentId) {
+        continue;
+      }
+
+      const existing = childRowsByParentId.get(parentId) ?? [];
+      existing.push(product);
+      childRowsByParentId.set(parentId, existing);
+    }
+
+    return products
+      .filter((product) => !product.variant_parent_id)
+      .map((product) => {
+        const groupedChildren = childRowsByParentId.get(product.id) ?? [];
+        if (groupedChildren.length === 0) {
+          return product;
+        }
+
+        const existingVariants = Array.isArray(product.variants) ? product.variants : [];
+        const existingVariantById = new Map(
+          existingVariants.map((variant) => [variant.id, variant] as const),
+        );
+
+        return {
+          ...product,
+          variants: groupedChildren.map((child) => ({
+            ...child,
+            ...(existingVariantById.get(child.id) ?? {}),
+          })),
+        };
+      });
+  }
+
+  private async hydrateRemoteFamilies(
+    client: LightspeedClient,
+    products: LightspeedRemoteProduct[],
+  ) {
+    return Promise.all(
+      products.map(async (product) => {
+        try {
+          const fetched = (await client.getProduct(product.id)) ?? product;
+          return this.mergeRemoteProductSnapshots(product, fetched);
+        } catch {
+          return product;
+        }
+      }),
+    );
+  }
+
+  private async resolveRemoteFamiliesByIds(
+    client: LightspeedClient,
+    productIds: string[],
+  ) {
+    const requestedIds = [...new Set(productIds.map((id) => id.trim()).filter(Boolean))];
+    const families = await this.listAllRemoteProducts(client);
+    const familyById = new Map(families.map((product) => [product.id, product] as const));
+    const resolved = new Map<string, LightspeedRemoteProduct>();
+
+    const seededProducts = await Promise.all(
+      requestedIds.map(async (productId) => {
+        const family = familyById.get(productId);
+        if (family) {
+          return family;
+        }
+
+        return (await client.getProduct(productId)) ?? null;
+      }),
+    );
+
+    const hydratedProducts = await this.hydrateRemoteFamilies(
+      client,
+      seededProducts.filter(
+        (product): product is LightspeedRemoteProduct => product !== null,
+      ),
+    );
+
+    for (const product of hydratedProducts) {
+      resolved.set(product.id, product);
+    }
+
+    return resolved;
+  }
+
+  private mergeRemoteProductSnapshots(
+    seed: LightspeedRemoteProduct,
+    fetched: LightspeedRemoteProduct,
+  ) {
+    const seedVariants = Array.isArray(seed.variants) ? seed.variants : [];
+    const fetchedVariants = Array.isArray(fetched.variants) ? fetched.variants : [];
+
+    if (seedVariants.length === 0 || fetchedVariants.length >= seedVariants.length) {
+      return fetched;
+    }
+
+    const fetchedVariantById = new Map(
+      fetchedVariants.map((variant) => [variant.id, variant] as const),
+    );
+
+    return {
+      ...seed,
+      ...fetched,
+      variants: seedVariants.map((variant) => ({
+        ...variant,
+        ...(fetchedVariantById.get(variant.id) ?? {}),
+      })),
+    };
   }
 
   private async classifyRemoteProducts(input: {

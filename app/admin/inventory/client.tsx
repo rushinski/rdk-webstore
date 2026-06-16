@@ -33,7 +33,7 @@ import { Toast } from "@/components/ui/Toast";
 import { RdkSelect } from "@/components/ui/Select";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type StockStatus = "in_stock" | "out_of_stock" | "archived";
+type StockStatus = "in_stock" | "archived";
 
 const PAGE_SIZE = 100;
 const LIVE_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
@@ -53,6 +53,8 @@ const LIVE_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
 interface InventoryClientProps {
   initialProducts: ProductWithDetails[];
   initialTotal: number;
+  initialSkuTotal: number;
+  initialInventoryUnitTotal: number;
   initialFilters: {
     q?: string;
     category?: Category | "all";
@@ -386,6 +388,8 @@ function SummaryCard({
 export function InventoryClient({
   initialProducts,
   initialTotal,
+  initialSkuTotal,
+  initialInventoryUnitTotal,
   initialFilters,
 }: InventoryClientProps) {
   const router = useRouter();
@@ -406,6 +410,10 @@ export function InventoryClient({
   );
   const [page, setPage] = useState(initialFilters.page || 1);
   const [totalCount, setTotalCount] = useState(initialTotal);
+  const [skuTotalCount, setSkuTotalCount] = useState(initialSkuTotal);
+  const [inventoryUnitTotalCount, setInventoryUnitTotalCount] = useState(
+    initialInventoryUnitTotal,
+  );
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
   const [detailsSelection, setDetailsSelection] = useState<{
@@ -1082,6 +1090,8 @@ export function InventoryClient({
         const loaded: ProductWithDetails[] = data.products || [];
         setProducts(loaded);
         setTotalCount(Number(data.total ?? 0));
+        setSkuTotalCount(Number(data.skuTotal ?? data.total ?? 0));
+        setInventoryUnitTotalCount(Number(data.inventoryUnitTotal ?? 0));
 
         // Update URL
         updateURL(filters || {});
@@ -1680,7 +1690,7 @@ export function InventoryClient({
     return (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-sm text-gray-400">
-          Showing {showingStart}-{showingEnd} of {totalCount}
+          Showing products {showingStart}-{showingEnd} of {totalCount}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -1785,14 +1795,18 @@ export function InventoryClient({
             </Link>
           </div>
         </div>
-        <p className="text-gray-400">
-          {totalCount} products
+        <p className="text-gray-400">{skuTotalCount} unique SKUs</p>
+        <p className="text-sm text-gray-500">
+          {totalCount} total products
           {totalCount > 0 && (
-            <span className="text-gray-500">
+            <span>
               {" "}
-              (Showing {showingStart}-{showingEnd})
+              (showing {showingStart}-{showingEnd})
             </span>
           )}
+        </p>
+        <p className="text-sm text-gray-500">
+          {inventoryUnitTotalCount} total inventory units
         </p>
       </div>
 
@@ -1807,17 +1821,6 @@ export function InventoryClient({
           data-testid="inventory-filter-in-stock"
         >
           In Stock
-        </button>
-        <button
-          onClick={() => setStockStatusFilter("out_of_stock")}
-          className={`py-3 text-sm font-medium transition-colors ${
-            stockStatusFilter === "out_of_stock"
-              ? "text-white border-b-2 border-red-600"
-              : "text-gray-400 hover:text-white"
-          }`}
-          data-testid="inventory-filter-out-of-stock"
-        >
-          Out of Stock
         </button>
         <button
           onClick={() => setStockStatusFilter("archived")}

@@ -5,7 +5,7 @@ import type { Category, Condition } from "@/types/domain/product";
 import { getInventoryProducts } from "./actions";
 import { InventoryClient } from "./client";
 
-type StockStatus = "in_stock" | "out_of_stock" | "archived";
+type StockStatus = "in_stock" | "archived";
 
 interface InventoryPageProps {
   searchParams: Promise<{
@@ -36,6 +36,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
     <InventoryClient
       initialProducts={result.products}
       initialTotal={result.total}
+      initialSkuTotal={result.skuTotal ?? result.total}
+      initialInventoryUnitTotal={result.inventoryUnitTotal ?? 0}
       initialFilters={filters}
     />
   );

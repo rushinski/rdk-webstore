@@ -37,28 +37,11 @@ export class LightspeedManualImportService {
     let hasNextPage = true;
     let safetyCounter = 0;
     const seenCursors = new Set<number>();
+    const rawProducts: LightspeedRemoteProduct[] = [];
 
     while (hasNextPage && safetyCounter < 1000) {
       const result = await client.listProducts({ after, pageSize: 50 });
-
-      for (const product of this.getTopLevelRemoteProducts(
-        result.products as LightspeedRemoteProduct[],
-      )) {
-        scanned += 1;
-        const fullProduct = (await client.getProduct(product.id)) ?? product;
-        const syncResult = await this.inboundSyncService.applyProductPayload({
-          tenantId: input.tenantId,
-          payload: fullProduct,
-          topic: "product.update",
-          remoteModifiedAt: fullProduct.updated_at ?? new Date().toISOString(),
-        });
-
-        if (syncResult.status === "applied") {
-          applied += 1;
-        } else {
-          skipped += 1;
-        }
-      }
+      rawProducts.push(...(result.products as LightspeedRemoteProduct[]));
 
       hasNextPage = result.hasNextPage;
       if (!hasNextPage) {
@@ -72,11 +55,98 @@ export class LightspeedManualImportService {
       safetyCounter += 1;
     }
 
+    for (const product of this.buildImportFamilies(rawProducts)) {
+      scanned += 1;
+      const fullProduct = await this.resolveImportPayload(client, product);
+      const syncResult = await this.inboundSyncService.applyProductPayload({
+        tenantId: input.tenantId,
+        payload: fullProduct,
+        topic: "product.update",
+        remoteModifiedAt: fullProduct.updated_at ?? new Date().toISOString(),
+      });
+
+      if (syncResult.status === "applied") {
+        applied += 1;
+      } else {
+        skipped += 1;
+      }
+    }
+
     return {
       status: "completed" as const,
       scanned,
       applied,
       skipped,
+    };
+  }
+
+  private async resolveImportPayload(
+    client: LightspeedClient,
+    product: LightspeedRemoteProduct,
+  ) {
+    const fetched = (await client.getProduct(product.id)) ?? product;
+    return this.mergeProductSnapshots(product, fetched);
+  }
+
+  private buildImportFamilies(products: LightspeedRemoteProduct[]) {
+    const childRowsByParentId = new Map<string, LightspeedRemoteProduct[]>();
+
+    for (const product of products) {
+      const parentId = product.variant_parent_id?.trim();
+      if (!parentId) {
+        continue;
+      }
+
+      const existing = childRowsByParentId.get(parentId) ?? [];
+      existing.push(product);
+      childRowsByParentId.set(parentId, existing);
+    }
+
+    return products
+      .filter((product) => !product.variant_parent_id)
+      .map((product) => {
+        const groupedChildren = childRowsByParentId.get(product.id) ?? [];
+        if (groupedChildren.length === 0) {
+          return product;
+        }
+
+        const existingVariants = Array.isArray(product.variants) ? product.variants : [];
+        const existingVariantById = new Map(
+          existingVariants.map((variant) => [variant.id, variant] as const),
+        );
+
+        return {
+          ...product,
+          variants: groupedChildren.map((child) => ({
+            ...child,
+            ...(existingVariantById.get(child.id) ?? {}),
+          })),
+        };
+      });
+  }
+
+  private mergeProductSnapshots(
+    seed: LightspeedRemoteProduct,
+    fetched: LightspeedRemoteProduct,
+  ): LightspeedRemoteProduct {
+    const seedVariants = Array.isArray(seed.variants) ? seed.variants : [];
+    const fetchedVariants = Array.isArray(fetched.variants) ? fetched.variants : [];
+
+    if (seedVariants.length === 0 || fetchedVariants.length >= seedVariants.length) {
+      return fetched;
+    }
+
+    const fetchedVariantById = new Map(
+      fetchedVariants.map((variant) => [variant.id, variant] as const),
+    );
+
+    return {
+      ...seed,
+      ...fetched,
+      variants: seedVariants.map((variant) => ({
+        ...variant,
+        ...(fetchedVariantById.get(variant.id) ?? {}),
+      })),
     };
   }
 

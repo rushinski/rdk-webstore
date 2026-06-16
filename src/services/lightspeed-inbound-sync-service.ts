@@ -27,6 +27,7 @@ export class LightspeedInboundSyncService {
     topic: "product.update";
     remoteModifiedAt: string;
   }) {
+    const remoteProductKind = this.mappingService.getRemoteProductKind(input.payload);
     const normalized = this.mappingService.normalizeRemoteProducts([input.payload]);
     const first = normalized[0];
 
@@ -57,9 +58,10 @@ export class LightspeedInboundSyncService {
     }
 
     const familyId =
-      Array.isArray(input.payload.variants) && input.payload.variants.length > 0
+      input.payload.variant_parent_id ??
+      (Array.isArray(input.payload.variants) && input.payload.variants.length > 0
         ? input.payload.id
-        : first.lightspeedProductId;
+        : first.lightspeedProductId);
     const category = this.toWebsiteCategory(first.category);
     const sizeType = this.inferSizeType(normalized.map((item) => item.sizeLabel));
     const parsed = await this.parserService.parseTitle({
@@ -172,22 +174,25 @@ export class LightspeedInboundSyncService {
       input.tenantId,
       linkedProductId,
     );
-    const incomingSkus = new Set(normalized.map((remote) => remote.externalSku));
 
-    for (const link of persistedLinks) {
-      if (!incomingSkus.has(link.external_sku)) {
-        await this.linksRepo.updateLinkById(link.id, {
-          productId: linkedProductId,
-          variantId: null,
-          syncState: "deleted",
-          lastLightspeedModifiedAt: input.remoteModifiedAt,
-          lastSyncDirection: "lightspeed_to_website",
-          tombstonedAt: input.remoteModifiedAt,
-          lastError: null,
-        });
+    if (remoteProductKind !== "variant_child") {
+      const incomingSkus = new Set(normalized.map((remote) => remote.externalSku));
 
-        if (link.variant_id) {
-          await this.productRepo.deleteVariant(link.variant_id);
+      for (const link of persistedLinks) {
+        if (!incomingSkus.has(link.external_sku)) {
+          await this.linksRepo.updateLinkById(link.id, {
+            productId: linkedProductId,
+            variantId: null,
+            syncState: "deleted",
+            lastLightspeedModifiedAt: input.remoteModifiedAt,
+            lastSyncDirection: "lightspeed_to_website",
+            tombstonedAt: input.remoteModifiedAt,
+            lastError: null,
+          });
+
+          if (link.variant_id) {
+            await this.productRepo.deleteVariant(link.variant_id);
+          }
         }
       }
     }

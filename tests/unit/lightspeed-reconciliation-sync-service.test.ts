@@ -947,6 +947,242 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result.preview.importCount).toBe(1);
   });
 
+  it("detects edits when a linked family has separate child rows but an incomplete parent fetch", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "family-parent",
+          version: 301,
+          name: "Family Product",
+          updated_at: "2026-06-16T12:00:00.000Z",
+          has_variants: true,
+        },
+        {
+          id: "family-child-a",
+          version: 302,
+          name: "Family Product",
+          variant_parent_id: "family-parent",
+          sku: "FAM-001",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "30",
+          inventory_Main_Outlet: 1,
+        },
+        {
+          id: "family-child-b",
+          version: 303,
+          name: "Family Product",
+          variant_parent_id: "family-parent",
+          sku: "FAM-002",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "32",
+          inventory_Main_Outlet: 1,
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 3,
+    });
+    getProductMock.mockImplementation((productId: string) =>
+      Promise.resolve(
+        productId !== "family-parent"
+          ? null
+          : {
+              id: "family-parent",
+              version: 301,
+              name: "Family Product",
+              updated_at: "2026-06-16T12:00:00.000Z",
+              has_variants: true,
+              variants: [
+                {
+                  id: "family-child-a",
+                  sku: "FAM-001",
+                  name: "Family Product",
+                  variant_option_one_name: "Size",
+                  variant_option_one_value: "30",
+                  inventory_Main_Outlet: 1,
+                },
+              ],
+            },
+      ),
+    );
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-family",
+          name: "Family Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: null,
+          product_created_at: null,
+          product_updated_at: "2026-06-16T12:00:00.000Z",
+          variants: [
+            {
+              id: "variant-family-a",
+              sku: "FAM-001",
+              size_label: "30",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "sneakers", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "30", group_key: "size_shoe" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([
+      {
+        id: "link-family-a",
+        tenant_id: "tenant-1",
+        product_id: "website-family",
+        variant_id: "variant-family-a",
+        lightspeed_family_id: "family-parent",
+        lightspeed_product_id: "family-parent",
+        lightspeed_variant_id: "family-child-a",
+        lightspeed_inventory_item_id: null,
+        external_sku: "FAM-001",
+        sync_state: "linked",
+        last_website_modified_at: null,
+        last_lightspeed_modified_at: null,
+        last_sync_direction: null,
+        tombstoned_at: null,
+        last_error: null,
+      },
+    ]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.preview({ tenantId: "tenant-1" });
+
+    expect(result.editCount).toBe(1);
+    expect(result.noChangeCount).toBe(0);
+    expect(result.edits[0]?.websiteProductId).toBe("website-family");
+    expect(result.edits[0]?.remoteProductId).toBe("family-parent");
+    expect(result.edits[0]?.reason).toBe("link");
+    expect(result.edits[0]?.remote.variants).toHaveLength(2);
+    expect(result.edits[0]?.diff.fields).toContain("variants");
+    expect(result.edits[0]?.diff.variantChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sku: "FAM-002",
+          changeType: "added",
+        }),
+      ]),
+    );
+  });
+
+  it("applies imports using the full family when getProduct returns only one variant", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "family-parent",
+          version: 401,
+          name: "Family Product",
+          updated_at: "2026-06-16T14:00:00.000Z",
+          has_variants: true,
+        },
+        {
+          id: "family-child-a",
+          version: 402,
+          name: "Family Product",
+          variant_parent_id: "family-parent",
+          sku: "FAM-001",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "30",
+          inventory_Main_Outlet: 1,
+        },
+        {
+          id: "family-child-b",
+          version: 403,
+          name: "Family Product",
+          variant_parent_id: "family-parent",
+          sku: "FAM-002",
+          variant_option_one_name: "Size",
+          variant_option_one_value: "32",
+          inventory_Main_Outlet: 1,
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 3,
+    });
+    getProductMock.mockImplementation((productId: string) =>
+      Promise.resolve(
+        productId !== "family-parent"
+          ? null
+          : {
+              id: "family-parent",
+              version: 401,
+              name: "Family Product",
+              updated_at: "2026-06-16T14:00:00.000Z",
+              has_variants: true,
+              variants: [
+                {
+                  id: "family-child-a",
+                  sku: "FAM-001",
+                  name: "Family Product",
+                  variant_option_one_name: "Size",
+                  variant_option_one_value: "30",
+                  inventory_Main_Outlet: 1,
+                },
+              ],
+            },
+      ),
+    );
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock.mockResolvedValueOnce([]);
+    applyProductPayloadMock.mockResolvedValueOnce({
+      status: "applied",
+      productId: "website-family",
+    });
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.applyImportChunk({
+      tenantId: "tenant-1",
+      remoteProductIds: ["family-parent"],
+    });
+
+    expect(result).toEqual({
+      importedCount: 1,
+      failedCount: 0,
+      failureDetails: [],
+    });
+    expect(applyProductPayloadMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          id: "family-parent",
+          variants: expect.arrayContaining([
+            expect.objectContaining({ id: "family-child-a", sku: "FAM-001" }),
+            expect.objectContaining({ id: "family-child-b", sku: "FAM-002" }),
+          ]),
+        }),
+      }),
+    );
+    expect(
+      (
+        applyProductPayloadMock.mock.calls.at(-1)?.[0] as {
+          payload?: { variants?: unknown[] };
+        }
+      ).payload?.variants,
+    ).toHaveLength(2);
+  });
+
   it("diagnoses why a remote product classified as a no-change link match", async () => {
     listForReconciliationMock.mockReset();
     listForReconciliationMock
