@@ -9,11 +9,14 @@ import {
 import { LightspeedSettingsRepository } from "@/repositories/lightspeed-settings-repo";
 import { ProductRepository, type ProductWithDetails } from "@/repositories/product-repo";
 import { LightspeedInboundSyncService } from "@/services/lightspeed-inbound-sync-service";
+import {
+  resolveWebsiteCategoryAndSizeType,
+  type SyncOverrideCategory,
+} from "@/services/lightspeed-category-resolution";
 import { LightspeedMappingService } from "@/services/lightspeed-mapping-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 import { ProductService } from "@/services/product-service";
 import { buildAutoProductTags } from "@/services/tag-service";
-import type { SizeType } from "@/types/domain/product";
 
 type ReconciliationMatchReason = "link" | "sku";
 
@@ -107,9 +110,14 @@ export type LightspeedReconciliationPreview = {
   conflicts: Array<{
     remoteProductId: string;
     title: string;
+    skuSample: string | null;
     candidateWebsiteProductIds: string[];
     skuMatches: string[];
     remote: ReconciliationComparableProduct;
+    conflictReason?: "multiple_candidates" | "missing_category";
+    resolutionOptions?: {
+      categories: SyncOverrideCategory[];
+    };
   }>;
 };
 
@@ -122,6 +130,7 @@ export type LightspeedReconciliationApplyResult = {
   conflictCount: number;
   failedCount: number;
   failureDetails: LightspeedReconciliationFailureDetail[];
+  resultItems: LightspeedReconciliationResultItem[];
 };
 
 export type LightspeedReconciliationChunkResult = {
@@ -131,10 +140,22 @@ export type LightspeedReconciliationChunkResult = {
   archivedCount?: number;
   failedCount: number;
   failureDetails?: LightspeedReconciliationFailureDetail[];
+  resultItems?: LightspeedReconciliationResultItem[];
 };
 
 export type LightspeedReconciliationFailureDetail = {
   operation: "import" | "edit" | "restore" | "archive";
+  message: string;
+  reason?: string;
+  remoteProductId?: string;
+  websiteProductId?: string;
+};
+
+export type LightspeedReconciliationResultItem = {
+  status: "success" | "failure";
+  operation: "import" | "edit" | "restore" | "archive";
+  title: string | null;
+  skuSample: string | null;
   message: string;
   reason?: string;
   remoteProductId?: string;
@@ -147,6 +168,11 @@ export type LightspeedReconciliationWebsiteCandidate = {
   skuSample: string | null;
   website: ReconciliationComparableProduct;
 };
+
+type CategoryOverrideInput = Array<{
+  remoteProductId: string;
+  category: SyncOverrideCategory;
+}>;
 
 export type LightspeedReconciliationDiagnosis = {
   remoteProductId: string;
@@ -493,6 +519,7 @@ export class LightspeedReconciliationSyncService {
     let archivedCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
+    const resultItems: LightspeedReconciliationResultItem[] = [];
 
     for (const match of preview.edits.filter((item) => item.reason === "sku")) {
       try {
@@ -506,6 +533,15 @@ export class LightspeedReconciliationSyncService {
         );
         if (!remoteProduct) {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            title: match.title,
+            skuSample: match.skuMatches[0] ?? null,
+            message: "Lightspeed product was not found during sync apply.",
+          });
           failureDetails.push({
             operation: "edit",
             websiteProductId: match.websiteProductId,
@@ -531,8 +567,27 @@ export class LightspeedReconciliationSyncService {
 
         if (result.status === "applied") {
           editedCount += 1;
+          resultItems.push({
+            status: "success",
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            title: match.title,
+            skuSample: match.skuMatches[0] ?? this.getRemoteSkuSample(remoteProduct),
+            message: "Updated website product from Lightspeed.",
+          });
         } else {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            title: match.title,
+            skuSample: match.skuMatches[0] ?? this.getRemoteSkuSample(remoteProduct),
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
           failureDetails.push({
             operation: "edit",
             websiteProductId: match.websiteProductId,
@@ -543,6 +598,17 @@ export class LightspeedReconciliationSyncService {
         }
       } catch (error) {
         failedCount += 1;
+        resultItems.push(
+          this.buildResultItem({
+            status: "failure",
+            operation: "edit",
+            websiteProductId: match.websiteProductId,
+            remoteProductId: match.remoteProductId,
+            title: match.title,
+            skuSample: match.skuMatches[0] ?? undefined,
+            message: this.getErrorMessage(error),
+          }),
+        );
         failureDetails.push(
           this.buildFailureDetail({
             operation: "edit",
@@ -561,6 +627,7 @@ export class LightspeedReconciliationSyncService {
     restoredCount += restoreResult.restoredCount ?? 0;
     failedCount += restoreResult.failedCount;
     failureDetails.push(...(restoreResult.failureDetails ?? []));
+    resultItems.push(...(restoreResult.resultItems ?? []));
 
     const importResult = await this.applyImportChunk({
       tenantId: input.tenantId,
@@ -569,6 +636,7 @@ export class LightspeedReconciliationSyncService {
     importedCount += importResult.importedCount ?? 0;
     failedCount += importResult.failedCount;
     failureDetails.push(...(importResult.failureDetails ?? []));
+    resultItems.push(...(importResult.resultItems ?? []));
 
     const editResult = await this.applyEditChunk({
       tenantId: input.tenantId,
@@ -577,6 +645,7 @@ export class LightspeedReconciliationSyncService {
     editedCount += editResult.editedCount ?? 0;
     failedCount += editResult.failedCount;
     failureDetails.push(...(editResult.failureDetails ?? []));
+    resultItems.push(...(editResult.resultItems ?? []));
 
     const archiveResult = await this.applyArchiveChunk({
       tenantId: input.tenantId,
@@ -585,6 +654,7 @@ export class LightspeedReconciliationSyncService {
     archivedCount += archiveResult.archivedCount ?? 0;
     failedCount += archiveResult.failedCount;
     failureDetails.push(...(archiveResult.failureDetails ?? []));
+    resultItems.push(...(archiveResult.resultItems ?? []));
 
     return {
       noChangeCount: preview.noChangeCount,
@@ -595,14 +665,17 @@ export class LightspeedReconciliationSyncService {
       conflictCount: preview.conflictCount,
       failedCount,
       failureDetails,
+      resultItems,
     };
   }
 
   async applyImportChunk(input: {
     tenantId: string;
     remoteProductIds: string[];
+    categoryOverrides?: CategoryOverrideInput;
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const categoryOverrides = this.buildCategoryOverrideMap(input.categoryOverrides);
     const remoteProductsById = await this.resolveRemoteFamiliesByIds(
       client,
       input.remoteProductIds,
@@ -619,12 +692,21 @@ export class LightspeedReconciliationSyncService {
     let importedCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
+    const resultItems: LightspeedReconciliationResultItem[] = [];
 
     for (const remoteProductId of input.remoteProductIds) {
       try {
         const remoteProduct = remoteProductsById.get(remoteProductId) ?? null;
         if (!remoteProduct) {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "import",
+            remoteProductId,
+            title: null,
+            skuSample: null,
+            message: "Lightspeed product was not found during sync import.",
+          });
           failureDetails.push({
             operation: "import",
             remoteProductId,
@@ -638,14 +720,38 @@ export class LightspeedReconciliationSyncService {
           payload: remoteProduct,
           topic: "product.update",
           remoteModifiedAt: remoteProduct.updated_at ?? new Date().toISOString(),
+          categoryOverride: categoryOverrides.get(remoteProductId),
         });
 
         if (result.status === "applied") {
           importedCount += 1;
+          resultItems.push({
+            status: "success",
+            operation: "import",
+            remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Imported website product from Lightspeed.",
+          });
           continue;
         }
         if (result.status === "skipped") {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "import",
+            remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
           failureDetails.push({
             operation: "import",
             remoteProductId,
@@ -661,6 +767,17 @@ export class LightspeedReconciliationSyncService {
         );
         if (!archivedFallback) {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "import",
+            remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "No archived website product matched this Lightspeed SKU fallback.",
+          });
           failureDetails.push({
             operation: "import",
             remoteProductId,
@@ -672,6 +789,18 @@ export class LightspeedReconciliationSyncService {
         const archivedProduct = archivedWebsiteProductById.get(archivedFallback);
         if (!archivedProduct) {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "import",
+            remoteProductId,
+            websiteProductId: archivedFallback,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Archived website product disappeared before restore fallback.",
+          });
           failureDetails.push({
             operation: "import",
             remoteProductId,
@@ -694,12 +823,38 @@ export class LightspeedReconciliationSyncService {
           payload: remoteProduct,
           topic: "product.update",
           remoteModifiedAt: remoteProduct.updated_at ?? new Date().toISOString(),
+          categoryOverride: categoryOverrides.get(remoteProductId),
         });
 
         if (restoredResult.status === "applied") {
           importedCount += 1;
+          resultItems.push({
+            status: "success",
+            operation: "import",
+            remoteProductId,
+            websiteProductId: archivedProduct.id,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Restored archived website product from Lightspeed.",
+          });
         } else {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "import",
+            remoteProductId,
+            websiteProductId: archivedProduct.id,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Lightspeed inbound sync skipped this restored fallback product.",
+            reason: restoredResult.reason,
+          });
           failureDetails.push({
             operation: "import",
             remoteProductId,
@@ -710,6 +865,16 @@ export class LightspeedReconciliationSyncService {
         }
       } catch (error) {
         failedCount += 1;
+        resultItems.push(
+          this.buildResultItem({
+            status: "failure",
+            operation: "import",
+            remoteProductId,
+            title: null,
+            skuSample: null,
+            message: this.getErrorMessage(error),
+          }),
+        );
         failureDetails.push(
           this.buildFailureDetail({
             operation: "import",
@@ -724,6 +889,7 @@ export class LightspeedReconciliationSyncService {
       importedCount,
       failedCount,
       failureDetails,
+      resultItems,
     };
   }
 
@@ -734,8 +900,10 @@ export class LightspeedReconciliationSyncService {
       remoteProductId: string;
       reason?: ReconciliationMatchReason;
     }>;
+    categoryOverrides?: CategoryOverrideInput;
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const categoryOverrides = this.buildCategoryOverrideMap(input.categoryOverrides);
     const remoteProductsById = await this.resolveRemoteFamiliesByIds(
       client,
       input.edits.map((edit) => edit.remoteProductId),
@@ -743,12 +911,22 @@ export class LightspeedReconciliationSyncService {
     let editedCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
+    const resultItems: LightspeedReconciliationResultItem[] = [];
 
     for (const edit of input.edits) {
       try {
         const remoteProduct = remoteProductsById.get(edit.remoteProductId) ?? null;
         if (!remoteProduct) {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            title: null,
+            skuSample: null,
+            message: "Lightspeed product was not found during sync edit.",
+          });
           failureDetails.push({
             operation: "edit",
             websiteProductId: edit.websiteProductId,
@@ -772,12 +950,38 @@ export class LightspeedReconciliationSyncService {
           payload: remoteProduct,
           topic: "product.update",
           remoteModifiedAt: remoteProduct.updated_at ?? new Date().toISOString(),
+          categoryOverride: categoryOverrides.get(edit.remoteProductId),
         });
 
         if (result.status === "applied") {
           editedCount += 1;
+          resultItems.push({
+            status: "success",
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Updated website product from Lightspeed.",
+          });
         } else {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
           failureDetails.push({
             operation: "edit",
             websiteProductId: edit.websiteProductId,
@@ -788,6 +992,17 @@ export class LightspeedReconciliationSyncService {
         }
       } catch (error) {
         failedCount += 1;
+        resultItems.push(
+          this.buildResultItem({
+            status: "failure",
+            operation: "edit",
+            websiteProductId: edit.websiteProductId,
+            remoteProductId: edit.remoteProductId,
+            title: null,
+            skuSample: null,
+            message: this.getErrorMessage(error),
+          }),
+        );
         failureDetails.push(
           this.buildFailureDetail({
             operation: "edit",
@@ -803,6 +1018,7 @@ export class LightspeedReconciliationSyncService {
       editedCount,
       failedCount,
       failureDetails,
+      resultItems,
     };
   }
 
@@ -810,9 +1026,15 @@ export class LightspeedReconciliationSyncService {
     tenantId: string;
     websiteProductIds: string[];
   }): Promise<LightspeedReconciliationChunkResult> {
+    const activeWebsiteProducts =
+      (await this.productRepo.listForReconciliation(input.tenantId, "active")) ?? [];
+    const websiteProductById = new Map(
+      activeWebsiteProducts.map((product) => [product.id, product] as const),
+    );
     let archivedCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
+    const resultItems: LightspeedReconciliationResultItem[] = [];
 
     for (const websiteProductId of input.websiteProductIds) {
       try {
@@ -822,9 +1044,29 @@ export class LightspeedReconciliationSyncService {
         );
         if (result.archived) {
           archivedCount += 1;
+          const websiteProduct = websiteProductById.get(websiteProductId);
+          resultItems.push({
+            status: "success",
+            operation: "archive",
+            websiteProductId,
+            title: websiteProduct?.name ?? null,
+            skuSample: websiteProduct?.variants[0]?.sku ?? null,
+            message: "Archived website product missing from Lightspeed.",
+          });
         }
       } catch (error) {
         failedCount += 1;
+        const websiteProduct = websiteProductById.get(websiteProductId);
+        resultItems.push(
+          this.buildResultItem({
+            status: "failure",
+            operation: "archive",
+            websiteProductId,
+            title: websiteProduct?.name ?? null,
+            skuSample: websiteProduct?.variants[0]?.sku ?? null,
+            message: this.getErrorMessage(error),
+          }),
+        );
         failureDetails.push(
           this.buildFailureDetail({
             operation: "archive",
@@ -839,6 +1081,7 @@ export class LightspeedReconciliationSyncService {
       archivedCount,
       failedCount,
       failureDetails,
+      resultItems,
     };
   }
 
@@ -849,8 +1092,10 @@ export class LightspeedReconciliationSyncService {
       remoteProductId: string;
       reason?: ReconciliationMatchReason;
     }>;
+    categoryOverrides?: CategoryOverrideInput;
   }): Promise<LightspeedReconciliationChunkResult> {
     const client = await this.getClient(input.tenantId);
+    const categoryOverrides = this.buildCategoryOverrideMap(input.categoryOverrides);
     const remoteProductsById = await this.resolveRemoteFamiliesByIds(
       client,
       input.restores.map((restore) => restore.remoteProductId),
@@ -858,12 +1103,22 @@ export class LightspeedReconciliationSyncService {
     let restoredCount = 0;
     let failedCount = 0;
     const failureDetails: LightspeedReconciliationFailureDetail[] = [];
+    const resultItems: LightspeedReconciliationResultItem[] = [];
 
     for (const restore of input.restores) {
       try {
         const remoteProduct = remoteProductsById.get(restore.remoteProductId) ?? null;
         if (!remoteProduct) {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            title: null,
+            skuSample: null,
+            message: "Lightspeed product was not found during sync restore.",
+          });
           failureDetails.push({
             operation: "restore",
             websiteProductId: restore.websiteProductId,
@@ -892,12 +1147,38 @@ export class LightspeedReconciliationSyncService {
           payload: remoteProduct,
           topic: "product.update",
           remoteModifiedAt: remoteProduct.updated_at ?? new Date().toISOString(),
+          categoryOverride: categoryOverrides.get(restore.remoteProductId),
         });
 
         if (result.status === "applied") {
           restoredCount += 1;
+          resultItems.push({
+            status: "success",
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Restored website product from Lightspeed.",
+          });
         } else {
           failedCount += 1;
+          resultItems.push({
+            status: "failure",
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            title: this.getRemoteTitle(
+              remoteProduct,
+              this.mappingService.normalizeRemoteProducts([remoteProduct]),
+            ),
+            skuSample: this.getRemoteSkuSample(remoteProduct),
+            message: "Lightspeed inbound sync skipped this product.",
+            reason: result.reason,
+          });
           failureDetails.push({
             operation: "restore",
             websiteProductId: restore.websiteProductId,
@@ -908,6 +1189,17 @@ export class LightspeedReconciliationSyncService {
         }
       } catch (error) {
         failedCount += 1;
+        resultItems.push(
+          this.buildResultItem({
+            status: "failure",
+            operation: "restore",
+            websiteProductId: restore.websiteProductId,
+            remoteProductId: restore.remoteProductId,
+            title: null,
+            skuSample: null,
+            message: this.getErrorMessage(error),
+          }),
+        );
         failureDetails.push(
           this.buildFailureDetail({
             operation: "restore",
@@ -923,6 +1215,7 @@ export class LightspeedReconciliationSyncService {
       restoredCount,
       failedCount,
       failureDetails,
+      resultItems,
     };
   }
 
@@ -1138,6 +1431,8 @@ export class LightspeedReconciliationSyncService {
       const normalizedVariants = this.mappingService.normalizeRemoteProducts([
         remoteProduct,
       ]);
+      const firstVariant = normalizedVariants[0];
+      const resolvedCategory = resolveWebsiteCategoryAndSizeType(firstVariant?.category);
       const remoteIds = new Set<string>([
         remoteProduct.id,
         ...normalizedVariants
@@ -1162,6 +1457,22 @@ export class LightspeedReconciliationSyncService {
         input.tenantId,
         remoteProduct,
       );
+
+      if (resolvedCategory.status === "missing") {
+        conflicts.push({
+          remoteProductId: remoteProduct.id,
+          title: this.getRemoteTitle(remoteProduct, normalizedVariants),
+          skuSample: this.getRemoteSkuSample(remoteProduct),
+          candidateWebsiteProductIds: [],
+          skuMatches: [],
+          remote: remoteComparable,
+          conflictReason: "missing_category",
+          resolutionOptions: {
+            categories: ["sneakers", "clothing", "accessories", "electronics"],
+          },
+        });
+        continue;
+      }
 
       if (linkedActiveProductIds.size === 1 && linkedArchivedProductIds.size === 0) {
         const websiteProductId = Array.from(linkedActiveProductIds)[0];
@@ -1314,9 +1625,11 @@ export class LightspeedReconciliationSyncService {
         conflicts.push({
           remoteProductId: remoteProduct.id,
           title: this.getRemoteTitle(remoteProduct, normalizedVariants),
+          skuSample: this.getRemoteSkuSample(remoteProduct),
           candidateWebsiteProductIds: Array.from(candidateProductIds),
           skuMatches: Array.from(skuMatches),
           remote: remoteComparable,
+          conflictReason: "multiple_candidates",
         });
         continue;
       }
@@ -1416,6 +1729,17 @@ export class LightspeedReconciliationSyncService {
     return productIds.size === 1 ? Array.from(productIds)[0] : null;
   }
 
+  private buildCategoryOverrideMap(
+    overrides?: CategoryOverrideInput,
+  ): Map<string, SyncOverrideCategory> {
+    return new Map(
+      (overrides ?? []).map((override) => [
+        override.remoteProductId,
+        override.category,
+      ]),
+    );
+  }
+
   private async toComparableRemoteProduct(
     tenantId: string,
     remoteProduct: LightspeedRemoteProduct,
@@ -1442,8 +1766,11 @@ export class LightspeedReconciliationSyncService {
       };
     }
 
-    const category = (first.category as string | null) ?? "sneakers";
-    const sizeType = this.inferSizeType(normalized.map((item) => item.sizeLabel));
+    const resolvedCategory = resolveWebsiteCategoryAndSizeType(first.category);
+    const category =
+      resolvedCategory.status === "resolved" ? resolvedCategory.category : "sneakers";
+    const sizeType =
+      resolvedCategory.status === "resolved" ? resolvedCategory.sizeType : "custom";
     const parsed = await this.parserService.parseTitle({
       titleRaw: this.buildParserTitle(first.cleanName, first.brand),
       category,
@@ -1559,12 +1886,6 @@ export class LightspeedReconciliationSyncService {
     if ((website.description ?? null) !== (remote.description ?? null)) {
       fields.push("description");
     }
-    if ((website.productCreatedAt ?? null) !== (remote.productCreatedAt ?? null)) {
-      fields.push("productCreatedAt");
-    }
-    if ((website.productUpdatedAt ?? null) !== (remote.productUpdatedAt ?? null)) {
-      fields.push("productUpdatedAt");
-    }
     if (website.brand !== remote.brand) {
       fields.push("brand");
     }
@@ -1648,28 +1969,6 @@ export class LightspeedReconciliationSyncService {
     return { fields, variantChanges };
   }
 
-  private inferSizeType(sizeLabels: string[]): SizeType | "custom" {
-    const normalized = sizeLabels.map((label) => label.trim().toUpperCase());
-
-    if (
-      normalized.some(
-        (label) => /^\d/.test(label) || label.includes("M") || label.endsWith("W"),
-      )
-    ) {
-      return "shoe";
-    }
-
-    if (
-      normalized.some((label) =>
-        ["XS", "S", "SMALL", "M", "MEDIUM", "L", "LARGE", "XL", "XXL"].includes(label),
-      )
-    ) {
-      return "clothing";
-    }
-
-    return "custom";
-  }
-
   private buildParserTitle(cleanName: string, brandHint: string | null) {
     const trimmedName = cleanName.trim();
     const trimmedBrand = brandHint?.trim() || null;
@@ -1694,6 +1993,12 @@ export class LightspeedReconciliationSyncService {
       normalizedVariants[0]?.cleanName?.trim() ||
       remoteProduct.name?.trim() ||
       "Lightspeed product"
+    );
+  }
+
+  private getRemoteSkuSample(remoteProduct: LightspeedRemoteProduct) {
+    return (
+      this.mappingService.normalizeRemoteProducts([remoteProduct])[0]?.externalSku ?? null
     );
   }
 
@@ -1777,10 +2082,40 @@ export class LightspeedReconciliationSyncService {
       operation: input.operation,
       remoteProductId: input.remoteProductId,
       websiteProductId: input.websiteProductId,
-      message:
-        input.error instanceof Error
-          ? input.error.message
-          : "Unexpected error applying Lightspeed sync.",
+      message: this.getErrorMessage(input.error),
     };
+  }
+
+  private buildResultItem(
+    input: LightspeedReconciliationResultItem,
+  ): LightspeedReconciliationResultItem {
+    return input;
+  }
+
+  private getErrorMessage(error: unknown) {
+    if (error instanceof Error && error.message.trim()) {
+      return error.message;
+    }
+
+    if (error && typeof error === "object") {
+      const record = error as {
+        message?: unknown;
+        details?: unknown;
+        hint?: unknown;
+        code?: unknown;
+      };
+      const parts = [
+        typeof record.message === "string" ? record.message.trim() : null,
+        typeof record.details === "string" ? record.details.trim() : null,
+        typeof record.hint === "string" ? record.hint.trim() : null,
+        typeof record.code === "string" ? `code ${record.code.trim()}` : null,
+      ].filter((value): value is string => Boolean(value));
+
+      if (parts.length > 0) {
+        return parts.join(" | ");
+      }
+    }
+
+    return "Unexpected error applying Lightspeed sync.";
   }
 }

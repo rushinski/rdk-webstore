@@ -104,6 +104,16 @@ describe("/api/admin/lightspeed/sync", () => {
       archivedCount: 1,
       conflictCount: 1,
       failedCount: 0,
+      resultItems: [
+        {
+          status: "success",
+          operation: "import",
+          remoteProductId: "ls-import-1",
+          title: "Import Product",
+          skuSample: "IMPORT-001",
+          message: "Imported website product from Lightspeed.",
+        },
+      ],
     });
 
     const response = await POST(
@@ -128,6 +138,16 @@ describe("/api/admin/lightspeed/sync", () => {
         archivedCount: 1,
         conflictCount: 1,
         failedCount: 0,
+        resultItems: [
+          {
+            status: "success",
+            operation: "import",
+            remoteProductId: "ls-import-1",
+            title: "Import Product",
+            skuSample: "IMPORT-001",
+            message: "Imported website product from Lightspeed.",
+          },
+        ],
       },
       requestId: "req-apply",
     });
@@ -137,6 +157,16 @@ describe("/api/admin/lightspeed/sync", () => {
     applyImportChunkMock.mockResolvedValue({
       importedCount: 2,
       failedCount: 0,
+      resultItems: [
+        {
+          status: "success",
+          operation: "import",
+          remoteProductId: "ls-1",
+          title: "Product 1",
+          skuSample: "SKU-1",
+          message: "Imported website product from Lightspeed.",
+        },
+      ],
     });
 
     const response = await POST(
@@ -162,9 +192,59 @@ describe("/api/admin/lightspeed/sync", () => {
       result: {
         importedCount: 2,
         failedCount: 0,
+        resultItems: [
+          {
+            status: "success",
+            operation: "import",
+            remoteProductId: "ls-1",
+            title: "Product 1",
+            skuSample: "SKU-1",
+            message: "Imported website product from Lightspeed.",
+          },
+        ],
       },
       requestId: "req-import-chunk",
     });
+  });
+
+  it("passes category overrides through on import chunks", async () => {
+    applyImportChunkMock.mockResolvedValue({
+      importedCount: 1,
+      failedCount: 0,
+      resultItems: [],
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/lightspeed/sync", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req-import-override",
+        },
+        body: JSON.stringify({
+          action: "apply_import_chunk",
+          remoteProductIds: ["ls-override-1"],
+          categoryOverrides: [
+            {
+              remoteProductId: "ls-override-1",
+              category: "clothing",
+            },
+          ],
+        }),
+      }),
+    );
+
+    expect(applyImportChunkMock).toHaveBeenCalledWith({
+      tenantId: "tenant-1",
+      remoteProductIds: ["ls-override-1"],
+      categoryOverrides: [
+        {
+          remoteProductId: "ls-override-1",
+          category: "clothing",
+        },
+      ],
+    });
+    expect(response.status).toBe(200);
   });
 
   it("applies an edit chunk", async () => {
@@ -210,6 +290,17 @@ describe("/api/admin/lightspeed/sync", () => {
     applyRestoreChunkMock.mockResolvedValue({
       restoredCount: 1,
       failedCount: 0,
+      resultItems: [
+        {
+          status: "success",
+          operation: "restore",
+          websiteProductId: "11111111-1111-1111-8111-111111111111",
+          remoteProductId: "ls-restore",
+          title: "Restore Product",
+          skuSample: "RESTORE-001",
+          message: "Restored archived website product from Lightspeed.",
+        },
+      ],
     });
 
     const response = await POST(
@@ -247,6 +338,17 @@ describe("/api/admin/lightspeed/sync", () => {
       result: {
         restoredCount: 1,
         failedCount: 0,
+        resultItems: [
+          {
+            status: "success",
+            operation: "restore",
+            websiteProductId: "11111111-1111-1111-8111-111111111111",
+            remoteProductId: "ls-restore",
+            title: "Restore Product",
+            skuSample: "RESTORE-001",
+            message: "Restored archived website product from Lightspeed.",
+          },
+        ],
       },
       requestId: "req-restore-chunk",
     });
@@ -256,6 +358,16 @@ describe("/api/admin/lightspeed/sync", () => {
     applyArchiveChunkMock.mockResolvedValue({
       archivedCount: 1,
       failedCount: 0,
+      resultItems: [
+        {
+          status: "success",
+          operation: "archive",
+          websiteProductId: "11111111-1111-1111-8111-111111111111",
+          title: "Archive Product",
+          skuSample: "ARCHIVE-001",
+          message: "Archived website product missing from Lightspeed.",
+        },
+      ],
     });
 
     const response = await POST(
@@ -281,6 +393,16 @@ describe("/api/admin/lightspeed/sync", () => {
       result: {
         archivedCount: 1,
         failedCount: 0,
+        resultItems: [
+          {
+            status: "success",
+            operation: "archive",
+            websiteProductId: "11111111-1111-1111-8111-111111111111",
+            title: "Archive Product",
+            skuSample: "ARCHIVE-001",
+            message: "Archived website product missing from Lightspeed.",
+          },
+        ],
       },
       requestId: "req-archive-chunk",
     });

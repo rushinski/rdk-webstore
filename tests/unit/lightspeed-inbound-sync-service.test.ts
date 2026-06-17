@@ -280,6 +280,125 @@ describe("LightspeedInboundSyncService", () => {
     );
   });
 
+  it("uses Lightspeed clothing category to save clothing size_type for SMALL", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "product-clothing-1" });
+    createVariantMock.mockResolvedValue({ id: "variant-clothing-1" });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-clothing-1",
+        name: "Abominable Carpenter Pants",
+        brand_name: "Other",
+        product_category: "Clothing",
+        sku: "N-OTH-CLT-SM-67",
+        variant_option_one_name: "Size",
+        variant_option_one_value: "SMALL",
+        inventory_Main_Outlet: 2,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-17T12:00:00.000Z",
+    });
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "clothing",
+        size_type: "clothing",
+      }),
+    );
+  });
+
+  it("uses Lightspeed sneakers category to save shoe size_type for EU sizes", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "product-shoe-1" });
+    createVariantMock.mockResolvedValue({ id: "variant-shoe-1" });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-shoe-1",
+        name: "Jordan EU Pair",
+        brand_name: "Jordan",
+        product_category: "Sneakers",
+        sku: "N-JDN-EU35-01",
+        variant_option_one_name: "Size",
+        variant_option_one_value: "EU 35 (US 5.5W)",
+        inventory_Main_Outlet: 1,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-17T12:00:00.000Z",
+    });
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "sneakers",
+        size_type: "shoe",
+      }),
+    );
+  });
+
+  it("skips products with missing Lightspeed category when no override is provided", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    const result = await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-missing-category-1",
+        name: "Unknown Category Product",
+        sku: "MISS-001",
+        variant_option_one_name: "Size",
+        variant_option_one_value: "SMALL",
+        inventory_Main_Outlet: 1,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-17T12:00:00.000Z",
+    });
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ status: "skipped", reason: "missing_category" });
+  });
+
+  it("uses a sync-run category override when Lightspeed category is missing", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    createMock.mockResolvedValue({ id: "product-override-1" });
+    createVariantMock.mockResolvedValue({ id: "variant-override-1" });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-override-1",
+        name: "Override Product",
+        sku: "OVR-001",
+        variant_option_one_name: "Size",
+        variant_option_one_value: "SMALL",
+        inventory_Main_Outlet: 1,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-17T15:00:00.000Z",
+      categoryOverride: "clothing",
+    });
+
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: "clothing",
+        size_type: "clothing",
+      }),
+    );
+  });
+
   it("does not delete sibling website variants when Lightspeed sends a single child variant update", async () => {
     getByLightspeedVariantIdMock.mockResolvedValue({
       id: "link-child-1",

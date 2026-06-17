@@ -113,11 +113,22 @@ type ReconciliationPreview = {
   conflicts: Array<{
     remoteProductId: string;
     title: string;
+    skuSample: string | null;
     candidateWebsiteProductIds: string[];
     skuMatches: string[];
     remote: ComparableProduct;
+    conflictReason?: "multiple_candidates" | "missing_category";
+    resolutionOptions?: {
+      categories: SyncOverrideCategory[];
+    };
   }>;
 };
+
+type SyncOverrideCategory =
+  | "sneakers"
+  | "clothing"
+  | "accessories"
+  | "electronics";
 
 type ComparableVariant = {
   sku: string;
@@ -212,6 +223,17 @@ type SyncFailureDetail = {
   websiteProductId?: string;
 };
 
+type SyncResultItem = {
+  status: "success" | "failure";
+  operation: "import" | "edit" | "restore" | "archive";
+  title: string | null;
+  skuSample: string | null;
+  message: string;
+  reason?: string;
+  remoteProductId?: string;
+  websiteProductId?: string;
+};
+
 type ApplyChunkResponse = {
   error?: string;
   result?: {
@@ -221,7 +243,13 @@ type ApplyChunkResponse = {
     archivedCount?: number;
     failedCount?: number;
     failureDetails?: SyncFailureDetail[];
+    resultItems?: SyncResultItem[];
   };
+};
+
+type CategoryOverridePayload = {
+  remoteProductId: string;
+  category: SyncOverrideCategory;
 };
 
 type PreviewScanChunkResult = {
@@ -250,6 +278,15 @@ const EDIT_CHUNK_SIZE = 10;
 const RESTORE_CHUNK_SIZE = 10;
 const ARCHIVE_CHUNK_SIZE = 25;
 const PREVIEW_SCAN_PAGE_SIZE = 25;
+const SYNC_OVERRIDE_CATEGORY_OPTIONS: Array<{
+  value: SyncOverrideCategory;
+  label: string;
+}> = [
+  { value: "sneakers", label: "Sneakers" },
+  { value: "clothing", label: "Clothing" },
+  { value: "accessories", label: "Accessories" },
+  { value: "electronics", label: "Electronics" },
+];
 
 function formatSyncFailureDetail(detail: SyncFailureDetail) {
   const subject = detail.remoteProductId ?? detail.websiteProductId ?? "unknown item";
@@ -262,6 +299,21 @@ function summarizeSyncFailures(details: SyncFailureDetail[]) {
     .slice(0, 3)
     .map((detail) => formatSyncFailureDetail(detail))
     .join(" | ");
+}
+
+function formatSyncResultOperation(operation: SyncResultItem["operation"]) {
+  switch (operation) {
+    case "import":
+      return "Import";
+    case "edit":
+      return "Edit";
+    case "restore":
+      return "Restore";
+    case "archive":
+      return "Archive";
+    default:
+      return operation;
+  }
 }
 
 function chunkArray<T>(items: T[], size: number) {
@@ -450,6 +502,10 @@ export function InventoryClient({
   } | null>(null);
   const [previewScanState, setPreviewScanState] = useState<PreviewScanState | null>(null);
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null);
+  const [syncResultItems, setSyncResultItems] = useState<SyncResultItem[]>([]);
+  const [syncCategoryOverrides, setSyncCategoryOverrides] = useState<
+    Record<string, SyncOverrideCategory>
+  >({});
   const [toast, setToast] = useState<{
     message: string;
     tone: "success" | "error" | "info";
@@ -527,6 +583,8 @@ export function InventoryClient({
     setSyncPreview(null);
     setPreviewScanState(null);
     setSyncProgress(null);
+    setSyncResultItems([]);
+    setSyncCategoryOverrides({});
     setSyncDetailsSelection(null);
     setSyncLoading(false);
   };
@@ -541,6 +599,8 @@ export function InventoryClient({
       setSyncModalStage("preview_scanning");
       setSyncPreview(null);
       setSyncProgress(null);
+      setSyncResultItems([]);
+      setSyncCategoryOverrides({});
       setPreviewScanState({
         status: "scanning",
         currentLabel: "Preparing preview scan...",
@@ -729,11 +789,86 @@ export function InventoryClient({
     try {
       setSyncLoading(true);
       setSyncModalStage("applying");
+      setSyncResultItems([]);
+      const categoryOverrides: CategoryOverridePayload[] = Object.entries(
+        syncCategoryOverrides,
+      ).map(([remoteProductId, category]) => ({
+        remoteProductId,
+        category,
+      }));
       const totalUnits =
-        syncPreview.importCount +
+        effectiveImportItems.length +
         syncPreview.editCount +
         syncPreview.restoreCount +
         syncPreview.archiveCount;
+      const remoteMetadataById = new Map<
+        string,
+        {
+          title: string;
+          skuSample: string | null;
+        }
+      >();
+      const websiteMetadataById = new Map<
+        string,
+        {
+          title: string;
+          skuSample: string | null;
+        }
+      >();
+
+      for (const item of effectiveImportItems) {
+        remoteMetadataById.set(item.remoteProductId, {
+          title: item.title,
+          skuSample: item.skuSample,
+        });
+      }
+      for (const item of syncPreview.edits) {
+        remoteMetadataById.set(item.remoteProductId, {
+          title: item.title,
+          skuSample: item.skuMatches[0] ?? item.remote.variants[0]?.sku ?? null,
+        });
+        websiteMetadataById.set(item.websiteProductId, {
+          title: item.title,
+          skuSample: item.website.variants[0]?.sku ?? null,
+        });
+      }
+      for (const item of syncPreview.restores) {
+        remoteMetadataById.set(item.remoteProductId, {
+          title: item.title,
+          skuSample: item.skuSample,
+        });
+        websiteMetadataById.set(item.websiteProductId, {
+          title: item.title,
+          skuSample: item.website.variants[0]?.sku ?? item.skuSample,
+        });
+      }
+      for (const item of syncPreview.archives) {
+        websiteMetadataById.set(item.websiteProductId, {
+          title: item.title,
+          skuSample: item.skuSample,
+        });
+      }
+
+      const normalizeResultItems = (items: SyncResultItem[]) =>
+        items.map((item) => {
+          const remoteMetadata = item.remoteProductId
+            ? remoteMetadataById.get(item.remoteProductId)
+            : null;
+          const websiteMetadata = item.websiteProductId
+            ? websiteMetadataById.get(item.websiteProductId)
+            : null;
+
+          return {
+            ...item,
+            title: item.title ?? remoteMetadata?.title ?? websiteMetadata?.title ?? null,
+            skuSample:
+              item.skuSample ??
+              remoteMetadata?.skuSample ??
+              websiteMetadata?.skuSample ??
+              null,
+          };
+        });
+
       const editChunks = chunkArray(
         syncPreview.edits.map((item) => ({
           websiteProductId: item.websiteProductId,
@@ -751,7 +886,7 @@ export function InventoryClient({
         RESTORE_CHUNK_SIZE,
       );
       const importChunks = chunkArray(
-        syncPreview.imports.map((item) => item.remoteProductId),
+        effectiveImportItems.map((item) => item.remoteProductId),
         IMPORT_CHUNK_SIZE,
       );
       const archiveChunks = chunkArray(
@@ -776,6 +911,7 @@ export function InventoryClient({
       let archivedCount = 0;
       let failedCount = 0;
       const failureDetails: SyncFailureDetail[] = [];
+      const resultItems: SyncResultItem[] = [];
 
       if (totalUnits === 0) {
         showToast("Sync complete. Nothing needed to change.", "success");
@@ -800,6 +936,7 @@ export function InventoryClient({
           body: JSON.stringify({
             action: "apply_restore_chunk",
             restores: chunk,
+            categoryOverrides,
           }),
         });
         const payload = (await response
@@ -809,6 +946,8 @@ export function InventoryClient({
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
         failureDetails.push(...(payload?.result?.failureDetails ?? []));
+        resultItems.push(...normalizeResultItems(payload?.result?.resultItems ?? []));
+        setSyncResultItems([...resultItems]);
 
         setSyncProgress((prev) =>
           prev
@@ -831,7 +970,7 @@ export function InventoryClient({
             ? {
                 ...prev,
                 phase: "importing",
-                currentLabel: `Importing ${Math.min(index * IMPORT_CHUNK_SIZE + 1, syncPreview.importCount)}-${Math.min((index + 1) * IMPORT_CHUNK_SIZE, syncPreview.importCount)} of ${syncPreview.importCount}`,
+                currentLabel: `Importing ${Math.min(index * IMPORT_CHUNK_SIZE + 1, effectiveImportItems.length)}-${Math.min((index + 1) * IMPORT_CHUNK_SIZE, effectiveImportItems.length)} of ${effectiveImportItems.length}`,
               }
             : prev,
         );
@@ -842,6 +981,7 @@ export function InventoryClient({
           body: JSON.stringify({
             action: "apply_import_chunk",
             remoteProductIds: chunk,
+            categoryOverrides,
           }),
         });
         const payload = (await response
@@ -851,6 +991,8 @@ export function InventoryClient({
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
         failureDetails.push(...(payload?.result?.failureDetails ?? []));
+        resultItems.push(...normalizeResultItems(payload?.result?.resultItems ?? []));
+        setSyncResultItems([...resultItems]);
 
         setSyncProgress((prev) =>
           prev
@@ -884,6 +1026,7 @@ export function InventoryClient({
           body: JSON.stringify({
             action: "apply_edit_chunk",
             edits: chunk,
+            categoryOverrides,
           }),
         });
         const payload = (await response
@@ -893,6 +1036,8 @@ export function InventoryClient({
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
         failureDetails.push(...(payload?.result?.failureDetails ?? []));
+        resultItems.push(...normalizeResultItems(payload?.result?.resultItems ?? []));
+        setSyncResultItems([...resultItems]);
 
         setSyncProgress((prev) =>
           prev
@@ -934,6 +1079,8 @@ export function InventoryClient({
           throw new Error(payload?.error || "Failed to apply inventory sync.");
         }
         failureDetails.push(...(payload?.result?.failureDetails ?? []));
+        resultItems.push(...normalizeResultItems(payload?.result?.resultItems ?? []));
+        setSyncResultItems([...resultItems]);
 
         setSyncProgress((prev) =>
           prev
@@ -976,7 +1123,7 @@ export function InventoryClient({
             : prev,
         );
         showToast(
-          `Sync finished with failures. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}, failures ${failedCount}.${failureSummary ? ` ${failureSummary}` : ""}`,
+          `Sync finished with failures. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${effectiveConflictCount}, failures ${failedCount}.${failureSummary ? ` ${failureSummary}` : ""}`,
           "error",
         );
         return;
@@ -993,7 +1140,7 @@ export function InventoryClient({
       );
 
       showToast(
-        `Sync complete. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${syncPreview.conflictCount}.`,
+        `Sync complete. Restored ${restoredCount}, imported ${importedCount}, edited ${editedCount}, archived ${archivedCount}, conflicts ${effectiveConflictCount}.`,
         "success",
       );
     } catch (error) {
@@ -1208,10 +1355,75 @@ export function InventoryClient({
         )
       : 100
     : 0;
+  const syncSuccessCount = syncResultItems.filter(
+    (item) => item.status === "success",
+  ).length;
+  const syncFailureItemCount = syncResultItems.filter(
+    (item) => item.status === "failure",
+  ).length;
+  const syncImportedResultItems = syncResultItems.filter(
+    (item) => item.operation === "import" && item.status === "success",
+  );
+  const syncEditedResultItems = syncResultItems.filter(
+    (item) => item.operation === "edit" && item.status === "success",
+  );
+  const syncRestoredResultItems = syncResultItems.filter(
+    (item) => item.operation === "restore" && item.status === "success",
+  );
+  const syncArchivedResultItems = syncResultItems.filter(
+    (item) => item.operation === "archive" && item.status === "success",
+  );
+  const syncFailedResultItems = syncResultItems.filter(
+    (item) => item.status === "failure",
+  );
+  const resolvedMissingCategoryImports =
+    syncPreview?.conflicts.flatMap((item) => {
+      if (item.conflictReason !== "missing_category") {
+        return [];
+      }
+      const categoryOverride = syncCategoryOverrides[item.remoteProductId];
+      if (!categoryOverride) {
+        return [];
+      }
+      return [
+        {
+          remoteProductId: item.remoteProductId,
+          title: item.title,
+          skuSample:
+            item.skuSample ??
+            item.skuMatches[0] ??
+            item.remote.variants[0]?.sku ??
+            null,
+          remote: item.remote,
+          source: "resolved_missing_category" as const,
+          selectedCategory: categoryOverride,
+        },
+      ];
+    }) ?? [];
+  const unresolvedMissingCategoryConflicts =
+    syncPreview?.conflicts.filter(
+      (item) =>
+        item.conflictReason === "missing_category" &&
+        !syncCategoryOverrides[item.remoteProductId],
+    ) ?? [];
+  const unresolvedOtherConflicts =
+    syncPreview?.conflicts.filter(
+      (item) => item.conflictReason !== "missing_category",
+    ) ?? [];
+  const effectiveConflictCount =
+    unresolvedMissingCategoryConflicts.length + unresolvedOtherConflicts.length;
+  const effectiveImportItems = [
+    ...(syncPreview?.imports.map((item) => ({
+      ...item,
+      source: "preview_import" as const,
+      selectedCategory: null,
+    })) ?? []),
+    ...resolvedMissingCategoryImports,
+  ];
   const restoresNoDiff = syncPreview?.restores.filter((item) => !item.diff) ?? [];
   const restoresWithDiff =
     syncPreview?.restores.filter((item) => Boolean(item.diff)) ?? [];
-  const effectiveAddCount = (syncPreview?.importCount ?? 0) + restoresNoDiff.length;
+  const effectiveAddCount = effectiveImportItems.length + restoresNoDiff.length;
   const effectiveEditCount = (syncPreview?.editCount ?? 0) + restoresWithDiff.length;
 
   // Whether it's safe to close/cancel the sync dialog (not mid-apply)
@@ -2621,6 +2833,164 @@ export function InventoryClient({
                       </div>
                     </div>
                   </div>
+                  {(syncProgress.phase === "complete" ||
+                    syncProgress.phase === "error") && (
+                    <div className="space-y-4">
+                      <div className="rounded border border-zinc-800 bg-zinc-950/60 p-4">
+                        <div className="text-sm font-semibold text-white">
+                          Sync Results
+                        </div>
+                        <div className="mt-1 text-xs text-zinc-500">
+                          {syncResultItems.length} items processed, {syncSuccessCount}{" "}
+                          successes, {syncFailureItemCount} failures
+                        </div>
+                      </div>
+                      <div className="grid gap-4 lg:grid-cols-4">
+                        <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                          <h3 className="text-sm font-semibold text-white">
+                            Add To Website
+                          </h3>
+                          <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                            {syncImportedResultItems.length === 0 &&
+                            syncRestoredResultItems.length === 0 ? (
+                              <p className="text-sm text-zinc-500">
+                                No products were added.
+                              </p>
+                            ) : (
+                              <>
+                                {syncImportedResultItems.map((item, index) => (
+                                  <div
+                                    key={`import-${item.remoteProductId ?? "remote"}-${index}`}
+                                    className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                                  >
+                                    <div className="text-sm font-medium text-zinc-100">
+                                      {item.title || "Unknown product"}
+                                    </div>
+                                    <div className="mt-1 text-xs text-zinc-500">
+                                      SKU: {item.skuSample || "N/A"}
+                                    </div>
+                                    <div className="mt-2 text-xs text-zinc-400">
+                                      {item.message}
+                                    </div>
+                                  </div>
+                                ))}
+                                {syncRestoredResultItems.map((item, index) => (
+                                  <div
+                                    key={`restore-${item.websiteProductId ?? item.remoteProductId ?? "product"}-${index}`}
+                                    className="rounded border border-sky-900/40 bg-zinc-900/70 p-2"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className="text-sm font-medium text-zinc-100">
+                                        {item.title || "Unknown product"}
+                                      </div>
+                                      <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+                                        Restored
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 text-xs text-zinc-500">
+                                      SKU: {item.skuSample || "N/A"}
+                                    </div>
+                                    <div className="mt-2 text-xs text-zinc-400">
+                                      {item.message}
+                                    </div>
+                                  </div>
+                                ))}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                          <h3 className="text-sm font-semibold text-white">
+                            Edit On Website
+                          </h3>
+                          <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                            {syncEditedResultItems.length === 0 ? (
+                              <p className="text-sm text-zinc-500">
+                                No products were edited.
+                              </p>
+                            ) : (
+                              syncEditedResultItems.map((item, index) => (
+                                <div
+                                  key={`edit-${item.websiteProductId ?? item.remoteProductId ?? "product"}-${index}`}
+                                  className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                                >
+                                  <div className="text-sm font-medium text-zinc-100">
+                                    {item.title || "Unknown product"}
+                                  </div>
+                                  <div className="mt-1 text-xs text-zinc-500">
+                                    SKU: {item.skuSample || "N/A"}
+                                  </div>
+                                  <div className="mt-2 text-xs text-zinc-400">
+                                    {item.message}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                          <h3 className="text-sm font-semibold text-white">
+                            Archive On Website
+                          </h3>
+                          <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                            {syncArchivedResultItems.length === 0 ? (
+                              <p className="text-sm text-zinc-500">
+                                No products were archived.
+                              </p>
+                            ) : (
+                              syncArchivedResultItems.map((item, index) => (
+                                <div
+                                  key={`archive-${item.websiteProductId ?? "product"}-${index}`}
+                                  className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
+                                >
+                                  <div className="text-sm font-medium text-zinc-100">
+                                    {item.title || "Unknown product"}
+                                  </div>
+                                  <div className="mt-1 text-xs text-zinc-500">
+                                    SKU: {item.skuSample || "N/A"}
+                                  </div>
+                                  <div className="mt-2 text-xs text-zinc-400">
+                                    {item.message}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                        <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
+                          <h3 className="text-sm font-semibold text-white">Failures</h3>
+                          <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
+                            {syncFailedResultItems.length === 0 ? (
+                              <p className="text-sm text-zinc-500">No products failed.</p>
+                            ) : (
+                              syncFailedResultItems.map((item, index) => (
+                                <div
+                                  key={`failure-${item.operation}-${item.remoteProductId ?? item.websiteProductId ?? "product"}-${index}`}
+                                  className="rounded border border-red-900/50 bg-red-950/20 p-2"
+                                >
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <div className="text-sm font-medium text-zinc-100">
+                                      {item.title || "Unknown product"}
+                                    </div>
+                                    <span className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
+                                      {formatSyncResultOperation(item.operation)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 text-xs text-zinc-500">
+                                    SKU: {item.skuSample || "N/A"}
+                                  </div>
+                                  <div className="mt-2 text-xs text-red-200">
+                                    {item.message}
+                                    {item.reason ? ` (${item.reason})` : ""}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : syncPreview ? (
                 <div className="space-y-5">
@@ -2653,9 +3023,9 @@ export function InventoryClient({
                       />
                       <SummaryCard
                         label="Conflicts"
-                        value={syncPreview.conflictCount}
+                        value={effectiveConflictCount}
                         color="text-red-300"
-                        tooltip="Ambiguous match with multiple website candidates ??? skipped automatically, no changes made."
+                        tooltip="Unresolved conflicts still block automatic sync. Missing-category conflicts leave this count once you choose a category for this sync run."
                       />
                     </div>
                   </div>
@@ -2667,12 +3037,12 @@ export function InventoryClient({
                         <InfoTooltip text="Product exists in Lightspeed but not on the website, or is an archived product that can be restored without any changes needed." />
                       </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
-                        {syncPreview.imports.length === 0 &&
+                        {effectiveImportItems.length === 0 &&
                         restoresNoDiff.length === 0 ? (
                           <p className="text-sm text-zinc-500">No products to add.</p>
                         ) : (
                           <>
-                            {syncPreview.imports.map((item) => (
+                            {effectiveImportItems.map((item) => (
                               <div
                                 key={item.remoteProductId}
                                 className="rounded border border-zinc-800/70 bg-zinc-900/70 p-2"
@@ -2683,6 +3053,11 @@ export function InventoryClient({
                                 <div className="mt-1 text-xs text-zinc-500">
                                   SKU: {item.skuSample || "N/A"}
                                 </div>
+                                {item.source === "resolved_missing_category" ? (
+                                  <div className="mt-1 text-xs text-emerald-300">
+                                    Category override: {item.selectedCategory}
+                                  </div>
+                                ) : null}
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -2856,11 +3231,11 @@ export function InventoryClient({
                     <div className="rounded border border-zinc-800 bg-zinc-950/60 p-3">
                       <h3 className="flex items-center gap-2 text-sm font-semibold text-white">
                         Conflicts
-                        <InfoTooltip text="A Lightspeed product matched multiple website candidates and cannot be resolved safely. No changes are made — you must manually resolve these." />
+                        <InfoTooltip text="Multiple-candidate conflicts remain blocked. Missing-category conflicts can be resolved here for this sync run only by choosing the website category to import into." />
                       </h3>
                       <div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">
                         {syncPreview.conflicts.length === 0 ? (
-                          <p className="text-sm text-zinc-500">No ambiguous matches.</p>
+                          <p className="text-sm text-zinc-500">No conflicts.</p>
                         ) : (
                           syncPreview.conflicts.map((item) => (
                             <div
@@ -2871,12 +3246,67 @@ export function InventoryClient({
                                 {item.title}
                               </div>
                               <div className="mt-1 text-xs text-zinc-500">
-                                SKU: {item.skuMatches.join(", ") || "N/A"}
+                                SKU:{" "}
+                                {item.skuMatches.join(", ") ||
+                                  item.skuSample ||
+                                  item.remote.variants[0]?.sku ||
+                                  "N/A"}
                               </div>
-                              <div className="mt-1 text-xs text-red-300">
-                                {item.candidateWebsiteProductIds.length} website
-                                candidates
-                              </div>
+                              {item.conflictReason === "missing_category" ? (
+                                <>
+                                  <div className="mt-1 text-xs text-amber-300">
+                                    Missing Lightspeed category. Choose the website
+                                    category for this sync run.
+                                  </div>
+                                  <div className="mt-2">
+                                    <RdkSelect
+                                      value={syncCategoryOverrides[item.remoteProductId] ?? ""}
+                                      onChange={(value) =>
+                                        setSyncCategoryOverrides((prev) => {
+                                          if (!value) {
+                                            const next = { ...prev };
+                                            delete next[item.remoteProductId];
+                                            return next;
+                                          }
+
+                                          return {
+                                            ...prev,
+                                            [item.remoteProductId]:
+                                              value as SyncOverrideCategory,
+                                          };
+                                        })
+                                      }
+                                      options={[
+                                        { value: "", label: "Select category" },
+                                        ...(item.resolutionOptions?.categories ??
+                                          SYNC_OVERRIDE_CATEGORY_OPTIONS.map(
+                                            (option) => option.value,
+                                          )
+                                        ).map((category) => ({
+                                          value: category,
+                                          label:
+                                            SYNC_OVERRIDE_CATEGORY_OPTIONS.find(
+                                              (option) => option.value === category,
+                                            )?.label ?? category,
+                                        })),
+                                      ]}
+                                      placeholder="Select category"
+                                      buttonClassName="py-1.5 text-xs"
+                                      menuClassName="max-h-64 overflow-y-auto"
+                                    />
+                                  </div>
+                                  <div className="mt-2 text-xs text-zinc-500">
+                                    {syncCategoryOverrides[item.remoteProductId]
+                                      ? "Resolved for this sync run. This item will import during Apply Sync."
+                                      : "This item will stay skipped unless you choose a category."}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="mt-1 text-xs text-red-300">
+                                  {item.candidateWebsiteProductIds.length} website
+                                  candidates
+                                </div>
+                              )}
                               <button
                                 type="button"
                                 onClick={() =>

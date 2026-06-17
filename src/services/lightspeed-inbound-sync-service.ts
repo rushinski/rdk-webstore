@@ -2,11 +2,14 @@ import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { LightspeedRemoteProduct } from "@/lib/lightspeed/types";
 import { LightspeedLinksRepository } from "@/repositories/lightspeed-links-repo";
 import { ProductRepository } from "@/repositories/product-repo";
+import {
+  resolveWebsiteCategoryAndSizeType,
+  type SyncOverrideCategory,
+} from "@/services/lightspeed-category-resolution";
 import { LightspeedMappingService } from "@/services/lightspeed-mapping-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
 import { normalizeLabel } from "@/services/product-title-parser";
 import { buildAutoProductTags, upsertTags } from "@/services/tag-service";
-import type { Category, SizeType } from "@/types/domain/product";
 
 export class LightspeedInboundSyncService {
   private readonly productRepo: ProductRepository;
@@ -26,6 +29,7 @@ export class LightspeedInboundSyncService {
     payload: LightspeedRemoteProduct;
     topic: "product.update";
     remoteModifiedAt: string;
+    categoryOverride?: SyncOverrideCategory;
   }) {
     const remoteProductKind = this.mappingService.getRemoteProductKind(input.payload);
     const normalized = this.mappingService.normalizeRemoteProducts([input.payload]);
@@ -62,8 +66,13 @@ export class LightspeedInboundSyncService {
       (Array.isArray(input.payload.variants) && input.payload.variants.length > 0
         ? input.payload.id
         : first.lightspeedProductId);
-    const category = this.toWebsiteCategory(first.category);
-    const sizeType = this.inferSizeType(normalized.map((item) => item.sizeLabel));
+    const resolvedCategory = input.categoryOverride
+      ? resolveWebsiteCategoryAndSizeType(input.categoryOverride)
+      : resolveWebsiteCategoryAndSizeType(first.category);
+    if (resolvedCategory.status === "missing") {
+      return { status: "skipped" as const, reason: "missing_category" as const };
+    }
+    const { category, sizeType } = resolvedCategory;
     const parsed = await this.parserService.parseTitle({
       titleRaw: this.buildParserTitle(first.cleanName, first.brand),
       category,
@@ -307,42 +316,6 @@ export class LightspeedInboundSyncService {
     }
 
     return { status: "applied" as const, deletedProductIds };
-  }
-
-  private toWebsiteCategory(category: string | null): Category {
-    const normalized = category?.trim().toLowerCase() ?? "";
-    if (normalized === "clothing") {
-      return "clothing";
-    }
-    if (normalized === "accessories") {
-      return "accessories";
-    }
-    if (normalized === "electronics") {
-      return "electronics";
-    }
-    return "sneakers";
-  }
-
-  private inferSizeType(sizeLabels: string[]): SizeType {
-    const normalized = sizeLabels.map((label) => label.trim().toUpperCase());
-
-    if (
-      normalized.some(
-        (label) => /^\d/.test(label) || label.includes("M") || label.endsWith("W"),
-      )
-    ) {
-      return "shoe";
-    }
-
-    if (
-      normalized.some((label) =>
-        ["XS", "S", "SMALL", "M", "MEDIUM", "L", "LARGE", "XL", "XXL"].includes(label),
-      )
-    ) {
-      return "clothing";
-    }
-
-    return "custom";
   }
 
   private buildParserTitle(cleanName: string, brandHint: string | null) {

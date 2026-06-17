@@ -8,6 +8,18 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import { LightspeedReconciliationSyncService } from "@/services/lightspeed-reconciliation-sync-service";
 
+const categoryOverrideSchema = z
+  .object({
+    remoteProductId: z.string(),
+    category: z.union([
+      z.literal("sneakers"),
+      z.literal("clothing"),
+      z.literal("accessories"),
+      z.literal("electronics"),
+    ]),
+  })
+  .strict();
+
 const syncBodySchema = z.union([
   z
     .object({
@@ -33,6 +45,7 @@ const syncBodySchema = z.union([
     .object({
       action: z.literal("apply_import_chunk"),
       remoteProductIds: z.array(z.string()).min(1),
+      categoryOverrides: z.array(categoryOverrideSchema).optional(),
     })
     .strict(),
   z
@@ -49,6 +62,7 @@ const syncBodySchema = z.union([
             .strict(),
         )
         .min(1),
+      categoryOverrides: z.array(categoryOverrideSchema).optional(),
     })
     .strict(),
   z
@@ -65,6 +79,7 @@ const syncBodySchema = z.union([
             .strict(),
         )
         .min(1),
+      categoryOverrides: z.array(categoryOverrideSchema).optional(),
     })
     .strict(),
   z
@@ -138,16 +153,19 @@ export async function POST(request: Request) {
             ? await service.applyImportChunk({
                 tenantId,
                 remoteProductIds: parsed.data.remoteProductIds,
+                categoryOverrides: parsed.data.categoryOverrides,
               })
             : parsed.data.action === "apply_edit_chunk"
               ? await service.applyEditChunk({
                   tenantId,
                   edits: parsed.data.edits,
+                  categoryOverrides: parsed.data.categoryOverrides,
                 })
               : parsed.data.action === "apply_restore_chunk"
                 ? await service.applyRestoreChunk({
                     tenantId,
                     restores: parsed.data.restores,
+                    categoryOverrides: parsed.data.categoryOverrides,
                   })
                 : await service.applyArchiveChunk({
                     tenantId,
