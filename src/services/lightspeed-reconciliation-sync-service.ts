@@ -1729,10 +1729,7 @@ export class LightspeedReconciliationSyncService {
     overrides?: CategoryOverrideInput,
   ): Map<string, SyncOverrideCategory> {
     return new Map(
-      (overrides ?? []).map((override) => [
-        override.remoteProductId,
-        override.category,
-      ]),
+      (overrides ?? []).map((override) => [override.remoteProductId, override.category]),
     );
   }
 

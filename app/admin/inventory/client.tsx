@@ -124,11 +124,7 @@ type ReconciliationPreview = {
   }>;
 };
 
-type SyncOverrideCategory =
-  | "sneakers"
-  | "clothing"
-  | "accessories"
-  | "electronics";
+type SyncOverrideCategory = "sneakers" | "clothing" | "accessories" | "electronics";
 
 type ComparableVariant = {
   sku: string;
@@ -1390,10 +1386,7 @@ export function InventoryClient({
           remoteProductId: item.remoteProductId,
           title: item.title,
           skuSample:
-            item.skuSample ??
-            item.skuMatches[0] ??
-            item.remote.variants[0]?.sku ??
-            null,
+            item.skuSample ?? item.skuMatches[0] ?? item.remote.variants[0]?.sku ?? null,
           remote: item.remote,
           source: "resolved_missing_category" as const,
           selectedCategory: categoryOverride,
@@ -1407,9 +1400,8 @@ export function InventoryClient({
         !syncCategoryOverrides[item.remoteProductId],
     ) ?? [];
   const unresolvedOtherConflicts =
-    syncPreview?.conflicts.filter(
-      (item) => item.conflictReason !== "missing_category",
-    ) ?? [];
+    syncPreview?.conflicts.filter((item) => item.conflictReason !== "missing_category") ??
+    [];
   const effectiveConflictCount =
     unresolvedMissingCategoryConflicts.length + unresolvedOtherConflicts.length;
   const effectiveImportItems = [
@@ -3260,7 +3252,9 @@ export function InventoryClient({
                                   </div>
                                   <div className="mt-2">
                                     <RdkSelect
-                                      value={syncCategoryOverrides[item.remoteProductId] ?? ""}
+                                      value={
+                                        syncCategoryOverrides[item.remoteProductId] ?? ""
+                                      }
                                       onChange={(value) =>
                                         setSyncCategoryOverrides((prev) => {
                                           if (!value) {
@@ -3278,7 +3272,8 @@ export function InventoryClient({
                                       }
                                       options={[
                                         { value: "", label: "Select category" },
-                                        ...(item.resolutionOptions?.categories ??
+                                        ...(
+                                          item.resolutionOptions?.categories ??
                                           SYNC_OVERRIDE_CATEGORY_OPTIONS.map(
                                             (option) => option.value,
                                           )

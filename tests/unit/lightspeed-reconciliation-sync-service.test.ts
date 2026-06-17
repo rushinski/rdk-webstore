@@ -460,7 +460,12 @@ describe("LightspeedReconciliationSyncService", () => {
           product_updated_at: "2026-06-02T10:00:00.000Z",
           variants: [
             { id: "variant-gap-1", sku: "", size_label: "9", sort_order: 0 },
-            { id: "variant-gap-2", sku: "ARCHIVE-GAP-002", size_label: "10", sort_order: 1 },
+            {
+              id: "variant-gap-2",
+              sku: "ARCHIVE-GAP-002",
+              size_label: "10",
+              sort_order: 1,
+            },
           ],
           images: [],
           tags: [],
@@ -665,14 +670,14 @@ describe("LightspeedReconciliationSyncService", () => {
       Promise.resolve(
         productId !== "ls-hydrate"
           ? null
-            : {
-                id: "ls-hydrate",
-                name: "Hydrated Product",
-                version: 501,
-                created_at: "2026-06-01T10:00:00.000Z",
-                updated_at: "2026-06-08T10:00:00.000Z",
-                product_category: "Sneakers",
-                variants: [
+          : {
+              id: "ls-hydrate",
+              name: "Hydrated Product",
+              version: 501,
+              created_at: "2026-06-01T10:00:00.000Z",
+              updated_at: "2026-06-08T10:00:00.000Z",
+              product_category: "Sneakers",
+              variants: [
                 {
                   id: "ls-hydrate-variant",
                   sku: "HYD-001",
@@ -1578,13 +1583,13 @@ describe("LightspeedReconciliationSyncService", () => {
       Promise.resolve(
         productId !== "family-parent"
           ? null
-            : {
-                id: "family-parent",
-                version: 401,
-                name: "Family Product",
-                updated_at: "2026-06-16T14:00:00.000Z",
-                product_category: "Clothing",
-                has_variants: true,
+          : {
+              id: "family-parent",
+              version: 401,
+              name: "Family Product",
+              updated_at: "2026-06-16T14:00:00.000Z",
+              product_category: "Clothing",
+              has_variants: true,
               variants: [
                 {
                   id: "family-child-a",
