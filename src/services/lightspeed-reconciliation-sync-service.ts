@@ -261,7 +261,7 @@ export class LightspeedReconciliationSyncService {
       .map((product) => ({
         websiteProductId: product.id,
         title: product.name,
-        skuSample: product.variants[0]?.sku ?? null,
+        skuSample: this.getWebsiteSkuSample(product),
         website: this.toComparableWebsiteProduct(product),
       }));
 
@@ -339,7 +339,7 @@ export class LightspeedReconciliationSyncService {
       websiteCandidates: websiteProducts.map((product) => ({
         websiteProductId: product.id,
         title: product.name,
-        skuSample: product.variants[0]?.sku ?? null,
+        skuSample: this.getWebsiteSkuSample(product),
         website: this.toComparableWebsiteProduct(product),
       })),
     };
@@ -1050,7 +1050,7 @@ export class LightspeedReconciliationSyncService {
             operation: "archive",
             websiteProductId,
             title: websiteProduct?.name ?? null,
-            skuSample: websiteProduct?.variants[0]?.sku ?? null,
+            skuSample: websiteProduct ? this.getWebsiteSkuSample(websiteProduct) : null,
             message: "Archived website product missing from Lightspeed.",
           });
         }
@@ -1063,7 +1063,7 @@ export class LightspeedReconciliationSyncService {
             operation: "archive",
             websiteProductId,
             title: websiteProduct?.name ?? null,
-            skuSample: websiteProduct?.variants[0]?.sku ?? null,
+            skuSample: websiteProduct ? this.getWebsiteSkuSample(websiteProduct) : null,
             message: this.getErrorMessage(error),
           }),
         );
@@ -1675,15 +1675,11 @@ export class LightspeedReconciliationSyncService {
 
   private buildWebsiteSkuIndex(
     products: ProductWithDetails[],
-    linkedWebsiteProductIds: Set<string>,
+    _linkedWebsiteProductIds: Set<string>,
   ) {
     const index = new Map<string, string[]>();
 
     for (const product of products) {
-      if (linkedWebsiteProductIds.has(product.id)) {
-        continue;
-      }
-
       for (const variant of product.variants) {
         const normalizedSku = this.normalizeSku(variant.sku);
         if (!normalizedSku) {
@@ -1738,6 +1734,17 @@ export class LightspeedReconciliationSyncService {
         override.category,
       ]),
     );
+  }
+
+  private getWebsiteSkuSample(product: Pick<ProductWithDetails, "variants">) {
+    for (const variant of product.variants) {
+      const normalizedSku = this.normalizeSku(variant.sku);
+      if (normalizedSku) {
+        return normalizedSku;
+      }
+    }
+
+    return null;
   }
 
   private async toComparableRemoteProduct(

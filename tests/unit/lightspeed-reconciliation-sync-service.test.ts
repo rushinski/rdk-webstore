@@ -379,6 +379,14 @@ describe("LightspeedReconciliationSyncService", () => {
     expect(result.restoreCount).toBe(1);
     expect(result.archiveCount).toBe(1);
     expect(result.conflictCount).toBe(1);
+    expect(result.archives).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          websiteProductId: "website-archive",
+          skuSample: "ARCHIVE-001",
+        }),
+      ]),
+    );
     expect(result.noChanges).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -430,6 +438,54 @@ describe("LightspeedReconciliationSyncService", () => {
         candidateWebsiteProductIds: ["website-conflict-a", "website-conflict-b"],
       }),
     );
+  });
+
+  it("uses the first real website SKU for archive preview rows", async () => {
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-archive-sku-gap",
+          name: "Archive SKU Gap Product",
+          brand: "Unknown",
+          model: null,
+          category: "sneakers",
+          condition: "new",
+          size_type: "shoe",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: "2026-06-02T10:00:00.000Z",
+          product_created_at: "2026-06-02T10:00:00.000Z",
+          product_updated_at: "2026-06-02T10:00:00.000Z",
+          variants: [
+            { id: "variant-gap-1", sku: "", size_label: "9", sort_order: 0 },
+            { id: "variant-gap-2", sku: "ARCHIVE-GAP-002", size_label: "10", sort_order: 1 },
+          ],
+          images: [],
+          tags: [],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([]);
+    listProductsMock.mockResolvedValueOnce({
+      products: [],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 0,
+    });
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.preview({ tenantId: "tenant-1" });
+
+    expect(result.archives).toEqual([
+      expect.objectContaining({
+        websiteProductId: "website-archive-sku-gap",
+        skuSample: "ARCHIVE-GAP-002",
+      }),
+    ]);
   });
 
   it("classifies products with missing Lightspeed category as missing-category conflicts", async () => {
@@ -1369,6 +1425,117 @@ describe("LightspeedReconciliationSyncService", () => {
     );
   });
 
+  it("matches existing sibling SKUs on an already linked website product instead of importing", async () => {
+    listProductsMock.mockResolvedValueOnce({
+      products: [
+        {
+          id: "orphan-parent",
+          version: 351,
+          name: "Orphan Family Product",
+          updated_at: "2026-06-16T13:00:00.000Z",
+          product_category: "Clothing",
+          has_variants: true,
+          variants: [
+            {
+              id: "orphan-child-b",
+              sku: "FAM-002",
+              name: "Orphan Family Product",
+              variant_option_one_name: "Size",
+              variant_option_one_value: "32",
+              inventory_Main_Outlet: 1,
+            },
+          ],
+        },
+      ],
+      after: null,
+      pageSize: 50,
+      hasNextPage: false,
+      nextAfter: null,
+      totalProducts: 1,
+    });
+    listForReconciliationMock.mockReset();
+    listForReconciliationMock
+      .mockResolvedValueOnce([
+        {
+          id: "website-family",
+          name: "Family Product",
+          brand: "Unknown",
+          model: null,
+          category: "clothing",
+          condition: "new",
+          size_type: "clothing",
+          description: null,
+          is_active: true,
+          is_out_of_stock: false,
+          created_at: null,
+          product_created_at: null,
+          product_updated_at: "2026-06-16T13:00:00.000Z",
+          variants: [
+            {
+              id: "variant-family-a",
+              sku: "FAM-001",
+              size_label: "30",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 1,
+              sort_order: 0,
+            },
+            {
+              id: "variant-family-b",
+              sku: "FAM-002",
+              size_label: "32",
+              sale_price_cents: 0,
+              unit_cost_cents: 0,
+              stock: 0,
+              sort_order: 1,
+            },
+          ],
+          images: [],
+          tags: [
+            { label: "Unknown", group_key: "brand" },
+            { label: "clothing", group_key: "category" },
+            { label: "new", group_key: "condition" },
+            { label: "30", group_key: "size_clothing" },
+            { label: "32", group_key: "size_clothing" },
+          ],
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    listByTenantMock.mockResolvedValueOnce([
+      {
+        id: "link-family-a",
+        tenant_id: "tenant-1",
+        product_id: "website-family",
+        variant_id: "variant-family-a",
+        lightspeed_family_id: "family-parent",
+        lightspeed_product_id: "family-parent",
+        lightspeed_variant_id: "family-child-a",
+        lightspeed_inventory_item_id: null,
+        external_sku: "FAM-001",
+        sync_state: "linked",
+        last_website_modified_at: null,
+        last_lightspeed_modified_at: null,
+        last_sync_direction: null,
+        tombstoned_at: null,
+        last_error: null,
+      },
+    ]);
+
+    const service = new LightspeedReconciliationSyncService({} as never);
+    const result = await service.preview({ tenantId: "tenant-1" });
+
+    expect(result.importCount).toBe(0);
+    expect(result.editCount).toBe(1);
+    expect(result.edits[0]).toEqual(
+      expect.objectContaining({
+        websiteProductId: "website-family",
+        remoteProductId: "orphan-parent",
+        reason: "sku",
+        skuMatches: ["FAM-002"],
+      }),
+    );
+  });
+
   it("applies imports using the full family when getProduct returns only one variant", async () => {
     listProductsMock.mockResolvedValueOnce({
       products: [
@@ -1604,9 +1771,9 @@ describe("LightspeedReconciliationSyncService", () => {
         matchReason: "link",
         linkedActiveWebsiteProductIds: ["website-linked"],
         linkedArchivedWebsiteProductIds: [],
-        candidateActiveWebsiteProductIds: [],
+        candidateActiveWebsiteProductIds: ["website-linked"],
         candidateArchivedWebsiteProductIds: [],
-        skuMatches: [],
+        skuMatches: ["LINK-001"],
       }),
     );
   });
