@@ -320,6 +320,17 @@ function chunkArray<T>(items: T[], size: number) {
   return chunks;
 }
 
+function getComparableProductSkuSample(product?: ComparableProduct | null) {
+  for (const variant of product?.variants ?? []) {
+    const normalizedSku = variant.sku?.trim() ?? "";
+    if (normalizedSku.length > 0) {
+      return normalizedSku;
+    }
+  }
+
+  return null;
+}
+
 function InfoTooltip({ text }: { text: string }) {
   const anchorRef = useRef<HTMLSpanElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -825,7 +836,7 @@ export function InventoryClient({
         });
         websiteMetadataById.set(item.websiteProductId, {
           title: item.title,
-          skuSample: item.website.variants[0]?.sku ?? null,
+          skuSample: getComparableProductSkuSample(item.website),
         });
       }
       for (const item of syncPreview.restores) {
@@ -835,7 +846,7 @@ export function InventoryClient({
         });
         websiteMetadataById.set(item.websiteProductId, {
           title: item.title,
-          skuSample: item.website.variants[0]?.sku ?? item.skuSample,
+          skuSample: getComparableProductSkuSample(item.website) ?? item.skuSample,
         });
       }
       for (const item of syncPreview.archives) {
@@ -3198,7 +3209,10 @@ export function InventoryClient({
                                 {item.title}
                               </div>
                               <div className="mt-1 text-xs text-zinc-500">
-                                SKU: {item.skuSample || "N/A"}
+                                SKU:{" "}
+                                {item.skuSample ||
+                                  getComparableProductSkuSample(item.website) ||
+                                  "N/A"}
                               </div>
                               <button
                                 type="button"

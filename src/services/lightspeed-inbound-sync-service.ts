@@ -93,7 +93,43 @@ export class LightspeedInboundSyncService {
       })),
     });
 
-    const linkedProductId = firstLink?.product_id ?? null;
+    const variantOwnershipMatches = (
+      await Promise.all(
+        normalized.map((remote) =>
+          this.productRepo.getVariantBySku(input.tenantId, remote.externalSku),
+        ),
+      )
+    ).filter(
+      (
+        variant,
+      ): variant is {
+        id: string;
+        product_id: string;
+        sku: string;
+      } => Boolean(variant?.product_id),
+    );
+    const skuFallbackVariants = firstLink?.product_id ? [] : variantOwnershipMatches;
+    const skuFallbackProductIds = [
+      ...new Set(skuFallbackVariants.map((variant) => variant.product_id)),
+    ];
+    if (!firstLink?.product_id && skuFallbackProductIds.length > 1) {
+      return {
+        status: "skipped" as const,
+        reason: "existing_website_sku_conflict" as const,
+      };
+    }
+    const linkedProductId =
+      firstLink?.product_id ??
+      (skuFallbackProductIds.length === 1 ? skuFallbackProductIds[0] : null);
+    if (
+      linkedProductId &&
+      variantOwnershipMatches.some((variant) => variant.product_id !== linkedProductId)
+    ) {
+      return {
+        status: "skipped" as const,
+        reason: "existing_website_sku_conflict" as const,
+      };
+    }
     if (!linkedProductId) {
       const createdProduct = await this.productRepo.create({
         tenant_id: input.tenantId,
@@ -183,6 +219,21 @@ export class LightspeedInboundSyncService {
       input.tenantId,
       linkedProductId,
     );
+    const linkedWebsiteProduct = await this.productRepo.getById(linkedProductId, {
+      tenantId: input.tenantId,
+      includeOutOfStock: true,
+      includeInactive: true,
+      includeUnpublished: true,
+      archivedStatus: "all",
+    });
+    const websiteVariantIdBySku = new Map(
+      (linkedWebsiteProduct?.variants ?? [])
+        .map((variant) => [variant.sku?.trim() ?? "", variant.id] as const)
+        .filter(
+          (entry): entry is [string, string] =>
+            entry[0].length > 0 && typeof entry[1] === "string",
+        ),
+    );
 
     if (remoteProductKind !== "variant_child") {
       const incomingSkus = new Set(normalized.map((remote) => remote.externalSku));
@@ -211,9 +262,13 @@ export class LightspeedInboundSyncService {
         existingLinks[index] ??
         persistedLinks.find((link) => link.external_sku === remote.externalSku) ??
         null;
+      const existingWebsiteVariantId =
+        existingLink?.variant_id ??
+        websiteVariantIdBySku.get(remote.externalSku) ??
+        null;
 
-      if (existingLink?.variant_id) {
-        await this.productRepo.updateVariant(existingLink.variant_id, {
+      if (existingWebsiteVariantId) {
+        await this.productRepo.updateVariant(existingWebsiteVariantId, {
           sku: remote.externalSku,
           size_label: remote.sizeLabel,
           sale_price_cents: remote.priceCents ?? 0,
@@ -225,7 +280,7 @@ export class LightspeedInboundSyncService {
         await this.linksRepo.upsertLink({
           tenantId: input.tenantId,
           productId: linkedProductId,
-          variantId: existingLink.variant_id,
+          variantId: existingWebsiteVariantId,
           externalSku: remote.externalSku,
           lightspeedFamilyId: familyId,
           lightspeedProductId: familyId,
@@ -236,6 +291,7 @@ export class LightspeedInboundSyncService {
           tombstonedAt: null,
           lastError: null,
         });
+        websiteVariantIdBySku.set(remote.externalSku, existingWebsiteVariantId);
         continue;
       }
 
@@ -264,6 +320,7 @@ export class LightspeedInboundSyncService {
         tombstonedAt: null,
         lastError: null,
       });
+      websiteVariantIdBySku.set(remote.externalSku, createdVariant.id);
     }
 
     await this.syncProductTags(linkedProductId, input.tenantId, resolvedTags);

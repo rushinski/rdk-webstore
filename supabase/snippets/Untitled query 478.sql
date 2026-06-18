@@ -1,1 +1,1 @@
-TRUNCATE TABLE tags CASCADE;
+TRUNCATE TABLE product_variants CASCADE;

@@ -155,6 +155,13 @@ type ProductImageRow = {
   sort_order: number;
 };
 
+type SearchCandidateRow = {
+  id: string;
+  brand: string | null;
+  name: string | null;
+  model: string | null;
+};
+
 export class ProductRepository {
   private static readonly RECONCILIATION_PAGE_SIZE = 1000;
 
@@ -343,7 +350,9 @@ export class ProductRepository {
       inventoryUnitTotal = 0;
     } else {
       // Build the base query with all filters
-      let baseQuery = this.supabase.from("products").select("id", { count: "exact" });
+      let baseQuery = this.supabase
+        .from("products")
+        .select("id, brand, name, model", { count: "exact" });
 
       baseQuery = baseQuery.eq("is_active", true);
       baseQuery = this.applyArchivedFilter(baseQuery, archivedStatus);
@@ -425,7 +434,7 @@ export class ProductRepository {
         throw error;
       }
 
-      ids = (data ?? []).map((row: { id: string }) => row.id);
+      const candidateRows = (data ?? []) as SearchCandidateRow[];
       total = count ?? 0;
       skuTotal =
         searchMode === "inventory"
@@ -445,6 +454,20 @@ export class ProductRepository {
               nowIso,
             })
           : 0;
+
+      if (!hasSearchQuery) {
+        ids = candidateRows.map((row) => row.id);
+      } else {
+        const candidatesWithScores = candidateRows.map((row) => ({
+          row,
+          score: this.calculateSearchRelevance(row, filters.q, searchFields),
+        }));
+
+        candidatesWithScores.sort((a, b) => b.score - a.score);
+        ids = candidatesWithScores
+          .slice(offset, offset + limit)
+          .map((candidate) => candidate.row.id);
+      }
     }
     if (ids.length === 0) {
       return { products: [], total, skuTotal, inventoryUnitTotal, page, limit };
@@ -492,24 +515,9 @@ export class ProductRepository {
 
     let products = ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[];
 
-    // Apply relevance sorting for searches with query (both inventory and storefront)
-    if (filters.q?.trim()) {
-      const productsWithScores = products.map((product) => ({
-        product,
-        score: this.calculateSearchRelevance(product, filters.q, searchFields),
-      }));
-
-      // Sort by relevance score (highest first)
-      productsWithScores.sort((a, b) => b.score - a.score);
-
-      // Apply pagination AFTER scoring
-      const paginatedScores = productsWithScores.slice(offset, offset + limit);
-      products = paginatedScores.map((item) => item.product);
-    }
-
-    return {
-      products,
-      total,
+      return {
+        products,
+        total,
       skuTotal,
       inventoryUnitTotal,
       page,
@@ -788,6 +796,26 @@ export class ProductRepository {
     }
 
     return this.transformProduct(data as ProductWithRelations);
+  }
+
+  async getVariantBySku(tenantId: string, sku: string) {
+    const normalizedSku = sku.trim();
+    if (!normalizedSku) {
+      return null;
+    }
+
+    const { data, error } = await this.supabase
+      .from("product_variants")
+      .select("id, product_id, sku")
+      .eq("tenant_id", tenantId)
+      .eq("sku", normalizedSku)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return (data ?? null) as Pick<VariantRow, "id" | "product_id" | "sku"> | null;
   }
 
   async findByTitleAndCategory(
@@ -1405,10 +1433,10 @@ export class ProductRepository {
    * Higher scores indicate better matches.
    */
   private calculateSearchRelevance(
-    product: ProductRow,
-    searchQuery: string | undefined,
-    searchFields: string[],
-  ): number {
+      product: Pick<ProductRow, "brand" | "name" | "model"> | SearchCandidateRow,
+      searchQuery: string | undefined,
+      searchFields: string[],
+    ): number {
     if (!searchQuery?.trim()) {
       return 0;
     }
@@ -1421,11 +1449,11 @@ export class ProductRepository {
 
     let score = 0;
 
-    // Helper to get field values
-    const getFieldValue = (field: string): string => {
-      const value = product[field as keyof ProductRow];
-      return String(value ?? "").toLowerCase();
-    };
+      // Helper to get field values
+      const getFieldValue = (field: string): string => {
+        const value = product[field as keyof typeof product];
+        return String(value ?? "").toLowerCase();
+      };
 
     // Check each search field
     for (const field of searchFields) {

@@ -7,6 +7,7 @@ const deleteImagesByProductMock = jest.fn();
 const deleteVariantMock = jest.fn();
 const deleteProductMock = jest.fn();
 const getProductByIdMock = jest.fn();
+const getVariantBySkuMock = jest.fn();
 const unlinkProductTagsMock = jest.fn();
 const linkProductTagMock = jest.fn();
 
@@ -30,6 +31,7 @@ jest.mock("@/repositories/product-repo", () => ({
     deleteVariant: deleteVariantMock,
     delete: deleteProductMock,
     getById: getProductByIdMock,
+    getVariantBySku: getVariantBySkuMock,
     unlinkProductTags: unlinkProductTagsMock,
     linkProductTag: linkProductTagMock,
   })),
@@ -73,6 +75,7 @@ describe("LightspeedInboundSyncService", () => {
     deleteVariantMock.mockReset();
     deleteProductMock.mockReset();
     getProductByIdMock.mockReset();
+    getVariantBySkuMock.mockReset();
     unlinkProductTagsMock.mockReset();
     linkProductTagMock.mockReset();
     getByLightspeedVariantIdMock.mockReset();
@@ -461,6 +464,224 @@ describe("LightspeedInboundSyncService", () => {
         lightspeedVariantId: "ls-child-1",
       }),
     );
+  });
+
+  it("reuses an existing website variant with the same SKU on a linked product instead of creating a duplicate", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValueOnce({
+      id: "link-family-a",
+      product_id: "product-42",
+      variant_id: "variant-family-a",
+      lightspeed_product_id: "ls-family-42",
+      lightspeed_family_id: "ls-family-42",
+      external_sku: "SKU-1",
+      last_website_modified_at: null,
+    });
+    getByLightspeedVariantIdMock.mockResolvedValueOnce(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    listByProductIdMock.mockResolvedValue([
+      {
+        id: "link-family-a",
+        product_id: "product-42",
+        variant_id: "variant-family-a",
+        lightspeed_product_id: "ls-family-42",
+        lightspeed_family_id: "ls-family-42",
+        external_sku: "SKU-1",
+      },
+    ]);
+    getProductByIdMock.mockResolvedValue({
+      id: "product-42",
+      variants: [
+        {
+          id: "variant-family-a",
+          sku: "SKU-1",
+          size_label: "30",
+          sale_price_cents: 0,
+          unit_cost_cents: 0,
+          stock: 1,
+          sort_order: 0,
+        },
+        {
+          id: "variant-family-b",
+          sku: "SKU-2",
+          size_label: "32",
+          sale_price_cents: 0,
+          unit_cost_cents: 0,
+          stock: 0,
+          sort_order: 1,
+        },
+      ],
+    });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-family-99",
+        name: "Family Product",
+        product_category: "Clothing",
+        variants: [
+          {
+            id: "ls-child-1",
+            sku: "SKU-1",
+            name: "Family Product",
+            variant_option_one_name: "Size",
+            variant_option_one_value: "30",
+            inventory_Main_Outlet: 1,
+          },
+          {
+            id: "ls-child-2",
+            sku: "SKU-2",
+            name: "Family Product",
+            variant_option_one_name: "Size",
+            variant_option_one_value: "32",
+            inventory_Main_Outlet: 2,
+          },
+        ],
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-18T12:00:00.000Z",
+    });
+
+    expect(createVariantMock).not.toHaveBeenCalled();
+    expect(updateVariantMock).toHaveBeenCalledWith(
+      "variant-family-b",
+      expect.objectContaining({
+        sku: "SKU-2",
+        size_label: "32",
+        stock: 2,
+      }),
+    );
+    expect(upsertLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: "product-42",
+        variantId: "variant-family-b",
+        externalSku: "SKU-2",
+        lightspeedVariantId: "ls-child-2",
+      }),
+    );
+  });
+
+  it("reuses an existing website product when no Lightspeed link exists but the SKU already exists on a website variant", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValue(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    getVariantBySkuMock.mockResolvedValue({
+      id: "variant-existing-1",
+      product_id: "product-existing-1",
+      sku: "SKU-EXIST-1",
+    });
+    getProductByIdMock.mockResolvedValue({
+      id: "product-existing-1",
+      variants: [
+        {
+          id: "variant-existing-1",
+          sku: "SKU-EXIST-1",
+          size_label: "10",
+          sale_price_cents: 0,
+          unit_cost_cents: 0,
+          stock: 1,
+          sort_order: 0,
+        },
+      ],
+    });
+    listByProductIdMock.mockResolvedValue([]);
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-existing-1",
+        name: "Existing Website Product",
+        product_category: "Sneakers",
+        sku: "SKU-EXIST-1",
+        variant_option_one_name: "Size",
+        variant_option_one_value: "10",
+        inventory_Main_Outlet: 2,
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-18T13:00:00.000Z",
+    });
+
+    expect(createMock).not.toHaveBeenCalled();
+    expect(createVariantMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalled();
+    expect(updateVariantMock).toHaveBeenCalledWith(
+      "variant-existing-1",
+      expect.objectContaining({
+        sku: "SKU-EXIST-1",
+        size_label: "10",
+        stock: 2,
+      }),
+    );
+    expect(upsertLinkMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: "product-existing-1",
+        variantId: "variant-existing-1",
+        externalSku: "SKU-EXIST-1",
+        lightspeedVariantId: "ls-existing-1",
+      }),
+      );
+    });
+
+  it("skips a linked family update when an incoming sibling SKU belongs to a different website product", async () => {
+    getByLightspeedVariantIdMock.mockResolvedValueOnce({
+      id: "link-family-a",
+      product_id: "product-42",
+      variant_id: "variant-family-a",
+      lightspeed_product_id: "ls-family-42",
+      lightspeed_family_id: "ls-family-42",
+      external_sku: "SKU-1",
+      last_website_modified_at: null,
+    });
+    getByLightspeedVariantIdMock.mockResolvedValueOnce(null);
+    getByExternalSkuMock.mockResolvedValue(null);
+    getVariantBySkuMock
+      .mockResolvedValueOnce({ id: "variant-family-a", product_id: "product-42", sku: "SKU-1" })
+      .mockResolvedValueOnce({
+        id: "variant-archived-b",
+        product_id: "product-archive-b",
+        sku: "SKU-2",
+      });
+
+    const service = new LightspeedInboundSyncService({} as never);
+
+    const result = await service.applyProductPayload({
+      tenantId: "tenant-1",
+      payload: {
+        id: "ls-family-99",
+        name: "Family Product",
+        product_category: "Clothing",
+        variants: [
+          {
+            id: "ls-child-1",
+            sku: "SKU-1",
+            name: "Family Product",
+            variant_option_one_name: "Size",
+            variant_option_one_value: "30",
+            inventory_Main_Outlet: 1,
+          },
+          {
+            id: "ls-child-2",
+            sku: "SKU-2",
+            name: "Family Product",
+            variant_option_one_name: "Size",
+            variant_option_one_value: "32",
+            inventory_Main_Outlet: 2,
+          },
+        ],
+      },
+      topic: "product.update",
+      remoteModifiedAt: "2026-06-18T14:00:00.000Z",
+    });
+
+    expect(result).toEqual({
+      status: "skipped",
+      reason: "existing_website_sku_conflict",
+    });
+    expect(createVariantMock).not.toHaveBeenCalled();
+    expect(updateVariantMock).not.toHaveBeenCalled();
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("hard deletes linked website records when Lightspeed deletes the family", async () => {
