@@ -4,10 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { StorefrontHeader } from "@/components/storefront/shell/StorefrontHeader";
 import { useCart } from "@/components/cart/CartProvider";
 import type { ProfileRole } from "@/config/constants/roles";
-
-import { Navbar } from "./Navbar";
 
 interface ScrollHeaderProps {
   isAuthenticated?: boolean;
@@ -80,11 +79,11 @@ export function ScrollHeader({
   return (
     <header
       ref={headerRef}
-      className={`fixed top-0 left-0 right-0 z-50 bg-black border-b border-zinc-800/70 transition-transform duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 border-b border-brand-border bg-brand-page transition-transform duration-300 ${
         isVisible ? "translate-y-0" : "-translate-y-full"
       }`}
     >
-      <Navbar
+      <StorefrontHeader
         isAuthenticated={isAuthenticated}
         userEmail={userEmail}
         role={role}

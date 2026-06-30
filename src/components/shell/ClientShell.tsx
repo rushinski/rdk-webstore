@@ -5,13 +5,12 @@ import { Suspense, useCallback, useState, useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
-import { SearchOverlay } from "@/components/search/SearchOverlay";
-import { CartDrawer } from "@/components/cart/CartDrawer";
 import { ChatDrawer } from "@/components/chat/ChatDrawer";
 import { ChatLauncher } from "@/components/chat/ChatLauncher";
-import { Footer } from "@/components/shell/Footer";
-import { MobileBottomNav } from "@/components/shell/MobileBottomNav";
 import type { ProfileRole } from "@/config/constants/roles";
+import { StorefrontSearchOverlay } from "@/components/storefront/search/StorefrontSearchOverlay";
+import { StorefrontCartDrawer } from "@/components/storefront/cart/StorefrontCartDrawer";
+import { StorefrontFooter } from "@/components/storefront/shell/StorefrontFooter";
 
 export function ClientShell({
   children,
@@ -126,8 +125,8 @@ export function ClientShell({
       )}
       <div className={showAdminSidebar ? "md:ml-64" : undefined}>{children}</div>
 
-      <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
-      <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      <StorefrontSearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <StorefrontCartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
       <Suspense fallback={null}>
         <ChatQueryOpener onOpenChat={openChat} />
       </Suspense>
@@ -135,8 +134,7 @@ export function ClientShell({
       {isStoreRoute && (
         <ChatDrawer isOpen={chatOpen} onClose={() => setChatOpen(false)} />
       )}
-      {isStoreRoute && <Footer />}
-      {isStoreRoute && <MobileBottomNav />}
+      {isStoreRoute && <StorefrontFooter />}
     </>
   );
 }
