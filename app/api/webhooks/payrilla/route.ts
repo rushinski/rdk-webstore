@@ -29,12 +29,9 @@ import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { NexusRepository } from "@/repositories/nexus-repo";
 import { ProductService } from "@/services/product-service";
-import { ChatService } from "@/services/chat-service";
-import { AdminNotificationService } from "@/services/admin-notification-service";
 import { EvidenceService } from "@/services/evidence-service";
 import { sendOrderCompletionEmailsIfNeeded } from "@/services/order-completion-email-service";
 import { RefundNotificationService } from "@/services/refund-notification-service";
-import { syncLightspeedInventoryForVariants } from "@/services/lightspeed-inventory-propagation-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 import { env } from "@/config/env";
@@ -334,7 +331,6 @@ async function handleTransactionApproved(
   }
 
   if (didMarkPaid) {
-    const inventorySyncTimestamp = new Date().toISOString();
     const currentOrder = await ordersRepo.getById(orderId);
     const postPaymentOrder = currentOrder ?? order;
 
@@ -349,17 +345,6 @@ async function handleTransactionApproved(
     ];
     for (const pid of productIds) {
       await productService.syncSizeTags(pid);
-    }
-
-    if (postPaymentOrder.tenant_id) {
-      await syncLightspeedInventoryForVariants({
-        supabase: adminSupabase,
-        tenantId: postPaymentOrder.tenant_id,
-        variantIds: orderItems
-          .map((item) => item.variant_id)
-          .filter((variantId): variantId is string => typeof variantId === "string"),
-        websiteModifiedAt: inventorySyncTimestamp,
-      });
     }
 
     // Record nexus sale
@@ -431,24 +416,6 @@ async function handleTransactionApproved(
     if (!existing) {
       await ordersRepo.setFulfillmentStatus(orderId, "unfulfilled");
     }
-  }
-
-  // Pickup chat
-  if (fulfillment === "pickup" && postPaymentOrder.user_id) {
-    try {
-      const chatService = new ChatService(adminSupabase, adminSupabase);
-      await chatService.createChatForUser({ userId: postPaymentOrder.user_id, orderId });
-    } catch {
-      /* non-fatal */
-    }
-  }
-
-  // Admin notification
-  try {
-    const notifications = new AdminNotificationService(adminSupabase);
-    await notifications.notifyOrderPlaced(orderId);
-  } catch {
-    /* non-fatal */
   }
 
   // Emails

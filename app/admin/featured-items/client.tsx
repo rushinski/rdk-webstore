@@ -1,13 +1,14 @@
-// app/admin/featured-items/client.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { Star, GripVertical, X, Plus, Search } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 
-import { logError } from "@/lib/utils/log";
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { Toast } from "@/components/ui/Toast";
+import { logError } from "@/lib/utils/log";
+
+import { FeaturedItemsList } from "./components/FeaturedItemsList";
+import { FeaturedItemsSearchPanel } from "./components/FeaturedItemsSearchPanel";
 
 type FeaturedItem = {
   id: string;
@@ -56,7 +57,7 @@ export function FeaturedItemsManager() {
   } | null>(null);
 
   useEffect(() => {
-    loadFeaturedItems();
+    void loadFeaturedItems();
   }, []);
 
   useEffect(() => {
@@ -68,6 +69,7 @@ export function FeaturedItemsManager() {
     }
 
     const controller = new AbortController();
+
     const searchProducts = async () => {
       setIsSearching(true);
       try {
@@ -93,6 +95,7 @@ export function FeaturedItemsManager() {
               error !== null &&
               "name" in error &&
               (error as { name?: string }).name === "AbortError";
+
         if (!isAbort) {
           setSearchResults([]);
           logError(error, { layer: "frontend", event: "featured_items_search" });
@@ -191,8 +194,8 @@ export function FeaturedItemsManager() {
     setDraggedIndex(index);
   };
 
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
+  const handleDragOver = (event: React.DragEvent, index: number) => {
+    event.preventDefault();
     if (draggedIndex === null || draggedIndex === index) {
       return;
     }
@@ -243,7 +246,7 @@ export function FeaturedItemsManager() {
     if (!variants || variants.length === 0) {
       return 0;
     }
-    return Math.min(...variants.map((v) => v.sale_price_cents));
+    return Math.min(...variants.map((variant) => variant.sale_price_cents));
   };
 
   const featuredProductIds = new Set(featuredItems.map((item) => item.product_id));
@@ -253,188 +256,52 @@ export function FeaturedItemsManager() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-gray-400">Loading featured items...</div>
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Featured Items"
+          description="Manage the featured product lineup shown on the storefront home page."
+        />
+        <AdminEmptyState
+          title="Loading Featured Items"
+          description="Pulling the current featured lineup now."
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Add Products Section */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          Add Products
-        </h2>
+      <AdminPageHeader
+        title="Featured Items"
+        description="Manage the featured product lineup shown on the storefront home page."
+      />
 
-        <div className="relative">
-          <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-800/70 rounded px-4 py-2">
-            <Search className="w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search products by name, brand, or SKU..."
-              className="flex-1 bg-transparent text-white focus:outline-none"
-            />
-            {isSearching && <div className="text-xs text-gray-400">Searching...</div>}
-          </div>
+      <FeaturedItemsSearchPanel
+        searchQuery={searchQuery}
+        isSearching={isSearching}
+        searchResults={filteredSearchResults}
+        onSearchQueryChange={setSearchQuery}
+        onAddFeaturedItem={(productId) => {
+          void addFeaturedItem(productId);
+        }}
+        formatPrice={formatPrice}
+        getMinPrice={getMinPrice}
+      />
 
-          {filteredSearchResults.length > 0 && (
-            <div className="absolute z-10 w-full mt-2 bg-zinc-800 border border-zinc-700 rounded shadow-lg max-h-96 overflow-y-auto">
-              {filteredSearchResults.map((product) => {
-                const minPrice = getMinPrice(product.variants);
-                const primaryImage = product.images?.[0]?.url;
-
-                return (
-                  <button
-                    key={product.id}
-                    onClick={() => void addFeaturedItem(product.id)}
-                    className="w-full flex items-center gap-4 p-4 hover:bg-zinc-700 transition text-left"
-                  >
-                    {primaryImage ? (
-                      <div className="relative w-16 h-16 bg-zinc-900 rounded overflow-hidden flex-shrink-0">
-                        <Image
-                          src={primaryImage}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 bg-zinc-900 rounded flex items-center justify-center flex-shrink-0">
-                        <span className="text-gray-500 text-xs">No image</span>
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-semibold truncate">
-                        {product.name}
-                      </div>
-                      <div className="text-sm text-gray-400 truncate">
-                        {product.category} • {formatPrice(minPrice)}
-                      </div>
-                    </div>
-
-                    <Plus className="w-5 h-5 text-red-500 flex-shrink-0" />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {searchQuery.trim().length > 0 &&
-          filteredSearchResults.length === 0 &&
-          !isSearching && (
-            <div className="mt-4 text-center text-gray-400 text-sm">
-              No products found matching "{searchQuery}"
-            </div>
-          )}
-      </div>
-
-      {/* Featured Items List */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Star className="w-5 h-5 text-yellow-500" />
-            Featured Items ({featuredItems.length})
-          </h2>
-          <Link
-            href="/"
-            target="_blank"
-            className="text-sm text-gray-400 hover:text-white transition"
-          >
-            View on home page →
-          </Link>
-        </div>
-
-        {featuredItems.length === 0 ? (
-          <div className="text-center py-12">
-            <Star className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 text-lg mb-2">No featured items yet</p>
-            <p className="text-gray-500 text-sm">
-              Search for products above to add them to the featured section
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="mb-4 text-sm text-gray-400">
-              Drag items to reorder. Items appear left-to-right on the home page.
-            </div>
-
-            <div className="space-y-3">
-              {featuredItems.map((item, index) => {
-                const primaryImage =
-                  item.product.images?.find((img) => img.is_primary)?.url ||
-                  item.product.images?.[0]?.url;
-                const minPrice = getMinPrice(item.product.variants);
-
-                return (
-                  <div
-                    key={item.id}
-                    draggable
-                    onDragStart={() => handleDragStart(index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={() => void handleDragEnd()}
-                    className={[
-                      "flex items-center gap-4 p-4 bg-zinc-800 border border-zinc-800/70 rounded",
-                      "hover:border-zinc-700 transition cursor-move",
-                      draggedIndex === index ? "opacity-50" : "",
-                    ].join(" ")}
-                  >
-                    <GripVertical className="w-5 h-5 text-gray-500 flex-shrink-0" />
-
-                    <div className="w-8 h-8 bg-zinc-700 rounded flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-semibold text-gray-300">
-                        {index + 1}
-                      </span>
-                    </div>
-
-                    {primaryImage ? (
-                      <div className="relative w-16 h-16 bg-zinc-900 rounded overflow-hidden flex-shrink-0">
-                        <Image
-                          src={primaryImage}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-16 h-16 bg-zinc-900 rounded flex items-center justify-center flex-shrink-0">
-                        <span className="text-gray-500 text-xs">No image</span>
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-semibold truncate">
-                        {item.product.name}
-                      </div>
-                      <div className="text-sm text-gray-400 truncate">
-                        {item.product.category} • {formatPrice(minPrice)}
-                      </div>
-                      {item.product.is_out_of_stock && (
-                        <div className="text-xs text-red-400 mt-1">
-                          Out of stock (hidden on home page)
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => void removeFeaturedItem(item.product_id)}
-                      className="p-2 hover:bg-zinc-700 rounded transition flex-shrink-0"
-                      title="Remove from featured"
-                    >
-                      <X className="w-5 h-5 text-red-500" />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+      <FeaturedItemsList
+        featuredItems={featuredItems}
+        draggedIndex={draggedIndex}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={() => {
+          void handleDragEnd();
+        }}
+        onRemoveFeaturedItem={(productId) => {
+          void removeFeaturedItem(productId);
+        }}
+        formatPrice={formatPrice}
+        getMinPrice={getMinPrice}
+      />
 
       <Toast
         open={Boolean(toast)}

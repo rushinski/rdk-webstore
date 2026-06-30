@@ -8,7 +8,6 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { ProductService } from "@/services/product-service";
-import { LightspeedProductSyncService } from "@/services/lightspeed-product-sync-service";
 import { adminProductsQuerySchema, productCreateSchema } from "@/lib/validation/product";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
@@ -152,17 +151,6 @@ export async function POST(request: NextRequest) {
       tenantId,
       sellerId: null,
     });
-    const lightspeedSyncService = new LightspeedProductSyncService(supabase);
-
-    try {
-      await lightspeedSyncService.syncWebsiteProduct(product.id, {
-        tenantId,
-        source: "create",
-      });
-    } catch (syncError) {
-      await service.deleteProduct(product.id).catch(() => undefined);
-      throw syncError;
-    }
 
     try {
       revalidateTag(`product:${product.id}`, "max");
@@ -238,36 +226,15 @@ export async function PATCH(request: NextRequest) {
             });
       payload = { success: true, restoredCount: result.restoredCount, requestId };
     } else {
-      const lightspeedSyncService = new LightspeedProductSyncService(supabase);
       const result =
         parsed.data.selectionMode === "ids"
-          ? await service.deleteProductsByIds(parsed.data.ids ?? [], tenantId, {
-              onBeforeDelete: async (productId) => {
-                await lightspeedSyncService.deleteWebsiteProduct({
-                  tenantId,
-                  productId,
-                  deletedByUserId: session.user.id,
-                });
-              },
-            })
-          : await service.deleteProductsByFilters(
-              tenantId,
-              {
-                q: parsed.data.filters?.q,
-                category: parsed.data.filters?.category,
-                condition: parsed.data.filters?.condition,
-                stockStatus: parsed.data.filters?.stockStatus,
-              },
-              {
-                onBeforeDelete: async (productId) => {
-                  await lightspeedSyncService.deleteWebsiteProduct({
-                    tenantId,
-                    productId,
-                    deletedByUserId: session.user.id,
-                  });
-                },
-              },
-            );
+          ? await service.deleteProductsByIds(parsed.data.ids ?? [], tenantId)
+          : await service.deleteProductsByFilters(tenantId, {
+              q: parsed.data.filters?.q,
+              category: parsed.data.filters?.category,
+              condition: parsed.data.filters?.condition,
+              stockStatus: parsed.data.filters?.stockStatus,
+            });
       payload = {
         success: true,
         deletedCount: result.deletedCount,

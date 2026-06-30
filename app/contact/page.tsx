@@ -1,64 +1,46 @@
-// app/(main)/contact/page.tsx
 import Image from "next/image";
 
 import { ContactForm } from "@/components/contact/ContactForm";
 
 export default function ContactPage() {
   return (
-    <div className="max-w-7xl mx-auto px-4 pt-8 pb-16">
-      <h1 className="text-4xl font-bold text-white mb-4">Contact Us</h1>
-      <div className="text-zinc-400 mb-12 space-y-4">
+    <div className="mx-auto max-w-brand px-6 pb-16 pt-8 md:px-12 lg:px-16">
+      <h1 className="mb-4 text-4xl font-bold text-brand-text">Contact</h1>
+      <div className="mb-12 space-y-4 text-brand-muted">
         <p>
           Trying to sell sneakers, clothing, accessories, or anything you think we might
           want? Reach out. We&apos;re always buying.
         </p>
         <p>
           You can contact us through{" "}
-          <a href="#contact-form" className="text-red-400 hover:underline">
+          <a href="#contact-form" className="text-brand-text hover:underline">
             this contact form
           </a>
           , the{" "}
-          <a href="/account" className="text-red-400 hover:underline">
+          <a href="/account" className="text-brand-text hover:underline">
             onsite messaging system
           </a>
-          , by emailing us at{" "}
-          <a
-            href="mailto:realdealholyspill@gmail.com"
-            className="text-red-400 hover:underline"
-          >
-            realdealholyspill@gmail.com
-          </a>
-          , or by sending us a DM on Instagram at{" "}
-          <a
-            href="https://instagram.com/realdealkickzsc"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-red-400 hover:underline"
-          >
-            @realdealkickzsc
+          , or by emailing us at{" "}
+          <a href="mailto:null@gmail.com" className="text-brand-text hover:underline">
+            null@gmail.com
           </a>
           .
         </p>
         <p>
-          Need help putting together a fit? We offer fit services too. Submit your size,
-          style, and any specific colors, shoes, or clothing you want included, and we
-          will build a full outfit for you. You purchase it, and we will ship everything
-          straight to you.
+          Need help putting together a fit? Submit your size, style, and any specific
+          colors, shoes, or clothing you want included, and we will build a full outfit
+          for you.
         </p>
-        <p>Have questions or need anything else? Feel free to reach out.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-12 items-stretch">
-        {/* Contact Form */}
+      <div className="grid items-stretch gap-12 md:grid-cols-2">
         <div className="h-full">
           <ContactForm source="contact_form" />
         </div>
 
         <div className="hidden md:block">
-          {/* Image stack (matches the reference orientation) */}
           <div className="relative h-full min-h-[420px] overflow-visible">
-            {/* Front / left card */}
-            <div className="absolute left-[8%] top-[6%] w-[64%] max-w-[340px] aspect-[3/4] border border-zinc-800 bg-black shadow-2xl -rotate-[12deg] overflow-hidden z-20">
+            <div className="absolute left-[8%] top-[6%] z-20 aspect-[3/4] w-[64%] max-w-[340px] -rotate-[12deg] overflow-hidden border border-brand-border bg-brand-surface shadow-2xl">
               <Image
                 src="/images/fits/fit-1.png"
                 alt="Outfit styling example 1"
@@ -68,8 +50,7 @@ export default function ContactPage() {
               />
             </div>
 
-            {/* Back / right card */}
-            <div className="absolute left-[40%] top-[20%] w-[58%] max-w-[320px] aspect-[3/4] border border-zinc-800 bg-black shadow-2xl rotate-[10deg] overflow-hidden z-10">
+            <div className="absolute left-[40%] top-[20%] z-10 aspect-[3/4] w-[58%] max-w-[320px] rotate-[10deg] overflow-hidden border border-brand-border bg-brand-surface shadow-2xl">
               <Image
                 src="/images/fits/fit-2.png"
                 alt="Outfit styling example 2"

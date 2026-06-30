@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface AddressValue {
   name: string;
@@ -21,8 +21,13 @@ export interface AddressInputProps {
   requireEmail?: boolean;
   countryCode?: string;
   disabled?: boolean;
-  showErrors?: boolean; // Controls when to display validation errors
+  showErrors?: boolean;
 }
+
+const labelClass =
+  "mb-1 block text-sm font-semibold uppercase tracking-[0.08em] text-brand-text";
+const baseInputClass =
+  "w-full border bg-brand-surface px-3 py-2.5 text-brand-text outline-none transition-colors placeholder:text-brand-muted disabled:cursor-not-allowed disabled:opacity-60 focus:border-brand-text";
 
 export function AddressInput({
   value,
@@ -38,71 +43,70 @@ export function AddressInput({
     {},
   );
 
-  // Client-side validation
   useEffect(() => {
-    const newErrors: Partial<Record<keyof AddressValue, string>> = {};
+    const nextErrors: Partial<Record<keyof AddressValue, string>> = {};
 
     if (!value.name?.trim()) {
-      newErrors.name = "Name is required";
+      nextErrors.name = "Name is required";
     }
 
     if (requirePhone && (!value.phone || value.phone.length < 10)) {
-      newErrors.phone = "Phone number required (10+ digits)";
+      nextErrors.phone = "Phone number required (10+ digits)";
     }
 
     if (requireEmail && value.email) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(value.email)) {
-        newErrors.email = "Valid email address required";
+        nextErrors.email = "Valid email address required";
       }
     }
 
     if (!value.line1?.trim()) {
-      newErrors.line1 = "Street address is required";
+      nextErrors.line1 = "Street address is required";
     }
 
     if (!value.city?.trim()) {
-      newErrors.city = "City is required";
+      nextErrors.city = "City is required";
     }
 
     if (!value.state?.trim() || value.state.length !== 2) {
-      newErrors.state = "State must be 2 letters";
+      nextErrors.state = "State must be 2 letters";
     }
 
     if (!value.postal_code?.trim() || !/^\d{5}(-\d{4})?$/.test(value.postal_code)) {
-      newErrors.postal_code = "Valid ZIP code required";
+      nextErrors.postal_code = "Valid ZIP code required";
     }
 
-    setErrors(newErrors);
+    setErrors(nextErrors);
   }, [value, requirePhone, requireEmail]);
+
+  const borderClass = (field: keyof AddressValue) =>
+    (showErrors || touched[field]) && errors[field]
+      ? "border-red-400"
+      : "border-brand-border";
+
+  const errorText = (field: keyof AddressValue) =>
+    (showErrors || touched[field]) && errors[field] ? (
+      <div className="mt-1 text-xs text-red-700">{errors[field]}</div>
+    ) : null;
 
   return (
     <div className="space-y-4">
-      {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          Full Name *
-        </label>
+        <label className={labelClass}>Full Name *</label>
         <input
           type="text"
           value={value.name}
           onChange={(e) => onChange({ ...value, name: e.target.value })}
           onBlur={() => setTouched({ ...touched, name: true })}
           disabled={disabled}
-          className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.name) && errors.name
-              ? "border-red-500"
-              : "border-zinc-800"
-          }`}
+          className={`${baseInputClass} ${borderClass("name")}`}
         />
-        {(showErrors || touched.name) && errors.name && (
-          <div className="text-xs text-red-400 mt-1">{errors.name}</div>
-        )}
+        {errorText("name")}
       </div>
 
-      {/* Phone */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
+        <label className={labelClass}>
           Phone Number {requirePhone ? "*" : "(optional)"}
         </label>
         <input
@@ -112,22 +116,13 @@ export function AddressInput({
           onBlur={() => setTouched({ ...touched, phone: true })}
           disabled={disabled}
           placeholder="(555) 123-4567"
-          className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.phone) && errors.phone
-              ? "border-red-500"
-              : "border-zinc-800"
-          }`}
+          className={`${baseInputClass} ${borderClass("phone")}`}
         />
-        {(showErrors || touched.phone) && errors.phone && (
-          <div className="text-xs text-red-400 mt-1">{errors.phone}</div>
-        )}
+        {errorText("phone")}
       </div>
 
-      {/* Email */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          Email {requireEmail ? "*" : "(optional)"}
-        </label>
+        <label className={labelClass}>Email {requireEmail ? "*" : "(optional)"}</label>
         <input
           type="email"
           value={value.email || ""}
@@ -135,22 +130,13 @@ export function AddressInput({
           onBlur={() => setTouched({ ...touched, email: true })}
           disabled={disabled}
           placeholder="email@example.com"
-          className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.email) && errors.email
-              ? "border-red-500"
-              : "border-zinc-800"
-          }`}
+          className={`${baseInputClass} ${borderClass("email")}`}
         />
-        {(showErrors || touched.email) && errors.email && (
-          <div className="text-xs text-red-400 mt-1">{errors.email}</div>
-        )}
+        {errorText("email")}
       </div>
 
-      {/* Address Line 1 */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          Street Address *
-        </label>
+        <label className={labelClass}>Street Address *</label>
         <input
           type="text"
           value={value.line1}
@@ -158,55 +144,39 @@ export function AddressInput({
           onBlur={() => setTouched({ ...touched, line1: true })}
           disabled={disabled}
           placeholder="123 Main St"
-          className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-            (showErrors || touched.line1) && errors.line1
-              ? "border-red-500"
-              : "border-zinc-800"
-          }`}
+          className={`${baseInputClass} ${borderClass("line1")}`}
         />
-        {(showErrors || touched.line1) && errors.line1 && (
-          <div className="text-xs text-red-400 mt-1">{errors.line1}</div>
-        )}
+        {errorText("line1")}
       </div>
 
-      {/* Address Line 2 */}
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-1">
-          Apartment, suite, etc. (optional)
-        </label>
+        <label className={labelClass}>Apartment, suite, etc. (optional)</label>
         <input
           type="text"
           value={value.line2}
           onChange={(e) => onChange({ ...value, line2: e.target.value })}
           disabled={disabled}
           placeholder="Apt 4B"
-          className="w-full px-3 py-2.5 bg-zinc-950 border border-zinc-800 rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600"
+          className={`${baseInputClass} border-brand-border`}
         />
       </div>
 
-      {/* City, State, ZIP */}
       <div className="grid grid-cols-6 gap-4">
         <div className="col-span-3">
-          <label className="block text-sm font-medium text-gray-300 mb-1">City *</label>
+          <label className={labelClass}>City *</label>
           <input
             type="text"
             value={value.city}
             onChange={(e) => onChange({ ...value, city: e.target.value })}
             onBlur={() => setTouched({ ...touched, city: true })}
             disabled={disabled}
-            className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-              (showErrors || touched.city) && errors.city
-                ? "border-red-500"
-                : "border-zinc-800"
-            }`}
+            className={`${baseInputClass} ${borderClass("city")}`}
           />
-          {(showErrors || touched.city) && errors.city && (
-            <div className="text-xs text-red-400 mt-1">{errors.city}</div>
-          )}
+          {errorText("city")}
         </div>
 
         <div className="col-span-1">
-          <label className="block text-sm font-medium text-gray-300 mb-1">State *</label>
+          <label className={labelClass}>State *</label>
           <input
             type="text"
             value={value.state}
@@ -215,21 +185,13 @@ export function AddressInput({
             maxLength={2}
             disabled={disabled}
             placeholder="CA"
-            className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 uppercase ${
-              (showErrors || touched.state) && errors.state
-                ? "border-red-500"
-                : "border-zinc-800"
-            }`}
+            className={`${baseInputClass} ${borderClass("state")} uppercase`}
           />
-          {(showErrors || touched.state) && errors.state && (
-            <div className="text-xs text-red-400 mt-1">{errors.state}</div>
-          )}
+          {errorText("state")}
         </div>
 
         <div className="col-span-2">
-          <label className="block text-sm font-medium text-gray-300 mb-1">
-            ZIP Code *
-          </label>
+          <label className={labelClass}>ZIP Code *</label>
           <input
             type="text"
             value={value.postal_code}
@@ -237,19 +199,12 @@ export function AddressInput({
             onBlur={() => setTouched({ ...touched, postal_code: true })}
             disabled={disabled}
             placeholder="12345"
-            className={`w-full px-3 py-2.5 bg-zinc-950 border rounded text-white focus:outline-none focus:ring-2 focus:ring-red-600 ${
-              (showErrors || touched.postal_code) && errors.postal_code
-                ? "border-red-500"
-                : "border-zinc-800"
-            }`}
+            className={`${baseInputClass} ${borderClass("postal_code")}`}
           />
-          {(showErrors || touched.postal_code) && errors.postal_code && (
-            <div className="text-xs text-red-400 mt-1">{errors.postal_code}</div>
-          )}
+          {errorText("postal_code")}
         </div>
       </div>
 
-      {/* Country (hidden, always US for now) */}
       <input type="hidden" value={value.country || countryCode} />
     </div>
   );

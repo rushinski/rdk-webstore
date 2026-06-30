@@ -1,9 +1,7 @@
-// app/account/page.tsx
-
 import Link from "next/link";
 
-import { requireUser } from "@/lib/auth/session";
 import { AccountProfile } from "@/components/account/AccountProfile";
+import { requireUser } from "@/lib/auth/session";
 
 export default async function AccountPage() {
   let session;
@@ -12,25 +10,26 @@ export default async function AccountPage() {
     session = await requireUser();
   } catch {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-        <h1 className="text-3xl font-bold text-white mb-4">
+      <div className="mx-auto max-w-4xl px-4 py-20 text-center">
+        <p className="text-xs uppercase tracking-[0.35em] text-brand-muted">Account</p>
+        <h1 className="mb-4 mt-3 text-3xl font-black uppercase tracking-[0.08em] text-brand-text">
           Sign in to view your account
         </h1>
-        <p className="text-gray-400 mb-8">
-          Access your profile, shipping info, and order history
+        <p className="mb-8 text-brand-muted">
+          Access your profile, shipping info, and order history.
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex justify-center gap-4">
           <Link
             href="/auth/login"
-            className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 rounded transition"
+            className="border border-brand-text bg-brand-text px-8 py-3 text-sm font-bold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
           >
-            Log In
+            Log in
           </Link>
           <Link
             href="/auth/register"
-            className="bg-zinc-700 hover:bg-zinc-600 text-white font-bold px-8 py-3 rounded transition"
+            className="border border-brand-border bg-brand-surface px-8 py-3 text-sm font-bold uppercase tracking-[0.08em] text-brand-text transition-colors hover:border-brand-text hover:bg-brand-page"
           >
-            Create Account
+            Create account
           </Link>
         </div>
       </div>

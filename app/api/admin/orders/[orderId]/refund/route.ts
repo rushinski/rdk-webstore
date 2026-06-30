@@ -14,7 +14,6 @@ import { PaymentTransactionsRepository } from "@/repositories/payment-transactio
 import { PayrillaChargeService } from "@/services/payrilla-charge-service";
 import { ProductService } from "@/services/product-service";
 import { RefundNotificationService } from "@/services/refund-notification-service";
-import { syncLightspeedInventoryForVariants } from "@/services/lightspeed-inventory-propagation-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
 import { log, logError } from "@/lib/utils/log";
@@ -259,13 +258,6 @@ export async function POST(
         for (const productId of touchedProductIds) {
           await productService.syncSizeTags(productId);
         }
-        await syncLightspeedInventoryForVariants({
-          supabase: admin,
-          tenantId,
-          variantIds: selectedItems
-            .map((item) => item.variant_id)
-            .filter((variantId): variantId is string => typeof variantId === "string"),
-        });
       } catch (inventoryError) {
         inventoryWarning =
           "Refund completed, but product refund state could not be fully synced.";

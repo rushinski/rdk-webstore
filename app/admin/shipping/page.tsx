@@ -9,6 +9,11 @@ import {
   getOrderItemFinancials,
   type AdminOrderItem,
 } from "@/components/admin/orders/OrderItemDetailsModal";
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { logError } from "@/lib/utils/log";
 import { CreateLabelForm } from "@/components/admin/shipping/CreateLabelForm";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -212,6 +217,38 @@ const getPrimaryImage = (item: OrderItem) => {
   const primary = images.find((img) => img.is_primary) ?? images[0];
   return primary?.url ?? "/images/rdk-logo.png";
 };
+
+const paginationButtonStyles =
+  "border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text transition hover:bg-brand-page disabled:cursor-not-allowed disabled:text-brand-muted";
+
+const paginationCurrentStyles =
+  "border border-brand-text bg-brand-text px-3 py-2 text-sm text-brand-page";
+
+const tabButtonBase =
+  "flex items-center gap-1 whitespace-nowrap border-b-2 py-2.5 text-[10px] font-medium transition-colors sm:gap-2 sm:text-sm";
+
+const tabActiveStyles = "border-brand-text text-brand-text";
+const tabInactiveStyles = "border-transparent text-brand-muted hover:text-brand-text";
+const tabCountStyles =
+  "border border-brand-border bg-brand-page px-1 py-0.5 text-[9px] text-brand-text sm:px-2 sm:text-[11px]";
+
+const tableShellStyles =
+  "overflow-x-hidden overflow-y-visible border border-brand-border bg-brand-surface md:overflow-x-auto";
+
+const tableHeaderCellStyles =
+  "sticky top-0 z-10 bg-brand-page p-3 text-left font-semibold text-brand-muted sm:p-4";
+
+const rowStyles =
+  "cursor-pointer border-b border-brand-border transition hover:bg-brand-page";
+const mutedCellStyles = "p-3 text-brand-muted sm:p-4";
+const strongCellStyles = "p-3 text-brand-text sm:p-4";
+const actionLinkStyles = "text-sm text-brand-text transition hover:text-black";
+const subtleActionLinkStyles =
+  "text-sm text-brand-muted transition hover:text-brand-text";
+const itemLabelStyles = "mb-0.5 text-[10px] uppercase tracking-tight text-brand-muted";
+const refundedPanelStyles = "border border-red-200 bg-red-50";
+const refundedBadgeStyles =
+  "inline-flex items-center border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700";
 
 export default function ShippingPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("label");
@@ -554,7 +591,7 @@ export default function ShippingPage() {
             }))
           }
           disabled={currentPage === 1}
-          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+          className={paginationButtonStyles}
         >
           Previous
         </button>
@@ -563,34 +600,32 @@ export default function ShippingPage() {
           <button
             type="button"
             onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: 1 }))}
-            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+            className={paginationButtonStyles}
           >
             1
           </button>
         )}
-        {start > 2 && <span className="text-gray-500">...</span>}
+        {start > 2 && <span className="text-brand-muted">...</span>}
 
         {pages.map((page) => (
           <button
             key={page}
             type="button"
             onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: page }))}
-            className={`px-3 py-2 rounded-sm border text-sm ${
-              page === currentPage
-                ? "border-red-600 text-white"
-                : "border-zinc-800/70 text-gray-300"
+            className={`${
+              page === currentPage ? paginationCurrentStyles : paginationButtonStyles
             }`}
           >
             {page}
           </button>
         ))}
 
-        {end < totalPages - 1 && <span className="text-gray-500">...</span>}
+        {end < totalPages - 1 && <span className="text-brand-muted">...</span>}
         {end < totalPages && (
           <button
             type="button"
             onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: totalPages }))}
-            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+            className={paginationButtonStyles}
           >
             {totalPages}
           </button>
@@ -605,7 +640,7 @@ export default function ShippingPage() {
             }))
           }
           disabled={currentPage === totalPages}
-          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+          className={paginationButtonStyles}
         >
           Next
         </button>
@@ -636,7 +671,7 @@ export default function ShippingPage() {
             event.stopPropagation();
             setLabelOrder(order);
           }}
-          className="text-sm text-red-400 hover:text-red-300"
+          className={actionLinkStyles}
         >
           Create label
         </button>
@@ -648,46 +683,43 @@ export default function ShippingPage() {
             setConfirmMarkShipped(order);
           }}
           disabled={markingShippedId === order.id}
-          className="text-sm text-zinc-400 hover:text-zinc-300 disabled:text-zinc-600"
+          className={`${subtleActionLinkStyles} disabled:text-brand-muted`}
         >
           {markingShippedId === order.id ? "Marking..." : "Mark shipped"}
         </button>
       ) : (
-        <span className="text-zinc-500">-</span>
+        <span className="text-brand-muted">-</span>
       );
 
     return (
       <Fragment key={order.id}>
-        <tr
-          onClick={() => toggleOrderExpansion(order.id)}
-          className="cursor-pointer border-b border-zinc-800/70 hover:bg-zinc-800/60"
-        >
-          <td className="p-3 sm:p-4 text-gray-400">
+        <tr onClick={() => toggleOrderExpansion(order.id)} className={rowStyles}>
+          <td className={mutedCellStyles}>
             {placedAt.date !== "-" ? (
               <div className="space-y-1">
                 <div>{placedAt.date}</div>
                 {placedAt.time && (
-                  <div className="text-xs text-gray-500">{placedAt.time}</div>
+                  <div className="text-xs text-brand-muted">{placedAt.time}</div>
                 )}
               </div>
             ) : (
               "-"
             )}
           </td>
-          <td className="p-3 sm:p-4 text-white">#{order.id.slice(0, 8)}</td>
-          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
+          <td className={strongCellStyles}>#{order.id.slice(0, 8)}</td>
+          <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
             {customerName}
           </td>
-          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400 max-w-[320px] truncate">
+          <td className="hidden max-w-[320px] truncate p-3 text-brand-muted sm:p-4 md:table-cell">
             {addressLine ? (
               addressLine
             ) : (
-              <span className="text-red-400">Missing address</span>
+              <span className="text-red-700">Missing address</span>
             )}
           </td>
 
           {/* SWAPPED: Tracking column now comes before Label */}
-          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
+          <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
             {order.tracking_number ? (
               <div className="space-y-1">
                 {trackingUrl ? (
@@ -696,33 +728,33 @@ export default function ShippingPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(event) => event.stopPropagation()}
-                    className="text-red-400 hover:text-red-300 flex items-center gap-1"
+                    className="flex items-center gap-1 text-brand-text transition hover:text-black"
                   >
                     {order.tracking_number}
                     <ExternalLink className="w-3 h-3" />
                   </a>
                 ) : (
-                  <span className="text-zinc-300">{order.tracking_number}</span>
+                  <span className="text-brand-text">{order.tracking_number}</span>
                 )}
               </div>
             ) : (
-              <span className="text-zinc-500">No tracking yet</span>
+              <span className="text-brand-muted">No tracking yet</span>
             )}
           </td>
 
-          <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
+          <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
             {labelUrl ? (
               <button
                 onClick={(event) => {
                   event.stopPropagation();
                   viewLabel(order);
                 }}
-                className="text-sm text-red-400 hover:text-red-300"
+                className={actionLinkStyles}
               >
                 Print Label
               </button>
             ) : (
-              <span className="text-zinc-500">No label yet</span>
+              <span className="text-brand-muted">No label yet</span>
             )}
           </td>
 
@@ -733,7 +765,7 @@ export default function ShippingPage() {
                 event.stopPropagation();
                 toggleItems(order.id);
               }}
-              className="hidden md:inline-flex text-sm text-red-400 hover:text-red-300 items-center gap-2"
+              className="hidden items-center gap-2 text-sm text-brand-text transition hover:text-black md:inline-flex"
             >
               {itemsExpanded ? "Hide items" : `View items (${itemCount})`}
               <ChevronDown
@@ -746,7 +778,7 @@ export default function ShippingPage() {
                 event.stopPropagation();
                 toggleDetails(order.id);
               }}
-              className="md:hidden w-full text-[12px] text-red-400 hover:text-red-300 inline-flex items-center justify-start gap-1 leading-none whitespace-nowrap"
+              className="inline-flex w-full items-center justify-start gap-1 whitespace-nowrap text-[12px] leading-none text-brand-text transition hover:text-black md:hidden"
             >
               {detailsExpanded ? "Hide label info" : "Label info"}
               <ChevronDown
@@ -758,8 +790,8 @@ export default function ShippingPage() {
         </tr>
 
         {itemsExpanded && (
-          <tr className="hidden md:table-row bg-zinc-900/40">
-            <td colSpan={colSpan} className="p-0 border-b border-zinc-800/70">
+          <tr className="hidden bg-brand-page md:table-row">
+            <td colSpan={colSpan} className="border-b border-brand-border p-0">
               <div className="flex flex-col">
                 {(order.items ?? []).map((item: OrderItem) => {
                   const imageUrl = getPrimaryImage(item);
@@ -776,20 +808,18 @@ export default function ShippingPage() {
                         openItemDetails(item);
                       }}
                       className={`group relative cursor-pointer px-6 py-4 transition-colors ${
-                        isRefunded
-                          ? "bg-red-950/20 border-y border-red-900/40"
-                          : "hover:bg-zinc-800"
+                        isRefunded ? refundedPanelStyles : "hover:bg-brand-surface"
                       }`}
                     >
                       {isRefunded && (
-                        <span className="absolute inset-y-0 left-0 w-1 bg-red-500/80" />
+                        <span className="absolute inset-y-0 left-0 w-1 bg-red-300" />
                       )}
                       <div
                         className={`flex items-center justify-start gap-8 ${
                           isRefunded ? "opacity-60" : ""
                         }`}
                       >
-                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm border border-zinc-800 bg-black">
+                        <div className="h-12 w-12 flex-shrink-0 overflow-hidden border border-brand-border bg-brand-page">
                           <img
                             src={imageUrl}
                             alt={title}
@@ -798,11 +828,9 @@ export default function ShippingPage() {
                         </div>
 
                         <div className="w-48 flex-shrink-0">
-                          <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                            Product
-                          </div>
+                          <div className={itemLabelStyles}>Product</div>
                           <div
-                            className="truncate text-sm font-semibold text-white"
+                            className="truncate text-sm font-semibold text-brand-text"
                             title={title}
                           >
                             {title}
@@ -810,38 +838,30 @@ export default function ShippingPage() {
                         </div>
 
                         <div className="w-28 flex-shrink-0">
-                          <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                            Size
-                          </div>
-                          <div className="text-sm font-medium text-gray-300">
+                          <div className={itemLabelStyles}>Size</div>
+                          <div className="text-sm font-medium text-brand-text">
                             {item.variant?.size_label ?? "N/A"}
                           </div>
                         </div>
 
                         <div className="w-24 flex-shrink-0">
-                          <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                            Qty
-                          </div>
-                          <div className="text-sm font-medium text-gray-300">
+                          <div className={itemLabelStyles}>Qty</div>
+                          <div className="text-sm font-medium text-brand-text">
                             {item.quantity}
                           </div>
                         </div>
 
                         <div className="w-32 flex-shrink-0 text-left">
-                          <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                            Line Total
-                          </div>
-                          <div className="text-sm font-bold text-white">
+                          <div className={itemLabelStyles}>Line Total</div>
+                          <div className="text-sm font-bold text-brand-text">
                             ${Number(item.line_total ?? 0).toFixed(2)}
                           </div>
                         </div>
 
                         <div className="w-32 flex-shrink-0 text-left">
-                          <div className="mb-0.5 text-[10px] uppercase tracking-tight text-gray-500">
-                            Profit
-                          </div>
+                          <div className={itemLabelStyles}>Profit</div>
                           <div
-                            className={`text-sm font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
+                            className={`text-sm font-bold ${isPositive ? "text-emerald-700" : "text-red-700"}`}
                           >
                             {isPositive ? "+" : "-"}$
                             {Math.abs(itemFinancials.unitProfit).toFixed(2)}
@@ -850,11 +870,9 @@ export default function ShippingPage() {
 
                         <div className="w-20 flex-shrink-0">
                           {isRefunded ? (
-                            <span className="inline-flex items-center rounded-sm border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-300">
-                              Refunded
-                            </span>
+                            <AdminStatusBadge tone="danger">Refunded</AdminStatusBadge>
                           ) : (
-                            <span className="text-xs font-medium text-red-500 transition-colors group-hover:text-red-400">
+                            <span className="text-xs font-medium text-brand-text transition-colors group-hover:text-black">
                               Details
                             </span>
                           )}
@@ -869,29 +887,29 @@ export default function ShippingPage() {
         )}
 
         {detailsExpanded && (
-          <tr className="md:hidden border-b border-zinc-800/70 bg-zinc-900/40">
+          <tr className="border-b border-brand-border bg-brand-page md:hidden">
             <td colSpan={colSpan} className="px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
               <div className="space-y-3 text-sm">
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500">Customer</span>
-                  <span className="text-white">{customerName}</span>
+                  <span className="text-brand-muted">Customer</span>
+                  <span className="text-brand-text">{customerName}</span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="text-gray-500">Destination</span>
-                  <span className="text-white break-words">
+                  <span className="text-brand-muted">Destination</span>
+                  <span className="break-words text-brand-text">
                     {addressLine ? addressLine : "Missing address"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500">Tracking</span>
-                  <span className="text-white">
+                  <span className="text-brand-muted">Tracking</span>
+                  <span className="text-brand-text">
                     {order.tracking_number ? (
                       trackingUrl ? (
                         <a
                           href={trackingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-red-400 hover:text-red-300 inline-flex items-center gap-1"
+                          className="inline-flex items-center gap-1 text-brand-text transition hover:text-black"
                         >
                           {order.tracking_number}
                           <ExternalLink className="w-3 h-3" />
@@ -900,33 +918,33 @@ export default function ShippingPage() {
                         order.tracking_number
                       )
                     ) : (
-                      <span className="text-zinc-500">No tracking yet</span>
+                      <span className="text-brand-muted">No tracking yet</span>
                     )}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500">Label</span>
-                  <span className="text-white">
+                  <span className="text-brand-muted">Label</span>
+                  <span className="text-brand-text">
                     {labelUrl ? (
                       <button
                         onClick={() => viewLabel(order)}
-                        className="text-red-400 hover:text-red-300"
+                        className={actionLinkStyles}
                       >
                         Print label
                       </button>
                     ) : (
-                      <span className="text-zinc-500">No label yet</span>
+                      <span className="text-brand-muted">No label yet</span>
                     )}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
-                  <span className="text-gray-500">Action</span>
-                  <span className="text-white">{actionNode}</span>
+                  <span className="text-brand-muted">Action</span>
+                  <span className="text-brand-text">{actionNode}</span>
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-zinc-800/70 pt-4">
-                <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">
+              <div className="mt-4 border-t border-brand-border pt-4">
+                <div className="mb-2 text-[11px] uppercase tracking-wide text-brand-muted">
                   Items
                 </div>
                 <div className="space-y-2">
@@ -943,35 +961,33 @@ export default function ShippingPage() {
                         key={item.id}
                         onClick={() => openItemDetails(item)}
                         className={`relative flex cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition ${
-                          isRefunded
-                            ? "bg-red-950/20 border border-red-900/40"
-                            : "hover:bg-zinc-800/60"
+                          isRefunded ? refundedPanelStyles : "hover:bg-brand-surface"
                         }`}
                       >
                         {isRefunded && (
-                          <span className="absolute inset-y-0 left-0 w-1 rounded-l-sm bg-red-500/80" />
+                          <span className="absolute inset-y-0 left-0 w-1 rounded-l-sm bg-red-300" />
                         )}
                         <img
                           src={imageUrl}
                           alt={title}
-                          className="h-14 w-14 flex-shrink-0 object-cover border border-zinc-800/70 bg-black"
+                          className="h-14 w-14 flex-shrink-0 border border-brand-border bg-brand-page object-cover"
                         />
                         <div className="min-w-0">
-                          <div className="text-white truncate">{title}</div>
-                          <div className="text-sm text-zinc-500">
+                          <div className="truncate text-brand-text">{title}</div>
+                          <div className="text-sm text-brand-muted">
                             Size {item.size_label ?? item.variant?.size_label ?? "N/A"} -
                             Qty {item.quantity}
                           </div>
-                          <div className="text-sm font-medium text-white mt-0.5">
+                          <div className="mt-0.5 text-sm font-medium text-brand-text">
                             ${Number(item.line_total ?? 0).toFixed(2)}
                           </div>
-                          <div className="mt-0.5 text-xs text-zinc-500">
+                          <div className="mt-0.5 text-xs text-brand-muted">
                             Price ${itemFinancials.unitPrice.toFixed(2)} - Profit{" "}
                             <span
                               className={
                                 itemFinancials.unitProfit >= 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
+                                  ? "text-emerald-700"
+                                  : "text-red-700"
                               }
                             >
                               {formattedUnitProfit}
@@ -983,16 +999,14 @@ export default function ShippingPage() {
                               event.stopPropagation();
                               openItemDetails(item);
                             }}
-                            className="mt-1 text-xs text-red-400 hover:text-red-300"
+                            className="mt-1 text-xs text-brand-text transition hover:text-black"
                           >
                             View more details
                           </button>
                         </div>
                         {isRefunded && (
                           <div className="absolute right-2 top-2">
-                            <span className="inline-flex items-center rounded-sm border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-300">
-                              Refunded
-                            </span>
+                            <span className={refundedBadgeStyles}>Refunded</span>
                           </div>
                         )}
                       </div>
@@ -1019,16 +1033,16 @@ export default function ShippingPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Shipping</h1>
-        <p className="text-gray-400">Review, label, and ship your orders.</p>
-      </div>
+      <AdminPageHeader
+        title="Shipping"
+        description="Review, label, and ship your orders."
+      />
 
       {activeTab === "ready" && (
-        <div className="rounded-sm border border-blue-400/20 bg-blue-400/10 p-3 sm:p-4">
+        <div className="border border-amber-200 bg-amber-50 p-3 sm:p-4">
           <div className="flex items-start gap-3">
-            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="text-[12px] sm:text-sm text-blue-300">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-700 sm:h-5 sm:w-5" />
+            <div className="text-[12px] text-amber-700 sm:text-sm">
               <strong>Automatic tracking:</strong> Once you ship packages, Shippo will
               automatically update tracking status and send customer emails. The "Mark
               shipped" button should only be used if the carrier hasn't scanned the
@@ -1038,83 +1052,78 @@ export default function ShippingPage() {
         </div>
       )}
 
-      <div className="border-b border-zinc-800/70 flex flex-nowrap gap-2 sm:gap-6">
+      <div className="flex flex-nowrap gap-2 border-b border-brand-border sm:gap-6">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`py-2.5 text-[10px] sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap ${
-              activeTab === tab.key
-                ? "text-white border-b-2 border-red-600"
-                : "text-gray-400 hover:text-white border-b-2 border-transparent"
-            }`}
+            className={`${tabButtonBase} ${activeTab === tab.key ? tabActiveStyles : tabInactiveStyles}`}
           >
             {tab.label}
-            <span className="text-[9px] sm:text-[11px] px-1 sm:px-2 py-0.5 rounded-sm bg-zinc-900 border border-zinc-800/70 text-gray-300">
-              {tabBadge(counts[tab.key] ?? 0)}
-            </span>
+            <span className={tabCountStyles}>{tabBadge(counts[tab.key] ?? 0)}</span>
           </button>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-        <div className="text-gray-400">
-          <span className="text-gray-500">Origin:</span>{" "}
+        <div className="text-brand-text">
+          <span className="text-brand-muted">Origin:</span>{" "}
           {originLine ? originLine : "Not set"}
         </div>
         <button
           type="button"
           onClick={() => setOriginModalOpen(true)}
-          className="px-4 py-2 bg-zinc-900 text-white text-sm border border-zinc-800/70 hover:border-zinc-700"
+          className={adminButtonStyles.secondary}
         >
           Change origin address
         </button>
       </div>
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-400">Loading...</div>
+        <AdminEmptyState
+          title="Loading Shipping Orders"
+          description="Fetching the current queue."
+        />
       ) : orders.length === 0 ? (
-        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 p-6 text-sm text-zinc-500">
-          No orders in this queue.
-        </div>
+        <AdminEmptyState title="No Orders In This Queue" />
       ) : (
-        <div className="rounded-sm border border-zinc-800/70 bg-zinc-900 overflow-x-hidden md:overflow-x-auto overflow-y-visible">
-          <table className="w-full text-[12px] sm:text-sm">
-            <thead>
-              <tr className="bg-zinc-800">
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Placed At
-                </th>
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Order
-                </th>
-                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Customer
-                </th>
-                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Destination
-                </th>
+        <AdminSectionCard>
+          <div className={tableShellStyles}>
+            <table className="w-full text-[12px] sm:text-sm">
+              <thead>
+                <tr className="bg-brand-page">
+                  <th className={tableHeaderCellStyles}>Placed At</th>
+                  <th className={tableHeaderCellStyles}>Order</th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Customer
+                  </th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Destination
+                  </th>
 
-                {/* SWAPPED: Tracking header now before Label */}
-                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Tracking
-                </th>
-                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Label
-                </th>
+                  {/* SWAPPED: Tracking header now before Label */}
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Tracking
+                  </th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Label
+                  </th>
 
-                <th className="sticky top-0 z-10 bg-zinc-800 text-left md:text-right text-gray-400 font-semibold p-3 sm:p-4">
-                  <span className="hidden md:inline">Items</span>
-                  <span className="md:hidden">Actions</span>
-                </th>
-                <th className="hidden md:table-cell sticky top-0 z-10 bg-zinc-800 text-right text-gray-400 font-semibold p-3 sm:p-4">
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody>{orders.map((order) => renderOrderRow(order))}</tbody>
-          </table>
-        </div>
+                  <th className={`${tableHeaderCellStyles} md:text-right`}>
+                    <span className="hidden md:inline">Items</span>
+                    <span className="md:hidden">Actions</span>
+                  </th>
+                  <th
+                    className={`hidden text-right md:table-cell ${tableHeaderCellStyles}`}
+                  >
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody>{orders.map((order) => renderOrderRow(order))}</tbody>
+            </table>
+          </div>
+        </AdminSectionCard>
       )}
 
       {renderPagination()}

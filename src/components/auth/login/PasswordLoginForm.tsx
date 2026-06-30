@@ -110,7 +110,7 @@ export function PasswordLoginForm({
     <div className="space-y-6">
       <Link
         href={nextUrl}
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
+        className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to shopping
@@ -133,7 +133,7 @@ export function PasswordLoginForm({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-white">
+            <label htmlFor="email" className="block text-sm font-medium text-brand-text">
               Email
             </label>
             <input
@@ -150,13 +150,16 @@ export function PasswordLoginForm({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label htmlFor="password" className="block text-sm font-medium text-white">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-brand-text"
+              >
                 Password
               </label>
               <button
                 type="button"
                 onClick={onForgotPassword}
-                className="text-xs text-red-600 hover:text-red-500 transition-colors"
+                className="text-xs font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
               >
                 Forgot?
               </button>
@@ -185,13 +188,13 @@ export function PasswordLoginForm({
           <button
             type="button"
             onClick={onSwitchToOtp}
-            className="w-full text-center text-sm text-zinc-500 hover:text-white transition-colors"
+            className="w-full text-center text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
           >
             Sign in with email code instead
           </button>
         </div>
 
-        <p className="text-sm text-center text-zinc-500">
+        <p className="text-center text-sm text-brand-muted">
           Don't have an account?{" "}
           <Link
             href={`/auth/register${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}

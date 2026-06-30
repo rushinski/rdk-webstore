@@ -15,7 +15,7 @@ export function TrafficChart(props: { data: Array<{ date: string; visits: number
       yKey="visits"
       yLabel="Visits"
       seriesName="Visits"
-      stroke="#ef4444"
+      stroke="#111111"
       valueFormatter={(v) => whole.format(v)}
       emptyLabel="No traffic recorded for this range yet."
     />

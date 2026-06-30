@@ -164,18 +164,20 @@ export function RdkSelect({
         onClick={() => setOpen((v) => !v)}
         className={[
           "w-full flex items-center justify-between gap-2",
-          "bg-zinc-900 border border-zinc-800/70",
-          "px-3 py-2 text-sm text-white",
-          "rounded", // sharp-ish edges
-          "focus:outline-none focus:ring-2 focus:ring-red-600",
-          "disabled:cursor-not-allowed disabled:text-gray-500",
+          "bg-brand-surface border border-brand-border",
+          "px-3 py-2 text-sm text-brand-text",
+          "rounded-none",
+          "focus:outline-none focus:ring-2 focus:ring-brand-text",
+          "disabled:cursor-not-allowed disabled:text-brand-muted",
           buttonClassName,
         ].join(" ")}
       >
-        <span className={`min-w-0 truncate ${selected ? "text-white" : "text-gray-400"}`}>
+        <span
+          className={`min-w-0 truncate ${selected ? "text-brand-text" : "text-brand-muted"}`}
+        >
           {selected?.label ?? placeholder}
         </span>
-        <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
+        <ChevronDown className="w-4 h-4 shrink-0 text-brand-muted" />
       </button>
 
       {open && !disabled && (
@@ -183,25 +185,25 @@ export function RdkSelect({
           role="listbox"
           className={[
             "absolute z-50 mt-2 w-full",
-            "bg-zinc-950 border border-zinc-800/70 shadow-xl",
-            "rounded overflow-hidden",
+            "bg-brand-surface border border-brand-border shadow-xl",
+            "rounded-none overflow-hidden",
             menuClassName,
           ].join(" ")}
         >
           {searchable && (
-            <div className="p-2 border-b border-zinc-800/70 bg-black">
+            <div className="border-b border-brand-border bg-brand-surface p-2">
               <input
                 ref={searchRef}
                 type="text"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full bg-zinc-900 text-white text-sm px-3 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className="w-full border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text focus:outline-none focus:ring-2 focus:ring-brand-text"
               />
             </div>
           )}
           {filteredOptions.length === 0 && (
-            <div className="px-3 py-2 text-sm text-gray-500">No matches</div>
+            <div className="px-3 py-2 text-sm text-brand-muted">No matches</div>
           )}
           {filteredOptions.map((opt, idx) => {
             const isSelected = opt.value === value;
@@ -226,10 +228,10 @@ export function RdkSelect({
                 className={[
                   "w-full text-left px-3 py-2 text-sm",
                   "transition",
-                  opt.disabled ? "text-gray-600 cursor-not-allowed" : "cursor-pointer",
+                  opt.disabled ? "cursor-not-allowed text-brand-muted" : "cursor-pointer",
                   isSelected || isActive
-                    ? "bg-red-600 text-white"
-                    : "text-gray-200 hover:bg-zinc-800",
+                    ? "bg-brand-text text-brand-surface"
+                    : "text-brand-text hover:bg-brand-page",
                 ].join(" ")}
               >
                 {opt.label}

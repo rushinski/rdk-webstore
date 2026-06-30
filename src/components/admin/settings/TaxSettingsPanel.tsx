@@ -1,8 +1,11 @@
-// src/components/admin/settings/TaxSettingsPanel.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { PRODUCT_TAX_CODES } from "@/config/constants/nexus-thresholds";
 import { logError } from "@/lib/utils/log";
@@ -46,7 +49,7 @@ export function TaxSettingsPanel() {
       }
     };
 
-    loadSettings();
+    void loadSettings();
   }, []);
 
   const effectiveCodes = useMemo(
@@ -113,9 +116,7 @@ export function TaxSettingsPanel() {
       setMessage("Tax settings updated.");
     } catch (error: unknown) {
       logError(error, { layer: "frontend", event: "admin_tax_settings_save" });
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to save tax settings.";
-      setMessage(errorMessage);
+      setMessage(error instanceof Error ? error.message : "Failed to save tax settings.");
     } finally {
       setIsSaving(false);
     }
@@ -123,102 +124,104 @@ export function TaxSettingsPanel() {
 
   if (isLoading) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-6 text-[12px] sm:text-sm text-gray-400">
-        Loading tax settings...
-      </div>
+      <AdminSectionCard>
+        <div className="text-sm text-brand-muted">Loading tax settings...</div>
+      </AdminSectionCard>
     );
   }
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded p-4 sm:p-6 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h2 className="text-base sm:text-lg font-semibold text-white">
-            Tax collection
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-400">
-            Toggle tax calculations and assign category tax codes.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[12px] sm:text-sm text-gray-400">
-            {taxEnabled ? "Enabled" : "Disabled"}
-          </span>
-          <ToggleSwitch
-            checked={taxEnabled}
-            onChange={setTaxEnabled}
-            ariaLabel="Toggle tax collection"
-            disabled={isSaving}
-          />
-        </div>
-      </div>
-
-      {!taxEnabled && (
-        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-sm p-3 sm:p-4 text-[12px] sm:text-sm text-yellow-100">
-          Taxes are turned off. Enable taxes to collect and track nexus activity.
-        </div>
-      )}
-
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm sm:text-base font-semibold text-white">
-            Category tax codes
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-400">
-            These codes determine the correct tax rules per category.
-          </p>
-          <div className="mt-2 text-[11px] sm:text-xs text-gray-500">
-            Tax codes (ex: txcd_30011000) map to product taxability.
+    <div className="space-y-6">
+      <AdminSectionCard title="Tax Collection">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-brand-muted">
+              Toggle tax calculations and assign category tax codes.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <AdminStatusBadge tone={taxEnabled ? "success" : "neutral"}>
+              {taxEnabled ? "Enabled" : "Disabled"}
+            </AdminStatusBadge>
+            <ToggleSwitch
+              checked={taxEnabled}
+              onChange={setTaxEnabled}
+              ariaLabel="Toggle tax collection"
+              disabled={isSaving}
+            />
           </div>
         </div>
+      </AdminSectionCard>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {effectiveCodes.map((category) => (
-            <div
-              key={category.key}
-              className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40 space-y-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[12px] sm:text-sm font-semibold text-white">
-                    {category.label}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-gray-500">
-                    Default: {category.defaultCode}
-                  </div>
-                </div>
-                <div className="text-[11px] sm:text-xs text-gray-400">
-                  Effective:{" "}
-                  <span className="text-gray-200">{category.effectiveCode}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                <input
-                  type="text"
-                  value={category.override}
-                  onChange={(e) => handleCodeChange(category.key, e.target.value)}
-                  disabled={!taxEnabled || isSaving}
-                  placeholder={category.defaultCode}
-                  className="w-full bg-zinc-950 text-white px-3 py-1.5 sm:py-2 text-[12px] sm:text-sm border border-zinc-800/70 rounded disabled:opacity-60"
-                />
-                <button
-                  type="button"
-                  onClick={() => resetToDefault(category.key)}
-                  disabled={!taxEnabled || isSaving || !category.override}
-                  className="px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs border border-zinc-800/70 text-gray-300 hover:border-zinc-700 disabled:opacity-50"
-                >
-                  Use default
-                </button>
-              </div>
-
-              <div className="text-[11px] sm:text-xs text-gray-500">
-                Leave blank to use the default tax code for this category.
-              </div>
-            </div>
-          ))}
+      {!taxEnabled ? (
+        <div className="border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+          Taxes are turned off. Enable taxes to collect and track nexus activity.
         </div>
-      </div>
+      ) : null}
+
+      <AdminSectionCard title="Category Tax Codes">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm text-brand-muted">
+              These codes determine the correct tax rules per category.
+            </p>
+            <p className="mt-2 text-xs text-brand-muted">
+              Tax codes like `txcd_30011000` map to product taxability.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {effectiveCodes.map((category) => (
+              <div
+                key={category.key}
+                className="space-y-3 border border-brand-border bg-brand-page p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-brand-text">
+                      {category.label}
+                    </div>
+                    <div className="text-xs text-brand-muted">
+                      Default: {category.defaultCode}
+                    </div>
+                  </div>
+                  <div className="text-xs text-brand-muted">
+                    Effective:{" "}
+                    <span className="font-semibold text-brand-text">
+                      {category.effectiveCode}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto]">
+                  <input
+                    type="text"
+                    value={category.override}
+                    onChange={(event) =>
+                      handleCodeChange(category.key, event.target.value)
+                    }
+                    disabled={!taxEnabled || isSaving}
+                    placeholder={category.defaultCode}
+                    className={adminFormStyles.input}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => resetToDefault(category.key)}
+                    disabled={!taxEnabled || isSaving || !category.override}
+                    className={`${adminButtonStyles.secondary} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-surface disabled:text-brand-muted`}
+                  >
+                    Use default
+                  </button>
+                </div>
+
+                <div className="text-xs text-brand-muted">
+                  Leave blank to use the default tax code for this category.
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </AdminSectionCard>
 
       <div className="flex items-center gap-4">
         <button
@@ -227,13 +230,11 @@ export function TaxSettingsPanel() {
             void handleSave();
           }}
           disabled={isSaving}
-          className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
+          className={`${adminButtonStyles.primary} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
         >
           {isSaving ? "Saving..." : "Save tax settings"}
         </button>
-        {message && (
-          <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>
-        )}
+        {message ? <span className="text-sm text-brand-muted">{message}</span> : null}
       </div>
     </div>
   );

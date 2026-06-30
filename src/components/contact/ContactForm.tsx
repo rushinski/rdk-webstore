@@ -226,6 +226,10 @@ export function ContactForm({
     (source === "bug_report"
       ? "Share the steps, where it happened, and what you expected to see."
       : undefined);
+  const labelClass =
+    "mb-2 block text-sm font-semibold uppercase tracking-[0.08em] text-brand-text";
+  const inputClass =
+    "w-full border border-brand-border bg-brand-surface px-4 py-3 text-brand-text outline-none transition-colors placeholder:text-brand-muted focus:border-brand-text";
 
   return (
     <form
@@ -236,8 +240,8 @@ export function ContactForm({
       className="space-y-6"
     >
       <div>
-        <label htmlFor="name" className="block text-sm font-semibold text-white mb-2">
-          Name <span className="text-red-500">*</span>
+        <label htmlFor="name" className={labelClass}>
+          Name <span className="text-brand-text">*</span>
         </label>
         <input
           type="text"
@@ -245,13 +249,13 @@ export function ContactForm({
           required
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-semibold text-white mb-2">
-          Email <span className="text-red-500">*</span>
+        <label htmlFor="email" className={labelClass}>
+          Email <span className="text-brand-text">*</span>
         </label>
         <input
           type="email"
@@ -259,13 +263,13 @@ export function ContactForm({
           required
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="subject" className="block text-sm font-semibold text-white mb-2">
-          Subject <span className="text-red-500">*</span>
+        <label htmlFor="subject" className={labelClass}>
+          Subject <span className="text-brand-text">*</span>
         </label>
         <input
           type="text"
@@ -273,13 +277,13 @@ export function ContactForm({
           required
           value={formData.subject}
           onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="message" className="block text-sm font-semibold text-white mb-2">
-          Message <span className="text-red-500">*</span>
+        <label htmlFor="message" className={labelClass}>
+          Message <span className="text-brand-text">*</span>
         </label>
         <textarea
           id="message"
@@ -288,22 +292,19 @@ export function ContactForm({
           value={formData.message}
           placeholder={resolvedPlaceholder}
           onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-          className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800/70 rounded text-white focus:outline-none focus:border-zinc-600 focus:ring-1 focus:ring-zinc-700"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label
-          htmlFor="attachments"
-          className="block text-sm font-semibold text-white mb-2"
-        >
+        <label htmlFor="attachments" className={labelClass}>
           {attachmentsLabel}
         </label>
         <div
-          className={`rounded border border-dashed px-4 py-4 transition-colors ${
+          className={`border border-dashed px-4 py-4 transition-colors ${
             isDragging
-              ? "border-red-500/70 bg-red-500/5"
-              : "border-zinc-700 bg-zinc-900/40"
+              ? "border-brand-text bg-brand-page"
+              : "border-brand-border bg-brand-page"
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
@@ -315,25 +316,25 @@ export function ContactForm({
             accept={allowedTypes.join(",")}
             multiple
             onChange={(e) => handleAttachments(e.target.files)}
-            className="block w-full text-sm text-zinc-300 cursor-pointer file:mr-4 file:rounded file:border-0 file:bg-red-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white file:cursor-pointer hover:file:bg-red-700"
+            className="block w-full cursor-pointer text-sm text-brand-text file:mr-4 file:border file:border-brand-text file:bg-brand-text file:px-4 file:py-2 file:text-sm file:font-semibold file:text-brand-surface hover:file:bg-neutral-800"
           />
-          <p className="text-xs text-zinc-500 mt-2">{attachmentsHint}</p>
+          <p className="mt-2 text-xs text-brand-muted">{attachmentsHint}</p>
           {attachmentError && (
-            <p className="text-xs text-red-400 mt-2">{attachmentError}</p>
+            <p className="mt-2 text-xs text-red-700">{attachmentError}</p>
           )}
           {attachments.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {previews.map((preview, index) => (
                 <div key={`${preview.file.name}-${index}`} className="relative">
                   <img
                     src={preview.url}
                     alt={preview.file.name}
-                    className="h-20 w-full object-cover rounded border border-zinc-800"
+                    className="h-20 w-full border border-brand-border object-cover"
                   />
                   <button
                     type="button"
                     onClick={() => removeAttachment(index)}
-                    className="absolute top-2 right-2 rounded bg-black/70 px-2 py-1 text-[11px] text-white hover:bg-black"
+                    className="absolute right-2 top-2 border border-brand-border bg-brand-surface px-2 py-1 text-[11px] text-brand-text transition-colors hover:bg-brand-page"
                   >
                     Remove
                   </button>
@@ -347,7 +348,7 @@ export function ContactForm({
       <button
         type="submit"
         disabled={status === "sending"}
-        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors disabled:opacity-50 cursor-pointer"
+        className="w-full cursor-pointer border border-brand-text bg-brand-text py-3 text-sm font-bold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800 disabled:border-neutral-400 disabled:bg-neutral-400"
       >
         {status === "sending" ? "Sending..." : "Send Message"}
       </button>

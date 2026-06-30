@@ -1,48 +1,31 @@
-// app/hours/page.tsx
 export default function HoursPage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 pt-8 pb-16">
-      <h1 className="text-4xl font-bold text-white mb-4">Hours</h1>
-      <p className="text-zinc-400 mb-4">
-        Pickup and meetup available in Simpsonville, South Carolina. Local pickups are
-        available and you can select local pickup at checkout.
+    <div className="mx-auto max-w-6xl px-6 pb-16 pt-8 md:px-12 lg:px-16">
+      <h1 className="mb-4 text-4xl font-bold text-brand-text">Hours</h1>
+      <p className="mb-4 text-brand-muted">
+        Pickup and meetup are available in Simpsonville, South Carolina. Local pickup can
+        be selected at checkout.
       </p>
-      <p className="text-zinc-400 mb-10">
-        We are always looking to buy sneakers no matter the condition and no matter the
-        quantity. If you are interested in selling, reach out on{" "}
-        <a
-          href="https://instagram.com/realdealkickzsc"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-red-400 hover:underline"
-        >
-          Instagram
-        </a>
-        ,{" "}
-        <a
-          href="mailto:realdealholyspill@gmail.com"
-          className="text-red-400 hover:underline"
-        >
-          email us
-        </a>
-        , submit through the{" "}
-        <a href="/contact" className="text-red-400 hover:underline">
+      <p className="mb-10 text-brand-muted">
+        We are always looking to buy sneakers no matter the condition or quantity. If you
+        are interested in selling, email us at{" "}
+        <a href="mailto:null@gmail.com" className="text-brand-text hover:underline">
+          null@gmail.com
+        </a>{" "}
+        or submit through the{" "}
+        <a href="/contact" className="text-brand-text hover:underline">
           contact form
-        </a>
-        , or use the{" "}
-        <a href="/account" className="text-red-400 hover:underline">
-          onsite messaging system
         </a>
         .
       </p>
 
-      <div className="grid md:grid-cols-2 gap-8 items-stretch">
-        <div className="bg-zinc-900 border border-zinc-800 p-8 h-full min-h-[360px] flex flex-col">
-          <h2 className="text-2xl font-bold text-white mb-4">Business Hours</h2>
-          <p className="text-zinc-400 mb-6">
+      <div className="grid items-stretch gap-8 md:grid-cols-2">
+        <div className="flex h-full min-h-[360px] flex-col border border-brand-border bg-brand-surface p-8">
+          <h2 className="mb-4 text-2xl font-bold text-brand-text">Business Hours</h2>
+          <p className="mb-6 text-brand-muted">
             We offer local pickups and meetups by appointment.
           </p>
-          <div className="space-y-2 text-zinc-400">
+          <div className="space-y-2 text-brand-muted">
             <div className="flex justify-between">
               <span>Monday</span>
               <span>11:00 AM - 8:00 PM</span>
@@ -74,7 +57,7 @@ export default function HoursPage() {
           </div>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 overflow-hidden h-full min-h-[360px]">
+        <div className="h-full min-h-[360px] overflow-hidden border border-brand-border bg-brand-surface">
           <iframe
             title="Map of Simpsonville, South Carolina"
             src="https://www.openstreetmap.org/export/embed.html?bbox=-82.3326%2C34.6985%2C-82.1687%2C34.7876&layer=mapnik&marker=34.743%2C-82.2507"
@@ -82,7 +65,7 @@ export default function HoursPage() {
             height="360"
             style={{ border: 0 }}
             loading="lazy"
-            className="w-full h-full"
+            className="h-full w-full"
           />
         </div>
       </div>

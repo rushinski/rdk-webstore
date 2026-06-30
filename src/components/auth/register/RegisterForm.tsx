@@ -122,7 +122,7 @@ export function RegisterForm() {
     <div className="space-y-6">
       <Link
         href={nextUrl}
-        className="inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
+        className="inline-flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to shopping
@@ -148,7 +148,7 @@ export function RegisterForm() {
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="email" className="block text-sm font-medium text-white">
+            <label htmlFor="email" className="block text-sm font-medium text-brand-text">
               Email
             </label>
             <input
@@ -193,7 +193,7 @@ export function RegisterForm() {
             className="rdk-checkbox mt-0.5"
             disabled={state.isSubmitting}
           />
-          <span className="text-sm text-zinc-400">
+          <span className="text-sm text-brand-muted">
             Send me drop alerts and exclusive offers
           </span>
         </label>
@@ -206,18 +206,24 @@ export function RegisterForm() {
           {state.isSubmitting ? "Creating account..." : "Create account"}
         </button>
 
-        <p className="text-xs text-center text-zinc-600">
+        <p className="text-center text-xs text-brand-muted">
           By signing up, you agree to our{" "}
-          <Link href="/legal/terms" className="underline hover:text-zinc-400">
+          <Link
+            href="/legal/terms"
+            className="font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
+          >
             Terms
           </Link>{" "}
           and{" "}
-          <Link href="/legal/privacy" className="underline hover:text-zinc-400">
+          <Link
+            href="/legal/privacy"
+            className="font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
+          >
             Privacy Policy
           </Link>
         </p>
 
-        <p className="text-sm text-center text-zinc-500">
+        <p className="text-center text-sm text-brand-muted">
           Already have an account?{" "}
           <Link
             href={`/auth/login${nextUrl !== "/" ? `?next=${encodeURIComponent(nextUrl)}` : ""}`}

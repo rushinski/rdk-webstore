@@ -1,34 +1,28 @@
 // src/components/admin/AdminSidebar.tsx
 "use client";
 
-import { createElement, useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   User,
-  Bell,
   LayoutDashboard,
   Package,
   Truck,
   BarChart3,
   Settings,
-  MessageCircle,
   Globe,
   X,
   Menu,
   ChevronDown,
   ChevronRight,
-  Landmark,
   Receipt,
   Star,
   type LucideIcon,
 } from "lucide-react";
 
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
-import { canViewBank } from "@/config/constants/roles";
 import type { ProfileRole } from "@/config/constants/roles";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { AdminNotificationsDrawer } from "@/components/admin/AdminNotificationsDrawer";
 import { AdminBrandHeader } from "@/components/admin/shell/AdminBrandHeader";
 import { AdminNavItem } from "@/components/admin/shell/AdminNavItem";
 
@@ -46,11 +40,6 @@ type NavGroupItem = {
   groupKey: "analytics" | "orders" | "settings";
   isActive: (pathname: string) => boolean;
   children: Array<{ href: string; label: string }>;
-};
-
-type ChatSummary = {
-  id: string;
-  messages?: Array<{ sender_role?: "customer" | "admin" | null }> | null;
 };
 
 const navItems: Array<NavLinkItem | NavGroupItem> = [
@@ -85,9 +74,8 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
       { href: "/admin/pickups", label: "Pickups" },
     ],
   },
-  { type: "link", href: "/admin/bank", label: "Bank", icon: Landmark },
   { type: "link", href: "/admin/nexus", label: "Tax & Nexus", icon: Receipt },
-  { type: "link", href: "/admin/featured-items", label: "Featured Items", icon: Star }, // ADD THIS LINE
+  { type: "link", href: "/admin/featured-items", label: "Featured Items", icon: Star },
   { type: "link", href: "/admin/catalog", label: "Tags", icon: Package },
   {
     type: "group",
@@ -96,27 +84,21 @@ const navItems: Array<NavLinkItem | NavGroupItem> = [
     groupKey: "settings",
     isActive: (pathname: string) => pathname.startsWith("/admin/settings"),
     children: [
-      { href: "/admin/settings/lightspeed", label: "Lightspeed" },
       { href: "/admin/settings/store-access", label: "Store Access" },
       { href: "/admin/settings/shipping", label: "Shipping" },
       { href: "/admin/settings/taxes", label: "Taxes" },
-      { href: "/admin/settings/transfers", label: "Bank" },
     ],
   },
 ];
 
 export function AdminSidebar({
   userEmail: _userEmail,
-  role,
+  role: _role,
 }: {
   userEmail?: string | null;
   role: ProfileRole;
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [chatBadgeCount, setChatBadgeCount] = useState(0);
-  const [notifOpen, setNotifOpen] = useState(false);
-
-  const chatLastSenderRef = useRef(new Map<string, "customer" | "admin" | "none">());
   const pathname = usePathname();
 
   const analyticsActive = pathname.startsWith("/admin/analytics");
@@ -132,8 +114,6 @@ export function AdminSidebar({
     settings: false,
   });
 
-  const [notifBadgeCount, setNotifBadgeCount] = useState<number | null>(null);
-
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -144,38 +124,6 @@ export function AdminSidebar({
       document.body.style.overflow = prevOverflow;
     };
   }, [isOpen]);
-
-  const refreshNotifCount = async () => {
-    try {
-      const res = await fetch("/api/admin/notifications/unread-count", {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        return;
-      }
-      const data = await res.json();
-      if (typeof data.unreadCount === "number") {
-        setNotifBadgeCount(data.unreadCount);
-      }
-    } catch {
-      // keep last value; do not force 0
-    }
-  };
-
-  useEffect(() => {
-    refreshNotifCount();
-
-    const onUpdated = (e: Event) => {
-      const evt = e as CustomEvent;
-      const next = evt.detail?.unreadCount;
-      if (typeof next === "number") {
-        setNotifBadgeCount(next);
-      }
-    };
-
-    window.addEventListener("adminNotificationsUpdated", onUpdated);
-    return () => window.removeEventListener("adminNotificationsUpdated", onUpdated);
-  }, []);
 
   // Auto-open group when you're inside it
   useEffect(() => {
@@ -190,114 +138,7 @@ export function AdminSidebar({
     }
   }, [analyticsActive, ordersActive, settingsActive]);
 
-  useEffect(() => {
-    let isActive = true;
-
-    const loadChatBadge = async () => {
-      try {
-        const response = await fetch("/api/chats?status=open", { cache: "no-store" });
-        const data = await response.json();
-        const chats = (data.chats ?? []) as ChatSummary[];
-        const nextMap = new Map<string, "customer" | "admin" | "none">();
-
-        chats.forEach((chat) => {
-          const lastMessage = chat.messages?.[0];
-          if (!lastMessage) {
-            nextMap.set(chat.id, "none");
-            return;
-          }
-          nextMap.set(chat.id, lastMessage.sender_role ?? "none");
-        });
-
-        chatLastSenderRef.current = nextMap;
-
-        const count = Array.from(nextMap.values()).filter(
-          (senderRole) => senderRole !== "admin",
-        ).length;
-        if (isActive) {
-          setChatBadgeCount(count);
-        }
-      } catch {
-        if (isActive) {
-          setChatBadgeCount(0);
-        }
-      }
-    };
-
-    loadChatBadge();
-
-    const supabase = createSupabaseBrowserClient();
-    const channel = supabase
-      .channel("admin-sidebar-chats")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chats" },
-        (payload) => {
-          const chat = payload.new as { id: string; status?: string | null };
-          if (chat.status && chat.status !== "open") {
-            return;
-          }
-          chatLastSenderRef.current.set(chat.id, "none");
-
-          if (isActive) {
-            const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (senderRole) => senderRole !== "admin",
-            ).length;
-            setChatBadgeCount(count);
-          }
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "chats" },
-        (payload) => {
-          const chat = payload.new as { id: string; status?: string | null };
-          if (chat.status && chat.status !== "open") {
-            chatLastSenderRef.current.delete(chat.id);
-          } else if (!chatLastSenderRef.current.has(chat.id)) {
-            chatLastSenderRef.current.set(chat.id, "none");
-          }
-
-          if (isActive) {
-            const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (senderRole) => senderRole !== "admin",
-            ).length;
-            setChatBadgeCount(count);
-          }
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_messages" },
-        (payload) => {
-          const message = payload.new as {
-            chat_id: string;
-            sender_role?: "customer" | "admin";
-          };
-          if (!chatLastSenderRef.current.has(message.chat_id)) {
-            return;
-          }
-
-          chatLastSenderRef.current.set(message.chat_id, message.sender_role ?? "none");
-
-          if (isActive) {
-            const count = Array.from(chatLastSenderRef.current.values()).filter(
-              (senderRole) => senderRole !== "admin",
-            ).length;
-            setChatBadgeCount(count);
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      isActive = false;
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
   function SidebarContent() {
-    const canViewBankTab = canViewBank(role);
     const baseItemClass =
       "group flex items-center gap-3 border border-transparent px-4 py-3 " +
       "bg-transparent transition-colors hover:bg-brand-page";
@@ -310,14 +151,6 @@ export function AdminSidebar({
     const statusBase =
       "flex w-full items-center gap-2 px-3 py-2 rounded-sm select-none " +
       "text-[12px] sm:text-[13px] leading-none bg-brand-text text-brand-surface";
-
-    const notifLabel =
-      typeof notifBadgeCount === "number" && notifBadgeCount > 9
-        ? "9+"
-        : String(notifBadgeCount ?? 0);
-
-    // Match notifications style: red text only, no box.
-    const chatLabel = chatBadgeCount > 9 ? "9+" : String(chatBadgeCount);
 
     return (
       <div className="flex flex-col h-full min-h-0 w-full">
@@ -348,20 +181,12 @@ export function AdminSidebar({
           <nav className="space-y-1">
             {navItems.map((item) => {
               if (item.type === "link") {
-                if (item.href === "/admin/bank" && !canViewBankTab) {
-                  return null;
-                }
                 const icon = item.icon;
                 const isActive =
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
                 return (
-                  <div
-                    key={item.href}
-                    data-testid={
-                      item.href === "/admin/bank" ? "admin-nav-bank" : undefined
-                    }
-                  >
+                  <div key={item.href}>
                     <AdminNavItem
                       href={item.href}
                       label={item.label}
@@ -378,13 +203,6 @@ export function AdminSidebar({
               const isGroupActive = item.isActive(pathname);
               const isGroupOpen = openGroups[item.groupKey];
               const chevron = isGroupOpen ? ChevronDown : ChevronRight;
-
-              const filteredChildren = item.children.filter(
-                (child) => child.href !== "/admin/settings/transfers" || canViewBankTab,
-              );
-              if (filteredChildren.length === 0) {
-                return null;
-              }
 
               return (
                 <div key={item.label} className="space-y-1">
@@ -412,9 +230,9 @@ export function AdminSidebar({
                   {isGroupOpen && (
                     <div
                       id={`admin-${item.groupKey}-subnav`}
-                      className="ml-4 border-l border-zinc-800/70 pl-3 space-y-1"
+                      className="ml-4 space-y-1 border-l border-brand-border pl-3"
                     >
-                      {filteredChildren.map((child) => {
+                      {item.children.map((child) => {
                         const isActive = pathname.startsWith(child.href);
 
                         return (
@@ -449,7 +267,7 @@ export function AdminSidebar({
 
           {/* Dock background spans edge-to-edge (cancels parent p-6) */}
           <div className="-mx-6 w-[calc(100%+3rem)] bg-brand-surface px-6 py-3">
-            <div className="grid w-full grid-cols-3 items-center">
+            <div className="grid w-full grid-cols-1 items-center">
               {/* Profile */}
               <Tooltip label="Profile" side="top">
                 <Link
@@ -457,62 +275,14 @@ export function AdminSidebar({
                   onClick={() => setIsOpen(false)}
                   aria-label="Profile"
                   className="flex h-12 w-full items-center justify-center rounded-sm
-                            hover:bg-zinc-900 transition-colors
-                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
+                            transition-colors hover:bg-brand-page
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-text/20"
                 >
-                  <User className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                  <User className="h-5 w-5 text-brand-muted transition-colors group-hover:text-brand-text" />
                 </Link>
-              </Tooltip>
-
-              {/* Messages */}
-              <Tooltip label="Messages" side="top">
-                <Link
-                  href="/admin/chats"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Messages"
-                  className="flex h-12 w-full items-center justify-center rounded-sm
-                            hover:bg-zinc-900 transition-colors
-                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
-                >
-                  <span className="relative">
-                    <MessageCircle className="w-5 h-5 text-brand-muted group-hover:text-brand-text transition-colors" />
-                    {chatBadgeCount > 0 && (
-                      <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
-                        {chatLabel}
-                      </span>
-                    )}
-                  </span>
-                </Link>
-              </Tooltip>
-
-              {/* Notifications */}
-              <Tooltip label="Notifications" side="top">
-                <button
-                  type="button"
-                  onClick={() => setNotifOpen(true)}
-                  aria-label="Notifications"
-                  data-testid="admin-notifications-toggle"
-                  className="flex h-12 w-full items-center justify-center rounded-sm
-                            hover:bg-zinc-900 transition-colors
-                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
-                >
-                  <span className="relative">
-                    <Bell className="w-5 h-5 text-brand-muted group-hover:text-brand-text transition-colors" />
-                    {typeof notifBadgeCount === "number" && notifBadgeCount > 0 && (
-                      <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
-                        {notifLabel}
-                      </span>
-                    )}
-                  </span>
-                </button>
               </Tooltip>
             </div>
           </div>
-
-          <AdminNotificationsDrawer
-            isOpen={notifOpen}
-            onClose={() => setNotifOpen(false)}
-          />
         </div>
       </div>
     );

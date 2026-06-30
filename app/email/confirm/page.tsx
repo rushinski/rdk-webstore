@@ -1,10 +1,11 @@
 import Link from "next/link";
 
+import { buttonStyles } from "@/components/ui/buttonStyles";
+
 const STATUS_CONTENT: Record<string, { title: string; message: string }> = {
   success: {
     title: "Subscription confirmed",
-    message:
-      "You’re all set to receive newsletter & product posting alerts from Realdealkickzsc.",
+    message: "You’re all set to receive newsletter and product alerts from solesneakers.",
   },
   already: {
     title: "Already subscribed",
@@ -29,23 +30,21 @@ type SearchParams = { status?: string | string[] };
 export default async function EmailConfirmPage({
   searchParams,
 }: {
-  // Next's generated types in your build are expecting Promise-ish here
   searchParams?: Promise<SearchParams>;
 }) {
   const resolved = searchParams ? await searchParams : undefined;
-
   const raw = resolved?.status;
   const status = Array.isArray(raw) ? raw[0] : (raw ?? "success");
   const content = STATUS_CONTENT[status] ?? STATUS_CONTENT.success;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-20 text-center">
-      <h1 className="text-4xl font-bold text-white mb-4">{content.title}</h1>
-      <p className="text-zinc-400 mb-8">{content.message}</p>
-      <Link
-        href="/"
-        className="inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 transition-colors cursor-pointer"
-      >
+    <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
+        solesneakers
+      </p>
+      <h1 className="mt-4 text-4xl font-bold text-brand-text">{content.title}</h1>
+      <p className="mt-4 text-brand-muted">{content.message}</p>
+      <Link href="/" className={`${buttonStyles.primary} mt-8`}>
         Back to home
       </Link>
     </div>

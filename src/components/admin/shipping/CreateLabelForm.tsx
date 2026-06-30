@@ -1,9 +1,10 @@
-// src/components/admin/shipping/CreateLabelForm.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, X } from "lucide-react";
 
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import type { ShippingAddress } from "@/types/domain/shipping";
 
@@ -73,7 +74,7 @@ const resolveShippingAddress = (value: unknown): ShippingAddress | null => {
   return null;
 };
 
-const clean = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
 
 const money = (rateStr?: string | null, currency?: string | null) => {
   const rate = Number(rateStr ?? "");
@@ -101,30 +102,24 @@ const formatDeliveryEstimate = (days?: number | null) => {
   return `${calendarDays} days`;
 };
 
-// Client-side address validation
 const validateAddress = (address: ShippingAddressDraft): AddressErrors => {
   const errors: AddressErrors = {};
 
   if (!address.phone || address.phone.length < 10) {
     errors.phone = "Phone number required (10+ digits)";
   }
-
   if (!address.line1 || address.line1.length < 3) {
     errors.line1 = "Street address is required";
   }
-
   if (!address.city || address.city.length < 2) {
     errors.city = "City is required";
   }
-
   if (!address.state || address.state.length !== 2) {
     errors.state = "State must be 2 letters (e.g., CA, NY)";
   }
-
   if (!address.postal_code || !/^\d{5}(-\d{4})?$/.test(address.postal_code)) {
     errors.postal_code = "ZIP code must be 5 digits or 5+4 format";
   }
-
   if (!address.country || address.country.length !== 2) {
     errors.country = "Country must be 2 letters (e.g., US)";
   }
@@ -132,7 +127,6 @@ const validateAddress = (address: ShippingAddressDraft): AddressErrors => {
   return errors;
 };
 
-// Map API errors to user-friendly messages
 const getErrorMessage = (error: string): string => {
   const lowerError = error.toLowerCase();
 
@@ -161,6 +155,11 @@ const getErrorMessage = (error: string): string => {
   return error;
 };
 
+const fieldInputClass = (hasError?: boolean) =>
+  `${adminFormStyles.input} px-2 py-1.5 text-[12px] sm:text-sm ${hasError ? "border-red-500" : ""}`;
+
+const statusPanelClass = "flex items-start gap-2 rounded border p-3 text-sm";
+
 export function CreateLabelForm({
   open,
   order,
@@ -185,9 +184,10 @@ export function CreateLabelForm({
     };
   }, [order]);
 
-  const initialParcel: ParcelDraft = useMemo(() => {
-    return initialPackage ?? { weight: 16, length: 12, width: 12, height: 12 };
-  }, [initialPackage]);
+  const initialParcel: ParcelDraft = useMemo(
+    () => initialPackage ?? { weight: 16, length: 12, width: 12, height: 12 },
+    [initialPackage],
+  );
 
   const [recipient, setRecipient] = useState<ShippingAddressDraft>(initialRecipient);
   const [parcel, setParcel] = useState<ParcelDraft>(initialParcel);
@@ -195,10 +195,10 @@ export function CreateLabelForm({
   const [validationStatus, setValidationStatus] =
     useState<AddressValidationStatus>("idle");
 
-  const [weightInput, setWeightInput] = useState<string>("16");
-  const [lengthInput, setLengthInput] = useState<string>("12");
-  const [widthInput, setWidthInput] = useState<string>("12");
-  const [heightInput, setHeightInput] = useState<string>("12");
+  const [weightInput, setWeightInput] = useState("16");
+  const [lengthInput, setLengthInput] = useState("12");
+  const [widthInput, setWidthInput] = useState("12");
+  const [heightInput, setHeightInput] = useState("12");
 
   const [shipmentId, setShipmentId] = useState<string | null>(null);
   const [rates, setRates] = useState<EasyPostRate[]>([]);
@@ -207,8 +207,8 @@ export function CreateLabelForm({
   const [isGettingRates, setIsGettingRates] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
 
-  const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     if (!open) {
@@ -218,12 +218,10 @@ export function CreateLabelForm({
     setParcel(initialParcel);
     setAddressErrors({});
     setValidationStatus("idle");
-
     setWeightInput(String(initialParcel.weight));
     setLengthInput(String(initialParcel.length));
     setWidthInput(String(initialParcel.width));
     setHeightInput(String(initialParcel.height));
-
     setShipmentId(null);
     setRates([]);
     setSelectedRateId(null);
@@ -233,7 +231,6 @@ export function CreateLabelForm({
     setSuccess("");
   }, [open, initialRecipient, initialParcel]);
 
-  // Validate address on change
   useEffect(() => {
     if (validationStatus === "idle") {
       return;
@@ -241,12 +238,7 @@ export function CreateLabelForm({
 
     const errors = validateAddress(recipient);
     setAddressErrors(errors);
-
-    if (Object.keys(errors).length === 0) {
-      setValidationStatus("valid");
-    } else {
-      setValidationStatus("invalid");
-    }
+    setValidationStatus(Object.keys(errors).length === 0 ? "valid" : "invalid");
   }, [recipient, validationStatus]);
 
   if (!open || !order || !orderId) {
@@ -316,9 +308,9 @@ export function CreateLabelForm({
   };
 
   const getRates = async () => {
-    const v = validate();
-    if (v) {
-      setError(v);
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -418,10 +410,9 @@ export function CreateLabelForm({
       }
 
       setSuccess(
-        '✓ Label purchased successfully! The order will move to "Need to Ship" automatically.',
+        'Label purchased successfully. The order will move to "Need to Ship" automatically.',
       );
 
-      // Auto-close and refresh after 2 seconds
       setTimeout(() => {
         onSuccess();
       }, 2000);
@@ -437,223 +428,212 @@ export function CreateLabelForm({
   return (
     <ModalPortal open={open} onClose={onClose}>
       <div
-        className="w-full max-w-6xl rounded-lg border border-zinc-800/70 bg-zinc-950 max-h-[90vh] overflow-y-auto"
-        onMouseDown={(e) => e.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-6xl overflow-y-auto border border-brand-border bg-brand-surface"
+        onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-zinc-800/70 p-5 sticky top-0 bg-zinc-950 z-10">
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-brand-border bg-brand-surface p-5">
           <div>
-            <div className="text-white text-lg font-semibold">Create shipping label</div>
-            <div className="text-xs text-zinc-500 mt-1">
+            <div className="text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+              Create Shipping Label
+            </div>
+            <div className="mt-1 text-xs text-brand-muted">
               Order #{String(orderId).slice(0, 8)}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-400 hover:text-white"
+            className="text-brand-muted transition hover:text-brand-text"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-          {/* LEFT: details */}
-          <div className="p-5 space-y-6 border-b lg:border-b-0 lg:border-r border-zinc-800/70">
+        <div className="grid grid-cols-1 gap-0 lg:grid-cols-2">
+          <div className="space-y-6 border-b border-brand-border p-5 lg:border-b-0 lg:border-r">
             <div className="space-y-1">
-              <div className="text-xs uppercase tracking-wide text-zinc-500">
-                Shipping from
+              <div className="text-xs uppercase tracking-[0.12em] text-brand-muted">
+                Shipping From
               </div>
-              <div className="text-sm text-zinc-200">{originLine ?? "Not set"}</div>
+              <div className="text-sm text-brand-text">{originLine ?? "Not set"}</div>
               {!originLine && (
-                <div className="text-xs text-red-400 mt-1">
-                  ⚠ Set origin in Shipping Settings
+                <div className="mt-1 text-xs text-red-700">
+                  Set the origin address in Shipping Settings.
                 </div>
               )}
             </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="text-xs uppercase tracking-wide text-zinc-500">
-                  Shipping to
+                <div className="text-xs uppercase tracking-[0.12em] text-brand-muted">
+                  Shipping To
                 </div>
                 {validationStatus === "valid" && (
-                  <div className="flex items-center gap-1 text-xs text-green-400">
-                    <CheckCircle2 className="w-3 h-3" />
+                  <div className="flex items-center gap-1 text-xs text-emerald-700">
+                    <CheckCircle2 className="h-3 w-3" />
                     Valid address
                   </div>
                 )}
                 {validationStatus === "invalid" && hasAddressErrors && (
-                  <div className="flex items-center gap-1 text-xs text-red-400">
-                    <AlertCircle className="w-3 h-3" />
+                  <div className="flex items-center gap-1 text-xs text-red-700">
+                    <AlertCircle className="h-3 w-3" />
                     Fix errors below
                   </div>
                 )}
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-3 text-[11px] sm:text-sm">
+              <div className="grid grid-cols-2 gap-2 text-[11px] sm:gap-3 sm:text-sm">
                 <div>
-                  <label className="block text-gray-400 mb-0.5">Name</label>
+                  <label className={adminFormStyles.label}>Name</label>
                   <input
                     type="text"
                     value={recipient.name}
-                    onChange={(e) => setRecipientField("name", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-2 py-1.5 text-[12px] sm:text-sm"
+                    onChange={(event) => setRecipientField("name", event.target.value)}
+                    className={fieldInputClass()}
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-0.5">Phone *</label>
+                  <label className={adminFormStyles.label}>Phone *</label>
                   <input
                     type="text"
                     value={recipient.phone}
-                    onChange={(e) => setRecipientField("phone", e.target.value)}
-                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
-                      addressErrors.phone ? "border-red-500" : "border-zinc-800/70"
-                    }`}
+                    onChange={(event) => setRecipientField("phone", event.target.value)}
+                    className={fieldInputClass(Boolean(addressErrors.phone))}
                   />
                   {addressErrors.phone && (
-                    <div className="text-xs text-red-400 mt-1">{addressErrors.phone}</div>
+                    <div className={adminFormStyles.error}>{addressErrors.phone}</div>
                   )}
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-gray-400 mb-0.5">Address line 1 *</label>
+                <div className="col-span-2">
+                  <label className={adminFormStyles.label}>Address line 1 *</label>
                   <input
                     type="text"
                     value={recipient.line1}
-                    onChange={(e) => setRecipientField("line1", e.target.value)}
-                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
-                      addressErrors.line1 ? "border-red-500" : "border-zinc-800/70"
-                    }`}
+                    onChange={(event) => setRecipientField("line1", event.target.value)}
+                    className={fieldInputClass(Boolean(addressErrors.line1))}
                   />
                   {addressErrors.line1 && (
-                    <div className="text-xs text-red-400 mt-1">{addressErrors.line1}</div>
+                    <div className={adminFormStyles.error}>{addressErrors.line1}</div>
                   )}
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-gray-400 mb-0.5">Address line 2</label>
+                <div className="col-span-2">
+                  <label className={adminFormStyles.label}>Address line 2</label>
                   <input
                     type="text"
                     value={recipient.line2}
-                    onChange={(e) => setRecipientField("line2", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-2 py-1.5 text-[12px] sm:text-sm"
+                    onChange={(event) => setRecipientField("line2", event.target.value)}
+                    className={fieldInputClass()}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-400 mb-0.5">City *</label>
+                  <label className={adminFormStyles.label}>City *</label>
                   <input
                     type="text"
                     value={recipient.city}
-                    onChange={(e) => setRecipientField("city", e.target.value)}
-                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
-                      addressErrors.city ? "border-red-500" : "border-zinc-800/70"
-                    }`}
+                    onChange={(event) => setRecipientField("city", event.target.value)}
+                    className={fieldInputClass(Boolean(addressErrors.city))}
                   />
                   {addressErrors.city && (
-                    <div className="text-xs text-red-400 mt-1">{addressErrors.city}</div>
+                    <div className={adminFormStyles.error}>{addressErrors.city}</div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-0.5">State *</label>
+                  <label className={adminFormStyles.label}>State *</label>
                   <input
                     type="text"
                     value={recipient.state}
-                    onChange={(e) =>
-                      setRecipientField("state", e.target.value.toUpperCase())
+                    onChange={(event) =>
+                      setRecipientField("state", event.target.value.toUpperCase())
                     }
                     maxLength={2}
                     placeholder="CA"
-                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
-                      addressErrors.state ? "border-red-500" : "border-zinc-800/70"
-                    }`}
+                    className={fieldInputClass(Boolean(addressErrors.state))}
                   />
                   {addressErrors.state && (
-                    <div className="text-xs text-red-400 mt-1">{addressErrors.state}</div>
+                    <div className={adminFormStyles.error}>{addressErrors.state}</div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-0.5">ZIP Code *</label>
+                  <label className={adminFormStyles.label}>ZIP Code *</label>
                   <input
                     type="text"
                     value={recipient.postal_code}
-                    onChange={(e) => setRecipientField("postal_code", e.target.value)}
+                    onChange={(event) =>
+                      setRecipientField("postal_code", event.target.value)
+                    }
                     placeholder="12345"
-                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
-                      addressErrors.postal_code ? "border-red-500" : "border-zinc-800/70"
-                    }`}
+                    className={fieldInputClass(Boolean(addressErrors.postal_code))}
                   />
                   {addressErrors.postal_code && (
-                    <div className="text-xs text-red-400 mt-1">
+                    <div className={adminFormStyles.error}>
                       {addressErrors.postal_code}
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-gray-400 mb-0.5">Country *</label>
+                  <label className={adminFormStyles.label}>Country *</label>
                   <input
                     type="text"
                     value={recipient.country}
-                    onChange={(e) =>
-                      setRecipientField("country", e.target.value.toUpperCase())
+                    onChange={(event) =>
+                      setRecipientField("country", event.target.value.toUpperCase())
                     }
                     maxLength={2}
                     placeholder="US"
-                    className={`w-full bg-zinc-900 border text-white px-2 py-1.5 text-[12px] sm:text-sm ${
-                      addressErrors.country ? "border-red-500" : "border-zinc-800/70"
-                    }`}
+                    className={fieldInputClass(Boolean(addressErrors.country))}
                   />
                   {addressErrors.country && (
-                    <div className="text-xs text-red-400 mt-1">
-                      {addressErrors.country}
-                    </div>
+                    <div className={adminFormStyles.error}>{addressErrors.country}</div>
                   )}
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="text-xs uppercase tracking-wide text-zinc-500">
-                Package dimensions
+              <div className="text-xs uppercase tracking-[0.12em] text-brand-muted">
+                Package Dimensions
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Weight (oz)</label>
+                  <label className={adminFormStyles.label}>Weight (oz)</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={weightInput}
-                    onChange={(e) => handleParcelInput("weight", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    onChange={(event) => handleParcelInput("weight", event.target.value)}
+                    className={adminFormStyles.input}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Length (in)</label>
+                  <label className={adminFormStyles.label}>Length (in)</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={lengthInput}
-                    onChange={(e) => handleParcelInput("length", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    onChange={(event) => handleParcelInput("length", event.target.value)}
+                    className={adminFormStyles.input}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Width (in)</label>
+                  <label className={adminFormStyles.label}>Width (in)</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={widthInput}
-                    onChange={(e) => handleParcelInput("width", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    onChange={(event) => handleParcelInput("width", event.target.value)}
+                    className={adminFormStyles.input}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-zinc-400 mb-1">Height (in)</label>
+                  <label className={adminFormStyles.label}>Height (in)</label>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={heightInput}
-                    onChange={(e) => handleParcelInput("height", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2 text-sm"
+                    onChange={(event) => handleParcelInput("height", event.target.value)}
+                    className={adminFormStyles.input}
                   />
                 </div>
               </div>
@@ -664,76 +644,79 @@ export function CreateLabelForm({
                   void getRates();
                 }}
                 disabled={isGettingRates || hasAddressErrors}
-                className="w-full md:w-auto px-4 py-2 bg-zinc-100 text-black text-sm font-semibold rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${adminButtonStyles.primary} w-full md:w-auto disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
               >
                 {isGettingRates ? "Getting rates..." : "Get shipping rates"}
               </button>
 
               {error && (
-                <div className="flex items-start gap-2 text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded p-3">
-                  <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div
+                  className={`${statusPanelClass} border-red-200 bg-red-50 text-red-700`}
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
                   <div>{error}</div>
                 </div>
               )}
               {success && (
-                <div className="flex items-start gap-2 text-sm text-green-400 bg-green-400/10 border border-green-400/20 rounded p-3">
-                  <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <div
+                  className={`${statusPanelClass} border-emerald-200 bg-emerald-50 text-emerald-700`}
+                >
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
                   <div>{success}</div>
                 </div>
               )}
             </div>
           </div>
 
-          {/* RIGHT: rates + purchase */}
-          <div className="p-5 space-y-4">
+          <div className="space-y-4 p-5">
             <div>
-              <div className="text-xs uppercase tracking-wide text-zinc-500">
-                Available rates
+              <div className="text-xs uppercase tracking-[0.12em] text-brand-muted">
+                Available Rates
               </div>
-              <div className="text-sm text-zinc-400 mt-1">
+              <div className="mt-1 text-sm text-brand-muted">
                 Select a carrier and service, then purchase the label.
               </div>
             </div>
 
             {rates.length === 0 ? (
-              <div className="rounded border border-zinc-800/70 bg-zinc-900 p-4 text-sm text-zinc-500">
+              <div className="border border-brand-border bg-brand-page p-4 text-sm text-brand-muted">
                 No rates yet. Enter package details and click{" "}
-                <span className="text-zinc-200">Get shipping rates</span>.
+                <span className="font-semibold text-brand-text">Get shipping rates</span>.
               </div>
             ) : (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {rates.map((r) => {
-                  const selected = selectedRateId === r.id;
-                  const days = r.estimated_delivery_days ?? r.delivery_days ?? null;
+              <div className="max-h-[400px] space-y-2 overflow-y-auto">
+                {rates.map((rate) => {
+                  const selected = selectedRateId === rate.id;
+                  const days = rate.estimated_delivery_days ?? rate.delivery_days ?? null;
                   const deliveryText = formatDeliveryEstimate(days);
 
                   return (
                     <label
-                      key={r.id}
-                      className={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-colors ${
+                      key={rate.id}
+                      className={`flex cursor-pointer items-start gap-3 border p-3 transition-colors ${
                         selected
-                          ? "border-red-600 bg-zinc-900/60"
-                          : "border-zinc-800/70 bg-zinc-900 hover:border-zinc-700"
+                          ? "border-brand-text bg-brand-page"
+                          : "border-brand-border bg-brand-surface hover:border-brand-text"
                       }`}
                     >
                       <input
                         type="radio"
                         name="rate"
                         checked={selected}
-                        onChange={() => setSelectedRateId(r.id)}
+                        onChange={() => setSelectedRateId(rate.id)}
                         className="mt-1"
                       />
                       <div className="flex-1">
                         <div className="flex items-center justify-between gap-3">
-                          <div className="text-sm text-white font-semibold">
-                            {String(r.carrier ?? "Carrier")} —{" "}
-                            {String(r.service ?? "Service")}
+                          <div className="text-sm font-semibold text-brand-text">
+                            {String(rate.carrier ?? "Carrier")} -{" "}
+                            {String(rate.service ?? "Service")}
                           </div>
-                          <div className="text-sm text-white font-bold">
-                            {money(r.rate, r.currency)}
+                          <div className="text-sm font-bold text-brand-text">
+                            {money(rate.rate, rate.currency)}
                           </div>
                         </div>
-                        <div className="text-xs text-zinc-500 mt-1">
+                        <div className="mt-1 text-xs text-brand-muted">
                           {deliveryText
                             ? `Est. delivery: ${deliveryText}`
                             : "Delivery estimate unavailable"}
@@ -745,7 +728,7 @@ export function CreateLabelForm({
               </div>
             )}
 
-            <div className="pt-2 space-y-3">
+            <div className="space-y-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -756,17 +739,17 @@ export function CreateLabelForm({
                   rates.length === 0 ||
                   !shipmentId ||
                   !selectedRateId ||
-                  !!success
+                  Boolean(success)
                 }
-                className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded disabled:bg-zinc-700 disabled:cursor-not-allowed"
+                className={`${adminButtonStyles.primary} w-full disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
               >
                 {isPurchasing ? "Purchasing label..." : "Purchase shipping label"}
               </button>
 
-              <div className="text-xs text-zinc-500 bg-zinc-900 border border-zinc-800/70 rounded p-3">
-                <strong className="text-zinc-400">Note:</strong> After purchase, the label
-                will be emailed to the customer and stored in the order. You can reprint
-                it anytime from the order details.
+              <div className="border border-brand-border bg-brand-page p-3 text-xs text-brand-muted">
+                <strong className="text-brand-text">Note:</strong> After purchase, the
+                label will be emailed to the customer and stored in the order. You can
+                reprint it anytime from the order details.
               </div>
             </div>
           </div>

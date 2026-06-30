@@ -3,6 +3,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { logError } from "@/lib/utils/log";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
@@ -86,6 +90,76 @@ const centsToMoneyString = (cents: number) => {
   const safe = Number.isFinite(cents) ? cents : 0;
   return (safe / 100).toFixed(2);
 };
+
+const cardStyles = "space-y-3 border border-brand-border bg-brand-surface p-5";
+const mutedTextStyles = "text-sm text-brand-muted";
+const modalShellStyles = "w-full border border-brand-border bg-brand-surface shadow-xl";
+const modalContentStyles = "space-y-5 p-6";
+
+export function ShippingSettingsModalShell({
+  title,
+  description,
+  maxWidthClassName = "max-w-2xl",
+  onClose,
+  children,
+}: {
+  title: string;
+  description?: string;
+  maxWidthClassName?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      onClick={onClose}
+    >
+      <div
+        className={`${modalShellStyles} ${maxWidthClassName}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className={modalContentStyles}>
+          <div className="flex items-start justify-between gap-4 border-b border-brand-border pb-4">
+            <div>
+              <h3 className="text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+                {title}
+              </h3>
+              {description ? (
+                <p className="mt-1 text-sm text-brand-muted">{description}</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-sm text-brand-muted transition hover:text-brand-text"
+            >
+              Close
+            </button>
+          </div>
+          <div className="space-y-4">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShippingSettingsField({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className={adminFormStyles.label}>{label}</label>
+      {children}
+      {error ? <div className={adminFormStyles.error}>{error}</div> : null}
+    </div>
+  );
+}
 
 export default function ShippingSettingsPage() {
   const [shippingDefaults, setShippingDefaults] = useState<
@@ -469,246 +543,211 @@ export default function ShippingSettingsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-          Shipping Settings
-        </h1>
-        <p className="text-sm sm:text-base text-gray-400">
-          Shipping defaults, origin address, and carrier options
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Shipping Settings"
+        description="Shipping defaults, origin address, and carrier options"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white">
-                Origin address
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-400">
-                Used for labels and rate estimates.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={openOriginModal}
-              className="px-3 py-1.5 sm:px-4 sm:py-2 bg-zinc-900 text-white text-[12px] sm:text-sm border border-zinc-800/70 hover:border-zinc-700"
-            >
-              Edit origin
-            </button>
-          </div>
-          <div className="text-[12px] sm:text-sm text-gray-400">
-            {originLine ? originLine : "No origin address saved yet."}
-          </div>
-        </div>
-
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-3">
-          <div>
-            <h2 className="text-base sm:text-lg font-semibold text-white mb-2">
-              Enabled Carriers
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-400 mb-4">
-              Select which carriers to offer for label creation.
-            </p>
-          </div>
-          <div className="space-y-2">
-            {AVAILABLE_CARRIERS.map((carrier) => (
-              <label
-                key={carrier.key}
-                className="flex items-start gap-3 p-2.5 sm:p-3 border border-zinc-800/70 rounded cursor-pointer hover:border-zinc-700"
-              >
-                <input
-                  type="checkbox"
-                  checked={enabledCarriers.includes(carrier.key)}
-                  onChange={() => toggleCarrier(carrier.key)}
-                  className="mt-1 rdk-checkbox"
-                />
-                <div className="flex-1">
-                  <div className="text-[12px] sm:text-sm font-medium text-white">
-                    {carrier.label}
-                  </div>
-                  <div className="text-[11px] sm:text-xs text-gray-500">
-                    {carrier.description}
-                  </div>
-                </div>
-              </label>
-            ))}
-          </div>
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => {
-                void saveCarriers();
-              }}
-              disabled={isSavingCarriers}
-              className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-[12px] sm:text-sm rounded disabled:bg-gray-600"
-            >
-              {isSavingCarriers ? "Saving..." : "Save carriers"}
-            </button>
-            {carriersMessage && (
-              <div className="mt-2 text-[12px] sm:text-sm text-gray-400">
-                {carriersMessage}
+        <AdminSectionCard>
+          <div className={cardStyles}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-brand-text">
+                  Origin address
+                </h2>
+                <p className="text-sm text-brand-muted">
+                  Used for labels and rate estimates.
+                </p>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={openOriginModal}
+                className={adminButtonStyles.secondary}
+              >
+                Edit origin
+              </button>
+            </div>
+            <div className={mutedTextStyles}>
+              {originLine ? originLine : "No origin address saved yet."}
+            </div>
           </div>
-        </div>
+        </AdminSectionCard>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-5 space-y-4 lg:col-span-2">
-          <div className="flex items-start justify-between gap-4">
+        <AdminSectionCard>
+          <div className={cardStyles}>
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-white">
-                Default packages
+              <h2 className="mb-2 text-base font-semibold text-brand-text">
+                Enabled Carriers
               </h2>
-              <p className="text-xs sm:text-sm text-gray-400">
-                Configure default cost, weight, and dimensions per category.
+              <p className="mb-4 text-sm text-brand-muted">
+                Select which carriers to offer for label creation.
               </p>
             </div>
-            {message && (
-              <span className="text-[12px] sm:text-sm text-gray-400">{message}</span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            {SHIPPING_CATEGORIES.map((category) => {
-              const summary = getPackageSummary(category.key);
-              return (
-                <div
-                  key={category.key}
-                  className="border border-zinc-800/70 rounded p-4 bg-zinc-950/40"
+            <div className="space-y-2">
+              {AVAILABLE_CARRIERS.map((carrier) => (
+                <label
+                  key={carrier.key}
+                  className="flex cursor-pointer items-start gap-3 border border-brand-border bg-brand-page p-3 hover:border-brand-text"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                        {category.label}
-                      </div>
-                      <div className="text-[12px] sm:text-base text-white font-semibold mt-1">
-                        ${summary.cost} shipping
-                      </div>
-                      <div className="text-[11px] sm:text-xs text-gray-400 mt-2">
-                        {summary.length} x {summary.width} x {summary.height} in ·{" "}
-                        {summary.weight} oz
-                      </div>
+                  <input
+                    type="checkbox"
+                    checked={enabledCarriers.includes(carrier.key)}
+                    onChange={() => toggleCarrier(carrier.key)}
+                    className="mt-1 rdk-checkbox"
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-brand-text">
+                      {carrier.label}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openDefaultsModal(category.key)}
-                      className="px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold bg-zinc-900 text-white border border-zinc-800/70 hover:border-zinc-700"
-                    >
-                      Edit
-                    </button>
+                    <div className="text-xs text-brand-muted">{carrier.description}</div>
                   </div>
-                </div>
-              );
-            })}
+                </label>
+              ))}
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  void saveCarriers();
+                }}
+                disabled={isSavingCarriers}
+                className={`${adminButtonStyles.primary} w-full disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
+              >
+                {isSavingCarriers ? "Saving..." : "Save carriers"}
+              </button>
+              {carriersMessage && (
+                <div className="mt-2 text-sm text-brand-muted">{carriersMessage}</div>
+              )}
+            </div>
           </div>
-        </div>
+        </AdminSectionCard>
+
+        <AdminSectionCard>
+          <div className={cardStyles}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-brand-text">
+                  Default packages
+                </h2>
+                <p className="text-sm text-brand-muted">
+                  Configure default cost, weight, and dimensions per category.
+                </p>
+              </div>
+              {message && <span className="text-sm text-brand-muted">{message}</span>}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              {SHIPPING_CATEGORIES.map((category) => {
+                const summary = getPackageSummary(category.key);
+                return (
+                  <div
+                    key={category.key}
+                    className="border border-brand-border bg-brand-page p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs uppercase tracking-wide text-brand-muted">
+                          {category.label}
+                        </div>
+                        <div className="mt-1 text-base font-semibold text-brand-text">
+                          ${summary.cost} shipping
+                        </div>
+                        <div className="mt-2 text-xs text-brand-muted">
+                          {summary.length} x {summary.width} x {summary.height} in ·{" "}
+                          {summary.weight} oz
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openDefaultsModal(category.key)}
+                        className={adminButtonStyles.secondary}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </AdminSectionCard>
       </div>
 
       {isDefaultsModalOpen && defaultsDraft && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={closeDefaultsModal}
+        <ShippingSettingsModalShell
+          title="Edit Package Defaults"
+          description={`${activeCategoryLabel} defaults`}
+          onClose={closeDefaultsModal}
         >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-2xl p-6 space-y-5"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">
-                  Edit package defaults
-                </h3>
-                <p className="text-xs text-gray-500">{activeCategoryLabel} defaults</p>
+          <div className="space-y-4">
+            <div>
+              <div className="mb-2 text-xs uppercase tracking-[0.18em] text-brand-muted">
+                Package size
               </div>
-              <button
-                type="button"
-                onClick={closeDefaultsModal}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-                  Package size
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-gray-400 text-xs mb-1">
-                      Length (in)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={lengthInput}
-                      onChange={(e) => handleDimensionInput("length", e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-xs mb-1">Width (in)</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={widthInput}
-                      onChange={(e) => handleDimensionInput("width", e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-gray-400 text-xs mb-1">
-                      Height (in)
-                    </label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={heightInput}
-                      onChange={(e) => handleDimensionInput("height", e.target.value)}
-                      className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-gray-400 text-xs mb-1">Weight (oz)</label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <ShippingSettingsField label="Length (in)">
                   <input
                     type="text"
                     inputMode="numeric"
-                    value={weightInput}
-                    onChange={(e) => handleDimensionInput("weight", e.target.value)}
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                    value={lengthInput}
+                    onChange={(e) => handleDimensionInput("length", e.target.value)}
+                    className={adminFormStyles.input}
                   />
-                </div>
-                <div>
-                  <label className="block text-gray-400 text-xs mb-1">
-                    Shipping cost ($)
-                  </label>
+                </ShippingSettingsField>
+                <ShippingSettingsField label="Width (in)">
                   <input
                     type="text"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={shippingCostInput}
-                    onChange={(e) => handleShippingCostChange(e.target.value)}
-                    onBlur={() =>
-                      setShippingCostInput(
-                        centsToMoneyString(defaultsDraft.shipping_cost_cents),
-                      )
-                    }
-                    className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
+                    inputMode="numeric"
+                    value={widthInput}
+                    onChange={(e) => handleDimensionInput("width", e.target.value)}
+                    className={adminFormStyles.input}
                   />
-                </div>
+                </ShippingSettingsField>
+                <ShippingSettingsField label="Height (in)">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={heightInput}
+                    onChange={(e) => handleDimensionInput("height", e.target.value)}
+                    className={adminFormStyles.input}
+                  />
+                </ShippingSettingsField>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ShippingSettingsField label="Weight (oz)">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={weightInput}
+                  onChange={(e) => handleDimensionInput("weight", e.target.value)}
+                  className={adminFormStyles.input}
+                />
+              </ShippingSettingsField>
+              <ShippingSettingsField label="Shipping cost ($)">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={shippingCostInput}
+                  onChange={(e) => handleShippingCostChange(e.target.value)}
+                  onBlur={() =>
+                    setShippingCostInput(
+                      centsToMoneyString(defaultsDraft.shipping_cost_cents),
+                    )
+                  }
+                  className={adminFormStyles.input}
+                />
+              </ShippingSettingsField>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-brand-border pt-4">
               <button
                 type="button"
                 onClick={closeDefaultsModal}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
+                className={adminButtonStyles.secondary}
               >
                 Cancel
               </button>
@@ -718,201 +757,125 @@ export default function ShippingSettingsPage() {
                   void saveDefaults();
                 }}
                 disabled={isSavingDefaults}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
+                className={`${adminButtonStyles.primary} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
               >
                 {isSavingDefaults ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
-        </div>
+        </ShippingSettingsModalShell>
       )}
 
       {isOriginModalOpen && (
         <ModalPortal open={isOriginModalOpen} onClose={() => setIsOriginModalOpen(false)}>
-          <div className="w-full max-w-3xl rounded-sm border border-zinc-800/70 bg-zinc-950 p-3 sm:p-6">
-            <div className="flex items-center justify-between gap-3 mb-2 sm:mb-4">
-              <div>
-                <h2 className="text-sm sm:text-lg font-semibold text-white">
-                  Edit origin
-                </h2>
-                <p className="hidden sm:block text-[12px] sm:text-sm text-zinc-400">
-                  Shipping origin address
+          <ShippingSettingsModalShell
+            title="Edit Origin"
+            description="Shipping origin address"
+            maxWidthClassName="max-w-3xl"
+            onClose={() => setIsOriginModalOpen(false)}
+          >
+            <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 sm:gap-4">
+              <div className="sm:col-span-2">
+                <p className="text-xs text-brand-muted">
+                  Provide a contact name or company name. Phone number is optional.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsOriginModalOpen(false)}
-                className="text-zinc-400 hover:text-white text-[11px] sm:text-sm"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-2 gap-2 sm:gap-4 text-[11px] sm:text-sm">
-              <div className="col-span-2 text-[10px] sm:text-xs text-zinc-400">
-                Provide a contact name or company name. Phone number is optional.
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">Contact name</label>
+              <ShippingSettingsField label="Contact name" error={originErrors.name}>
                 <input
                   type="text"
                   value={originDraft.name}
                   onChange={(e) => handleOriginDraftChange("name", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.name ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.name && (
-                  <div className="text-[10px] text-red-400 mt-1">{originErrors.name}</div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">Company</label>
+              </ShippingSettingsField>
+              <ShippingSettingsField label="Company" error={originErrors.company}>
                 <input
                   type="text"
                   value={originDraft.company ?? ""}
                   onChange={(e) => handleOriginDraftChange("company", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.company ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.company && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.company}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">
-                  Phone number (optional)
-                </label>
+              </ShippingSettingsField>
+              <ShippingSettingsField
+                label="Phone number (optional)"
+                error={originErrors.phone}
+              >
                 <input
                   type="text"
                   value={originDraft.phone ?? ""}
                   onChange={(e) => handleOriginDraftChange("phone", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.phone ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.phone && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.phone}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">Street address</label>
+              </ShippingSettingsField>
+              <ShippingSettingsField label="Street address" error={originErrors.line1}>
                 <input
                   type="text"
                   value={originDraft.line1}
                   onChange={(e) => handleOriginDraftChange("line1", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.line1 ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.line1 && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.line1}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">
-                  Apartment, suite, etc.
-                </label>
+              </ShippingSettingsField>
+              <ShippingSettingsField
+                label="Apartment, suite, etc."
+                error={originErrors.line2}
+              >
                 <input
                   type="text"
                   value={originDraft.line2 ?? ""}
                   onChange={(e) => handleOriginDraftChange("line2", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.line2 ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.line2 && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.line2}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">City</label>
+              </ShippingSettingsField>
+              <ShippingSettingsField label="City" error={originErrors.city}>
                 <input
                   type="text"
                   value={originDraft.city}
                   onChange={(e) => handleOriginDraftChange("city", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.city ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.city && (
-                  <div className="text-[10px] text-red-400 mt-1">{originErrors.city}</div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">State</label>
+              </ShippingSettingsField>
+              <ShippingSettingsField label="State" error={originErrors.state}>
                 <input
                   type="text"
                   value={originDraft.state}
                   onChange={(e) => handleOriginDraftChange("state", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.state ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.state && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.state}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">ZIP / Postal code</label>
+              </ShippingSettingsField>
+              <ShippingSettingsField
+                label="ZIP / Postal code"
+                error={originErrors.postal_code}
+              >
                 <input
                   type="text"
                   value={originDraft.postal_code}
                   onChange={(e) => handleOriginDraftChange("postal_code", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.postal_code ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.postal_code && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.postal_code}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-gray-400 mb-0.5">Country</label>
+              </ShippingSettingsField>
+              <ShippingSettingsField label="Country" error={originErrors.country}>
                 <input
                   type="text"
                   value={originDraft.country}
                   onChange={(e) => handleOriginDraftChange("country", e.target.value)}
-                  className={`w-full bg-zinc-900 text-white px-2 py-1.5 border ${
-                    originErrors.country ? "border-red-500" : "border-zinc-800/70"
-                  }`}
+                  className={adminFormStyles.input}
                 />
-                {originErrors.country && (
-                  <div className="text-[10px] text-red-400 mt-1">
-                    {originErrors.country}
-                  </div>
-                )}
-              </div>
+              </ShippingSettingsField>
             </div>
 
             {(originError || originMessage) && (
               <div
-                className={`mt-4 text-sm ${
-                  originError ? "text-red-400" : "text-gray-400"
-                }`}
+                className={`text-sm ${originError ? "text-red-700" : "text-brand-muted"}`}
               >
                 {originError || originMessage}
               </div>
             )}
 
-            <div className="mt-3 sm:mt-6 flex items-center justify-end gap-2 sm:gap-3">
+            <div className="flex items-center justify-end gap-3 border-t border-brand-border pt-4">
               <button
                 type="button"
                 onClick={() => setIsOriginModalOpen(false)}
-                className="px-3 sm:px-4 py-1.5 sm:py-2 border border-zinc-800/70 text-[11px] sm:text-sm text-gray-300"
+                className={adminButtonStyles.secondary}
               >
                 Cancel
               </button>
@@ -922,12 +885,12 @@ export default function ShippingSettingsPage() {
                   void saveOrigin();
                 }}
                 disabled={isSavingOrigin}
-                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red-600 text-white text-[11px] sm:text-sm hover:bg-red-500 disabled:bg-zinc-700"
+                className={`${adminButtonStyles.primary} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
               >
                 {isSavingOrigin ? "Saving..." : "Save origin"}
               </button>
             </div>
-          </div>
+          </ShippingSettingsModalShell>
         </ModalPortal>
       )}
     </div>

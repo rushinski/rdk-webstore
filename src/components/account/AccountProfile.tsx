@@ -1,15 +1,13 @@
-// src/components/account/AccountProfile.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
-import type { Tables } from "@/types/db/database.types";
-import { logError } from "@/lib/utils/log";
 import { PasswordRequirements } from "@/components/auth/register/PasswordRequirements";
-import { isPasswordValid } from "@/lib/validation/password";
 import { Toast } from "@/components/ui/Toast";
-import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { isPasswordValid } from "@/lib/validation/password";
+import { logError } from "@/lib/utils/log";
+import type { Tables } from "@/types/db/database.types";
 
 type ShippingProfile = Tables<"shipping_profiles">;
 
@@ -50,6 +48,13 @@ type AccountAddress = {
 
 type AddressInput = Omit<AccountAddress, "id"> & { id?: string };
 
+const sectionClass =
+  "mb-6 border border-brand-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6";
+const inputClass =
+  "w-full border border-brand-border bg-brand-page px-4 py-3 text-[13px] text-brand-text outline-none transition-colors focus:border-brand-text sm:text-sm";
+const primaryButtonClass =
+  "border border-brand-text bg-brand-text px-5 py-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800 disabled:border-neutral-400 disabled:bg-neutral-400 sm:text-sm";
+
 export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [profile, setProfile] = useState<Partial<ShippingProfile>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -67,8 +72,6 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [addresses, setAddresses] = useState<AccountAddress[]>([]);
   const [isAddressesLoading, setIsAddressesLoading] = useState(false);
-  const [chatNotificationsEnabled, setChatNotificationsEnabled] = useState(true);
-  const [isChatSaving, setIsChatSaving] = useState(false);
   const [isAddressSaving, setIsAddressSaving] = useState(false);
   const [isDefaultSaving, setIsDefaultSaving] = useState(false);
   const [setAsDefault, setSetAsDefault] = useState(false);
@@ -84,10 +87,9 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
   });
 
   useEffect(() => {
-    loadProfile();
-    loadOrders();
-    loadAddresses();
-    loadChatNotifications();
+    void loadProfile();
+    void loadOrders();
+    void loadAddresses();
   }, []);
 
   const loadProfile = async () => {
@@ -113,46 +115,13 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     }
   };
 
-  const loadChatNotifications = async () => {
-    try {
-      const response = await fetch("/api/account/notifications", { cache: "no-store" });
-      const data = await response.json();
-      setChatNotificationsEnabled(Boolean(data.chat_notifications_enabled));
-    } catch (error) {
-      logError(error, { layer: "frontend", event: "account_load_chat_notifications" });
-    }
-  };
-
-  const handleSaveChatNotifications = async () => {
-    setIsChatSaving(true);
-    setMessage("");
-    try {
-      const response = await fetch("/api/account/notifications", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_notifications_enabled: chatNotificationsEnabled }),
-      });
-
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        setMessage(data?.error ?? "Failed to update chat notifications");
-        return;
-      }
-
-      setMessage("Chat notification preference updated.");
-    } catch {
-      setMessage("Failed to update chat notifications");
-    } finally {
-      setIsChatSaving(false);
-    }
-  };
-
   const formatField = (value?: string | null) => (value ?? "").trim().toLowerCase();
 
   const isDefaultAddress = (address: AccountAddress) => {
     if (!profile.address_line1) {
       return false;
     }
+
     return (
       formatField(profile.address_line1) === formatField(address.line1) &&
       formatField(profile.address_line2) === formatField(address.line2) &&
@@ -368,6 +337,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     setMessage("");
     const targetAddress = addresses.find((address) => address.id === addressId);
     const wasDefault = targetAddress ? isDefaultAddress(targetAddress) : false;
+
     try {
       const response = await fetch(`/api/account/addresses/${addressId}`, {
         method: "DELETE",
@@ -391,6 +361,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     if (!trackingNumber) {
       return null;
     }
+
     const normalized = (carrier ?? "").toLowerCase();
     const encodedTracking = encodeURIComponent(trackingNumber);
 
@@ -422,83 +393,53 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     }
   };
 
+  const messageToneClass =
+    message.toLowerCase().includes("success") || message.toLowerCase().includes("updated")
+      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      : "border-red-200 bg-red-50 text-red-700";
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 text-[13px] sm:text-base">
-      <h1 className="text-2xl sm:text-3xl font-bold text-white mb-6 sm:mb-8">
+    <div className="mx-auto max-w-4xl px-4 py-8 text-[13px] sm:text-base">
+      <h1 className="mb-6 text-2xl font-black uppercase tracking-[0.08em] text-brand-text sm:mb-8 sm:text-3xl">
         Account Settings
       </h1>
 
       {message && (
-        <div
-          className={`mb-6 p-4 rounded ${
-            message.includes("success")
-              ? "bg-green-900/20 text-green-400"
-              : "bg-red-900/20 text-red-400"
-          }`}
-        >
+        <div className={`mb-6 border px-4 py-3 text-sm ${messageToneClass}`}>
           {message}
         </div>
       )}
 
-      {/* Email (Read-only) */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+      <div className={sectionClass}>
+        <h2 className="mb-3 text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:mb-4 sm:text-xl">
           Email
         </h2>
-        <p className="text-gray-400">{userEmail}</p>
-        <p className="text-gray-500 text-[12px] sm:text-sm mt-2">
+        <p className="text-brand-text">{userEmail}</p>
+        <p className="mt-2 text-[12px] text-brand-muted sm:text-sm">
           Email changes are not currently supported
         </p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
-          Chat Notifications
-        </h2>
-        <p className="text-gray-400 text-[12px] sm:text-sm mb-4">
-          Get email updates when admins reply to your chat.
-        </p>
-        <div className="flex items-center justify-between gap-4 text-[12px] sm:text-sm text-zinc-300">
-          <span>Email me about chat replies</span>
-          <ToggleSwitch
-            checked={chatNotificationsEnabled}
-            onChange={setChatNotificationsEnabled}
-            ariaLabel="Chat notification preference"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => {
-            void handleSaveChatNotifications();
-          }}
-          disabled={isChatSaving}
-          className="mt-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
-        >
-          {isChatSaving ? "Saving..." : "Save Preference"}
-        </button>
-      </div>
-
-      {/* Saved Addresses */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-          <h2 className="text-lg sm:text-xl font-semibold text-white">
+      <div className={sectionClass}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:text-xl">
             Shipping Addresses
           </h2>
-          <span className="text-[11px] sm:text-xs text-zinc-500">
+          <span className="text-[11px] text-brand-muted sm:text-xs">
             Save multiple addresses and pick a default for checkout.
           </span>
         </div>
 
-        <div className="border border-zinc-800/70 rounded p-4 mb-6">
-          <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="mb-6 border border-brand-border bg-brand-page p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500">
+              <div className="text-[11px] uppercase tracking-[0.2em] text-brand-muted sm:text-xs">
                 Default shipping address
               </div>
               {profile.address_line1 ? (
-                <div className="text-[12px] sm:text-sm text-zinc-300 mt-2 space-y-1">
+                <div className="mt-2 space-y-1 text-[12px] text-brand-text sm:text-sm">
                   {profile.full_name && (
-                    <div className="text-white font-semibold">{profile.full_name}</div>
+                    <div className="font-semibold">{profile.full_name}</div>
                   )}
                   <div>{profile.address_line1}</div>
                   {profile.address_line2 && <div>{profile.address_line2}</div>}
@@ -506,10 +447,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     {profile.city}, {profile.state} {profile.postal_code}
                   </div>
                   <div>{profile.country}</div>
-                  {profile.phone && <div className="text-zinc-500">{profile.phone}</div>}
+                  {profile.phone && (
+                    <div className="text-brand-muted">{profile.phone}</div>
+                  )}
                 </div>
               ) : (
-                <div className="text-[12px] sm:text-sm text-zinc-500 mt-2">
+                <div className="mt-2 text-[12px] text-brand-muted sm:text-sm">
                   No default shipping address yet. Choose one below.
                 </div>
               )}
@@ -521,7 +464,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                   void handleClearDefaultShipping();
                 }}
                 disabled={isDefaultSaving}
-                className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-60"
+                className="text-[11px] text-brand-muted transition-colors hover:text-brand-text disabled:opacity-60 sm:text-xs"
               >
                 {isDefaultSaving ? "Updating..." : "Clear default"}
               </button>
@@ -530,19 +473,22 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         </div>
 
         {isAddressesLoading ? (
-          <div className="text-gray-400 mb-6">Loading addresses...</div>
+          <div className="mb-6 text-brand-muted">Loading addresses...</div>
         ) : addresses.length === 0 ? (
-          <div className="text-gray-400 mb-6">No saved addresses yet.</div>
+          <div className="mb-6 text-brand-muted">No saved addresses yet.</div>
         ) : (
-          <div className="space-y-3 mb-6">
+          <div className="mb-6 space-y-3">
             {addresses.map((address) => (
-              <div key={address.id} className="border border-zinc-800/70 rounded p-4">
+              <div
+                key={address.id}
+                className="border border-brand-border bg-brand-page p-4"
+              >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="text-[12px] sm:text-sm text-zinc-300">
-                    <div className="flex items-center gap-2 text-white font-semibold">
+                  <div className="text-[12px] text-brand-text sm:text-sm">
+                    <div className="flex items-center gap-2 font-semibold">
                       <span>{address.name || "Saved Address"}</span>
                       {isDefaultAddress(address) && (
-                        <span className="text-[10px] uppercase tracking-[0.12em] text-zinc-300 bg-zinc-800/70 px-2 py-0.5 rounded">
+                        <span className="bg-brand-text px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-brand-surface">
                           Default
                         </span>
                       )}
@@ -554,7 +500,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     </div>
                     <div>{address.country}</div>
                     {address.phone && (
-                      <div className="text-zinc-500">{address.phone}</div>
+                      <div className="text-brand-muted">{address.phone}</div>
                     )}
                   </div>
                   <button
@@ -562,7 +508,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                     onClick={() => {
                       void handleDeleteAddress(address.id);
                     }}
-                    className="text-[11px] sm:text-xs text-red-400 hover:text-red-300 transition-colors"
+                    className="text-[11px] text-brand-muted transition-colors hover:text-brand-text sm:text-xs"
                   >
                     Remove
                   </button>
@@ -574,7 +520,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                       void handleSetDefaultAddress(address);
                     }}
                     disabled={isDefaultSaving}
-                    className="mt-3 text-[11px] sm:text-xs text-zinc-300 hover:text-white transition-colors disabled:opacity-60"
+                    className="mt-3 text-[11px] text-brand-text transition-colors hover:text-neutral-600 disabled:opacity-60 sm:text-xs"
                   >
                     {isDefaultSaving ? "Updating..." : "Set as default shipping"}
                   </button>
@@ -591,71 +537,71 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           className="space-y-4"
         >
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
               Full Name
             </label>
             <input
               type="text"
               value={addressForm.name}
               onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
               Phone
             </label>
             <input
               type="tel"
               value={addressForm.phone}
               onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
-              Address Line 1 <span className="text-red-500">*</span>
+            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
+              Address Line 1 <span className="text-brand-text">*</span>
             </label>
             <input
               type="text"
               required
               value={addressForm.line1}
               onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
               Apartment / Unit
             </label>
             <input
               type="text"
               value={addressForm.line2}
               onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
-              className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+              className={inputClass}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
-                City <span className="text-red-500">*</span>
+              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
+                City <span className="text-brand-text">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={addressForm.city}
                 onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
-                State <span className="text-red-500">*</span>
+              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
+                State <span className="text-brand-text">*</span>
               </label>
               <input
                 type="text"
@@ -664,15 +610,15 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 onChange={(e) =>
                   setAddressForm({ ...addressForm, state: e.target.value })
                 }
-                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={inputClass}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
-                Postal Code <span className="text-red-500">*</span>
+              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
+                Postal Code <span className="text-brand-text">*</span>
               </label>
               <input
                 type="text"
@@ -681,13 +627,13 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 onChange={(e) =>
                   setAddressForm({ ...addressForm, postal_code: e.target.value })
                 }
-                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
-                Country <span className="text-red-500">*</span>
+              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
+                Country <span className="text-brand-text">*</span>
               </label>
               <input
                 type="text"
@@ -696,12 +642,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 onChange={(e) =>
                   setAddressForm({ ...addressForm, country: e.target.value })
                 }
-                className="w-full bg-zinc-800 text-white px-4 py-2 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={inputClass}
               />
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-[12px] sm:text-sm text-zinc-400">
+          <label className="flex items-center gap-2 text-[12px] text-brand-muted sm:text-sm">
             <input
               type="checkbox"
               checked={setAsDefault}
@@ -711,25 +657,20 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             Set as default shipping address
           </label>
 
-          <button
-            type="submit"
-            disabled={isAddressSaving}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
-          >
+          <button type="submit" disabled={isAddressSaving} className={primaryButtonClass}>
             {isAddressSaving ? "Saving..." : "Add Address"}
           </button>
         </form>
       </div>
 
-      {/* Order History */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6 mb-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+      <div className={sectionClass}>
+        <h2 className="mb-3 text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:mb-4 sm:text-xl">
           Order History
         </h2>
         {isOrdersLoading ? (
-          <div className="text-gray-400">Loading orders...</div>
+          <div className="text-brand-muted">Loading orders...</div>
         ) : orders.length === 0 ? (
-          <div className="text-gray-400">No orders yet.</div>
+          <div className="text-brand-muted">No orders yet.</div>
         ) : (
           <div className="space-y-4">
             {orders.map((order) => {
@@ -740,20 +681,23 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
               const showTracking = order.fulfillment === "ship" && order.tracking_number;
 
               return (
-                <div key={order.id} className="border border-zinc-800/70 rounded p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <div className="text-white font-semibold">
+                <div
+                  key={order.id}
+                  className="border border-brand-border bg-brand-page p-4"
+                >
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-semibold text-brand-text">
                       Order #{order.id.slice(0, 8)}
                     </div>
-                    <div className="text-gray-400 text-[12px] sm:text-sm">
+                    <div className="text-[12px] text-brand-muted sm:text-sm">
                       {new Date(order.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-                    <span className="text-gray-400 text-[12px] sm:text-sm">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[12px] text-brand-muted sm:text-sm">
                       Status: {order.status}
                     </span>
-                    <span className="text-white font-semibold">
+                    <span className="font-semibold text-brand-text">
                       ${Number(order.total ?? 0).toFixed(2)}
                     </span>
                   </div>
@@ -763,29 +707,29 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                         key={item.id}
                         className="flex items-center justify-between text-[12px] sm:text-sm"
                       >
-                        <span className="text-gray-300">
+                        <span className="text-brand-text">
                           {item.product_name ?? item.product?.name ?? "Item"}
                           {(item.size_label ?? item.variant?.size_label)
                             ? ` (${item.size_label ?? item.variant?.size_label})`
                             : ""}
                         </span>
-                        <span className="text-gray-400">x{item.quantity}</span>
+                        <span className="text-brand-muted">x{item.quantity}</span>
                       </div>
                     ))}
                   </div>
                   {showTracking && (
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-[12px] sm:text-sm">
-                      <div className="text-zinc-400">
+                      <div className="text-brand-muted">
                         Tracking:{" "}
                         {order.shipping_carrier ? `${order.shipping_carrier} ` : ""}
-                        <span className="text-zinc-200">{order.tracking_number}</span>
+                        <span className="text-brand-text">{order.tracking_number}</span>
                       </div>
                       {trackingUrl ? (
                         <a
                           href={trackingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-red-400 hover:underline"
+                          className="font-semibold text-brand-text underline-offset-4 transition-colors hover:text-neutral-600 hover:underline"
                         >
                           Track shipment
                         </a>
@@ -799,9 +743,8 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         )}
       </div>
 
-      {/* Change Password */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+      <div className={sectionClass}>
+        <h2 className="mb-3 text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:mb-4 sm:text-xl">
           Change Password
         </h2>
         <form
@@ -811,7 +754,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           className="space-y-4"
         >
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
               New Password
             </label>
             <div className="relative">
@@ -820,18 +763,18 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={`${inputClass} pr-11`}
               />
               <button
                 type="button"
                 onClick={() => setNewPasswordVisible((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted transition-colors hover:text-brand-text"
                 aria-label={newPasswordVisible ? "Hide password" : "Show password"}
               >
                 {newPasswordVisible ? (
-                  <EyeOff className="w-4 h-4" />
+                  <EyeOff className="h-4 w-4" />
                 ) : (
-                  <Eye className="w-4 h-4" />
+                  <Eye className="h-4 w-4" />
                 )}
               </button>
             </div>
@@ -840,7 +783,7 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
           <PasswordRequirements password={newPassword} />
 
           <div>
-            <label className="block text-gray-400 text-[12px] sm:text-sm mb-1">
+            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
               Confirm Password
             </label>
             <div className="relative">
@@ -849,38 +792,34 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full bg-zinc-800 text-white px-4 py-2 pr-11 text-[13px] sm:text-sm rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={`${inputClass} pr-11`}
               />
               <button
                 type="button"
                 onClick={() => setConfirmPasswordVisible((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted transition-colors hover:text-brand-text"
                 aria-label={confirmPasswordVisible ? "Hide password" : "Show password"}
               >
                 {confirmPasswordVisible ? (
-                  <EyeOff className="w-4 h-4" />
+                  <EyeOff className="h-4 w-4" />
                 ) : (
-                  <Eye className="w-4 h-4" />
+                  <Eye className="h-4 w-4" />
                 )}
               </button>
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm rounded transition"
-          >
+          <button type="submit" disabled={isLoading} className={primaryButtonClass}>
             {isLoading ? "Changing..." : "Change Password"}
           </button>
         </form>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-semibold text-white mb-3 sm:mb-4">
+      <div className="border border-brand-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6">
+        <h2 className="mb-3 text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:mb-4 sm:text-xl">
           Sign out
         </h2>
-        <p className="text-gray-400 text-[12px] sm:text-sm mb-4">
+        <p className="mb-4 text-[12px] text-brand-muted sm:text-sm">
           You can sign back in anytime to view your orders and account details.
         </p>
         <button
@@ -889,11 +828,12 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
             void handleLogout();
           }}
           disabled={isSigningOut}
-          className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-700 text-white font-semibold px-5 py-2 text-[12px] sm:text-sm transition cursor-pointer"
+          className="cursor-pointer border border-brand-text bg-brand-page px-5 py-3 text-[12px] font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:bg-brand-text hover:text-brand-surface disabled:border-neutral-400 disabled:text-neutral-400 sm:text-sm"
         >
           {isSigningOut ? "Signing out..." : "Logout"}
         </button>
       </div>
+
       <Toast
         open={Boolean(toast)}
         message={toast?.message ?? ""}

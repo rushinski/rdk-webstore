@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
-import { ModalPortal } from "@/components/ui/ModalPortal";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 
 export type RefundRequestPayload =
   | { type: "full" }
@@ -45,6 +47,9 @@ const getItemImage = (item: AdminOrderItem) => {
   const primary = images.find((entry) => entry.is_primary) ?? images[0];
   return primary?.url ?? "/images/rdk-logo.png";
 };
+
+const panelStyles =
+  "border border-brand-border bg-brand-surface p-4 text-sm text-brand-muted";
 
 export function RefundOrderModal({
   open,
@@ -155,20 +160,10 @@ export function RefundOrderModal({
     (mode === "product" && (selectedItemIds.length === 0 || !canSelectAnyItems)) ||
     (mode === "custom" && (customAmountCents <= 0 || customAmountCents > remainingCents));
 
-  const modeBtn = (m: RefundMode, label: string) => (
-    <button
-      key={m}
-      type="button"
-      onClick={() => setMode(m)}
-      className={`px-3 py-1.5 text-sm border transition-colors ${
-        mode === m
-          ? "border-red-600 bg-red-600/10 text-white"
-          : "border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
-      }`}
-    >
-      {label}
-    </button>
-  );
+  const modeButtonStyles = (m: RefundMode) =>
+    mode === m
+      ? "border-brand-text bg-brand-text text-brand-page"
+      : "border-brand-border bg-brand-page text-brand-muted hover:border-brand-text hover:text-brand-text";
 
   return (
     <ModalPortal open={open} onClose={onClose} zIndexClassName="z-[10000]">
@@ -176,20 +171,21 @@ export function RefundOrderModal({
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-3xl overflow-hidden border border-zinc-800 bg-zinc-950 shadow-2xl"
+        className="w-full max-w-3xl overflow-hidden border border-brand-border bg-brand-surface shadow-2xl"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-brand-border px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-white">Refund Order</h2>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              #{order?.id.slice(0, 8)} — Remaining {formatMoney(remainingDollars)}
+            <h2 className="text-base font-semibold uppercase tracking-[0.08em] text-brand-text">
+              Refund Order
+            </h2>
+            <p className="mt-0.5 text-xs text-brand-muted">
+              #{order?.id.slice(0, 8)} - Remaining {formatMoney(remainingDollars)}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-zinc-500 transition hover:text-white"
+            className="text-brand-muted transition hover:text-brand-text"
             aria-label="Close"
             disabled={submitting}
           >
@@ -198,15 +194,25 @@ export function RefundOrderModal({
         </div>
 
         <div className="space-y-4 p-5">
-          {/* Mode selector */}
           <div className="flex gap-2">
-            {modeBtn("full", "Full refund")}
-            {modeBtn("product", "By product")}
-            {modeBtn("custom", "Custom amount")}
+            {(["full", "product", "custom"] as const).map((entry) => (
+              <button
+                key={entry}
+                type="button"
+                onClick={() => setMode(entry)}
+                className={`border px-3 py-1.5 text-sm transition-colors ${modeButtonStyles(entry)}`}
+              >
+                {entry === "full"
+                  ? "Full refund"
+                  : entry === "product"
+                    ? "By product"
+                    : "Custom amount"}
+              </button>
+            ))}
           </div>
 
           {mode === "full" && (
-            <div className="border border-zinc-800 bg-zinc-900 p-4 text-sm text-zinc-400">
+            <div className={panelStyles}>
               Refunds the remaining balance for this order. If the order has prior partial
               refunds, this completes the refund.
             </div>
@@ -214,7 +220,7 @@ export function RefundOrderModal({
 
           {mode === "product" && (
             <div className="space-y-3">
-              <p className="text-sm text-zinc-400">
+              <p className="text-sm text-brand-muted">
                 Select products to refund. Already-refunded products are excluded.
               </p>
               <div className="max-h-80 space-y-1.5 overflow-y-auto pr-1">
@@ -228,10 +234,10 @@ export function RefundOrderModal({
                       key={item.id}
                       className={`flex cursor-pointer items-center gap-3 border p-3 transition-colors ${
                         isRefunded
-                          ? "border-zinc-800 bg-zinc-900/30 opacity-50"
+                          ? "border-brand-border bg-brand-page opacity-50"
                           : isSelected
-                            ? "border-zinc-700 bg-zinc-900"
-                            : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-700"
+                            ? "border-brand-text bg-brand-page"
+                            : "border-brand-border bg-brand-surface hover:border-brand-text"
                       }`}
                     >
                       <input
@@ -244,23 +250,23 @@ export function RefundOrderModal({
                       <img
                         src={getItemImage(item)}
                         alt={getItemTitle(item)}
-                        className="h-10 w-10 flex-shrink-0 border border-zinc-800 bg-black object-cover"
+                        className="h-10 w-10 flex-shrink-0 border border-brand-border bg-brand-page object-cover"
                       />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm text-white">
+                        <div className="truncate text-sm text-brand-text">
                           {getItemTitle(item)}
                         </div>
-                        <div className="text-xs text-zinc-500">
+                        <div className="text-xs text-brand-muted">
                           Size {item.size_label ?? item.variant?.size_label ?? "N/A"} ·
                           Qty {Number(item.quantity ?? 0)}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-sm font-semibold text-white">
+                      <div className="shrink-0 text-right">
+                        <div className="text-sm font-semibold text-brand-text">
                           {formatMoney(lineTotal)}
                         </div>
                         {isRefunded && (
-                          <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+                          <div className="text-[11px] uppercase tracking-wide text-brand-muted">
                             Refunded
                           </div>
                         )}
@@ -269,9 +275,9 @@ export function RefundOrderModal({
                   );
                 })}
               </div>
-              <div className="border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-400">
+              <div className="border border-brand-border bg-brand-page px-3 py-2 text-sm text-brand-muted">
                 Selected total:{" "}
-                <span className="text-white font-semibold">
+                <span className="font-semibold text-brand-text">
                   {formatMoney(fromCents(selectedProductRefundCents))}
                 </span>
               </div>
@@ -281,7 +287,7 @@ export function RefundOrderModal({
           {mode === "custom" && (
             <div className="space-y-2">
               <label
-                className="block text-sm text-zinc-400"
+                className="block text-sm text-brand-text"
                 htmlFor="custom-refund-amount"
               >
                 Refund amount
@@ -297,25 +303,25 @@ export function RefundOrderModal({
                     setCustomAmount(val);
                   }
                 }}
-                className="w-full border border-zinc-800 bg-zinc-900 px-3 py-2 text-white outline-none focus:border-zinc-600 text-sm"
+                className={adminFormStyles.input}
                 placeholder="0.00"
               />
-              <p className="text-xs text-zinc-600">
+              <p className="text-xs text-brand-muted">
                 Max refundable: {formatMoney(remainingDollars)}. Custom refunds do not
                 mark items as refunded.
               </p>
             </div>
           )}
 
-          {errorMessage && <p className="text-sm text-red-400">{errorMessage}</p>}
+          {errorMessage && <p className="text-sm text-red-700">{errorMessage}</p>}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-zinc-800 px-5 py-4">
+        <div className="flex justify-end gap-2 border-t border-brand-border px-5 py-4">
           <button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="border border-zinc-700 px-4 py-2 text-sm text-zinc-300 transition hover:border-zinc-500 disabled:opacity-50"
+            className={`${adminButtonStyles.secondary} disabled:opacity-50`}
           >
             Cancel
           </button>
@@ -325,7 +331,7 @@ export function RefundOrderModal({
               void handleConfirm();
             }}
             disabled={isConfirmDisabled}
-            className="bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
+            className={`${adminButtonStyles.danger} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
           >
             {submitting ? "Refunding..." : "Confirm refund"}
           </button>

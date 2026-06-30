@@ -1,20 +1,22 @@
-// app/admin/dashboard/page.tsx
 "use client";
 
 import { createElement, useEffect, useState } from "react";
 import {
-  TrendingUp,
-  TrendingDown,
   DollarSign,
-  ShoppingCart,
   Package,
+  ShoppingCart,
+  TrendingDown,
+  TrendingUp,
   Users,
 } from "lucide-react";
 import Link from "next/link";
 
-import { logError } from "@/lib/utils/log";
 import { SalesChart } from "@/components/admin/charts/SalesChart";
 import { TrafficChart } from "@/components/admin/charts/TrafficChart";
+import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { logError } from "@/lib/utils/log";
 
 type RecentOrder = {
   id: string;
@@ -75,7 +77,7 @@ export default function DashboardPage() {
       }
     };
 
-    loadDashboard();
+    void loadDashboard();
   }, []);
 
   const stats = [
@@ -107,42 +109,40 @@ export default function DashboardPage() {
       trend: trafficSummary.uniqueVisitors > 0 ? "up" : "down",
       icon: Users,
     },
-  ];
+  ] as const;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-        <p className="text-gray-400">Welcome back! Here's what's happening.</p>
-      </div>
+      <AdminPageHeader
+        title="Dashboard"
+        description="Welcome back. Here is your current store activity."
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => {
           const icon = stat.icon;
+
           return (
-            <div
-              key={stat.title}
-              className="bg-zinc-900 border border-zinc-800/70 rounded p-6"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-400 text-sm">{stat.title}</span>
-                {createElement(icon, { className: "w-5 h-5 text-gray-400" })}
+            <div key={stat.title} className="space-y-2">
+              <div className="relative">
+                <div className="absolute right-4 top-4">
+                  {createElement(icon, { className: "h-5 w-5 text-brand-muted" })}
+                </div>
+                <AdminMetricCard
+                  label={stat.title}
+                  value={stat.value}
+                  detail={stat.change}
+                />
               </div>
-              <div className="flex items-end justify-between">
-                <span className="text-xl sm:text-3xl font-bold text-white">
-                  {stat.value}
-                </span>
+              <div className="flex items-center gap-1 text-sm font-semibold">
+                {stat.trend === "up" ? (
+                  <TrendingUp className="h-4 w-4 text-emerald-700" />
+                ) : (
+                  <TrendingDown className="h-4 w-4 text-red-700" />
+                )}
                 <span
-                  className={`flex items-center gap-1 text-sm font-semibold ${
-                    stat.trend === "up" ? "text-green-400" : "text-red-400"
-                  }`}
+                  className={stat.trend === "up" ? "text-emerald-700" : "text-red-700"}
                 >
-                  {stat.trend === "up" ? (
-                    <TrendingUp className="w-4 h-4" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4" />
-                  )}
                   {stat.change}
                 </span>
               </div>
@@ -151,39 +151,45 @@ export default function DashboardPage() {
         })}
       </div>
 
-      {/* Recent Sales */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">Recent Sales</h2>
-          <Link href="/admin/sales" className="text-red-500 hover:underline text-sm">
-            View all →
+      <AdminSectionCard title="Recent Sales">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-brand-text">Recent Sales</h2>
+          <Link
+            href="/admin/sales"
+            className="text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
+          >
+            View all
           </Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-zinc-800/70">
-                <th className="text-left text-gray-400 font-semibold py-3">Order</th>
-                <th className="hidden sm:table-cell text-left text-gray-400 font-semibold py-3">
+              <tr className="border-b border-brand-border">
+                <th className="py-3 text-left text-sm font-semibold text-brand-muted">
+                  Order
+                </th>
+                <th className="hidden py-3 text-left text-sm font-semibold text-brand-muted sm:table-cell">
                   Customer
                 </th>
-                <th className="text-right text-gray-400 font-semibold py-3">Amount</th>
-                <th className="hidden sm:table-cell text-right text-gray-400 font-semibold py-3">
+                <th className="py-3 text-right text-sm font-semibold text-brand-muted">
+                  Amount
+                </th>
+                <th className="hidden py-3 text-right text-sm font-semibold text-brand-muted sm:table-cell">
                   Subtotal
                 </th>
               </tr>
             </thead>
             <tbody>
               {recentOrders.map((order) => (
-                <tr key={order.id} className="border-b border-zinc-800/70">
-                  <td className="py-3 text-white">#{order.id.slice(0, 8)}</td>
-                  <td className="hidden sm:table-cell py-3 text-gray-400">
+                <tr key={order.id} className="border-b border-brand-border">
+                  <td className="py-3 text-brand-text">#{order.id.slice(0, 8)}</td>
+                  <td className="hidden py-3 text-brand-muted sm:table-cell">
                     {order.user_id ? order.user_id.slice(0, 6) : "Guest"}
                   </td>
-                  <td className="py-3 text-right text-white">
+                  <td className="py-3 text-right text-brand-text">
                     ${Number(order.total ?? 0).toFixed(2)}
                   </td>
-                  <td className="hidden sm:table-cell py-3 text-right text-green-400">
+                  <td className="hidden py-3 text-right text-emerald-700 sm:table-cell">
                     +${Number(order.subtotal ?? 0).toFixed(2)}
                   </td>
                 </tr>
@@ -191,25 +197,24 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </AdminSectionCard>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Financials</h2>
-            <span className="text-sm text-gray-400">7d</span>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <AdminSectionCard title="Financials">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-brand-text">Financials</h2>
+            <span className="text-sm text-brand-muted">7d</span>
           </div>
           <SalesChart data={salesTrend} />
-        </div>
+        </AdminSectionCard>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white">Traffic</h2>
-            <span className="text-sm text-gray-400">7d</span>
+        <AdminSectionCard title="Traffic">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-brand-text">Traffic</h2>
+            <span className="text-sm text-brand-muted">7d</span>
           </div>
           <TrafficChart data={trafficTrend} />
-        </div>
+        </AdminSectionCard>
       </div>
     </div>
   );

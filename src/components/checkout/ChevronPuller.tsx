@@ -12,11 +12,11 @@ export function ChevronPuller({ isOpen, setIsOpen }: ChevronPullerProps) {
     <button
       type="button"
       onClick={() => setIsOpen(!isOpen)}
-      className="absolute -top-3 right-1/2 translate-x-1/2 z-10 inline-flex items-center justify-center w-20 h-6 rounded-t-lg bg-zinc-950/95 border-t border-zinc-800"
+      className="absolute right-1/2 top-[-12px] z-10 inline-flex h-6 w-20 translate-x-1/2 items-center justify-center rounded-t-lg border border-brand-border border-b-0 bg-brand-surface"
       aria-label={isOpen ? "Collapse" : "Expand"}
     >
       <ChevronUp
-        className={`w-5 h-5 text-white transition-transform duration-200 ${
+        className={`h-5 w-5 text-brand-text transition-transform duration-200 ${
           isOpen ? "rotate-180" : ""
         }`}
       />

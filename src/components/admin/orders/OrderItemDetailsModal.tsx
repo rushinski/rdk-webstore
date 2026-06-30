@@ -1,11 +1,11 @@
 "use client";
 
-import { X, Package, Tag, Layers, Hash } from "lucide-react";
+import type { ComponentType, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { Hash, Layers, Package, Tag, X } from "lucide-react";
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
-// --- Types (Same as before) ---
 export type AdminOrderItemImage = {
   url?: string | null;
   is_primary?: boolean | null;
@@ -59,7 +59,6 @@ type AdminOrderItemFinancials = {
   unitProfit: number;
 };
 
-// --- Helpers ---
 const formatMoney = (value: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -121,8 +120,6 @@ const getTagLabels = (item: AdminOrderItem) =>
     ),
   );
 
-// --- Components ---
-
 const DetailRow = ({
   label,
   value,
@@ -130,16 +127,16 @@ const DetailRow = ({
   className,
 }: {
   label: string;
-  value: React.ReactNode;
-  icon?: React.ComponentType<{ className?: string }>;
+  value: ReactNode;
+  icon?: ComponentType<{ className?: string }>;
   className?: string;
 }) => (
-  <div className={`flex flex-col gap-0.5 ${className || ""}`}>
-    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+  <div className={`flex flex-col gap-0.5 ${className ?? ""}`}>
+    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-muted">
       {Icon && <Icon className="h-3 w-3" />}
       {label}
     </div>
-    <div className="text-sm font-medium text-zinc-200 truncate">{value}</div>
+    <div className="truncate text-sm font-medium text-brand-text">{value}</div>
   </div>
 );
 
@@ -153,14 +150,14 @@ const StatCard = ({
   color?: "default" | "green" | "red";
 }) => {
   const colorStyles = {
-    default: "text-zinc-100",
-    green: "text-emerald-400",
-    red: "text-rose-400",
+    default: "text-brand-text",
+    green: "text-emerald-700",
+    red: "text-red-700",
   };
 
   return (
-    <div className="flex flex-col rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
-      <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold mb-1">
+    <div className="flex flex-col border border-brand-border bg-brand-page p-3">
+      <span className="mb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-muted">
         {label}
       </span>
       <span className={`text-base font-semibold ${colorStyles[color]}`}>{value}</span>
@@ -231,44 +228,42 @@ export function AdminOrderItemDetailsModal({
       <div
         role="dialog"
         aria-modal="true"
-        onClick={(e) => e.stopPropagation()}
-        className="flex w-full max-w-4xl flex-col overflow-hidden border border-zinc-800 bg-zinc-950 shadow-2xl rounded-lg max-h-[80vh]"
+        onClick={(event) => event.stopPropagation()}
+        className="flex max-h-[80vh] w-full max-w-4xl flex-col overflow-hidden border border-brand-border bg-brand-surface shadow-2xl"
       >
-        {/* --- Header (Fixed) --- */}
-        <div className="flex-shrink-0 flex items-start justify-between border-b border-zinc-800 bg-zinc-950 px-5 py-4">
+        <div className="flex flex-shrink-0 items-start justify-between border-b border-brand-border bg-brand-surface px-5 py-4">
           <div className="min-w-0 pr-4">
-            <h2 className="truncate text-lg font-bold text-white">{productTitle}</h2>
+            <h2 className="truncate text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+              {productTitle}
+            </h2>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-zinc-500">SKU:</span>
-                {/* UPDATED: Removed border/bg box styles */}
-                <span className="font-mono text-zinc-300">
+                <span className="font-semibold text-brand-muted">SKU:</span>
+                <span className="font-mono text-brand-text">
                   {item.variant_sku?.trim() || item.variant?.sku?.trim() || "N/A"}
                 </span>
               </div>
-
               <div className="flex items-center gap-1.5">
-                <span className="font-semibold text-zinc-500">Created:</span>
-                <span className="text-zinc-300">
+                <span className="font-semibold text-brand-muted">Created:</span>
+                <span className="text-brand-text">
                   {formatDateTime(item.product?.created_at)}
                 </span>
               </div>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="flex-shrink-0 rounded p-1.5 text-zinc-500 hover:bg-zinc-900 hover:text-white transition-colors"
+            className="flex-shrink-0 p-1.5 text-brand-muted transition-colors hover:bg-brand-page hover:text-brand-text"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* --- Content Scroll Area --- */}
-        <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-zinc-800">
+        <div className="flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* --- Left Side: Gallery --- */}
             <div className="flex flex-col gap-3">
-              <div className="relative w-full overflow-hidden rounded border border-zinc-800 bg-zinc-900/50 flex items-center justify-center">
+              <div className="relative flex w-full items-center justify-center overflow-hidden border border-brand-border bg-brand-page">
                 <img
                   src={selectedImage}
                   alt="Product Main"
@@ -276,17 +271,17 @@ export function AdminOrderItemDetailsModal({
                 />
               </div>
 
-              {/* Thumbnails */}
               {images.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   {images.map((img, idx) => (
                     <button
                       key={idx}
+                      type="button"
                       onClick={() => setSelectedImageIndex(idx)}
-                      className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded border bg-black transition-all ${
+                      className={`relative h-12 w-12 flex-shrink-0 overflow-hidden border transition-all ${
                         selectedImageIndex === idx
-                          ? "border-white ring-1 ring-white"
-                          : "border-zinc-800 opacity-60 hover:opacity-100"
+                          ? "border-brand-text bg-brand-page"
+                          : "border-brand-border bg-brand-page opacity-70 hover:opacity-100"
                       }`}
                     >
                       <img
@@ -300,9 +295,7 @@ export function AdminOrderItemDetailsModal({
               )}
             </div>
 
-            {/* --- Right Side: Details --- */}
             <div className="flex flex-col gap-6">
-              {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-2">
                 <StatCard label="Bought" value={formatMoney(financials.unitCost)} />
                 <StatCard label="Sold" value={formatMoney(financials.unitPrice)} />
@@ -316,9 +309,8 @@ export function AdminOrderItemDetailsModal({
                 )}
               </div>
 
-              {/* Attributes */}
-              <div className="rounded border border-zinc-800 bg-zinc-900/20 p-4">
-                <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+              <div className="border border-brand-border bg-brand-page p-4">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-4">
                   <DetailRow
                     label="Brand"
                     value={item.brand || item.product?.brand || "-"}
@@ -340,8 +332,8 @@ export function AdminOrderItemDetailsModal({
                   />
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-zinc-800/50">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
+                <div className="mt-4 border-t border-brand-border pt-4">
+                  <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-muted">
                     <Tag className="h-3 w-3" /> Tags
                   </div>
                   {tagLabels.length ? (
@@ -349,28 +341,27 @@ export function AdminOrderItemDetailsModal({
                       {tagLabels.map((tag) => (
                         <span
                           key={tag}
-                          className="text-[10px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700"
+                          className="border border-brand-border bg-brand-surface px-1.5 py-0.5 text-[10px] text-brand-text"
                         >
                           {tag}
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span className="text-zinc-500 text-xs italic">No tags</span>
+                    <span className="text-xs italic text-brand-muted">No tags</span>
                   )}
                 </div>
               </div>
 
-              {/* Description */}
               <div>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
+                <h4 className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-brand-muted">
                   Description
                 </h4>
-                <div className="max-h-32 overflow-y-auto rounded border border-zinc-800 bg-zinc-900/20 p-3 text-xs leading-relaxed text-zinc-400">
+                <div className="max-h-32 overflow-y-auto border border-brand-border bg-brand-page p-3 text-xs leading-relaxed text-brand-muted">
                   {item.product?.description ? (
                     <p className="whitespace-pre-wrap">{item.product.description}</p>
                   ) : (
-                    <p className="italic opacity-50">No description.</p>
+                    <p className="italic opacity-70">No description.</p>
                   )}
                 </div>
               </div>

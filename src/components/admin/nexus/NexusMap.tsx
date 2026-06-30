@@ -1,9 +1,9 @@
-// src/components/admin/nexus/NexusMap.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ComposableMap, Geographies, Geography } from "@vnedyalk0v/react19-simple-maps";
 
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import type { StateSummary } from "@/types/domain/nexus";
 
 type NexusMapProps = {
@@ -11,7 +11,6 @@ type NexusMapProps = {
   onStateClick: (state: StateSummary) => void;
   getStateColor: (state: StateSummary | undefined) => string;
   formatCurrency: (val: number) => string;
-  // NEW: provide legend items so the key can live inside this card
   legendItems: Array<{ label: string; color: string }>;
 };
 
@@ -101,13 +100,12 @@ export default function NexusMap({
 }: NexusMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-
   const [hoveredState, setHoveredState] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<Point | null>(null);
+  const [topology, setTopology] = useState<unknown | null>(null);
 
   const stateMap = useMemo(() => new Map(states.map((s) => [s.stateCode, s])), [states]);
   const hoveredData = hoveredState ? stateMap.get(hoveredState) : null;
-  const [topology, setTopology] = useState<unknown | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -152,7 +150,6 @@ export default function NexusMap({
     setAnchor(svgPointToContainer(svg, container, cx, cy));
   }, []);
 
-  // Tooltip sizing/position
   const tooltipWidth = 280;
 
   const tooltipPos = useMemo(() => {
@@ -167,7 +164,6 @@ export default function NexusMap({
     const rect = container.getBoundingClientRect();
     const padding = 12;
 
-    // Prefer right side; clamp inside container
     let left = anchor.x + 18;
     let top = anchor.y - 140;
 
@@ -189,11 +185,7 @@ export default function NexusMap({
   }, [anchor]);
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 relative">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-white">United States Nexus Map</h2>
-      </div>
-
+    <AdminSectionCard title="United States Nexus Map">
       <div
         ref={containerRef}
         className="relative"
@@ -201,8 +193,8 @@ export default function NexusMap({
           if (!hoveredState) {
             return;
           }
-          const t = e.target as Element | null;
-          if (t?.tagName?.toLowerCase() !== "path") {
+          const target = e.target as Element | null;
+          if (target?.tagName?.toLowerCase() !== "path") {
             clearHover();
           }
         }}
@@ -211,7 +203,7 @@ export default function NexusMap({
         <ComposableMap
           projection="geoAlbersUsa"
           projectionConfig={{ scale: 1000 }}
-          className="w-full h-full"
+          className="h-full w-full"
           style={{ maxHeight: "560px" }}
           ref={(node: SVGSVGElement | null) => {
             svgRef.current = node;
@@ -229,8 +221,8 @@ export default function NexusMap({
                     key={`${geo.rsmKey}-${geo.id ?? stateName}`}
                     geography={geo}
                     fill={getStateColor(stateData)}
-                    stroke="#1f2937"
-                    strokeWidth={0.6}
+                    stroke="#ddd7cc"
+                    strokeWidth={0.8}
                     style={{
                       default: {
                         outline: "none",
@@ -247,7 +239,7 @@ export default function NexusMap({
                         transformBox: "fill-box",
                         transformOrigin: "center",
                         transform: "scale(1.045)",
-                        filter: "drop-shadow(0px 3px 8px rgba(0,0,0,0.55))",
+                        filter: "drop-shadow(0px 3px 8px rgba(17,17,17,0.18))",
                         opacity: 0.96,
                       },
                       pressed: { outline: "none" },
@@ -272,11 +264,10 @@ export default function NexusMap({
           </Geographies>
         </ComposableMap>
 
-        {/* Tooltip */}
         {hoveredData && anchor && tooltipPos && (
           <div className="pointer-events-none absolute inset-0 z-50">
             <div
-              className="absolute rounded-full border border-white/70 bg-white/20 shadow-sm"
+              className="absolute rounded-full border border-brand-text/40 bg-brand-text/10 shadow-sm"
               style={{ left: anchor.x - 4, top: anchor.y - 4, width: 8, height: 8 }}
             />
 
@@ -284,23 +275,23 @@ export default function NexusMap({
               className="absolute transition-all duration-150 ease-out"
               style={{ left: tooltipPos.left, top: tooltipPos.top, width: tooltipWidth }}
             >
-              <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 shadow-xl">
-                <div className="font-bold mb-2 text-white text-lg">
+              <div className="border border-brand-border bg-brand-surface p-4 shadow-[0_16px_40px_rgba(17,17,17,0.12)]">
+                <div className="mb-2 text-lg font-bold text-brand-text">
                   {hoveredData.stateName} ({hoveredData.stateCode})
                 </div>
 
-                <div className="text-sm space-y-1 text-gray-300">
+                <div className="space-y-1 text-sm text-brand-muted">
                   <div>Sales: {formatCurrency(hoveredData.relevantSales)}</div>
                   <div>Threshold: {formatCurrency(hoveredData.threshold)}</div>
-                  <div className="font-semibold text-white pt-1">
+                  <div className="pt-1 font-semibold text-brand-text">
                     {hoveredData.percentageToThreshold.toFixed(1)}% to threshold
                   </div>
 
                   {hoveredData.isRegistered && (
-                    <div className="text-green-400 text-xs pt-1">Registered</div>
+                    <div className="pt-1 text-xs text-emerald-700">Registered</div>
                   )}
                   {hoveredData.isHomeState && (
-                    <div className="text-blue-400 text-xs pt-1">Home Office State</div>
+                    <div className="pt-1 text-xs text-amber-700">Home Office State</div>
                   )}
                 </div>
               </div>
@@ -308,21 +299,20 @@ export default function NexusMap({
           </div>
         )}
 
-        {/* Legend ALWAYS at bottom (never inside tooltip) */}
-        <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 sm:flex sm:flex-nowrap sm:items-center sm:gap-2">
-          {legendItems.map((it) => (
-            <div key={it.label} className="flex items-center gap-1.5 min-w-0">
+        <div className="mt-4 grid grid-cols-3 gap-x-2 gap-y-1 sm:flex sm:flex-nowrap sm:items-center sm:gap-3">
+          {legendItems.map((item) => (
+            <div key={item.label} className="flex min-w-0 items-center gap-1.5">
               <div
-                className="w-2 h-2 rounded shrink-0"
-                style={{ backgroundColor: it.color }}
+                className="h-2 w-2 shrink-0 rounded"
+                style={{ backgroundColor: item.color }}
               />
-              <span className="text-[9px] leading-none tracking-tight text-gray-400 whitespace-nowrap">
-                {it.label}
+              <span className="whitespace-nowrap text-[9px] leading-none tracking-tight text-brand-muted">
+                {item.label}
               </span>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </AdminSectionCard>
   );
 }

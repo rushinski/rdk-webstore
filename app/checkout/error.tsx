@@ -21,22 +21,24 @@ export default function Error({
   }, [error]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-20 text-center">
-      <h1 className="text-3xl font-bold text-white mb-3">Checkout error</h1>
-      <p className="text-zinc-400 mb-8">
+    <div className="mx-auto max-w-4xl px-4 py-20 text-center">
+      <h1 className="mb-3 text-3xl font-black uppercase tracking-[0.08em] text-brand-text">
+        Checkout error
+      </h1>
+      <p className="mb-8 text-brand-muted">
         We hit an issue loading checkout. Try again or return to your cart.
       </p>
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+      <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
         <button
           type="button"
           onClick={() => reset()}
-          className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded"
+          className="border border-brand-text bg-brand-text px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
         >
           Try again
         </button>
         <Link
           href="/cart"
-          className="px-6 py-3 bg-zinc-900 border border-zinc-800 text-zinc-200 hover:text-white rounded"
+          className="border border-brand-border bg-brand-surface px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:border-brand-text hover:bg-brand-page"
         >
           Back to cart
         </Link>

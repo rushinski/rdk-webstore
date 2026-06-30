@@ -1,25 +1,29 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { ChevronDown, MoreVertical, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { logError } from "@/lib/utils/log";
-import { RdkSelect } from "@/components/ui/Select";
 
+import { AliasesTab } from "./components/AliasesTab";
+import { BrandsTab } from "./components/BrandsTab";
+import { CandidatesTab } from "./components/CandidatesTab";
+import { CatalogToolbar } from "./components/CatalogToolbar";
+import { TagModals } from "./components/TagModals";
 import type {
   ActiveTab,
   Alias,
+  AliasEditDraft,
   Brand,
+  BrandEditDraft,
   BrandGroup,
   Candidate,
   EditDraft,
-  AliasEditDraft,
-  BrandEditDraft,
   EditTarget,
-  ModelEditDraft,
   Model,
+  ModelEditDraft,
 } from "./types";
-import { TagModals } from "./components/TagModals";
 
 const tabs: Array<{ key: ActiveTab; label: string }> = [
   { key: "brands", label: "Tags" },
@@ -56,29 +60,47 @@ const toTitleCase = (value: string) =>
 
 const normalizeLabel = (value: string) => normalizeWhitespace(value).toLowerCase();
 
-function StatusPill({ active }: { active: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs whitespace-nowrap ${
-        active ? "bg-emerald-500/10 text-emerald-200" : "bg-zinc-800 text-gray-400"
-      }`}
-    >
-      {active ? "Active" : "Inactive"}
-    </span>
-  );
-}
-
-function VerifiedPill({ verified }: { verified: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs whitespace-nowrap ${
-        verified ? "bg-blue-500/10 text-blue-200" : "bg-zinc-800 text-gray-400"
-      }`}
-    >
-      {verified ? "Verified" : "Unverified"}
-    </span>
-  );
-}
+const infoItems = [
+  {
+    label: "Brands",
+    description: "Canonical brand labels used for products, filters, and parsing.",
+  },
+  {
+    label: "Models",
+    description:
+      "Canonical sneaker model labels tied to a brand. Only used when category is sneakers.",
+  },
+  {
+    label: "Aliases",
+    description:
+      "Alternate spellings or shorthand that map to brands or models and support parser matching.",
+  },
+  {
+    label: "Alias Priority",
+    description:
+      "When multiple aliases match, higher priority wins over shorter or lower-priority matches.",
+  },
+  {
+    label: "Candidates",
+    description:
+      "Unknown brands and models created during product entry. Accept them to add them to taxonomy.",
+  },
+  {
+    label: "Verified",
+    description:
+      "Trusted entries that appear cleanly in storefront filters. Unverified is provisional.",
+  },
+  {
+    label: "Active",
+    description:
+      "Active entries are used by the parser and UI. Inactive hides them without deleting.",
+  },
+  {
+    label: "Title Parsing",
+    description:
+      "Titles are parsed into brand, model, and name. Brand is found first, then model for sneakers.",
+  },
+];
 
 export default function TagsPage() {
   const [groups, setGroups] = useState<BrandGroup[]>([]);
@@ -125,9 +147,11 @@ export default function TagsPage() {
     if (groups.length === 0) {
       return null;
     }
+
     const activeGroups = groups.filter((group) => group.is_active);
     const preferred =
       activeGroups.find((group) => group.key === "other") ?? activeGroups[0];
+
     return preferred?.id ?? groups[0]?.id ?? null;
   }, [groups]);
 
@@ -140,26 +164,31 @@ export default function TagsPage() {
         if (!showUnverified && !model.is_verified) {
           return false;
         }
+
         const brandLabel = brandMap.get(model.brand_id)?.canonical_label ?? "";
-        if (!matchesQuery(model.canonical_label) && !matchesQuery(brandLabel)) {
-          return false;
-        }
-        return true;
+
+        return matchesQuery(model.canonical_label) || matchesQuery(brandLabel);
       }),
     [models, showInactive, showUnverified, normalizedQuery, brandMap],
   );
 
   const filteredModelsByBrandId = useMemo(() => {
     const map: Record<string, Model[]> = {};
+
     filteredModels.forEach((model) => {
       if (!map[model.brand_id]) {
         map[model.brand_id] = [];
       }
+
       map[model.brand_id].push(model);
     });
+
     Object.keys(map).forEach((brandId) => {
-      map[brandId].sort((a, b) => a.canonical_label.localeCompare(b.canonical_label));
+      map[brandId].sort((left, right) =>
+        left.canonical_label.localeCompare(right.canonical_label),
+      );
     });
+
     return map;
   }, [filteredModels]);
 
@@ -172,12 +201,11 @@ export default function TagsPage() {
         if (!showUnverified && !brand.is_verified) {
           return false;
         }
+
         const matchesBrand = matchesQuery(brand.canonical_label);
         const matchesModel = (filteredModelsByBrandId[brand.id]?.length ?? 0) > 0;
-        if (!matchesBrand && !matchesModel) {
-          return false;
-        }
-        return true;
+
+        return matchesBrand || matchesModel;
       }),
     [brands, showInactive, showUnverified, normalizedQuery, filteredModelsByBrandId],
   );
@@ -188,14 +216,13 @@ export default function TagsPage() {
         if (!showInactive && !alias.is_active) {
           return false;
         }
+
         const targetLabel =
           alias.entity_type === "brand"
             ? (brandMap.get(alias.brand_id ?? "")?.canonical_label ?? "")
             : (modelMap.get(alias.model_id ?? "")?.canonical_label ?? "");
-        if (!matchesQuery(alias.alias_label) && !matchesQuery(targetLabel)) {
-          return false;
-        }
-        return true;
+
+        return matchesQuery(alias.alias_label) || matchesQuery(targetLabel);
       }),
     [aliases, showInactive, normalizedQuery, brandMap, modelMap],
   );
@@ -205,10 +232,8 @@ export default function TagsPage() {
       candidates.filter((candidate) => {
         const brandLabel =
           brandMap.get(candidate.parent_brand_id ?? "")?.canonical_label ?? "";
-        if (!matchesQuery(candidate.raw_text) && !matchesQuery(brandLabel)) {
-          return false;
-        }
-        return true;
+
+        return matchesQuery(candidate.raw_text) || matchesQuery(brandLabel);
       }),
     [candidates, normalizedQuery, brandMap],
   );
@@ -216,21 +241,27 @@ export default function TagsPage() {
   const loadAll = async () => {
     setIsLoading(true);
     setMessage("");
-    try {
-      const [groupsRes, brandsRes, modelsRes, aliasesRes, candidatesRes] =
-        await Promise.all([
-          fetch("/api/admin/catalog/brand-groups?includeInactive=1"),
-          fetch("/api/admin/catalog/brands?includeInactive=1"),
-          fetch("/api/admin/catalog/models?includeInactive=1"),
-          fetch("/api/admin/catalog/aliases?includeInactive=1"),
-          fetch("/api/admin/catalog/candidates?status=new"),
-        ]);
 
-      const groupsData = await groupsRes.json();
-      const brandsData = await brandsRes.json();
-      const modelsData = await modelsRes.json();
-      const aliasesData = await aliasesRes.json();
-      const candidatesData = await candidatesRes.json();
+    try {
+      const [
+        groupsResponse,
+        brandsResponse,
+        modelsResponse,
+        aliasesResponse,
+        candidatesResponse,
+      ] = await Promise.all([
+        fetch("/api/admin/catalog/brand-groups?includeInactive=1"),
+        fetch("/api/admin/catalog/brands?includeInactive=1"),
+        fetch("/api/admin/catalog/models?includeInactive=1"),
+        fetch("/api/admin/catalog/aliases?includeInactive=1"),
+        fetch("/api/admin/catalog/candidates?status=new"),
+      ]);
+
+      const groupsData = await groupsResponse.json();
+      const brandsData = await brandsResponse.json();
+      const modelsData = await modelsResponse.json();
+      const aliasesData = await aliasesResponse.json();
+      const candidatesData = await candidatesResponse.json();
 
       setGroups(groupsData.groups || []);
       setBrands(brandsData.brands || []);
@@ -246,7 +277,7 @@ export default function TagsPage() {
   };
 
   useEffect(() => {
-    loadAll();
+    void loadAll();
   }, []);
 
   useEffect(() => {
@@ -263,6 +294,7 @@ export default function TagsPage() {
       };
       setEditDraft(draft);
     }
+
     if (editTarget.type === "model") {
       const draft: ModelEditDraft = {
         canonical_label: editTarget.item.canonical_label,
@@ -272,6 +304,7 @@ export default function TagsPage() {
       };
       setEditDraft(draft);
     }
+
     if (editTarget.type === "alias") {
       const draft: AliasEditDraft = {
         alias_label: editTarget.item.alias_label,
@@ -283,11 +316,11 @@ export default function TagsPage() {
   }, [editTarget]);
 
   const toggleMenu = (key: string) => {
-    setOpenMenuKey((prev) => (prev === key ? null : key));
+    setOpenMenuKey((current) => (current === key ? null : key));
   };
 
   const toggleBrandExpansion = (brandId: string) => {
-    setExpandedBrands((prev) => ({ ...prev, [brandId]: !prev[brandId] }));
+    setExpandedBrands((current) => ({ ...current, [brandId]: !current[brandId] }));
   };
 
   const openAddBrandModal = () => {
@@ -310,27 +343,32 @@ export default function TagsPage() {
       setMessage("Unable to create brand: missing default configuration.");
       return;
     }
+
     const formattedLabel = toTitleCase(newBrand.label);
-    const normalizedLabel = normalizeLabel(formattedLabel);
+    const normalized = normalizeLabel(formattedLabel);
     const isDuplicate = brands.some(
-      (brand) => normalizeLabel(brand.canonical_label) === normalizedLabel,
+      (brand) => normalizeLabel(brand.canonical_label) === normalized,
     );
+
     if (isDuplicate) {
       setMessage("Brand already exists.");
       return;
     }
+
     const response = await fetch("/api/admin/catalog/brands", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ groupId: defaultGroupId, canonicalLabel: formattedLabel }),
     });
-    if (response.ok) {
-      setNewBrand(emptyDraft.brand);
-      setShowAddBrandModal(false);
-      await loadAll();
-    } else {
+
+    if (!response.ok) {
       setMessage("Failed to create brand.");
+      return;
     }
+
+    setNewBrand(emptyDraft.brand);
+    setShowAddBrandModal(false);
+    await loadAll();
   };
 
   const handleCreateModel = async () => {
@@ -338,30 +376,35 @@ export default function TagsPage() {
       setMessage("Brand and model label are required.");
       return;
     }
+
     const formattedLabel = toTitleCase(newModel.label);
-    const normalizedLabel = normalizeLabel(formattedLabel);
+    const normalized = normalizeLabel(formattedLabel);
     const isDuplicate = models.some(
       (model) =>
         model.brand_id === newModel.brandId &&
-        normalizeLabel(model.canonical_label) === normalizedLabel,
+        normalizeLabel(model.canonical_label) === normalized,
     );
+
     if (isDuplicate) {
       setMessage("Model already exists for this brand.");
       return;
     }
+
     const response = await fetch("/api/admin/catalog/models", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ brandId: newModel.brandId, canonicalLabel: formattedLabel }),
     });
-    if (response.ok) {
-      setNewModel(emptyDraft.model);
-      setShowAddModelModal(false);
-      setModelTargetBrand(null);
-      await loadAll();
-    } else {
+
+    if (!response.ok) {
       setMessage("Failed to create model.");
+      return;
     }
+
+    setNewModel(emptyDraft.model);
+    setShowAddModelModal(false);
+    setModelTargetBrand(null);
+    await loadAll();
   };
 
   const handleCreateAlias = async () => {
@@ -369,19 +412,23 @@ export default function TagsPage() {
       setMessage("Alias label and entity are required.");
       return;
     }
-    const normalizedLabel = normalizeLabel(newAlias.label);
+
+    const normalized = normalizeLabel(newAlias.label);
     const isDuplicate = aliases.some((alias) => {
       const targetId = alias.entity_type === "brand" ? alias.brand_id : alias.model_id;
+
       return (
         alias.entity_type === newAlias.entityType &&
         targetId === newAlias.entityId &&
-        normalizeLabel(alias.alias_label) === normalizedLabel
+        normalizeLabel(alias.alias_label) === normalized
       );
     });
+
     if (isDuplicate) {
       setMessage("Alias already exists for that item.");
       return;
     }
+
     const response = await fetch("/api/admin/catalog/aliases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -393,12 +440,14 @@ export default function TagsPage() {
         priority: Number(newAlias.priority || 0),
       }),
     });
-    if (response.ok) {
-      setNewAlias(emptyDraft.alias);
-      await loadAll();
-    } else {
+
+    if (!response.ok) {
       setMessage("Failed to create alias.");
+      return;
     }
+
+    setNewAlias(emptyDraft.alias);
+    await loadAll();
   };
 
   const handleAcceptCandidate = async (candidate: Candidate) => {
@@ -406,6 +455,7 @@ export default function TagsPage() {
       setMessage("Unable to accept brand candidate: missing default configuration.");
       return;
     }
+
     const payload =
       candidate.entity_type === "brand" && defaultGroupId
         ? { groupId: defaultGroupId }
@@ -415,41 +465,50 @@ export default function TagsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (response.ok) {
-      await loadAll();
-    } else {
+
+    if (!response.ok) {
       setMessage("Failed to accept candidate.");
+      return;
     }
+
+    await loadAll();
   };
 
   const handleRejectCandidate = async (candidate: Candidate) => {
     const response = await fetch(`/api/admin/catalog/candidates/${candidate.id}/reject`, {
       method: "POST",
     });
-    if (response.ok) {
-      await loadAll();
-    } else {
+
+    if (!response.ok) {
       setMessage("Failed to reject candidate.");
+      return;
     }
+
+    await loadAll();
   };
 
   const handleSaveEdit = async () => {
     if (!editTarget || !editDraft) {
       return;
     }
+
     setMessage("");
+
     if (editTarget.type === "brand") {
       const draft = editDraft as BrandEditDraft;
-      const normalizedLabel = normalizeLabel(draft.canonical_label ?? "");
-      if (!normalizedLabel) {
+      const normalized = normalizeLabel(draft.canonical_label ?? "");
+
+      if (!normalized) {
         setMessage("Brand label is required.");
         return;
       }
+
       const isDuplicate = brands.some(
         (brand) =>
           brand.id !== editTarget.item.id &&
-          normalizeLabel(brand.canonical_label) === normalizedLabel,
+          normalizeLabel(brand.canonical_label) === normalized,
       );
+
       if (isDuplicate) {
         setMessage("Brand already exists.");
         return;
@@ -458,17 +517,20 @@ export default function TagsPage() {
 
     if (editTarget.type === "model") {
       const draft = editDraft as ModelEditDraft;
-      const normalizedLabel = normalizeLabel(draft.canonical_label ?? "");
-      if (!normalizedLabel || !draft.brand_id) {
+      const normalized = normalizeLabel(draft.canonical_label ?? "");
+
+      if (!normalized || !draft.brand_id) {
         setMessage("Brand and model label are required.");
         return;
       }
+
       const isDuplicate = models.some(
         (model) =>
           model.id !== editTarget.item.id &&
           model.brand_id === draft.brand_id &&
-          normalizeLabel(model.canonical_label) === normalizedLabel,
+          normalizeLabel(model.canonical_label) === normalized,
       );
+
       if (isDuplicate) {
         setMessage("Model already exists for this brand.");
         return;
@@ -477,11 +539,13 @@ export default function TagsPage() {
 
     if (editTarget.type === "alias") {
       const draft = editDraft as AliasEditDraft;
-      const normalizedLabel = normalizeLabel(draft.alias_label ?? "");
-      if (!normalizedLabel) {
+      const normalized = normalizeLabel(draft.alias_label ?? "");
+
+      if (!normalized) {
         setMessage("Alias label is required.");
         return;
       }
+
       const targetId =
         editTarget.item.entity_type === "brand"
           ? editTarget.item.brand_id
@@ -489,13 +553,15 @@ export default function TagsPage() {
       const isDuplicate = aliases.some((alias) => {
         const aliasTargetId =
           alias.entity_type === "brand" ? alias.brand_id : alias.model_id;
+
         return (
           alias.id !== editTarget.item.id &&
           alias.entity_type === editTarget.item.entity_type &&
           aliasTargetId === targetId &&
-          normalizeLabel(alias.alias_label) === normalizedLabel
+          normalizeLabel(alias.alias_label) === normalized
         );
       });
+
       if (isDuplicate) {
         setMessage("Alias already exists for that item.");
         return;
@@ -503,6 +569,7 @@ export default function TagsPage() {
     }
 
     setIsSaving(true);
+
     try {
       if (editTarget.type === "brand") {
         const draft = editDraft as BrandEditDraft;
@@ -558,8 +625,10 @@ export default function TagsPage() {
     if (!confirmTarget) {
       return;
     }
+
     setIsSaving(true);
     setMessage("");
+
     try {
       if (confirmTarget.type === "brand") {
         await fetch(`/api/admin/catalog/brands/${confirmTarget.item.id}`, {
@@ -568,6 +637,7 @@ export default function TagsPage() {
           body: JSON.stringify({ isActive: false }),
         });
       }
+
       if (confirmTarget.type === "model") {
         await fetch(`/api/admin/catalog/models/${confirmTarget.item.id}`, {
           method: "PATCH",
@@ -575,6 +645,7 @@ export default function TagsPage() {
           body: JSON.stringify({ isActive: false }),
         });
       }
+
       if (confirmTarget.type === "alias") {
         await fetch(`/api/admin/catalog/aliases/${confirmTarget.item.id}`, {
           method: "PATCH",
@@ -582,6 +653,7 @@ export default function TagsPage() {
           body: JSON.stringify({ isActive: false }),
         });
       }
+
       await loadAll();
       setConfirmTarget(null);
     } catch (error) {
@@ -598,47 +670,11 @@ export default function TagsPage() {
   const resolveModelLabel = (modelId?: string | null) =>
     modelMap.get(modelId ?? "")?.canonical_label || "Unknown";
 
-  const renderMenu = (key: string, onEdit: () => void, onDelete: () => void) => (
-    <div
-      className="relative"
-      onClick={(event) => {
-        event.stopPropagation();
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => toggleMenu(key)}
-        className="text-gray-400 hover:text-white p-1"
-        aria-label="Open actions"
-      >
-        <MoreVertical className="w-4 h-4" />
-      </button>
-      {openMenuKey === key && (
-        <div className="absolute right-0 mt-2 w-40 bg-zinc-950 border border-zinc-800/70 shadow-xl z-30">
-          <button
-            type="button"
-            onClick={() => {
-              setOpenMenuKey(null);
-              onEdit();
-            }}
-            className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-zinc-800"
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setOpenMenuKey(null);
-              onDelete();
-            }}
-            className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-zinc-800"
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </div>
-  );
+  const counts = {
+    brands: filteredBrands.length,
+    aliases: filteredAliases.length,
+    candidates: filteredCandidates.length,
+  } satisfies Record<ActiveTab, number>;
 
   return (
     <div
@@ -647,545 +683,106 @@ export default function TagsPage() {
         setOpenMenuKey(null);
       }}
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Tags Manager</h1>
-          <p className="text-sm sm:text-base text-gray-400">
-            Verified means the brand or model is confirmed and trusted for storefront
-            filters. Unverified entries are allowed but treated as provisional.
-          </p>
+      <AdminPageHeader
+        title="Catalog"
+        description="Manage canonical tags, alias mappings, and parser candidates with a single shared admin workflow."
+      />
+
+      {message ? (
+        <div className="border border-brand-border bg-brand-page px-4 py-3 text-sm text-brand-text">
+          {message}
         </div>
-      </div>
+      ) : null}
 
-      {message && <div className="text-sm text-gray-400">{message}</div>}
-
-      <div className="bg-zinc-900 border border-zinc-800/70 p-4 sm:p-5">
+      <AdminSectionCard title="Info Key">
         <details className="group">
-          <summary className="cursor-pointer list-none text-xs sm:text-sm text-gray-200 font-semibold flex items-center justify-between bg-zinc-950/60 border border-zinc-800/70 px-3 sm:px-4 py-2.5 sm:py-3">
-            <span>Info key: how the tags system works</span>
-            <span className="text-xs text-gray-500 group-open:hidden">Show</span>
-            <span className="text-xs text-gray-500 hidden group-open:inline">Hide</span>
+          <summary className="flex cursor-pointer list-none items-center justify-between border border-brand-border bg-brand-page px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text">
+            <span>How The Catalog System Works</span>
+            <span className="text-xs text-brand-muted group-open:hidden">Show</span>
+            <span className="hidden text-xs text-brand-muted group-open:inline">
+              Hide
+            </span>
           </summary>
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3 text-[12px] sm:text-sm text-gray-300">
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Brands
+          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {infoItems.map((item) => (
+              <div
+                key={item.label}
+                className="border border-brand-border bg-brand-page p-3"
+              >
+                <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-muted">
+                  {item.label}
+                </div>
+                <div className="mt-1 text-sm text-brand-text">{item.description}</div>
               </div>
-              <div>Canonical brand labels used for products, filters, and parsing.</div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Models
-              </div>
-              <div>
-                Canonical sneaker model labels tied to a brand. Only used when category is
-                sneakers.
-              </div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Aliases
-              </div>
-              <div>
-                Alternate spellings or shorthand that map to brands/models. Used by the
-                parser.
-              </div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Alias Priority
-              </div>
-              <div>
-                When multiple aliases match, higher priority wins over shorter or
-                lower-priority matches.
-              </div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Candidates
-              </div>
-              <div>
-                Unknown brands/models created during product entry. Review and accept to
-                add them.
-              </div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Verified
-              </div>
-              <div>
-                Trusted entries that appear cleanly in storefront filters. Unverified is
-                provisional.
-              </div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Active
-              </div>
-              <div>
-                Active entries are used by the parser and UI. Inactive hides them without
-                deleting.
-              </div>
-            </div>
-            <div className="bg-zinc-950/50 border border-zinc-800/70 border-l-2 border-l-red-600 p-2.5 sm:p-3">
-              <div className="text-[10px] sm:text-xs uppercase tracking-wide text-gray-500">
-                Title Parsing
-              </div>
-              <div>
-                Full titles are parsed into brand, model, and name. Brand is found first,
-                then model (sneakers only), and the remainder becomes the name.
-              </div>
-            </div>
+            ))}
           </div>
         </details>
-      </div>
+      </AdminSectionCard>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-2.5 sm:px-3 py-1.5 sm:py-2 w-full lg:max-w-md">
-            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search tags..."
-              className="w-full bg-transparent text-[12px] sm:text-sm text-white placeholder:text-gray-500 outline-none"
-            />
-          </div>
-          <div className="flex flex-wrap gap-3 text-[12px] sm:text-sm text-gray-300">
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                className="rdk-checkbox scale-90"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-              />
-              Show inactive
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                className="rdk-checkbox scale-90"
-                checked={showUnverified}
-                onChange={(e) => setShowUnverified(e.target.checked)}
-              />
-              Show unverified
-            </label>
-          </div>
-        </div>
+      <CatalogToolbar
+        activeTab={activeTab}
+        tabs={tabs}
+        query={query}
+        showInactive={showInactive}
+        showUnverified={showUnverified}
+        counts={counts}
+        onTabChange={setActiveTab}
+        onQueryChange={setQuery}
+        onShowInactiveChange={setShowInactive}
+        onShowUnverifiedChange={setShowUnverified}
+      />
 
-        <div className="border-b border-zinc-800/70 flex flex-wrap gap-4 sm:gap-6">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors border-b-2 ${
-                activeTab === tab.key
-                  ? "text-white border-red-600"
-                  : "text-gray-400 hover:text-white border-transparent"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {activeTab === "brands" ? (
+        <BrandsTab
+          isLoading={isLoading}
+          brands={filteredBrands}
+          filteredModelsByBrandId={filteredModelsByBrandId}
+          expandedBrands={expandedBrands}
+          openMenuKey={openMenuKey}
+          onToggleBrandExpansion={toggleBrandExpansion}
+          onToggleMenu={toggleMenu}
+          onOpenAddBrand={openAddBrandModal}
+          onOpenAddModel={openAddModelModal}
+          onEditBrand={(brand) => setEditTarget({ type: "brand", item: brand })}
+          onDeleteBrand={(brand) => setConfirmTarget({ type: "brand", item: brand })}
+          onEditModel={(model) => setEditTarget({ type: "model", item: model })}
+          onDeleteModel={(model) => setConfirmTarget({ type: "model", item: model })}
+        />
+      ) : null}
 
-      {activeTab === "brands" && (
-        <section className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg sm:text-xl font-semibold text-white">Tags</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] sm:text-xs text-gray-500">
-                {filteredBrands.length} brands
-              </span>
-              <button
-                type="button"
-                onClick={openAddBrandModal}
-                className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded text-[12px] sm:text-sm"
-              >
-                Add Brands
-              </button>
-            </div>
-          </div>
+      {activeTab === "aliases" ? (
+        <AliasesTab
+          isLoading={isLoading}
+          aliases={filteredAliases}
+          brands={brands}
+          models={models}
+          newAlias={newAlias}
+          openMenuKey={openMenuKey}
+          onToggleMenu={toggleMenu}
+          onNewAliasChange={setNewAlias}
+          onCreateAlias={() => {
+            void handleCreateAlias();
+          }}
+          onEditAlias={(alias) => setEditTarget({ type: "alias", item: alias })}
+          onDeleteAlias={(alias) => setConfirmTarget({ type: "alias", item: alias })}
+          resolveBrandLabel={resolveBrandLabel}
+          resolveModelLabel={resolveModelLabel}
+        />
+      ) : null}
 
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
-            {isLoading ? (
-              <div className="text-center py-12 text-gray-400">Loading...</div>
-            ) : filteredBrands.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">No tags found.</div>
-            ) : (
-              <table className="w-full text-[12px] sm:text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                    <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
-                      Brand
-                    </th>
-                    <th className="hidden sm:table-cell p-3 sm:p-4">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBrands.map((brand) => {
-                    const visibleModels = filteredModelsByBrandId[brand.id] ?? [];
-                    const isExpanded = expandedBrands[brand.id] ?? false;
-                    return (
-                      <Fragment key={brand.id}>
-                        <tr className="border-b border-zinc-800/70 hover:bg-zinc-800/60">
-                          <td className="p-3 sm:p-4">
-                            <div className="flex items-start sm:items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => toggleBrandExpansion(brand.id)}
-                                className="text-gray-400 hover:text-white"
-                                aria-label={`Toggle ${brand.canonical_label} models`}
-                              >
-                                <ChevronDown
-                                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${
-                                    isExpanded ? "rotate-180" : ""
-                                  }`}
-                                />
-                              </button>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="min-w-0">
-                                    <div className="flex items-center gap-1.5 min-w-0">
-                                      <div className="text-white font-semibold truncate min-w-0">
-                                        {brand.canonical_label}
-                                      </div>
-                                      <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-                                        <StatusPill active={brand.is_active} />
-                                        <VerifiedPill verified={brand.is_verified} />
-                                      </div>
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-1.5 sm:hidden">
-                                      <StatusPill active={brand.is_active} />
-                                      <VerifiedPill verified={brand.is_verified} />
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {visibleModels.length} model
-                                      {visibleModels.length === 1 ? "" : "s"}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 sm:hidden shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => openAddModelModal(brand)}
-                                      className="bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded whitespace-nowrap"
-                                    >
-                                      Add Model
-                                    </button>
-                                    {renderMenu(
-                                      `brand-mobile-${brand.id}`,
-                                      () => setEditTarget({ type: "brand", item: brand }),
-                                      () =>
-                                        setConfirmTarget({ type: "brand", item: brand }),
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="hidden sm:table-cell p-3 sm:p-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openAddModelModal(brand)}
-                                className="bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] sm:text-xs font-semibold px-2.5 py-1.5 sm:px-3 sm:py-2 rounded whitespace-nowrap"
-                              >
-                                Add Model
-                              </button>
-                              {renderMenu(
-                                `brand-${brand.id}`,
-                                () => setEditTarget({ type: "brand", item: brand }),
-                                () => setConfirmTarget({ type: "brand", item: brand }),
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr className="border-b border-zinc-800/70 bg-zinc-900/40">
-                            <td className="p-3 sm:p-4" colSpan={2}>
-                              <div className="text-xs uppercase tracking-wide text-gray-500 mb-2">
-                                Models
-                              </div>
-                              {visibleModels.length === 0 ? (
-                                <div className="text-xs text-gray-500">
-                                  No models found.
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  {visibleModels.map((model) => (
-                                    <div
-                                      key={model.id}
-                                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border border-zinc-800/70 rounded px-3 py-2 bg-zinc-900/60"
-                                    >
-                                      <div className="text-white text-[12px] sm:text-sm">
-                                        {model.canonical_label}
-                                      </div>
-                                      <div className="flex items-center justify-end gap-2 flex-wrap">
-                                        <StatusPill active={model.is_active} />
-                                        <VerifiedPill verified={model.is_verified} />
-                                        {renderMenu(
-                                          `model-${model.id}`,
-                                          () =>
-                                            setEditTarget({ type: "model", item: model }),
-                                          () =>
-                                            setConfirmTarget({
-                                              type: "model",
-                                              item: model,
-                                            }),
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
-      )}
-
-      {activeTab === "aliases" && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-semibold text-white">Aliases</h2>
-            <span className="text-[11px] sm:text-xs text-gray-500">
-              {filteredAliases.length} aliases
-            </span>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-3 sm:p-4">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-2 sm:gap-3">
-              <RdkSelect
-                value={newAlias.entityType}
-                onChange={(value) =>
-                  setNewAlias((prev) => ({
-                    ...prev,
-                    entityType: value as "brand" | "model",
-                    entityId: "",
-                  }))
-                }
-                options={[
-                  { value: "brand", label: "Brand" },
-                  { value: "model", label: "Model" },
-                ]}
-                buttonClassName="px-2.5 py-1.5 text-[12px] sm:text-sm"
-                menuClassName="text-[12px] sm:text-sm"
-              />
-              <RdkSelect
-                value={newAlias.entityId}
-                onChange={(value) =>
-                  setNewAlias((prev) => ({ ...prev, entityId: value }))
-                }
-                options={[
-                  {
-                    value: "",
-                    label: `Select ${newAlias.entityType}`,
-                    disabled: true,
-                  },
-                  ...(newAlias.entityType === "brand"
-                    ? brands.map((brand) => ({
-                        value: brand.id,
-                        label: brand.canonical_label,
-                      }))
-                    : models.map((model) => ({
-                        value: model.id,
-                        label: model.canonical_label,
-                      }))),
-                ]}
-                buttonClassName="px-2.5 py-1.5 text-[12px] sm:text-sm"
-                menuClassName="text-[12px] sm:text-sm"
-                placeholder={`Select ${newAlias.entityType}`}
-              />
-              <input
-                value={newAlias.label}
-                onChange={(e) =>
-                  setNewAlias((prev) => ({ ...prev, label: e.target.value }))
-                }
-                placeholder="Alias"
-                className="bg-zinc-900 border border-zinc-800/70 text-white px-2.5 py-1.5 text-[12px] sm:text-sm"
-              />
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  value={newAlias.priority}
-                  onChange={(e) =>
-                    setNewAlias((prev) => ({ ...prev, priority: e.target.value }))
-                  }
-                  placeholder="Priority (higher wins)"
-                  className="bg-zinc-900 border border-zinc-800/70 text-white px-2.5 py-1.5 text-[12px] sm:text-sm w-full sm:w-28"
-                />
-                <button
-                  onClick={() => {
-                    void handleCreateAlias();
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded text-[12px] sm:text-sm"
-                >
-                  Add Alias
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
-            {isLoading ? (
-              <div className="text-center py-12 text-gray-400">Loading...</div>
-            ) : filteredAliases.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">No aliases found.</div>
-            ) : (
-              <table className="w-full text-[12px] sm:text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                    <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
-                      Alias
-                    </th>
-                    <th className="hidden sm:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                      Type
-                    </th>
-                    <th className="hidden sm:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                      Priority
-                    </th>
-                    <th className="p-3 sm:p-4">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAliases.map((alias) => (
-                    <tr
-                      key={alias.id}
-                      className="border-b border-zinc-800/70 hover:bg-zinc-800/60"
-                    >
-                      <td className="p-3 sm:p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="text-white font-semibold">
-                            {alias.alias_label}
-                          </div>
-                          <StatusPill active={alias.is_active} />
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {alias.entity_type === "brand"
-                            ? resolveBrandLabel(alias.brand_id)
-                            : resolveModelLabel(alias.model_id)}
-                        </div>
-                        <div className="text-[11px] text-gray-500 sm:hidden">
-                          {alias.entity_type} · Priority {alias.priority ?? 0}
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell p-3 sm:p-4 text-xs uppercase text-gray-400">
-                        {alias.entity_type}
-                      </td>
-                      <td className="hidden sm:table-cell p-3 sm:p-4 text-gray-400">
-                        {alias.priority ?? 0}
-                      </td>
-                      <td className="p-3 sm:p-4">
-                        <div className="flex items-center justify-end">
-                          {renderMenu(
-                            `alias-${alias.id}`,
-                            () => setEditTarget({ type: "alias", item: alias }),
-                            () => setConfirmTarget({ type: "alias", item: alias }),
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
-      )}
-
-      {activeTab === "candidates" && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-semibold text-white">Candidates</h2>
-            <span className="text-[11px] sm:text-xs text-gray-500">
-              {filteredCandidates.length} pending
-            </span>
-          </div>
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-x-auto">
-            {isLoading ? (
-              <div className="text-center py-12 text-gray-400">Loading...</div>
-            ) : filteredCandidates.length === 0 ? (
-              <div className="text-center py-12 text-gray-500">
-                No pending candidates.
-              </div>
-            ) : (
-              <table className="w-full text-[12px] sm:text-sm">
-                <thead>
-                  <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                    <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
-                      Candidate
-                    </th>
-                    <th className="hidden sm:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                      Brand
-                    </th>
-                    <th className="p-3 sm:p-4">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCandidates.map((candidate) => (
-                    <tr
-                      key={candidate.id}
-                      className="border-b border-zinc-800/70 hover:bg-zinc-800/60"
-                    >
-                      <td className="p-3 sm:p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="text-white font-semibold">
-                            {candidate.raw_text}
-                          </div>
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-zinc-800 text-gray-400 uppercase">
-                            {candidate.entity_type}
-                          </span>
-                        </div>
-                        {candidate.entity_type === "model" && (
-                          <div className="text-[11px] text-gray-500 sm:hidden">
-                            {resolveBrandLabel(candidate.parent_brand_id)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="hidden sm:table-cell p-3 sm:p-4 text-gray-400">
-                        {candidate.entity_type === "model"
-                          ? resolveBrandLabel(candidate.parent_brand_id)
-                          : "-"}
-                      </td>
-                      <td className="p-3 sm:p-4">
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2">
-                          <button
-                            onClick={() => {
-                              void handleAcceptCandidate(candidate);
-                            }}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded px-3 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-semibold"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => {
-                              void handleRejectCandidate(candidate);
-                            }}
-                            className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-3 py-1.5 sm:px-3 sm:py-2 text-[11px] sm:text-xs font-semibold"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
-      )}
+      {activeTab === "candidates" ? (
+        <CandidatesTab
+          isLoading={isLoading}
+          candidates={filteredCandidates}
+          onAcceptCandidate={(candidate) => {
+            void handleAcceptCandidate(candidate);
+          }}
+          onRejectCandidate={(candidate) => {
+            void handleRejectCandidate(candidate);
+          }}
+          resolveBrandLabel={resolveBrandLabel}
+        />
+      ) : null}
 
       <TagModals
         showAddBrandModal={showAddBrandModal}

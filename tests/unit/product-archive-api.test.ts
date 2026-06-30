@@ -38,10 +38,6 @@ jest.mock("@/services/product-service", () => ({
   })),
 }));
 
-jest.mock("@/services/lightspeed-product-sync-service", () => ({
-  LightspeedProductSyncService: jest.fn(),
-}));
-
 import { NextRequest } from "next/server";
 
 import { requireAdminApi } from "@/lib/auth/session";
@@ -205,18 +201,12 @@ describe("product archive admin api", () => {
       }) as never,
     );
 
-    expect(deleteProductsByFiltersMock).toHaveBeenCalledWith(
-      "tenant-1",
-      {
-        q: "archived",
-        category: undefined,
-        condition: undefined,
-        stockStatus: "archived",
-      },
-      expect.objectContaining({
-        onBeforeDelete: expect.any(Function),
-      }),
-    );
+    expect(deleteProductsByFiltersMock).toHaveBeenCalledWith("tenant-1", {
+      q: "archived",
+      category: undefined,
+      condition: undefined,
+      stockStatus: "archived",
+    });
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       success: true,

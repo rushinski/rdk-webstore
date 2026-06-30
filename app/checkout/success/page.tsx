@@ -168,15 +168,15 @@ function SuccessContent() {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <div className="bg-red-900/20 border border-red-500 text-red-400 p-6 rounded">
-          <p className="text-lg font-semibold mb-2">Error</p>
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <div className="border border-red-200 bg-red-50 p-6 text-red-700">
+          <p className="mb-2 text-lg font-semibold uppercase tracking-[0.08em]">Error</p>
           <p>{error}</p>
           <button
             onClick={() => router.push("/cart")}
-            className="mt-4 px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition"
+            className="mt-4 border border-brand-text bg-brand-text px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
           >
-            Return to Cart
+            Return to cart
           </button>
         </div>
       </div>
@@ -185,39 +185,43 @@ function SuccessContent() {
 
   if (canFetchStatus === false) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <Mail className="w-16 h-16 text-red-600 mx-auto mb-6" />
-        <h1 className="text-3xl font-bold text-white mb-4">Order Confirmed!</h1>
-        <p className="text-gray-400 mb-6">
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <Mail className="mx-auto mb-6 h-16 w-16 text-brand-text" />
+        <h1 className="mb-4 text-3xl font-black uppercase tracking-[0.08em] text-brand-text">
+          Order confirmed
+        </h1>
+        <p className="mb-6 text-brand-muted">
           Your payment was accepted. We could not load the full order details on this
           device, but we will email your confirmation and secure order link shortly.
         </p>
         {isPickupParam && (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
-            <h2 className="text-lg font-semibold text-white mb-2">Local pickup</h2>
-            <p className="text-sm text-gray-400 mb-2">
+          <div className="mb-6 border border-brand-border bg-brand-surface p-6 text-left">
+            <h2 className="mb-2 text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+              Local pickup
+            </h2>
+            <p className="mb-2 text-sm text-brand-muted">
               Check your email for pickup instructions and scheduling.
             </p>
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-brand-muted">
               You can also DM us on Instagram{" "}
               <a
-                href="https://instagram.com/realdealkickzsc"
-                className="text-red-400 hover:text-red-300"
+                href="mailto:null@gmail.com"
+                className="font-semibold text-brand-text transition-colors hover:text-neutral-600"
                 target="_blank"
                 rel="noreferrer"
               >
-                @realdealkickzsc
+                null@gmail.com
               </a>{" "}
               to schedule pickup.
             </p>
           </div>
         )}
-        <p className="text-xs text-zinc-500 mb-6">Order ID: {orderId}</p>
+        <p className="mb-6 text-xs text-brand-muted">Order ID: {orderId}</p>
         <button
           onClick={() => router.push("/store")}
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+          className="w-full border border-brand-text bg-brand-text py-3 text-sm font-bold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
         >
-          Continue Shopping
+          Continue shopping
         </button>
       </div>
     );
@@ -225,21 +229,23 @@ function SuccessContent() {
 
   if (isPolling || !status || status.status !== "paid") {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-        <Loader2 className="w-16 h-16 text-red-600 mx-auto mb-6 animate-spin" />
-        <h1 className="text-3xl font-bold text-white mb-4">Processing your payment...</h1>
-        <p className="text-gray-400 mb-8">
+      <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+        <Loader2 className="mx-auto mb-6 h-16 w-16 animate-spin text-brand-text" />
+        <h1 className="mb-4 text-3xl font-black uppercase tracking-[0.08em] text-brand-text">
+          Processing your payment
+        </h1>
+        <p className="mb-8 text-brand-muted">
           Please wait while we confirm your order. This should only take a moment.
         </p>
         {status && (
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 text-left">
-            <div className="flex justify-between text-gray-400 mb-2">
+          <div className="border border-brand-border bg-brand-surface p-6 text-left">
+            <div className="mb-2 flex justify-between text-brand-muted">
               <span>Order ID:</span>
-              <span className="text-white font-mono text-sm">{status.id}</span>
+              <span className="font-mono text-sm text-brand-text">{status.id}</span>
             </div>
-            <div className="flex justify-between text-gray-400">
+            <div className="flex justify-between text-brand-muted">
               <span>Status:</span>
-              <span className="text-yellow-500 capitalize">{status.status}</span>
+              <span className="capitalize text-brand-text">{status.status}</span>
             </div>
           </div>
         )}
@@ -256,27 +262,31 @@ function SuccessContent() {
   });
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-      <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
-      <h1 className="text-3xl font-bold text-white mb-4">Order Confirmed!</h1>
-      <p className="text-gray-400 mb-8">
+    <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+      <CheckCircle className="mx-auto mb-6 h-16 w-16 text-brand-text" />
+      <h1 className="mb-4 text-3xl font-black uppercase tracking-[0.08em] text-brand-text">
+        Order confirmed
+      </h1>
+      <p className="mb-8 text-brand-muted">
         Thank you for your purchase. Your order has been successfully processed.
       </p>
 
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
-        <h2 className="text-xl font-semibold text-white mb-4">Order Details</h2>
-        <div className="space-y-2 text-gray-400">
+      <div className="mb-6 border border-brand-border bg-brand-surface p-6 text-left">
+        <h2 className="mb-4 text-xl font-semibold uppercase tracking-[0.08em] text-brand-text">
+          Order details
+        </h2>
+        <div className="space-y-2 text-brand-muted">
           <div className="flex justify-between">
             <span>Order ID:</span>
-            <span className="text-white font-mono text-sm">{status.id}</span>
+            <span className="font-mono text-sm text-brand-text">{status.id}</span>
           </div>
           <div className="flex justify-between">
             <span>Subtotal:</span>
-            <span className="text-white">${status.subtotal.toFixed(2)}</span>
+            <span className="text-brand-text">${status.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span>Shipping:</span>
-            <span className="text-white">
+            <span className="text-brand-text">
               {status.fulfillment === "pickup"
                 ? "Free (Pickup)"
                 : `$${status.shipping.toFixed(2)}`}
@@ -284,69 +294,58 @@ function SuccessContent() {
           </div>
           <div className="flex justify-between">
             <span>Tax:</span>
-            <span className="text-white">${status.tax.toFixed(2)}</span>
+            <span className="text-brand-text">${status.tax.toFixed(2)}</span>
           </div>
           <div className="flex justify-between">
             <span>Processing fee ({PROCESSING_FEE_LABEL}):</span>
-            <span className="text-white">${processingFee.toFixed(2)}</span>
+            <span className="text-brand-text">${processingFee.toFixed(2)}</span>
           </div>
-          <div className="border-t border-zinc-800/70 pt-2 mt-2">
+          <div className="mt-2 border-t border-brand-border pt-2">
             <div className="flex justify-between text-xl font-bold">
-              <span className="text-white">Total:</span>
-              <span className="text-white">${displayTotal.toFixed(2)}</span>
+              <span className="text-brand-text">Total:</span>
+              <span className="text-brand-text">${displayTotal.toFixed(2)}</span>
             </div>
           </div>
         </div>
       </div>
 
       {isPickup && (
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded p-6 mb-6 text-left">
-          <h2 className="text-lg font-semibold text-white mb-2">Local pickup</h2>
-          <p className="text-sm text-gray-400 mb-2">
+        <div className="mb-6 border border-brand-border bg-brand-surface p-6 text-left">
+          <h2 className="mb-2 text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+            Local pickup
+          </h2>
+          <p className="mb-2 text-sm text-brand-muted">
             Check your email for pickup instructions and scheduling.
           </p>
-          <p className="text-sm text-gray-400 mb-2">
-            You can also DM us on{" "}
+          <p className="mb-2 text-sm text-brand-muted">
+            You can also reach us at{" "}
             <a
-              href="https://instagram.com/realdealkickzsc"
-              className="text-red-400 hover:text-red-300"
+              href="mailto:null@gmail.com"
+              className="font-semibold text-brand-text transition-colors hover:text-neutral-600"
               target="_blank"
               rel="noreferrer"
             >
-              Instagram @realdealkickzsc
+              null@gmail.com
             </a>
             .
           </p>
-          {isAuthenticated && (
-            <p className="text-sm text-gray-400">
-              You can also use the in-app pickup chat below if you prefer.
-            </p>
-          )}
         </div>
       )}
 
       <div className="space-y-3">
-        {isAuthenticated && isPickup && (
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent("openChat"))}
-            className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
-          >
-            Open pickup chat
-          </button>
-        )}
         {isAuthenticated && (
           <button
             onClick={() => router.push("/account")}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded transition"
+            className="w-full border border-brand-text bg-brand-text py-3 text-sm font-bold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
           >
-            Go to Account
+            Go to account
           </button>
         )}
         <button
           onClick={() => router.push("/store")}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-3 rounded transition"
+          className="w-full border border-brand-border bg-brand-surface py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:border-brand-text hover:bg-brand-page"
         >
-          Continue Shopping
+          Continue shopping
         </button>
       </div>
     </div>
@@ -357,8 +356,8 @@ export default function CheckoutSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="max-w-2xl mx-auto px-4 py-20 text-center">
-          <Loader2 className="w-16 h-16 text-red-600 mx-auto animate-spin" />
+        <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+          <Loader2 className="mx-auto h-16 w-16 animate-spin text-brand-text" />
         </div>
       }
     >

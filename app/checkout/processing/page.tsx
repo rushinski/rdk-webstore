@@ -377,42 +377,67 @@ function CheckoutProcessingContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
-      <div className="max-w-md w-full text-center">
+    <div className="min-h-screen bg-brand-page px-4">
+      <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center text-center">
         {status === "processing" && (
           <>
-            <Loader2 className="w-16 h-16 text-red-600 animate-spin mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-white mb-3">{message}</h1>
-            <p className="text-gray-400">Please don't close this page or press back.</p>
+            <div>
+              <Loader2 className="mx-auto mb-6 h-16 w-16 animate-spin text-brand-text" />
+              <p className="text-xs uppercase tracking-[0.35em] text-brand-muted">
+                Checkout
+              </p>
+              <h1 className="mb-3 mt-3 text-2xl font-black uppercase tracking-[0.08em] text-brand-text">
+                {message}
+              </h1>
+              <p className="text-brand-muted">
+                Please do not close this page or press back.
+              </p>
+            </div>
           </>
         )}
 
         {status === "success" && (
           <>
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-white mb-3">{message}</h1>
-            <p className="text-gray-400">Redirecting you to your order confirmation...</p>
+            <div>
+              <CheckCircle2 className="mx-auto mb-6 h-16 w-16 text-brand-text" />
+              <p className="text-xs uppercase tracking-[0.35em] text-brand-muted">
+                Payment
+              </p>
+              <h1 className="mb-3 mt-3 text-2xl font-black uppercase tracking-[0.08em] text-brand-text">
+                {message}
+              </h1>
+              <p className="text-brand-muted">
+                Redirecting you to your order confirmation...
+              </p>
+            </div>
           </>
         )}
 
         {status === "error" && (
           <>
-            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-6" />
-            <h1 className="text-2xl font-bold text-white mb-3">Payment Error</h1>
-            <p className="text-gray-400 mb-6">{message}</p>
-            <div className="space-y-3">
-              <button
-                onClick={() => router.push("/cart")}
-                className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
-              >
-                Return to Cart
-              </button>
-              <button
-                onClick={() => router.push("/contact")}
-                className="w-full px-6 py-3 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg transition"
-              >
-                Contact Support
-              </button>
+            <div className="w-full">
+              <XCircle className="mx-auto mb-6 h-16 w-16 text-brand-text" />
+              <p className="text-xs uppercase tracking-[0.35em] text-brand-muted">
+                Payment
+              </p>
+              <h1 className="mb-3 mt-3 text-2xl font-black uppercase tracking-[0.08em] text-brand-text">
+                Payment error
+              </h1>
+              <p className="mb-6 text-brand-muted">{message}</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => router.push("/cart")}
+                  className="w-full border border-brand-text bg-brand-text px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
+                >
+                  Return to cart
+                </button>
+                <button
+                  onClick={() => router.push("/contact")}
+                  className="w-full border border-brand-border bg-brand-surface px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:border-brand-text hover:bg-brand-page"
+                >
+                  Contact support
+                </button>
+              </div>
             </div>
           </>
         )}
@@ -425,8 +450,10 @@ export default function CheckoutProcessingPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">
-          <Loader2 className="w-16 h-16 text-red-600 animate-spin" />
+        <div className="min-h-screen bg-brand-page px-4">
+          <div className="flex min-h-screen items-center justify-center">
+            <Loader2 className="h-16 w-16 animate-spin text-brand-text" />
+          </div>
         </div>
       }
     >

@@ -1,7 +1,7 @@
 "use client";
 
+import { Check, Copy, CreditCard, Plus } from "lucide-react";
 import { useState } from "react";
-import { Check, CreditCard, Plus, Copy } from "lucide-react";
 
 import { BillingAddressModal } from "./BillingAddressModal";
 
@@ -48,92 +48,90 @@ export function BillingAddressForm({
   };
 
   const handleUseShippingAddress = () => {
-    if (shippingAddress) {
-      onBillingAddressChange({
-        name: shippingAddress.name,
-        phone: shippingAddress.phone,
-        line1: shippingAddress.line1,
-        line2: shippingAddress.line2 || "",
-        city: shippingAddress.city,
-        state: shippingAddress.state,
-        postal_code: shippingAddress.postal_code,
-        country: "US",
-      });
+    if (!shippingAddress) {
+      return;
     }
-  };
-
-  const handleEditAddress = () => {
-    setIsModalOpen(true);
+    onBillingAddressChange({
+      name: shippingAddress.name,
+      phone: shippingAddress.phone,
+      line1: shippingAddress.line1,
+      line2: shippingAddress.line2 || "",
+      city: shippingAddress.city,
+      state: shippingAddress.state,
+      postal_code: shippingAddress.postal_code,
+      country: "US",
+    });
   };
 
   return (
     <>
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-5 sm:p-6">
-        <h2 className="text-base sm:text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <CreditCard className="w-5 h-5" /> Billing Address
+      <div className="border border-brand-border bg-brand-surface p-5 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-base font-bold uppercase tracking-[0.08em] text-brand-text sm:text-lg">
+          <CreditCard className="h-5 w-5" />
+          Billing Address
         </h2>
 
         <div className="space-y-3">
-          {/* Selected billing address card */}
           {billingAddress && (
             <button
               type="button"
-              onClick={handleEditAddress}
+              onClick={() => setIsModalOpen(true)}
               disabled={isProcessing}
-              className="w-full text-left p-4 rounded border border-red-600 bg-red-600/10 transition hover:border-red-500"
+              className="w-full border border-brand-text bg-brand-page p-4 text-left transition-colors hover:border-neutral-600"
             >
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-red-600 bg-red-600 flex items-center justify-center mt-0.5">
-                  <Check className="w-3 h-3 text-white" />
+                <div className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center border border-brand-text bg-brand-text text-brand-surface">
+                  <Check className="h-3 w-3" />
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{billingAddress.name}</p>
-                  <p className="text-sm text-gray-400">{billingAddress.line1}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-brand-text">{billingAddress.name}</p>
+                  <p className="text-sm text-brand-muted">{billingAddress.line1}</p>
                   {billingAddress.line2 && (
-                    <p className="text-sm text-gray-400">{billingAddress.line2}</p>
+                    <p className="text-sm text-brand-muted">{billingAddress.line2}</p>
                   )}
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-brand-muted">
                     {billingAddress.city}, {billingAddress.state}{" "}
                     {billingAddress.postal_code}
                   </p>
                   {billingAddress.phone && (
-                    <p className="text-sm text-gray-500 mt-1">{billingAddress.phone}</p>
+                    <p className="mt-1 text-sm text-brand-muted">
+                      {billingAddress.phone}
+                    </p>
                   )}
                 </div>
               </div>
             </button>
           )}
 
-          {/* Add billing address button */}
           <button
             type="button"
-            onClick={handleEditAddress}
+            onClick={() => setIsModalOpen(true)}
             disabled={isProcessing}
-            className="w-full p-4 rounded border border-dashed border-zinc-700 hover:border-red-600 hover:bg-red-600/5 transition flex items-center justify-center gap-2 text-gray-400 hover:text-red-400"
+            className="flex w-full items-center justify-center gap-2 border border-dashed border-brand-border bg-brand-page p-4 text-brand-text transition-colors hover:border-brand-text"
           >
-            <Plus className="w-5 h-5" />
-            <span className="font-medium">
+            <Plus className="h-5 w-5" />
+            <span className="font-medium uppercase tracking-[0.08em]">
               {billingAddress ? "Edit billing address" : "Add billing address"}
             </span>
           </button>
 
-          {/* Use shipping address button - only show for shipping orders */}
           {fulfillment === "ship" && shippingAddress && (
             <button
               type="button"
               onClick={handleUseShippingAddress}
               disabled={isProcessing}
-              className="w-full p-4 rounded border border-dashed border-zinc-700 hover:border-blue-600 hover:bg-blue-600/5 transition flex items-center justify-center gap-2 text-gray-400 hover:text-blue-400"
+              className="flex w-full items-center justify-center gap-2 border border-dashed border-brand-border bg-brand-surface p-4 text-brand-text transition-colors hover:border-brand-text"
             >
-              <Copy className="w-5 h-5" />
-              <span className="font-medium">Use shipping address</span>
+              <Copy className="h-5 w-5" />
+              <span className="font-medium uppercase tracking-[0.08em]">
+                Use shipping address
+              </span>
             </button>
           )}
         </div>
 
-        {/* Info text */}
-        <p className="text-xs text-gray-500 mt-4">
+        <p className="mt-4 text-xs text-brand-muted">
           Required for payment verification and fraud prevention.
         </p>
       </div>

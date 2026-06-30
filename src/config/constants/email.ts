@@ -14,10 +14,7 @@ export const emailSubjects = {
     `Your ${BRAND_NAME} order #${shortOrderId(orderId)} was delivered`,
   orderRefunded: (orderId: string) =>
     `Your ${BRAND_NAME} order #${shortOrderId(orderId)} has been refunded`,
-  adminOrderPlaced: (orderId: string) =>
-    `New ${BRAND_NAME} order #${shortOrderId(orderId)} placed`,
   subscriptionConfirmed: () => `Thanks for subscribing to ${BRAND_NAME}`,
   subscriptionConfirmation: () => `Confirm your ${BRAND_NAME} subscription`,
   passwordUpdated: () => `Your ${BRAND_NAME} password was updated`,
-  chatNotification: () => `New chat message from ${BRAND_NAME}`,
 };

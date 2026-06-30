@@ -1,12 +1,14 @@
-// src/components/admin/nexus/StateDetailModal.tsx
 "use client";
 
 import React, { useState } from "react";
-import { X, AlertTriangle, ExternalLink, CheckCircle, DollarSign } from "lucide-react";
+import { AlertTriangle, DollarSign, ExternalLink, X } from "lucide-react";
 
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { ModalPortal } from "@/components/ui/ModalPortal";
 import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
-import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type SalesLog = {
   order_id: string;
@@ -21,18 +23,14 @@ type SalesLog = {
 type StateDetailModalProps = {
   state: StateSummary;
   onClose: () => void;
-
-  // Keep existing signature: treat as "state permit registered" toggle
   onRegisterToggle: (
     stateCode: string,
     currentRegistered: boolean,
     nexusType: "physical" | "economic",
   ) => void;
-
   onNexusTypeChange: (stateCode: string, newType: "physical" | "economic") => void;
   isUpdating: boolean;
   formatCurrency: (val: number) => string;
-
   isHomeOfficeConfigured: boolean;
   onOpenHomeOffice: () => void;
 };
@@ -54,6 +52,11 @@ export default function StateDetailModal({
   const [hasCheckedSales, setHasCheckedSales] = useState(false);
 
   const hasSales = state.totalSales > 0 || state.transactionCount > 0;
+  const needsStatePermit = state.nexusType === "physical" && !state.isRegistered;
+  const approachingEconomicThreshold =
+    state.nexusType === "economic" &&
+    !state.isRegistered &&
+    state.percentageToThreshold >= 95;
 
   const fetchSalesLog = async (offset: number = 0) => {
     try {
@@ -85,12 +88,12 @@ export default function StateDetailModal({
       return;
     }
     setSalesLogPage(0);
-    fetchSalesLog(0);
+    void fetchSalesLog(0);
   };
 
   const handleSalesLogPageChange = (newPage: number) => {
     setSalesLogPage(newPage);
-    fetchSalesLog(newPage * 10);
+    void fetchSalesLog(newPage * 10);
   };
 
   const formatDate = (dateString: string) =>
@@ -102,76 +105,56 @@ export default function StateDetailModal({
       minute: "2-digit",
     });
 
-  // Warnings tuned to the new meaning:
-  // - State permit missing
-  const needsStatePermit = state.nexusType === "physical" && !state.isRegistered;
-
-  // Economic approaching threshold (only if not registered)
-  const approachingEconomicThreshold =
-    state.nexusType === "economic" &&
-    !state.isRegistered &&
-    state.percentageToThreshold >= 95;
-
-  const onToggleStatePermit = () => {
-    onRegisterToggle(state.stateCode, state.isRegistered, state.nexusType);
-  };
-
   return (
     <ModalPortal open={true} onClose={onClose}>
       <div
-        className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-zinc-950 border border-zinc-800/70 rounded-sm shadow-xl"
+        className="max-h-[92vh] w-full max-w-4xl overflow-y-auto border border-brand-border bg-brand-surface shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800/70">
+        <div className="flex items-start justify-between border-b border-brand-border px-6 py-4">
           <div>
-            <h2 className="text-xl font-semibold text-white">
+            <h2 className="text-xl font-semibold text-brand-text">
               {state.stateName} ({state.stateCode})
             </h2>
-
-            <div className="flex gap-2 mt-2 flex-wrap">
+            <div className="mt-2 flex flex-wrap gap-2">
               {state.isRegistered ? (
-                <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-white text-xs rounded-sm flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3 text-green-500" />
+                <AdminStatusBadge tone="success">
                   State permit: Registered
-                </span>
+                </AdminStatusBadge>
               ) : (
-                <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-zinc-300 text-xs rounded-sm">
+                <AdminStatusBadge tone="neutral">
                   State permit: Not registered
-                </span>
+                </AdminStatusBadge>
               )}
-
-              <span className="px-2 py-1 bg-zinc-900 border border-zinc-800/70 text-white text-xs rounded-sm">
+              <AdminStatusBadge
+                tone={state.nexusType === "physical" ? "warning" : "neutral"}
+              >
                 {state.nexusType === "physical" ? "Physical nexus" : "Economic nexus"}
-              </span>
-
+              </AdminStatusBadge>
               {state.isHomeState && (
-                <span className="px-2 py-1 bg-red-600/10 border border-red-600/25 text-red-300 text-xs rounded-sm">
-                  Home Office State
-                </span>
+                <AdminStatusBadge tone="warning">Home Office State</AdminStatusBadge>
               )}
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm"
+            className="border border-brand-border p-2 hover:bg-brand-page"
             aria-label="Close"
           >
-            <X className="w-4 h-4 text-zinc-300" />
+            <X className="h-4 w-4 text-brand-muted" />
           </button>
         </div>
 
-        <div className="px-6 py-6">
-          {/* Warning banners */}
+        <div className="space-y-6 px-6 py-6">
           {needsStatePermit && (
-            <div className="mb-6 p-3 bg-yellow-900/20 border border-yellow-500/30 rounded-sm flex gap-2">
-              <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+            <div className="flex gap-2 border border-amber-200 bg-amber-50 p-3">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-700" />
               <div className="text-sm">
-                <div className="font-semibold text-yellow-300">
+                <div className="font-semibold text-amber-800">
                   Physical nexus - state registration required
                 </div>
-                <div className="text-zinc-300">
+                <div className="text-amber-700">
                   You have physical nexus in this state. Register for a state permit
                   before collecting sales tax.
                 </div>
@@ -180,13 +163,13 @@ export default function StateDetailModal({
           )}
 
           {approachingEconomicThreshold && (
-            <div className="mb-6 p-3 bg-red-900/20 border border-red-500/30 rounded-sm flex gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <div className="flex gap-2 border border-red-200 bg-red-50 p-3">
+              <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-700" />
               <div className="text-sm">
-                <div className="font-semibold text-red-300">
+                <div className="font-semibold text-red-700">
                   Economic nexus threshold near/exceeded
                 </div>
-                <div className="text-zinc-300">
+                <div className="text-red-700">
                   You&apos;ve reached {state.percentageToThreshold.toFixed(1)}% of the
                   nexus threshold ({formatCurrency(state.relevantSales)} of{" "}
                   {formatCurrency(state.threshold)}). Consider registering for a state
@@ -196,88 +179,84 @@ export default function StateDetailModal({
             </div>
           )}
 
-          {/* Metrics Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-6">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-3">
             <div>
-              <div className="text-sm text-zinc-400 mb-1">Nexus Threshold</div>
-              <div className="text-xl font-bold text-white">
+              <div className="mb-1 text-sm text-brand-muted">Nexus Threshold</div>
+              <div className="text-xl font-bold text-brand-text">
                 {formatCurrency(state.threshold)}
               </div>
-
-              <div className="text-xs text-zinc-500">
+              <div className="text-xs text-brand-muted">
                 {state.thresholdType} sales / {state.window}
               </div>
-
               {(state.trackingStartDate || state.trackingEndDate) && (
-                <div className="text-xs text-zinc-500 mt-1">
+                <div className="mt-1 text-xs text-brand-muted">
                   Tracking: {state.trackingStartDate ?? "N/A"}{" "}
                   {state.trackingEndDate ? `- ${state.trackingEndDate}` : ""}
                 </div>
               )}
-
               {state.resetDate && (
-                <div className="text-xs text-zinc-500 mt-1">
+                <div className="mt-1 text-xs text-brand-muted">
                   Resets: {state.resetDate}
                 </div>
               )}
             </div>
 
             <div>
-              <div className="text-sm text-zinc-400 mb-1">Current Sales</div>
-              <div className="text-xl font-bold text-white">
+              <div className="mb-1 text-sm text-brand-muted">Current Sales</div>
+              <div className="text-xl font-bold text-brand-text">
                 {formatCurrency(state.relevantSales)}
               </div>
-              <div className="text-xs text-zinc-500">
+              <div className="text-xs text-brand-muted">
                 {state.percentageToThreshold.toFixed(1)}% to threshold
               </div>
             </div>
 
             {state.isRegistered && (
               <div className="col-span-2 md:col-span-1">
-                <div className="text-sm text-zinc-400 mb-1 flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
+                <div className="mb-1 flex items-center gap-1 text-sm text-brand-muted">
+                  <DollarSign className="h-4 w-4" />
                   Tax Collected
                 </div>
-                <div className="text-xl font-bold text-green-400">
+                <div className="text-xl font-bold text-emerald-700">
                   {formatCurrency(state.taxCollected || 0)}
                 </div>
-                <div className="text-xs text-zinc-500">Tax owed to {state.stateCode}</div>
+                <div className="text-xs text-brand-muted">
+                  Tax owed to {state.stateCode}
+                </div>
               </div>
             )}
 
             <div>
-              <div className="text-sm text-zinc-400 mb-1">Total Sales</div>
-              <div className="text-lg text-white">{formatCurrency(state.totalSales)}</div>
+              <div className="mb-1 text-sm text-brand-muted">Total Sales</div>
+              <div className="text-lg text-brand-text">
+                {formatCurrency(state.totalSales)}
+              </div>
             </div>
 
             <div>
-              <div className="text-sm text-zinc-400 mb-1">Taxable Sales</div>
-              <div className="text-lg text-white">
+              <div className="mb-1 text-sm text-brand-muted">Taxable Sales</div>
+              <div className="text-lg text-brand-text">
                 {formatCurrency(state.taxableSales)}
               </div>
             </div>
 
             <div>
-              <div className="text-sm text-zinc-400 mb-1">Transactions</div>
-              <div className="text-lg text-white">{state.transactionCount}</div>
+              <div className="mb-1 text-sm text-brand-muted">Transactions</div>
+              <div className="text-lg text-brand-text">{state.transactionCount}</div>
             </div>
           </div>
 
-          {/* Sales Log (unchanged) */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-white">Sales History</h3>
-
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-brand-text">Sales History</h3>
               {salesLog.length === 0 && (
                 <button
                   onClick={handleViewSalesLog}
                   disabled={!hasSales || loadingSalesLog}
                   className={[
-                    "px-4 py-2 rounded-sm text-sm border border-zinc-800/70",
-                    !hasSales
-                      ? "bg-zinc-900 text-zinc-600 cursor-not-allowed"
-                      : "bg-red-600 hover:bg-red-500 text-white",
-                    "disabled:opacity-50 disabled:cursor-not-allowed",
+                    adminButtonStyles.secondary,
+                    !hasSales ? "cursor-not-allowed opacity-40" : "",
+                    "disabled:cursor-not-allowed disabled:opacity-50",
                   ].join(" ")}
                   title={!hasSales ? "No sales in this state yet" : "View all sales"}
                 >
@@ -291,40 +270,42 @@ export default function StateDetailModal({
             </div>
 
             {!hasSales && !hasCheckedSales && (
-              <div className="p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm text-center text-zinc-400">
-                No sales recorded for this state yet
-              </div>
+              <AdminSectionCard>
+                <div className="text-center text-brand-muted">
+                  No sales recorded for this state yet
+                </div>
+              </AdminSectionCard>
             )}
 
             {salesLog.length > 0 && (
               <div className="space-y-4">
-                <div className="bg-zinc-900 border border-zinc-800/70 rounded-sm overflow-hidden">
+                <div className="overflow-hidden border border-brand-border">
                   <table className="w-full text-sm">
-                    <thead className="bg-zinc-950">
+                    <thead className="bg-brand-page">
                       <tr>
-                        <th className="px-4 py-2 text-left text-white">Date</th>
-                        <th className="px-4 py-2 text-left text-white">Order ID</th>
-                        <th className="px-4 py-2 text-right text-white">Total</th>
-                        <th className="px-4 py-2 text-right text-white">Tax</th>
-                        <th className="px-4 py-2 text-left text-white">Type</th>
+                        <th className="px-4 py-2 text-left text-brand-text">Date</th>
+                        <th className="px-4 py-2 text-left text-brand-text">Order ID</th>
+                        <th className="px-4 py-2 text-right text-brand-text">Total</th>
+                        <th className="px-4 py-2 text-right text-brand-text">Tax</th>
+                        <th className="px-4 py-2 text-left text-brand-text">Type</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-800">
+                    <tbody className="divide-y divide-brand-border">
                       {salesLog.map((sale) => (
-                        <tr key={sale.order_id} className="hover:bg-zinc-900/60">
-                          <td className="px-4 py-2 text-zinc-300">
+                        <tr key={sale.order_id} className="hover:bg-brand-page">
+                          <td className="px-4 py-2 text-brand-muted">
                             {formatDate(sale.created_at)}
                           </td>
-                          <td className="px-4 py-2 text-zinc-300 font-mono text-xs">
+                          <td className="px-4 py-2 font-mono text-xs text-brand-muted">
                             {sale.order_id.slice(0, 8)}...
                           </td>
-                          <td className="px-4 py-2 text-right text-white">
+                          <td className="px-4 py-2 text-right text-brand-text">
                             {formatCurrency(sale.total)}
                           </td>
-                          <td className="px-4 py-2 text-right text-green-400 font-medium">
+                          <td className="px-4 py-2 text-right font-medium text-emerald-700">
                             {formatCurrency(sale.tax_amount)}
                           </td>
-                          <td className="px-4 py-2 text-zinc-300 capitalize">
+                          <td className="px-4 py-2 capitalize text-brand-muted">
                             {sale.fulfillment}
                           </td>
                         </tr>
@@ -333,8 +314,8 @@ export default function StateDetailModal({
                   </table>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <div className="text-sm text-zinc-400">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-brand-muted">
                     Showing {salesLogPage * 10 + 1} to{" "}
                     {Math.min((salesLogPage + 1) * 10, salesLogTotal)} of {salesLogTotal}{" "}
                     sales
@@ -344,7 +325,7 @@ export default function StateDetailModal({
                     <button
                       onClick={() => handleSalesLogPageChange(salesLogPage - 1)}
                       disabled={salesLogPage === 0 || loadingSalesLog}
-                      className="px-4 py-2 bg-zinc-900 border border-zinc-800/70 text-white rounded-sm hover:bg-zinc-800 disabled:opacity-50"
+                      className={`${adminButtonStyles.secondary} disabled:opacity-50`}
                     >
                       Previous
                     </button>
@@ -353,7 +334,7 @@ export default function StateDetailModal({
                       disabled={
                         (salesLogPage + 1) * 10 >= salesLogTotal || loadingSalesLog
                       }
-                      className="px-4 py-2 bg-zinc-900 border border-zinc-800/70 text-white rounded-sm hover:bg-zinc-800 disabled:opacity-50"
+                      className={`${adminButtonStyles.secondary} disabled:opacity-50`}
                     >
                       Next
                     </button>
@@ -363,18 +344,17 @@ export default function StateDetailModal({
             )}
           </div>
 
-          {/* Nexus type toggle (unchanged) */}
           {!state.isHomeState && (
-            <div className="flex gap-3 mb-6">
+            <div className="flex gap-3">
               <button
                 onClick={() => onNexusTypeChange(state.stateCode, "physical")}
                 disabled={isUpdating}
                 className={[
-                  "px-4 py-2 rounded-sm text-sm border border-zinc-800/70",
+                  "border px-4 py-2 text-sm",
                   state.nexusType === "physical"
-                    ? "bg-red-600 text-white"
-                    : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                    ? "border-brand-text bg-brand-text text-brand-page"
+                    : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
                 ].join(" ")}
               >
                 Physical Nexus
@@ -383,11 +363,11 @@ export default function StateDetailModal({
                 onClick={() => onNexusTypeChange(state.stateCode, "economic")}
                 disabled={isUpdating}
                 className={[
-                  "px-4 py-2 rounded-sm text-sm border border-zinc-800/70",
+                  "border px-4 py-2 text-sm",
                   state.nexusType === "economic"
-                    ? "bg-red-600 text-white"
-                    : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                    ? "border-brand-text bg-brand-text text-brand-page"
+                    : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
                 ].join(" ")}
               >
                 Economic Nexus
@@ -395,23 +375,21 @@ export default function StateDetailModal({
             </div>
           )}
 
-          {/* Registration / Setup */}
-          <div className="mt-2 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
-            <div className="text-sm text-zinc-200 font-semibold mb-2">
+          <div className="border border-brand-border bg-brand-page p-4">
+            <div className="mb-2 text-sm font-semibold text-brand-text">
               Registration & setup
             </div>
-
-            <div className="text-sm text-zinc-300">
-              Mark your <span className="text-white font-medium">state permit</span>{" "}
+            <div className="text-sm text-brand-muted">
+              Mark your <span className="font-medium text-brand-text">state permit</span>{" "}
               status here, and use the resources to complete state registration.
             </div>
 
             {!isHomeOfficeConfigured && (
-              <div className="mt-3 text-xs text-yellow-300">
-                Home Office is required for tax registrations (Settings &gt Home Office).
+              <div className="mt-3 text-xs text-amber-700">
+                Home Office is required for tax registrations (Settings &gt; Home Office).
                 <button
                   onClick={onOpenHomeOffice}
-                  className="ml-2 underline underline-offset-2 hover:text-yellow-200"
+                  className="ml-2 underline underline-offset-2 hover:text-amber-900"
                 >
                   Open Home Office
                 </button>
@@ -419,16 +397,17 @@ export default function StateDetailModal({
             )}
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              {/* Primary action: small + clear */}
               <button
-                onClick={onToggleStatePermit}
+                onClick={() =>
+                  onRegisterToggle(state.stateCode, state.isRegistered, state.nexusType)
+                }
                 disabled={isUpdating}
                 className={[
-                  "px-3 py-1.5 rounded-sm text-sm border border-zinc-800/70",
                   state.isRegistered
-                    ? "bg-zinc-950 text-zinc-200 hover:bg-zinc-800"
-                    : "bg-red-600 text-white hover:bg-red-500",
-                  "disabled:opacity-50 disabled:cursor-not-allowed",
+                    ? adminButtonStyles.secondary
+                    : adminButtonStyles.primary,
+                  "px-3 py-1.5 text-sm",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
                 ].join(" ")}
                 title={
                   state.isRegistered ? "Mark as not registered" : "Mark as registered"
@@ -439,15 +418,14 @@ export default function StateDetailModal({
                   : "Mark permit as registered"}
               </button>
 
-              {/* Resource links */}
               {STATE_REGISTRATION_URLS[state.stateCode] && (
                 <a
                   href={STATE_REGISTRATION_URLS[state.stateCode]}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 text-zinc-200 rounded-sm border border-zinc-800/70 text-sm flex items-center gap-2"
+                  className={`${adminButtonStyles.secondary} gap-2 px-3 py-1.5 text-sm`}
                 >
-                  State registration site <ExternalLink className="w-4 h-4" />
+                  State registration site <ExternalLink className="h-4 w-4" />
                 </a>
               )}
             </div>

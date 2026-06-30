@@ -28,6 +28,11 @@ import {
   getOrderItemFinancials,
 } from "@/components/admin/orders/OrderItemDetailsModal";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { Toast } from "@/components/ui/Toast";
 import {
   calculateCheckoutDisplayTotals,
@@ -288,19 +293,19 @@ function getOrderStatusMeta(status: string | null | undefined) {
     case "pending":
       return {
         label: "Incomplete",
-        cls: "border border-zinc-700 bg-zinc-800 text-zinc-300",
+        cls: "border border-brand-border bg-brand-page text-brand-text",
       };
     default:
       return {
         label: status ?? "Unknown",
-        cls: "border border-zinc-700 bg-zinc-800 text-zinc-300",
+        cls: "border border-brand-border bg-brand-page text-brand-text",
       };
   }
 }
 
 function getAvsLabel(code: string | null | undefined) {
   if (!code) {
-    return { label: "-", color: "text-zinc-500" };
+    return { label: "-", color: "text-brand-muted" };
   }
 
   const map: Record<string, { label: string; color: string }> = {
@@ -310,31 +315,31 @@ function getAvsLabel(code: string | null | undefined) {
     NYZ: { label: `ZIP match only (${code})`, color: "text-amber-400" },
     YNA: { label: `Address match only (${code})`, color: "text-amber-400" },
     NNN: { label: `No match (${code})`, color: "text-red-400" },
-    XXU: { label: `Unavailable (${code})`, color: "text-zinc-400" },
+    XXU: { label: `Unavailable (${code})`, color: "text-brand-muted" },
   };
 
-  return map[code] ?? { label: `Code: ${code}`, color: "text-zinc-400" };
+  return map[code] ?? { label: `Code: ${code}`, color: "text-brand-muted" };
 }
 
 function getCvvLabel(code: string | null | undefined) {
   if (!code) {
-    return { label: "-", color: "text-zinc-500" };
+    return { label: "-", color: "text-brand-muted" };
   }
 
   const map: Record<string, { label: string; color: string }> = {
     M: { label: "Match (M)", color: "text-emerald-400" },
     N: { label: "No match (N)", color: "text-red-400" },
-    P: { label: "Not processed (P)", color: "text-zinc-400" },
-    U: { label: "Unavailable (U)", color: "text-zinc-400" },
-    X: { label: "Not applicable (X)", color: "text-zinc-400" },
+    P: { label: "Not processed (P)", color: "text-brand-muted" },
+    U: { label: "Unavailable (U)", color: "text-brand-muted" },
+    X: { label: "Not applicable (X)", color: "text-brand-muted" },
   };
 
-  return map[code] ?? { label: `Code: ${code}`, color: "text-zinc-400" };
+  return map[code] ?? { label: `Code: ${code}`, color: "text-brand-muted" };
 }
 
 function getNoFraudBadge(decision: string | null | undefined) {
   if (!decision) {
-    return <span className="text-zinc-500">-</span>;
+    return <span className="text-brand-muted">-</span>;
   }
 
   const map: Record<string, { label: string; cls: string }> = {
@@ -342,12 +347,15 @@ function getNoFraudBadge(decision: string | null | undefined) {
     fail: { label: "Fail", cls: "bg-red-900/50 text-red-400 border-red-800" },
     review: { label: "Review", cls: "bg-amber-900/50 text-amber-400 border-amber-800" },
     fraudulent: { label: "Fraudulent", cls: "bg-red-900/50 text-red-400 border-red-800" },
-    skipped: { label: "Skipped", cls: "bg-zinc-800 text-zinc-400 border-zinc-700" },
+    skipped: {
+      label: "Skipped",
+      cls: "bg-brand-page text-brand-muted border-brand-border",
+    },
   };
 
   const meta = map[decision] ?? {
     label: decision,
-    cls: "bg-zinc-800 text-zinc-400 border-zinc-700",
+    cls: "bg-brand-page text-brand-muted border-brand-border",
   };
 
   return (
@@ -403,7 +411,7 @@ function getEventMeta(
   switch (type) {
     case "payment_started":
       return {
-        icon: <Info className="h-4 w-4 text-zinc-400" />,
+        icon: <Info className="h-4 w-4 text-brand-muted" />,
         label: "Checkout started",
       };
     case "authorization_approved":
@@ -465,7 +473,7 @@ function getEventMeta(
       };
     default:
       return {
-        icon: <Info className="h-4 w-4 text-zinc-400" />,
+        icon: <Info className="h-4 w-4 text-brand-muted" />,
         label: type.replace(/_/g, " "),
       };
   }
@@ -487,7 +495,7 @@ function getEmailTypeMeta(type: string) {
     case "label_created":
       return {
         label: "Label created",
-        icon: <Truck className="h-4 w-4 text-zinc-400" />,
+        icon: <Truck className="h-4 w-4 text-brand-muted" />,
       };
     case "in_transit":
       return { label: "In transit", icon: <Truck className="h-4 w-4 text-blue-400" /> };
@@ -499,32 +507,27 @@ function getEmailTypeMeta(type: string) {
     case "pickup_instructions":
       return {
         label: "Pickup instructions",
-        icon: <Package className="h-4 w-4 text-zinc-400" />,
+        icon: <Package className="h-4 w-4 text-brand-muted" />,
       };
     default:
       return {
         label: type.replace(/_/g, " "),
-        icon: <Mail className="h-4 w-4 text-zinc-400" />,
+        icon: <Mail className="h-4 w-4 text-brand-muted" />,
       };
   }
 }
 
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-zinc-800/50 py-2 last:border-0">
-      <span className="min-w-[120px] shrink-0 text-sm text-zinc-500">{label}</span>
-      <span className="text-right text-sm text-gray-200">{children}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-brand-border py-2 last:border-0">
+      <span className="min-w-[120px] shrink-0 text-sm text-brand-muted">{label}</span>
+      <span className="text-right text-sm text-brand-text">{children}</span>
     </div>
   );
 }
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1 rounded border border-zinc-800/70 bg-zinc-900 p-5">
-      <h2 className="mb-4 text-xs uppercase tracking-widest text-zinc-500">{title}</h2>
-      {children}
-    </div>
-  );
+  return <AdminSectionCard title={title}>{children}</AdminSectionCard>;
 }
 
 function formatPayload(payload: unknown) {
@@ -594,11 +597,13 @@ function PayloadBlock({ label, payload }: { label: string; payload: unknown }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">{label}</p>
-        {!content && <span className="text-xs text-zinc-600">No data</span>}
+        <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
+          {label}
+        </p>
+        {!content && <span className="text-xs text-brand-muted">No data</span>}
       </div>
       {content && (
-        <pre className="overflow-x-auto rounded border border-zinc-800/70 bg-zinc-950/80 p-3 text-[11px] text-zinc-300">
+        <pre className="overflow-x-auto border border-brand-border bg-brand-page p-3 text-[11px] text-brand-text">
           {content}
         </pre>
       )}
@@ -758,7 +763,7 @@ export default function TransactionDetailPage() {
   };
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-gray-400">
+      <div className="border border-brand-border bg-brand-surface px-6 py-24 text-center text-brand-muted">
         Loading...
       </div>
     );
@@ -770,12 +775,15 @@ export default function TransactionDetailPage() {
         <button
           type="button"
           onClick={() => router.push("/admin/transactions")}
-          className="flex items-center gap-2 text-sm text-gray-400 hover:text-white"
+          className="flex items-center gap-2 text-sm text-brand-muted transition-colors hover:text-brand-text"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Transactions
         </button>
-        <p className="text-red-400">{error ?? "Transaction not found."}</p>
+        <AdminEmptyState
+          title="Transaction Not Available"
+          description={error ?? "Transaction not found."}
+        />
       </div>
     );
   }
@@ -888,58 +896,64 @@ export default function TransactionDetailPage() {
       <button
         type="button"
         onClick={() => router.push("/admin/transactions")}
-        className="flex items-center gap-2 text-sm text-gray-400 transition-colors hover:text-white"
+        className="flex items-center gap-2 text-sm text-brand-muted transition-colors hover:text-brand-text"
       >
         <ArrowLeft className="h-4 w-4" />
         Transactions
       </button>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-mono text-2xl font-bold text-white">
-              #{order.id.slice(0, 8)}
-            </h1>
-            <span
-              className={`inline-flex items-center px-2 py-0.5 text-xs font-medium ${statusMeta.cls}`}
+      <AdminPageHeader
+        title={`#${order.id.slice(0, 8)}`}
+        description={
+          order.failure_reason
+            ? order.failure_reason
+            : `${isPickup ? "Pickup" : "Shipping"} order activity, payment state, and customer session detail.`
+        }
+        actions={
+          <div className="flex flex-col items-end gap-2">
+            <AdminStatusBadge
+              tone={
+                order.status === "failed" || order.status === "refund_failed"
+                  ? "danger"
+                  : order.status === "review" ||
+                      order.status === "refund_pending" ||
+                      order.status === "partially_refunded"
+                    ? "warning"
+                    : "success"
+              }
             >
               {statusMeta.label}
-            </span>
+            </AdminStatusBadge>
+            {isRefundable && (
+              <button
+                type="button"
+                onClick={() => setRefundOpen(true)}
+                className={adminButtonStyles.danger}
+              >
+                Issue refund
+              </button>
+            )}
+            {refundedCents > 0 && (
+              <div className="text-right text-sm text-red-700">
+                -{fmtMoney(refundedAmount)} refunded
+              </div>
+            )}
           </div>
-          {order.failure_reason && (
-            <p className="mt-1 text-sm text-red-400">{order.failure_reason}</p>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          {isRefundable && (
-            <button
-              type="button"
-              onClick={() => setRefundOpen(true)}
-              className="bg-red-600 px-4 py-1.5 text-sm text-white transition hover:bg-red-700"
-            >
-              Issue refund
-            </button>
-          )}
-          {refundedCents > 0 && (
-            <div className="text-right text-sm text-red-400">
-              -{fmtMoney(refundedAmount)} refunded
-            </div>
-          )}
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.9fr)]">
         <div className="space-y-6">
           <SectionCard title="Price Breakdown">
             {!showPriceBreakdown && (
-              <p className="-mt-2 mb-4 text-xs text-zinc-600">
+              <p className="-mt-2 mb-4 text-xs text-brand-muted">
                 Products from this checkout session are shown below. Pricing becomes final
                 once checkout completes.
               </p>
             )}
 
             {items.length === 0 ? (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-brand-muted">
                 No products were recorded for this order.
               </p>
             ) : (
@@ -961,9 +975,9 @@ export default function TransactionDetailPage() {
                       key={item.id}
                       type="button"
                       onClick={() => openItemModal(item)}
-                      className={`group -mx-2 flex w-full items-start gap-4 rounded-sm border border-transparent px-2 py-3 text-left transition-colors hover:border-zinc-700/80 hover:bg-zinc-800/50 ${isRefunded ? "opacity-50" : ""}`}
+                      className={`group -mx-2 flex w-full items-start gap-4 border border-transparent px-2 py-3 text-left transition-colors hover:border-brand-border hover:bg-brand-page ${isRefunded ? "opacity-50" : ""}`}
                     >
-                      <div className="h-10 w-10 shrink-0 overflow-hidden border border-zinc-800 bg-zinc-950">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden border border-brand-border bg-brand-page">
                         <img
                           src={imageUrl}
                           alt={title}
@@ -971,8 +985,8 @@ export default function TransactionDetailPage() {
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-white">{title}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="truncate text-sm text-brand-text">{title}</p>
+                        <p className="text-xs text-brand-muted">
                           {(item.size_label ?? item.variant?.size_label)
                             ? `Size ${item.size_label ?? item.variant?.size_label} · `
                             : ""}
@@ -981,25 +995,25 @@ export default function TransactionDetailPage() {
                         </p>
                         {showPriceBreakdown ? (
                           <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                            <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                            <div className="border border-brand-border bg-brand-page p-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                                 Customer paid
                               </p>
-                              <p className="mt-1 text-sm font-semibold text-white">
+                              <p className="mt-1 text-sm font-semibold text-brand-text">
                                 {fmtMoney(item.line_total)}
                               </p>
                             </div>
-                            <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
-                              <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                            <div className="border border-brand-border bg-brand-page p-3">
+                              <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                                 Product cost
                               </p>
-                              <p className="mt-1 text-sm font-semibold text-zinc-300">
+                              <p className="mt-1 text-sm font-semibold text-brand-text">
                                 {fmtMoney(itemCost)}
                               </p>
                             </div>
                             {showItemProfit && (
-                              <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
-                                <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                              <div className="border border-brand-border bg-brand-page p-3">
+                                <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                                   Profit
                                 </p>
                                 <p
@@ -1012,13 +1026,13 @@ export default function TransactionDetailPage() {
                             )}
                           </div>
                         ) : (
-                          <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
+                          <p className="mt-3 text-[10px] uppercase tracking-[0.18em] text-brand-muted">
                             Session item
                           </p>
                         )}
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-600 opacity-0 transition-opacity group-hover:opacity-100">
+                        <p className="text-[10px] uppercase tracking-[0.18em] text-brand-muted opacity-0 transition-opacity group-hover:opacity-100">
                           View details
                         </p>
                       </div>
@@ -1029,35 +1043,35 @@ export default function TransactionDetailPage() {
             )}
 
             {showPriceBreakdown && (
-              <div className="grid gap-3 border-t border-zinc-800/70 pt-4 text-sm lg:grid-cols-2">
-                <div className="space-y-2 rounded border border-zinc-800/70 bg-zinc-950/50 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+              <div className="grid gap-3 border-t border-brand-border pt-4 text-sm lg:grid-cols-2">
+                <div className="space-y-2 border border-brand-border bg-brand-page p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                     Customer breakdown
                   </p>
-                  <div className="flex justify-between text-zinc-400">
+                  <div className="flex justify-between text-brand-muted">
                     <span>Subtotal</span>
                     <span>{fmtMoney(subtotal)}</span>
                   </div>
                   {(shipping > 0 || order.fulfillment === "ship") && (
-                    <div className="flex justify-between text-zinc-400">
+                    <div className="flex justify-between text-brand-muted">
                       <span>Shipping</span>
                       <span>{fmtMoney(shipping)}</span>
                     </div>
                   )}
                   {tax > 0 && (
-                    <div className="flex justify-between text-zinc-400">
+                    <div className="flex justify-between text-brand-muted">
                       <span>Tax</span>
                       <span>{fmtMoney(tax)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-zinc-800/70 pt-2 font-semibold text-white">
+                  <div className="flex justify-between border-t border-brand-border pt-2 font-semibold text-brand-text">
                     <span>Customer total</span>
                     <span>{fmtMoney(displayTotal)}</span>
                   </div>
                 </div>
 
-                <div className="space-y-2 rounded border border-zinc-800/70 bg-zinc-950/50 p-4">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                <div className="space-y-2 border border-brand-border bg-brand-page p-4">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                     Seller breakdown
                   </p>
                   {isOrderPlaced ? (
@@ -1072,7 +1086,7 @@ export default function TransactionDetailPage() {
                           <span>-{fmtMoney(refundedAmount)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between text-zinc-300">
+                      <div className="flex justify-between text-brand-text">
                         <span>Seller revenue</span>
                         <span>{fmtMoney(sellerRevenue)}</span>
                       </div>
@@ -1082,7 +1096,7 @@ export default function TransactionDetailPage() {
                             <span>Product cost</span>
                             <span>-{fmtMoney(effectiveItemCost)}</span>
                           </div>
-                          <div className="flex justify-between border-t border-zinc-800/70 pt-2 font-semibold text-white">
+                          <div className="flex justify-between border-t border-brand-border pt-2 font-semibold text-brand-text">
                             <span>Total profit</span>
                             <span
                               className={
@@ -1095,14 +1109,14 @@ export default function TransactionDetailPage() {
                           </div>
                         </>
                       ) : (
-                        <div className="flex justify-between text-zinc-500">
+                        <div className="flex justify-between text-brand-muted">
                           <span>Seller total before cost</span>
                           <span>{fmtMoney(sellerRevenue)}</span>
                         </div>
                       )}
                     </>
                   ) : (
-                    <div className="flex justify-between text-zinc-500">
+                    <div className="flex justify-between text-brand-muted">
                       <span>Order total before fee</span>
                       <span>{fmtMoney(total)}</span>
                     </div>
@@ -1162,24 +1176,26 @@ export default function TransactionDetailPage() {
               </div>
               {trackingEvents.length > 0 && (
                 <div className="mt-4">
-                  <p className="mb-3 text-xs uppercase tracking-widest text-zinc-500">
+                  <p className="mb-3 text-xs uppercase tracking-widest text-brand-muted">
                     Tracking Events
                   </p>
                   <ol className="space-y-3">
                     {trackingEvents.map((event) => (
                       <li key={event.id} className="flex items-start gap-3">
-                        <Truck className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                        <Truck className="mt-0.5 h-4 w-4 shrink-0 text-brand-muted" />
                         <div>
-                          <p className="text-sm capitalize text-white">
+                          <p className="text-sm capitalize text-brand-text">
                             {event.status.replace(/_/g, " ")}
                           </p>
                           {event.description && (
-                            <p className="text-xs text-zinc-400">{event.description}</p>
+                            <p className="text-xs text-brand-muted">
+                              {event.description}
+                            </p>
                           )}
                           {event.location && (
-                            <p className="text-xs text-zinc-500">{event.location}</p>
+                            <p className="text-xs text-brand-muted">{event.location}</p>
                           )}
-                          <p className="mt-0.5 text-xs text-zinc-600">
+                          <p className="mt-0.5 text-xs text-brand-muted">
                             {fmtDate(event.event_timestamp)}
                           </p>
                         </div>
@@ -1194,7 +1210,7 @@ export default function TransactionDetailPage() {
           {paymentAttemptMade && (
             <SectionCard title="Payment Method">
               {!paymentTx ? (
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-brand-muted">
                   No payment data available for this order.
                 </p>
               ) : (
@@ -1242,7 +1258,7 @@ export default function TransactionDetailPage() {
 
           {isOrderPlaced && (
             <SectionCard title="Email Checklist">
-              <p className="-mt-2 mb-4 text-xs text-zinc-600">
+              <p className="-mt-2 mb-4 text-xs text-brand-muted">
                 {isPickup ? "Pickup order" : "Shipping order"} - Expected emails
               </p>
               <div className="space-y-0">
@@ -1269,12 +1285,12 @@ export default function TransactionDetailPage() {
                         <XCircle className="h-3 w-3" /> Failed
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-xs text-zinc-400">
+                      <span className="inline-flex items-center gap-1 text-xs text-brand-muted">
                         <Clock className="h-3 w-3" /> Sent
                       </span>
                     )
                   ) : (
-                    <span className="text-xs text-zinc-600">Not sent</span>
+                    <span className="text-xs text-brand-muted">Not sent</span>
                   );
 
                   const isResending = resendingEmail === emailType;
@@ -1282,12 +1298,12 @@ export default function TransactionDetailPage() {
                   return (
                     <div
                       key={emailType}
-                      className="flex items-center justify-between gap-4 border-b border-zinc-800/50 py-3 last:border-0"
+                      className="flex items-center justify-between gap-4 border-b border-brand-border py-3 last:border-0"
                     >
                       <div>
-                        <p className="text-sm text-white">{meta.label}</p>
+                        <p className="text-sm text-brand-text">{meta.label}</p>
                         {latestLog && (
-                          <p className="mt-0.5 text-xs text-zinc-500">
+                          <p className="mt-0.5 text-xs text-brand-muted">
                             {fmtDate(latestLog.sent_at, {
                               month: "short",
                               day: "numeric",
@@ -1303,7 +1319,7 @@ export default function TransactionDetailPage() {
                           <button
                             type="button"
                             onClick={() => setEmailPreview(latestLog)}
-                            className="text-xs text-zinc-400 transition-colors hover:text-white"
+                            className="text-xs text-brand-muted transition-colors hover:text-brand-text"
                           >
                             View
                           </button>
@@ -1333,7 +1349,7 @@ export default function TransactionDetailPage() {
 
           <SectionCard title="Session Activity">
             {sessionTimeline.length === 0 ? (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-brand-muted">
                 No activity recorded for this order.
               </p>
             ) : (
@@ -1346,29 +1362,31 @@ export default function TransactionDetailPage() {
                     return (
                       <li
                         key={entry.id}
-                        className="rounded border border-zinc-800/60 bg-zinc-950/30"
+                        className="border border-brand-border bg-brand-page"
                       >
                         <button
                           type="button"
                           onClick={() => setSelectedPaymentEventId(event.id)}
-                          className="w-full px-4 py-4 text-left transition hover:bg-zinc-900/60"
+                          className="w-full px-4 py-4 text-left transition hover:bg-brand-surface"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-start gap-3">
                               <div className="mt-0.5 shrink-0">{meta.icon}</div>
                               <div className="min-w-0 flex-1">
-                                <p className="text-sm text-white">{meta.label}</p>
+                                <p className="text-sm text-brand-text">{meta.label}</p>
                                 {meta.description && (
-                                  <p className="mt-0.5 text-xs text-zinc-400">
+                                  <p className="mt-0.5 text-xs text-brand-muted">
                                     {meta.description}
                                   </p>
                                 )}
-                                <p className="mt-1 text-xs text-zinc-500">
+                                <p className="mt-1 text-xs text-brand-muted">
                                   {fmtDate(event.created_at)}
                                 </p>
                               </div>
                             </div>
-                            <p className="shrink-0 text-xs text-zinc-500">View details</p>
+                            <p className="shrink-0 text-xs text-brand-muted">
+                              View details
+                            </p>
                           </div>
                         </button>
                       </li>
@@ -1382,21 +1400,21 @@ export default function TransactionDetailPage() {
                       ? "text-emerald-400"
                       : log.delivery_status === "failed"
                         ? "text-red-400"
-                        : "text-zinc-400";
+                        : "text-brand-muted";
 
                   return (
                     <li
                       key={entry.id}
-                      className="rounded border border-zinc-800/60 bg-zinc-950/30 p-4"
+                      className="border border-brand-border bg-brand-page p-4"
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 shrink-0">{emailMeta.icon}</div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-white">{emailMeta.label}</p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-sm text-brand-text">{emailMeta.label}</p>
+                          <p className="text-xs text-brand-muted">
                             To: {log.recipient_email}
                           </p>
-                          <p className="mt-0.5 text-xs text-zinc-500">
+                          <p className="mt-0.5 text-xs text-brand-muted">
                             Sent{" "}
                             {fmtDate(log.sent_at, {
                               month: "short",
@@ -1406,7 +1424,7 @@ export default function TransactionDetailPage() {
                             })}
                           </p>
                           {log.delivered_at && (
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-xs text-brand-muted">
                               Delivered{" "}
                               {fmtDate(log.delivered_at, {
                                 month: "short",
@@ -1436,7 +1454,7 @@ export default function TransactionDetailPage() {
                             <button
                               type="button"
                               onClick={() => setEmailPreview(log)}
-                              className="text-xs text-zinc-400 transition-colors hover:text-white"
+                              className="text-xs text-brand-muted transition-colors hover:text-brand-text"
                             >
                               View details
                             </button>
@@ -1560,19 +1578,19 @@ export default function TransactionDetailPage() {
       </div>
 
       {emailPreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col border border-zinc-800 bg-zinc-900">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-text/45 p-4">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col border border-brand-border bg-brand-surface">
+            <div className="flex items-center justify-between border-b border-brand-border px-4 py-3">
               <div>
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-brand-text">
                   {getEmailTypeMeta(emailPreview.email_type).label}
                 </p>
-                <p className="text-xs text-zinc-500">{emailPreview.subject}</p>
+                <p className="text-xs text-brand-muted">{emailPreview.subject}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setEmailPreview(null)}
-                className="text-zinc-400 hover:text-white"
+                className="text-brand-muted transition-colors hover:text-brand-text"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -1591,20 +1609,20 @@ export default function TransactionDetailPage() {
 
       {selectedPaymentEvent && (
         <div
-          className={`fixed inset-0 z-50 flex items-end overflow-hidden bg-black/70 transition-opacity duration-200 ${isPaymentDrawerVisible ? "opacity-100" : "opacity-0"}`}
+          className={`fixed inset-0 z-50 flex items-end overflow-hidden bg-brand-text/45 transition-opacity duration-200 ${isPaymentDrawerVisible ? "opacity-100" : "opacity-0"}`}
           onClick={closePaymentDrawer}
         >
           <div
-            className={`w-full rounded-t-2xl border-t border-zinc-800 bg-zinc-900 shadow-2xl transition-transform duration-300 ease-out ${isPaymentDrawerVisible ? "translate-y-0" : "translate-y-full"}`}
+            className={`w-full rounded-t-2xl border-t border-brand-border bg-brand-surface shadow-2xl transition-transform duration-300 ease-out ${isPaymentDrawerVisible ? "translate-y-0" : "translate-y-full"}`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mx-auto flex max-h-[80vh] w-full max-w-7xl flex-col overflow-hidden">
-              <div className="flex items-start justify-between gap-4 border-b border-zinc-800 px-6 py-4">
+              <div className="flex items-start justify-between gap-4 border-b border-brand-border px-6 py-4">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                     Activity details
                   </p>
-                  <p className="mt-1 text-lg font-semibold text-white">
+                  <p className="mt-1 text-lg font-semibold text-brand-text">
                     {
                       getEventMeta(
                         selectedPaymentEvent.event_type,
@@ -1612,14 +1630,14 @@ export default function TransactionDetailPage() {
                       ).label
                     }
                   </p>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-brand-muted">
                     {fmtDate(selectedPaymentEvent.created_at)}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closePaymentDrawer}
-                  className="text-zinc-400 transition hover:text-white"
+                  className="text-brand-muted transition hover:text-brand-text"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -1629,11 +1647,11 @@ export default function TransactionDetailPage() {
                 <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
                   <div className="space-y-4">
                     <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      <div className="border border-brand-border bg-brand-page p-3">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                           Event
                         </p>
-                        <p className="mt-2 text-sm font-semibold text-white">
+                        <p className="mt-2 text-sm font-semibold text-brand-text">
                           {
                             getEventMeta(
                               selectedPaymentEvent.event_type,
@@ -1642,19 +1660,19 @@ export default function TransactionDetailPage() {
                           }
                         </p>
                       </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      <div className="border border-brand-border bg-brand-page p-3">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                           Recorded
                         </p>
-                        <p className="mt-2 text-sm font-semibold text-zinc-200">
+                        <p className="mt-2 text-sm font-semibold text-brand-text">
                           {fmtDate(selectedPaymentEvent.created_at)}
                         </p>
                       </div>
-                      <div className="rounded border border-zinc-800/70 bg-zinc-950/70 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      <div className="border border-brand-border bg-brand-page p-3">
+                        <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                           Related logs
                         </p>
-                        <p className="mt-2 text-sm font-semibold text-zinc-200">
+                        <p className="mt-2 text-sm font-semibold text-brand-text">
                           {relatedCheckoutLogs.length}
                         </p>
                       </div>
@@ -1668,11 +1686,11 @@ export default function TransactionDetailPage() {
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-brand-muted">
                         Related checkout logs
                       </p>
                       {relatedCheckoutLogs.length === 0 && (
-                        <span className="text-xs text-zinc-600">
+                        <span className="text-xs text-brand-muted">
                           No related API logs found
                         </span>
                       )}
@@ -1686,16 +1704,16 @@ export default function TransactionDetailPage() {
                       return (
                         <div
                           key={log.id}
-                          className="space-y-4 rounded border border-zinc-800/70 bg-zinc-950/60 p-4"
+                          className="space-y-4 border border-brand-border bg-brand-page p-4"
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex min-w-0 items-start gap-3">
-                              <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+                              <Terminal className="mt-0.5 h-4 w-4 shrink-0 text-brand-muted" />
                               <div className="min-w-0">
-                                <p className="text-sm text-white">
+                                <p className="text-sm text-brand-text">
                                   {log.event_label ?? log.route}
                                 </p>
-                                <p className="mt-0.5 break-all font-mono text-xs text-zinc-500">
+                                <p className="mt-0.5 break-all font-mono text-xs text-brand-muted">
                                   {log.method} {log.route}
                                 </p>
                                 {log.error_message && (
@@ -1709,14 +1727,14 @@ export default function TransactionDetailPage() {
                               <p className={`text-sm font-semibold ${statusColor}`}>
                                 {log.http_status ?? "-"}
                               </p>
-                              <p className="text-xs text-zinc-500">
+                              <p className="text-xs text-brand-muted">
                                 {log.duration_ms !== null && log.duration_ms !== undefined
                                   ? `${log.duration_ms}ms`
                                   : "-"}
                               </p>
                             </div>
                           </div>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-brand-muted">
                             {fmtDate(log.created_at)}
                           </p>
                           <PayloadBlock label="Request" payload={log.request_payload} />

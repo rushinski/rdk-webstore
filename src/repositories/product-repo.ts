@@ -515,9 +515,9 @@ export class ProductRepository {
 
     let products = ids.map((id) => byId.get(id)).filter(Boolean) as ProductWithDetails[];
 
-      return {
-        products,
-        total,
+    return {
+      products,
+      total,
       skuTotal,
       inventoryUnitTotal,
       page,
@@ -1433,10 +1433,10 @@ export class ProductRepository {
    * Higher scores indicate better matches.
    */
   private calculateSearchRelevance(
-      product: Pick<ProductRow, "brand" | "name" | "model"> | SearchCandidateRow,
-      searchQuery: string | undefined,
-      searchFields: string[],
-    ): number {
+    product: Pick<ProductRow, "brand" | "name" | "model"> | SearchCandidateRow,
+    searchQuery: string | undefined,
+    searchFields: string[],
+  ): number {
     if (!searchQuery?.trim()) {
       return 0;
     }
@@ -1449,11 +1449,11 @@ export class ProductRepository {
 
     let score = 0;
 
-      // Helper to get field values
-      const getFieldValue = (field: string): string => {
-        const value = product[field as keyof typeof product];
-        return String(value ?? "").toLowerCase();
-      };
+    // Helper to get field values
+    const getFieldValue = (field: string): string => {
+      const value = product[field as keyof typeof product];
+      return String(value ?? "").toLowerCase();
+    };
 
     // Check each search field
     for (const field of searchFields) {

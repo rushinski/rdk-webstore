@@ -280,7 +280,7 @@ export function EnrollmentForm() {
         {/* STATE 1: Not started */}
         {!state.factorId && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
+            <div className="border border-brand-border bg-brand-page px-4 py-3 text-sm text-brand-muted">
               {state.isMobile
                 ? "Generate a setup key for your authenticator app."
                 : "Generate a QR code and scan it with your authenticator app."}
@@ -310,7 +310,7 @@ export function EnrollmentForm() {
         {/* STATE 2: Enrollment started but QR expired (desktop only) */}
         {state.factorId && !state.qrCode && !state.isMobile && (
           <div className="space-y-4">
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
+            <div className="border border-brand-border bg-brand-page px-4 py-3 text-sm text-brand-muted">
               Your QR code is no longer available. Generate a new one to continue.
             </div>
 
@@ -340,7 +340,7 @@ export function EnrollmentForm() {
             }}
             className="space-y-4"
           >
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
+            <div className="border border-brand-border bg-brand-page px-4 py-3 text-sm text-brand-muted">
               {state.isMobile
                 ? "Copy the setup key below, then enter the 6-digit code to confirm."
                 : "Scan the QR code, then enter the 6-digit code to confirm."}
@@ -350,9 +350,9 @@ export function EnrollmentForm() {
             {!state.isMobile && state.qrCode && (
               <Suspense
                 fallback={
-                  <div className="border border-zinc-800 bg-zinc-900/50 p-6">
+                  <div className="border border-brand-border bg-brand-page p-6">
                     <div className="flex justify-center">
-                      <div className="h-48 w-48 bg-zinc-800 animate-pulse" />
+                      <div className="h-48 w-48 animate-pulse bg-brand-border" />
                     </div>
                   </div>
                 }
@@ -372,8 +372,8 @@ export function EnrollmentForm() {
 
             {/* Manual setup key - always show */}
             {state.manualSecret && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-sm text-zinc-400">
-                <div className="text-xs uppercase tracking-wide text-zinc-500">
+              <div className="border border-brand-border bg-brand-page px-4 py-3 text-sm text-brand-muted">
+                <div className="text-xs uppercase tracking-[0.08em] text-brand-muted">
                   Manual setup key
                 </div>
 
@@ -384,11 +384,11 @@ export function EnrollmentForm() {
                     onClick={() => void handleCopyManualKey()}
                     onPointerUp={() => void handleCopyManualKey()}
                     onFocus={(e) => e.currentTarget.select()}
-                    className="w-full cursor-pointer select-all rounded border border-zinc-800 bg-zinc-950 px-3 py-2 font-mono text-xs sm:text-sm text-white tracking-[0.12em] outline-none focus:border-zinc-600 active:border-zinc-600"
+                    className="w-full cursor-pointer select-all border border-brand-border bg-brand-surface px-3 py-2 font-mono text-xs tracking-[0.12em] text-brand-text outline-none focus:border-brand-text active:border-brand-text sm:text-sm"
                     aria-label="Manual setup key (tap to copy)"
                   />
 
-                  <div className="mt-2 text-xs text-zinc-500">
+                  <div className="mt-2 text-xs text-brand-muted">
                     Tap the key to copy.{" "}
                     {state.isMobile
                       ? "Paste this"
@@ -398,7 +398,7 @@ export function EnrollmentForm() {
 
                   {state.copyStatus !== "idle" && (
                     <div className="mt-2 text-xs" aria-live="polite">
-                      {state.copyStatus === "copied" ? "✓ Copied" : "Copy failed"}
+                      {state.copyStatus === "copied" ? "Copied" : "Copy failed"}
                     </div>
                   )}
                 </div>

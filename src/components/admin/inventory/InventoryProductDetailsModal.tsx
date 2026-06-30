@@ -1,7 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { X } from "lucide-react";
 
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import type { ProductWithDetails, ProductVariantRow } from "@/types/domain/product";
@@ -89,18 +89,20 @@ export function InventoryProductDetailsModal({
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded border border-zinc-800 bg-zinc-950"
+        className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden border border-brand-border bg-brand-surface"
       >
-        <div className="flex items-start justify-between border-b border-zinc-800 px-5 py-4">
+        <div className="flex items-start justify-between border-b border-brand-border px-5 py-4">
           <div className="min-w-0 pr-4">
-            <h2 className="truncate text-lg font-bold text-white">{title}</h2>
+            <h2 className="truncate text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+              {title}
+            </h2>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-              <div className="text-zinc-300">
-                <span className="font-semibold text-zinc-500">SKU:</span>{" "}
+              <div className="text-brand-text">
+                <span className="font-semibold text-brand-muted">SKU:</span>{" "}
                 <span className="font-mono">{variant.sku || "N/A"}</span>
               </div>
-              <div className="text-zinc-300">
-                <span className="font-semibold text-zinc-500">Created:</span>{" "}
+              <div className="text-brand-text">
+                <span className="font-semibold text-brand-muted">Created:</span>{" "}
                 {formatDateTime(product.created_at)}
               </div>
             </div>
@@ -108,7 +110,7 @@ export function InventoryProductDetailsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1.5 text-zinc-500 transition-colors hover:bg-zinc-900 hover:text-white"
+            className="p-1.5 text-brand-muted transition-colors hover:bg-brand-page hover:text-brand-text"
             aria-label="Close details"
           >
             <X className="h-5 w-5" />
@@ -118,7 +120,7 @@ export function InventoryProductDetailsModal({
         <div className="flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="flex flex-col gap-3">
-              <div className="flex h-[260px] items-center justify-center overflow-hidden rounded border border-zinc-800 bg-zinc-900/50">
+              <div className="flex h-[260px] items-center justify-center overflow-hidden border border-brand-border bg-brand-page">
                 <img
                   src={activeImage}
                   alt={title}
@@ -132,10 +134,10 @@ export function InventoryProductDetailsModal({
                       key={`${image.url ?? "img"}-${index}`}
                       type="button"
                       onClick={() => setSelectedImageIndex(index)}
-                      className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded border ${
+                      className={`h-12 w-12 flex-shrink-0 overflow-hidden border ${
                         selectedImageIndex === index
-                          ? "border-white ring-1 ring-white"
-                          : "border-zinc-800 opacity-70 hover:opacity-100"
+                          ? "border-brand-text bg-brand-page"
+                          : "border-brand-border opacity-70 hover:opacity-100"
                       }`}
                     >
                       <img
@@ -151,80 +153,68 @@ export function InventoryProductDetailsModal({
 
             <div className="flex flex-col gap-6">
               <div className="grid grid-cols-2 gap-2">
-                <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Unit Cost
+                {[
+                  ["Unit Cost", unitCost],
+                  ["Sale Price", salePrice],
+                  ["Size", variant.size_label || "N/A"],
+                  ["Stock", String(variantStock)],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="border border-brand-border bg-brand-page p-3"
+                  >
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-brand-muted">
+                      {label}
+                    </div>
+                    <div className="text-base font-semibold text-brand-text">{value}</div>
                   </div>
-                  <div className="text-base font-semibold text-zinc-100">{unitCost}</div>
-                </div>
-                <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Sale Price
-                  </div>
-                  <div className="text-base font-semibold text-zinc-100">{salePrice}</div>
-                </div>
-                <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Size
-                  </div>
-                  <div className="text-base font-semibold text-zinc-100">
-                    {variant.size_label || "N/A"}
-                  </div>
-                </div>
-                <div className="rounded border border-zinc-800 bg-zinc-900/40 p-2.5">
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    Stock
-                  </div>
-                  <div className="text-base font-semibold text-zinc-100">
-                    {variantStock}
-                  </div>
-                </div>
+                ))}
               </div>
 
-              <div className="rounded border border-zinc-800 bg-zinc-900/20 p-4">
+              <div className="border border-brand-border bg-brand-page p-4">
                 <div className="grid grid-cols-2 gap-x-3 gap-y-4">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">
                       Brand
                     </div>
-                    <div className="text-sm font-medium text-zinc-200">
+                    <div className="text-sm font-medium text-brand-text">
                       {product.brand || "-"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">
                       Model
                     </div>
-                    <div className="text-sm font-medium text-zinc-200">
+                    <div className="text-sm font-medium text-brand-text">
                       {product.model || "-"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">
                       Category
                     </div>
-                    <div className="text-sm font-medium capitalize text-zinc-200">
+                    <div className="text-sm font-medium capitalize text-brand-text">
                       {product.category || "-"}
                     </div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">
                       Condition
                     </div>
-                    <div className="text-sm font-medium capitalize text-zinc-200">
+                    <div className="text-sm font-medium capitalize text-brand-text">
                       {product.condition || "-"}
                     </div>
                   </div>
                   <div className="col-span-2">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">
                       Description
                     </div>
-                    <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">
+                    <div className="mt-1 whitespace-pre-wrap text-sm text-brand-muted">
                       {product.description?.trim() || "-"}
                     </div>
                   </div>
                   <div className="col-span-2">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">
                       Tags
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1.5">
@@ -232,13 +222,13 @@ export function InventoryProductDetailsModal({
                         product.tags.map((tag) => (
                           <span
                             key={`${tag.group_key}:${tag.label}`}
-                            className="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-300"
+                            className="border border-brand-border bg-brand-surface px-1.5 py-0.5 text-[10px] text-brand-text"
                           >
                             {tag.label}
                           </span>
                         ))
                       ) : (
-                        <span className="text-sm text-zinc-400">-</span>
+                        <span className="text-sm text-brand-muted">-</span>
                       )}
                     </div>
                   </div>

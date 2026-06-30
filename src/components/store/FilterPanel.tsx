@@ -432,10 +432,10 @@ export function FilterPanel({
       {/* Scrollable Content */}
       <div className="flex-1 min-w-0 space-y-4 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4">
         {/* Category */}
-        <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
+        <div className="w-full min-w-0 border-b border-brand-border pb-4">
           <button
             onClick={() => toggleSection("category")}
-            className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
+            className="mb-3 flex w-full min-w-0 items-center justify-between text-sm font-bold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
           >
             <span className="flex-1 text-left truncate">Category</span>
             <ToggleIcon open={!!expandedSections.category} size={16} />
@@ -446,7 +446,7 @@ export function FilterPanel({
               {orderedCategories.map((cat) => (
                 <label
                   key={cat}
-                  className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full min-w-0"
+                  className="flex w-full min-w-0 cursor-pointer items-start gap-3 text-sm text-brand-text transition-colors hover:text-neutral-600"
                 >
                   <input
                     type="checkbox"
@@ -464,10 +464,10 @@ export function FilterPanel({
 
         {/* Condition */}
         {filteredConditions.length > 0 && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
+          <div className="w-full min-w-0 border-b border-brand-border pb-4">
             <button
               onClick={() => toggleSection("condition")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
+              className="mb-3 flex w-full min-w-0 items-center justify-between text-sm font-bold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
             >
               <span className="flex-1 text-left truncate">Condition</span>
               <ToggleIcon open={!!expandedSections.condition} size={16} />
@@ -478,7 +478,7 @@ export function FilterPanel({
                 {filteredConditions.map((cond) => (
                   <label
                     key={cond}
-                    className="flex items-start gap-3 text-sm text-gray-300 hover:text-white cursor-pointer w-full min-w-0"
+                    className="flex w-full min-w-0 cursor-pointer items-start gap-3 text-sm text-brand-text transition-colors hover:text-neutral-600"
                   >
                     <input
                       type="checkbox"
@@ -499,10 +499,10 @@ export function FilterPanel({
 
         {/* Brand */}
         {hasBrandableCategory && filteredBrands.length > 0 && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
+          <div className="w-full min-w-0 border-b border-brand-border pb-4">
             <button
               onClick={() => toggleSection("brand")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
+              className="mb-3 flex w-full min-w-0 items-center justify-between text-sm font-bold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
             >
               <span className="flex-1 text-left truncate">Brand</span>
               <ToggleIcon open={!!expandedSections.brand} size={16} />
@@ -528,10 +528,10 @@ export function FilterPanel({
 
         {/* Shoe Sizes - FIXED: Smaller text */}
         {showShoeFilter && (
-          <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
+          <div className="w-full min-w-0 border-b border-brand-border pb-4">
             <button
               onClick={() => toggleSection("shoeSize")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
+              className="mb-3 flex w-full min-w-0 items-center justify-between text-sm font-bold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
             >
               <span className="flex-1 text-left truncate">Shoe Sizes</span>
               <ToggleIcon open={!!expandedSections.shoeSize} size={16} />
@@ -543,7 +543,7 @@ export function FilterPanel({
                   <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleSizeGroup("youth")}
-                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                      className="mb-2 flex w-full min-w-0 items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted transition-colors hover:text-brand-text"
                     >
                       <span className="uppercase tracking-wide flex-1 text-left truncate">
                         Youth
@@ -556,7 +556,7 @@ export function FilterPanel({
                         {shoeSizeGroups.youth.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                            className="flex min-w-0 cursor-pointer items-start gap-2 text-xs text-brand-text transition-colors hover:text-neutral-600"
                           >
                             <input
                               type="checkbox"
@@ -577,7 +577,7 @@ export function FilterPanel({
                   <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleSizeGroup("mens")}
-                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                      className="mb-2 flex w-full min-w-0 items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted transition-colors hover:text-brand-text"
                     >
                       <span className="uppercase tracking-wide flex-1 text-left truncate">
                         Men&apos;s
@@ -590,7 +590,7 @@ export function FilterPanel({
                         {shoeSizeGroups.mens.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                            className="flex min-w-0 cursor-pointer items-start gap-2 text-xs text-brand-text transition-colors hover:text-neutral-600"
                           >
                             <input
                               type="checkbox"
@@ -611,7 +611,7 @@ export function FilterPanel({
                   <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleSizeGroup("eu")}
-                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                      className="mb-2 flex w-full min-w-0 items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted transition-colors hover:text-brand-text"
                     >
                       <span className="uppercase tracking-wide flex-1 text-left truncate">
                         EU
@@ -624,7 +624,7 @@ export function FilterPanel({
                         {shoeSizeGroups.eu.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                            className="flex min-w-0 cursor-pointer items-start gap-2 text-xs text-brand-text transition-colors hover:text-neutral-600"
                           >
                             <input
                               type="checkbox"
@@ -650,7 +650,7 @@ export function FilterPanel({
           <div className="pb-4 w-full min-w-0">
             <button
               onClick={() => toggleSection("clothingSize")}
-              className="flex items-center justify-between w-full text-white font-semibold mb-3 hover:text-gray-300 transition-colors min-w-0"
+              className="mb-3 flex w-full min-w-0 items-center justify-between text-sm font-bold uppercase tracking-[0.08em] text-brand-text transition-colors hover:text-neutral-600"
             >
               <span className="flex-1 text-left truncate">Clothing Sizes</span>
               <ToggleIcon open={!!expandedSections.clothingSize} size={16} />
@@ -662,7 +662,7 @@ export function FilterPanel({
                   <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleClothingGroup("clothing")}
-                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                      className="mb-2 flex w-full min-w-0 items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted transition-colors hover:text-brand-text"
                     >
                       <span className="uppercase tracking-wide flex-1 text-left truncate">
                         Clothing
@@ -675,7 +675,7 @@ export function FilterPanel({
                         {clothingSizeGroups.clothing.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                            className="flex min-w-0 cursor-pointer items-start gap-2 text-xs text-brand-text transition-colors hover:text-neutral-600"
                           >
                             <input
                               type="checkbox"
@@ -696,7 +696,7 @@ export function FilterPanel({
                   <div className="w-full min-w-0">
                     <button
                       onClick={() => toggleClothingGroup("jeans")}
-                      className="flex items-center justify-between w-full text-xs font-medium text-gray-400 hover:text-white mb-2 transition-colors min-w-0"
+                      className="mb-2 flex w-full min-w-0 items-center justify-between text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted transition-colors hover:text-brand-text"
                     >
                       <span className="uppercase tracking-wide flex-1 text-left truncate">
                         Jeans
@@ -709,7 +709,7 @@ export function FilterPanel({
                         {clothingSizeGroups.jeans.map((size) => (
                           <label
                             key={size}
-                            className="flex items-start gap-2 text-xs text-gray-300 hover:text-white cursor-pointer min-w-0"
+                            className="flex min-w-0 cursor-pointer items-start gap-2 text-xs text-brand-text transition-colors hover:text-neutral-600"
                           >
                             <input
                               type="checkbox"

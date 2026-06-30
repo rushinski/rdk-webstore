@@ -1,4 +1,3 @@
-// src/components/auth/ui/SocialButton.tsx
 "use client";
 
 import { useState } from "react";
@@ -72,7 +71,7 @@ export function SocialButton({ provider, label, nextOverride }: SocialButtonProp
         void handleClick();
       }}
       disabled={loading}
-      className="h-11 w-full flex items-center justify-center gap-3 bg-zinc-900 border border-zinc-800 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="flex h-11 w-full items-center justify-center gap-3 border border-brand-border bg-brand-surface text-sm font-medium text-brand-text transition-colors hover:border-brand-text hover:bg-brand-page disabled:cursor-not-allowed disabled:opacity-50"
     >
       <GoogleIcon />
       <span>{loading ? "Connecting..." : label}</span>

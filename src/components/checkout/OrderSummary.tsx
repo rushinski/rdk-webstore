@@ -32,7 +32,6 @@ export function OrderSummary({
   const [isOpen, setIsOpen] = useState(false);
 
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
-
   const { processingFee, displayTotal } = useMemo(
     () =>
       calculateCheckoutDisplayTotals({
@@ -45,90 +44,35 @@ export function OrderSummary({
   );
 
   const money = (n: number) => `$${n.toFixed(2)}`;
-
-  const shippingValue = (
-    <span className="text-xs sm:text-sm">
-      {isUpdatingShipping ? (
-        <span
-          className="inline-flex items-center gap-2 text-xs text-gray-400"
-          data-testid="shipping-loading"
-        >
-          <Loader2 className="w-3 h-3 animate-spin" />
-          Updating...
-        </span>
-      ) : fulfillment === "pickup" ? (
-        "Free (Pickup)"
-      ) : (
-        money(shipping)
-      )}
+  const loadingInline = (label: string, compact = false) => (
+    <span
+      className={`inline-flex items-center gap-2 ${compact ? "text-xs" : "text-sm"} text-brand-muted`}
+    >
+      <Loader2 className={`${compact ? "h-3 w-3" : "h-4 w-4"} animate-spin`} />
+      {label}
     </span>
   );
 
-  const taxValue = (
-    <span>
-      {isUpdatingShipping ? (
-        <span
-          className="inline-flex items-center gap-2 text-xs text-gray-400"
-          data-testid="tax-loading"
-        >
-          <Loader2 className="w-3 h-3 animate-spin" />
-          Calculating...
-        </span>
-      ) : (
-        money(tax)
-      )}
-    </span>
-  );
+  const shippingValue =
+    fulfillment === "pickup"
+      ? "Free (Pickup)"
+      : isUpdatingShipping
+        ? null
+        : money(shipping);
 
-  const processingFeeValue = (
-    <span>
-      {isUpdatingShipping ? (
-        <span
-          className="inline-flex items-center gap-2 text-xs text-gray-400"
-          data-testid="processing-fee-loading"
-        >
-          <Loader2 className="w-3 h-3 animate-spin" />
-          Calculating...
-        </span>
-      ) : (
-        money(processingFee)
-      )}
-    </span>
-  );
-
-  const totalValue = (
-    <span>
-      {isUpdatingShipping ? (
-        <span
-          className="inline-flex items-center gap-2 text-sm text-zinc-400"
-          data-testid="total-loading"
-        >
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Updating...
-        </span>
-      ) : (
-        money(displayTotal)
-      )}
-    </span>
-  );
-
-  // -----------------------------
-  // Desktop sidebar (lg+)
-  // -----------------------------
   const desktopSummary = (
-    <div className="hidden lg:block sticky top-8">
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
-        <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-          <ShoppingBag className="w-5 h-5" />
+    <div className="sticky top-8 hidden lg:block">
+      <div className="border border-brand-border bg-brand-surface p-6 shadow-[0_20px_60px_rgba(17,17,17,0.06)]">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold uppercase tracking-[0.08em] text-brand-text">
+          <ShoppingBag className="h-5 w-5" />
           Order Summary
         </h2>
 
-        {/* Items List */}
-        <div className="space-y-4 mb-6 max-h-96 overflow-y-auto">
+        <div className="mb-6 max-h-96 space-y-4 overflow-y-auto">
           {items.map((item) => (
             <div key={`${item.productId}-${item.variantId}`} className="flex gap-3">
               {item.imageUrl && (
-                <div className="relative w-16 h-16 flex-shrink-0 bg-zinc-800 rounded overflow-hidden">
+                <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden border border-brand-border bg-brand-page">
                   <Image
                     src={item.imageUrl}
                     alt={item.name}
@@ -138,15 +82,15 @@ export function OrderSummary({
                   />
                 </div>
               )}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-medium text-white truncate">
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-medium uppercase text-brand-text">
                   {item.titleDisplay || `${item.brand} ${item.name}`}
                 </h3>
-                <p className="text-xs text-gray-400">Size: {item.sizeLabel}</p>
-                <p className="text-xs text-gray-400">Qty: {item.quantity}</p>
+                <p className="text-xs text-brand-muted">Size: {item.sizeLabel}</p>
+                <p className="text-xs text-brand-muted">Qty: {item.quantity}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-brand-text">
                   {money((item.priceCents * item.quantity) / 100)}
                 </p>
               </div>
@@ -154,34 +98,43 @@ export function OrderSummary({
           ))}
         </div>
 
-        {/* Pricing Breakdown */}
-        <div className="space-y-2 text-sm border-t border-zinc-800 pt-4">
-          <div className="flex justify-between text-gray-400">
+        <div className="space-y-2 border-t border-brand-border pt-4 text-sm">
+          <div className="flex justify-between text-brand-muted">
             <span>
               Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})
             </span>
-            <span>{money(subtotal)}</span>
+            <span className="text-brand-text">{money(subtotal)}</span>
           </div>
 
-          <div className="flex justify-between text-gray-400">
+          <div className="flex justify-between text-brand-muted">
             <span>Shipping</span>
-            {shippingValue}
+            <span className="text-brand-text">
+              {isUpdatingShipping ? loadingInline("Updating...", true) : shippingValue}
+            </span>
           </div>
 
-          <div className="flex justify-between text-gray-400">
+          <div className="flex justify-between text-brand-muted">
             <span>Tax</span>
-            {taxValue}
+            <span className="text-brand-text">
+              {isUpdatingShipping ? loadingInline("Calculating...", true) : money(tax)}
+            </span>
           </div>
 
-          <div className="flex justify-between text-gray-400">
+          <div className="flex justify-between text-brand-muted">
             <span>Processing fee ({PROCESSING_FEE_LABEL})</span>
-            {processingFeeValue}
+            <span className="text-brand-text">
+              {isUpdatingShipping
+                ? loadingInline("Calculating...", true)
+                : money(processingFee)}
+            </span>
           </div>
 
-          <div className="border-t border-zinc-800 pt-2 mt-2">
-            <div className="flex justify-between text-lg font-bold text-white">
+          <div className="mt-2 border-t border-brand-border pt-2">
+            <div className="flex justify-between text-lg font-bold text-brand-text">
               <span>Total</span>
-              {totalValue}
+              <span>
+                {isUpdatingShipping ? loadingInline("Updating...") : money(displayTotal)}
+              </span>
             </div>
           </div>
         </div>
@@ -189,98 +142,87 @@ export function OrderSummary({
     </div>
   );
 
-  // -----------------------------
-  // Mobile dock + drawer ( < lg )
-  // -----------------------------
   const DOCK_PULL_HEIGHT = 84;
   const mobileDock = (
     <div className="lg:hidden">
-      {/* Drawer overlay */}
       {isOpen && (
         <button
           type="button"
           aria-label="Close order summary"
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60"
+          className="fixed inset-0 z-40 bg-brand-overlay"
         />
       )}
 
-      {/* Drawer panel */}
       <div
         className={[
-          "fixed left-0 right-0 bottom-0 z-50",
-          "transform transition-transform duration-200 ease-out",
-          isOpen ? "translate-y-0" : `translate-y-[calc(100%-_DOCK_PULL_HEIGHT_px)]`,
+          "fixed bottom-0 left-0 right-0 z-50 transform transition-transform duration-200 ease-out",
+          isOpen ? "translate-y-0" : "translate-y-[calc(100%-_DOCK_PULL_HEIGHT_px)]",
         ].join(" ")}
-        aria-label="Mobile order summary"
-        style={
-          {
-            "--DOCK_PULL_HEIGHT": `${DOCK_PULL_HEIGHT}`,
-          } as React.CSSProperties
-        }
+        style={{ "--DOCK_PULL_HEIGHT": `${DOCK_PULL_HEIGHT}` } as React.CSSProperties}
       >
-        <div className="relative bg-zinc-950/95 border-t border-zinc-800 backdrop-blur rounded-t-2xl shadow-2xl">
+        <div className="relative rounded-t-[1.5rem] border-t border-brand-border bg-brand-surface shadow-[0_-24px_80px_rgba(17,17,17,0.18)]">
           <ChevronPuller isOpen={isOpen} setIsOpen={setIsOpen} />
-          {/* Handle + header row */}
-          <div className="px-4 pt-3 pb-3">
+          <div className="px-4 pb-3 pt-3">
             <div className="mt-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-gray-300" />
+                <ShoppingBag className="h-5 w-5 text-brand-text" />
                 <div className="leading-tight">
-                  <p className="text-base font-semibold text-white">
-                    Total: {totalValue}
+                  <p className="text-base font-semibold text-brand-text">
+                    Total: {isUpdatingShipping ? "Updating..." : money(displayTotal)}
                   </p>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-brand-muted">
                     {itemCount} {itemCount === 1 ? "item" : "items"}
                   </p>
                 </div>
               </div>
 
-              <div className="text-right text-xs">
-                <p className="text-gray-400">
+              <div className="text-right text-xs text-brand-muted">
+                <p>
                   Subtotal:{" "}
-                  <span className="text-white font-semibold">{money(subtotal)}</span>
+                  <span className="font-semibold text-brand-text">{money(subtotal)}</span>
                 </p>
-                <p className="text-gray-400">
+                <p>
                   Shipping:{" "}
-                  <span className="text-white font-semibold">
+                  <span className="font-semibold text-brand-text">
                     {isUpdatingShipping
-                      ? "…"
+                      ? "..."
                       : fulfillment === "pickup"
                         ? "Free"
                         : money(shipping)}
                   </span>
                 </p>
-                <p className="text-gray-400">
+                <p>
                   Tax:{" "}
-                  <span className="text-white font-semibold">
-                    {isUpdatingShipping ? "…" : money(tax)}
+                  <span className="font-semibold text-brand-text">
+                    {isUpdatingShipping ? "..." : money(tax)}
                   </span>
                 </p>
-                <p className="text-gray-400">
+                <p>
                   Fee:{" "}
-                  <span className="text-white font-semibold">
-                    {isUpdatingShipping ? "…" : money(processingFee)}
+                  <span className="font-semibold text-brand-text">
+                    {isUpdatingShipping ? "..." : money(processingFee)}
                   </span>
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Expanded content */}
           {isOpen && (
-            <div className="border-t border-zinc-800">
+            <div className="border-t border-brand-border">
               <div className="px-4 py-4">
-                <h3 className="text-base font-semibold text-white mb-3">Items</h3>
+                <h3 className="mb-3 text-base font-semibold uppercase tracking-[0.08em] text-brand-text">
+                  Items
+                </h3>
 
-                <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+                <div className="max-h-[50vh] space-y-4 overflow-y-auto pr-1">
                   {items.map((item) => (
                     <div
                       key={`${item.productId}-${item.variantId}`}
                       className="flex gap-3"
                     >
                       {item.imageUrl && (
-                        <div className="relative w-14 h-14 flex-shrink-0 bg-zinc-800 rounded overflow-hidden">
+                        <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden border border-brand-border bg-brand-page">
                           <Image
                             src={item.imageUrl}
                             alt={item.name}
@@ -290,23 +232,23 @@ export function OrderSummary({
                           />
                         </div>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium uppercase text-brand-text">
                           {item.titleDisplay || `${item.brand} ${item.name}`}
                         </p>
-                        <p className="text-xs text-gray-400">
-                          Size: {item.sizeLabel} • Qty: {item.quantity}
+                        <p className="text-xs text-brand-muted">
+                          Size: {item.sizeLabel} - Qty: {item.quantity}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-white">
+                        <p className="text-sm font-semibold text-brand-text">
                           {money((item.priceCents * item.quantity) / 100)}
                         </p>
                       </div>
                     </div>
                   ))}
                 </div>
-                {/* Safe-area spacer */}
+
                 <div className="h-4" />
               </div>
             </div>

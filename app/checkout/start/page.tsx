@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 
 function CheckoutStartFallback() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-20 text-center">
-      <Loader2 className="w-12 h-12 text-red-600 animate-spin mx-auto mb-4" />
-      <p className="text-gray-400">Preparing your checkout...</p>
+    <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+      <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-brand-text" />
+      <p className="text-brand-muted">Preparing your checkout...</p>
     </div>
   );
 }

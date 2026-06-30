@@ -1,26 +1,27 @@
 // src/components/auth/ui/AuthStyles.ts
 export const authStyles = {
   input:
-    "h-11 w-full bg-zinc-900 border border-zinc-800 px-4 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+    "h-11 w-full border border-brand-border bg-brand-surface px-4 text-sm text-brand-text placeholder:text-brand-muted outline-none transition-colors focus:border-brand-text disabled:cursor-not-allowed disabled:opacity-50",
 
   inputDisabled:
-    "h-11 w-full bg-zinc-900/50 border border-zinc-800 px-4 text-sm text-zinc-500 cursor-not-allowed",
+    "h-11 w-full cursor-not-allowed border border-brand-border bg-brand-page px-4 text-sm text-brand-muted",
 
   primaryButton:
-    "h-11 w-full bg-red-600 text-sm font-semibold text-white transition-colors hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-red-600",
+    "h-11 w-full border border-brand-text bg-brand-text text-sm font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:border-neutral-400 disabled:bg-neutral-400 disabled:hover:bg-neutral-400",
 
-  neutralLink: "text-sm text-zinc-400 hover:text-white transition-colors",
+  neutralLink: "text-sm text-brand-muted transition-colors hover:text-brand-text",
 
-  accentLink: "text-sm font-medium text-red-600 hover:text-red-500 transition-colors",
+  accentLink:
+    "text-sm font-medium text-brand-text transition-colors hover:text-neutral-600",
 
-  inlineAccentLink: "font-medium text-red-600 hover:text-red-500 transition-colors",
+  inlineAccentLink:
+    "font-medium text-brand-text transition-colors hover:text-neutral-600",
 
-  errorBox: "border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-400",
+  errorBox: "border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700",
 
-  infoBox:
-    "border border-emerald-900 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-400",
+  infoBox: "border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700",
 
-  divider: "flex items-center gap-3 text-xs text-zinc-600",
+  divider: "flex items-center gap-3 text-xs text-brand-muted",
 
-  dividerLine: "h-px flex-1 bg-zinc-800",
+  dividerLine: "h-px flex-1 bg-brand-border",
 };

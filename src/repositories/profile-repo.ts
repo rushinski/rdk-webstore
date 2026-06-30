@@ -2,7 +2,6 @@
 import type { Database } from "@/types/db/database.types";
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { ProfileRole } from "@/config/constants/roles";
-import { ADMIN_ROLES } from "@/config/constants/roles";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -99,33 +98,6 @@ export class ProfileRepository {
     if (error) {
       throw error;
     }
-  }
-
-  async updateNotificationPreferences(
-    userId: string,
-    input: {
-      chat_notifications_enabled?: boolean;
-      admin_order_notifications_enabled?: boolean;
-    },
-  ) {
-    const { error } = await this.supabase.from("profiles").update(input).eq("id", userId);
-    if (error) {
-      throw error;
-    }
-  }
-
-  async listStaffProfiles() {
-    const { data, error } = await this.supabase
-      .from("profiles")
-      .select(
-        "id, email, role, tenant_id, chat_notifications_enabled, admin_order_notifications_enabled",
-      )
-      .in("role", ADMIN_ROLES as unknown as string[]);
-
-    if (error) {
-      throw error;
-    }
-    return data ?? [];
   }
 
   async getPayrillaAccountIdForTenant(tenantId: string): Promise<string | null> {

@@ -1,14 +1,17 @@
-// app/admin/analytics/financials/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DollarSign, TrendingUp, ShoppingCart } from "lucide-react";
+import { DollarSign, ShoppingCart, TrendingUp } from "lucide-react";
 
-import { logError } from "@/lib/utils/log";
 import { SalesChart } from "@/components/admin/charts/SalesChart";
+import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { RdkSelect } from "@/components/ui/Select";
+import { logError } from "@/lib/utils/log";
 
 type Range = "today" | "7d" | "30d" | "90d";
+
 const DEFAULT_RANGE: Range = "30d";
 const POLL_MS = 30_000;
 
@@ -16,17 +19,23 @@ function rangeToDays(range: Range): number {
   if (range === "today") {
     return 1;
   }
+
   return Number(range.replace("d", "")) || 30;
 }
 
-function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10);
+function toISODate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getRangeLabel(range: Range) {
+  return range === "today" ? "Today" : `Last ${range.replace("d", "")} days`;
 }
 
 const isAbortError = (error: unknown): boolean => {
   if (error instanceof DOMException) {
     return error.name === "AbortError";
   }
+
   return (
     typeof error === "object" &&
     error !== null &&
@@ -43,36 +52,37 @@ function normalizeDailySeries<K extends string>(
   valueKey: K,
 ): DailySeriesPoint<K>[] {
   const days = rangeToDays(range);
-
-  // Build a map from YYYY-MM-DD -> value
   const map = new Map<string, number>();
+
   for (const row of raw || []) {
     const date = typeof row.date === "string" ? row.date.slice(0, 10) : "";
-    const v = Number(row[valueKey] ?? 0);
+    const value = Number(row[valueKey] ?? 0);
+
     if (!date) {
       continue;
     }
-    map.set(date, (map.get(date) ?? 0) + (Number.isFinite(v) ? v : 0));
+
+    map.set(date, (map.get(date) ?? 0) + (Number.isFinite(value) ? value : 0));
   }
 
-  // End at "today" (UTC day). Start is (days-1) days back.
   const end = new Date();
   const start = new Date(end);
   start.setUTCDate(start.getUTCDate() - (days - 1));
 
-  const out: DailySeriesPoint<K>[] = [];
-  for (let i = 0; i < days; i++) {
-    const cur = new Date(start);
-    cur.setUTCDate(start.getUTCDate() + i);
-    const key = toISODate(cur);
+  const output: DailySeriesPoint<K>[] = [];
 
-    out.push({
+  for (let index = 0; index < days; index++) {
+    const current = new Date(start);
+    current.setUTCDate(start.getUTCDate() + index);
+    const key = toISODate(current);
+
+    output.push({
       date: key,
       [valueKey]: map.get(key) ?? 0,
     } as DailySeriesPoint<K>);
   }
 
-  return out;
+  return output;
 }
 
 export default function AnalyticsFinancialsPage() {
@@ -87,12 +97,12 @@ export default function AnalyticsFinancialsPage() {
   const load = async () => {
     try {
       abortRef.current?.abort();
-      const ac = new AbortController();
-      abortRef.current = ac;
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       const response = await fetch(`/api/admin/analytics?range=${range}`, {
         cache: "no-store",
-        signal: ac.signal,
+        signal: controller.signal,
       });
       const data = await response.json();
 
@@ -101,53 +111,51 @@ export default function AnalyticsFinancialsPage() {
         setSalesTrendRaw(data.salesTrend || []);
       }
     } catch (error: unknown) {
-      // Ignore abort noise
       if (isAbortError(error)) {
         return;
       }
+
       logError(error, { layer: "frontend", event: "admin_load_analytics_financials" });
     }
   };
 
   useEffect(() => {
-    load();
+    void load();
 
     const interval = setInterval(() => {
-      // Only poll when tab is visible (keeps it snappy and cheaper)
       if (document.visibilityState === "visible") {
-        load();
+        void load();
       }
     }, POLL_MS);
 
-    const onVisibility = () => {
+    const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        load();
+        void load();
       }
     };
-    document.addEventListener("visibilitychange", onVisibility);
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       clearInterval(interval);
-      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       abortRef.current?.abort();
     };
   }, [range]);
 
-  const salesTrend = useMemo(() => {
-    // Normalize to match the selected range window so the chart always
-    // has the same amount of days as traffic (unless the filter changes).
-    return normalizeDailySeries(range, salesTrendRaw, "revenue");
-  }, [range, salesTrendRaw]);
+  const salesTrend = useMemo(
+    () => normalizeDailySeries(range, salesTrendRaw, "revenue"),
+    [range, salesTrendRaw],
+  );
+
+  const rangeLabel = getRangeLabel(range);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Analytics</h1>
-        <p className="text-gray-400">Financial performance</p>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <div className="w-48">
+      <AdminPageHeader
+        title="Financial Analytics"
+        description="Revenue, profit, and order performance for the selected reporting window."
+        actions={
           <RdkSelect
             value={range}
             onChange={(value) => setRange(value as Range)}
@@ -157,65 +165,56 @@ export default function AnalyticsFinancialsPage() {
               { value: "30d", label: "Last 30 days" },
               { value: "90d", label: "Last 90 days" },
             ]}
+            className="w-48"
+          />
+        }
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="relative">
+          <div className="absolute right-4 top-4">
+            <DollarSign className="h-5 w-5 text-brand-muted" />
+          </div>
+          <AdminMetricCard
+            label="Revenue"
+            value={`$${summary.revenue.toFixed(2)}`}
+            detail={rangeLabel}
+          />
+        </div>
+
+        <div className="relative">
+          <div className="absolute right-4 top-4">
+            <TrendingUp className="h-5 w-5 text-brand-muted" />
+          </div>
+          <AdminMetricCard
+            label="Profit"
+            value={`$${summary.profit.toFixed(2)}`}
+            detail={rangeLabel}
+          />
+        </div>
+
+        <div className="relative">
+          <div className="absolute right-4 top-4">
+            <ShoppingCart className="h-5 w-5 text-brand-muted" />
+          </div>
+          <AdminMetricCard
+            label="Orders"
+            value={String(summary.orders)}
+            detail={rangeLabel}
           />
         </div>
       </div>
 
-      <div>
-        <h2 className="text-2xl font-semibold text-white mb-4">Financials</h2>
-
-        <div className="grid grid-cols-3 md:grid-cols-3 gap-2 sm:gap-6 mb-6">
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-3 sm:p-6 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-[10px] sm:text-sm">Revenue</span>
-              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-            </div>
-            <div className="mt-auto space-y-1">
-              <div className="text-base sm:text-3xl font-bold text-white">
-                ${summary.revenue.toFixed(2)}
-              </div>
-              <div className="text-gray-500 text-[10px] sm:text-sm">
-                {range === "today" ? "Today" : `Last ${range.replace("d", "")} days`}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-3 sm:p-6 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-[10px] sm:text-sm">Profit</span>
-              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-            </div>
-            <div className="mt-auto space-y-1">
-              <div className="text-base sm:text-3xl font-bold text-white">
-                ${summary.profit.toFixed(2)}
-              </div>
-              <div className="text-gray-500 text-[10px] sm:text-sm">
-                {range === "today" ? "Today" : `Last ${range.replace("d", "")} days`}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-3 sm:p-6 flex flex-col h-full">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-400 text-[10px] sm:text-sm">Orders</span>
-              <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
-            </div>
-            <div className="mt-auto space-y-1">
-              <div className="text-base sm:text-3xl font-bold text-white">
-                {summary.orders}
-              </div>
-              <div className="text-gray-500 text-[10px] sm:text-sm">
-                {range === "today" ? "Today" : `Last ${range.replace("d", "")} days`}
-              </div>
-            </div>
-          </div>
+      <AdminSectionCard title="Trend">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-brand-text">Revenue Trend</h2>
+          <span className="text-sm text-brand-muted">{rangeLabel}</span>
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800/70 rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-white mb-4">Revenue Trend</h3>
+        <div className="border border-brand-border bg-brand-page p-3 sm:p-4">
           <SalesChart data={salesTrend} />
         </div>
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }

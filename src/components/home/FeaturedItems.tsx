@@ -23,21 +23,14 @@ type FeaturedProduct = {
 };
 
 type FeaturedItemsProps = {
-  /**
-   * When true: renders only the inner content (no outer <section> wrapper).
-   * Intended for hero-overlay use on the home page.
-   */
   embedded?: boolean;
 };
 
 export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
   const [featured, setFeatured] = useState<FeaturedProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // Always render arrows, but disable when you can't scroll.
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -49,8 +42,6 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     }
 
     const maxScrollLeft = container.scrollWidth - container.clientWidth;
-
-    // If content doesn't overflow, both should be false.
     if (maxScrollLeft <= 1) {
       setCanScrollLeft(false);
       setCanScrollRight(false);
@@ -62,11 +53,10 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
   }, []);
 
   useEffect(() => {
-    loadFeaturedItems();
+    void loadFeaturedItems();
   }, []);
 
   useEffect(() => {
-    // Re-check after data renders
     checkScrollButtons();
 
     const container = scrollRef.current;
@@ -75,9 +65,8 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     }
 
     const onScroll = () => checkScrollButtons();
-    container.addEventListener("scroll", onScroll, { passive: true });
-
     const onResize = () => checkScrollButtons();
+    container.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
 
     return () => {
@@ -106,9 +95,7 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
       return;
     }
 
-    // page-by-viewport; snap will land on the nearest card boundary
     const scrollAmount = container.clientWidth;
-
     const target =
       direction === "left"
         ? container.scrollLeft - scrollAmount
@@ -117,12 +104,11 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     container.scrollTo({ left: target, behavior: "smooth" });
   };
 
-  // Don't show section if no featured items
   if (!isLoading && featured.length === 0) {
     return null;
   }
 
-  const headerShadow = embedded ? "drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]" : "";
+  const headerShadow = embedded ? "drop-shadow-[0_8px_24px_rgba(17,17,17,0.18)]" : "";
 
   const Content = (
     <>
@@ -134,7 +120,7 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
       >
         <h2
           className={[
-            "text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2",
+            "flex items-center gap-2 text-xl font-black uppercase tracking-[0.08em] text-brand-text sm:text-2xl md:text-3xl",
             headerShadow,
           ].join(" ")}
         >
@@ -144,46 +130,38 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
         <Link
           href="/store"
           className={[
-            "text-[10px] sm:text-xs md:text-sm text-gray-200 hover:text-white transition font-medium whitespace-nowrap",
+            "whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-text transition hover:text-neutral-600 sm:text-xs md:text-sm",
             headerShadow,
           ].join(" ")}
         >
-          View All →
+          View All -&gt;
         </Link>
       </div>
 
-      {/* Arrows OUTSIDE the scroll area + ALWAYS visible */}
       <div className="flex items-stretch gap-2 sm:gap-3">
-        {/* Left Arrow */}
         <button
           type="button"
           onClick={() => canScrollLeft && scroll("left")}
           disabled={!canScrollLeft}
           aria-label="Scroll left"
           className={[
-            "shrink-0 self-center rounded-full shadow-lg transition",
-            "p-1 sm:p-1.5 md:p-2 lg:p-3",
-            "bg-zinc-900/80 border border-zinc-800/70",
-            "hover:bg-zinc-800/80",
+            "shrink-0 self-center border border-brand-border bg-brand-surface p-1 shadow-lg transition hover:border-brand-text hover:bg-brand-page",
+            "sm:p-1.5 md:p-2 lg:p-3",
             !canScrollLeft
-              ? "opacity-35 cursor-not-allowed hover:bg-zinc-900/80"
+              ? "cursor-not-allowed opacity-35 hover:border-brand-border hover:bg-brand-surface"
               : "opacity-100",
           ].join(" ")}
         >
-          <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-white" />
+          <ChevronLeft className="h-3 w-3 text-brand-text sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6" />
         </button>
 
-        {/* Wrapper to hide partial cards */}
         <div className="flex-1 overflow-hidden">
-          {/* Scrollable Container */}
           <div
             ref={scrollRef}
             className={[
-              "flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto scroll-smooth",
+              "flex gap-3 overflow-x-auto scroll-smooth sm:gap-4 md:gap-5",
               embedded ? "pb-0" : "pb-2",
-              "snap-x snap-mandatory",
-              // Hide scrollbar
-              "[&::-webkit-scrollbar]:hidden",
+              "snap-x snap-mandatory [&::-webkit-scrollbar]:hidden",
             ].join(" ")}
             style={{
               scrollbarWidth: "none",
@@ -196,60 +174,59 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
           >
             {featured.map((product) => {
               const availableCount =
-                product.variants?.filter((v) => v.stock > 0).length ?? 0;
-
+                product.variants?.filter((variant) => variant.stock > 0).length ?? 0;
               const sizes = product.variants
-                ?.filter((v) => v.stock > 0)
-                .map((v) => v.size_label)
+                ?.filter((variant) => variant.stock > 0)
+                .map((variant) => variant.size_label)
                 .slice(0, 3);
 
               return (
                 <Link
                   key={product.id}
                   href={`/store/${product.id}`}
-                  className="flex-shrink-0 w-40 sm:w-48 md:w-52 lg:w-56 group snap-start"
+                  className="group w-40 flex-shrink-0 snap-start sm:w-48 md:w-52 lg:w-56"
                   style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}
                 >
-                  <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
-                    <div className="aspect-square relative bg-zinc-800">
+                  <div className="flex h-full flex-col overflow-hidden border border-brand-border bg-brand-surface transition hover:-translate-y-1 hover:border-brand-text">
+                    <div className="relative aspect-square bg-brand-page">
                       {product.primaryImage ? (
                         <Image
                           src={product.primaryImage}
                           alt={product.titleDisplay}
                           fill
                           sizes="(min-width: 1024px) 18vw, (min-width: 640px) 30vw, 45vw"
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
                           quality={75}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                        <div className="flex h-full w-full items-center justify-center text-sm text-brand-muted">
                           No Image
                         </div>
                       )}
                     </div>
 
-                    <div className="p-2 sm:p-3 flex flex-col flex-1">
-                      <div className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-1">
+                    <div className="flex flex-1 flex-col p-2 sm:p-3">
+                      <div className="mb-1 text-[9px] uppercase tracking-[0.2em] text-brand-muted sm:text-[10px]">
                         {product.brand}
                       </div>
 
-                      <h3 className="text-white font-bold text-[11px] sm:text-xs line-clamp-2 min-h-[1.75rem] sm:min-h-[2rem] leading-tight">
+                      <h3 className="min-h-[1.75rem] text-[11px] font-bold uppercase leading-tight text-brand-text line-clamp-2 sm:min-h-[2rem] sm:text-xs">
                         {product.titleDisplay}
                       </h3>
 
                       {sizes && sizes.length > 0 && (
-                        <div className="mt-1.5 sm:mt-2 flex flex-wrap gap-1">
-                          {sizes.map((size, idx) => (
+                        <div className="mt-1.5 flex flex-wrap gap-1 sm:mt-2">
+                          {sizes.map((size, index) => (
                             <span
-                              key={idx}
-                              className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 bg-zinc-800 text-gray-300 rounded"
+                              key={index}
+                              className="border border-brand-border px-1 py-0.5 text-[9px] text-brand-text sm:px-1.5 sm:text-[10px]"
                             >
                               {size}
                             </span>
                           ))}
 
                           {availableCount > 3 && (
-                            <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 text-gray-400">
+                            <span className="px-1 py-0.5 text-[9px] text-brand-muted sm:px-1.5 sm:text-[10px]">
                               +{availableCount - 3}
                             </span>
                           )}
@@ -257,7 +234,7 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
                       )}
 
                       <div className="mt-auto pt-2 sm:pt-3">
-                        <span className="text-white font-extrabold text-sm sm:text-base whitespace-nowrap tabular-nums">
+                        <span className="whitespace-nowrap text-sm font-extrabold tabular-nums text-brand-text sm:text-base">
                           From {formatPrice(product.minPrice)}
                         </span>
                       </div>
@@ -269,23 +246,20 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
           </div>
         </div>
 
-        {/* Right Arrow */}
         <button
           type="button"
           onClick={() => canScrollRight && scroll("right")}
           disabled={!canScrollRight}
           aria-label="Scroll right"
           className={[
-            "shrink-0 self-center rounded-full shadow-lg transition",
-            "p-1 sm:p-1.5 md:p-2 lg:p-3",
-            "bg-zinc-900/80 border border-zinc-800/70",
-            "hover:bg-zinc-800/80",
+            "shrink-0 self-center border border-brand-border bg-brand-surface p-1 shadow-lg transition hover:border-brand-text hover:bg-brand-page",
+            "sm:p-1.5 md:p-2 lg:p-3",
             !canScrollRight
-              ? "opacity-35 cursor-not-allowed hover:bg-zinc-900/80"
+              ? "cursor-not-allowed opacity-35 hover:border-brand-border hover:bg-brand-surface"
               : "opacity-100",
           ].join(" ")}
         >
-          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 text-white" />
+          <ChevronRight className="h-3 w-3 text-brand-text sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6" />
         </button>
       </div>
     </>
@@ -295,7 +269,7 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     if (embedded) {
       return (
         <div className="flex items-center justify-center py-10">
-          <div className="text-gray-200 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
+          <div className="text-brand-text drop-shadow-[0_8px_24px_rgba(17,17,17,0.18)]">
             Loading featured items...
           </div>
         </div>
@@ -303,10 +277,10 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
     }
 
     return (
-      <section className="bg-black py-8 md:py-12 border-t border-zinc-900">
-        <div className="max-w-7xl mx-auto px-4">
+      <section className="border-t border-brand-border bg-brand-page py-8 md:py-12">
+        <div className="mx-auto max-w-7xl px-4">
           <div className="flex items-center justify-center py-12">
-            <div className="text-gray-400">Loading featured items...</div>
+            <div className="text-brand-muted">Loading featured items...</div>
           </div>
         </div>
       </section>
@@ -318,8 +292,8 @@ export function FeaturedItems({ embedded = false }: FeaturedItemsProps) {
   }
 
   return (
-    <section className="bg-black py-8 md:py-12 border-t border-zinc-900">
-      <div className="max-w-7xl mx-auto px-4">{Content}</div>
+    <section className="border-t border-brand-border bg-brand-page py-8 md:py-12">
+      <div className="mx-auto max-w-7xl px-4">{Content}</div>
     </section>
   );
 }

@@ -7,7 +7,7 @@ export function QRDisplay({
   onQrError?: () => void;
 }) {
   return (
-    <div className="border border-zinc-800 bg-zinc-900/50 p-6">
+    <div className="border border-brand-border bg-brand-page p-6">
       <div className="flex justify-center">
         <img
           src={qrCode}
@@ -18,7 +18,7 @@ export function QRDisplay({
         />
       </div>
 
-      <p className="mt-4 text-center text-xs text-zinc-500">
+      <p className="mt-4 text-center text-xs uppercase tracking-[0.08em] text-brand-muted">
         Scan with Google Authenticator or any TOTP app
       </p>
     </div>

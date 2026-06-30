@@ -5,7 +5,6 @@ import { AddressesRepository } from "@/repositories/addresses-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrdersRepository } from "@/repositories/orders-repo";
 import { ProfileRepository } from "@/repositories/profile-repo";
-import { AdminOrderEmailService } from "@/services/admin-order-email-service";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { OrderEmailService } from "@/services/order-email-service";
 import type { Tables } from "@/types/db/database.types";
@@ -163,44 +162,6 @@ export async function sendOrderCompletionEmailsIfNeeded(params: {
           orderId: params.orderId,
           type: "pickup_instructions_sent",
           message: "Pickup instructions emailed.",
-        });
-      }
-    }
-
-    const hasAdminEmail = await orderEventsRepo.hasEvent(
-      params.orderId,
-      "admin_order_email_sent",
-    );
-    if (!hasAdminEmail) {
-      const staff = await profilesRepo.listStaffProfiles();
-      const recipients = staff.filter(
-        (profile) => profile.admin_order_notifications_enabled !== false && profile.email,
-      );
-      if (recipients.length > 0) {
-        const adminEmailService = new AdminOrderEmailService();
-        const itemCount = params.orderItems.reduce(
-          (sum, item) => sum + Number(item.quantity ?? 0),
-          0,
-        );
-        await Promise.all(
-          recipients.map((admin) =>
-            adminEmailService.sendOrderPlaced({
-              to: admin.email ?? "",
-              orderId: params.orderId,
-              fulfillment: params.fulfillment,
-              subtotal: Number(resolvedOrder.subtotal ?? 0),
-              shipping: Number(resolvedOrder.shipping ?? 0),
-              tax: Number(resolvedOrder.tax_amount ?? 0),
-              total: Number(resolvedOrder.total ?? 0),
-              itemCount,
-              customerEmail: email,
-            }),
-          ),
-        );
-        await orderEventsRepo.insertEvent({
-          orderId: params.orderId,
-          type: "admin_order_email_sent",
-          message: "Admin notified.",
         });
       }
     }

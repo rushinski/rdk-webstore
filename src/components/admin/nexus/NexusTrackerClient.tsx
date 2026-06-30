@@ -1,23 +1,22 @@
-// src/components/admin/nexus/NexusTrackerClient.tsx (UPDATED)
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  AlertCircle,
-  CheckCircle,
-  AlertTriangle,
-  Search,
-  Download,
-  Home,
-} from "lucide-react";
+import { AlertCircle, AlertTriangle, Download, Home, Search } from "lucide-react";
 
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { RdkSelect } from "@/components/ui/Select";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
+import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
-import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
 
 export default function NexusTrackerClient() {
   const [data, setData] = useState<NexusData | null>(null);
@@ -39,8 +38,8 @@ export default function NexusTrackerClient() {
   const [isHomeOfficeConfigured, setIsHomeOfficeConfigured] = useState(false);
 
   useEffect(() => {
-    fetchNexusData();
-    checkHomeOfficeStatus();
+    void fetchNexusData();
+    void checkHomeOfficeStatus();
   }, []);
 
   const fetchNexusData = async () => {
@@ -107,23 +106,21 @@ export default function NexusTrackerClient() {
 
   const getStateColor = (state: StateSummary | undefined) => {
     if (!state) {
-      return "#374151";
+      return "#737373";
     }
     if (state.thresholdType === "none" || state.threshold <= 0) {
-      return "#374151";
+      return "#737373";
     }
-
     if (state.isRegistered) {
-      return "#22c55e";
+      return "#16a34a";
     }
 
     const pct = state.percentageToThreshold;
-
     if (pct < 50) {
-      return "#374151";
+      return "#737373";
     }
     if (pct < 70) {
-      return "#facc15";
+      return "#eab308";
     }
     if (pct < 85) {
       return "#f59e0b";
@@ -131,17 +128,17 @@ export default function NexusTrackerClient() {
     if (pct < 95) {
       return "#f97316";
     }
-    return "#ef4444";
+    return "#dc2626";
   };
 
   const legendItems = useMemo(
     () => [
-      { label: "Registered", color: "#22c55e" },
-      { label: "< 50%", color: "#374151" },
-      { label: "50-70%", color: "#facc15" },
+      { label: "Registered", color: "#16a34a" },
+      { label: "< 50%", color: "#737373" },
+      { label: "50-70%", color: "#eab308" },
       { label: "70-85%", color: "#f59e0b" },
       { label: "85-95%", color: "#f97316" },
-      { label: "> 95%", color: "#ef4444" },
+      { label: "> 95%", color: "#dc2626" },
     ],
     [],
   );
@@ -211,7 +208,6 @@ export default function NexusTrackerClient() {
     try {
       setIsUpdating(true);
 
-      // Just update the nexus type, don't auto-register
       const res = await fetch("/api/admin/nexus/nexus-type", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -258,7 +254,7 @@ export default function NexusTrackerClient() {
       return [];
     }
 
-    let filtered = data.states.filter((state) => {
+    const filtered = data.states.filter((state) => {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         if (
@@ -275,21 +271,18 @@ export default function NexusTrackerClient() {
       if (filterRegistered === "unregistered" && state.isRegistered) {
         return false;
       }
-
       if (filterNexusType === "physical" && state.nexusType !== "physical") {
         return false;
       }
       if (filterNexusType === "economic" && state.nexusType !== "economic") {
         return false;
       }
-
       if (filterWindow === "calendar" && state.window !== "calendar") {
         return false;
       }
       if (filterWindow === "rolling" && state.window !== "rolling 12 months") {
         return false;
       }
-
       if (filterNeedsAction) {
         const needsRegistration = state.nexusType === "physical" && !state.isRegistered;
         const atRisk =
@@ -311,118 +304,117 @@ export default function NexusTrackerClient() {
       if (typeof aVal === "number" && typeof bVal === "number") {
         return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
       }
-
       if (typeof aVal === "string" && typeof bVal === "string") {
         return sortDirection === "asc"
           ? aVal.localeCompare(bVal)
           : bVal.localeCompare(aVal);
       }
-
       return 0;
     });
 
     return filtered;
   }, [
     data,
-    searchQuery,
-    sortField,
-    sortDirection,
-    filterRegistered,
-    filterNexusType,
-    filterWindow,
     filterNeedsAction,
+    filterNexusType,
+    filterRegistered,
+    filterWindow,
+    searchQuery,
+    sortDirection,
+    sortField,
   ]);
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="text-white">Loading nexus data...</div>
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Tax & Nexus"
+          description="Monitor your tax footprint across states."
+        />
+        <AdminSectionCard>
+          <div className="text-sm text-brand-muted">Loading nexus data...</div>
+        </AdminSectionCard>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="p-8">
-        <div className="text-white">Failed to load nexus data</div>
+      <div className="space-y-6">
+        <AdminPageHeader
+          title="Tax & Nexus"
+          description="Monitor your tax footprint across states."
+        />
+        <AdminEmptyState
+          title="Failed To Load Nexus Data"
+          description="Refresh the page and try again."
+        />
       </div>
     );
   }
 
   const atRiskStates = data.states.filter(
-    (s) => s.nexusType === "economic" && !s.isRegistered && s.percentageToThreshold >= 85,
+    (state) =>
+      state.nexusType === "economic" &&
+      !state.isRegistered &&
+      state.percentageToThreshold >= 85,
   ).length;
-
-  const registeredStates = data.states.filter((s) => s.isRegistered).length;
-
+  const registeredStates = data.states.filter((state) => state.isRegistered).length;
   const needsRegistrationCount = data.states.filter(
-    (s) => s.nexusType === "physical" && !s.isRegistered,
+    (state) => state.nexusType === "physical" && !state.isRegistered,
   ).length;
-
-  const homeStateLabel = data.homeState; // e.g. "SC"
-  const taxEnabled = data.taxEnabled;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Sales Tax Nexus Tracker</h1>
-          <p className="text-gray-400">
-            Monitor your sales tax obligations across all US states
-          </p>
-        </div>
+      <AdminPageHeader
+        title="Tax & Nexus"
+        description="Monitor your sales tax obligations across all US states."
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleDownloadTaxDocs}
+              disabled={!data.taxEnabled}
+              className={[
+                adminButtonStyles.secondary,
+                "gap-2",
+                !data.taxEnabled ? "cursor-not-allowed opacity-50" : "",
+              ].join(" ")}
+            >
+              <Download className="h-4 w-4" />
+              View Tax Reports
+            </button>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleDownloadTaxDocs}
-            disabled={!taxEnabled}
-            className={[
-              "flex items-center gap-2 px-4 py-2 rounded-sm text-white",
-              taxEnabled
-                ? "bg-red-600 hover:bg-red-500"
-                : "bg-zinc-800 text-zinc-500 cursor-not-allowed",
-            ].join(" ")}
-          >
-            <Download className="w-4 h-4" />
-            View Tax Reports
-          </button>
-
-          {/* Home state badge next to the home office button */}
-          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowHomeSetup(true)}
-              className={`flex items-center gap-2 h-10 px-4 rounded-lg text-white ${
+              className={[
                 isHomeOfficeConfigured
-                  ? "bg-zinc-800 hover:bg-zinc-700"
-                  : "bg-red-600 hover:bg-red-700"
-              }`}
+                  ? adminButtonStyles.secondary
+                  : adminButtonStyles.primary,
+                "gap-2",
+              ].join(" ")}
             >
-              <Home className="w-4 h-4" />
+              <Home className="h-4 w-4" />
               {isHomeOfficeConfigured ? "Change Home Office" : "Setup Home Office"}
             </button>
 
-            {/* Home state pill to the RIGHT of the button */}
-            <div
-              className="flex items-center gap-2 h-10 px-3 rounded-lg border border-zinc-800 bg-zinc-900 text-white shadow-sm"
-              title="Registered home state"
-            >
-              <span className="text-[10px] uppercase tracking-wide text-gray-400">
+            <div className="flex h-10 items-center gap-2 border border-brand-border bg-brand-page px-3 text-brand-text">
+              <span className="text-[10px] uppercase tracking-wide text-brand-muted">
                 Home
               </span>
-              <span className="text-sm font-bold text-white">{homeStateLabel}</span>
+              <span className="text-sm font-bold">{data.homeState}</span>
             </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      {!taxEnabled && (
-        <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-sm p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5" />
-          <div className="text-sm text-yellow-100">
+      {!data.taxEnabled && (
+        <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 p-4 text-amber-800">
+          <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-700" />
+          <div className="text-sm">
             Taxes are turned off. Go to{" "}
             <Link
               href="/admin/settings/taxes"
-              className="underline underline-offset-2 text-yellow-200 hover:text-yellow-100"
+              className="underline underline-offset-2 text-amber-900 hover:text-amber-700"
             >
               Settings &gt; Taxes
             </Link>{" "}
@@ -431,20 +423,18 @@ export default function NexusTrackerClient() {
         </div>
       )}
 
-      {/* Home Office Setup Modal */}
       {showHomeSetup && (
         <HomeOfficeSetupModal
           onClose={() => setShowHomeSetup(false)}
           onSuccess={() => {
             setShowHomeSetup(false);
             setIsHomeOfficeConfigured(true);
-            fetchNexusData();
+            void fetchNexusData();
           }}
           isConfigured={isHomeOfficeConfigured}
         />
       )}
 
-      {/* Modal for State Details */}
       {selectedState && (
         <StateDetailModal
           state={selectedState}
@@ -462,7 +452,6 @@ export default function NexusTrackerClient() {
         />
       )}
 
-      {/* US Map */}
       <NexusMap
         states={data.states}
         onStateClick={setSelectedState}
@@ -471,231 +460,211 @@ export default function NexusTrackerClient() {
         legendItems={legendItems}
       />
 
-      {/* Stats + Filters UNDER the map */}
-      <div className="space-y-4">
-        {/* Stats Cards (3 only, per request) */}
-        <div className="grid grid-cols-3 md:grid-cols-3 gap-2 sm:gap-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
-            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">Registered States</p>
-            <div className="mt-auto flex items-center justify-between">
-              <p className="text-base sm:text-2xl font-bold text-white">
-                {registeredStates}
-              </p>
-              <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-green-500/10">
-                <CheckCircle className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-green-500" />
-              </span>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+        <AdminMetricCard
+          label="Registered States"
+          value={String(registeredStates)}
+          detail="States with permits on file."
+        />
+        <AdminMetricCard
+          label="At Risk States"
+          value={String(atRiskStates)}
+          detail="Economic nexus nearing or over threshold."
+        />
+        <AdminMetricCard
+          label="Needs Registration"
+          value={String(needsRegistrationCount)}
+          detail="Physical nexus states still pending."
+        />
+      </div>
 
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
-            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">At Risk States</p>
-            <div className="mt-auto flex items-center justify-between">
-              <p className="text-base sm:text-2xl font-bold text-white">{atRiskStates}</p>
-              <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-red-500/10">
-                <AlertCircle className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-500" />
-              </span>
-            </div>
-          </div>
-
-          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4 flex flex-col">
-            <p className="text-[10px] sm:text-xs text-gray-400 mb-2">
-              Needs Registration
-            </p>
-            <div className="mt-auto flex items-center justify-between">
-              <p className="text-base sm:text-2xl font-bold text-white">
-                {needsRegistrationCount}
-              </p>
-              <span className="inline-flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-yellow-500/10">
-                <AlertTriangle className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-yellow-500" />
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Filters and Search */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 sm:p-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="flex-1 min-w-[160px]">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search states..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-8 pl-8 pr-2.5 py-1 text-[11px] sm:text-sm bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                />
-              </div>
-            </div>
-
-            <RdkSelect
-              value={filterRegistered}
-              onChange={(v) =>
-                setFilterRegistered(v as "all" | "registered" | "unregistered")
-              }
-              options={filterRegisteredOptions}
-              className="min-w-[160px]"
-              buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
-              menuClassName="text-[11px] sm:text-sm"
-            />
-
-            <RdkSelect
-              value={filterNexusType}
-              onChange={(v) => setFilterNexusType(v as "all" | "physical" | "economic")}
-              options={nexusTypeOptions}
-              className="min-w-[160px]"
-              buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
-              menuClassName="text-[11px] sm:text-sm"
-            />
-
-            <RdkSelect
-              value={filterWindow}
-              onChange={(v) => setFilterWindow(v as "all" | "calendar" | "rolling")}
-              options={windowOptions}
-              className="min-w-[160px]"
-              buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
-              menuClassName="text-[11px] sm:text-sm"
-            />
-
-            <label className="flex items-center gap-1.5 text-[11px] sm:text-sm text-white leading-none">
+      <AdminSectionCard title="Filters">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-[160px] flex-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-brand-muted" />
               <input
-                type="checkbox"
-                checked={filterNeedsAction}
-                onChange={(e) => setFilterNeedsAction(e.target.checked)}
-                className="rdk-checkbox scale-90"
+                type="text"
+                placeholder="Search states..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`${adminFormStyles.input} h-9 pl-8 pr-2.5 py-1 text-[11px] sm:text-sm`}
               />
-              Needs Action Only
-            </label>
+            </div>
           </div>
+
+          <RdkSelect
+            value={filterRegistered}
+            onChange={(value) =>
+              setFilterRegistered(value as "all" | "registered" | "unregistered")
+            }
+            options={filterRegisteredOptions}
+            className="min-w-[160px]"
+            buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
+            menuClassName="text-[11px] sm:text-sm"
+          />
+
+          <RdkSelect
+            value={filterNexusType}
+            onChange={(value) =>
+              setFilterNexusType(value as "all" | "physical" | "economic")
+            }
+            options={nexusTypeOptions}
+            className="min-w-[160px]"
+            buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
+            menuClassName="text-[11px] sm:text-sm"
+          />
+
+          <RdkSelect
+            value={filterWindow}
+            onChange={(value) => setFilterWindow(value as "all" | "calendar" | "rolling")}
+            options={windowOptions}
+            className="min-w-[160px]"
+            buttonClassName="h-8 py-1 text-[11px] sm:text-sm"
+            menuClassName="text-[11px] sm:text-sm"
+          />
+
+          <label className="flex items-center gap-1.5 text-[11px] leading-none sm:text-sm">
+            <input
+              type="checkbox"
+              checked={filterNeedsAction}
+              onChange={(e) => setFilterNeedsAction(e.target.checked)}
+              className="rdk-checkbox scale-90"
+            />
+            <span className="text-brand-text">Needs Action Only</span>
+          </label>
         </div>
-      </div>
+      </AdminSectionCard>
 
-      {/* States Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
-        <table className="w-full text-[12px] sm:text-sm">
-          <thead className="bg-zinc-800">
-            <tr>
-              <th
-                className="px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("stateName")}
-              >
-                State {sortIndicator("stateName")}
-              </th>
-              <th
-                className="hidden md:table-cell px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("threshold")}
-              >
-                Threshold {sortIndicator("threshold")}
-              </th>
-              <th
-                className="hidden md:table-cell px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("relevantSales")}
-              >
-                Sales {sortIndicator("relevantSales")}
-              </th>
-              <th
-                className="hidden md:table-cell px-3 py-3 text-left font-medium text-white cursor-pointer hover:bg-zinc-700"
-                onClick={() => handleSort("percentageToThreshold")}
-              >
-                Progress {sortIndicator("percentageToThreshold")}
-              </th>
-              <th className="hidden md:table-cell px-3 py-3 text-left font-medium text-white">
-                Type
-              </th>
-              <th className="hidden md:table-cell px-3 py-3 text-left font-medium text-white">
-                Status
-              </th>
-              <th className="px-3 py-3 text-left font-medium text-white">
-                <span className="hidden md:inline">Actions</span>
-                <span className="md:hidden">Details</span>
-              </th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-zinc-800">
-            {filteredAndSortedStates.map((state) => (
-              <tr key={state.stateCode} className="hover:bg-zinc-800/50">
-                <td className="px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded"
-                      style={{ backgroundColor: getStateColor(state) }}
-                    />
-                    <span className="font-medium text-white">{state.stateName}</span>
-                    {state.isHomeState && (
-                      <span className="text-xs text-red-400">(Home)</span>
-                    )}
-                    {state.nexusType === "physical" && !state.isRegistered && (
-                      <span
-                        title="Physical nexus - needs registration"
-                        className="inline-flex"
-                      >
-                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="hidden md:table-cell px-3 py-3 text-gray-300">
-                  {formatCurrency(state.threshold)}
-                </td>
-                <td className="hidden md:table-cell px-3 py-3 text-gray-300">
-                  {formatCurrency(state.relevantSales)}
-                </td>
-                <td className="hidden md:table-cell px-3 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden">
-                      <div
-                        className="h-full transition-all"
-                        style={{
-                          width: `${Math.min(state.percentageToThreshold, 100)}%`,
-                          backgroundColor: getStateColor(state),
-                        }}
-                      />
-                    </div>
-                    <span className="text-xs text-gray-400 w-12">
-                      {state.percentageToThreshold.toFixed(0)}%
-                    </span>
-                  </div>
-                </td>
-                <td className="hidden md:table-cell px-3 py-3">
-                  <span className="px-2 py-1 bg-zinc-800 text-white rounded text-xs">
-                    {state.nexusType}
-                  </span>
-                </td>
-                <td className="hidden md:table-cell px-3 py-3">
-                  {state.isRegistered ? (
-                    <div className="flex flex-col gap-1">
-                      <span className="flex items-center gap-1 text-sm text-green-400">
-                        <CheckCircle className="w-4 h-4" />
-                        Registered
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="flex items-center gap-1 text-sm text-gray-400">
-                      <AlertCircle className="w-4 h-4 text-zinc-500" />
-                      Not Registered
-                    </span>
-                  )}
-                </td>
-                <td className="px-3 py-3">
-                  <button
-                    onClick={() => setSelectedState(state)}
-                    className="text-[12px] sm:text-sm text-red-400 hover:text-red-300"
-                  >
-                    Details
-                  </button>
-                </td>
+      <AdminSectionCard title="State Coverage">
+        <div className="overflow-hidden border border-brand-border">
+          <table className="w-full text-[12px] sm:text-sm">
+            <thead className="bg-brand-page">
+              <tr>
+                <th
+                  className="cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30"
+                  onClick={() => handleSort("stateName")}
+                >
+                  State {sortIndicator("stateName")}
+                </th>
+                <th
+                  className="hidden cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30 md:table-cell"
+                  onClick={() => handleSort("threshold")}
+                >
+                  Threshold {sortIndicator("threshold")}
+                </th>
+                <th
+                  className="hidden cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30 md:table-cell"
+                  onClick={() => handleSort("relevantSales")}
+                >
+                  Sales {sortIndicator("relevantSales")}
+                </th>
+                <th
+                  className="hidden cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30 md:table-cell"
+                  onClick={() => handleSort("percentageToThreshold")}
+                >
+                  Progress {sortIndicator("percentageToThreshold")}
+                </th>
+                <th className="hidden px-3 py-3 text-left font-medium text-brand-text md:table-cell">
+                  Type
+                </th>
+                <th className="hidden px-3 py-3 text-left font-medium text-brand-text md:table-cell">
+                  Status
+                </th>
+                <th className="px-3 py-3 text-left font-medium text-brand-text">
+                  <span className="hidden md:inline">Actions</span>
+                  <span className="md:hidden">Details</span>
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
 
-        {filteredAndSortedStates.length === 0 && (
-          <div className="p-8 text-center text-gray-400">
-            No states match your filters
-          </div>
-        )}
-      </div>
+            <tbody className="divide-y divide-brand-border">
+              {filteredAndSortedStates.map((state) => (
+                <tr key={state.stateCode} className="hover:bg-brand-page">
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-3 w-3 rounded"
+                        style={{ backgroundColor: getStateColor(state) }}
+                      />
+                      <span className="font-medium text-brand-text">
+                        {state.stateName}
+                      </span>
+                      {state.isHomeState && (
+                        <AdminStatusBadge tone="warning">Home</AdminStatusBadge>
+                      )}
+                      {state.nexusType === "physical" && !state.isRegistered && (
+                        <span
+                          title="Physical nexus - needs registration"
+                          className="inline-flex"
+                        >
+                          <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="hidden px-3 py-3 text-brand-muted md:table-cell">
+                    {formatCurrency(state.threshold)}
+                  </td>
+                  <td className="hidden px-3 py-3 text-brand-muted md:table-cell">
+                    {formatCurrency(state.relevantSales)}
+                  </td>
+                  <td className="hidden px-3 py-3 md:table-cell">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-brand-border/80">
+                        <div
+                          className="h-full transition-all"
+                          style={{
+                            width: `${Math.min(state.percentageToThreshold, 100)}%`,
+                            backgroundColor: getStateColor(state),
+                          }}
+                        />
+                      </div>
+                      <span className="w-12 text-xs text-brand-muted">
+                        {state.percentageToThreshold.toFixed(0)}%
+                      </span>
+                    </div>
+                  </td>
+                  <td className="hidden px-3 py-3 md:table-cell">
+                    <AdminStatusBadge
+                      tone={state.nexusType === "physical" ? "warning" : "neutral"}
+                    >
+                      {state.nexusType}
+                    </AdminStatusBadge>
+                  </td>
+                  <td className="hidden px-3 py-3 md:table-cell">
+                    {state.isRegistered ? (
+                      <AdminStatusBadge tone="success">Registered</AdminStatusBadge>
+                    ) : (
+                      <span className="flex items-center gap-1 text-sm text-brand-muted">
+                        <AlertCircle className="h-4 w-4 text-brand-muted" />
+                        Not Registered
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3">
+                    <button
+                      onClick={() => setSelectedState(state)}
+                      className="text-[12px] font-semibold uppercase tracking-[0.08em] text-brand-text underline-offset-2 hover:underline sm:text-sm"
+                    >
+                      Details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {filteredAndSortedStates.length === 0 && (
+            <div className="p-8">
+              <AdminEmptyState
+                title="No Matching States"
+                description="Adjust your filters to expand the result set."
+              />
+            </div>
+          )}
+        </div>
+      </AdminSectionCard>
     </div>
   );
 }

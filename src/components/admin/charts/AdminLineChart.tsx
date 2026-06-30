@@ -272,12 +272,12 @@ export function AdminLineChart<T extends Record<string, unknown>>({
   if (normalized.length === 0) {
     return (
       <div
-        className="flex items-center justify-center border border-zinc-800/70 rounded-lg bg-zinc-950/40"
+        className="flex items-center justify-center border border-brand-border bg-brand-page"
         style={{ height: chartHeight }}
       >
         <div className="text-center space-y-2">
-          <div className="text-white/90 font-medium">Nothing to chart</div>
-          <div className="text-sm text-gray-400">{emptyLabel}</div>
+          <div className="font-medium text-brand-text">Nothing to chart</div>
+          <div className="text-sm text-brand-muted">{emptyLabel}</div>
         </div>
       </div>
     );
@@ -324,12 +324,12 @@ export function AdminLineChart<T extends Record<string, unknown>>({
             formatter={(v) => [fmt(toNumber(v)), displayName]}
             labelFormatter={(l) => `Date: ${formatDateShort(l)}`}
             contentStyle={{
-              background: "rgba(9, 9, 11, 0.92)",
-              border: "1px solid rgba(39, 39, 42, 0.7)",
-              borderRadius: 10,
+              background: "rgba(255, 255, 255, 0.96)",
+              border: "1px solid rgba(224, 224, 224, 1)",
+              borderRadius: 0,
             }}
-            itemStyle={{ color: "rgba(244, 244, 245, 0.9)" }}
-            labelStyle={{ color: "rgba(244, 244, 245, 0.9)" }}
+            itemStyle={{ color: "rgba(17, 17, 17, 0.92)" }}
+            labelStyle={{ color: "rgba(17, 17, 17, 0.92)" }}
           />
           <Line
             type="monotone"

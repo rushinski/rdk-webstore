@@ -1,14 +1,20 @@
-// app/admin/transactions/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { getOrderNetProfitDollars, shouldShowOrderProfit } from "@/lib/orders/metrics";
 import { logError } from "@/lib/utils/log";
 
 type TabKey = "all" | "succeeded" | "failed" | "refunded" | "incomplete" | "blocked";
+
+const PAGE_SIZE = 20;
 
 const TRANSACTION_TABS: Array<{
   key: TabKey;
@@ -32,27 +38,27 @@ const TRANSACTION_TABS: Array<{
 const getStatusMeta = (status: string | null | undefined) => {
   switch (status) {
     case "paid":
-      return { label: "Succeeded", className: "text-green-400" };
+      return { label: "Succeeded", tone: "success" as const };
     case "shipped":
-      return { label: "Shipped", className: "text-blue-300" };
+      return { label: "Shipped", tone: "neutral" as const };
     case "refunded":
-      return { label: "Refunded", className: "text-red-300" };
+      return { label: "Refunded", tone: "danger" as const };
     case "refund_pending":
-      return { label: "Refund pending", className: "text-amber-300" };
+      return { label: "Refund pending", tone: "warning" as const };
     case "refund_failed":
-      return { label: "Refund failed", className: "text-rose-300" };
+      return { label: "Refund failed", tone: "danger" as const };
     case "partially_refunded":
-      return { label: "Partially refunded", className: "text-amber-300" };
+      return { label: "Partially refunded", tone: "warning" as const };
     case "failed":
-      return { label: "Failed", className: "text-red-400" };
+      return { label: "Failed", tone: "danger" as const };
     case "blocked":
-      return { label: "Blocked", className: "text-orange-400" };
+      return { label: "Blocked", tone: "danger" as const };
     case "review":
-      return { label: "Under review", className: "text-yellow-400" };
+      return { label: "Under review", tone: "warning" as const };
     case "pending":
-      return { label: "Incomplete", className: "text-zinc-400" };
+      return { label: "Incomplete", tone: "neutral" as const };
     default:
-      return { label: status ?? "Unknown", className: "text-zinc-400" };
+      return { label: status ?? "Unknown", tone: "neutral" as const };
   }
 };
 
@@ -91,6 +97,19 @@ type TransactionOrder = {
   items?: OrderItemSummary[] | null;
 };
 
+const paginationButtonStyles =
+  "border border-brand-border bg-brand-surface px-3 py-2 text-sm text-brand-text transition hover:bg-brand-page disabled:cursor-not-allowed disabled:text-brand-muted";
+const paginationCurrentStyles =
+  "border border-brand-text bg-brand-text px-3 py-2 text-sm text-brand-page";
+const tabButtonBase =
+  "flex items-center gap-2 border-b-2 py-3 text-sm font-medium transition-colors";
+const tabActiveStyles = "border-brand-text text-brand-text";
+const tabInactiveStyles = "border-transparent text-brand-muted hover:text-brand-text";
+const tabCountStyles =
+  "border border-brand-border bg-brand-page px-2 py-0.5 text-[11px] text-brand-text";
+const tableHeaderCellStyles =
+  "bg-brand-page p-3 text-left font-semibold text-brand-muted sm:p-4";
+
 export default function TransactionsPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<TransactionOrder[]>([]);
@@ -109,7 +128,6 @@ export default function TransactionsPage() {
   });
   const [refreshToken] = useState(0);
 
-  const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const buildParams = (
@@ -118,7 +136,7 @@ export default function TransactionsPage() {
   ) => {
     const params = new URLSearchParams();
     if (tab.statuses) {
-      tab.statuses.forEach((s) => params.append("status", s));
+      tab.statuses.forEach((status) => params.append("status", status));
     }
     if (tab.incomplete) {
       params.set("incomplete", "true");
@@ -129,7 +147,7 @@ export default function TransactionsPage() {
     params.set("limit", String(PAGE_SIZE));
     params.set("page", String(page));
     if (extra) {
-      Object.entries(extra).forEach(([k, v]) => params.set(k, v));
+      Object.entries(extra).forEach(([key, value]) => params.set(key, value));
     }
     return params;
   };
@@ -139,7 +157,8 @@ export default function TransactionsPage() {
   }, [activeTab]);
 
   useEffect(() => {
-    const tab = TRANSACTION_TABS.find((t) => t.key === activeTab) ?? TRANSACTION_TABS[0];
+    const tab =
+      TRANSACTION_TABS.find((entry) => entry.key === activeTab) ?? TRANSACTION_TABS[0];
     const loadOrders = async () => {
       setIsLoading(true);
       try {
@@ -154,7 +173,7 @@ export default function TransactionsPage() {
         setIsLoading(false);
       }
     };
-    loadOrders();
+    void loadOrders();
   }, [activeTab, refreshToken, page]);
 
   useEffect(() => {
@@ -184,7 +203,7 @@ export default function TransactionsPage() {
         logError(error, { layer: "frontend", event: "admin_load_transaction_counts" });
       }
     };
-    loadCounts();
+    void loadCounts();
   }, [refreshToken]);
 
   useEffect(() => {
@@ -213,22 +232,21 @@ export default function TransactionsPage() {
     return value as PaymentSummary;
   };
 
-  const getCustomerName = (order: TransactionOrder) => {
-    const address = resolveShipping(order.shipping);
-    return address?.name?.trim() || (order.shipping_profile_name ?? "").trim() || "—";
-  };
+  const getCustomerName = (order: TransactionOrder) =>
+    resolveShipping(order.shipping)?.name?.trim() ||
+    (order.shipping_profile_name ?? "").trim() ||
+    "-";
 
-  const getCustomerEmail = (order: TransactionOrder) => {
-    return (order.profiles?.email ?? order.guest_email ?? "").trim() || "—";
-  };
+  const getCustomerEmail = (order: TransactionOrder) =>
+    (order.profiles?.email ?? order.guest_email ?? "").trim() || "-";
 
   const getPaymentDisplay = (order: TransactionOrder) => {
     const payment = resolvePayment(order.payment);
     if (!payment?.card_type && !payment?.card_last4) {
-      return "—";
+      return "-";
     }
     const type = payment.card_type ?? "";
-    const last4 = payment.card_last4 ? `···· ${payment.card_last4}` : "";
+    const last4 = payment.card_last4 ? `.... ${payment.card_last4}` : "";
     return [type, last4].filter(Boolean).join(" ");
   };
 
@@ -280,8 +298,8 @@ export default function TransactionsPage() {
     const pages: number[] = [];
     const start = Math.max(1, page - 2);
     const end = Math.min(totalPages, page + 2);
-    for (let p = start; p <= end; p++) {
-      pages.push(p);
+    for (let nextPage = start; nextPage <= end; nextPage += 1) {
+      pages.push(nextPage);
     }
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -289,7 +307,7 @@ export default function TransactionsPage() {
           type="button"
           onClick={() => setPage(Math.max(1, page - 1))}
           disabled={page === 1}
-          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+          className={paginationButtonStyles}
         >
           Previous
         </button>
@@ -297,28 +315,30 @@ export default function TransactionsPage() {
           <button
             type="button"
             onClick={() => setPage(1)}
-            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+            className={paginationButtonStyles}
           >
             1
           </button>
         )}
-        {start > 2 && <span className="text-gray-500">...</span>}
-        {pages.map((p) => (
+        {start > 2 && <span className="text-brand-muted">...</span>}
+        {pages.map((nextPage) => (
           <button
-            key={p}
+            key={nextPage}
             type="button"
-            onClick={() => setPage(p)}
-            className={`px-3 py-2 rounded-sm border text-sm ${p === page ? "border-red-600 text-white" : "border-zinc-800/70 text-gray-300"}`}
+            onClick={() => setPage(nextPage)}
+            className={
+              nextPage === page ? paginationCurrentStyles : paginationButtonStyles
+            }
           >
-            {p}
+            {nextPage}
           </button>
         ))}
-        {end < totalPages - 1 && <span className="text-gray-500">...</span>}
+        {end < totalPages - 1 && <span className="text-brand-muted">...</span>}
         {end < totalPages && (
           <button
             type="button"
             onClick={() => setPage(totalPages)}
-            className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300"
+            className={paginationButtonStyles}
           >
             {totalPages}
           </button>
@@ -327,7 +347,7 @@ export default function TransactionsPage() {
           type="button"
           onClick={() => setPage(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          className="px-3 py-2 rounded-sm border border-zinc-800/70 text-sm text-gray-300 disabled:text-zinc-600 disabled:border-zinc-900"
+          className={paginationButtonStyles}
         >
           Next
         </button>
@@ -337,164 +357,151 @@ export default function TransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Transactions</h1>
-        <p className="text-gray-400">All payment activity</p>
-      </div>
+      <AdminPageHeader title="Transactions" description="All payment activity" />
 
-      {/* Tabs */}
-      <div className="border-b border-zinc-800/70 flex flex-wrap gap-6">
+      <div className="flex flex-wrap gap-6 border-b border-brand-border">
         {TRANSACTION_TABS.map((tab) => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`py-3 text-sm font-medium transition-colors flex items-center gap-2 ${
-              activeTab === tab.key
-                ? "text-white border-b-2 border-red-600"
-                : "text-gray-400 hover:text-white border-b-2 border-transparent"
-            }`}
+            className={`${tabButtonBase} ${activeTab === tab.key ? tabActiveStyles : tabInactiveStyles}`}
           >
             {tab.label}
-            <span className="text-[11px] px-2 py-0.5 rounded-sm bg-zinc-900 border border-zinc-800/70 text-gray-300">
+            <span className={tabCountStyles}>
               {counts[tab.key] > 99 ? "99+" : counts[tab.key]}
             </span>
           </button>
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800/70 px-3 py-2 max-w-md">
-        <Search className="w-4 h-4 text-gray-500" />
+      <div className="flex max-w-md items-center gap-2 border border-brand-border bg-brand-surface px-3 py-2">
+        <Search className="h-4 w-4 text-brand-muted" />
         <input
           type="text"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search by date, customer, fulfillment, or order ID"
-          className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+          className={`${adminFormStyles.input} border-0 bg-transparent px-0 py-0 placeholder:text-brand-muted`}
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden">
-        {isLoading ? (
-          <div className="text-center py-12 text-gray-400">Loading...</div>
-        ) : filteredOrders.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">No transactions found.</div>
-        ) : (
-          <table className="w-full text-[12px] sm:text-sm">
-            <thead>
-              <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Placed At
-                </th>
-                <th className="text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Order
-                </th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Status
-                </th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Customer
-                </th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Payment
-                </th>
-                <th className="hidden md:table-cell text-left text-gray-400 font-semibold p-3 sm:p-4">
-                  Fulfillment
-                </th>
-                <th className="text-right text-gray-400 font-semibold p-3 sm:p-4">
-                  Amount
-                </th>
-                <th className="hidden md:table-cell text-right text-gray-400 font-semibold p-3 sm:p-4">
-                  Profit
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.map((order) => {
-                const statusMeta = getStatusMeta(order.status);
-                const createdAt = order.created_at ? new Date(order.created_at) : null;
-                const customerName = getCustomerName(order);
-                const paymentDisplay = getPaymentDisplay(order);
-                const fulfillmentLabel =
-                  order.fulfillment === "pickup" ? "Pickup" : "Ship";
-                const orderHref = `/admin/transactions/${order.id}`;
-
-                return (
-                  <tr
-                    key={order.id}
-                    role="link"
-                    tabIndex={0}
-                    aria-label={`View transaction ${order.id}`}
-                    onClick={() => router.push(orderHref)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        router.push(orderHref);
-                      }
-                    }}
-                    className="border-b border-zinc-800/70 cursor-pointer transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800 focus-visible:outline-none"
+      <AdminSectionCard>
+        <div className="overflow-hidden border border-brand-border bg-brand-surface">
+          {isLoading ? (
+            <AdminEmptyState
+              title="Loading Transactions"
+              description="Fetching payment activity."
+            />
+          ) : filteredOrders.length === 0 ? (
+            <AdminEmptyState title="No Transactions Found" />
+          ) : (
+            <table className="w-full text-[12px] sm:text-sm">
+              <thead>
+                <tr className="border-b border-brand-border bg-brand-page">
+                  <th className={tableHeaderCellStyles}>Placed At</th>
+                  <th className={tableHeaderCellStyles}>Order</th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Status
+                  </th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Customer
+                  </th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Payment
+                  </th>
+                  <th className={`hidden md:table-cell ${tableHeaderCellStyles}`}>
+                    Fulfillment
+                  </th>
+                  <th className={`${tableHeaderCellStyles} text-right`}>Amount</th>
+                  <th
+                    className={`hidden text-right md:table-cell ${tableHeaderCellStyles}`}
                   >
-                    <td className="p-3 sm:p-4 text-gray-400">
-                      {createdAt ? (
-                        <div className="space-y-0.5">
-                          <div>{createdAt.toLocaleDateString()}</div>
-                          <div className="text-xs text-gray-500">
-                            {createdAt.toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="p-3 sm:p-4 text-white font-mono text-xs">
-                      #{order.id.slice(0, 8)}
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4">
-                      <span className={statusMeta.className}>{statusMeta.label}</span>
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-                      {customerName}
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-                      {paymentDisplay}
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4 text-gray-400">
-                      {fulfillmentLabel}
-                    </td>
-                    <td className="p-3 sm:p-4 text-right text-white">
-                      ${Number(order.total ?? 0).toFixed(2)}
-                    </td>
-                    <td className="hidden md:table-cell p-3 sm:p-4 text-right">
-                      {(() => {
-                        const profit = getProfit(order);
-                        if (profit === null) {
-                          return <span className="text-zinc-600">—</span>;
+                    Profit
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredOrders.map((order) => {
+                  const statusMeta = getStatusMeta(order.status);
+                  const createdAt = order.created_at ? new Date(order.created_at) : null;
+                  const customerName = getCustomerName(order);
+                  const paymentDisplay = getPaymentDisplay(order);
+                  const fulfillmentLabel =
+                    order.fulfillment === "pickup" ? "Pickup" : "Ship";
+                  const orderHref = `/admin/transactions/${order.id}`;
+                  const profit = getProfit(order);
+
+                  return (
+                    <tr
+                      key={order.id}
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`View transaction ${order.id}`}
+                      onClick={() => router.push(orderHref)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(orderHref);
                         }
-                        return (
+                      }}
+                      className="cursor-pointer border-b border-brand-border transition-colors hover:bg-brand-page focus-visible:bg-brand-page focus-visible:outline-none"
+                    >
+                      <td className="p-3 text-brand-muted sm:p-4">
+                        {createdAt ? (
+                          <div className="space-y-0.5">
+                            <div>{createdAt.toLocaleDateString()}</div>
+                            <div className="text-xs text-brand-muted">
+                              {createdAt.toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </div>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td className="p-3 font-mono text-xs text-brand-text sm:p-4">
+                        #{order.id.slice(0, 8)}
+                      </td>
+                      <td className="hidden p-3 sm:p-4 md:table-cell">
+                        <AdminStatusBadge tone={statusMeta.tone}>
+                          {statusMeta.label}
+                        </AdminStatusBadge>
+                      </td>
+                      <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
+                        {customerName}
+                      </td>
+                      <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
+                        {paymentDisplay}
+                      </td>
+                      <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
+                        {fulfillmentLabel}
+                      </td>
+                      <td className="p-3 text-right text-brand-text sm:p-4">
+                        ${Number(order.total ?? 0).toFixed(2)}
+                      </td>
+                      <td className="hidden p-3 text-right sm:p-4 md:table-cell">
+                        {profit === null ? (
+                          <span className="text-brand-muted">-</span>
+                        ) : (
                           <span
-                            className={profit >= 0 ? "text-emerald-400" : "text-red-400"}
+                            className={profit >= 0 ? "text-emerald-700" : "text-red-700"}
                           >
                             {profit >= 0 ? "+" : ""}${Math.abs(profit).toFixed(2)}
                           </span>
-                        );
-                      })()}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </AdminSectionCard>
 
-      {/* Pagination */}
-      {!isLoading && totalPages > 1 && (
-        <div className="flex justify-start">{renderPagination()}</div>
-      )}
+      {!isLoading && totalPages > 1 ? <div>{renderPagination()}</div> : null}
     </div>
   );
 }

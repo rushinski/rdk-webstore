@@ -1,7 +1,7 @@
-// app/brands/page.tsx
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 
+import { inputStyles } from "@/components/ui/inputStyles";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { StorefrontService } from "@/services/storefront-service";
 
@@ -45,10 +45,8 @@ function sortLabels(labels: string[]) {
 }
 
 const allLetters = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""), "#"];
-
-// Original vibe button class (kept)
 const pillLink =
-  "rounded-full border border-zinc-800/70 px-2.5 py-1 text-[12px] sm:px-3 sm:text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors";
+  "inline-flex items-center border border-brand-border px-3 py-2 text-xs uppercase tracking-[0.08em] text-brand-text transition-colors hover:bg-brand-text hover:text-brand-surface";
 
 export default async function BrandsPage({
   searchParams,
@@ -81,96 +79,76 @@ export default async function BrandsPage({
   });
 
   return (
-    <div className="min-h-screen bg-black">
-      <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12">
-        {/* Breadcrumb (dark) */}
-        <nav className="text-[12px] sm:text-sm text-zinc-500 mb-4 sm:mb-5">
-          <span className="hover:text-zinc-200 transition-colors">
-            <Link href="/">Home</Link>
-          </span>
-          <span className="mx-2">›</span>
-          <span className="text-zinc-300 font-medium">Brands</span>
+    <div className="min-h-screen bg-brand-page">
+      <div className="mx-auto max-w-6xl px-6 py-12">
+        <nav className="mb-5 text-sm text-brand-muted">
+          <Link href="/" className="transition-colors hover:text-brand-text">
+            Home
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="font-medium text-brand-text">Brands</span>
         </nav>
 
-        {/* Panel (dark) */}
-        <div className="border border-zinc-800/70 bg-zinc-950/40 rounded-md overflow-hidden">
-          {/* Header */}
-          <div className="px-4 py-4 sm:px-5 sm:py-5 border-b border-zinc-800/70 flex items-start justify-between gap-4 sm:gap-5 flex-wrap">
+        <div className="overflow-hidden border border-brand-border bg-brand-surface">
+          <div className="flex flex-wrap items-start justify-between gap-4 border-b border-brand-border px-5 py-5">
             <div>
-              <p className="text-[11px] sm:text-xs uppercase tracking-[0.4em] text-zinc-500">
+              <p className="text-xs uppercase tracking-[0.4em] text-brand-muted">
                 Brand Index
               </p>
-              <h1 className="text-2xl sm:text-4xl font-bold text-white mt-2 sm:mt-3">
-                All Brands
-              </h1>
-              <p className="text-zinc-400 text-[12px] sm:text-sm mt-2 sm:mt-3">
+              <h1 className="mt-3 text-4xl font-bold text-brand-text">All Brands</h1>
+              <p className="mt-3 text-sm text-brand-muted">
                 Browse by letter or search for a favorite.
               </p>
             </div>
 
-            {/* Search (server GET, dark) */}
             <form action="/brands" method="get" className="w-full sm:w-auto">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="relative w-full sm:w-[360px]">
                   <input
                     name="q"
                     defaultValue={qRaw}
                     placeholder="Search brands..."
-                    className="w-full rounded-md border border-zinc-800/70 bg-black px-3 py-2 pr-10 text-[12px] sm:text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-red-600/30"
+                    className={`${inputStyles} pr-10`}
                   />
                   <span
                     aria-hidden="true"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted"
                   >
                     ⌕
                   </span>
                 </div>
 
-                <button
-                  type="submit"
-                  className="rounded-md border border-zinc-800/70 bg-zinc-950/60 px-3 py-2 text-[12px] sm:text-sm text-zinc-200 hover:text-white hover:border-red-600/40 transition-colors"
-                >
+                <button type="submit" className={pillLink}>
                   Search
                 </button>
 
                 {qRaw ? (
-                  <Link
-                    href="/brands"
-                    className="rounded-md border border-zinc-800/70 bg-transparent px-3 py-2 text-[12px] sm:text-sm text-zinc-300 hover:text-white hover:border-red-600/40 transition-colors"
-                  >
+                  <Link href="/brands" className={pillLink}>
                     Clear
                   </Link>
                 ) : null}
               </div>
 
-              <div className="mt-2 text-[11px] sm:text-xs text-zinc-500">
+              <div className="mt-2 text-xs text-brand-muted">
                 Showing{" "}
-                <span className="text-zinc-200 font-medium">{filtered.length}</span> of{" "}
-                <span className="text-zinc-200 font-medium">{uniqueLabels.length}</span>{" "}
+                <span className="font-medium text-brand-text">{filtered.length}</span> of{" "}
+                <span className="font-medium text-brand-text">{uniqueLabels.length}</span>{" "}
                 brands
               </div>
             </form>
           </div>
 
-          {/* Go To strip (dark) */}
-          <div className="px-4 py-3 sm:px-5 sm:py-4 border-b border-zinc-800/70 flex items-center justify-between gap-3 sm:gap-4 flex-wrap">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-[12px] sm:text-sm font-medium text-zinc-400">
-                Go To:
-              </span>
-
-              <div className="flex flex-wrap gap-1 w-full">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-brand-border px-5 py-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-brand-muted">Go To:</span>
+              <div className="flex flex-wrap gap-1">
                 {allLetters.map((letter) => {
                   const has = Boolean(grouped[letter]?.length);
-
-                  const baseBox =
-                    "inline-flex h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 items-center justify-center rounded-md border text-[10px] sm:text-[11px] lg:text-[12px] font-medium transition-colors";
-
                   return has ? (
                     <a
                       key={letter}
                       href={`#brand-${letter}`}
-                      className={`${baseBox} border-zinc-800/70 bg-transparent text-zinc-300 hover:text-white hover:border-red-600/40`}
+                      className="flex h-8 w-8 items-center justify-center border border-brand-border text-xs text-brand-text transition-colors hover:bg-brand-text hover:text-brand-surface"
                     >
                       {letter}
                     </a>
@@ -178,7 +156,7 @@ export default async function BrandsPage({
                     <span
                       key={letter}
                       aria-disabled="true"
-                      className={`${baseBox} border-zinc-900/70 bg-zinc-950/40 text-zinc-600 cursor-not-allowed`}
+                      className="flex h-8 w-8 cursor-not-allowed items-center justify-center border border-brand-border text-xs text-brand-muted"
                     >
                       {letter}
                     </span>
@@ -187,11 +165,11 @@ export default async function BrandsPage({
               </div>
             </div>
 
-            <div className="text-[11px] sm:text-xs text-zinc-500">
+            <div className="text-xs text-brand-muted">
               {lettersWithResults.length ? (
                 <span>
                   Sections:{" "}
-                  <span className="text-zinc-200 font-medium">
+                  <span className="font-medium text-brand-text">
                     {lettersWithResults.length}
                   </span>
                 </span>
@@ -201,42 +179,39 @@ export default async function BrandsPage({
             </div>
           </div>
 
-          {/* Sections */}
-          <div className="divide-y divide-zinc-800/70">
+          <div className="divide-y divide-brand-border">
             {lettersWithResults.length === 0 ? (
-              <div className="px-4 py-8 sm:px-5 sm:py-10">
-                <div className="text-white font-semibold">No brands found.</div>
-                <div className="text-[12px] sm:text-sm text-zinc-400 mt-1">
+              <div className="px-5 py-10">
+                <div className="font-semibold text-brand-text">No brands found.</div>
+                <div className="mt-1 text-sm text-brand-muted">
                   Try a different search term.
                 </div>
               </div>
             ) : (
               lettersWithResults.map((letter) => (
                 <section key={letter} id={`brand-${letter}`} className="scroll-mt-24">
-                  {/* Section header (dark, original palette) */}
-                  <div className="px-4 py-3 sm:px-5 sm:py-4 flex items-center justify-between bg-zinc-950/30 border-b border-zinc-800/70">
+                  <div className="flex items-center justify-between border-b border-brand-border bg-brand-page px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full border border-zinc-800/70 text-zinc-200 flex items-center justify-center text-sm sm:text-lg font-semibold">
+                      <div className="flex h-10 w-10 items-center justify-center border border-brand-border text-lg font-semibold text-brand-text">
                         {letter}
                       </div>
                       <div>
-                        <h2 className="text-base sm:text-lg font-semibold text-white">
-                          {letter === "#" ? "Other" : `Brands`}
+                        <h2 className="text-lg font-semibold text-brand-text">
+                          {letter === "#" ? "Other" : "Brands"}
                         </h2>
-                        <p className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500 mt-0.5">
+                        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-brand-muted">
                           Section {letter}
                         </p>
                       </div>
                     </div>
 
-                    <span className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500">
+                    <span className="text-xs uppercase tracking-[0.2em] text-brand-muted">
                       {grouped[letter].length} total
                     </span>
                   </div>
 
-                  {/* 3-column list but using your original pill styling */}
-                  <div className="px-4 py-4 sm:px-5 sm:py-5">
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 sm:gap-x-10 gap-y-2.5 sm:gap-y-3">
+                  <div className="px-5 py-5">
+                    <ul className="grid grid-cols-1 gap-x-10 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
                       {grouped[letter].map((label) => (
                         <li key={label} className="min-w-0">
                           <Link

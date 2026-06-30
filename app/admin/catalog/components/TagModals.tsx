@@ -1,4 +1,10 @@
+"use client";
+
 import type { Dispatch, SetStateAction } from "react";
+
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { RdkSelect } from "@/components/ui/Select";
 
 import type {
   AliasEditDraft,
@@ -35,6 +41,49 @@ type TagModalsProps = {
   toTitleCase: (value: string) => string;
 };
 
+function ModalShell({
+  title,
+  description,
+  onClose,
+  children,
+}: {
+  title: string;
+  description?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg border border-brand-border bg-brand-surface p-6 shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-brand-border pb-4">
+          <div>
+            <h3 className="text-lg font-semibold uppercase tracking-[0.08em] text-brand-text">
+              {title}
+            </h3>
+            {description ? (
+              <p className="mt-1 text-sm text-brand-muted">{description}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm text-brand-muted transition hover:text-brand-text"
+          >
+            Close
+          </button>
+        </div>
+        <div className="mt-4 space-y-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function TagModals({
   showAddBrandModal,
   showAddModelModal,
@@ -62,328 +111,279 @@ export function TagModals({
 }: TagModalsProps) {
   return (
     <>
-      {showAddBrandModal && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => setShowAddBrandModal(false)}
+      {showAddBrandModal ? (
+        <ModalShell
+          title="Add Brand"
+          description="Create a new canonical brand label for catalog parsing and storefront filters."
+          onClose={() => setShowAddBrandModal(false)}
         >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Add brand</h3>
-              <button
-                onClick={() => setShowAddBrandModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
+          <input
+            value={newBrand.label}
+            onChange={(event) =>
+              setNewBrand((current) => ({ ...current, label: event.target.value }))
+            }
+            onBlur={(event) =>
+              setNewBrand((current) => ({
+                ...current,
+                label: toTitleCase(event.target.value),
+              }))
+            }
+            placeholder="Brand label"
+            className={adminFormStyles.input}
+          />
 
-            <div className="space-y-3">
-              <input
-                value={newBrand.label}
-                onChange={(e) =>
-                  setNewBrand((prev) => ({ ...prev, label: e.target.value }))
-                }
-                onBlur={(e) =>
-                  setNewBrand((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                }
-                placeholder="Brand label (e.g., Air Jordan)"
-                className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setShowAddBrandModal(false)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onCreateBrand}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2"
-              >
-                Add Brand
-              </button>
-            </div>
+          <div className="flex items-center justify-end gap-3 border-t border-brand-border pt-4">
+            <button
+              type="button"
+              onClick={() => setShowAddBrandModal(false)}
+              className={adminButtonStyles.secondary}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onCreateBrand}
+              className={adminButtonStyles.primary}
+            >
+              Add Brand
+            </button>
           </div>
-        </div>
-      )}
+        </ModalShell>
+      ) : null}
 
-      {showAddModelModal && modelTargetBrand && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4"
-          onClick={() => {
+      {showAddModelModal && modelTargetBrand ? (
+        <ModalShell
+          title="Add Model"
+          description={`Brand: ${modelTargetBrand.canonical_label}`}
+          onClose={() => {
             setShowAddModelModal(false);
             setModelTargetBrand(null);
           }}
         >
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Add Model</h3>
-                <p className="text-xs text-gray-500">
-                  Brand: {modelTargetBrand.canonical_label}
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowAddModelModal(false);
-                  setModelTargetBrand(null);
-                }}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
+          <input
+            value={newModel.label}
+            onChange={(event) =>
+              setNewModel((current) => ({ ...current, label: event.target.value }))
+            }
+            onBlur={(event) =>
+              setNewModel((current) => ({
+                ...current,
+                label: toTitleCase(event.target.value),
+              }))
+            }
+            placeholder="Model label"
+            className={adminFormStyles.input}
+          />
 
-            <div className="space-y-3">
-              <input
-                value={newModel.label}
-                onChange={(e) =>
-                  setNewModel((prev) => ({ ...prev, label: e.target.value }))
-                }
-                onBlur={(e) =>
-                  setNewModel((prev) => ({ ...prev, label: toTitleCase(e.target.value) }))
-                }
-                placeholder="Model label (e.g., Retro 3)"
-                className="w-full bg-zinc-900 border border-zinc-800/70 text-white px-3 py-2"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowAddModelModal(false);
-                  setModelTargetBrand(null);
-                }}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onCreateModel}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2"
-              >
-                Add Model
-              </button>
-            </div>
+          <div className="flex items-center justify-end gap-3 border-t border-brand-border pt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddModelModal(false);
+                setModelTargetBrand(null);
+              }}
+              className={adminButtonStyles.secondary}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onCreateModel}
+              className={adminButtonStyles.primary}
+            >
+              Add Model
+            </button>
           </div>
-        </div>
-      )}
+        </ModalShell>
+      ) : null}
 
-      {editTarget && editDraft && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-lg p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">Edit {editTarget.type}</h3>
-              <button
-                onClick={() => setEditTarget(null)}
-                className="text-gray-400 hover:text-white"
-              >
-                Close
-              </button>
-            </div>
+      {editTarget && editDraft ? (
+        <ModalShell
+          title={`Edit ${editTarget.type}`}
+          description="Update the canonical record without changing the surrounding workflow."
+          onClose={() => setEditTarget(null)}
+        >
+          {editTarget.type === "brand"
+            ? (() => {
+                const draft = editDraft as BrandEditDraft;
 
-            {editTarget.type === "brand" && (
-              <div className="space-y-3">
-                {(() => {
-                  const draft = editDraft as BrandEditDraft;
-                  return (
-                    <>
-                      <input
-                        value={draft.canonical_label}
-                        onChange={(e) =>
-                          setEditDraft({ ...draft, canonical_label: e.target.value })
-                        }
-                        placeholder="Brand label"
-                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                      />
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="rdk-checkbox"
-                            checked={draft.is_active}
-                            onChange={(e) =>
-                              setEditDraft({ ...draft, is_active: e.target.checked })
-                            }
-                          />
-                          Active
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="rdk-checkbox"
-                            checked={draft.is_verified}
-                            onChange={(e) =>
-                              setEditDraft({ ...draft, is_verified: e.target.checked })
-                            }
-                          />
-                          Verified
-                        </label>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-
-            {editTarget.type === "model" && (
-              <div className="space-y-3">
-                {(() => {
-                  const draft = editDraft as ModelEditDraft;
-                  return (
-                    <>
-                      <select
-                        value={draft.brand_id}
-                        onChange={(e) =>
-                          setEditDraft({ ...draft, brand_id: e.target.value })
-                        }
-                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                      >
-                        {brands.map((brand) => (
-                          <option key={brand.id} value={brand.id}>
-                            {brand.canonical_label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={draft.canonical_label}
-                        onChange={(e) =>
-                          setEditDraft({ ...draft, canonical_label: e.target.value })
-                        }
-                        placeholder="Model label"
-                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                      />
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-300">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="rdk-checkbox"
-                            checked={draft.is_active}
-                            onChange={(e) =>
-                              setEditDraft({ ...draft, is_active: e.target.checked })
-                            }
-                          />
-                          Active
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            className="rdk-checkbox"
-                            checked={draft.is_verified}
-                            onChange={(e) =>
-                              setEditDraft({ ...draft, is_verified: e.target.checked })
-                            }
-                          />
-                          Verified
-                        </label>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-
-            {editTarget.type === "alias" && (
-              <div className="space-y-3">
-                {(() => {
-                  const draft = editDraft as AliasEditDraft;
-                  return (
-                    <>
-                      <input
-                        value={draft.alias_label}
-                        onChange={(e) =>
-                          setEditDraft({ ...draft, alias_label: e.target.value })
-                        }
-                        placeholder="Alias"
-                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                      />
-                      <input
-                        value={draft.priority ?? 0}
-                        onChange={(e) =>
-                          setEditDraft({ ...draft, priority: Number(e.target.value) })
-                        }
-                        placeholder="Priority"
-                        className="w-full bg-zinc-800 text-white px-3 py-2 rounded"
-                      />
-                      <label className="flex items-center gap-2 text-sm text-gray-300">
+                return (
+                  <div className="space-y-4">
+                    <input
+                      value={draft.canonical_label}
+                      onChange={(event) =>
+                        setEditDraft({ ...draft, canonical_label: event.target.value })
+                      }
+                      placeholder="Brand label"
+                      className={adminFormStyles.input}
+                    />
+                    <div className="flex flex-wrap gap-4 text-sm text-brand-text">
+                      <label className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           className="rdk-checkbox"
                           checked={draft.is_active}
-                          onChange={(e) =>
-                            setEditDraft({ ...draft, is_active: e.target.checked })
+                          onChange={(event) =>
+                            setEditDraft({ ...draft, is_active: event.target.checked })
                           }
                         />
                         Active
                       </label>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="rdk-checkbox"
+                          checked={draft.is_verified}
+                          onChange={(event) =>
+                            setEditDraft({ ...draft, is_verified: event.target.checked })
+                          }
+                        />
+                        Verified
+                      </label>
+                    </div>
+                  </div>
+                );
+              })()
+            : null}
 
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setEditTarget(null)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onSaveEdit}
-                disabled={isSaving}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
-              >
-                {isSaving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          {editTarget.type === "model"
+            ? (() => {
+                const draft = editDraft as ModelEditDraft;
 
-      {confirmTarget && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
-          <div
-            className="bg-zinc-900 border border-zinc-800/70 rounded-lg w-full max-w-md p-6 space-y-4"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 className="text-lg font-semibold text-white">
-              Delete {confirmTarget.type}
-            </h3>
-            <p className="text-sm text-gray-400">
-              This will disable the item (soft delete). You can re-enable it later by
-              editing the record.
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => setConfirmTarget(null)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white rounded px-4 py-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={onConfirmDelete}
-                disabled={isSaving}
-                className="bg-red-600 hover:bg-red-700 text-white rounded px-4 py-2 disabled:bg-gray-600"
-              >
-                {isSaving ? "Deleting..." : "Delete"}
-              </button>
-            </div>
+                return (
+                  <div className="space-y-4">
+                    <RdkSelect
+                      value={draft.brand_id}
+                      onChange={(value) => setEditDraft({ ...draft, brand_id: value })}
+                      options={brands.map((brand) => ({
+                        value: brand.id,
+                        label: brand.canonical_label,
+                      }))}
+                    />
+                    <input
+                      value={draft.canonical_label}
+                      onChange={(event) =>
+                        setEditDraft({ ...draft, canonical_label: event.target.value })
+                      }
+                      placeholder="Model label"
+                      className={adminFormStyles.input}
+                    />
+                    <div className="flex flex-wrap gap-4 text-sm text-brand-text">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="rdk-checkbox"
+                          checked={draft.is_active}
+                          onChange={(event) =>
+                            setEditDraft({ ...draft, is_active: event.target.checked })
+                          }
+                        />
+                        Active
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          className="rdk-checkbox"
+                          checked={draft.is_verified}
+                          onChange={(event) =>
+                            setEditDraft({ ...draft, is_verified: event.target.checked })
+                          }
+                        />
+                        Verified
+                      </label>
+                    </div>
+                  </div>
+                );
+              })()
+            : null}
+
+          {editTarget.type === "alias"
+            ? (() => {
+                const draft = editDraft as AliasEditDraft;
+
+                return (
+                  <div className="space-y-4">
+                    <input
+                      value={draft.alias_label}
+                      onChange={(event) =>
+                        setEditDraft({ ...draft, alias_label: event.target.value })
+                      }
+                      placeholder="Alias label"
+                      className={adminFormStyles.input}
+                    />
+                    <input
+                      value={draft.priority ?? 0}
+                      onChange={(event) =>
+                        setEditDraft({ ...draft, priority: Number(event.target.value) })
+                      }
+                      placeholder="Priority"
+                      className={adminFormStyles.input}
+                    />
+                    <label className="flex items-center gap-2 text-sm text-brand-text">
+                      <input
+                        type="checkbox"
+                        className="rdk-checkbox"
+                        checked={draft.is_active}
+                        onChange={(event) =>
+                          setEditDraft({ ...draft, is_active: event.target.checked })
+                        }
+                      />
+                      Active
+                    </label>
+                  </div>
+                );
+              })()
+            : null}
+
+          <div className="flex items-center justify-end gap-3 border-t border-brand-border pt-4">
+            <button
+              type="button"
+              onClick={() => setEditTarget(null)}
+              className={adminButtonStyles.secondary}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onSaveEdit}
+              disabled={isSaving}
+              className={`${adminButtonStyles.primary} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </button>
           </div>
-        </div>
-      )}
+        </ModalShell>
+      ) : null}
+
+      {confirmTarget ? (
+        <ModalShell
+          title={`Disable ${confirmTarget.type}`}
+          description="This is a soft delete. The item will be disabled and can be re-enabled later."
+          onClose={() => setConfirmTarget(null)}
+        >
+          <p className="text-sm text-brand-text">
+            This will remove the item from active parser and UI use without permanently
+            deleting the record.
+          </p>
+          <div className="flex items-center justify-end gap-3 border-t border-brand-border pt-4">
+            <button
+              type="button"
+              onClick={() => setConfirmTarget(null)}
+              className={adminButtonStyles.secondary}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmDelete}
+              disabled={isSaving}
+              className={`${adminButtonStyles.danger} disabled:cursor-not-allowed disabled:opacity-60`}
+            >
+              {isSaving ? "Disabling..." : "Disable"}
+            </button>
+          </div>
+        </ModalShell>
+      ) : null}
     </>
   );
 }

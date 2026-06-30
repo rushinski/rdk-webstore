@@ -92,7 +92,6 @@ export const security = {
       maxOriginLength: 512,
 
       bypassPrefixes: [
-        "/api/webhooks/lightspeed",
         "/api/webhooks/payrilla",
         "/api/webhooks/shippo",
         "/api/auth/2fa/challenge/verify",
@@ -154,7 +153,7 @@ export const security = {
 
         prod: [
           "default-src 'self'",
-          "img-src 'self' data: blob: https://*.supabase.co https://*.openstreetmap.org https://*.cloudfront.net https://*.fastly.net https://cdn.shoplightspeed.com",
+          "img-src 'self' data: blob: https://*.supabase.co https://*.openstreetmap.org https://*.cloudfront.net https://*.fastly.net",
           "style-src 'self' 'unsafe-inline' https://*.payrillagateway.com",
           "script-src 'self' 'unsafe-inline' https://*.vercel-scripts.com https://*.payrillagateway.com https://services.nofraud.com https://pay.google.com",
           "worker-src 'self' blob:",

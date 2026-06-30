@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { logError } from "@/lib/utils/log";
 import { DEFAULT_CHECKOUT_LOCK_MESSAGE } from "@/repositories/store-access-settings-repo";
 
@@ -104,82 +107,80 @@ export function StoreAccessSettingsPanel() {
   };
 
   if (isLoading) {
-    return <div className="text-sm text-zinc-400">Loading store access settings...</div>;
+    return (
+      <AdminSectionCard>
+        <div className="text-sm text-brand-muted">Loading store access settings...</div>
+      </AdminSectionCard>
+    );
   }
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="space-y-4 rounded border border-zinc-800/70 bg-zinc-900 p-5">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Site Lock</h2>
-          <p className="text-sm text-zinc-400">
+      <AdminSectionCard title="Site Lock">
+        <div className="space-y-4">
+          <p className="text-sm text-brand-muted">
             Lock the public storefront until a specific date and time.
           </p>
-        </div>
 
-        <label className="flex items-center gap-3 text-sm text-white">
-          <input
-            type="checkbox"
-            checked={siteLockEnabled}
-            onChange={(event) => setSiteLockEnabled(event.target.checked)}
-            className="rdk-checkbox"
-          />
-          Enable site lock
-        </label>
-
-        <div>
-          <label className="mb-2 block text-xs uppercase tracking-wide text-zinc-500">
-            Unlock At
+          <label className="flex items-center gap-3 text-sm text-brand-text">
+            <input
+              type="checkbox"
+              checked={siteLockEnabled}
+              onChange={(event) => setSiteLockEnabled(event.target.checked)}
+              className="rdk-checkbox"
+            />
+            Enable site lock
           </label>
-          <input
-            type="datetime-local"
-            value={siteUnlockAt}
-            onChange={(event) => setSiteUnlockAt(event.target.value)}
-            className="w-full border border-zinc-800/70 bg-zinc-950 px-3 py-2 text-white"
-          />
-        </div>
-      </section>
 
-      <section className="space-y-4 rounded border border-zinc-800/70 bg-zinc-900 p-5">
-        <div>
-          <h2 className="text-lg font-semibold text-white">Checkout Lock</h2>
-          <p className="text-sm text-zinc-400">
+          <div>
+            <label className={adminFormStyles.label}>Unlock At</label>
+            <input
+              type="datetime-local"
+              value={siteUnlockAt}
+              onChange={(event) => setSiteUnlockAt(event.target.value)}
+              className={adminFormStyles.input}
+            />
+          </div>
+        </div>
+      </AdminSectionCard>
+
+      <AdminSectionCard title="Checkout Lock">
+        <div className="space-y-4">
+          <p className="text-sm text-brand-muted">
             Keep the site open while showing a temporary payment-unavailable message.
           </p>
-        </div>
 
-        <label className="flex items-center gap-3 text-sm text-white">
-          <input
-            type="checkbox"
-            checked={checkoutLockEnabled}
-            onChange={(event) => setCheckoutLockEnabled(event.target.checked)}
-            className="rdk-checkbox"
-          />
-          Enable checkout lock
-        </label>
-
-        <div>
-          <label className="mb-2 block text-xs uppercase tracking-wide text-zinc-500">
-            Checkout Message
+          <label className="flex items-center gap-3 text-sm text-brand-text">
+            <input
+              type="checkbox"
+              checked={checkoutLockEnabled}
+              onChange={(event) => setCheckoutLockEnabled(event.target.checked)}
+              className="rdk-checkbox"
+            />
+            Enable checkout lock
           </label>
-          <textarea
-            value={checkoutLockMessage}
-            onChange={(event) => setCheckoutLockMessage(event.target.value)}
-            rows={5}
-            className="w-full border border-zinc-800/70 bg-zinc-950 px-3 py-2 text-white"
-          />
+
+          <div>
+            <label className={adminFormStyles.label}>Checkout Message</label>
+            <textarea
+              value={checkoutLockMessage}
+              onChange={(event) => setCheckoutLockMessage(event.target.value)}
+              rows={5}
+              className={adminFormStyles.input}
+            />
+          </div>
         </div>
-      </section>
+      </AdminSectionCard>
 
       <div className="flex items-center justify-between gap-3 lg:col-span-2">
-        <span className="text-sm text-zinc-400">{message}</span>
+        <span className="text-sm text-brand-muted">{message}</span>
         <button
           type="button"
           onClick={() => {
             void save();
           }}
           disabled={isSaving}
-          className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:bg-zinc-700"
+          className={`${adminButtonStyles.primary} disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-page disabled:text-brand-muted`}
         >
           {isSaving ? "Saving..." : "Save store access settings"}
         </button>

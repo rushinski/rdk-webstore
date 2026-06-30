@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+
 type CustomerRow = {
   routeId: string;
   displayId: string;
@@ -35,10 +41,10 @@ function fmtDate(iso: string | null | undefined) {
 
 function getCustomerTypeMeta(kind: CustomerRow["kind"]) {
   if (kind === "guest") {
-    return { label: "Guest", className: "text-amber-300" };
+    return { label: "Guest", tone: "warning" as const };
   }
 
-  return { label: "Account", className: "text-emerald-300" };
+  return { label: "Account", tone: "success" as const };
 }
 
 export default function CustomersPage() {
@@ -50,6 +56,7 @@ export default function CustomersPage() {
   useEffect(() => {
     const loadCustomers = async () => {
       setIsLoading(true);
+
       try {
         const response = await fetch("/api/admin/customers", { cache: "no-store" });
         const data = await response.json();
@@ -64,6 +71,7 @@ export default function CustomersPage() {
 
   const filteredCustomers = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+
     if (!query) {
       return customers;
     }
@@ -84,53 +92,57 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="mb-2 text-3xl font-bold text-white">Customers</h1>
-        <p className="text-gray-400">
-          Profiles built from account, order, and payment history
-        </p>
-      </div>
+      <AdminPageHeader
+        title="Customers"
+        description="Profiles built from account, order, and payment history."
+      />
 
-      <div className="flex items-center gap-2 border border-zinc-800/70 bg-zinc-900 px-3 py-2 max-w-md">
-        <Search className="h-4 w-4 text-gray-500" />
+      <div className="flex max-w-md items-center gap-2 border border-brand-border bg-brand-surface px-3 py-2">
+        <Search className="h-4 w-4 text-brand-muted" />
         <input
           type="text"
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search by customer, email, payment method, or ID"
-          className="w-full bg-transparent text-sm text-white placeholder:text-gray-500 outline-none"
+          className={`${adminFormStyles.input} border-0 bg-transparent px-0 py-0 placeholder:text-brand-muted focus:border-0`}
         />
       </div>
 
-      <div className="overflow-hidden rounded border border-zinc-800/70 bg-zinc-900">
+      <AdminSectionCard>
         {isLoading ? (
-          <div className="py-12 text-center text-gray-400">Loading...</div>
+          <AdminEmptyState
+            title="Loading Customers"
+            description="Pulling account and guest profiles now."
+          />
         ) : filteredCustomers.length === 0 ? (
-          <div className="py-12 text-center text-gray-500">No customers found.</div>
+          <AdminEmptyState
+            title="No Customers Found"
+            description="Try a different search or wait for new customer activity."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12px] sm:text-sm">
               <thead>
-                <tr className="border-b border-zinc-800/70 bg-zinc-800">
-                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">
+                <tr className="border-b border-brand-border bg-brand-page">
+                  <th className="p-3 text-left font-semibold text-brand-muted sm:p-4">
                     Created
                   </th>
-                  <th className="p-3 text-left font-semibold text-gray-400 sm:p-4">
+                  <th className="p-3 text-left font-semibold text-brand-muted sm:p-4">
                     Customer
                   </th>
-                  <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
+                  <th className="hidden p-3 text-left font-semibold text-brand-muted sm:p-4 md:table-cell">
                     Type
                   </th>
-                  <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
+                  <th className="hidden p-3 text-left font-semibold text-brand-muted sm:p-4 md:table-cell">
                     Email
                   </th>
-                  <th className="hidden md:table-cell p-3 text-left font-semibold text-gray-400 sm:p-4">
+                  <th className="hidden p-3 text-left font-semibold text-brand-muted sm:p-4 md:table-cell">
                     Payment
                   </th>
-                  <th className="p-3 text-right font-semibold text-gray-400 sm:p-4">
+                  <th className="p-3 text-right font-semibold text-brand-muted sm:p-4">
                     Total Spend
                   </th>
-                  <th className="hidden md:table-cell p-3 text-right font-semibold text-gray-400 sm:p-4">
+                  <th className="hidden p-3 text-right font-semibold text-brand-muted sm:p-4 md:table-cell">
                     Payments
                   </th>
                 </tr>
@@ -153,34 +165,34 @@ export default function CustomersPage() {
                           router.push(customerHref);
                         }
                       }}
-                      className="cursor-pointer border-b border-zinc-800/70 transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800 focus-visible:outline-none"
+                      className="cursor-pointer border-b border-brand-border transition-colors hover:bg-brand-page focus-visible:bg-brand-page focus-visible:outline-none"
                     >
-                      <td className="p-3 text-gray-400 sm:p-4">
+                      <td className="p-3 text-brand-muted sm:p-4">
                         {fmtDate(customer.createdAt)}
                       </td>
                       <td className="p-3 sm:p-4">
                         <div className="space-y-0.5">
-                          <div className="text-white">{customer.name}</div>
-                          <div className="font-mono text-xs text-gray-500">
+                          <div className="text-brand-text">{customer.name}</div>
+                          <div className="font-mono text-xs text-brand-muted">
                             {customer.displayId}
                           </div>
                         </div>
                       </td>
-                      <td
-                        className={`hidden md:table-cell p-3 sm:p-4 ${typeMeta.className}`}
-                      >
-                        {typeMeta.label}
+                      <td className="hidden p-3 sm:p-4 md:table-cell">
+                        <AdminStatusBadge tone={typeMeta.tone}>
+                          {typeMeta.label}
+                        </AdminStatusBadge>
                       </td>
-                      <td className="hidden md:table-cell p-3 text-gray-400 sm:p-4">
+                      <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
                         {customer.email ?? "-"}
                       </td>
-                      <td className="hidden md:table-cell p-3 text-gray-400 sm:p-4">
+                      <td className="hidden p-3 text-brand-muted sm:p-4 md:table-cell">
                         {customer.primaryPaymentMethod ?? "-"}
                       </td>
-                      <td className="p-3 text-right text-white sm:p-4">
+                      <td className="p-3 text-right text-brand-text sm:p-4">
                         {fmtMoney.format(customer.totalSpend)}
                       </td>
-                      <td className="hidden md:table-cell p-3 text-right text-gray-400 sm:p-4">
+                      <td className="hidden p-3 text-right text-brand-muted sm:p-4 md:table-cell">
                         {customer.paymentCount}
                       </td>
                     </tr>
@@ -190,7 +202,7 @@ export default function CustomersPage() {
             </table>
           </div>
         )}
-      </div>
+      </AdminSectionCard>
     </div>
   );
 }

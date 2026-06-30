@@ -28,7 +28,7 @@ export function PasswordField({
   return (
     <div className="space-y-2">
       {label && (
-        <label htmlFor={name} className="block text-sm font-medium text-white">
+        <label htmlFor={name} className="block text-sm font-medium text-brand-text">
           {label}
         </label>
       )}
@@ -41,13 +41,13 @@ export function PasswordField({
           autoComplete={autoComplete}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-11 w-full bg-zinc-900 border border-zinc-800 px-4 pr-11 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:border-zinc-700 transition-colors"
+          className="h-11 w-full border border-brand-border bg-brand-surface px-4 pr-11 text-sm text-brand-text placeholder:text-brand-muted outline-none transition-colors focus:border-brand-text"
           data-testid={dataTestId}
         />
         <button
           type="button"
           onClick={() => setVisible(!visible)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-muted transition-colors hover:text-brand-text"
           aria-label={visible ? "Hide password" : "Show password"}
         >
           {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

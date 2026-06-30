@@ -1,12 +1,13 @@
-// src/components/admin/nexus/HomeOfficeSetupModal.tsx
 "use client";
 
-import React, { useMemo, useState, useEffect } from "react";
-import { X, Building, AlertTriangle } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Building, X } from "lucide-react";
 
-import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
-import { ModalPortal } from "@/components/ui/ModalPortal";
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { RdkSelect } from "@/components/ui/Select";
+import { ModalPortal } from "@/components/ui/ModalPortal";
+import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
 
 type HomeOfficeSetupModalProps = {
   onClose: () => void;
@@ -65,7 +66,7 @@ export default function HomeOfficeSetupModal({
 
   useEffect(() => {
     if (isConfigured) {
-      fetchExistingAddress();
+      void fetchExistingAddress();
     } else {
       setIsLoading(false);
     }
@@ -103,29 +104,6 @@ export default function HomeOfficeSetupModal({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (
-      !formData.stateCode ||
-      !formData.line1 ||
-      !formData.city ||
-      !formData.postalCode
-    ) {
-      setError("Please fill in all required fields");
-      return;
-    }
-
-    // If changing home office and state is different, show old home action dialog
-    if (isConfigured && oldHomeState && formData.stateCode !== oldHomeState) {
-      setShowOldHomeAction(true);
-      return;
-    }
-
-    await submitHomeOffice();
   };
 
   const submitHomeOffice = async () => {
@@ -170,15 +148,35 @@ export default function HomeOfficeSetupModal({
     }
   };
 
-  const handleOldHomeActionSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (
+      !formData.stateCode ||
+      !formData.line1 ||
+      !formData.city ||
+      !formData.postalCode
+    ) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    if (isConfigured && oldHomeState && formData.stateCode !== oldHomeState) {
+      setShowOldHomeAction(true);
+      return;
+    }
+
     await submitHomeOffice();
   };
+
+  const shellClass = "w-full border border-brand-border bg-brand-surface shadow-xl";
 
   if (isLoading) {
     return (
       <ModalPortal open={true} onClose={onClose}>
-        <div className="w-full max-w-2xl bg-zinc-950 border border-zinc-800/70 rounded-sm shadow-xl p-8">
-          <div className="text-center text-zinc-400">Loading...</div>
+        <div className={`${shellClass} max-w-2xl p-8`}>
+          <div className="text-center text-brand-muted">Loading...</div>
         </div>
       </ModalPortal>
     );
@@ -187,39 +185,36 @@ export default function HomeOfficeSetupModal({
   if (showOldHomeAction && oldHomeState) {
     return (
       <ModalPortal open={true} onClose={() => setShowOldHomeAction(false)}>
-        <div
-          className="w-full max-w-xl bg-zinc-950 border border-zinc-800/70 rounded-sm shadow-xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800/70">
+        <div className={`${shellClass} max-w-xl`} onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-start justify-between border-b border-brand-border px-6 py-4">
             <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-yellow-500" />
+              <AlertTriangle className="h-6 w-6 text-amber-700" />
               <div>
-                <h2 className="text-xl font-semibold text-white">
+                <h2 className="text-xl font-semibold text-brand-text">
                   Update Previous Home Office
                 </h2>
-                <p className="text-sm text-zinc-400 mt-1">
+                <p className="mt-1 text-sm text-brand-muted">
                   What should we do with {STATE_NAMES[oldHomeState]} ({oldHomeState})?
                 </p>
               </div>
             </div>
             <button
               onClick={() => setShowOldHomeAction(false)}
-              className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm"
+              className="border border-brand-border p-2 hover:bg-brand-page"
             >
-              <X className="w-4 h-4 text-zinc-300" />
+              <X className="h-4 w-4 text-brand-muted" />
             </button>
           </div>
 
-          <div className="px-6 py-6 space-y-6">
-            <div className="p-4 bg-yellow-900/20 border border-yellow-500/30 rounded-sm">
-              <p className="text-sm text-yellow-300 mb-2">
+          <div className="space-y-6 px-6 py-6">
+            <div className="border border-amber-200 bg-amber-50 p-4">
+              <p className="mb-2 text-sm text-amber-800">
                 You're moving your home office from{" "}
                 <strong>{STATE_NAMES[oldHomeState]}</strong> to{" "}
                 <strong>{STATE_NAMES[formData.stateCode]}</strong>. Please specify your
                 ongoing relationship with the old state.
               </p>
-              <p className="text-xs text-yellow-200/80 mt-2">
+              <p className="mt-2 text-xs text-amber-700">
                 <strong>Important:</strong> Most states require you to continue collecting
                 sales tax through the end of the current tax year even after moving your
                 office location. Consult with a tax professional before disabling
@@ -229,7 +224,7 @@ export default function HomeOfficeSetupModal({
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-zinc-300 mb-3 font-medium">
+                <label className={`${adminFormStyles.label} mb-3`}>
                   Do you still have physical nexus in {STATE_NAMES[oldHomeState]}?
                 </label>
                 <div className="flex gap-3">
@@ -239,10 +234,10 @@ export default function HomeOfficeSetupModal({
                       setOldHomeAction({ ...oldHomeAction, hasPhysicalNexus: true })
                     }
                     className={[
-                      "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
+                      "flex-1 border px-4 py-3 text-sm transition-colors",
                       oldHomeAction.hasPhysicalNexus
-                        ? "bg-red-600 text-white border-red-600"
-                        : "bg-zinc-900 text-zinc-300 border-zinc-800/70 hover:bg-zinc-800",
+                        ? "border-brand-text bg-brand-text text-brand-page"
+                        : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
                     ].join(" ")}
                   >
                     Yes, I have physical presence
@@ -253,10 +248,10 @@ export default function HomeOfficeSetupModal({
                       setOldHomeAction({ ...oldHomeAction, hasPhysicalNexus: false })
                     }
                     className={[
-                      "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
+                      "flex-1 border px-4 py-3 text-sm transition-colors",
                       !oldHomeAction.hasPhysicalNexus
-                        ? "bg-red-600 text-white border-red-600"
-                        : "bg-zinc-900 text-zinc-300 border-zinc-800/70 hover:bg-zinc-800",
+                        ? "border-brand-text bg-brand-text text-brand-page"
+                        : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
                     ].join(" ")}
                   >
                     No, only economic nexus
@@ -265,10 +260,10 @@ export default function HomeOfficeSetupModal({
               </div>
 
               <div>
-                <label className="block text-sm text-zinc-300 mb-3 font-medium">
+                <label className={`${adminFormStyles.label} mb-3`}>
                   Should we continue collecting tax in {STATE_NAMES[oldHomeState]}?
                 </label>
-                <p className="text-xs text-zinc-400 mb-3">
+                <p className="mb-3 text-xs text-brand-muted">
                   Most states require you to continue collecting through the end of the
                   current tax year. Only select "No" if you've confirmed with your state's
                   tax authority or a tax professional.
@@ -280,10 +275,10 @@ export default function HomeOfficeSetupModal({
                       setOldHomeAction({ ...oldHomeAction, continueCollecting: true })
                     }
                     className={[
-                      "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
+                      "flex-1 border px-4 py-3 text-sm transition-colors",
                       oldHomeAction.continueCollecting
-                        ? "bg-red-600 text-white border-red-600"
-                        : "bg-zinc-900 text-zinc-300 border-zinc-800/70 hover:bg-zinc-800",
+                        ? "border-brand-text bg-brand-text text-brand-page"
+                        : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
                     ].join(" ")}
                   >
                     Yes, keep collecting tax (Recommended)
@@ -294,10 +289,10 @@ export default function HomeOfficeSetupModal({
                       setOldHomeAction({ ...oldHomeAction, continueCollecting: false })
                     }
                     className={[
-                      "flex-1 px-4 py-3 rounded-sm text-sm border transition-colors",
+                      "flex-1 border px-4 py-3 text-sm transition-colors",
                       !oldHomeAction.continueCollecting
-                        ? "bg-red-600 text-white border-red-600"
-                        : "bg-zinc-900 text-zinc-300 border-zinc-800/70 hover:bg-zinc-800",
+                        ? "border-brand-text bg-brand-text text-brand-page"
+                        : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
                     ].join(" ")}
                   >
                     No, stop collecting tax
@@ -307,7 +302,7 @@ export default function HomeOfficeSetupModal({
             </div>
 
             {error && (
-              <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-sm text-red-300 text-sm">
+              <div className="border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -315,17 +310,17 @@ export default function HomeOfficeSetupModal({
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => {
-                  void handleOldHomeActionSubmit();
+                  void submitHomeOffice();
                 }}
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${adminButtonStyles.primary} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {isSubmitting ? "Updating..." : "Confirm Changes"}
               </button>
               <button
                 type="button"
                 onClick={() => setShowOldHomeAction(false)}
-                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-sm border border-zinc-800/70"
+                className={adminButtonStyles.secondary}
               >
                 Cancel
               </button>
@@ -339,17 +334,17 @@ export default function HomeOfficeSetupModal({
   return (
     <ModalPortal open={true} onClose={onClose}>
       <div
-        className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-zinc-950 border border-zinc-800/70 rounded-sm shadow-xl"
+        className={`${shellClass} max-h-[92vh] max-w-2xl overflow-y-auto`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-800/70">
+        <div className="flex items-start justify-between border-b border-brand-border px-6 py-4">
           <div className="flex items-center gap-3">
-            <Building className="w-6 h-6 text-red-500" />
+            <Building className="h-6 w-6 text-brand-text" />
             <div>
-              <h2 className="text-xl font-semibold text-white">
+              <h2 className="text-xl font-semibold text-brand-text">
                 {title ?? (isConfigured ? "Change Office Location" : "Setup Home Office")}
               </h2>
-              <p className="text-sm text-zinc-400 mt-1">
+              <p className="mt-1 text-sm text-brand-muted">
                 {isConfigured
                   ? "Update your business address for tax registrations"
                   : "Configure your business address to enable tax registrations"}
@@ -359,19 +354,19 @@ export default function HomeOfficeSetupModal({
 
           <button
             onClick={onClose}
-            className="p-2 border border-zinc-800/70 hover:border-zinc-600 rounded-sm"
+            className="border border-brand-border p-2 hover:bg-brand-page"
           >
-            <X className="w-4 h-4 text-zinc-300" />
+            <X className="h-4 w-4 text-brand-muted" />
           </button>
         </div>
 
         <div className="px-6 py-6">
           {existingAddress && (
-            <div className="mb-6 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
-              <div className="text-sm text-zinc-300 font-semibold mb-2">
+            <div className="mb-6 border border-brand-border bg-brand-page p-4">
+              <div className="mb-2 text-sm font-semibold text-brand-text">
                 Current Address
               </div>
-              <div className="text-sm text-zinc-400 space-y-1">
+              <div className="space-y-1 text-sm text-brand-muted">
                 <div>{existingAddress.line1}</div>
                 {existingAddress.line2 && <div>{existingAddress.line2}</div>}
                 <div>
@@ -383,7 +378,7 @@ export default function HomeOfficeSetupModal({
           )}
 
           {error && (
-            <div className="mb-4 p-3 bg-red-900/20 border border-red-800/50 rounded-sm text-red-300 text-sm">
+            <div className="mb-4 border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
@@ -395,74 +390,72 @@ export default function HomeOfficeSetupModal({
             className="space-y-4"
           >
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">
-                Business Name (Optional)
-              </label>
+              <label className={adminFormStyles.label}>Business Name (Optional)</label>
               <input
                 type="text"
                 value={formData.businessName}
                 onChange={(e) =>
                   setFormData({ ...formData, businessName: e.target.value })
                 }
-                className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={adminFormStyles.input}
                 placeholder="Your Business Name"
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">
-                Home State <span className="text-red-500">*</span>
+              <label className={adminFormStyles.label}>
+                Home State <span className="text-red-700">*</span>
               </label>
               <RdkSelect
                 value={formData.stateCode}
-                onChange={(v) => setFormData({ ...formData, stateCode: v })}
+                onChange={(value) => setFormData({ ...formData, stateCode: value })}
                 options={stateOptions}
-                placeholder="Select…"
+                placeholder="Select..."
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">
-                Address Line 1 <span className="text-red-500">*</span>
+              <label className={adminFormStyles.label}>
+                Address Line 1 <span className="text-red-700">*</span>
               </label>
               <input
                 type="text"
                 value={formData.line1}
                 onChange={(e) => setFormData({ ...formData, line1: e.target.value })}
-                className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={adminFormStyles.input}
                 placeholder="123 Main Street"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm text-zinc-300 mb-2">Address Line 2</label>
+              <label className={adminFormStyles.label}>Address Line 2</label>
               <input
                 type="text"
                 value={formData.line2}
                 onChange={(e) => setFormData({ ...formData, line2: e.target.value })}
-                className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                className={adminFormStyles.input}
                 placeholder="Suite 100"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-zinc-300 mb-2">
-                  City <span className="text-red-500">*</span>
+                <label className={adminFormStyles.label}>
+                  City <span className="text-red-700">*</span>
                 </label>
                 <input
                   type="text"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                  className={adminFormStyles.input}
                   placeholder="Charleston"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm text-zinc-300 mb-2">
-                  Postal Code <span className="text-red-500">*</span>
+                <label className={adminFormStyles.label}>
+                  Postal Code <span className="text-red-700">*</span>
                 </label>
                 <input
                   type="text"
@@ -470,7 +463,7 @@ export default function HomeOfficeSetupModal({
                   onChange={(e) =>
                     setFormData({ ...formData, postalCode: e.target.value })
                   }
-                  className="w-full px-4 py-2.5 bg-zinc-950 text-white rounded-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
+                  className={adminFormStyles.input}
                   placeholder="29401"
                   required
                 />
@@ -481,7 +474,7 @@ export default function HomeOfficeSetupModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`${adminButtonStyles.primary} flex-1 disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {isSubmitting
                   ? "Saving..."
@@ -492,18 +485,18 @@ export default function HomeOfficeSetupModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-sm border border-zinc-800/70"
+                className={adminButtonStyles.secondary}
               >
                 Cancel
               </button>
             </div>
           </form>
 
-          <div className="mt-6 p-4 bg-zinc-900 border border-zinc-800/70 rounded-sm">
-            <p className="text-sm text-zinc-400">
-              <strong className="text-zinc-200">Note:</strong> This address will be used
+          <div className="mt-6 border border-brand-border bg-brand-page p-4">
+            <p className="text-sm text-brand-muted">
+              <strong className="text-brand-text">Note:</strong> This address will be used
               as your tax registration headquarters.{" "}
-              {!isConfigured && "It will mark your home state for physical nexus."}
+              {!isConfigured && " It will mark your home state for physical nexus."}
             </p>
           </div>
         </div>

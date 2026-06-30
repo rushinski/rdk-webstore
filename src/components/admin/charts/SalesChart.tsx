@@ -19,7 +19,7 @@ export function SalesChart(props: { data: Array<{ date: string; revenue: number 
       yKey="revenue"
       yLabel="Revenue"
       seriesName="Revenue"
-      stroke="#ef4444"
+      stroke="#111111"
       valueFormatter={(v) => money.format(v)}
       emptyLabel="No revenue recorded for this range yet."
     />

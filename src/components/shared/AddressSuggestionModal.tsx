@@ -1,8 +1,8 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useState, useEffect } from "react";
-import { CheckCircle, AlertTriangle, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, CheckCircle, X } from "lucide-react";
 
 export interface AddressSuggestion {
   line1: string;
@@ -14,7 +14,7 @@ export interface AddressSuggestion {
 
 interface AddressSuggestionModalProps {
   isOpen: boolean;
-  isValid: boolean; // true = verified with suggestions, false = invalid with alternatives
+  isValid: boolean;
   suggestions: AddressSuggestion[];
   originalAddress: {
     line1: string;
@@ -37,15 +37,11 @@ export function AddressSuggestionModal({
   onCancel,
 }: AddressSuggestionModalProps) {
   const [mounted, setMounted] = useState(false);
+
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-
+    document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
       document.body.style.overflow = "";
     };
@@ -55,9 +51,11 @@ export function AddressSuggestionModal({
     return null;
   }
 
+  const suggestion = suggestions[0];
+
   const modal = (
     <div
-      className="fixed top-0 left-0 right-0 bottom-0 w-screen h-[100svh] z-[9999] bg-black/90 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex h-[100svh] w-screen items-center justify-center bg-brand-overlay p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onCancel();
@@ -65,47 +63,44 @@ export function AddressSuggestionModal({
       }}
       role="dialog"
       aria-modal="true"
-      style={{ zIndex: 9999 }}
     >
       <div
-        className="relative bg-zinc-900 border border-zinc-700 rounded-lg shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto border border-brand-border bg-brand-surface shadow-[0_24px_80px_rgba(17,17,17,0.18)]"
         onClick={(e) => e.stopPropagation()}
-        style={{ zIndex: 10000 }}
       >
-        {/* Header */}
-        <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
+        <div className="sticky top-0 flex items-center justify-between border-b border-brand-border bg-brand-surface p-4">
           <div className="flex items-center gap-2">
             {isValid ? (
-              <CheckCircle className="w-5 h-5 text-green-400" />
+              <CheckCircle className="h-5 w-5 text-brand-text" />
             ) : (
-              <AlertTriangle className="w-5 h-5 text-yellow-400" />
+              <AlertTriangle className="h-5 w-5 text-brand-text" />
             )}
-            <h3 className="text-lg font-semibold text-white">
-              {isValid ? "Address Verified" : "Address Suggestions"}
+            <h3 className="text-lg font-bold uppercase tracking-[0.08em] text-brand-text">
+              {isValid ? "Address verified" : "Address suggestions"}
             </h3>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            className="text-gray-400 hover:text-white transition p-1"
+            className="p-1 text-brand-muted transition-colors hover:text-brand-text"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-4">
-          <div className={`text-sm ${isValid ? "text-white" : "text-yellow-300"}`}>
+        <div className="space-y-4 p-4">
+          <div className="text-sm text-brand-muted">
             {isValid
               ? "We verified your address and found a standardized format."
-              : "We couldn't verify the exact address you entered. Please review the suggestion below."}
+              : "We could not verify the exact address you entered. Please review the suggested address below."}
           </div>
 
-          {/* Original Address */}
           <div>
-            <div className="text-xs font-medium text-gray-400 mb-1">You entered:</div>
-            <div className="text-sm text-gray-300 bg-zinc-950 border border-zinc-800 rounded p-3">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted">
+              You entered
+            </div>
+            <div className="border border-brand-border bg-brand-page p-3 text-sm text-brand-text">
               {originalAddress.line1}
               <br />
               {originalAddress.city}, {originalAddress.state}{" "}
@@ -113,34 +108,32 @@ export function AddressSuggestionModal({
             </div>
           </div>
 
-          {/* Suggested Address */}
           <div>
-            <div className="text-xs font-medium text-gray-400 mb-1">
-              {isValid ? "Standardized format:" : "Suggested address:"}
+            <div className="mb-1 text-xs font-semibold uppercase tracking-[0.12em] text-brand-muted">
+              {isValid ? "Standardized format" : "Suggested address"}
             </div>
-            <div className="text-sm text-white bg-zinc-950 border border-red-600/50 rounded p-3">
-              {suggestions[0].line1}
+            <div className="border border-brand-text bg-brand-surface p-3 text-sm text-brand-text">
+              {suggestion.line1}
               <br />
-              {suggestions[0].city}, {suggestions[0].state} {suggestions[0].postal_code}
+              {suggestion.city}, {suggestion.state} {suggestion.postal_code}
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="sticky bottom-0 bg-zinc-900 border-t border-zinc-800 p-4 flex flex-col gap-3">
+        <div className="sticky bottom-0 flex flex-col gap-3 border-t border-brand-border bg-brand-surface p-4">
           <button
             type="button"
-            onClick={() => onUseSuggestion(suggestions[0])}
-            className="w-full px-4 py-3 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded transition"
+            onClick={() => onUseSuggestion(suggestion)}
+            className="w-full border border-brand-text bg-brand-text px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800"
           >
-            Use Standardized Address
+            Use standardized address
           </button>
           <button
             type="button"
             onClick={onUseOriginal}
-            className="w-full px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white text-sm font-semibold rounded transition"
+            className="w-full border border-brand-border bg-brand-page px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:border-brand-text"
           >
-            Use Original Address
+            Use original address
           </button>
         </div>
       </div>

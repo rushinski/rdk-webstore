@@ -15,15 +15,12 @@ export type AdminRole = (typeof ADMIN_ROLES)[number];
 export const SUPER_ADMIN_ROLES = ["super_admin", "dev"] as const;
 export type SuperAdminRole = (typeof SUPER_ADMIN_ROLES)[number];
 
-export const ADMIN_PERMISSIONS: Record<
-  ProfileRole,
-  { canInvite: boolean; canViewBank: boolean }
-> = {
-  customer: { canInvite: false, canViewBank: false },
-  seller: { canInvite: false, canViewBank: false },
-  admin: { canInvite: false, canViewBank: false },
-  super_admin: { canInvite: false, canViewBank: true },
-  dev: { canInvite: true, canViewBank: true },
+export const ADMIN_PERMISSIONS: Record<ProfileRole, { canInvite: boolean }> = {
+  customer: { canInvite: false },
+  seller: { canInvite: false },
+  admin: { canInvite: false },
+  super_admin: { canInvite: false },
+  dev: { canInvite: true },
 } as const;
 
 // Typed includes helper (fixes TS2345 + gives type guards)
@@ -52,8 +49,4 @@ export function isDevRole(role: ProfileRole): boolean {
 
 export function canInviteAdmins(role: ProfileRole): boolean {
   return ADMIN_PERMISSIONS[role]?.canInvite ?? false;
-}
-
-export function canViewBank(role: ProfileRole): boolean {
-  return ADMIN_PERMISSIONS[role]?.canViewBank ?? false;
 }

@@ -3,6 +3,8 @@
 
 import { useRouter } from "next/navigation";
 
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { ProductForm } from "@/components/inventory/ProductForm";
 import type { ProductCreateInput } from "@/services/product-service";
 import type { ProductWithDetails } from "@/types/domain/product";
@@ -102,30 +104,32 @@ export function EditProductClient({
 
   if (isArchived) {
     return (
-      <div className="space-y-4 rounded border border-zinc-800/70 bg-zinc-900 p-6">
-        <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-white">{product.name}</h2>
-          <p className="text-sm text-zinc-400">
-            Archived products are read-only until restored.
-          </p>
+      <AdminSectionCard title="Archived Product">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-brand-text">{product.name}</h2>
+            <p className="text-sm text-brand-muted">
+              Archived products are read-only until restored.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void handleRestore()}
+              className={adminButtonStyles.primary}
+            >
+              Restore Product
+            </button>
+            <button
+              type="button"
+              onClick={handleCancel}
+              className={adminButtonStyles.secondary}
+            >
+              Back To Inventory
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => void handleRestore()}
-            className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-          >
-            Restore Product
-          </button>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="rounded border border-zinc-800/70 px-4 py-2 text-sm font-semibold text-zinc-200 transition hover:bg-zinc-800"
-          >
-            Back to Inventory
-          </button>
-        </div>
-      </div>
+      </AdminSectionCard>
     );
   }
 

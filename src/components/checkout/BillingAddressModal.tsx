@@ -1,9 +1,8 @@
-// src/components/checkout/BillingAddressModal.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, CreditCard } from "lucide-react";
+import { CreditCard, X } from "lucide-react";
 
 import { AddressInput } from "@/components/shared/AddressInput";
 import { normalizeUsStateCode } from "@/lib/address/codes";
@@ -84,51 +83,32 @@ export function BillingAddressModal({
 
   const billingModal = (
     <div
-      className={[
-        "fixed top-0 left-0 right-0 bottom-0 w-screen",
-        "h-[100svh] supports-[height:100dvh]:h-[100dvh]",
-        "z-[100]",
-        "bg-black/70",
-        "flex items-end sm:items-center justify-center",
-      ].join(" ")}
+      className="fixed inset-0 z-[100] flex h-[100svh] w-screen items-end justify-center bg-brand-overlay sm:items-center"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
     >
       <div
         ref={modalRef}
-        className={[
-          "relative bg-zinc-900 border border-zinc-800 shadow-2xl flex flex-col",
-          "w-full mx-0 mb-0 mt-10",
-          "rounded-t-2xl rounded-b-none",
-          "max-h-[calc(100svh-2.5rem)] supports-[height:100dvh]:max-h-[calc(100dvh-2.5rem)]",
-          "sm:mx-4 sm:mt-0 sm:mb-0 sm:rounded-lg sm:max-w-lg sm:max-h-[90dvh]",
-        ].join(" ")}
+        className="relative mt-10 flex max-h-[calc(100svh-2.5rem)] w-full flex-col border border-brand-border bg-brand-surface shadow-[0_24px_80px_rgba(17,17,17,0.18)] sm:m-4 sm:mt-0 sm:max-h-[90dvh] sm:max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex-shrink-0 bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
-          <h2 className="text-base sm:text-lg font-semibold text-white flex items-center gap-2">
-            <CreditCard className="w-5 h-5" />
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-brand-border bg-brand-surface p-4">
+          <h2 className="flex items-center gap-2 text-base font-bold uppercase tracking-[0.08em] text-brand-text sm:text-lg">
+            <CreditCard className="h-5 w-5" />
             {initialAddress ? "Edit Billing Address" : "Add Billing Address"}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition p-1"
+            className="p-1 text-brand-muted transition hover:text-brand-text"
             aria-label="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <div
-          className={[
-            "flex-1 min-h-0 overflow-y-auto p-4",
-            "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-          ].join(" ")}
-        >
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <AddressInput
             value={{ ...address, line2: address.line2 ?? "" }}
             onChange={setAddress}
@@ -138,28 +118,21 @@ export function BillingAddressModal({
             countryCode="US"
           />
 
-          {saveError && <div className="text-sm text-red-400 mt-4">{saveError}</div>}
+          {saveError && <div className="mt-4 text-sm text-red-700">{saveError}</div>}
         </div>
 
-        {/* Footer */}
-        <div
-          className={[
-            "flex-shrink-0 bg-zinc-900 border-t border-zinc-800 p-4",
-            "flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-end",
-            "pb-[calc(env(safe-area-inset-bottom)+0.75rem)]",
-          ].join(" ")}
-        >
+        <div className="flex flex-shrink-0 flex-col items-stretch gap-3 border-t border-brand-border bg-brand-surface p-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2.5 border border-zinc-700 text-zinc-300 text-[16px] sm:text-sm rounded hover:border-zinc-500 hover:text-white transition"
+            className="w-full border border-brand-border bg-brand-page px-4 py-2.5 text-[16px] font-semibold uppercase tracking-[0.08em] text-brand-text transition-colors hover:border-brand-text sm:w-auto sm:text-sm"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={handleSave}
-            className="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-red-800 disabled:cursor-not-allowed text-white text-[16px] sm:text-sm font-semibold rounded transition"
+            className="w-full border border-brand-text bg-brand-text px-6 py-2.5 text-[16px] font-semibold uppercase tracking-[0.08em] text-brand-surface transition-colors hover:bg-neutral-800 sm:w-auto sm:text-sm"
           >
             Save Address
           </button>
@@ -193,7 +166,7 @@ function normalizeAddress(address: BillingAddress): BillingAddress {
     city: address.city.trim(),
     state: normalizeUsStateCode(address.state),
     postal_code: address.postal_code.trim(),
-    country: "US", // Always US
+    country: "US",
   };
 }
 
