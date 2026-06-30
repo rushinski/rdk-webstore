@@ -4,14 +4,17 @@
 @tailwind utilities;
 
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --background: #efefef;
+  --foreground: #111111;
+  --surface: #ffffff;
+  --border: #e0e0e0;
+  --muted: #888888;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
 }
 
 * {
@@ -35,16 +38,16 @@ body[data-route='admin'] main {
 }
 
 ::-webkit-scrollbar-track {
-  background: #18181b;
+  background: #efefef;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #52525b;
+  background: #c7c7c7;
   border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #71717a;
+  background: #9f9f9f;
 }
 
 /* Custom scrollbar for dropdown menus */
@@ -53,16 +56,16 @@ body[data-route='admin'] main {
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #18181b;
+  background: #efefef;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #52525b;
+  background: #c7c7c7;
   border-radius: 0;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #71717a;
+  background: #9f9f9f;
 }
 
 .admin-sidebar-scroll {
@@ -112,8 +115,8 @@ body[data-route='admin'] main {
   width: 18px;
   height: 18px;
   border-radius: 0;
-  border: 1px solid #52525b;
-  background-color: #0b0b0c;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -132,8 +135,8 @@ body[data-route='admin'] main {
 }
 
 .rdk-checkbox:checked {
-  border-color: #dc2626;
-  background-color: #dc2626;
+  border-color: #111111;
+  background-color: #111111;
 }
 
 .rdk-checkbox:checked::after {
@@ -142,7 +145,7 @@ body[data-route='admin'] main {
 
 .rdk-checkbox:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.7);
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.2);
 }
 
 .rdk-checkbox:disabled {
@@ -156,8 +159,8 @@ body[data-route='admin'] main {
   width: 18px;
   height: 18px;
   border-radius: 9999px;
-  border: 1px solid #52525b;
-  background-color: #0b0b0c;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -176,8 +179,8 @@ body[data-route='admin'] main {
 }
 
 .rdk-radio:checked {
-  border-color: #dc2626;
-  background-color: #dc2626;
+  border-color: #111111;
+  background-color: #111111;
 }
 
 .rdk-radio:checked::after {
@@ -186,7 +189,7 @@ body[data-route='admin'] main {
 
 .rdk-radio:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.7);
+  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.2);
 }
 
 .rdk-radio:disabled {
@@ -199,8 +202,8 @@ body[data-route='admin'] main {
   height: 24px;
   min-width: 46px;
   min-height: 24px;
-  border: 1px solid #3f3f46;
-  background-color: #0b0b0c;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
   display: inline-flex;
   align-items: center;
   padding: 2px;
@@ -209,8 +212,8 @@ body[data-route='admin'] main {
 }
 
 .rdk-toggle[data-state='on'] {
-  background-color: #dc2626;
-  border-color: #dc2626;
+  background-color: #111111;
+  border-color: #111111;
 }
 
 .rdk-toggle__thumb {
@@ -232,7 +235,7 @@ body[data-route='admin'] main {
 
 /* Focus styles for accessibility */
 *:focus-visible {
-  outline: 2px solid #dc2626;
+  outline: 2px solid #111111;
   outline-offset: 2px;
 }
 

@@ -1,8 +1,8 @@
 // app/layout.tsx
-
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import { Inter } from "next/font/google";
 
 import { CartProvider } from "@/components/cart/CartProvider";
 import { ScrollHeader } from "@/components/shell/ScrollHeader";
@@ -12,9 +12,15 @@ import { getServerSession } from "@/lib/auth/session";
 import { isAdminRole } from "@/config/constants/roles";
 import "@/styles/global.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
 export const metadata: Metadata = {
-  title: "Realdealkickzsc - Premium Sneakers & Streetwear",
-  description: "Authentic sneakers and streetwear. Quality guaranteed.",
+  title: "solesneakers - Curated Footwear and Style",
+  description: "Curated footwear and apparel with a clean editorial storefront.",
 };
 
 // OPTIMIZATION: Proper viewport configuration for mobile performance
@@ -27,8 +33,8 @@ export const viewport: Viewport = {
   viewportFit: "cover", // Safe area insets on iOS
   // Theme color for mobile browsers
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+    { media: "(prefers-color-scheme: light)", color: "#EFEFEF" },
+    { media: "(prefers-color-scheme: dark)", color: "#EFEFEF" },
   ],
 };
 
@@ -51,8 +57,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     : null;
 
   return (
-    <html lang="en">
-      <body className="bg-black text-white">
+    <html lang="en" className={inter.variable}>
+      <body className="bg-brand-page text-brand-text">
         <SessionProvider initialUser={sessionUser} initialRole={role}>
           <CartProvider userId={userId}>
             <ClientShell isAdmin={isAdmin} userEmail={userEmail} role={role}>
