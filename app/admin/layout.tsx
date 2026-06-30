@@ -8,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userEmail = session.user.email ?? session.profile?.email ?? null;
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-brand-page">
       {/* Mobile: Hidden sidebar by default, toggle with hamburger */}
       <AdminSidebar userEmail={userEmail} role={session.role} />
 

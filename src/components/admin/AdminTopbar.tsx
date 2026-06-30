@@ -2,9 +2,11 @@
 
 export function AdminTopbar() {
   return (
-    <div className="bg-zinc-900 border-b border-zinc-800 px-6 py-6 mb-8">
+    <div className="mb-8 border-b border-brand-border bg-brand-surface px-6 py-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-xl font-bold text-white">Realdealkickzsc Admin</h1>
+        <h1 className="text-xl font-bold uppercase tracking-[0.08em] text-brand-text">
+          solesneakers admin
+        </h1>
       </div>
     </div>
   );

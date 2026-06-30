@@ -29,6 +29,8 @@ import { canViewBank } from "@/config/constants/roles";
 import type { ProfileRole } from "@/config/constants/roles";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { AdminNotificationsDrawer } from "@/components/admin/AdminNotificationsDrawer";
+import { AdminBrandHeader } from "@/components/admin/shell/AdminBrandHeader";
+import { AdminNavItem } from "@/components/admin/shell/AdminNavItem";
 
 type NavLinkItem = {
   type: "link";
@@ -297,17 +299,17 @@ export function AdminSidebar({
   function SidebarContent() {
     const canViewBankTab = canViewBank(role);
     const baseItemClass =
-      "group flex items-center gap-3 px-4 py-3 border border-transparent bg-transparent " +
-      "hover:bg-zinc-950 hover:border-zinc-800/70 transition-colors rounded-sm";
+      "group flex items-center gap-3 border border-transparent px-4 py-3 " +
+      "bg-transparent transition-colors hover:bg-brand-page";
 
-    const activeItemClass = "bg-zinc-950 border-zinc-800/70 text-white";
-    const inactiveItemClass = "text-gray-400";
+    const activeItemClass = "border-brand-text bg-brand-text text-brand-surface";
+    const inactiveItemClass = "text-brand-text";
 
     const inAdmin = pathname.startsWith("/admin");
 
     const statusBase =
       "flex w-full items-center gap-2 px-3 py-2 rounded-sm select-none " +
-      "text-[12px] sm:text-[13px] leading-none bg-zinc-950 text-white";
+      "text-[12px] sm:text-[13px] leading-none bg-brand-text text-brand-surface";
 
     const notifLabel =
       typeof notifBadgeCount === "number" && notifBadgeCount > 9
@@ -322,7 +324,7 @@ export function AdminSidebar({
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 admin-sidebar-scroll">
           {/* Workspace Indicator (visual only) */}
           <div className="mb-4">
-            <div className="text-[11px] uppercase tracking-wider text-zinc-500 mb-2">
+            <div className="mb-2 text-[11px] uppercase tracking-wider text-brand-muted">
               Workspace
             </div>
 
@@ -340,7 +342,7 @@ export function AdminSidebar({
               )}
             </div>
 
-            <div className="mt-4 border-t border-zinc-800/70" />
+            <div className="mt-4 border-t border-brand-border" />
           </div>
 
           <nav className="space-y-1">
@@ -354,18 +356,20 @@ export function AdminSidebar({
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 
                 return (
-                  <Link
+                  <div
                     key={item.href}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={`${baseItemClass} ${isActive ? activeItemClass : inactiveItemClass}`}
                     data-testid={
                       item.href === "/admin/bank" ? "admin-nav-bank" : undefined
                     }
                   >
-                    {createElement(icon, { className: "w-5 h-5" })}
-                    <span className="text-[13px] sm:text-[15px]">{item.label}</span>
-                  </Link>
+                    <AdminNavItem
+                      href={item.href}
+                      label={item.label}
+                      icon={icon}
+                      isActive={isActive}
+                      onClick={() => setIsOpen(false)}
+                    />
+                  </div>
                 );
               }
 
@@ -420,8 +424,8 @@ export function AdminSidebar({
                             onClick={() => setIsOpen(false)}
                             className={`flex items-center px-3 py-2 border border-transparent rounded-sm transition-colors ${
                               isActive
-                                ? "bg-red-900/20 text-white border-red-900/30"
-                                : "text-gray-400 hover:bg-zinc-950 hover:border-zinc-800/70 hover:text-white"
+                                ? "border-brand-text bg-brand-text text-brand-surface"
+                                : "text-brand-text hover:bg-brand-page"
                             }`}
                           >
                             <span className="text-[12px] sm:text-[14px]">
@@ -441,10 +445,10 @@ export function AdminSidebar({
         {/* Bottom dock */}
         <div className="sticky bottom-0 left-0 w-full flex-none self-stretch">
           {/* Full-width divider */}
-          <div className="-mx-6 w-[calc(100%+3rem)] border-t border-zinc-800/70" />
+          <div className="-mx-6 w-[calc(100%+3rem)] border-t border-brand-border" />
 
           {/* Dock background spans edge-to-edge (cancels parent p-6) */}
-          <div className="-mx-6 w-[calc(100%+3rem)] bg-zinc-950 px-6 py-3">
+          <div className="-mx-6 w-[calc(100%+3rem)] bg-brand-surface px-6 py-3">
             <div className="grid w-full grid-cols-3 items-center">
               {/* Profile */}
               <Tooltip label="Profile" side="top">
@@ -471,7 +475,7 @@ export function AdminSidebar({
                             focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
                 >
                   <span className="relative">
-                    <MessageCircle className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                    <MessageCircle className="w-5 h-5 text-brand-muted group-hover:text-brand-text transition-colors" />
                     {chatBadgeCount > 0 && (
                       <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
                         {chatLabel}
@@ -493,7 +497,7 @@ export function AdminSidebar({
                             focus:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
                 >
                   <span className="relative">
-                    <Bell className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" />
+                    <Bell className="w-5 h-5 text-brand-muted group-hover:text-brand-text transition-colors" />
                     {typeof notifBadgeCount === "number" && notifBadgeCount > 0 && (
                       <span className="absolute -top-2 -right-2 text-[10px] font-semibold text-red-500">
                         {notifLabel}
@@ -518,20 +522,22 @@ export function AdminSidebar({
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="md:hidden fixed top-5 right-5 z-40 bg-red-600 text-white p-3 rounded-sm shadow-lg"
+        className="fixed right-5 top-5 z-40 border border-brand-border bg-brand-surface p-3 text-brand-text shadow-lg md:hidden"
         aria-label="Open admin menu"
       >
         <Menu className="w-5 h-5" />
       </button>
 
       {isOpen && (
-        <div className="md:hidden fixed inset-0 bg-black z-50 overscroll-contain">
+        <div className="fixed inset-0 z-50 bg-brand-surface overscroll-contain md:hidden">
           <div className="px-6 pt-6 pb-0 h-full flex flex-col">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-white">Admin Menu</h2>
+              <h2 className="text-2xl font-bold uppercase tracking-[0.08em] text-brand-text">
+                Admin Menu
+              </h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-brand-muted hover:text-brand-text"
                 aria-label="Close"
               >
                 <X className="w-6 h-6" />
@@ -544,9 +550,11 @@ export function AdminSidebar({
         </div>
       )}
 
-      <aside className="hidden md:block fixed left-0 top-0 w-64 h-screen bg-zinc-900 border-r border-zinc-800/70 p-6 z-40">
-        <h2 className="text-2xl font-bold text-white mb-8">Admin</h2>
-        <SidebarContent />
+      <aside className="fixed left-0 top-0 z-40 hidden h-screen w-64 border-r border-brand-border bg-brand-surface md:block">
+        <AdminBrandHeader />
+        <div className="p-6">
+          <SidebarContent />
+        </div>
       </aside>
     </>
   );
