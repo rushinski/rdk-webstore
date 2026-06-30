@@ -61,13 +61,13 @@ export async function generateMetadata({
 
   // Construct title
   const title = product.name;
-  const fullTitle = `${title} | Realdealkickzsc`;
+  const fullTitle = `${title} | solesneakers`;
 
   // Construct description
   const conditionText = product.condition === "new" ? "Brand New" : "Pre-Owned";
   const description = product.description
     ? `${conditionText} - ${product.description.slice(0, 150)}${product.description.length > 150 ? "..." : ""}`
-    : `${conditionText} ${title}. Premium sneakers and streetwear.`;
+    : `${conditionText} ${title}. Curated footwear and style.`;
 
   return {
     title: fullTitle,
@@ -84,7 +84,7 @@ export async function generateMetadata({
         },
       ],
       type: "website",
-      siteName: "Realdealkickzsc",
+      siteName: "solesneakers",
     },
     twitter: {
       card: "summary_large_image",
