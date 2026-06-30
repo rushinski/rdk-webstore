@@ -3,6 +3,8 @@
 
 import Link from "next/link";
 
+import { CatalogFilterBar } from "@/components/storefront/catalog/CatalogFilterBar";
+import { CatalogToolbar } from "@/components/storefront/catalog/CatalogToolbar";
 import { FilterPanel } from "@/components/store/FilterPanel";
 import { ProductGrid } from "@/components/store/ProductGrid";
 import { StoreControls } from "@/components/store/StoreControls";
@@ -170,9 +172,9 @@ export default async function StorePage({
   })();
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">
+    <div className="bg-brand-page pb-10">
+      <div className="mx-auto max-w-brand">
+        <div className="hidden">
           {breadcrumbItems.map((item, index) => {
             const isLast = index === breadcrumbItems.length - 1;
             return (
@@ -189,76 +191,79 @@ export default async function StorePage({
             );
           })}
         </div>
-        <h1 className="text-4xl font-bold text-white mb-2">{browseLabel}</h1>
+        <CatalogToolbar browseLabel={browseLabel} total={productsResult.total} />
+        <CatalogFilterBar />
       </div>
 
-      <StoreControls
-        total={productsResult.total}
-        page={productsResult.page}
-        pageCount={pageCount}
-        limit={productsResult.limit}
-        sort={filters.sort ?? "newest"}
-        showPagination={false}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="hidden lg:block">
-          <div
-            className="sticky transition-[top] duration-300"
-            style={{ top: "var(--rdk-header-offset, 0px)" }}
-          >
-            <FilterPanel
-              selectedCategories={selectedCategories}
-              selectedBrands={selectedBrands}
-              selectedModels={selectedModels}
-              selectedShoeSizes={selectedShoeSizes}
-              selectedClothingSizes={selectedClothingSizes}
-              selectedConditions={selectedConditions}
-              categories={filterData.categories}
-              brands={brandOptions}
-              modelsByBrand={filterData.modelsByBrand}
-              brandsByCategory={filterData.brandsByCategory}
-              availableShoeSizes={filterData.availableShoeSizes}
-              availableClothingSizes={filterData.availableClothingSizes}
-              availableConditions={filterData.availableConditions}
-              totalProducts={productsResult.total}
-            />
-          </div>
-        </div>
-
-        <div className="lg:col-span-3">
-          <ProductGrid products={productsResult.products} storeHref={storeHref} />
-        </div>
-      </div>
-
-      <div className="lg:hidden">
-        <FilterPanel
-          selectedCategories={selectedCategories}
-          selectedBrands={selectedBrands}
-          selectedModels={selectedModels}
-          selectedShoeSizes={selectedShoeSizes}
-          selectedClothingSizes={selectedClothingSizes}
-          selectedConditions={selectedConditions}
-          categories={filterData.categories}
-          brands={brandOptions}
-          modelsByBrand={filterData.modelsByBrand}
-          brandsByCategory={filterData.brandsByCategory}
-          availableShoeSizes={filterData.availableShoeSizes}
-          availableClothingSizes={filterData.availableClothingSizes}
-          availableConditions={filterData.availableConditions}
-          totalProducts={productsResult.total}
-        />
-      </div>
-
-      <div className="mt-10">
+      <div className="mx-auto max-w-brand px-6 py-8 md:px-12 lg:px-16">
         <StoreControls
           total={productsResult.total}
           page={productsResult.page}
           pageCount={pageCount}
           limit={productsResult.limit}
           sort={filters.sort ?? "newest"}
-          showSortControls={false}
+          showPagination={false}
         />
+
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+          <div className="hidden lg:block">
+            <div
+              className="sticky transition-[top] duration-300"
+              style={{ top: "var(--rdk-header-offset, 0px)" }}
+            >
+              <FilterPanel
+                selectedCategories={selectedCategories}
+                selectedBrands={selectedBrands}
+                selectedModels={selectedModels}
+                selectedShoeSizes={selectedShoeSizes}
+                selectedClothingSizes={selectedClothingSizes}
+                selectedConditions={selectedConditions}
+                categories={filterData.categories}
+                brands={brandOptions}
+                modelsByBrand={filterData.modelsByBrand}
+                brandsByCategory={filterData.brandsByCategory}
+                availableShoeSizes={filterData.availableShoeSizes}
+                availableClothingSizes={filterData.availableClothingSizes}
+                availableConditions={filterData.availableConditions}
+                totalProducts={productsResult.total}
+              />
+            </div>
+          </div>
+
+          <div className="lg:col-span-3">
+            <ProductGrid products={productsResult.products} storeHref={storeHref} />
+          </div>
+        </div>
+
+        <div className="lg:hidden">
+          <FilterPanel
+            selectedCategories={selectedCategories}
+            selectedBrands={selectedBrands}
+            selectedModels={selectedModels}
+            selectedShoeSizes={selectedShoeSizes}
+            selectedClothingSizes={selectedClothingSizes}
+            selectedConditions={selectedConditions}
+            categories={filterData.categories}
+            brands={brandOptions}
+            modelsByBrand={filterData.modelsByBrand}
+            brandsByCategory={filterData.brandsByCategory}
+            availableShoeSizes={filterData.availableShoeSizes}
+            availableClothingSizes={filterData.availableClothingSizes}
+            availableConditions={filterData.availableConditions}
+            totalProducts={productsResult.total}
+          />
+        </div>
+
+        <div className="mt-10">
+          <StoreControls
+            total={productsResult.total}
+            page={productsResult.page}
+            pageCount={pageCount}
+            limit={productsResult.limit}
+            sort={filters.sort ?? "newest"}
+            showSortControls={false}
+          />
+        </div>
       </div>
     </div>
   );

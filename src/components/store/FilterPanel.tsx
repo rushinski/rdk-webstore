@@ -407,21 +407,21 @@ export function FilterPanel({
   const renderFilterContent = () => (
     <div className="flex flex-col h-full w-full min-w-0">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-zinc-800/70 flex-shrink-0">
+      <div className="flex-shrink-0 border-b border-brand-border px-6 py-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold text-white">Filters</h2>
+          <h2 className="text-xl font-bold text-brand-text">Filters</h2>
           {activeFilterCount > 0 && (
-            <span className="text-xs bg-red-900/50 text-white px-2 py-0.5 rounded-full flex-shrink-0">
+            <span className="flex-shrink-0 border border-brand-text bg-brand-text px-2 py-0.5 text-xs text-brand-surface">
               {activeFilterCount}
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-400">{totalProducts} products</p>
+        <p className="text-sm text-brand-muted">{totalProducts} products</p>
 
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
-            className="mt-3 text-sm text-red-500 hover:text-red-400 hover:underline"
+            className="mt-3 text-sm text-brand-text hover:underline"
             data-testid="filters-clear-all"
           >
             Clear all
@@ -430,7 +430,7 @@ export function FilterPanel({
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4 space-y-4 min-w-0">
+      <div className="flex-1 min-w-0 space-y-4 overflow-y-auto overflow-x-hidden overscroll-contain px-6 py-4">
         {/* Category */}
         <div className="pb-4 border-b border-zinc-800/70 w-full min-w-0">
           <button
@@ -739,10 +739,10 @@ export function FilterPanel({
   return (
     <>
       {/* Mobile Filter Button */}
-      <div className="lg:hidden fixed bottom-4 right-4 z-50">
+      <div className="fixed bottom-4 right-4 z-50 lg:hidden">
         <button
           onClick={() => setIsOpen(true)}
-          className="bg-red-600 hover:bg-red-700 text-white p-4 rounded-full shadow-lg flex items-center"
+          className="flex items-center bg-brand-text p-4 text-brand-surface shadow-lg"
         >
           <Filter className="w-5 h-5" />
         </button>
@@ -750,13 +750,13 @@ export function FilterPanel({
 
       {/* Mobile Full-Screen Modal */}
       {isOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-zinc-900">
+        <div className="fixed inset-0 z-50 bg-brand-surface lg:hidden">
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/70 flex-shrink-0">
-              <h2 className="text-xl font-bold text-white">Filters</h2>
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-brand-border px-6 py-4">
+              <h2 className="text-xl font-bold text-brand-text">Filters</h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-brand-muted hover:text-brand-text"
               >
                 <X className="w-6 h-6" />
               </button>
@@ -764,10 +764,10 @@ export function FilterPanel({
 
             <div className="flex-1 overflow-y-auto">{renderFilterContent()}</div>
 
-            <div className="px-6 py-4 border-t border-zinc-800/70 flex-shrink-0">
+            <div className="flex-shrink-0 border-t border-brand-border px-6 py-4">
               <button
                 onClick={() => setIsOpen(false)}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded"
+                className="w-full bg-brand-text py-3 font-bold text-brand-surface"
               >
                 View {totalProducts} Products
               </button>
@@ -778,7 +778,7 @@ export function FilterPanel({
 
       {/* Desktop Filter Panel */}
       <div
-        className="hidden lg:flex lg:flex-col bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden sticky"
+        className="sticky hidden overflow-hidden border border-brand-border bg-brand-surface lg:flex lg:flex-col"
         style={{
           height: desktopHeight,
           top: desktopTop,

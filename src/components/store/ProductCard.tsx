@@ -37,15 +37,11 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
       : "Multiple";
 
   const conditionBadge =
-    product.condition === "new" ? (
-      <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 rounded-full border border-zinc-900 shadow-sm">
-        NEW
-      </span>
-    ) : product.condition === "used" ? (
-      <span className="bg-amber-500 text-black text-[10px] px-2 py-0.5 rounded-full border border-zinc-900 shadow-sm">
-        PRE-OWNED
-      </span>
-    ) : null;
+    product.condition === "new"
+      ? "NEW"
+      : product.condition === "used"
+        ? "PRE-OWNED"
+        : null;
 
   const productHref = storeHref
     ? `/store/${product.id}?from=${encodeURIComponent(storeHref)}`
@@ -60,8 +56,8 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
       // OPTIMIZATION 1: Add prefetch only for visible cards
       prefetch={priority}
     >
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded overflow-hidden hover:border-zinc-600/70 transition flex h-full flex-col">
-        <div className="aspect-square relative bg-zinc-800">
+      <div className="flex h-full flex-col">
+        <div className="relative aspect-square overflow-hidden bg-brand-page">
           {primaryImage && (
             <Image
               src={primaryImage.url}
@@ -71,7 +67,7 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
               // OPTIMIZATION 2: Priority for first 8 cards, lazy for rest
               loading={priority ? "eager" : "lazy"}
               priority={priority}
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              className="object-contain transition-transform duration-300 group-hover:scale-105"
               // OPTIMIZATION 3: Lower quality for thumbnails
               quality={75}
               // OPTIMIZATION 4: Use placeholder for better LCP
@@ -81,34 +77,24 @@ export function ProductCard({ product, storeHref, priority = false }: ProductCar
           )}
 
           {conditionBadge && (
-            <div className="absolute top-2 right-2 z-10">{conditionBadge}</div>
+            <div className="absolute right-2 top-2 z-10 border border-brand-border bg-brand-surface px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-brand-text">
+              {conditionBadge}
+            </div>
           )}
         </div>
 
-        <div className="p-3 flex flex-col flex-1">
-          {/* Title */}
-          <div className="flex items-start justify-between gap-2 min-h-[1.5rem]">
-            <h3 className="text-white font-bold text-sm truncate flex-1">
-              {product.name}
-            </h3>
+        <div className="pt-3">
+          <div className="text-xs uppercase tracking-[0.06em] text-brand-muted">
+            {product.brand || sizeDisplay}
           </div>
-
-          {/* Size under title */}
-          <p
-            className="mt-1 text-gray-400 text-xs truncate"
-            title={`Size: ${sizeDisplay}`}
+          <h3 className="mt-0.5 text-xs uppercase leading-snug text-brand-text">
+            {product.name}
+          </h3>
+          <div
+            className="mt-1 text-sm font-medium text-brand-text"
+            title={fullPriceDisplay}
           >
-            {sizeDisplay}
-          </p>
-
-          {/* Price at bottom, bigger */}
-          <div className="mt-auto pt-3">
-            <span
-              className="text-white font-extrabold text-lg whitespace-nowrap tabular-nums"
-              title={fullPriceDisplay}
-            >
-              {priceDisplay}
-            </span>
+            {priceDisplay}
           </div>
         </div>
       </div>

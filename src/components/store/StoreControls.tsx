@@ -134,13 +134,13 @@ export function StoreControls({
     <div className={`mb-6 space-y-4 ${isPending ? "opacity-60" : ""}`}>
       {showSortControls && (
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-gray-400 text-[12px] sm:text-sm">
+          <div className="text-[12px] text-brand-muted sm:text-sm">
             {total === 0
               ? "No products found"
               : `Showing ${showingStart}-${showingEnd} of ${total}`}
           </div>
           <div className="flex items-center gap-1.5 flex-nowrap">
-            <label className="text-gray-400 text-[11px] sm:text-sm whitespace-nowrap leading-none">
+            <label className="whitespace-nowrap text-[11px] leading-none text-brand-muted sm:text-sm">
               Sort by:
             </label>
             <RdkSelect
@@ -148,10 +148,10 @@ export function StoreControls({
               onChange={handleSortChange}
               options={SORT_OPTIONS}
               className="w-[110px] sm:min-w-[160px]"
-              buttonClassName="h-7 px-2 text-[11px] sm:text-sm"
+              buttonClassName="h-9 border-brand-border bg-brand-surface px-3 text-[11px] text-brand-text sm:text-sm"
               menuClassName="text-[11px] sm:text-sm"
             />
-            <label className="text-gray-400 text-[11px] sm:text-sm whitespace-nowrap leading-none">
+            <label className="whitespace-nowrap text-[11px] leading-none text-brand-muted sm:text-sm">
               Per page:
             </label>
             <RdkSelect
@@ -159,7 +159,7 @@ export function StoreControls({
               onChange={(value) => handleLimitChange(Number(value))}
               options={pageSizeOptions}
               className="w-[72px] sm:min-w-[90px]"
-              buttonClassName="h-7 px-1.5 text-[11px] sm:text-sm gap-1"
+              buttonClassName="h-9 gap-1 border-brand-border bg-brand-surface px-3 text-[11px] text-brand-text sm:text-sm"
               menuClassName="text-[11px] sm:text-sm"
             />
           </div>
@@ -175,7 +175,7 @@ export function StoreControls({
               type="button"
               onClick={() => goToPage(page - 1)}
               disabled={page <= 1 || isPending}
-              className="inline-flex items-center gap-1 border border-zinc-800/70 px-2.5 py-2 text-xs text-zinc-300 hover:text-white hover:border-red-600/40 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0"
+              className="inline-flex shrink-0 items-center gap-1 border border-brand-border px-2.5 py-2 text-xs text-brand-text transition hover:bg-brand-text hover:text-brand-surface disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Previous page"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -198,8 +198,8 @@ export function StoreControls({
                     aria-label={`Page ${pageNumber}`}
                     className={`h-8 w-8 sm:h-9 sm:w-9 text-xs border transition shrink-0 ${
                       pageNumber === page
-                        ? "border-red-500 text-white"
-                        : "border-zinc-800/70 text-zinc-300 hover:text-white hover:border-red-600/40"
+                        ? "border-brand-text bg-brand-text text-brand-surface"
+                        : "border-brand-border text-brand-text hover:bg-brand-text hover:text-brand-surface"
                     } disabled:opacity-40 disabled:cursor-not-allowed`}
                   >
                     {pageNumber}
@@ -213,7 +213,7 @@ export function StoreControls({
               type="button"
               onClick={() => goToPage(page + 1)}
               disabled={page >= pageCount || isPending}
-              className="inline-flex items-center gap-1 border border-zinc-800/70 px-2.5 py-2 text-xs text-zinc-300 hover:text-white hover:border-red-600/40 disabled:opacity-40 disabled:cursor-not-allowed transition shrink-0"
+              className="inline-flex shrink-0 items-center gap-1 border border-brand-border px-2.5 py-2 text-xs text-brand-text transition hover:bg-brand-text hover:text-brand-surface disabled:cursor-not-allowed disabled:opacity-40"
               aria-label="Next page"
             >
               <span className="hidden sm:inline">Next</span>
@@ -222,14 +222,16 @@ export function StoreControls({
           </div>
 
           {/* Page count label (never forces overflow on mobile) */}
-          <div className="text-[11px] sm:text-xs uppercase tracking-[0.2em] text-zinc-500">
+          <div className="text-[11px] uppercase tracking-[0.2em] text-brand-muted sm:text-xs">
             Page {page} of {pageCount}
           </div>
         </div>
       )}
 
       {/* OPTIMIZATION: Show loading indicator */}
-      {isPending && <div className="text-xs text-gray-500 text-center">Loading...</div>}
+      {isPending && (
+        <div className="text-center text-xs text-brand-muted">Loading...</div>
+      )}
     </div>
   );
 }
