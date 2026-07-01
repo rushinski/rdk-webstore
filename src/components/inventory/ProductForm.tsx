@@ -17,13 +17,63 @@ import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
 
 import type { TagChip } from "./TagInput";
+import {
+  applyBrandOverrideOption,
+  applyCatalogSuggestion,
+  applyModelOverrideOption,
+  resolveBrandOverrideChange,
+  resolveEffectiveBrandId,
+  resolveModelOverrideChange,
+} from "./product-form/catalogOverrides";
+import {
+  buildShippingDefaultsMap,
+  isAbortLikeError,
+  shouldClearInvalidModelOverride,
+} from "./product-form/catalogData";
+import {
+  fetchBrandCatalogOptions,
+  fetchModelCatalogOptions,
+  fetchShippingDefaults,
+  requestTitleParse,
+} from "./product-form/catalogRequests";
 import { ProductFormDetailsSection } from "./product-form/ProductFormDetailsSection";
 import { buildProductCreateInput } from "./product-form/buildProductCreateInput";
+import { compressProductImageFile } from "./product-form/compressProductImageFile";
 import { executeProductImageUpload } from "./product-form/executeProductImageUpload";
+import { handleProductImageUpload } from "./product-form/handleProductImageUpload";
+import {
+  appendImageDraft,
+  normalizeImageDrafts,
+  removeImageDraftAt,
+  setPrimaryImageDraftAt,
+} from "./product-form/imageDrafts";
 import { ProductFormMediaSection } from "./product-form/ProductFormMediaSection";
 import { ProductFormVariantsSection } from "./product-form/ProductFormVariantsSection";
+import { runProductImageUploadBatch } from "./product-form/runProductImageUploadBatch";
+import {
+  applyBrandOverrideState,
+  applyModelOverrideState,
+  finalizeProductImageUploadUi,
+} from "./product-form/stateAppliers";
+import { submitProductForm } from "./product-form/submitProductForm";
 import { summarizeProductImageUploadOutcome } from "./product-form/summarizeProductImageUploadOutcome";
+import {
+  AUTO_TAG_GROUP_KEYS,
+  appendUniqueCustomTag,
+  buildAutoTags,
+  filterExcludedTags,
+  mergeUniqueTags,
+  removeTagSelection,
+} from "./product-form/tagHelpers";
 import { validateProductImageFiles } from "./product-form/validateProductImageFiles";
+import {
+  buildVariantSizeOptions,
+  createEmptyVariantDraft,
+  reorderVariantsByDraftId,
+  resetVariantsForSizeType,
+  shouldHandleVariantDrag,
+  updateVariantFieldAt,
+} from "./product-form/variantHelpers";
 import type { CatalogOption, ImageDraft, VariantDraft } from "./product-form/types";
 
 // OPTIMIZATION: Lazy load image compression library
@@ -48,17 +98,6 @@ interface ProductFormProps {
   }>;
 }
 
-type BrandCatalogEntry = {
-  id: string;
-  canonical_label: string;
-  group?: { key?: string | null } | null;
-};
-
-type ModelCatalogEntry = {
-  id: string;
-  canonical_label: string;
-};
-
 type TitleParseResult = {
   titleRaw: string;
   titleDisplay: string;
@@ -80,15 +119,6 @@ type TitleParseResult = {
   };
 };
 
-const normalizeImages = (items: ImageDraft[]) => {
-  const hasPrimary = items.some((item) => item.is_primary);
-  return items.map((item, index) => ({
-    ...item,
-    sort_order: index,
-    is_primary: hasPrimary ? item.is_primary : index === 0,
-  }));
-};
-
 const formatMoney = (value: number) => value.toFixed(2);
 
 const toDateTimeLocalValue = (value?: string) => {
@@ -103,17 +133,6 @@ const toDateTimeLocalValue = (value?: string) => {
   return local.toISOString().slice(0, 16);
 };
 
-const AUTO_TAG_GROUP_KEYS = new Set([
-  "brand",
-  "model",
-  "category",
-  "condition",
-  "designer_brand",
-  "size_shoe",
-  "size_clothing",
-  "size_custom",
-]);
-
 const getSizeTypeForCategory = (category: Category): SizeType => {
   if (category === "sneakers") {
     return "shoe";
@@ -126,9 +145,6 @@ const getSizeTypeForCategory = (category: Category): SizeType => {
   }
   return "none";
 };
-
-const getTagKey = (tag: { label: string; group_key: string }) =>
-  `${tag.group_key}:${tag.label}`;
 
 const createVariantDraftId = () =>
   `variant-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -206,19 +222,7 @@ export function ProductForm({
     if (!initialShippingDefaults) {
       return {};
     }
-
-    const map: Record<string, number> = {};
-    for (const entry of initialShippingDefaults) {
-      const cents =
-        Number(
-          entry.shipping_cost_cents ??
-            entry.default_price_cents ??
-            entry.default_price ??
-            0,
-        ) || 0;
-      map[entry.category] = cents / 100;
-    }
-    return map;
+    return buildShippingDefaultsMap(initialShippingDefaults);
   });
 
   // UPDATED: Start as ready if server data provided
@@ -272,7 +276,7 @@ export function ProductForm({
   });
 
   const [images, setImages] = useState<ImageDraft[]>(() =>
-    normalizeImages(initialData?.images ?? []),
+    normalizeImageDrafts(initialData?.images ?? []),
   );
 
   const [isDragging, setIsDragging] = useState(false);
@@ -306,112 +310,47 @@ export function ProductForm({
   const parsedBrandGroup = parseResult?.brand?.groupKey ?? null;
   const parsedModelLabel = parseResult?.model?.label?.trim() ?? "";
 
-  const autoTags = useMemo<TagChip[]>(() => {
-    const tags: TagChip[] = [];
-    const seen = new Set<string>();
-
-    const addTag = (label: string, group_key: string) => {
-      const trimmed = label.trim();
-      if (!trimmed) {
-        return;
-      }
-      const key = `${group_key}:${trimmed}`;
-      if (seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-      tags.push({ label: trimmed, group_key, source: "auto" });
-    };
-
-    if (parsedBrandLabel) {
-      addTag(parsedBrandLabel, "brand");
-      if (parsedBrandGroup === "designer") {
-        addTag(parsedBrandLabel, "designer_brand");
-      }
-    }
-
-    if (parsedModelLabel && category === "sneakers") {
-      addTag(parsedModelLabel, "model");
-    }
-
-    if (category) {
-      addTag(category, "category");
-    }
-    if (condition) {
-      addTag(condition, "condition");
-    }
-
-    if (sizeType !== "none") {
-      const groupKey =
-        sizeType === "shoe"
-          ? "size_shoe"
-          : sizeType === "clothing"
-            ? "size_clothing"
-            : "size_custom";
-
-      variants.forEach((variant) => {
-        const stockCount = Number.parseInt(variant.stock, 10);
-        if (!Number.isFinite(stockCount) || stockCount <= 0) {
-          return;
-        }
-        addTag(variant.size_label, groupKey);
-      });
-    }
-
-    return tags;
-  }, [
-    parsedBrandLabel,
-    parsedBrandGroup,
-    parsedModelLabel,
-    category,
-    condition,
-    sizeType,
-    variants,
-  ]);
+  const autoTags = useMemo(
+    () =>
+      buildAutoTags({
+        parsedBrandLabel,
+        parsedBrandGroup,
+        parsedModelLabel,
+        category,
+        condition,
+        sizeType,
+        variants,
+      }),
+    [
+      parsedBrandLabel,
+      parsedBrandGroup,
+      parsedModelLabel,
+      category,
+      condition,
+      sizeType,
+      variants,
+    ],
+  );
 
   const visibleAutoTags = useMemo(
-    () => autoTags.filter((tag) => !excludedAutoTagKeys.includes(getTagKey(tag))),
+    () => filterExcludedTags(autoTags, excludedAutoTagKeys),
     [autoTags, excludedAutoTagKeys],
   );
 
-  const allTags = useMemo(() => {
-    const merged = [...visibleAutoTags, ...customTags];
-    const seen = new Set<string>();
-    return merged.filter((tag) => {
-      const key = getTagKey(tag);
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  }, [visibleAutoTags, customTags]);
+  const allTags = useMemo(
+    () => mergeUniqueTags(visibleAutoTags, customTags),
+    [visibleAutoTags, customTags],
+  );
 
   // OPTIMIZATION: Memoize shipping defaults loader
   const loadShippingDefaults = useCallback(async () => {
     setShippingDefaultsStatus("loading");
     try {
-      const response = await fetch("/api/admin/shipping/defaults");
-      const data = await response.json();
-
-      if (response.ok && data?.defaults) {
-        const map: Record<string, number> = {};
-        for (const entry of data.defaults) {
-          const cents =
-            Number(
-              entry.shipping_cost_cents ??
-                entry.default_price_cents ??
-                entry.default_price ??
-                0,
-            ) || 0;
-          map[entry.category] = cents / 100;
-        }
-        setShippingDefaults(map);
-        setShippingDefaultsStatus("ready");
-        return;
+      const result = await fetchShippingDefaults(fetch);
+      if (result.shippingDefaults) {
+        setShippingDefaults(result.shippingDefaults);
       }
-
-      setShippingDefaultsStatus("error");
+      setShippingDefaultsStatus(result.status);
     } catch (error) {
       logError(error, { layer: "frontend", event: "inventory_load_shipping_defaults" });
       setShippingDefaultsStatus("error");
@@ -430,16 +369,7 @@ export function ProductForm({
   // OPTIMIZATION: Memoize brand catalog loader
   const loadBrands = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/catalog/brands");
-      const data = await response.json();
-      if (response.ok) {
-        const options = (data.brands || []).map((brand: BrandCatalogEntry) => ({
-          id: brand.id,
-          label: brand.canonical_label,
-          groupKey: brand.group?.key ?? null,
-        }));
-        setBrandOptions(options);
-      }
+      setBrandOptions(await fetchBrandCatalogOptions(fetch));
     } catch (error) {
       logError(error, { layer: "frontend", event: "inventory_load_brand_catalog" });
     }
@@ -454,7 +384,10 @@ export function ProductForm({
     loadBrands();
   }, [initialBrands, loadBrands]);
 
-  const effectiveBrandId = brandOverrideId ?? parseResult?.brand?.id ?? null;
+  const effectiveBrandId = resolveEffectiveBrandId(
+    brandOverrideId,
+    parseResult?.brand?.id ?? null,
+  );
 
   useEffect(() => {
     if (!effectiveBrandId) {
@@ -464,17 +397,7 @@ export function ProductForm({
 
     const loadModels = async () => {
       try {
-        const response = await fetch(
-          `/api/admin/catalog/models?brandId=${effectiveBrandId}`,
-        );
-        const data = await response.json();
-        if (response.ok) {
-          const options = (data.models || []).map((model: ModelCatalogEntry) => ({
-            id: model.id,
-            label: model.canonical_label,
-          }));
-          setModelOptions(options);
-        }
+        setModelOptions(await fetchModelCatalogOptions(fetch, effectiveBrandId));
       } catch (error) {
         logError(error, { layer: "frontend", event: "inventory_load_model_catalog" });
       }
@@ -484,11 +407,7 @@ export function ProductForm({
   }, [effectiveBrandId]);
 
   useEffect(() => {
-    if (!modelOverrideId) {
-      return;
-    }
-    const stillValid = modelOptions.some((option) => option.id === modelOverrideId);
-    if (!stillValid) {
+    if (shouldClearInvalidModelOverride(modelOverrideId, modelOptions)) {
       setModelOverrideId(null);
       setModelOverrideInput("");
     }
@@ -505,32 +424,21 @@ export function ProductForm({
     const parseTitle = async () => {
       setParseStatus("loading");
       try {
-        const response = await fetch("/api/admin/catalog/parse-title", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            titleRaw,
-            category,
-            brandOverrideId,
-            modelOverrideId,
-          }),
-          signal: controller.signal,
-        });
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data?.error || "Failed to parse title.");
-        }
-        setParseResult(data);
+        setParseResult(
+          await requestTitleParse(
+            {
+              titleRaw,
+              category,
+              brandOverrideId,
+              modelOverrideId,
+            },
+            fetch,
+            controller.signal,
+          ),
+        );
         setParseStatus("idle");
       } catch (error: unknown) {
-        const isAbort =
-          error instanceof DOMException
-            ? error.name === "AbortError"
-            : typeof error === "object" &&
-              error !== null &&
-              "name" in error &&
-              (error as { name?: string }).name === "AbortError";
-        if (isAbort) {
+        if (isAbortLikeError(error)) {
           return;
         }
         logError(error, { layer: "frontend", event: "inventory_parse_title" });
@@ -559,30 +467,13 @@ export function ProductForm({
 
     previousSizeType.current = sizeType;
 
-    setVariants((current) =>
-      current.map((variant) => {
-        if (sizeType === "none") {
-          return { ...variant, size_label: "N/A" };
-        }
-        if (sizeType === "custom") {
-          return variant.size_label === "N/A" ? { ...variant, size_label: "" } : variant;
-        }
-        return { ...variant, size_label: "" };
-      }),
-    );
+    setVariants((current) => resetVariantsForSizeType(current, sizeType));
   }, [sizeType]);
 
   const addVariant = () => {
     setVariants((current) => [
       ...current,
-      {
-        draft_id: createVariantDraftId(),
-        sku: createDraftSku(),
-        size_label: sizeType === "none" ? "N/A" : "",
-        salePrice: "",
-        unitCost: "",
-        stock: "1",
-      },
+      createEmptyVariantDraft({ sizeType, createVariantDraftId, createDraftSku }),
     ]);
   };
 
@@ -593,31 +484,21 @@ export function ProductForm({
   };
 
   const updateVariant = (index: number, field: keyof VariantDraft, value: string) => {
-    setVariants((current) =>
-      current.map((variant, i) =>
-        i === index ? { ...variant, [field]: value } : variant,
-      ),
-    );
+    setVariants((current) => updateVariantFieldAt(current, index, field, value));
   };
 
-  const handleVariantDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!over || active.id === over.id) {
+  const handleVariantDragEnd = (event: DragEndEvent) => {
+    if (!shouldHandleVariantDrag(event)) {
       return;
     }
 
     setVariants((current) => {
-      const oldIndex = current.findIndex(
-        (variant) => variant.draft_id === String(active.id),
+      return reorderVariantsByDraftId(
+        current,
+        String(event.active.id),
+        String(event.over.id),
+        arrayMove,
       );
-      const newIndex = current.findIndex(
-        (variant) => variant.draft_id === String(over.id),
-      );
-
-      if (oldIndex < 0 || newIndex < 0 || oldIndex === newIndex) {
-        return current;
-      }
-
-      return arrayMove(current, oldIndex, newIndex);
     });
   };
 
@@ -625,197 +506,100 @@ export function ProductForm({
     sizes: readonly string[],
     selectedValue: string,
   ): { value: string; label: string }[] => {
-    const trimmedValue = selectedValue.trim();
-    const base = sizes.map((size) => ({ value: size, label: size }));
-    const hasValue = trimmedValue.length > 0;
-    const inList = hasValue && sizes.includes(trimmedValue);
-    const withSelected =
-      !hasValue || inList
-        ? base
-        : [{ value: trimmedValue, label: trimmedValue }, ...base];
-    return [{ value: "", label: "Select..." }, ...withSelected];
+    return buildVariantSizeOptions(sizes, selectedValue);
   };
 
   const addImageEntry = (url: string) => {
-    const trimmed = url.trim();
-    if (!trimmed) {
-      return;
-    }
-    setImages((current) =>
-      normalizeImages([
-        ...current,
-        {
-          url: trimmed,
-          sort_order: current.length,
-          is_primary: current.length === 0,
-        },
-      ]),
-    );
+    setImages((current) => appendImageDraft(current, url));
   };
 
   const removeImage = (index: number) => {
-    setImages((current) => normalizeImages(current.filter((_, i) => i !== index)));
+    setImages((current) => removeImageDraftAt(current, index));
   };
 
   const setPrimaryImage = (index: number) => {
-    setImages((current) =>
-      normalizeImages(
-        current.map((image, i) => ({
-          ...image,
-          is_primary: i === index,
-        })),
-      ),
-    );
+    setImages((current) => setPrimaryImageDraftAt(current, index));
   };
 
   // OPTIMIZATION: Lazy load compression and memoize function
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    if (file.size < 1 * 1024 * 1024) {
-      console.info(
-        "[compressImage] File already small, skipping compression:",
-        file.size,
-      );
-      return file;
-    }
-
-    console.info("[compressImage] Compressing file:", {
-      name: file.name,
-      originalSize: file.size,
-      originalType: file.type,
-    });
-
-    try {
-      const imageCompression = await loadImageCompression();
-      const options = {
-        maxSizeMB: 2,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-        fileType: file.type || "image/jpeg",
-      };
-
-      const compressedFile = await imageCompression.default(file, options);
-
-      console.info("[compressImage] Compression successful:", {
-        originalSize: file.size,
-        compressedSize: compressedFile.size,
-        reduction: `${Math.round((1 - compressedFile.size / file.size) * 100)}%`,
-      });
-
-      return compressedFile;
-    } catch (error) {
-      console.error("[compressImage] Compression failed, using original:", error);
-      logError(error, {
-        layer: "frontend",
-        event: "image_compression_failed",
-        fileName: file.name,
-        fileSize: file.size,
-      });
-      return file;
-    }
-  }, []);
+  const compressImage = useCallback(
+    async (file: File): Promise<File> =>
+      compressProductImageFile({
+        file,
+        loadImageCompression,
+        logError,
+        info: console.info,
+        error: console.error,
+      }),
+    [],
+  );
 
   const handleUploadFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) {
-      return;
-    }
-
-    console.info("[ProductForm] Received", files.length, "file(s) for upload");
+    console.info("[ProductForm] Received", files?.length ?? 0, "file(s) for upload");
     console.info("[ProductForm] User agent:", navigator.userAgent);
 
-    const fileArray = Array.from(files);
-    console.info("[ProductForm] Converted to array, length:", fileArray.length);
-    const { valid, errors } = validateProductImageFiles(fileArray);
-
-    if (errors.length > 0) {
-      console.error("[ProductForm] Validation errors:", errors);
-      setToast({
-        message: errors.join("; "),
-        tone: "error",
-      });
-
-      if (valid.length === 0) {
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
+    await handleProductImageUpload({
+      files,
+      validateFiles: (fileArray) => {
+        console.info("[ProductForm] Converted to array, length:", fileArray.length);
+        const result = validateProductImageFiles(fileArray);
+        if (result.errors.length > 0) {
+          console.error("[ProductForm] Validation errors:", result.errors);
         }
-        setIsDragging(false);
-        return;
-      }
-    }
-
-    setUploadQueue({
-      total: valid.length,
-      completed: 0,
-      failed: 0,
-      isUploading: true,
-    });
-
-    console.info(
-      "[ProductForm] Starting queue upload for",
-      valid.length,
-      "valid file(s)",
-    );
-
-    for (let i = 0; i < valid.length; i++) {
-      const file = valid[i];
-
-      try {
-        console.info(`[ProductForm] Uploading file ${i + 1}/${valid.length}:`, {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-        });
-
-        const compressedFile = await compressImage(file);
-
+        return result;
+      },
+      runUploadBatch: async (validFiles) => {
         console.info(
-          `[ProductForm] Uploading compressed file ${i + 1}/${valid.length}:`,
-          {
-            name: compressedFile.name,
-            type: compressedFile.type,
-            size: compressedFile.size,
-          },
+          "[ProductForm] Starting queue upload for",
+          validFiles.length,
+          "valid file(s)",
         );
 
-        const uploadedUrls = await executeProductImageUpload({
-          file: compressedFile,
-          originalFileName: file.name,
+        return runProductImageUploadBatch({
+          files: validFiles,
           productId: initialData?.id,
+          compressImage: async (file) => {
+            console.info("[ProductForm] Uploading file:", {
+              name: file.name,
+              type: file.type,
+              size: file.size,
+            });
+
+            const compressedFile = await compressImage(file);
+
+            console.info("[ProductForm] Uploading compressed file:", {
+              name: compressedFile.name,
+              type: compressedFile.type,
+              size: compressedFile.size,
+            });
+
+            return compressedFile;
+          },
+          uploadImage: executeProductImageUpload,
+          onProgress: setUploadQueue,
+          onFileFailure: ({ error, file, index }) => {
+            console.error(`[ProductForm] Upload failed for ${file.name}:`, error);
+
+            logError(error, {
+              layer: "frontend",
+              event: "inventory_image_upload_queue",
+              fileName: file.name,
+              fileIndex: index,
+              userAgent: navigator.userAgent,
+            });
+          },
         });
-        uploadedUrls.forEach((url) => addImageEntry(url));
-
-        setUploadQueue((prev) => ({
-          ...prev,
-          completed: prev.completed + 1,
-        }));
-      } catch (error) {
-        console.error(`[ProductForm] Upload failed for ${file.name}:`, error);
-
-        logError(error, {
-          layer: "frontend",
-          event: "inventory_image_upload_queue",
-          fileName: file.name,
-          fileIndex: i,
-          userAgent: navigator.userAgent,
-        });
-
-        setUploadQueue((prev) => ({
-          ...prev,
-          failed: prev.failed + 1,
-          completed: prev.completed + 1,
-        }));
-      }
-    }
-
-    setUploadQueue((prev) => {
-      const outcome = summarizeProductImageUploadOutcome(prev);
-      setToast(outcome.toast);
-      return outcome.nextQueue;
+      },
+      summarizeOutcome: summarizeProductImageUploadOutcome,
+      onToast: setToast,
+      onProgress: setUploadQueue,
+      onUploadedUrls: (urls) => {
+        urls.forEach((url) => addImageEntry(url));
+      },
+      onComplete: () => {
+        finalizeProductImageUploadUi(fileInputRef, setIsDragging);
+      },
     });
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-    setIsDragging(false);
   };
 
   const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
@@ -832,126 +616,115 @@ export function ProductForm({
   };
 
   const handleAddTag = (label: string) => {
-    const trimmed = label.trim();
-    if (!trimmed) {
-      return;
-    }
-
-    const newTag: TagChip = {
-      label: trimmed,
-      group_key: "custom",
-      source: "custom",
-    };
-
-    const existingKeys = new Set(allTags.map(getTagKey));
-    if (existingKeys.has(getTagKey(newTag))) {
-      return;
-    }
-
-    setCustomTags([...customTags, newTag]);
+    setCustomTags((current) => appendUniqueCustomTag(current, allTags, label));
   };
 
   const applyBrandOverride = (option: CatalogOption | null) => {
-    setBrandOverrideId(option?.id ?? null);
-    setBrandOverrideInput(option?.label ?? "");
-    setModelOverrideId(null);
-    setModelOverrideInput("");
+    applyBrandOverrideState(applyBrandOverrideOption(option), {
+      setBrandOverrideId,
+      setBrandOverrideInput,
+      setModelOverrideId,
+      setModelOverrideInput,
+    });
   };
 
   const applyModelOverride = (option: CatalogOption | null) => {
-    setModelOverrideId(option?.id ?? null);
-    setModelOverrideInput(option?.label ?? "");
+    applyModelOverrideState(applyModelOverrideOption(option), {
+      setModelOverrideId,
+      setModelOverrideInput,
+    });
   };
 
   const handleBrandOverrideChange = (value: string) => {
-    setBrandOverrideInput(value);
-    const match = brandOptions.find(
-      (option) => option.label.toLowerCase() === value.trim().toLowerCase(),
-    );
-    if (match) {
-      applyBrandOverride(match);
-    } else {
-      setBrandOverrideId(null);
-      setModelOverrideId(null);
-      setModelOverrideInput("");
-    }
+    applyBrandOverrideState(resolveBrandOverrideChange({ value, brandOptions }), {
+      setBrandOverrideId,
+      setBrandOverrideInput,
+      setModelOverrideId,
+      setModelOverrideInput,
+    });
   };
 
   const handleModelOverrideChange = (value: string) => {
-    setModelOverrideInput(value);
-    const match = modelOptions.find(
-      (option) => option.label.toLowerCase() === value.trim().toLowerCase(),
-    );
-    if (match) {
-      applyModelOverride(match);
-    } else {
-      setModelOverrideId(null);
-    }
+    applyModelOverrideState(resolveModelOverrideChange({ value, modelOptions }), {
+      setModelOverrideId,
+      setModelOverrideInput,
+    });
   };
 
   const brandSuggestion = parseResult?.suggestions?.brand;
   const modelSuggestion = parseResult?.suggestions?.model;
 
   const applyBrandSuggestion = () => {
-    if (!brandSuggestion) {
+    const nextState = applyCatalogSuggestion(
+      brandSuggestion?.id,
+      brandOptions,
+      applyBrandOverrideOption,
+    );
+    if (!nextState) {
       return;
     }
-    const match = brandOptions.find((option) => option.id === brandSuggestion.id);
-    if (match) {
-      applyBrandOverride(match);
-    }
+
+    applyBrandOverrideState(nextState, {
+      setBrandOverrideId,
+      setBrandOverrideInput,
+      setModelOverrideId,
+      setModelOverrideInput,
+    });
   };
 
   const applyModelSuggestion = () => {
-    if (!modelSuggestion) {
+    const nextState = applyCatalogSuggestion(
+      modelSuggestion?.id,
+      modelOptions,
+      applyModelOverrideOption,
+    );
+    if (!nextState) {
       return;
     }
-    const match = modelOptions.find((option) => option.id === modelSuggestion.id);
-    if (match) {
-      applyModelOverride(match);
-    }
+
+    applyModelOverrideState(nextState, {
+      setModelOverrideId,
+      setModelOverrideInput,
+    });
   };
 
   const handleRemoveTag = (tag: TagChip) => {
-    if (tag.source === "auto") {
-      const key = getTagKey(tag);
-      setExcludedAutoTagKeys((prev) => (prev.includes(key) ? prev : [...prev, key]));
-      return;
-    }
-
-    setCustomTags(customTags.filter((item) => getTagKey(item) !== getTagKey(tag)));
+    const nextState = removeTagSelection(tag, customTags, excludedAutoTagKeys);
+    setCustomTags(nextState.customTags);
+    setExcludedAutoTagKeys(nextState.excludedAutoTagKeys);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    try {
-      const data = buildProductCreateInput({
-        titleRaw,
-        brandOverrideId,
-        modelOverrideId,
-        category,
-        condition,
-        sizeType,
-        description,
-        shippingPrice,
-        publishMode,
-        scheduledGoLiveAt,
-        variants,
-        images,
-        allTags,
-        excludedAutoTagKeys,
-      });
+    const result = await submitProductForm({
+      buildInput: () =>
+        buildProductCreateInput({
+          titleRaw,
+          brandOverrideId,
+          modelOverrideId,
+          category,
+          condition,
+          sizeType,
+          description,
+          shippingPrice,
+          publishMode,
+          scheduledGoLiveAt,
+          variants,
+          images,
+          allTags,
+          excludedAutoTagKeys,
+        }),
+      onSubmit,
+      logError,
+    });
 
-      await onSubmit(data);
-    } catch (error) {
-      logError(error, { layer: "frontend", event: "inventory_form_submit" });
-      const message = error instanceof Error ? error.message : "Failed to save product";
-      setToast({ message, tone: "error" });
-    } finally {
-      setIsLoading(false);
+    if (result.toast) {
+      setToast(result.toast);
     }
+
+    setIsLoading(false);
   };
 
   return (

@@ -19,6 +19,17 @@ describe("product form structure", () => {
     expect(source).toContain("./product-form/validateProductImageFiles");
     expect(source).toContain("./product-form/summarizeProductImageUploadOutcome");
     expect(source).toContain("./product-form/executeProductImageUpload");
+    expect(source).toContain("./product-form/runProductImageUploadBatch");
+    expect(source).toContain("./product-form/tagHelpers");
+    expect(source).toContain("./product-form/catalogOverrides");
+    expect(source).toContain("./product-form/imageDrafts");
+    expect(source).toContain("./product-form/catalogData");
+    expect(source).toContain("./product-form/variantHelpers");
+    expect(source).toContain("./product-form/catalogRequests");
+    expect(source).toContain("./product-form/compressProductImageFile");
+    expect(source).toContain("./product-form/submitProductForm");
+    expect(source).toContain("./product-form/handleProductImageUpload");
+    expect(source).toContain("./product-form/stateAppliers");
   });
 
   it("still renders core inventory form sections", () => {
