@@ -1,6 +1,5 @@
-// app/admin/featured-items/page.tsx
-import { FeaturedItemsManager } from "./client";
+import { FeaturedItemsScreen } from "@/components/admin/featured-items/FeaturedItemsScreen";
 
 export default function FeaturedItemsPage() {
-  return <FeaturedItemsManager />;
+  return <FeaturedItemsScreen />;
 }

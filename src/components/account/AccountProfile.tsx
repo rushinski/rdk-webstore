@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
+import {
+  AccountAddressesSection,
+  type AccountAddress,
+  type AccountAddressInput,
+} from "@/components/account/AccountAddressesSection";
 import { PasswordRequirements } from "@/components/auth/register/PasswordRequirements";
 import { Toast } from "@/components/ui/Toast";
 import { isPasswordValid } from "@/lib/validation/password";
@@ -33,20 +38,6 @@ type AccountOrder = {
   tracking_number?: string | null;
   items?: AccountOrderItem[] | null;
 };
-
-type AccountAddress = {
-  id: string;
-  name?: string | null;
-  phone?: string | null;
-  line1: string;
-  line2?: string | null;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-};
-
-type AddressInput = Omit<AccountAddress, "id"> & { id?: string };
 
 const sectionClass =
   "mb-6 border border-brand-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6";
@@ -132,7 +123,10 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
     );
   };
 
-  const handleSetDefaultAddress = async (address: AddressInput, silent?: boolean) => {
+  const handleSetDefaultAddress = async (
+    address: AccountAddressInput,
+    silent?: boolean,
+  ) => {
     setIsDefaultSaving(true);
     if (!silent) {
       setMessage("");
@@ -420,248 +414,33 @@ export function AccountProfile({ userEmail }: { userEmail: string }) {
         </p>
       </div>
 
-      <div className={sectionClass}>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:text-xl">
-            Shipping Addresses
-          </h2>
-          <span className="text-[11px] text-brand-muted sm:text-xs">
-            Save multiple addresses and pick a default for checkout.
-          </span>
-        </div>
-
-        <div className="mb-6 border border-brand-border bg-brand-page p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.2em] text-brand-muted sm:text-xs">
-                Default shipping address
-              </div>
-              {profile.address_line1 ? (
-                <div className="mt-2 space-y-1 text-[12px] text-brand-text sm:text-sm">
-                  {profile.full_name && (
-                    <div className="font-semibold">{profile.full_name}</div>
-                  )}
-                  <div>{profile.address_line1}</div>
-                  {profile.address_line2 && <div>{profile.address_line2}</div>}
-                  <div>
-                    {profile.city}, {profile.state} {profile.postal_code}
-                  </div>
-                  <div>{profile.country}</div>
-                  {profile.phone && (
-                    <div className="text-brand-muted">{profile.phone}</div>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-2 text-[12px] text-brand-muted sm:text-sm">
-                  No default shipping address yet. Choose one below.
-                </div>
-              )}
-            </div>
-            {profile.address_line1 && (
-              <button
-                type="button"
-                onClick={() => {
-                  void handleClearDefaultShipping();
-                }}
-                disabled={isDefaultSaving}
-                className="text-[11px] text-brand-muted transition-colors hover:text-brand-text disabled:opacity-60 sm:text-xs"
-              >
-                {isDefaultSaving ? "Updating..." : "Clear default"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {isAddressesLoading ? (
-          <div className="mb-6 text-brand-muted">Loading addresses...</div>
-        ) : addresses.length === 0 ? (
-          <div className="mb-6 text-brand-muted">No saved addresses yet.</div>
-        ) : (
-          <div className="mb-6 space-y-3">
-            {addresses.map((address) => (
-              <div
-                key={address.id}
-                className="border border-brand-border bg-brand-page p-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="text-[12px] text-brand-text sm:text-sm">
-                    <div className="flex items-center gap-2 font-semibold">
-                      <span>{address.name || "Saved Address"}</span>
-                      {isDefaultAddress(address) && (
-                        <span className="bg-brand-text px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-brand-surface">
-                          Default
-                        </span>
-                      )}
-                    </div>
-                    <div>{address.line1}</div>
-                    {address.line2 && <div>{address.line2}</div>}
-                    <div>
-                      {address.city}, {address.state} {address.postal_code}
-                    </div>
-                    <div>{address.country}</div>
-                    {address.phone && (
-                      <div className="text-brand-muted">{address.phone}</div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleDeleteAddress(address.id);
-                    }}
-                    className="text-[11px] text-brand-muted transition-colors hover:text-brand-text sm:text-xs"
-                  >
-                    Remove
-                  </button>
-                </div>
-                {!isDefaultAddress(address) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void handleSetDefaultAddress(address);
-                    }}
-                    disabled={isDefaultSaving}
-                    className="mt-3 text-[11px] text-brand-text transition-colors hover:text-neutral-600 disabled:opacity-60 sm:text-xs"
-                  >
-                    {isDefaultSaving ? "Updating..." : "Set as default shipping"}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <form
-          onSubmit={(event) => {
-            void handleSaveAddress(event);
-          }}
-          className="space-y-4"
-        >
-          <div>
-            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={addressForm.name}
-              onChange={(e) => setAddressForm({ ...addressForm, name: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-              Phone
-            </label>
-            <input
-              type="tel"
-              value={addressForm.phone}
-              onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-              Address Line 1 <span className="text-brand-text">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={addressForm.line1}
-              onChange={(e) => setAddressForm({ ...addressForm, line1: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-              Apartment / Unit
-            </label>
-            <input
-              type="text"
-              value={addressForm.line2}
-              onChange={(e) => setAddressForm({ ...addressForm, line2: e.target.value })}
-              className={inputClass}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-                City <span className="text-brand-text">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addressForm.city}
-                onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-                State <span className="text-brand-text">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addressForm.state}
-                onChange={(e) =>
-                  setAddressForm({ ...addressForm, state: e.target.value })
-                }
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-                Postal Code <span className="text-brand-text">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addressForm.postal_code}
-                onChange={(e) =>
-                  setAddressForm({ ...addressForm, postal_code: e.target.value })
-                }
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-[12px] text-brand-muted sm:text-sm">
-                Country <span className="text-brand-text">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={addressForm.country}
-                onChange={(e) =>
-                  setAddressForm({ ...addressForm, country: e.target.value })
-                }
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 text-[12px] text-brand-muted sm:text-sm">
-            <input
-              type="checkbox"
-              checked={setAsDefault}
-              onChange={(e) => setSetAsDefault(e.target.checked)}
-              className="rdk-checkbox"
-            />
-            Set as default shipping address
-          </label>
-
-          <button type="submit" disabled={isAddressSaving} className={primaryButtonClass}>
-            {isAddressSaving ? "Saving..." : "Add Address"}
-          </button>
-        </form>
-      </div>
+      <AccountAddressesSection
+        profile={profile}
+        addresses={addresses}
+        isAddressesLoading={isAddressesLoading}
+        isAddressSaving={isAddressSaving}
+        isDefaultSaving={isDefaultSaving}
+        setAsDefault={setAsDefault}
+        addressForm={addressForm}
+        sectionClass={sectionClass}
+        inputClass={inputClass}
+        primaryButtonClass={primaryButtonClass}
+        isDefaultAddress={isDefaultAddress}
+        onClearDefaultShipping={() => {
+          void handleClearDefaultShipping();
+        }}
+        onDeleteAddress={(addressId) => {
+          void handleDeleteAddress(addressId);
+        }}
+        onSetDefaultAddress={(address) => {
+          void handleSetDefaultAddress(address);
+        }}
+        onSaveAddress={(event) => {
+          void handleSaveAddress(event);
+        }}
+        onAddressFormChange={setAddressForm}
+        onSetAsDefaultChange={setSetAsDefault}
+      />
 
       <div className={sectionClass}>
         <h2 className="mb-3 text-lg font-bold uppercase tracking-[0.08em] text-brand-text sm:mb-4 sm:text-xl">

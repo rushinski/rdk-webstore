@@ -36,10 +36,6 @@ const schema = z.object({
 
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
 
-  LIGHTSPEED_ACCESS_TOKEN: z.string().min(1),
-  LIGHTSPEED_DOMAIN_PREFIX: z.string().min(1),
-  LIGHTSPEED_WEBHOOK_SIGNING_SECRET: z.string().optional().default(""),
-
   PAYRILLA_WEBHOOK: z.string().optional().default(""),
   PAYRILLA_API_URL: z
     .string()

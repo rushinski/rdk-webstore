@@ -47,5 +47,6 @@ describe("CheckoutForm", () => {
     expect(html).not.toContain("bg-red-600");
     expect(html).not.toContain("text-red-500");
     expect(html).not.toContain("text-zinc-500");
+    expect(html).not.toContain("pickup chat");
   });
 });

@@ -8,8 +8,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
-import { Loader2, Lock, Package, TruckIcon, Mail, CreditCard } from "lucide-react";
-import Link from "next/link";
 
 import type { CartItem } from "@/types/domain/cart";
 import type { HostedTokenizationInstance } from "@/types/domain/payrilla";
@@ -26,6 +24,10 @@ import { getIdempotencyKeyFromStorage } from "@/lib/checkout/idempotency";
 
 import { SavedAddresses } from "./SavedAddresses";
 import { BillingAddressForm, type BillingAddress } from "./BillingAddressForm";
+import { CheckoutFooterSection } from "./CheckoutFooterSection";
+import { CheckoutFulfillmentSection } from "./CheckoutFulfillmentSection";
+import { CheckoutGuestContactSection } from "./CheckoutGuestContactSection";
+import { CheckoutPaymentSection } from "./CheckoutPaymentSection";
 
 const GUEST_ORDER_ID_STORAGE_KEY = "rdk_guest_order_id";
 const GUEST_ORDER_TOKEN_STORAGE_KEY = "rdk_guest_order_token";
@@ -113,7 +115,6 @@ interface CheckoutFormProps {
   onShippingAddressChange: (address: ShippingAddress | null) => void;
   onFulfillmentChange: (fulfillment: "ship" | "pickup") => void;
   isUpdatingFulfillment?: boolean;
-  canUseChat?: boolean;
   guestEmail?: string | null;
   onGuestEmailChange?: (email: string) => void;
   isGuestCheckout?: boolean;
@@ -236,7 +237,6 @@ export function CheckoutForm({
   onShippingAddressChange,
   onFulfillmentChange,
   isUpdatingFulfillment = false,
-  canUseChat = false,
   guestEmail,
   onGuestEmailChange,
   isGuestCheckout = false,
@@ -604,144 +604,22 @@ export function CheckoutForm({
         }}
         className="space-y-6"
       >
-        {/* Guest Email */}
         {isGuestCheckout && (
-          <div className="border border-brand-border bg-brand-surface p-4 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-[0.08em] text-brand-text sm:text-lg">
-              <Mail className="w-4 h-4 sm:w-5 sm:h-5" /> Contact Information
-            </h2>
-            <div className="relative">
-              <input
-                type="email"
-                value={guestEmail || ""}
-                onChange={(e) => onGuestEmailChange?.(e.target.value)}
-                placeholder="you@email.com"
-                className={`w-full border px-3 py-2 text-sm text-brand-text outline-none transition-colors placeholder:text-brand-muted sm:px-4 sm:py-3 sm:text-base ${emailError ? "border-red-400" : "border-brand-border"} bg-brand-surface focus:border-brand-text`}
-                disabled={isProcessing}
-              />
-              {isSavingEmail && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Loader2 className="w-4 h-4 text-brand-muted animate-spin" />
-                </div>
-              )}
-            </div>
-            {emailError && (
-              <p className="mt-2 text-xs text-red-700 sm:text-sm">{emailError}</p>
-            )}
-            <p className="mt-2 text-xs text-brand-muted">
-              We&apos;ll send your order confirmation to this email.
-            </p>
-          </div>
+          <CheckoutGuestContactSection
+            guestEmail={guestEmail || ""}
+            emailError={emailError}
+            isProcessing={isProcessing}
+            isSavingEmail={isSavingEmail}
+            onGuestEmailChange={onGuestEmailChange}
+          />
         )}
 
-        {/* Fulfillment Method */}
-        <div className="border border-brand-border bg-brand-surface p-5 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6">
-          <h2 className="mb-4 flex items-center gap-2 text-base font-bold uppercase tracking-[0.08em] text-brand-text sm:text-lg">
-            <Package className="w-5 h-5" /> Delivery Method
-          </h2>
-          <div className="space-y-3">
-            <label className="flex cursor-pointer items-start gap-3 border border-brand-border bg-brand-page p-4 transition hover:border-brand-text">
-              <input
-                type="radio"
-                name="fulfillment"
-                value="ship"
-                checked={fulfillment === "ship"}
-                onChange={() => onFulfillmentChange("ship")}
-                className="rdk-radio mt-1"
-                disabled={isUpdatingFulfillment || isProcessing}
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <TruckIcon className="w-4 h-4 text-brand-muted" />
-                  <span className="font-medium text-brand-text">Ship to me</span>
-                </div>
-                <p className="mt-1 text-sm text-brand-muted">Standard shipping</p>
-              </div>
-            </label>
-            <label className="flex cursor-pointer items-start gap-3 border border-brand-border bg-brand-page p-4 transition hover:border-brand-text">
-              <input
-                type="radio"
-                name="fulfillment"
-                value="pickup"
-                checked={fulfillment === "pickup"}
-                onChange={() => onFulfillmentChange("pickup")}
-                className="rdk-radio mt-1"
-                disabled={isUpdatingFulfillment || isProcessing}
-              />
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <Package className="w-4 h-4 text-brand-muted" />
-                  <span className="font-medium text-brand-text">Local pickup</span>
-                </div>
-                <p className="mt-1 text-sm text-brand-muted">
-                  Free - pick up at our location
-                </p>
-              </div>
-            </label>
-          </div>
-
-          {fulfillment === "pickup" && (
-            <div className="mt-4 space-y-2 border border-brand-border bg-brand-page p-4 text-sm text-brand-muted">
-              <p className="mb-2 font-medium uppercase tracking-[0.08em] text-brand-text">
-                Pickup Information
-              </p>
-              <p>After purchase, you&apos;ll receive a pickup email for scheduling.</p>
-              <p>
-                You can also reach us at{" "}
-                <a
-                  href="mailto:null@gmail.com"
-                  className="font-semibold text-brand-text transition-colors hover:text-neutral-600"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  null@gmail.com
-                </a>
-                .
-              </p>
-              {canUseChat && (
-                <p>Signed-in customers can also use the in-app pickup chat.</p>
-              )}
-              <div className="mt-3 border-t border-brand-border pt-3">
-                <p className="mb-2 font-medium uppercase tracking-[0.08em] text-brand-text">
-                  Returns &amp; Refunds
-                </p>
-                <p>
-                  All sales are final except as outlined in our Returns &amp; Refunds
-                  policy.
-                </p>
-                <Link
-                  href="/refunds"
-                  className="mt-2 inline-block font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
-                >
-                  Returns &amp; Refunds Policy
-                </Link>
-              </div>
-            </div>
-          )}
-
-          {fulfillment === "ship" && (
-            <div className="mt-4 space-y-2 border border-brand-border bg-brand-page p-4 text-sm text-brand-muted">
-              <p className="mb-2 font-medium uppercase tracking-[0.08em] text-brand-text">
-                Shipping Information
-              </p>
-              <p>We aim to ship within 24 hours (processing time, not delivery).</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
-                <Link
-                  href="/shipping"
-                  className="font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
-                >
-                  Shipping Policy
-                </Link>
-                <Link
-                  href="/refunds"
-                  className="font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
-                >
-                  Returns &amp; Refunds Policy
-                </Link>
-              </div>
-            </div>
-          )}
-        </div>
+        <CheckoutFulfillmentSection
+          fulfillment={fulfillment}
+          isUpdatingFulfillment={isUpdatingFulfillment}
+          isProcessing={isProcessing}
+          onFulfillmentChange={onFulfillmentChange}
+        />
 
         {/* Shipping Address */}
         {fulfillment === "ship" && (
@@ -749,7 +627,7 @@ export function CheckoutForm({
             onSelectAddress={(addr) => onShippingAddressChange(addr)}
             selectedAddressId={selectedAddressId}
             onSelectAddressId={setSelectedAddressId}
-            isGuest={!canUseChat}
+            isGuest={isGuestCheckout}
           />
         )}
 
@@ -763,132 +641,28 @@ export function CheckoutForm({
         />
 
         {/* Payment Method */}
-        <div className="border border-brand-border bg-brand-surface p-5 shadow-[0_20px_60px_rgba(17,17,17,0.06)] sm:p-6">
-          <h2 className="mb-4 flex items-center gap-2 text-base font-bold uppercase tracking-[0.08em] text-brand-text sm:text-lg">
-            <CreditCard className="w-5 h-5" /> Payment Method
-          </h2>
-
-          {/* Card iframe with brand icon and accepted cards note */}
-          <div className="relative max-w-[460px]">
-            <div id="payrilla-card-form" ref={cardFormRef} className="min-h-[120px]" />
-
-            {/* Card brand icon — overlaid on the card number input row */}
-            <div
-              className="absolute right-3 flex items-center pointer-events-none"
-              style={{ top: "4px", height: "44px", left: "480px" }}
-            >
-              <img
-                src={`/icons/cards/${getCardBrandIcon(cardBrand)}.svg`}
-                alt={getCardBrandLabel(cardBrand) ?? "Credit card"}
-                className="h-7 w-auto"
-              />
-            </div>
-          </div>
-
-          {/* Accepted cards */}
-          <div className="flex items-center gap-3 mt-3">
-            <span className="text-xs text-brand-muted">Accepted:</span>
-            {["visa", "mastercard", "american-express", "discover"].map((brand) => (
-              <img
-                key={brand}
-                src={`/icons/cards/${brand}.svg`}
-                alt={brand}
-                className="h-7 w-auto opacity-60"
-              />
-            ))}
-          </div>
-
-          {!isPayrillaReady && !payrillaLoadError && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-brand-muted">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Loading card form...</span>
-            </div>
-          )}
-
-          {(hasTouchedPayrilla || hasAttemptedSubmit) && payrillaFieldError && (
-            <p className="text-xs sm:text-sm text-red-400 mt-2">{payrillaFieldError}</p>
-          )}
-
-          {payrillaLoadError && (
-            <p className="text-xs sm:text-sm text-red-400 mt-2">{payrillaLoadError}</p>
-          )}
-
-          {/* Secure badge */}
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-brand-border pt-4 text-xs text-brand-muted">
-            <Lock className="h-3.5 w-3.5 shrink-0 text-brand-text" />
-            <span className="font-semibold uppercase tracking-[0.08em] text-brand-text">
-              Secure payment processing
-            </span>
-            <span aria-hidden="true">/</span>
-            <span>PCI compliant</span>
-          </div>
-        </div>
-
-        {/* Card submit button */}
-        <button
-          type="submit"
-          disabled={
-            isProcessing ||
-            isUpdatingFulfillment ||
-            !isPayrillaReady ||
-            !!payrillaLoadError
+        <CheckoutPaymentSection
+          cardFormRef={cardFormRef}
+          cardBrandIcon={getCardBrandIcon(cardBrand)}
+          cardBrandLabel={getCardBrandLabel(cardBrand) ?? "Credit card"}
+          isPayrillaReady={isPayrillaReady}
+          payrillaLoadError={payrillaLoadError}
+          showFieldError={
+            (hasTouchedPayrilla || hasAttemptedSubmit) && !!payrillaFieldError
           }
-          className="flex w-full items-center justify-center gap-2 border border-brand-text bg-brand-text px-4 py-4 text-base font-bold uppercase tracking-[0.08em] text-brand-page transition hover:bg-white disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-border disabled:text-brand-muted sm:text-lg"
-        >
-          {isProcessing ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" /> Processing payment...
-            </>
-          ) : (
-            <>
-              <Lock className="h-5 w-5" /> Place Order / ${displayTotal.toFixed(2)}
-            </>
-          )}
-        </button>
+          payrillaFieldError={payrillaFieldError}
+        />
 
-        {/* Error Summary */}
-        {hasAttemptedSubmit && (uiSubmitError || uiValidationErrors.length > 0) && (
-          <div className="border border-red-300 bg-red-50 p-4 text-red-900">
-            <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.08em] text-red-700">
-              Please complete the following:
-            </h3>
-            <ul className="space-y-1.5 text-sm">
-              {uiSubmitError && (
-                <li className="flex items-start gap-2">
-                  <span className="mt-0.5 text-red-700">&bull;</span>
-                  <span>{uiSubmitError}</span>
-                </li>
-              )}
-              {uiValidationErrors.map((msg, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <span className="mt-0.5 text-red-700">&bull;</span>
-                  <span>{msg}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Legal */}
-        <div className="text-center text-sm text-brand-muted">
-          <p>
-            By placing your order, you agree to our{" "}
-            <Link
-              href="/legal/terms"
-              className="font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
-            >
-              Terms of Service
-            </Link>
-            {" and "}
-            <Link
-              href="/legal/privacy"
-              className="font-semibold text-brand-text underline underline-offset-4 transition-colors hover:text-neutral-600"
-            >
-              Privacy Policy
-            </Link>
-            .
-          </p>
-        </div>
+        <CheckoutFooterSection
+          displayTotal={displayTotal}
+          isProcessing={isProcessing}
+          isUpdatingFulfillment={isUpdatingFulfillment}
+          isPayrillaReady={isPayrillaReady}
+          payrillaLoadError={payrillaLoadError}
+          hasAttemptedSubmit={hasAttemptedSubmit}
+          uiSubmitError={uiSubmitError}
+          uiValidationErrors={uiValidationErrors}
+        />
       </form>
     </>
   );

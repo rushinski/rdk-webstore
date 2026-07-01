@@ -9,17 +9,10 @@ import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { RdkSelect } from "@/components/ui/Select";
 
-import type { Alias, Brand, Model } from "../types";
+import type { Alias, Brand, Model, NewAliasDraft } from "../types";
 
 import { CatalogActionMenu } from "./CatalogActionMenu";
 import { catalogStyles } from "./catalogStyles";
-
-type NewAliasDraft = {
-  entityType: "brand" | "model";
-  entityId: string;
-  label: string;
-  priority: string;
-};
 
 type AliasesTabProps = {
   isLoading: boolean;

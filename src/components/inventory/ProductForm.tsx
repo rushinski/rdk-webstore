@@ -2,34 +2,29 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { GripVertical, ImagePlus, Plus, Trash2, X } from "lucide-react";
 import {
-  closestCenter,
-  DndContext,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
-import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
-import { CSS } from "@dnd-kit/utilities";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
-import { SHOE_SIZES, CLOTHING_SIZES } from "@/config/constants/sizes";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
 import type { ProductCreateInput } from "@/services/product-service";
 import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
-import { RdkSelect } from "@/components/ui/Select";
 
-import { TagInput, type TagChip } from "./TagInput";
+import type { TagChip } from "./TagInput";
+import { ProductFormDetailsSection } from "./product-form/ProductFormDetailsSection";
+import { buildProductCreateInput } from "./product-form/buildProductCreateInput";
+import { executeProductImageUpload } from "./product-form/executeProductImageUpload";
+import { ProductFormMediaSection } from "./product-form/ProductFormMediaSection";
+import { ProductFormVariantsSection } from "./product-form/ProductFormVariantsSection";
+import { summarizeProductImageUploadOutcome } from "./product-form/summarizeProductImageUploadOutcome";
+import { validateProductImageFiles } from "./product-form/validateProductImageFiles";
+import type { CatalogOption, ImageDraft, VariantDraft } from "./product-form/types";
 
 // OPTIMIZATION: Lazy load image compression library
 const loadImageCompression = () => import("browser-image-compression");
@@ -52,24 +47,6 @@ interface ProductFormProps {
     groupKey?: string | null;
   }>;
 }
-
-type VariantDraft = {
-  draft_id: string;
-  id?: string;
-  sku: string;
-  size_label: string;
-  salePrice: string;
-  unitCost: string;
-  stock: string;
-};
-
-type ImageDraft = ProductCreateInput["images"][number];
-
-type CatalogOption = {
-  id: string;
-  label: string;
-  groupKey?: string | null;
-};
 
 type BrandCatalogEntry = {
   id: string;
@@ -101,51 +78,6 @@ type TitleParseResult = {
     brand?: { id: string; label: string; confidence: number };
     model?: { id: string; label: string; confidence: number };
   };
-};
-
-type UploadResult = {
-  url: string;
-  path?: string;
-  mimeType?: string;
-  bytes?: number;
-  hash?: string;
-  bucket?: string;
-};
-
-type UploadFailure = {
-  index?: number;
-  fileName?: string;
-  error?: string;
-};
-
-type UploadsResponse = {
-  uploads: UploadResult[];
-  count?: number;
-  failures?: UploadFailure[];
-  requestId?: string;
-};
-
-type UploadErrorResponse = {
-  error?: string;
-  message?: string;
-  requestId?: string;
-  details?: unknown;
-};
-
-const isUploadResult = (value: unknown): value is UploadResult => {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return typeof record.url === "string";
-};
-
-const isUploadsResponse = (value: unknown): value is UploadsResponse => {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const record = value as Record<string, unknown>;
-  return Array.isArray(record.uploads);
 };
 
 const normalizeImages = (items: ImageDraft[]) => {
@@ -205,46 +137,6 @@ const createDraftSku = () =>
   `${Date.now().toString().slice(-6)}${Math.floor(Math.random() * 1000)
     .toString()
     .padStart(3, "0")}`;
-
-function RequiredMark() {
-  return <span className="text-red-500">*</span>;
-}
-
-type SortableVariantRenderProps = Pick<
-  ReturnType<typeof useSortable>,
-  "attributes" | "listeners" | "setActivatorNodeRef" | "isDragging" | "isOver"
->;
-
-interface SortableVariantRowProps {
-  id: string;
-  className: string;
-  children: (props: SortableVariantRenderProps) => React.ReactNode;
-}
-
-function SortableVariantRow({ id, className, children }: SortableVariantRowProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({ id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition: transition ?? "transform 220ms cubic-bezier(0.2, 0, 0, 1)",
-    zIndex: isDragging ? 20 : undefined,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className={className}>
-      {children({ attributes, listeners, setActivatorNodeRef, isDragging, isOver })}
-    </div>
-  );
-}
 
 export function ProductForm({
   initialData,
@@ -413,14 +305,6 @@ export function ProductForm({
   const parsedBrandLabel = parseResult?.brand?.label?.trim() ?? "";
   const parsedBrandGroup = parseResult?.brand?.groupKey ?? null;
   const parsedModelLabel = parseResult?.model?.label?.trim() ?? "";
-
-  const isUploadErrorResponse = (value: unknown): value is UploadErrorResponse => {
-    if (!value || typeof value !== "object") {
-      return false;
-    }
-    const record = value as Record<string, unknown>;
-    return typeof record.error === "string" || typeof record.message === "string";
-  };
 
   const autoTags = useMemo<TagChip[]>(() => {
     const tags: TagChip[] = [];
@@ -830,71 +714,6 @@ export function ProductForm({
     }
   }, []);
 
-  const validateAndPrepareFiles = (
-    fileList: FileList,
-  ): {
-    valid: File[];
-    errors: string[];
-  } => {
-    const valid: File[] = [];
-    const errors: string[] = [];
-    const MAX_SIZE = 10 * 1024 * 1024;
-    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-
-    const filesArray = Array.from(fileList);
-    console.info("[validateAndPrepareFiles] Validating", filesArray.length, "files");
-
-    filesArray.forEach((file, index) => {
-      console.info(`[validateAndPrepareFiles] File ${index + 1}:`, {
-        name: file.name,
-        type: file.type || "NO TYPE",
-        size: file.size,
-      });
-
-      const fileName = file.name.toLowerCase();
-
-      if (fileName.endsWith(".heic") || fileName.endsWith(".heif")) {
-        errors.push(
-          `${file.name}: HEIC/HEIF not supported. Please convert to JPG in Photos app first.`,
-        );
-        return;
-      }
-
-      if (file.size === 0) {
-        errors.push(`${file.name}: File is empty`);
-        return;
-      }
-
-      if (file.size > MAX_SIZE) {
-        errors.push(`${file.name}: File too large (max 10MB)`);
-        return;
-      }
-
-      const hasValidType = file.type && ALLOWED_TYPES.includes(file.type);
-      const hasValidExtension = /\.(jpe?g|png|webp)$/i.test(fileName);
-
-      if (!hasValidType && !hasValidExtension) {
-        errors.push(`${file.name}: Not a supported image type (use JPG, PNG, or WebP)`);
-        return;
-      }
-
-      if (!file.type && hasValidExtension) {
-        console.info(
-          `[validateAndPrepareFiles] iOS file detected (no MIME type), accepting based on extension`,
-        );
-      }
-
-      valid.push(file);
-    });
-
-    console.info("[validateAndPrepareFiles] Result:", {
-      valid: valid.length,
-      errors: errors.length,
-    });
-
-    return { valid, errors };
-  };
-
   const handleUploadFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
@@ -905,8 +724,7 @@ export function ProductForm({
 
     const fileArray = Array.from(files);
     console.info("[ProductForm] Converted to array, length:", fileArray.length);
-
-    const { valid, errors } = validateAndPrepareFiles(files);
+    const { valid, errors } = validateProductImageFiles(fileArray);
 
     if (errors.length > 0) {
       console.error("[ProductForm] Validation errors:", errors);
@@ -958,45 +776,12 @@ export function ProductForm({
           },
         );
 
-        const fd = new FormData();
-        fd.append("file", compressedFile, file.name);
-
-        if (initialData?.id) {
-          fd.append("productId", initialData.id);
-        }
-
-        const res = await fetch("/api/admin/uploads/product-image", {
-          method: "POST",
-          body: fd,
+        const uploadedUrls = await executeProductImageUpload({
+          file: compressedFile,
+          originalFileName: file.name,
+          productId: initialData?.id,
         });
-
-        const responseText = await res.text();
-        console.info(`[ProductForm] Response for file ${i + 1}:`, res.status);
-
-        let json: unknown = null;
-        try {
-          json = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("[ProductForm] JSON parse error:", parseError);
-          throw new Error(`Invalid server response: ${responseText.substring(0, 100)}`);
-        }
-
-        if (!res.ok) {
-          const errorMsg = isUploadErrorResponse(json)
-            ? json.error || json.message
-            : "Image upload failed";
-          throw new Error(errorMsg);
-        }
-
-        if (isUploadsResponse(json)) {
-          json.uploads.forEach((upload) => {
-            if (isUploadResult(upload)) {
-              addImageEntry(upload.url);
-            }
-          });
-        } else if (isUploadResult(json)) {
-          addImageEntry(json.url);
-        }
+        uploadedUrls.forEach((url) => addImageEntry(url));
 
         setUploadQueue((prev) => ({
           ...prev,
@@ -1022,29 +807,9 @@ export function ProductForm({
     }
 
     setUploadQueue((prev) => {
-      const successCount = prev.total - prev.failed;
-
-      if (prev.failed === 0) {
-        setToast({
-          message: `${successCount} image(s) uploaded successfully`,
-          tone: "success",
-        });
-      } else if (successCount === 0) {
-        setToast({
-          message: `All ${prev.failed} upload(s) failed`,
-          tone: "error",
-        });
-      } else {
-        setToast({
-          message: `${successCount} succeeded, ${prev.failed} failed`,
-          tone: "info",
-        });
-      }
-
-      return {
-        ...prev,
-        isUploading: false,
-      };
+      const outcome = summarizeProductImageUploadOutcome(prev);
+      setToast(outcome.toast);
+      return outcome.nextQueue;
     });
 
     if (fileInputRef.current) {
@@ -1157,121 +922,27 @@ export function ProductForm({
     setCustomTags(customTags.filter((item) => getTagKey(item) !== getTagKey(tag)));
   };
 
-  const parseMoneyToCents = (value: string) => {
-    const trimmed = value.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const parsed = Number.parseFloat(trimmed);
-    if (!Number.isFinite(parsed)) {
-      return null;
-    }
-    return Math.round(parsed * 100);
-  };
-
-  const parseStockCount = (value: string) => {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed)) {
-      return null;
-    }
-    return Math.max(parsed, 0);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const trimmedTitle = titleRaw.trim();
-      if (!trimmedTitle) {
-        throw new Error("Full title is required.");
-      }
-
-      const trimmedShipping = shippingPrice.trim();
-      const shippingCents = trimmedShipping ? parseMoneyToCents(trimmedShipping) : null;
-      if (trimmedShipping && shippingCents === null) {
-        throw new Error("Please enter a valid shipping price.");
-      }
-
-      const seenSizeKeys = new Set<string>();
-      const preparedVariants = variants.map((variant, index) => {
-        const priceCents = parseMoneyToCents(variant.salePrice);
-        if (priceCents === null) {
-          throw new Error(`Variant ${index + 1} price is invalid.`);
-        }
-
-        const costCents = parseMoneyToCents(variant.unitCost);
-        if (costCents === null) {
-          throw new Error(`Variant ${index + 1} cost is invalid.`);
-        }
-
-        const stockCount = parseStockCount(variant.stock);
-        if (stockCount === null) {
-          throw new Error(`Variant ${index + 1} stock is invalid.`);
-        }
-
-        const sizeLabel = sizeType === "none" ? "N/A" : variant.size_label.trim();
-        if (sizeType !== "none" && !sizeLabel) {
-          throw new Error(`Variant ${index + 1} size is required.`);
-        }
-        const sizeKey = `${sizeType}:${sizeLabel.toLowerCase()}`;
-        if (seenSizeKeys.has(sizeKey)) {
-          throw new Error(`Duplicate size "${sizeLabel}" found in variants.`);
-        }
-        seenSizeKeys.add(sizeKey);
-
-        return {
-          ...(variant.id ? { id: variant.id } : {}),
-          sku: variant.sku,
-          size_label: sizeLabel,
-          sale_price_cents: priceCents,
-          unit_cost_cents: costCents,
-          stock: stockCount,
-          sort_order: index,
-        };
-      });
-
-      const preparedImages = normalizeImages(images)
-        .map((image) => ({
-          url: image.url.trim(),
-          sort_order: image.sort_order,
-          is_primary: image.is_primary,
-        }))
-        .filter((image) => image.url);
-
-      let goLiveAt = new Date().toISOString();
-      if (publishMode === "scheduled") {
-        const value = scheduledGoLiveAt.trim();
-        if (!value) {
-          throw new Error("Please choose a go-live date and time.");
-        }
-        const parsed = new Date(value);
-        if (Number.isNaN(parsed.getTime())) {
-          throw new Error("Go-live date/time is invalid.");
-        }
-        const nowMinute = new Date();
-        nowMinute.setSeconds(0, 0);
-        if (parsed.getTime() < nowMinute.getTime()) {
-          throw new Error("Go-live date/time cannot be in the past.");
-        }
-        goLiveAt = parsed.toISOString();
-      }
-
-      const data: ProductCreateInput = {
-        name: trimmedTitle,
-        brand_override_id: brandOverrideId ?? undefined,
-        model_override_id: modelOverrideId ?? undefined,
+      const data = buildProductCreateInput({
+        titleRaw,
+        brandOverrideId,
+        modelOverrideId,
         category,
         condition,
-        size_type: sizeType,
-        description: description || undefined,
-        shipping_price_cents: shippingCents,
-        go_live_at: goLiveAt,
-        variants: preparedVariants,
-        images: preparedImages,
-        tags: allTags.map((tag) => ({ label: tag.label, group_key: tag.group_key })),
-        excluded_auto_tag_keys: excludedAutoTagKeys,
-      };
+        sizeType,
+        description,
+        shippingPrice,
+        publishMode,
+        scheduledGoLiveAt,
+        variants,
+        images,
+        allTags,
+        excludedAutoTagKeys,
+      });
 
       await onSubmit(data);
     } catch (error) {
@@ -1290,672 +961,77 @@ export function ProductForm({
       }}
       className="space-y-4 md:space-y-6"
     >
-      {/* MOBILE OPTIMIZATION: Improved mobile layout */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">
-          Basic Information
-        </h2>
+      <ProductFormDetailsSection
+        titleRaw={titleRaw}
+        category={category}
+        condition={condition}
+        parseStatus={parseStatus}
+        parsedBrandLabel={parseResult?.brand?.label || ""}
+        parsedModelLabel={parseResult?.model?.label || ""}
+        parsedName={parseResult?.name || ""}
+        parsedTitleDisplay={parseResult?.titleDisplay ?? null}
+        brandSuggestionLabel={brandSuggestion?.label ?? null}
+        modelSuggestionLabel={modelSuggestion?.label ?? null}
+        brandOverrideInput={brandOverrideInput}
+        brandOverrideId={brandOverrideId}
+        brandOptions={brandOptions}
+        modelOverrideInput={modelOverrideInput}
+        modelOverrideId={modelOverrideId}
+        modelOptions={modelOptions}
+        effectiveBrandId={effectiveBrandId}
+        description={description}
+        shippingPrice={shippingPrice}
+        shippingDefaultsStatus={shippingDefaultsStatus}
+        defaultShippingPrice={defaultShippingPrice}
+        tags={allTags}
+        publishMode={publishMode}
+        scheduledGoLiveAt={scheduledGoLiveAt}
+        scheduleMin={scheduleMin}
+        isLoading={isLoading}
+        isEditing={Boolean(initialData?.id)}
+        onTitleRawChange={setTitleRaw}
+        onCategoryChange={setCategory}
+        onConditionChange={setCondition}
+        onApplyBrandSuggestion={applyBrandSuggestion}
+        onApplyModelSuggestion={applyModelSuggestion}
+        onBrandOverrideChange={handleBrandOverrideChange}
+        onClearBrandOverride={() => applyBrandOverride(null)}
+        onModelOverrideChange={handleModelOverrideChange}
+        onClearModelOverride={() => applyModelOverride(null)}
+        onDescriptionChange={setDescription}
+        onShippingPriceChange={setShippingPrice}
+        onAddTag={handleAddTag}
+        onRemoveTag={handleRemoveTag}
+        onPublishModeChange={setPublishMode}
+        onEnsureScheduledTime={ensureScheduledTime}
+        onScheduledGoLiveAtChange={setScheduledGoLiveAt}
+        onCancel={onCancel}
+      />
 
-        <div className="space-y-4">
-          {/* Full width title on mobile */}
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">
-              Full Title <RequiredMark />
-            </label>
-            <input
-              type="text"
-              value={titleRaw}
-              onChange={(e) => setTitleRaw(e.target.value)}
-              required
-              className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              One input only. We parse brand, model (sneakers), and name automatically.
-            </p>
-          </div>
+      <ProductFormVariantsSection
+        variants={variants}
+        variantIds={variantIds}
+        sizeType={sizeType}
+        variantDragSensors={variantDragSensors}
+        onAddVariant={addVariant}
+        onRemoveVariant={removeVariant}
+        onUpdateVariant={updateVariant}
+        onHandleVariantDragEnd={handleVariantDragEnd}
+        buildSizeOptions={buildSizeOptions}
+      />
 
-          {/* Stack category/condition on mobile */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">
-                Category <RequiredMark />
-              </label>
-              <RdkSelect
-                value={category}
-                onChange={(v) => setCategory(v as Category)}
-                options={[
-                  { value: "sneakers", label: "Sneakers" },
-                  { value: "clothing", label: "Clothing" },
-                  { value: "accessories", label: "Accessories" },
-                  { value: "electronics", label: "Electronics" },
-                ]}
-                buttonClassName="bg-zinc-800"
-              />
-            </div>
-
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">
-                Condition <RequiredMark />
-              </label>
-              <RdkSelect
-                value={condition}
-                onChange={(v) => setCondition(v as Condition)}
-                options={[
-                  { value: "new", label: "New" },
-                  { value: "used", label: "Pre-owned" },
-                ]}
-                buttonClassName="bg-zinc-800"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Parsed Preview - Collapsible on mobile */}
-        <div className="mt-4 bg-zinc-950/40 border border-zinc-800/70 rounded p-3 md:p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm text-gray-300 font-semibold">Parsed Preview</h3>
-            {parseStatus === "loading" && (
-              <span className="text-xs text-gray-500">Parsing...</span>
-            )}
-            {parseStatus === "error" && (
-              <span className="text-xs text-red-400">Unable to parse title</span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3 text-sm">
-            <div className="text-gray-400">
-              <span className="block text-xs uppercase text-gray-500">Brand</span>
-              <span className="text-white">{parseResult?.brand?.label || "-"}</span>
-            </div>
-            {category === "sneakers" && (
-              <div className="text-gray-400">
-                <span className="block text-xs uppercase text-gray-500">Model</span>
-                <span className="text-white">{parseResult?.model?.label || "-"}</span>
-              </div>
-            )}
-            <div className="text-gray-400">
-              <span className="block text-xs uppercase text-gray-500">Name</span>
-              <span className="text-white">{parseResult?.name || "-"}</span>
-            </div>
-          </div>
-
-          {parseResult?.titleDisplay && (
-            <div className="text-xs text-gray-500">
-              Display: <span className="text-gray-200">{parseResult.titleDisplay}</span>
-            </div>
-          )}
-
-          {(brandSuggestion || modelSuggestion) && (
-            <div className="flex flex-wrap gap-2">
-              {brandSuggestion && (
-                <button
-                  type="button"
-                  onClick={applyBrandSuggestion}
-                  className="text-xs px-3 py-1 rounded-full border border-zinc-700/70 text-red-200 hover:bg-red-900/30"
-                >
-                  Did you mean {brandSuggestion.label}?
-                </button>
-              )}
-              {category === "sneakers" && modelSuggestion && (
-                <button
-                  type="button"
-                  onClick={applyModelSuggestion}
-                  className="text-xs px-3 py-1 rounded-full border border-zinc-700/70 text-red-200 hover:bg-red-900/30"
-                >
-                  Did you mean {modelSuggestion.label}?
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Stack overrides on mobile */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-gray-400 text-sm mb-1">Override Brand</label>
-            <input
-              type="text"
-              list="brand-options"
-              value={brandOverrideInput}
-              onChange={(e) => handleBrandOverrideChange(e.target.value)}
-              placeholder="Search brands..."
-              className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-zinc-700/40 text-sm md:text-base"
-            />
-            <datalist id="brand-options">
-              {brandOptions.map((brand) => (
-                <option key={brand.id} value={brand.label} />
-              ))}
-            </datalist>
-            {brandOverrideId && (
-              <button
-                type="button"
-                onClick={() => applyBrandOverride(null)}
-                className="text-xs text-gray-500 mt-2 hover:text-white"
-              >
-                Clear override
-              </button>
-            )}
-          </div>
-
-          {category === "sneakers" && (
-            <div>
-              <label className="block text-gray-400 text-sm mb-1">Override Model</label>
-              <input
-                type="text"
-                list="model-options"
-                value={modelOverrideInput}
-                onChange={(e) => handleModelOverrideChange(e.target.value)}
-                placeholder={
-                  effectiveBrandId ? "Search models..." : "Select a brand first"
-                }
-                disabled={!effectiveBrandId}
-                className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 disabled:text-gray-500 focus:outline-none focus:ring-2 focus:ring-zinc-700/40 text-sm md:text-base"
-              />
-              <datalist id="model-options">
-                {modelOptions.map((model) => (
-                  <option key={model.id} value={model.label} />
-                ))}
-              </datalist>
-              {modelOverrideId && (
-                <button
-                  type="button"
-                  onClick={() => applyModelOverride(null)}
-                  className="text-xs text-gray-500 mt-2 hover:text-white"
-                >
-                  Clear override
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4">
-          <label className="block text-gray-400 text-sm mb-1">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
-          />
-        </div>
-      </div>
-
-      {/* Variants - Better mobile layout */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <div className="flex items-center justify-between mb-3 md:mb-4">
-          <h2 className="text-lg md:text-xl font-semibold text-white">Variants</h2>
-          <button
-            type="button"
-            onClick={addVariant}
-            className="flex items-center gap-1 md:gap-2 bg-red-600 hover:bg-red-700 text-white px-2 md:px-3 py-1.5 md:py-2 rounded text-xs md:text-sm transition"
-          >
-            <Plus className="w-3 h-3 md:w-4 md:h-4" />
-            <span className="hidden sm:inline">Add Variant</span>
-            <span className="sm:hidden">Add</span>
-          </button>
-        </div>
-        <DndContext
-          sensors={variantDragSensors}
-          collisionDetection={closestCenter}
-          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-          onDragEnd={handleVariantDragEnd}
-        >
-          <SortableContext items={variantIds} strategy={verticalListSortingStrategy}>
-            <div className="space-y-3 md:space-y-4">
-              {variants.map((variant, index) => (
-                <SortableVariantRow
-                  key={variant.draft_id}
-                  id={variant.draft_id}
-                  className="transition-transform duration-200"
-                >
-                  {({
-                    attributes,
-                    listeners,
-                    setActivatorNodeRef,
-                    isDragging: isVariantDragging,
-                    isOver: isVariantOver,
-                  }) => (
-                    <div
-                      className={[
-                        "relative bg-zinc-800 p-3 md:p-4 rounded flex flex-col md:flex-row md:items-end gap-3 md:gap-4 transition-[box-shadow,opacity] duration-150",
-                        isVariantDragging ? "opacity-65 shadow-2xl" : "",
-                        isVariantOver ? "ring-2 ring-red-500/50" : "",
-                      ].join(" ")}
-                    >
-                      {/* Fields: wrap-flow of fixed-width inputs so nothing stretches */}
-                      <div className="flex-1 flex flex-col md:flex-row md:flex-wrap gap-3 md:gap-4">
-                        <div className="w-full md:w-32">
-                          <label className="block text-gray-400 text-xs mb-1">SKU</label>
-                          <input
-                            type="text"
-                            value={variant.sku}
-                            readOnly
-                            aria-readonly="true"
-                            tabIndex={-1}
-                            title="SKU is generated automatically and cannot be edited"
-                            className="w-full cursor-not-allowed select-none bg-zinc-900 text-zinc-400 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 font-mono focus:outline-none focus:ring-0"
-                          />
-                        </div>
-
-                        <div className="w-full md:w-40">
-                          <label className="block text-gray-400 text-xs mb-1">
-                            Size <RequiredMark />
-                          </label>
-
-                          {sizeType === "shoe" && (
-                            <RdkSelect
-                              value={variant.size_label}
-                              onChange={(v) => updateVariant(index, "size_label", v)}
-                              placeholder="Select..."
-                              searchable
-                              searchPlaceholder="Search sizes..."
-                              options={buildSizeOptions(SHOE_SIZES, variant.size_label)}
-                              buttonClassName="bg-zinc-900"
-                            />
-                          )}
-
-                          {sizeType === "clothing" && (
-                            <RdkSelect
-                              value={variant.size_label}
-                              onChange={(v) => updateVariant(index, "size_label", v)}
-                              placeholder="Select..."
-                              searchable
-                              searchPlaceholder="Search sizes..."
-                              options={buildSizeOptions(
-                                CLOTHING_SIZES,
-                                variant.size_label,
-                              )}
-                              buttonClassName="bg-zinc-900"
-                            />
-                          )}
-
-                          {sizeType === "custom" && (
-                            <input
-                              type="text"
-                              value={variant.size_label}
-                              onChange={(e) =>
-                                updateVariant(index, "size_label", e.target.value)
-                              }
-                              required
-                              placeholder="e.g., One Size"
-                              className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                            />
-                          )}
-
-                          {sizeType === "none" && (
-                            <input
-                              type="text"
-                              value="N/A"
-                              disabled
-                              className="w-full bg-zinc-900 text-gray-500 px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70"
-                            />
-                          )}
-                        </div>
-
-                        <div className="w-full md:w-32">
-                          <label className="block text-gray-400 text-xs mb-1">
-                            Sale Price ($) <RequiredMark />
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={variant.salePrice}
-                            onChange={(e) =>
-                              updateVariant(index, "salePrice", e.target.value)
-                            }
-                            required
-                            className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                          />
-                        </div>
-
-                        <div className="w-full md:w-32">
-                          <label className="block text-gray-400 text-xs mb-1">
-                            Unit Cost ($) <RequiredMark />
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={variant.unitCost}
-                            onChange={(e) =>
-                              updateVariant(index, "unitCost", e.target.value)
-                            }
-                            required
-                            className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                          />
-                        </div>
-
-                        <div className="w-full md:w-24">
-                          <label className="block text-gray-400 text-xs mb-1">
-                            Stock <RequiredMark />
-                          </label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={variant.stock}
-                            onChange={(e) =>
-                              updateVariant(index, "stock", e.target.value)
-                            }
-                            required
-                            className="w-full bg-zinc-900 text-white px-2 md:px-3 py-2 rounded text-xs md:text-sm border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1 self-end md:h-[42px] shrink-0">
-                        <button
-                          ref={setActivatorNodeRef}
-                          type="button"
-                          {...attributes}
-                          {...listeners}
-                          className="text-zinc-300 hover:text-white p-2 rounded hover:bg-zinc-900 cursor-grab active:cursor-grabbing touch-none"
-                          aria-label="Drag to reorder variant"
-                          title="Drag to reorder"
-                        >
-                          <GripVertical className="w-4 h-4" />
-                        </button>
-                        {variants.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeVariant(index)}
-                            className="text-red-500 hover:text-red-400 p-2 rounded hover:bg-zinc-900"
-                            aria-label="Remove variant"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </SortableVariantRow>
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
-      </div>
-
-      {/* Images - Mobile optimized */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <div className="flex items-center justify-between mb-3 md:mb-4">
-          <h2 className="text-lg md:text-xl font-semibold text-white">
-            Images <RequiredMark />
-          </h2>
-          <span className="text-xs text-gray-500">{images.length} total</span>
-        </div>
-
-        {uploadQueue.isUploading && (
-          <div className="mb-4 bg-blue-900/20 border border-blue-800/50 rounded p-3 md:p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm text-blue-200 font-semibold">
-                {uploadQueue.currentStatus || "Uploading images..."}
-              </span>
-              <span className="text-xs text-blue-300">
-                {uploadQueue.completed} / {uploadQueue.total}
-              </span>
-            </div>
-            <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-blue-600 h-full transition-all duration-300"
-                style={{
-                  width: `${(uploadQueue.completed / uploadQueue.total) * 100}%`,
-                }}
-              />
-            </div>
-            {uploadQueue.failed > 0 && (
-              <p className="text-xs text-red-400 mt-2">
-                {uploadQueue.failed} upload(s) failed
-              </p>
-            )}
-          </div>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          onChange={(e) => {
-            console.info(
-              "[ProductForm] File input changed, files:",
-              e.target.files?.length || 0,
-            );
-            if (e.target.files) {
-              console.info(
-                "[ProductForm] File details:",
-                Array.from(e.target.files).map((f) => ({
-                  name: f.name,
-                  type: f.type,
-                  size: f.size,
-                })),
-              );
-            }
-            void handleUploadFiles(e.target.files);
-          }}
-          className="hidden"
-        />
-
-        {/* Mobile-friendly dropzone */}
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={[
-            "w-full h-32 md:h-44 border border-dashed cursor-pointer transition",
-            "rounded px-3 md:px-4 py-3 flex flex-col sm:flex-row items-center gap-2 md:gap-3",
-            isDragging
-              ? "border-red-500 bg-red-900/10"
-              : "border-zinc-800/70 bg-zinc-950/30 hover:bg-zinc-950/50",
-          ].join(" ")}
-        >
-          <div className="h-8 w-8 md:h-10 md:w-10 bg-zinc-900 border border-zinc-800/70 flex items-center justify-center shrink-0 rounded">
-            <ImagePlus className="w-4 h-4 md:w-5 md:h-5 text-gray-400" />
-          </div>
-
-          <div className="min-w-0 flex-1 text-center sm:text-left">
-            <p className="text-xs md:text-sm text-white font-semibold">
-              Tap to add images
-            </p>
-            <p className="text-xs text-gray-500 mt-1">PNG, JPG, WEBP. Max 10MB each.</p>
-          </div>
-        </div>
-
-        {/* Mobile-friendly image grid */}
-        <div className="mt-3 md:mt-4">
-          {images.length === 0 ? (
-            <div className="text-gray-500 text-xs md:text-sm">No images yet.</div>
-          ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 md:gap-3">
-              {images.map((image, index) => (
-                <div
-                  key={index}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setPrimaryImage(index)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setPrimaryImage(index);
-                    }
-                  }}
-                  className={[
-                    "group relative text-left border overflow-hidden transition",
-                    "rounded cursor-pointer select-none",
-                    image.is_primary
-                      ? "border-red-500"
-                      : "border-zinc-800/70 hover:border-zinc-700",
-                  ].join(" ")}
-                  title="Tap to set primary"
-                >
-                  <div className="aspect-square bg-zinc-900 overflow-hidden">
-                    {image.url ? (
-                      <img
-                        src={image.url}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
-                        Missing
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="absolute top-1 left-1">
-                    <span
-                      className={[
-                        "text-[9px] md:text-[10px] px-1.5 md:px-2 py-0.5 border rounded",
-                        image.is_primary
-                          ? "bg-red-600 border-red-500 text-white"
-                          : "bg-black/50 border-white/10 text-gray-200",
-                      ].join(" ")}
-                    >
-                      {image.is_primary ? "Primary" : "Thumb"}
-                    </span>
-                  </div>
-
-                  <div className="absolute top-1 right-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeImage(index);
-                      }}
-                      className="bg-black/60 hover:bg-black/80 text-white p-1 md:p-1.5 rounded"
-                      aria-label="Remove image"
-                    >
-                      <X className="w-3 h-3 md:w-3.5 md:h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-2 md:mt-3 text-xs text-gray-500">
-          Images are optional. Tap any thumbnail to set as primary.
-        </div>
-      </div>
-
-      {/* Pricing & Shipping - Simplified */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">
-          Pricing & Shipping
-        </h2>
-
-        <div>
-          <label className="block text-gray-400 text-sm mb-1">Shipping Price ($)</label>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={shippingPrice}
-            onChange={(e) => setShippingPrice(e.target.value)}
-            className="w-full bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 text-sm md:text-base"
-          />
-
-          {shippingDefaultsStatus === "loading" ? (
-            <p className="text-gray-500 text-xs mt-1">Loading default shipping prices…</p>
-          ) : shippingDefaultsStatus === "error" ? (
-            <p className="text-red-400 text-xs mt-1">
-              Could not load defaults. You can still set an override.
-            </p>
-          ) : (
-            <p className="text-gray-500 text-xs mt-1">
-              Leave blank to use {category} default:{" "}
-              <span className="text-gray-200">${formatMoney(defaultShippingPrice)}</span>
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Tags */}
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold text-white mb-3 md:mb-4">Tags</h2>
-        <TagInput tags={allTags} onAddTag={handleAddTag} onRemoveTag={handleRemoveTag} />
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800/70 rounded p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold text-white mb-2">
-          Posting Schedule
-        </h2>
-        <p className="text-xs md:text-sm text-gray-400">
-          Products post immediately by default. Switch to scheduled posting to pick a
-          future go-live date and time.
-        </p>
-
-        <div className="mt-4 space-y-3">
-          <label className="flex items-center gap-3 text-sm text-white cursor-pointer select-none">
-            <input
-              type="radio"
-              name="publish-mode"
-              checked={publishMode === "immediately"}
-              onChange={() => setPublishMode("immediately")}
-              className="h-4 w-4 cursor-pointer accent-red-600"
-            />
-            <span>Post immediately</span>
-          </label>
-          <label className="flex items-center gap-3 text-sm text-white cursor-pointer select-none">
-            <input
-              type="radio"
-              name="publish-mode"
-              checked={publishMode === "scheduled"}
-              onChange={() => {
-                setPublishMode("scheduled");
-                ensureScheduledTime();
-              }}
-              className="h-4 w-4 cursor-pointer accent-red-600"
-            />
-            <span>Schedule date and time</span>
-          </label>
-        </div>
-
-        <div className="mt-4">
-          <label className="block text-gray-400 text-sm mb-1">
-            Go Live Date & Time
-            {publishMode === "scheduled" && (
-              <>
-                {" "}
-                <RequiredMark />
-              </>
-            )}
-          </label>
-          <input
-            type="datetime-local"
-            value={scheduledGoLiveAt}
-            min={scheduleMin}
-            disabled={publishMode !== "scheduled"}
-            onChange={(event) => setScheduledGoLiveAt(event.target.value)}
-            className="w-full sm:w-auto bg-zinc-800 text-white px-3 md:px-4 py-2 rounded border border-zinc-800/70 focus:outline-none focus:ring-2 focus:ring-red-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
-          />
-          <p className="text-xs text-gray-500 mt-2">
-            {publishMode === "scheduled"
-              ? "This uses your local timezone and converts to UTC when saved."
-              : "Posting immediately. Choose 'Schedule date and time' to enable this field."}
-          </p>
-        </div>
-      </div>
-
-      {/* Actions - Mobile friendly */}
-      <div className="flex flex-col sm:flex-row gap-3 md:gap-4 sticky bottom-0 sm:static bg-black sm:bg-transparent p-4 sm:p-0 -mx-4 sm:mx-0 border-t sm:border-0 border-zinc-800">
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-3 rounded transition text-sm md:text-base"
-        >
-          {isLoading
-            ? "Saving..."
-            : initialData?.id
-              ? "Update Product"
-              : "Create Product"}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-6 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-3 rounded transition text-sm md:text-base"
-        >
-          Cancel
-        </button>
-      </div>
+      <ProductFormMediaSection
+        images={images}
+        uploadQueue={uploadQueue}
+        isDragging={isDragging}
+        fileInputRef={fileInputRef}
+        onUploadFiles={handleUploadFiles}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onSetPrimaryImage={setPrimaryImage}
+        onRemoveImage={removeImage}
+      />
 
       <Toast
         open={Boolean(toast)}

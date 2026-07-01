@@ -499,7 +499,6 @@ export function CheckoutStart() {
       void handleFulfillmentChange(next);
     },
     isUpdatingFulfillment,
-    canUseChat: isAuthenticated === true,
     guestEmail,
     onGuestEmailChange: setGuestEmail,
     isGuestCheckout: isGuestFlow,

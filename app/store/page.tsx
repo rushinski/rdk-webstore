@@ -1,20 +1,17 @@
 // app/store/page.tsx
-// OPTIMIZED VERSION - Page navigation with improved filter visuals
-
 import Link from "next/link";
 
 import { CatalogFilterBar } from "@/components/storefront/catalog/CatalogFilterBar";
 import { CatalogToolbar } from "@/components/storefront/catalog/CatalogToolbar";
-import { FilterPanel } from "@/components/store/FilterPanel";
-import { ProductGrid } from "@/components/store/ProductGrid";
-import { StoreControls } from "@/components/store/StoreControls";
+import { StorefrontControls } from "@/components/storefront/catalog/StorefrontControls";
+import { StorefrontFilterPanel } from "@/components/storefront/catalog/StorefrontFilterPanel";
+import { StorefrontProductGrid } from "@/components/storefront/catalog/StorefrontProductGrid";
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import type { ProductFilters } from "@/repositories/product-repo";
 
-// OPTIMIZATION: Enable ISR with longer revalidation
-export const revalidate = 60; // Revalidate every 60 seconds
+export const revalidate = 60;
 
 const getArrayParam = (
   searchParams: Record<string, string | string[] | undefined> | undefined,
@@ -103,7 +100,6 @@ export default async function StorePage({
   const supabase = createSupabasePublicClient();
   const service = new StorefrontService(supabase);
 
-  // OPTIMIZATION: Parallel data fetching
   const [productsResult, filterData] = await Promise.all([
     service.listProducts(filters),
     service.listFilters({ filters }),
@@ -196,7 +192,7 @@ export default async function StorePage({
       </div>
 
       <div className="mx-auto max-w-brand px-6 py-8 md:px-12 lg:px-16">
-        <StoreControls
+        <StorefrontControls
           total={productsResult.total}
           page={productsResult.page}
           pageCount={pageCount}
@@ -211,7 +207,7 @@ export default async function StorePage({
               className="sticky transition-[top] duration-300"
               style={{ top: "var(--rdk-header-offset, 0px)" }}
             >
-              <FilterPanel
+              <StorefrontFilterPanel
                 selectedCategories={selectedCategories}
                 selectedBrands={selectedBrands}
                 selectedModels={selectedModels}
@@ -231,12 +227,15 @@ export default async function StorePage({
           </div>
 
           <div className="lg:col-span-3">
-            <ProductGrid products={productsResult.products} storeHref={storeHref} />
+            <StorefrontProductGrid
+              products={productsResult.products}
+              storeHref={storeHref}
+            />
           </div>
         </div>
 
         <div className="lg:hidden">
-          <FilterPanel
+          <StorefrontFilterPanel
             selectedCategories={selectedCategories}
             selectedBrands={selectedBrands}
             selectedModels={selectedModels}
@@ -255,7 +254,7 @@ export default async function StorePage({
         </div>
 
         <div className="mt-10">
-          <StoreControls
+          <StorefrontControls
             total={productsResult.total}
             page={productsResult.page}
             pageCount={pageCount}

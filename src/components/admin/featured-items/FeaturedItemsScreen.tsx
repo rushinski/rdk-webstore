@@ -7,8 +7,8 @@ import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { Toast } from "@/components/ui/Toast";
 import { logError } from "@/lib/utils/log";
 
-import { FeaturedItemsList } from "./components/FeaturedItemsList";
-import { FeaturedItemsSearchPanel } from "./components/FeaturedItemsSearchPanel";
+import { FeaturedItemsList } from "./FeaturedItemsList";
+import { FeaturedItemsSearchPanel } from "./FeaturedItemsSearchPanel";
 
 type FeaturedItem = {
   id: string;
@@ -44,7 +44,7 @@ type Product = {
   variants: Array<{ sale_price_cents: number }>;
 };
 
-export function FeaturedItemsManager() {
+export function FeaturedItemsScreen() {
   const [featuredItems, setFeaturedItems] = useState<FeaturedItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");

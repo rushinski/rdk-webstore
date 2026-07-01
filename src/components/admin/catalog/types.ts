@@ -53,5 +53,11 @@ export type ModelEditDraft = Pick<
   "canonical_label" | "brand_id" | "is_active" | "is_verified"
 >;
 export type AliasEditDraft = Pick<Alias, "alias_label" | "priority" | "is_active">;
+export type NewAliasDraft = {
+  entityType: "brand" | "model";
+  entityId: string;
+  label: string;
+  priority: string;
+};
 
 export type EditDraft = BrandEditDraft | ModelEditDraft | AliasEditDraft;

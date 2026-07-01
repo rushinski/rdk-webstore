@@ -1,9 +1,9 @@
 // app/admin/inventory/page.tsx (SERVER-SIDE VERSION)
 
 import type { Category, Condition } from "@/types/domain/product";
+import { InventoryClient } from "@/components/admin/inventory/InventoryClient";
 
 import { getInventoryProducts } from "./actions";
-import { InventoryClient } from "./client";
 
 type StockStatus = "in_stock" | "archived";
 

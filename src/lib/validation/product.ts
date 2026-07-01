@@ -2,7 +2,6 @@
 import { z } from "zod";
 
 const CATEGORY_VALUES = ["sneakers", "clothing", "accessories", "electronics"] as const;
-// Website condition values stay as-is; outbound Lightspeed sync maps "used" to "preowned".
 const CONDITION_VALUES = ["new", "used"] as const;
 const SIZE_TYPE_VALUES = ["shoe", "clothing", "custom", "none"] as const;
 const STOCK_STATUS_VALUES = ["in_stock", "out_of_stock", "archived", "all"] as const;
