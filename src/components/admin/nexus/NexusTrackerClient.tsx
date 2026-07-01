@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, AlertTriangle, Download, Home, Search } from "lucide-react";
 
@@ -11,18 +11,27 @@ import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import {
+  buildFilterRegisteredOptions,
+  buildFilteredAndSortedStates,
+  buildLegendItems,
+  buildNexusTrackerMetrics,
+  buildNexusTypeOptions,
+  buildWindowOptions,
+  formatNexusCurrency,
+  getSortIndicator,
+  getStateColor,
+} from "@/components/admin/nexus/nexusTrackerView";
+import { useNexusTrackerData } from "@/components/admin/nexus/useNexusTrackerData";
 import { RdkSelect } from "@/components/ui/Select";
-import type { NexusData, StateSummary } from "@/types/domain/nexus";
+import type { StateSummary } from "@/types/domain/nexus";
 
 import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
 
 export default function NexusTrackerClient() {
-  const [data, setData] = useState<NexusData | null>(null);
   const [selectedState, setSelectedState] = useState<StateSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<keyof StateSummary>("percentageToThreshold");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -35,207 +44,30 @@ export default function NexusTrackerClient() {
   const [filterWindow, setFilterWindow] = useState<"all" | "calendar" | "rolling">("all");
   const [filterNeedsAction, setFilterNeedsAction] = useState(false);
   const [showHomeSetup, setShowHomeSetup] = useState(false);
-  const [isHomeOfficeConfigured, setIsHomeOfficeConfigured] = useState(false);
+  const {
+    data,
+    fetchNexusData,
+    handleNexusTypeChange,
+    handleRegisterToggle,
+    isHomeOfficeConfigured,
+    isUpdating,
+    loading,
+    setIsHomeOfficeConfigured,
+  } = useNexusTrackerData({
+    selectedState,
+    setSelectedState,
+    setShowHomeSetup,
+  });
 
-  useEffect(() => {
-    void fetchNexusData();
-    void checkHomeOfficeStatus();
-  }, []);
-
-  const fetchNexusData = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/nexus/summary", { cache: "no-store" });
-
-      if (!res.ok) {
-        throw new Error(`Failed: ${res.status}`);
-      }
-
-      const json = await res.json();
-      setData(json as NexusData);
-    } catch (err) {
-      console.error("Failed to fetch nexus data:", err);
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkHomeOfficeStatus = async () => {
-    try {
-      const res = await fetch("/api/admin/nexus/home-office-status");
-      if (res.ok) {
-        const { configured } = await res.json();
-        setIsHomeOfficeConfigured(configured);
-      }
-    } catch (err) {
-      console.error("Failed to check home office status:", err);
-    }
-  };
-
-  const filterRegisteredOptions = useMemo(
-    () => [
-      { value: "all", label: "All States" },
-      { value: "registered", label: "Registered Only" },
-      { value: "unregistered", label: "Unregistered Only" },
-    ],
-    [],
-  );
-
-  const nexusTypeOptions = useMemo(
-    () => [
-      { value: "all", label: "All Nexus Types" },
-      { value: "physical", label: "Physical" },
-      { value: "economic", label: "Economic" },
-    ],
-    [],
-  );
-
-  const windowOptions = useMemo(
-    () => [
-      { value: "all", label: "All Windows" },
-      { value: "calendar", label: "Calendar Year" },
-      { value: "rolling", label: "Rolling 12 Months" },
-    ],
-    [],
-  );
+  const filterRegisteredOptions = useMemo(() => buildFilterRegisteredOptions(), []);
+  const nexusTypeOptions = useMemo(() => buildNexusTypeOptions(), []);
+  const windowOptions = useMemo(() => buildWindowOptions(), []);
 
   const handleDownloadTaxDocs = () => {
     window.open("/admin/settings/taxes", "_self");
   };
 
-  const getStateColor = (state: StateSummary | undefined) => {
-    if (!state) {
-      return "#737373";
-    }
-    if (state.thresholdType === "none" || state.threshold <= 0) {
-      return "#737373";
-    }
-    if (state.isRegistered) {
-      return "#16a34a";
-    }
-
-    const pct = state.percentageToThreshold;
-    if (pct < 50) {
-      return "#737373";
-    }
-    if (pct < 70) {
-      return "#eab308";
-    }
-    if (pct < 85) {
-      return "#f59e0b";
-    }
-    if (pct < 95) {
-      return "#f97316";
-    }
-    return "#dc2626";
-  };
-
-  const legendItems = useMemo(
-    () => [
-      { label: "Registered", color: "#16a34a" },
-      { label: "< 50%", color: "#737373" },
-      { label: "50-70%", color: "#eab308" },
-      { label: "70-85%", color: "#f59e0b" },
-      { label: "85-95%", color: "#f97316" },
-      { label: "> 95%", color: "#dc2626" },
-    ],
-    [],
-  );
-
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      maximumFractionDigits: 0,
-    }).format(val);
-
-  const handleRegisterToggle = async (
-    stateCode: string,
-    currentRegistered: boolean,
-    nexusType: "physical" | "economic",
-  ) => {
-    if (!isHomeOfficeConfigured && !currentRegistered) {
-      setShowHomeSetup(true);
-      return;
-    }
-
-    try {
-      setIsUpdating(true);
-      const res = await fetch("/api/admin/nexus/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stateCode,
-          registrationType: nexusType,
-          isRegistered: !currentRegistered,
-        }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        if (result.error && result.error.includes("head office")) {
-          setShowHomeSetup(true);
-          alert("Please set up your home office address first.");
-          return;
-        }
-        throw new Error(result.error);
-      }
-
-      await fetchNexusData();
-
-      if (selectedState?.stateCode === stateCode) {
-        const updatedState = data?.states.find((s) => s.stateCode === stateCode);
-        if (updatedState) {
-          setSelectedState({ ...updatedState, isRegistered: !currentRegistered });
-        }
-      }
-    } catch (err: unknown) {
-      console.error("Failed to toggle registration:", err);
-      const message =
-        err instanceof Error ? err.message : "Failed to update registration";
-      alert(message);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleNexusTypeChange = async (
-    stateCode: string,
-    newType: "physical" | "economic",
-  ) => {
-    try {
-      setIsUpdating(true);
-
-      const res = await fetch("/api/admin/nexus/nexus-type", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stateCode,
-          nexusType: newType,
-        }),
-      });
-
-      if (!res.ok) {
-        const result = await res.json();
-        throw new Error(result.error || "Failed to update nexus type");
-      }
-
-      await fetchNexusData();
-
-      if (selectedState?.stateCode === stateCode) {
-        const updatedState = data?.states.find((s) => s.stateCode === stateCode);
-        if (updatedState) {
-          setSelectedState({ ...updatedState, nexusType: newType });
-        }
-      }
-    } catch (err) {
-      console.error("Failed to change nexus type:", err);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const legendItems = useMemo(() => buildLegendItems(), []);
 
   const handleSort = (field: keyof StateSummary) => {
     if (sortField === field) {
@@ -246,73 +78,21 @@ export default function NexusTrackerClient() {
     }
   };
 
-  const sortIndicator = (field: keyof StateSummary) =>
-    sortField === field ? (sortDirection === "asc" ? "^" : "v") : "";
-
   const filteredAndSortedStates = useMemo(() => {
     if (!data) {
       return [];
     }
 
-    const filtered = data.states.filter((state) => {
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        if (
-          !state.stateName.toLowerCase().includes(query) &&
-          !state.stateCode.toLowerCase().includes(query)
-        ) {
-          return false;
-        }
-      }
-
-      if (filterRegistered === "registered" && !state.isRegistered) {
-        return false;
-      }
-      if (filterRegistered === "unregistered" && state.isRegistered) {
-        return false;
-      }
-      if (filterNexusType === "physical" && state.nexusType !== "physical") {
-        return false;
-      }
-      if (filterNexusType === "economic" && state.nexusType !== "economic") {
-        return false;
-      }
-      if (filterWindow === "calendar" && state.window !== "calendar") {
-        return false;
-      }
-      if (filterWindow === "rolling" && state.window !== "rolling 12 months") {
-        return false;
-      }
-      if (filterNeedsAction) {
-        const needsRegistration = state.nexusType === "physical" && !state.isRegistered;
-        const atRisk =
-          state.nexusType === "economic" &&
-          !state.isRegistered &&
-          state.percentageToThreshold >= 85;
-        if (!needsRegistration && !atRisk) {
-          return false;
-        }
-      }
-
-      return true;
+    return buildFilteredAndSortedStates({
+      filterNeedsAction,
+      filterNexusType,
+      filterRegistered,
+      filterWindow,
+      searchQuery,
+      sortDirection,
+      sortField,
+      states: data.states,
     });
-
-    filtered.sort((a, b) => {
-      const aVal = a[sortField];
-      const bVal = b[sortField];
-
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      if (typeof aVal === "string" && typeof bVal === "string") {
-        return sortDirection === "asc"
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      }
-      return 0;
-    });
-
-    return filtered;
   }, [
     data,
     filterNeedsAction,
@@ -353,16 +133,8 @@ export default function NexusTrackerClient() {
     );
   }
 
-  const atRiskStates = data.states.filter(
-    (state) =>
-      state.nexusType === "economic" &&
-      !state.isRegistered &&
-      state.percentageToThreshold >= 85,
-  ).length;
-  const registeredStates = data.states.filter((state) => state.isRegistered).length;
-  const needsRegistrationCount = data.states.filter(
-    (state) => state.nexusType === "physical" && !state.isRegistered,
-  ).length;
+  const { atRiskStates, needsRegistrationCount, registeredStates } =
+    buildNexusTrackerMetrics(data.states);
 
   return (
     <div className="space-y-6">
@@ -446,7 +218,7 @@ export default function NexusTrackerClient() {
             void handleNexusTypeChange(stateCode, newType);
           }}
           isUpdating={isUpdating}
-          formatCurrency={formatCurrency}
+          formatCurrency={formatNexusCurrency}
           isHomeOfficeConfigured={isHomeOfficeConfigured}
           onOpenHomeOffice={() => setShowHomeSetup(true)}
         />
@@ -456,7 +228,7 @@ export default function NexusTrackerClient() {
         states={data.states}
         onStateClick={setSelectedState}
         getStateColor={getStateColor}
-        formatCurrency={formatCurrency}
+        formatCurrency={formatNexusCurrency}
         legendItems={legendItems}
       />
 
@@ -545,25 +317,26 @@ export default function NexusTrackerClient() {
                   className="cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30"
                   onClick={() => handleSort("stateName")}
                 >
-                  State {sortIndicator("stateName")}
+                  State {getSortIndicator(sortField, sortDirection, "stateName")}
                 </th>
                 <th
                   className="hidden cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30 md:table-cell"
                   onClick={() => handleSort("threshold")}
                 >
-                  Threshold {sortIndicator("threshold")}
+                  Threshold {getSortIndicator(sortField, sortDirection, "threshold")}
                 </th>
                 <th
                   className="hidden cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30 md:table-cell"
                   onClick={() => handleSort("relevantSales")}
                 >
-                  Sales {sortIndicator("relevantSales")}
+                  Sales {getSortIndicator(sortField, sortDirection, "relevantSales")}
                 </th>
                 <th
                   className="hidden cursor-pointer px-3 py-3 text-left font-medium text-brand-text hover:bg-brand-border/30 md:table-cell"
                   onClick={() => handleSort("percentageToThreshold")}
                 >
-                  Progress {sortIndicator("percentageToThreshold")}
+                  Progress{" "}
+                  {getSortIndicator(sortField, sortDirection, "percentageToThreshold")}
                 </th>
                 <th className="hidden px-3 py-3 text-left font-medium text-brand-text md:table-cell">
                   Type
@@ -604,10 +377,10 @@ export default function NexusTrackerClient() {
                     </div>
                   </td>
                   <td className="hidden px-3 py-3 text-brand-muted md:table-cell">
-                    {formatCurrency(state.threshold)}
+                    {formatNexusCurrency(state.threshold)}
                   </td>
                   <td className="hidden px-3 py-3 text-brand-muted md:table-cell">
-                    {formatCurrency(state.relevantSales)}
+                    {formatNexusCurrency(state.relevantSales)}
                   </td>
                   <td className="hidden px-3 py-3 md:table-cell">
                     <div className="flex items-center gap-2">

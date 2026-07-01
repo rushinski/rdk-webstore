@@ -1,46 +1,13 @@
 "use client";
 
+import type {
+  InventoryDialogsActions,
+  InventoryDialogsState,
+} from "@/components/admin/inventory/inventoryClientContracts";
 import { InventoryProductDetailsModal } from "@/components/admin/inventory/InventoryProductDetailsModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Toast } from "@/components/ui/Toast";
-import type { ProductVariantRow, ProductWithDetails } from "@/types/domain/product";
-
-interface InventoryDialogsProps {
-  detailsSelection: {
-    product: ProductWithDetails;
-    variant: ProductVariantRow;
-  } | null;
-  pendingDelete: {
-    id: string;
-    label: string;
-  } | null;
-  pendingMassDelete: boolean;
-  pendingArchive: {
-    mode: "single" | "selected";
-    id?: string;
-    label?: string;
-    count?: number;
-  } | null;
-  pendingRestore: {
-    mode: "selected";
-    count?: number;
-  } | null;
-  selectedCount: number;
-  toast: {
-    message: string;
-    tone: "success" | "error" | "info";
-  } | null;
-  onCloseDetails: () => void;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
-  onConfirmMassDelete: () => void;
-  onCancelMassDelete: () => void;
-  onConfirmArchive: () => void;
-  onCancelArchive: () => void;
-  onConfirmRestore: () => void;
-  onCancelRestore: () => void;
-  onCloseToast: () => void;
-}
+type InventoryDialogsProps = InventoryDialogsState & InventoryDialogsActions;
 
 export function InventoryDialogs({
   detailsSelection,

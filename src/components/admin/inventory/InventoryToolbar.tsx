@@ -2,33 +2,19 @@ import { Archive, RotateCcw, Search, Trash2 } from "lucide-react";
 
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import type {
+  InventoryToolbarActions,
+  InventoryToolbarFilters,
+  InventoryToolbarSelection,
+  InventoryToolbarSummary,
+} from "@/components/admin/inventory/inventoryClientContracts";
 import { RdkSelect } from "@/components/ui/Select";
 import type { Category, Condition } from "@/types/domain/product";
 
-type StockStatus = "in_stock" | "archived";
-
-type InventoryToolbarProps = {
-  totalCount: number;
-  showingStart: number;
-  showingEnd: number;
-  stockStatusFilter: StockStatus;
-  searchQuery: string;
-  categoryFilter: Category | "all";
-  conditionFilter: Condition | "all";
-  selectedCount: number;
-  selectedIdsCount: number;
-  selectAllMatching: boolean;
-  currentPageAllSelected: boolean;
-  onStockStatusFilterChange: (value: StockStatus) => void;
-  onSearchQueryChange: (value: string) => void;
-  onCategoryFilterChange: (value: Category | "all") => void;
-  onConditionFilterChange: (value: Condition | "all") => void;
-  onSelectAllMatching: () => void;
-  onClearSelection: () => void;
-  onMassRestore: () => void;
-  onMassArchive: () => void;
-  onMassDelete: () => void;
-};
+type InventoryToolbarProps = InventoryToolbarSummary &
+  InventoryToolbarFilters &
+  InventoryToolbarSelection &
+  InventoryToolbarActions;
 
 const tabActiveStyles = "border-b-2 border-brand-text text-brand-text";
 const tabInactiveStyles = "text-brand-muted transition hover:text-brand-text";

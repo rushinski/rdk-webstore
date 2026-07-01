@@ -1,56 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 
+import type {
+  OrderSummary,
+  ParcelDraft,
+  ShippingAddressDraft,
+} from "@/components/admin/shipping/createLabelFormTypes";
+import {
+  buildInitialParcel,
+  buildInitialRecipient,
+  formatDeliveryEstimate,
+  getErrorMessage,
+  money,
+  resolveShippingAddress,
+  validateAddress,
+} from "@/components/admin/shipping/createLabelFormView";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { useCreateLabelFormMutations } from "@/components/admin/shipping/useCreateLabelFormMutations";
+import { useCreateLabelFormState } from "@/components/admin/shipping/useCreateLabelFormState";
 import { ModalPortal } from "@/components/ui/ModalPortal";
-import type { ShippingAddress } from "@/types/domain/shipping";
-
-type ShippingAddressDraft = {
-  name: string;
-  phone: string;
-  line1: string;
-  line2: string;
-  city: string;
-  state: string;
-  postal_code: string;
-  country: string;
-};
-
-type ParcelDraft = {
-  weight: number;
-  length: number;
-  width: number;
-  height: number;
-};
-
-type AddressValidationStatus = "idle" | "validating" | "valid" | "invalid";
-
-type AddressErrors = {
-  line1?: string;
-  city?: string;
-  state?: string;
-  postal_code?: string;
-  country?: string;
-  phone?: string;
-};
-
-type EasyPostRate = {
-  id: string;
-  carrier?: string | null;
-  service?: string | null;
-  rate?: string | null;
-  currency?: string | null;
-  delivery_days?: number | null;
-  estimated_delivery_days?: number | null;
-};
-
-type OrderSummary = {
-  id: string;
-  shipping?: unknown;
-};
 
 type Props = {
   open: boolean;
@@ -59,100 +30,6 @@ type Props = {
   initialPackage?: ParcelDraft | null;
   onClose: () => void;
   onSuccess: () => void;
-};
-
-const resolveShippingAddress = (value: unknown): ShippingAddress | null => {
-  if (!value) {
-    return null;
-  }
-  if (Array.isArray(value)) {
-    return (value[0] ?? null) as ShippingAddress | null;
-  }
-  if (typeof value === "object") {
-    return value as ShippingAddress;
-  }
-  return null;
-};
-
-const clean = (value: unknown) => (typeof value === "string" ? value.trim() : "");
-
-const money = (rateStr?: string | null, currency?: string | null) => {
-  const rate = Number(rateStr ?? "");
-  if (Number.isFinite(rate)) {
-    return `${currency?.toUpperCase() === "USD" || !currency ? "$" : ""}${rate.toFixed(2)}`;
-  }
-  return rateStr ?? "-";
-};
-
-const formatDeliveryEstimate = (days?: number | null) => {
-  if (!days || days <= 0) {
-    return null;
-  }
-  const businessDays = Math.ceil(days);
-  if (businessDays === 1) {
-    return "Next business day";
-  }
-  if (businessDays === 2) {
-    return "2 business days";
-  }
-  if (businessDays <= 5) {
-    return `${businessDays} business days`;
-  }
-  const calendarDays = Math.ceil(businessDays * 1.4);
-  return `${calendarDays} days`;
-};
-
-const validateAddress = (address: ShippingAddressDraft): AddressErrors => {
-  const errors: AddressErrors = {};
-
-  if (!address.phone || address.phone.length < 10) {
-    errors.phone = "Phone number required (10+ digits)";
-  }
-  if (!address.line1 || address.line1.length < 3) {
-    errors.line1 = "Street address is required";
-  }
-  if (!address.city || address.city.length < 2) {
-    errors.city = "City is required";
-  }
-  if (!address.state || address.state.length !== 2) {
-    errors.state = "State must be 2 letters (e.g., CA, NY)";
-  }
-  if (!address.postal_code || !/^\d{5}(-\d{4})?$/.test(address.postal_code)) {
-    errors.postal_code = "ZIP code must be 5 digits or 5+4 format";
-  }
-  if (!address.country || address.country.length !== 2) {
-    errors.country = "Country must be 2 letters (e.g., US)";
-  }
-
-  return errors;
-};
-
-const getErrorMessage = (error: string): string => {
-  const lowerError = error.toLowerCase();
-
-  if (lowerError.includes("address") && lowerError.includes("invalid")) {
-    return "The recipient address is invalid. Please check street, city, state, and ZIP code.";
-  }
-  if (lowerError.includes("postal") || lowerError.includes("zip")) {
-    return "Invalid ZIP code. Please enter a valid 5-digit ZIP code.";
-  }
-  if (lowerError.includes("carrier") && lowerError.includes("not")) {
-    return "No carriers are enabled. Please enable carriers in Shipping Settings.";
-  }
-  if (lowerError.includes("rate")) {
-    return "No shipping rates available. This may be due to package dimensions or destination. Try adjusting the package size.";
-  }
-  if (lowerError.includes("origin")) {
-    return "Shipping origin address is not configured. Please set it in Shipping Settings.";
-  }
-  if (lowerError.includes("weight") || lowerError.includes("dimension")) {
-    return "Invalid package dimensions. Weight must be > 0 oz, dimensions must be > 0 inches.";
-  }
-  if (lowerError.includes("already")) {
-    return "A shipping label has already been purchased for this order.";
-  }
-
-  return error;
 };
 
 const fieldInputClass = (hasError?: boolean) =>
@@ -171,257 +48,68 @@ export function CreateLabelForm({
   const orderId = order?.id ?? null;
 
   const initialRecipient: ShippingAddressDraft = useMemo(() => {
-    const shipping = resolveShippingAddress(order?.shipping);
-    return {
-      name: clean(shipping?.name) || "",
-      phone: clean(shipping?.phone) || "",
-      line1: clean(shipping?.line1) || "",
-      line2: clean(shipping?.line2) || "",
-      city: clean(shipping?.city) || "",
-      state: clean(shipping?.state) || "",
-      postal_code: clean(shipping?.postal_code) || "",
-      country: clean(shipping?.country) || "US",
-    };
+    return buildInitialRecipient(resolveShippingAddress(order?.shipping));
   }, [order]);
 
   const initialParcel: ParcelDraft = useMemo(
-    () => initialPackage ?? { weight: 16, length: 12, width: 12, height: 12 },
+    () => buildInitialParcel(initialPackage),
     [initialPackage],
   );
 
-  const [recipient, setRecipient] = useState<ShippingAddressDraft>(initialRecipient);
-  const [parcel, setParcel] = useState<ParcelDraft>(initialParcel);
-  const [addressErrors, setAddressErrors] = useState<AddressErrors>({});
-  const [validationStatus, setValidationStatus] =
-    useState<AddressValidationStatus>("idle");
+  const {
+    addressErrors,
+    handleParcelInput,
+    heightInput,
+    lengthInput,
+    parcel,
+    recipient,
+    setAddressErrors,
+    setRecipientField,
+    setValidationStatus,
+    validationStatus,
+    weightInput,
+    widthInput,
+  } = useCreateLabelFormState({
+    initialParcel,
+    initialRecipient,
+    open,
+    validateAddress,
+  });
 
-  const [weightInput, setWeightInput] = useState("16");
-  const [lengthInput, setLengthInput] = useState("12");
-  const [widthInput, setWidthInput] = useState("12");
-  const [heightInput, setHeightInput] = useState("12");
-
-  const [shipmentId, setShipmentId] = useState<string | null>(null);
-  const [rates, setRates] = useState<EasyPostRate[]>([]);
-  const [selectedRateId, setSelectedRateId] = useState<string | null>(null);
-
-  const [isGettingRates, setIsGettingRates] = useState(false);
-  const [isPurchasing, setIsPurchasing] = useState(false);
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const {
+    error,
+    getRates,
+    isGettingRates,
+    isPurchasing,
+    purchase,
+    rates,
+    resetMutationState,
+    selectedRateId,
+    setSelectedRateId,
+    shipmentId,
+    success,
+  } = useCreateLabelFormMutations({
+    onSuccess,
+    orderId,
+    originLine,
+    parcel,
+    recipient,
+    setAddressErrors,
+    setValidationStatus,
+    validateAddress,
+    getErrorMessage,
+  });
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    setRecipient(initialRecipient);
-    setParcel(initialParcel);
-    setAddressErrors({});
-    setValidationStatus("idle");
-    setWeightInput(String(initialParcel.weight));
-    setLengthInput(String(initialParcel.length));
-    setWidthInput(String(initialParcel.width));
-    setHeightInput(String(initialParcel.height));
-    setShipmentId(null);
-    setRates([]);
-    setSelectedRateId(null);
-    setIsGettingRates(false);
-    setIsPurchasing(false);
-    setError("");
-    setSuccess("");
-  }, [open, initialRecipient, initialParcel]);
-
-  useEffect(() => {
-    if (validationStatus === "idle") {
-      return;
-    }
-
-    const errors = validateAddress(recipient);
-    setAddressErrors(errors);
-    setValidationStatus(Object.keys(errors).length === 0 ? "valid" : "invalid");
-  }, [recipient, validationStatus]);
+    resetMutationState();
+  }, [open, resetMutationState]);
 
   if (!open || !order || !orderId) {
     return null;
   }
-
-  const setRecipientField = (field: keyof ShippingAddressDraft, value: string) => {
-    setRecipient((prev) => ({ ...prev, [field]: value }));
-    if (validationStatus === "idle") {
-      setValidationStatus("validating");
-    }
-  };
-
-  const handleParcelInput = (
-    field: "weight" | "length" | "width" | "height",
-    value: string,
-  ) => {
-    const cleaned = value.replace(/[^\d.]/g, "");
-
-    switch (field) {
-      case "weight":
-        setWeightInput(cleaned);
-        break;
-      case "length":
-        setLengthInput(cleaned);
-        break;
-      case "width":
-        setWidthInput(cleaned);
-        break;
-      case "height":
-        setHeightInput(cleaned);
-        break;
-    }
-
-    const num = Number(cleaned);
-    if (Number.isFinite(num) && num >= 0) {
-      setParcel((prev) => ({ ...prev, [field]: num }));
-    }
-  };
-
-  const validate = () => {
-    if (!originLine) {
-      return "Origin address is not set. Set it in Shipping Settings before creating labels.";
-    }
-
-    const errors = validateAddress(recipient);
-    setAddressErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      setValidationStatus("invalid");
-      return "Please fix the address errors before continuing.";
-    }
-
-    if (!Number.isFinite(parcel.weight) || parcel.weight <= 0) {
-      return "Weight must be greater than 0 oz.";
-    }
-    if (!Number.isFinite(parcel.length) || parcel.length <= 0) {
-      return "Length must be greater than 0 inches.";
-    }
-    if (!Number.isFinite(parcel.width) || parcel.width <= 0) {
-      return "Width must be greater than 0 inches.";
-    }
-    if (!Number.isFinite(parcel.height) || parcel.height <= 0) {
-      return "Height must be greater than 0 inches.";
-    }
-
-    return null;
-  };
-
-  const getRates = async () => {
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setError("");
-    setSuccess("");
-    setIsGettingRates(true);
-    setRates([]);
-    setSelectedRateId(null);
-    setShipmentId(null);
-
-    try {
-      const res = await fetch("/api/admin/shipping/rates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          weight: parcel.weight,
-          length: parcel.length,
-          width: parcel.width,
-          height: parcel.height,
-          recipient: {
-            name: recipient.name || null,
-            phone: recipient.phone || null,
-            line1: recipient.line1,
-            line2: recipient.line2 || null,
-            city: recipient.city,
-            state: recipient.state,
-            postal_code: recipient.postal_code,
-            country: recipient.country,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setError(getErrorMessage(data?.error || "Failed to fetch rates."));
-        return;
-      }
-
-      const nextShipmentId = data?.shipment?.id ?? null;
-      const nextRates = (data?.shipment?.rates ?? []) as EasyPostRate[];
-
-      if (!nextShipmentId) {
-        setError("Rates response missing shipment ID. Please try again.");
-        return;
-      }
-      if (nextRates.length === 0) {
-        setError(
-          "No rates available for the enabled carriers. Try different package dimensions or check carrier settings.",
-        );
-        return;
-      }
-
-      setShipmentId(nextShipmentId);
-      setRates(nextRates);
-
-      const cheapest = [...nextRates].sort(
-        (a, b) => Number(a.rate ?? 999999) - Number(b.rate ?? 999999),
-      )[0];
-      setSelectedRateId(cheapest?.id ?? nextRates[0]?.id ?? null);
-    } catch {
-      setError("Network error. Please check your connection and try again.");
-    } finally {
-      setIsGettingRates(false);
-    }
-  };
-
-  const purchase = async () => {
-    if (!shipmentId || !selectedRateId) {
-      setError("Please select a shipping rate before purchasing.");
-      return;
-    }
-
-    setError("");
-    setSuccess("");
-    setIsPurchasing(true);
-
-    try {
-      const res = await fetch("/api/admin/shipping/labels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, shipmentId, rateId: selectedRateId }),
-      });
-
-      const data = await res.json();
-
-      if (res.status === 409) {
-        setError(
-          getErrorMessage(data?.error || "Label already purchased for this order."),
-        );
-        return;
-      }
-
-      if (!res.ok) {
-        setError(getErrorMessage(data?.error || "Failed to purchase label."));
-        return;
-      }
-
-      setSuccess(
-        'Label purchased successfully. The order will move to "Need to Ship" automatically.',
-      );
-
-      setTimeout(() => {
-        onSuccess();
-      }, 2000);
-    } catch {
-      setError("Network error during label purchase. Please try again.");
-    } finally {
-      setIsPurchasing(false);
-    }
-  };
 
   const hasAddressErrors = Object.keys(addressErrors).length > 0;
 

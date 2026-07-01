@@ -4,6 +4,10 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { Archive, ChevronDown, MoreVertical, RotateCcw } from "lucide-react";
 
+import {
+  buildInventoryProductCardModel,
+  formatInventoryVariantMoney,
+} from "@/components/admin/inventory/inventoryProductListView";
 import type { ProductWithDetails, ProductVariantRow } from "@/types/domain/product";
 
 type InventoryLiveState = {
@@ -13,7 +17,7 @@ type InventoryLiveState = {
   detailTooltip: string | null;
 };
 
-type InventoryProductListProps = {
+export type InventoryProductListProps = {
   products: ProductWithDetails[];
   expandedVariants: Record<string, boolean>;
   selectedIds: string[];
@@ -211,11 +215,15 @@ export function InventoryProductList({
 
             <tbody>
               {products.map((product) => {
-                const rawTitle = getProductRawTitle(product);
-                const totalStock = getProductTotalStock(product);
-                const primaryImageUrl = getPrimaryImageUrl(product);
-                const variantsOpen = expandedVariants[product.id] ?? false;
-                const liveState = getProductLiveState(product);
+                const { liveState, primaryImageUrl, rawTitle, totalStock, variantsOpen } =
+                  buildInventoryProductCardModel({
+                    expandedVariants,
+                    getPrimaryImageUrl,
+                    getProductLiveState,
+                    getProductRawTitle,
+                    getProductTotalStock,
+                    product,
+                  });
 
                 return (
                   <Fragment key={product.id}>
@@ -335,7 +343,9 @@ export function InventoryProductList({
                                       Unit Cost
                                     </div>
                                     <div className="text-sm font-medium text-brand-text">
-                                      ${(variant.unit_cost_cents / 100).toFixed(2)}
+                                      {formatInventoryVariantMoney(
+                                        variant.unit_cost_cents,
+                                      )}
                                     </div>
                                   </div>
                                   <div className="w-32 flex-shrink-0">
@@ -343,7 +353,9 @@ export function InventoryProductList({
                                       Sale Price
                                     </div>
                                     <div className="text-sm font-bold text-brand-text">
-                                      ${(variant.sale_price_cents / 100).toFixed(2)}
+                                      {formatInventoryVariantMoney(
+                                        variant.sale_price_cents,
+                                      )}
                                     </div>
                                   </div>
                                   <div className="w-24 flex-shrink-0">
@@ -376,11 +388,21 @@ export function InventoryProductList({
 
       <div className="space-y-4 md:hidden">
         {products.map((product) => {
-          const rawTitle = getProductRawTitle(product);
-          const totalStock = getProductTotalStock(product);
-          const primaryImageUrl = getPrimaryImageUrl(product);
-          const variantsOpen = expandedVariants[product.id] ?? false;
-          const liveState = getProductLiveState(product);
+          const {
+            liveState,
+            primaryImageUrl,
+            rawTitle,
+            totalStock,
+            variantCount,
+            variantsOpen,
+          } = buildInventoryProductCardModel({
+            expandedVariants,
+            getPrimaryImageUrl,
+            getProductLiveState,
+            getProductRawTitle,
+            getProductTotalStock,
+            product,
+          });
 
           return (
             <div
@@ -444,7 +466,7 @@ export function InventoryProductList({
                   />
                 </button>
                 <span className="text-[11px] text-brand-muted">
-                  {product.variants.length} variants
+                  {variantCount} variants
                 </span>
               </div>
 
@@ -466,12 +488,12 @@ export function InventoryProductList({
                           {variant.size_label}
                         </span>
                         <span>
-                          <span className="text-brand-muted">Unit Cost:</span> $
-                          {(variant.unit_cost_cents / 100).toFixed(2)}
+                          <span className="text-brand-muted">Unit Cost:</span>{" "}
+                          {formatInventoryVariantMoney(variant.unit_cost_cents)}
                         </span>
                         <span>
-                          <span className="text-brand-muted">Sale Price:</span> $
-                          {(variant.sale_price_cents / 100).toFixed(2)}
+                          <span className="text-brand-muted">Sale Price:</span>{" "}
+                          {formatInventoryVariantMoney(variant.sale_price_cents)}
                         </span>
                         <span>
                           <span className="text-brand-muted">Stock:</span>{" "}

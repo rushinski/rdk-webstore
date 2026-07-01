@@ -1,12 +1,12 @@
 import { Fragment } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { type AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
 import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import {
-  getOrderItemFinancials,
-  type AdminOrderItem,
-} from "@/components/admin/orders/OrderItemDetailsModal";
-import { getOrderNetProfitDollars } from "@/lib/orders/metrics";
+  buildPickupOrderItemModel,
+  buildPickupOrderRowModel,
+} from "@/components/admin/pickups/pickupOrdersTableView";
 
 import type { PickupOrder, PickupOrderItem } from "./pickupTypes";
 
@@ -76,29 +76,28 @@ export function PickupOrdersTable({
       </thead>
       <tbody>
         {filteredOrders.map((order) => {
-          const profit = getOrderNetProfitDollars({
-            subtotal: order.subtotal,
-            total: order.total,
-            refundAmountRaw: order.refund_amount,
-            items: order.items,
-            resolveUnitCost: (item) =>
-              Number(item.unit_cost ?? (item.variant?.unit_cost_cents ?? 0) / 100),
+          const {
+            createdAt,
+            customerEmail,
+            customerName,
+            detailsExpanded,
+            fulfillmentLabel,
+            isDisabled,
+            isPickedUp,
+            itemCount,
+            itemsExpanded,
+            profit,
+            profitPrefix,
+          } = buildPickupOrderRowModel({
+            activeTab,
+            expandedDetails,
+            expandedOrders,
+            getCustomerEmail,
+            getCustomerName,
+            markingId,
+            order,
           });
-          const profitPrefix = profit >= 0 ? "+" : "-";
-          const createdAt = order.created_at ? new Date(order.created_at) : null;
-          const customerName = getCustomerName(order);
-          const customerEmail = getCustomerEmail(order);
-          const fulfillmentLabel = order.fulfillment === "pickup" ? "Pickup" : "Ship";
-          const itemsExpanded = expandedOrders[order.id] ?? false;
-          const detailsExpanded = expandedDetails[order.id] ?? false;
           const colSpan = 9;
-          const isPickedUp =
-            activeTab === "completed" || order.fulfillment_status === "picked_up";
-          const isDisabled = isPickedUp || markingId === order.id;
-          const itemCount = (order.items ?? []).reduce(
-            (sum: number, item: PickupOrderItem) => sum + Number(item.quantity ?? 0),
-            0,
-          );
 
           return (
             <Fragment key={order.id}>
@@ -193,11 +192,18 @@ export function PickupOrdersTable({
                   <td colSpan={colSpan} className="border-b border-brand-border p-0">
                     <div className="flex flex-col">
                       {(order.items ?? []).map((item: PickupOrderItem) => {
-                        const imageUrl = getPrimaryImage(item);
-                        const title = getOrderTitle(item);
-                        const itemFinancials = getOrderItemFinancials(item);
-                        const isPositive = itemFinancials.unitProfit >= 0;
-                        const isRefunded = Boolean(item.refunded_at);
+                        const {
+                          formattedLineTotal,
+                          formattedUnitProfit,
+                          imageUrl,
+                          isPositive,
+                          isRefunded,
+                          title,
+                        } = buildPickupOrderItemModel(
+                          item,
+                          getOrderTitle,
+                          getPrimaryImage,
+                        );
 
                         return (
                           <div
@@ -249,7 +255,7 @@ export function PickupOrdersTable({
                               <div className="w-32 flex-shrink-0 text-left">
                                 <div className={itemLabelStyles}>Line Total</div>
                                 <div className="text-sm font-bold text-brand-text">
-                                  ${Number(item.line_total ?? 0).toFixed(2)}
+                                  {formattedLineTotal}
                                 </div>
                               </div>
                               <div className="w-32 flex-shrink-0 text-left">
@@ -259,8 +265,7 @@ export function PickupOrdersTable({
                                     isPositive ? "text-emerald-700" : "text-red-700"
                                   }`}
                                 >
-                                  {isPositive ? "+" : "-"}$
-                                  {Math.abs(itemFinancials.unitProfit).toFixed(2)}
+                                  {formattedUnitProfit}
                                 </div>
                               </div>
                               <div className="w-20 flex-shrink-0">
@@ -344,11 +349,18 @@ export function PickupOrdersTable({
                       </div>
                       <div className="space-y-2">
                         {(order.items ?? []).map((item: PickupOrderItem) => {
-                          const itemFinancials = getOrderItemFinancials(item);
-                          const formattedUnitProfit = `${
-                            itemFinancials.unitProfit >= 0 ? "+" : "-"
-                          }$${Math.abs(itemFinancials.unitProfit).toFixed(2)}`;
-                          const isRefunded = Boolean(item.refunded_at);
+                          const {
+                            formattedLineTotal,
+                            formattedUnitPrice,
+                            formattedUnitProfit,
+                            imageUrl,
+                            isRefunded,
+                            title,
+                          } = buildPickupOrderItemModel(
+                            item,
+                            getOrderTitle,
+                            getPrimaryImage,
+                          );
 
                           return (
                             <div
@@ -364,27 +376,25 @@ export function PickupOrdersTable({
                                 <span className="absolute inset-y-0 left-0 w-1 rounded-l-sm bg-red-300" />
                               )}
                               <img
-                                src={getPrimaryImage(item)}
-                                alt={getOrderTitle(item)}
+                                src={imageUrl}
+                                alt={title}
                                 className="h-14 w-14 flex-shrink-0 border border-brand-border bg-brand-page object-cover"
                               />
                               <div className="min-w-0">
-                                <div className="truncate text-brand-text">
-                                  {getOrderTitle(item)}
-                                </div>
+                                <div className="truncate text-brand-text">{title}</div>
                                 <div className="text-sm text-brand-muted">
                                   Size{" "}
                                   {item.size_label ?? item.variant?.size_label ?? "N/A"} -
                                   Qty {item.quantity}
                                 </div>
                                 <div className="mt-0.5 text-sm font-medium text-brand-text">
-                                  ${Number(item.line_total ?? 0).toFixed(2)}
+                                  {formattedLineTotal}
                                 </div>
                                 <div className="mt-0.5 text-xs text-brand-muted">
-                                  Price ${itemFinancials.unitPrice.toFixed(2)} - Profit{" "}
+                                  Price {formattedUnitPrice} - Profit{" "}
                                   <span
                                     className={
-                                      itemFinancials.unitProfit >= 0
+                                      formattedUnitProfit.startsWith("+")
                                         ? "text-emerald-700"
                                         : "text-red-700"
                                     }

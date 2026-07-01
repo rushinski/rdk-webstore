@@ -1,13 +1,22 @@
 // src/components/admin/pickups/AdminPickupsScreen.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 
 import {
   AdminOrderItemDetailsModal,
   type AdminOrderItem,
 } from "@/components/admin/orders/OrderItemDetailsModal";
+import {
+  buildFilteredPickupOrders,
+  buildPickupPaginationWindow,
+  buildPickupSummary,
+  getPickupCustomerEmail,
+  getPickupCustomerName,
+  getPickupOrderTitle,
+  getPickupPrimaryImage,
+} from "@/components/admin/pickups/pickupsView";
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
@@ -15,30 +24,11 @@ import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { PickupOrdersTable } from "@/components/admin/pickups/PickupOrdersTable";
 import {
-  getOrderNetProfitDollars,
-  getOrderNetRevenueDollars,
-} from "@/lib/orders/metrics";
-import { logError } from "@/lib/utils/log";
+  PICKUP_TABS,
+  useAdminPickupsData,
+} from "@/components/admin/pickups/useAdminPickupsData";
 import { Toast } from "@/components/ui/Toast";
-import type {
-  PickupOrder,
-  PickupOrderItem,
-  PickupTabKey,
-} from "@/components/admin/pickups/pickupTypes";
-
-type TabKey = PickupTabKey;
-
-const PAGE_SIZE = 20;
-const PICKUP_ORDER_STATUSES = ["paid", "shipped", "partially_refunded"];
-
-const PICKUP_TABS: Array<{
-  key: TabKey;
-  label: string;
-  fulfillmentStatus: string;
-}> = [
-  { key: "pending", label: "Need Pickup", fulfillmentStatus: "unfulfilled" },
-  { key: "completed", label: "Completed", fulfillmentStatus: "picked_up" },
-];
+import type { PickupOrderItem } from "@/components/admin/pickups/pickupTypes";
 
 type OrderItem = PickupOrderItem;
 
@@ -57,171 +47,25 @@ const tabCountStyles =
   "border border-brand-border bg-brand-page px-2 py-0.5 text-[11px] text-brand-text";
 
 export function AdminPickupsScreen() {
-  const [orders, setOrders] = useState<PickupOrder[]>([]);
-  const [activeTab, setActiveTab] = useState<TabKey>("pending");
+  const {
+    activeTab,
+    counts,
+    currentPage,
+    handleMarkPickedUp,
+    isLoading,
+    markingId,
+    orders,
+    setActiveTab,
+    setPageForActiveTab,
+    setToast,
+    toast,
+    totalPages,
+  } = useAdminPickupsData();
   const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [pageByTab, setPageByTab] = useState<Record<TabKey, number>>({
-    pending: 1,
-    completed: 1,
-  });
-  const [counts, setCounts] = useState<Record<TabKey, number>>({
-    pending: 0,
-    completed: 0,
-  });
-  const [refreshToken, setRefreshToken] = useState(0);
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
-  const [markingId, setMarkingId] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
-  const [toast, setToast] = useState<{
-    message: string;
-    tone: "success" | "error" | "info";
-  } | null>(null);
-
-  const currentPage = pageByTab[activeTab];
-  const activeCount = counts[activeTab] ?? 0;
-  const totalPages = Math.max(1, Math.ceil(activeCount / PAGE_SIZE));
-
-  useEffect(() => {
-    setPageByTab((prev) => ({ ...prev, [activeTab]: 1 }));
-  }, [activeTab]);
-
-  useEffect(() => {
-    const loadCounts = async () => {
-      try {
-        const results = await Promise.all(
-          PICKUP_TABS.map(async (tab) => {
-            const params = new URLSearchParams({
-              fulfillment: "pickup",
-              fulfillmentStatus: tab.fulfillmentStatus,
-              limit: "1",
-              page: "1",
-            });
-            PICKUP_ORDER_STATUSES.forEach((status) => params.append("status", status));
-            const response = await fetch(`/api/admin/orders?${params.toString()}`);
-            const data = await response.json();
-            return { key: tab.key, count: Number(data.count ?? 0) };
-          }),
-        );
-
-        const nextCounts: Record<TabKey, number> = { pending: 0, completed: 0 };
-        results.forEach((result) => {
-          nextCounts[result.key] = result.count;
-        });
-        setCounts(nextCounts);
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "admin_load_pickup_counts" });
-      }
-    };
-
-    loadCounts();
-  }, [refreshToken]);
-
-  useEffect(() => {
-    const loadOrders = async () => {
-      setIsLoading(true);
-      try {
-        const tab =
-          PICKUP_TABS.find((entry) => entry.key === activeTab) ?? PICKUP_TABS[0];
-        const params = new URLSearchParams({
-          fulfillment: "pickup",
-          fulfillmentStatus: tab.fulfillmentStatus,
-          limit: String(PAGE_SIZE),
-          page: String(currentPage),
-        });
-        PICKUP_ORDER_STATUSES.forEach((status) => params.append("status", status));
-        const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
-        }
-        const data = await response.json();
-        setOrders(data.orders || []);
-        if (typeof data.count === "number") {
-          setCounts((prev) => ({ ...prev, [activeTab]: data.count }));
-        }
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "admin_load_pickup_orders" });
-        setOrders([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadOrders();
-  }, [activeTab, currentPage, refreshToken]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setPageByTab((prev) => ({ ...prev, [activeTab]: totalPages }));
-    }
-  }, [currentPage, totalPages, activeTab]);
-
-  const resolveShippingAddress = (value: unknown): { name?: string | null } | null => {
-    if (!value) {
-      return null;
-    }
-    if (Array.isArray(value)) {
-      return (value[0] ?? null) as { name?: string | null } | null;
-    }
-    if (typeof value === "object") {
-      return value as { name?: string | null };
-    }
-    return null;
-  };
-
-  const getCustomerName = (order: PickupOrder) => {
-    const address = resolveShippingAddress(order.shipping);
-    const addressName = address?.name?.trim() ?? "";
-    if (addressName) {
-      return addressName;
-    }
-    const profileName = (order.shipping_profile_name ?? "").trim();
-    return profileName || "-";
-  };
-
-  const getCustomerEmail = (order: PickupOrder) => {
-    const email = (order.profiles?.email ?? order.guest_email ?? "").trim();
-    return email || "-";
-  };
-
-  const getOrderTitle = (item: OrderItem) =>
-    item.product_name ?? item.product?.name ?? "Item";
-
-  const getPrimaryImage = (item: OrderItem) => {
-    const images = item.product?.images ?? [];
-    const primary = images.find((img) => img.is_primary) ?? images[0];
-    return primary?.url ?? "/images/rdk-logo.png";
-  };
-
-  const summary = useMemo(() => {
-    let revenue = 0;
-    let profit = 0;
-    let totalSales = 0;
-
-    orders.forEach((order) => {
-      if (
-        order.status === "paid" ||
-        order.status === "shipped" ||
-        order.status === "partially_refunded" ||
-        order.status === "refunded"
-      ) {
-        totalSales += 1;
-      }
-      revenue += getOrderNetRevenueDollars(order.total, order.refund_amount);
-      profit += getOrderNetProfitDollars({
-        subtotal: order.subtotal,
-        total: order.total,
-        refundAmountRaw: order.refund_amount,
-        items: order.items,
-        resolveUnitCost: (item) =>
-          Number(item.unit_cost ?? (item.variant?.unit_cost_cents ?? 0) / 100),
-      });
-    });
-
-    return { revenue, profit, totalSales };
-  }, [orders]);
+  const summary = useMemo(() => buildPickupSummary(orders), [orders]);
 
   const compactNumber = useMemo(
     () =>
@@ -231,33 +75,10 @@ export function AdminPickupsScreen() {
 
   const compactMoney = (value: number) => `$${compactNumber.format(value)}`;
 
-  const filteredOrders = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return orders;
-    }
-
-    return orders.filter((order) => {
-      const handle = getCustomerName(order).toLowerCase();
-      const email = getCustomerEmail(order).toLowerCase();
-      const createdAt = order.created_at ? new Date(order.created_at) : null;
-      const dateString = createdAt ? createdAt.toLocaleDateString().toLowerCase() : "";
-      const timeString = createdAt ? createdAt.toLocaleTimeString().toLowerCase() : "";
-      const isoString = createdAt ? createdAt.toISOString().slice(0, 10) : "";
-      const orderId = order.id ? String(order.id).toLowerCase() : "";
-      const fulfillment = (order.fulfillment ?? "").toString().toLowerCase();
-
-      return (
-        handle.includes(query) ||
-        email.includes(query) ||
-        dateString.includes(query) ||
-        timeString.includes(query) ||
-        isoString.includes(query) ||
-        orderId.includes(query) ||
-        fulfillment.includes(query)
-      );
-    });
-  }, [orders, searchQuery]);
+  const filteredOrders = useMemo(
+    () => buildFilteredPickupOrders(orders, searchQuery),
+    [orders, searchQuery],
+  );
 
   const toggleOrderItems = (orderId: string) => {
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
@@ -280,55 +101,18 @@ export function AdminPickupsScreen() {
     setSelectedItem(item);
   };
 
-  const handleMarkPickedUp = async (order: PickupOrder) => {
-    if (markingId || activeTab !== "pending") {
-      return;
-    }
-    setMarkingId(order.id);
-    try {
-      const response = await fetch(`/api/admin/orders/${order.id}/pickup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.success === false) {
-        throw new Error(data?.error ?? "Failed to mark pickup complete.");
-      }
-      setToast({ message: "Pickup marked complete.", tone: "success" });
-      setRefreshToken((token) => token + 1);
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : "Failed to mark pickup complete.";
-      setToast({ message, tone: "error" });
-    } finally {
-      setMarkingId(null);
-    }
-  };
-
   const renderPagination = () => {
     if (totalPages <= 1) {
       return null;
     }
 
-    const pages: number[] = [];
-    const start = Math.max(1, currentPage - 2);
-    const end = Math.min(totalPages, currentPage + 2);
-
-    for (let p = start; p <= end; p += 1) {
-      pages.push(p);
-    }
+    const { end, pages, start } = buildPickupPaginationWindow(currentPage, totalPages);
 
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={() =>
-            setPageByTab((prev) => ({
-              ...prev,
-              [activeTab]: Math.max(1, currentPage - 1),
-            }))
-          }
+          onClick={() => setPageForActiveTab(Math.max(1, currentPage - 1))}
           disabled={currentPage === 1}
           className={paginationButtonStyles}
         >
@@ -338,7 +122,7 @@ export function AdminPickupsScreen() {
         {start > 1 && (
           <button
             type="button"
-            onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: 1 }))}
+            onClick={() => setPageForActiveTab(1)}
             className={paginationButtonStyles}
           >
             1
@@ -350,7 +134,7 @@ export function AdminPickupsScreen() {
           <button
             key={p}
             type="button"
-            onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: p }))}
+            onClick={() => setPageForActiveTab(p)}
             className={
               p === currentPage ? paginationCurrentStyles : paginationButtonStyles
             }
@@ -363,7 +147,7 @@ export function AdminPickupsScreen() {
         {end < totalPages && (
           <button
             type="button"
-            onClick={() => setPageByTab((prev) => ({ ...prev, [activeTab]: totalPages }))}
+            onClick={() => setPageForActiveTab(totalPages)}
             className={paginationButtonStyles}
           >
             {totalPages}
@@ -372,12 +156,7 @@ export function AdminPickupsScreen() {
 
         <button
           type="button"
-          onClick={() =>
-            setPageByTab((prev) => ({
-              ...prev,
-              [activeTab]: Math.min(totalPages, currentPage + 1),
-            }))
-          }
+          onClick={() => setPageForActiveTab(Math.min(totalPages, currentPage + 1))}
           disabled={currentPage === totalPages}
           className={paginationButtonStyles}
         >
@@ -476,10 +255,10 @@ export function AdminPickupsScreen() {
                 void handleMarkPickedUp(order);
               }}
               onOpenItemDetails={(item) => openItemDetails(item as AdminOrderItem)}
-              getCustomerName={getCustomerName}
-              getCustomerEmail={getCustomerEmail}
-              getOrderTitle={getOrderTitle}
-              getPrimaryImage={getPrimaryImage}
+              getCustomerName={getPickupCustomerName}
+              getCustomerEmail={getPickupCustomerEmail}
+              getOrderTitle={getPickupOrderTitle}
+              getPrimaryImage={getPickupPrimaryImage}
             />
           )}
         </div>
