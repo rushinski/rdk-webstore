@@ -15,8 +15,8 @@ describe("home office setup modal structure", () => {
   });
 
   it("delegates shared home office types to a focused module", () => {
-    const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/nexus/HomeOfficeSetupModal.tsx"),
+    const stateSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/admin/nexus/useHomeOfficeSetupState.ts"),
       "utf8",
     );
     const typesSource = fs.readFileSync(
@@ -24,7 +24,7 @@ describe("home office setup modal structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/nexus/homeOfficeSetupTypes");
+    expect(stateSource).toContain("@/components/admin/nexus/homeOfficeSetupTypes");
     expect(typesSource).toContain("type HomeOfficeFormData");
     expect(typesSource).toContain("type OldHomeOfficeAction");
   });

@@ -19,18 +19,13 @@ import {
   saveShippingOriginRequest,
 } from "@/components/admin/settings/shipping/shippingSettingsRequests";
 import {
-  applyShippingCostDraftValue,
-  applyShippingDimensionDraftValue,
-  cleanShippingDimensionInput,
   clearOriginFieldError,
-  createClosedShippingDefaultsState,
-  createShippingDefaultsModalState,
   toggleShippingCarrierSelection,
-  updateOriginDraftField,
 } from "@/components/admin/settings/shipping/shippingSettingsState";
+import { useShippingDefaultsModalState } from "@/components/admin/settings/shipping/useShippingDefaultsModalState";
+import { useShippingOriginModalState } from "@/components/admin/settings/shipping/useShippingOriginModalState";
 
 export function useAdminShippingSettingsData() {
-  const closedDefaultsState = createClosedShippingDefaultsState();
   const [shippingDefaults, setShippingDefaults] = useState<
     Record<string, ShippingDefaultValues>
   >({});
@@ -41,22 +36,35 @@ export function useAdminShippingSettingsData() {
   const [isSavingOrigin, setIsSavingOrigin] = useState(false);
   const [isSavingCarriers, setIsSavingCarriers] = useState(false);
   const [message, setMessage] = useState("");
-  const [originMessage, setOriginMessage] = useState("");
-  const [originError, setOriginError] = useState("");
-  const [originErrors, setOriginErrors] = useState<OriginErrors>({});
   const [carriersMessage, setCarriersMessage] = useState("");
-  const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const [defaultsDraft, setDefaultsDraft] = useState<ShippingDefaultValues | null>(null);
-  const [shippingCostInput, setShippingCostInput] = useState(
-    closedDefaultsState.shippingCostInput,
-  );
-  const [weightInput, setWeightInput] = useState(closedDefaultsState.weightInput);
-  const [lengthInput, setLengthInput] = useState(closedDefaultsState.lengthInput);
-  const [widthInput, setWidthInput] = useState(closedDefaultsState.widthInput);
-  const [heightInput, setHeightInput] = useState(closedDefaultsState.heightInput);
-  const [isOriginModalOpen, setIsOriginModalOpen] = useState(false);
-  const [originDraft, setOriginDraft] = useState<ShippingOriginAddress>(initialOrigin);
+  const {
+    activeCategory,
+    closeDefaultsModal,
+    defaultsDraft,
+    handleDimensionInput,
+    handleShippingCostChange,
+    heightInput,
+    isDefaultsModalOpen,
+    lengthInput,
+    openDefaultsModal: openDefaultsModalState,
+    setShippingCostInput,
+    shippingCostInput,
+    weightInput,
+    widthInput,
+  } = useShippingDefaultsModalState();
+  const {
+    handleOriginDraftChange,
+    isOriginModalOpen,
+    openOriginModal: openOriginModalState,
+    originDraft,
+    originError,
+    originErrors,
+    originMessage,
+    setIsOriginModalOpen,
+    setOriginError,
+    setOriginErrors,
+    setOriginMessage,
+  } = useShippingOriginModalState(initialOrigin);
 
   const categoryMap = useMemo(
     () => new Map(SHIPPING_CATEGORIES.map((category) => [category.key, category.label])),
@@ -81,75 +89,13 @@ export function useAdminShippingSettingsData() {
   }, []);
 
   const openDefaultsModal = (categoryKey: string) => {
-    const current = shippingDefaults[categoryKey];
-    const modalState = createShippingDefaultsModalState(current);
-    setActiveCategory(categoryKey);
-    setDefaultsDraft(modalState.defaultsDraft);
-    setShippingCostInput(modalState.shippingCostInput);
-    setWeightInput(modalState.weightInput);
-    setLengthInput(modalState.lengthInput);
-    setWidthInput(modalState.widthInput);
-    setHeightInput(modalState.heightInput);
-    setIsDefaultsModalOpen(true);
-    setMessage("");
-  };
-
-  const closeDefaultsModal = () => {
-    setIsDefaultsModalOpen(false);
-    setActiveCategory(null);
-    setDefaultsDraft(null);
-    setShippingCostInput(closedDefaultsState.shippingCostInput);
-    setWeightInput(closedDefaultsState.weightInput);
-    setLengthInput(closedDefaultsState.lengthInput);
-    setWidthInput(closedDefaultsState.widthInput);
-    setHeightInput(closedDefaultsState.heightInput);
+    openDefaultsModalState(categoryKey, shippingDefaults[categoryKey], () => {
+      setMessage("");
+    });
   };
 
   const openOriginModal = () => {
-    setOriginDraft({ ...originAddress });
-    setIsOriginModalOpen(true);
-    setOriginMessage("");
-    setOriginError("");
-    setOriginErrors({});
-  };
-
-  const handleDimensionInput = (
-    field: "weight" | "length" | "width" | "height",
-    value: string,
-  ) => {
-    const cleaned = cleanShippingDimensionInput(value);
-
-    switch (field) {
-      case "weight":
-        setWeightInput(cleaned);
-        break;
-      case "length":
-        setLengthInput(cleaned);
-        break;
-      case "width":
-        setWidthInput(cleaned);
-        break;
-      case "height":
-        setHeightInput(cleaned);
-        break;
-    }
-
-    setDefaultsDraft((prev) => applyShippingDimensionDraftValue(prev, field, cleaned));
-  };
-
-  const handleShippingCostChange = (value: string) => {
-    setShippingCostInput(value);
-    setDefaultsDraft((prev) => applyShippingCostDraftValue(prev, value));
-  };
-
-  const handleOriginDraftChange = (field: keyof ShippingOriginAddress, value: string) => {
-    setOriginDraft((prev) => updateOriginDraftField(prev, field, value));
-    if (originErrors[field]) {
-      setOriginErrors((prev) => clearOriginFieldError(prev, field));
-    }
-    if (originError) {
-      setOriginError("");
-    }
+    openOriginModalState(originAddress);
   };
 
   const toggleCarrier = (carrierKey: string) => {

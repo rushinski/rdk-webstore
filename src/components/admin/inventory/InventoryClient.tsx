@@ -9,6 +9,12 @@ import { InventoryPagination } from "@/components/admin/inventory/InventoryPagin
 import { InventoryToolbar } from "@/components/admin/inventory/InventoryToolbar";
 import { InventoryClientHeaderActions } from "@/components/admin/inventory/InventoryClientHeaderActions";
 import {
+  buildInventoryContentProps,
+  buildInventoryDialogsProps,
+  buildInventoryPaginationProps,
+  buildInventoryToolbarProps,
+} from "@/components/admin/inventory/inventoryClientSurface";
+import {
   getProductRawTitle,
   type InventoryFilters,
 } from "@/components/admin/inventory/inventoryClientData";
@@ -193,6 +199,93 @@ export function InventoryClient({
     setSelectedIds,
   });
 
+  const toolbarProps = buildInventoryToolbarProps({
+    totalCount,
+    showingStart,
+    showingEnd,
+    stockStatusFilter,
+    searchQuery,
+    categoryFilter,
+    conditionFilter,
+    selectedCount,
+    selectedIdsCount: selectedIds.length,
+    selectAllMatching,
+    currentPageAllSelected,
+    onStockStatusFilterChange: setStockStatusFilter,
+    onSearchQueryChange: setSearchQuery,
+    onCategoryFilterChange: setCategoryFilter,
+    onConditionFilterChange: setConditionFilter,
+    onSelectAllMatching: handleSelectAllMatching,
+    onClearSelection: clearSelection,
+    onMassRestore: handleMassRestore,
+    onMassArchive: handleMassArchive,
+    onMassDelete: handleMassDelete,
+  });
+
+  const contentProps = buildInventoryContentProps({
+    isLoading,
+    products,
+    expandedVariants,
+    selectedIds,
+    openMenuId,
+    currentPageAllSelected,
+    onToggleCurrentPage: toggleSelectCurrentPage,
+    onToggleSelection: toggleSelection,
+    onToggleVariants: toggleVariants,
+    onToggleMenu: toggleMenu,
+    onRestoreProduct: (productId) => {
+      void restoreProduct(productId);
+    },
+    onDuplicateProduct: (productId) => {
+      void handleDuplicate(productId);
+    },
+    onRequestArchive: requestArchive,
+    onRequestDelete: requestDelete,
+    onOpenDetails: openDetailsModal,
+    getProductRawTitle,
+    getPrimaryImageUrl,
+    getProductTotalStock,
+    getProductLiveState,
+  });
+
+  const paginationProps = buildInventoryPaginationProps({
+    page,
+    totalPages,
+    totalCount,
+    showingStart,
+    showingEnd,
+    isLoading,
+    onPageChange: setPage,
+  });
+
+  const dialogsProps = buildInventoryDialogsProps({
+    detailsSelection,
+    pendingDelete,
+    pendingMassDelete,
+    pendingArchive,
+    pendingRestore,
+    selectedCount,
+    toast,
+    onCloseDetails: () => setDetailsSelection(null),
+    onConfirmDelete: () => {
+      void confirmDelete();
+    },
+    onCancelDelete: () => setPendingDelete(null),
+    onConfirmMassDelete: () => {
+      void confirmMassDelete();
+    },
+    onCancelMassDelete: () => setPendingMassDelete(false),
+    onConfirmArchive: () => {
+      void confirmArchive();
+    },
+    onCancelArchive: () => setPendingArchive(null),
+    onConfirmRestore: () => {
+      void confirmRestore();
+    },
+    onCancelRestore: () => setPendingRestore(null),
+    onCloseToast: () => setToast(null),
+  });
+
   return (
     <div className="space-y-6">
       <AdminPageHeader
@@ -205,94 +298,13 @@ export function InventoryClient({
         actions={<InventoryClientHeaderActions onExport={() => void exportInventory()} />}
       />
 
-      <InventoryToolbar
-        totalCount={totalCount}
-        showingStart={showingStart}
-        showingEnd={showingEnd}
-        stockStatusFilter={stockStatusFilter}
-        searchQuery={searchQuery}
-        categoryFilter={categoryFilter}
-        conditionFilter={conditionFilter}
-        selectedCount={selectedCount}
-        selectedIdsCount={selectedIds.length}
-        selectAllMatching={selectAllMatching}
-        currentPageAllSelected={currentPageAllSelected}
-        onStockStatusFilterChange={setStockStatusFilter}
-        onSearchQueryChange={setSearchQuery}
-        onCategoryFilterChange={setCategoryFilter}
-        onConditionFilterChange={setConditionFilter}
-        onSelectAllMatching={handleSelectAllMatching}
-        onClearSelection={clearSelection}
-        onMassRestore={handleMassRestore}
-        onMassArchive={handleMassArchive}
-        onMassDelete={handleMassDelete}
-      />
+      <InventoryToolbar {...toolbarProps} />
 
-      <InventoryClientContent
-        isLoading={isLoading}
-        products={products}
-        expandedVariants={expandedVariants}
-        selectedIds={selectedIds}
-        openMenuId={openMenuId}
-        currentPageAllSelected={currentPageAllSelected}
-        onToggleCurrentPage={toggleSelectCurrentPage}
-        onToggleSelection={toggleSelection}
-        onToggleVariants={toggleVariants}
-        onToggleMenu={toggleMenu}
-        onRestoreProduct={(productId) => {
-          void restoreProduct(productId);
-        }}
-        onDuplicateProduct={(productId) => {
-          void handleDuplicate(productId);
-        }}
-        onRequestArchive={requestArchive}
-        onRequestDelete={requestDelete}
-        onOpenDetails={openDetailsModal}
-        getProductRawTitle={getProductRawTitle}
-        getPrimaryImageUrl={getPrimaryImageUrl}
-        getProductTotalStock={getProductTotalStock}
-        getProductLiveState={getProductLiveState}
-      />
+      <InventoryClientContent {...contentProps} />
 
-      {!isLoading && (
-        <InventoryPagination
-          page={page}
-          totalPages={totalPages}
-          totalCount={totalCount}
-          showingStart={showingStart}
-          showingEnd={showingEnd}
-          isLoading={isLoading}
-          onPageChange={setPage}
-        />
-      )}
+      {!isLoading && <InventoryPagination {...paginationProps} />}
 
-      <InventoryDialogs
-        detailsSelection={detailsSelection}
-        pendingDelete={pendingDelete}
-        pendingMassDelete={pendingMassDelete}
-        pendingArchive={pendingArchive}
-        pendingRestore={pendingRestore}
-        selectedCount={selectedCount}
-        toast={toast}
-        onCloseDetails={() => setDetailsSelection(null)}
-        onConfirmDelete={() => {
-          void confirmDelete();
-        }}
-        onCancelDelete={() => setPendingDelete(null)}
-        onConfirmMassDelete={() => {
-          void confirmMassDelete();
-        }}
-        onCancelMassDelete={() => setPendingMassDelete(false)}
-        onConfirmArchive={() => {
-          void confirmArchive();
-        }}
-        onCancelArchive={() => setPendingArchive(null)}
-        onConfirmRestore={() => {
-          void confirmRestore();
-        }}
-        onCancelRestore={() => setPendingRestore(null)}
-        onCloseToast={() => setToast(null)}
-      />
+      <InventoryDialogs {...dialogsProps} />
     </div>
   );
 }

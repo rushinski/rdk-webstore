@@ -16,7 +16,7 @@ describe("state detail modal structure", () => {
 
   it("delegates shared sales-log types to a focused module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/nexus/StateDetailModal.tsx"),
+      path.join(process.cwd(), "src/components/admin/nexus/useStateDetailSalesLog.ts"),
       "utf8",
     );
     const typesSource = fs.readFileSync(

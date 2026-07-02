@@ -14,8 +14,22 @@ describe("admin shipping settings state structure", () => {
     expect(source).toContain(
       "@/components/admin/settings/shipping/shippingSettingsState",
     );
+    expect(source).toContain("toggleShippingCarrierSelection(");
+  });
+
+  it("keeps defaults modal state shaping inside the focused defaults-state hook", () => {
+    const source = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/settings/shipping/useShippingDefaultsModalState.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      "@/components/admin/settings/shipping/shippingSettingsState",
+    );
     expect(source).toContain("createShippingDefaultsModalState(");
     expect(source).toContain("createClosedShippingDefaultsState()");
-    expect(source).toContain("toggleShippingCarrierSelection(");
   });
 });

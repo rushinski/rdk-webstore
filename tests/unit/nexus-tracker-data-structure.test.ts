@@ -4,7 +4,7 @@ import path from "node:path";
 describe("nexus tracker data structure", () => {
   it("delegates nexus summary and home-office requests to a focused request module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/nexus/useNexusTrackerData.ts"),
+      path.join(process.cwd(), "src/components/admin/nexus/useNexusTrackerLoading.ts"),
       "utf8",
     );
 
@@ -15,7 +15,7 @@ describe("nexus tracker data structure", () => {
 
   it("delegates nexus mutation requests to the focused request module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/nexus/useNexusTrackerData.ts"),
+      path.join(process.cwd(), "src/components/admin/nexus/useNexusTrackerMutations.ts"),
       "utf8",
     );
 

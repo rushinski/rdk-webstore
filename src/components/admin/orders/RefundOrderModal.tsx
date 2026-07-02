@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
 import { RefundCustomAmountPanel } from "@/components/admin/orders/RefundCustomAmountPanel";
+import { RefundModeTabs } from "@/components/admin/orders/RefundModeTabs";
 import { RefundProductSelectionPanel } from "@/components/admin/orders/RefundProductSelectionPanel";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
 import {
   formatRefundMoney,
-  fromRefundCents,
-  toRefundCents,
 } from "@/components/admin/orders/refundOrderView";
+import { useRefundOrderState } from "@/components/admin/orders/useRefundOrderState";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
@@ -26,7 +25,7 @@ export type RefundableOrder = {
   items?: AdminOrderItem[] | null;
 };
 
-type RefundMode = "full" | "product" | "custom";
+export type RefundOrderMode = "full" | "product" | "custom";
 
 type RefundOrderModalProps = {
   open: boolean;
@@ -46,115 +45,34 @@ export function RefundOrderModal({
   onClose,
   onConfirm,
 }: RefundOrderModalProps) {
-  const [mode, setMode] = useState<RefundMode>("full");
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-  const [customAmount, setCustomAmount] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const totalCents = useMemo(
-    () => toRefundCents(Number(order?.total ?? 0)),
-    [order?.total],
-  );
-  const refundedCents = useMemo(
-    () => Math.max(0, Math.round(Number(order?.refund_amount ?? 0))),
-    [order?.refund_amount],
-  );
-  const remainingCents = Math.max(0, totalCents - refundedCents);
-  const remainingDollars = fromRefundCents(remainingCents);
-
-  const items = order?.items ?? [];
-  const refundableItems = useMemo(
-    () => items.filter((item) => !item.refunded_at),
-    [items],
-  );
-
-  const selectedProductRefundCents = useMemo(
-    () =>
-      refundableItems
-        .filter((item) => selectedItemIds.includes(item.id))
-        .reduce((sum, item) => sum + toRefundCents(Number(item.line_total ?? 0)), 0),
-    [refundableItems, selectedItemIds],
-  );
-
-  const customAmountCents = useMemo(() => {
-    const parsed = Number(customAmount);
-    if (!Number.isFinite(parsed) || parsed <= 0) {
-      return 0;
-    }
-    return toRefundCents(parsed);
-  }, [customAmount]);
-
-  const canSelectAnyItems = refundableItems.length > 0;
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setMode("full");
-    setSelectedItemIds([]);
-    setCustomAmount(remainingDollars > 0 ? remainingDollars.toFixed(2) : "");
-    setErrorMessage(null);
-  }, [open, order?.id, remainingDollars]);
-
-  const handleToggleItem = (itemId: string) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId],
-    );
-  };
-
-  const handleConfirm = async () => {
-    if (!order) {
-      return;
-    }
-
-    if (remainingCents <= 0) {
-      setErrorMessage("This order has already been fully refunded.");
-      return;
-    }
-
-    if (mode === "product") {
-      if (selectedItemIds.length === 0) {
-        setErrorMessage("Select at least one product to refund.");
-        return;
-      }
-      if (selectedProductRefundCents > remainingCents) {
-        setErrorMessage("Selected products exceed the remaining refundable amount.");
-        return;
-      }
-      setErrorMessage(null);
-      await onConfirm({ type: "product", itemIds: selectedItemIds });
-      return;
-    }
-
-    if (mode === "custom") {
-      if (customAmountCents <= 0) {
-        setErrorMessage("Enter a valid refund amount.");
-        return;
-      }
-      if (customAmountCents > remainingCents) {
-        setErrorMessage("Custom refund cannot exceed the remaining refundable amount.");
-        return;
-      }
-      setErrorMessage(null);
-      await onConfirm({ type: "custom", amount: fromRefundCents(customAmountCents) });
-      return;
-    }
-
-    setErrorMessage(null);
-    await onConfirm({ type: "full" });
-  };
+  const {
+    canSelectAnyItems,
+    customAmount,
+    customAmountCents,
+    errorMessage,
+    handleConfirm,
+    handleToggleItem,
+    items,
+    mode,
+    remainingCents,
+    remainingDollars,
+    selectedItemIds,
+    selectedProductRefundCents,
+    setCustomAmount,
+    setMode,
+  } = useRefundOrderState({
+    open,
+    order,
+    onConfirm,
+  });
 
   const isConfirmDisabled =
     submitting ||
     !order ||
     remainingCents <= 0 ||
     (mode === "product" && (selectedItemIds.length === 0 || !canSelectAnyItems)) ||
-    (mode === "custom" && (customAmountCents <= 0 || customAmountCents > remainingCents));
-
-  const modeButtonStyles = (value: RefundMode) =>
-    mode === value
-      ? "border-brand-text bg-brand-text text-brand-page"
-      : "border-brand-border bg-brand-page text-brand-muted hover:border-brand-text hover:text-brand-text";
+    (mode === "custom" &&
+      (customAmountCents <= 0 || customAmountCents > remainingCents));
 
   return (
     <ModalPortal open={open} onClose={onClose} zIndexClassName="z-[10000]">
@@ -185,22 +103,7 @@ export function RefundOrderModal({
         </div>
 
         <div className="space-y-4 p-5">
-          <div className="flex gap-2">
-            {(["full", "product", "custom"] as const).map((entry) => (
-              <button
-                key={entry}
-                type="button"
-                onClick={() => setMode(entry)}
-                className={`border px-3 py-1.5 text-sm transition-colors ${modeButtonStyles(entry)}`}
-              >
-                {entry === "full"
-                  ? "Full refund"
-                  : entry === "product"
-                    ? "By product"
-                    : "Custom amount"}
-              </button>
-            ))}
-          </div>
+          <RefundModeTabs mode={mode} onModeChange={setMode} />
 
           {mode === "full" && (
             <div className={panelStyles}>

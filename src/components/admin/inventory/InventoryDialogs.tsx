@@ -1,12 +1,15 @@
 "use client";
 
+import { InventoryArchiveDialog } from "@/components/admin/inventory/InventoryArchiveDialog";
+import { InventoryDeleteDialogs } from "@/components/admin/inventory/InventoryDeleteDialogs";
 import type {
   InventoryDialogsActions,
   InventoryDialogsState,
 } from "@/components/admin/inventory/inventoryClientContracts";
 import { InventoryProductDetailsModal } from "@/components/admin/inventory/InventoryProductDetailsModal";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { InventoryRestoreDialog } from "@/components/admin/inventory/InventoryRestoreDialog";
 import { Toast } from "@/components/ui/Toast";
+
 type InventoryDialogsProps = InventoryDialogsState & InventoryDialogsActions;
 
 export function InventoryDialogs({
@@ -36,53 +39,24 @@ export function InventoryDialogs({
         variant={detailsSelection?.variant ?? null}
         onClose={onCloseDetails}
       />
-
-      <ConfirmDialog
-        isOpen={Boolean(pendingDelete)}
-        title="Delete product?"
-        description={
-          pendingDelete
-            ? `This will permanently remove ${pendingDelete.label} and its variants.`
-            : undefined
-        }
-        confirmLabel="Delete"
-        onConfirm={onConfirmDelete}
-        onCancel={onCancelDelete}
+      <InventoryDeleteDialogs
+        pendingDelete={pendingDelete}
+        pendingMassDelete={pendingMassDelete}
+        selectedCount={selectedCount}
+        onConfirmDelete={onConfirmDelete}
+        onCancelDelete={onCancelDelete}
+        onConfirmMassDelete={onConfirmMassDelete}
+        onCancelMassDelete={onCancelMassDelete}
       />
-
-      <ConfirmDialog
-        isOpen={pendingMassDelete}
-        title="Delete selected products?"
-        description={`This will permanently remove ${selectedCount} products and their variants.`}
-        confirmLabel="Delete all"
-        onConfirm={onConfirmMassDelete}
-        onCancel={onCancelMassDelete}
-      />
-
-      <ConfirmDialog
-        isOpen={Boolean(pendingArchive)}
-        title={
-          pendingArchive?.mode === "selected"
-            ? "Archive selected products?"
-            : "Archive product?"
-        }
-        description={
-          pendingArchive?.mode === "selected"
-            ? `This will move ${pendingArchive.count ?? selectedCount} products to the Archived tab. This only changes storefront visibility.`
-            : pendingArchive?.label
-              ? `This will move ${pendingArchive.label} to the Archived tab. This only changes storefront visibility.`
-              : undefined
-        }
-        confirmLabel="Archive"
+      <InventoryArchiveDialog
+        pendingArchive={pendingArchive}
+        selectedCount={selectedCount}
         onConfirm={onConfirmArchive}
         onCancel={onCancelArchive}
       />
-
-      <ConfirmDialog
-        isOpen={Boolean(pendingRestore)}
-        title="Unarchive selected products?"
-        description={`This will restore ${pendingRestore?.count ?? selectedCount} products to active inventory so they can appear in the normal tabs again.`}
-        confirmLabel="Unarchive"
+      <InventoryRestoreDialog
+        pendingRestore={pendingRestore}
+        selectedCount={selectedCount}
         onConfirm={onConfirmRestore}
         onCancel={onCancelRestore}
       />

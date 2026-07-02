@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Link from "next/link";
-import { AlertTriangle, Download, Home } from "lucide-react";
 
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { NexusTrackerHeaderActions } from "@/components/admin/nexus/NexusTrackerHeaderActions";
+import { NexusTrackerOverviewCards } from "@/components/admin/nexus/NexusTrackerOverviewCards";
+import { NexusTrackerStatusAlert } from "@/components/admin/nexus/NexusTrackerStatusAlert";
 import { NexusStateCoverageTable } from "@/components/admin/nexus/NexusStateCoverageTable";
 import { NexusTrackerFilters } from "@/components/admin/nexus/NexusTrackerFilters";
 import {
@@ -116,58 +115,17 @@ export default function NexusTrackerClient() {
         title="Tax & Nexus"
         description="Monitor your sales tax obligations across all US states."
         actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleDownloadTaxDocs}
-              disabled={!data.taxEnabled}
-              className={[
-                adminButtonStyles.secondary,
-                "gap-2",
-                !data.taxEnabled ? "cursor-not-allowed opacity-50" : "",
-              ].join(" ")}
-            >
-              <Download className="h-4 w-4" />
-              View Tax Reports
-            </button>
-
-            <button
-              onClick={() => setShowHomeSetup(true)}
-              className={[
-                isHomeOfficeConfigured
-                  ? adminButtonStyles.secondary
-                  : adminButtonStyles.primary,
-                "gap-2",
-              ].join(" ")}
-            >
-              <Home className="h-4 w-4" />
-              {isHomeOfficeConfigured ? "Change Home Office" : "Setup Home Office"}
-            </button>
-
-            <div className="flex h-10 items-center gap-2 border border-brand-border bg-brand-page px-3 text-brand-text">
-              <span className="text-[10px] uppercase tracking-wide text-brand-muted">
-                Home
-              </span>
-              <span className="text-sm font-bold">{data.homeState}</span>
-            </div>
-          </div>
+          <NexusTrackerHeaderActions
+            homeState={data.homeState}
+            isHomeOfficeConfigured={isHomeOfficeConfigured}
+            isTaxEnabled={data.taxEnabled}
+            onDownloadTaxDocs={handleDownloadTaxDocs}
+            onOpenHomeOffice={() => setShowHomeSetup(true)}
+          />
         }
       />
 
-      {!data.taxEnabled && (
-        <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 p-4 text-amber-800">
-          <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-700" />
-          <div className="text-sm">
-            Taxes are turned off. Go to{" "}
-            <Link
-              href="/admin/settings/taxes"
-              className="underline underline-offset-2 text-amber-900 hover:text-amber-700"
-            >
-              Settings &gt; Taxes
-            </Link>{" "}
-            to enable tax collection before using the nexus tracker.
-          </div>
-        </div>
-      )}
+      <NexusTrackerStatusAlert taxEnabled={data.taxEnabled} />
 
       {showHomeSetup && (
         <HomeOfficeSetupModal
@@ -206,23 +164,11 @@ export default function NexusTrackerClient() {
         legendItems={legendItems}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        <AdminMetricCard
-          label="Registered States"
-          value={String(registeredStates)}
-          detail="States with permits on file."
-        />
-        <AdminMetricCard
-          label="At Risk States"
-          value={String(atRiskStates)}
-          detail="Economic nexus nearing or over threshold."
-        />
-        <AdminMetricCard
-          label="Needs Registration"
-          value={String(needsRegistrationCount)}
-          detail="Physical nexus states still pending."
-        />
-      </div>
+      <NexusTrackerOverviewCards
+        atRiskStates={atRiskStates}
+        needsRegistrationCount={needsRegistrationCount}
+        registeredStates={registeredStates}
+      />
 
       <NexusTrackerFilters
         filterRegisteredOptions={filterRegisteredOptions}

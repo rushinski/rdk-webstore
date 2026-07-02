@@ -4,11 +4,11 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { HomeOfficeAddressForm } from "@/components/admin/nexus/HomeOfficeAddressForm";
 import { HomeOfficeChangeImpactModal } from "@/components/admin/nexus/HomeOfficeChangeImpactModal";
-import type {
-  ExistingAddress,
-  HomeOfficeFormData,
-  OldHomeOfficeAction,
-} from "@/components/admin/nexus/homeOfficeSetupTypes";
+import {
+  loadHomeOfficeSetupDataRequest,
+  submitHomeOfficeSetupRequest,
+} from "@/components/admin/nexus/homeOfficeSetupRequests";
+import { useHomeOfficeSetupState } from "@/components/admin/nexus/useHomeOfficeSetupState";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
 import { logError } from "@/lib/utils/log";
@@ -26,24 +26,24 @@ export default function HomeOfficeSetupModal({
   title,
   isConfigured = false,
 }: HomeOfficeSetupModalProps) {
-  const [formData, setFormData] = useState<HomeOfficeFormData>({
-    stateCode: "",
-    businessName: "",
-    line1: "",
-    line2: "",
-    city: "",
-    postalCode: "",
-  });
-  const [existingAddress, setExistingAddress] = useState<ExistingAddress | null>(null);
-  const [oldHomeState, setOldHomeState] = useState<string | null>(null);
-  const [showOldHomeAction, setShowOldHomeAction] = useState(false);
-  const [oldHomeAction, setOldHomeAction] = useState<OldHomeOfficeAction>({
-    hasPhysicalNexus: true,
-    continueCollecting: true,
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    error,
+    existingAddress,
+    formData,
+    isLoading,
+    isSubmitting,
+    oldHomeAction,
+    oldHomeState,
+    setError,
+    setExistingAddress,
+    setFormData,
+    setIsLoading,
+    setIsSubmitting,
+    setOldHomeAction,
+    setOldHomeState,
+    setShowOldHomeAction,
+    showOldHomeAction,
+  } = useHomeOfficeSetupState();
 
   const stateOptions = useMemo(
     () =>
@@ -65,30 +65,19 @@ export default function HomeOfficeSetupModal({
   const fetchExistingAddress = async () => {
     try {
       setIsLoading(true);
-      const [addressRes, summaryRes] = await Promise.all([
-        fetch("/api/admin/nexus/head-office-address"),
-        fetch("/api/admin/nexus/summary"),
-      ]);
-
-      if (addressRes.ok) {
-        const { address } = await addressRes.json();
-        if (address) {
-          setExistingAddress(address);
-          setFormData({
-            stateCode: address.state || "",
-            businessName: "",
-            line1: address.line1 || "",
-            line2: address.line2 || "",
-            city: address.city || "",
-            postalCode: address.postal_code || "",
-          });
-        }
+      const { address, homeState } = await loadHomeOfficeSetupDataRequest();
+      if (address) {
+        setExistingAddress(address);
+        setFormData({
+          stateCode: address.state || "",
+          businessName: "",
+          line1: address.line1 || "",
+          line2: address.line2 || "",
+          city: address.city || "",
+          postalCode: address.postal_code || "",
+        });
       }
-
-      if (summaryRes.ok) {
-        const summary = await summaryRes.json();
-        setOldHomeState(summary.homeState);
-      }
+      setOldHomeState(homeState);
     } catch (err) {
       logError(err, { layer: "frontend", event: "nexus_home_office_fetch_failed" });
     } finally {
@@ -99,35 +88,12 @@ export default function HomeOfficeSetupModal({
   const submitHomeOffice = async () => {
     try {
       setIsSubmitting(true);
-      const res = await fetch("/api/admin/nexus/setup-home", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stateCode: formData.stateCode,
-          businessName: formData.businessName || undefined,
-          address: {
-            line1: formData.line1,
-            line2: formData.line2 || undefined,
-            city: formData.city,
-            state: formData.stateCode,
-            postalCode: formData.postalCode,
-            country: "US",
-          },
-          oldHomeState:
-            isConfigured && oldHomeState !== formData.stateCode
-              ? oldHomeState
-              : undefined,
-          oldHomeAction:
-            isConfigured && oldHomeState !== formData.stateCode
-              ? oldHomeAction
-              : undefined,
-        }),
+      await submitHomeOfficeSetupRequest({
+        formData,
+        isConfigured,
+        oldHomeAction,
+        oldHomeState,
       });
-
-      const result = await res.json();
-      if (!res.ok) {
-        throw new Error(result.error || "Failed to setup home office");
-      }
       onSuccess();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to setup home office";

@@ -13,9 +13,23 @@ describe("featured items data structure", () => {
 
     expect(source).toContain("@/components/admin/featured-items/featuredItemsRequests");
     expect(source).toContain("loadFeaturedItemsRequest()");
-    expect(source).toContain("searchFeaturedItemProductsRequest(");
     expect(source).toContain("addFeaturedItemRequest(");
     expect(source).toContain("removeFeaturedItemRequest(");
     expect(source).toContain("reorderFeaturedItemsRequest(");
+  });
+
+  it("keeps featured item search requests inside the focused search hook", () => {
+    const searchSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/featured-items/useFeaturedItemsSearch.ts",
+      ),
+      "utf8",
+    );
+
+    expect(searchSource).toContain(
+      "@/components/admin/featured-items/featuredItemsRequests",
+    );
+    expect(searchSource).toContain("searchFeaturedItemProductsRequest(");
   });
 });

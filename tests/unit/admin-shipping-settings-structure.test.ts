@@ -18,15 +18,25 @@ describe("admin shipping settings structure", () => {
   });
 
   it("delegates shipping package display helpers to a focused view module", () => {
-    const source = fs.readFileSync(
+    const screenSource = fs.readFileSync(
       path.join(
         process.cwd(),
         "src/components/admin/settings/shipping/AdminShippingSettingsScreen.tsx",
       ),
       "utf8",
     );
+    const cardSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/settings/shipping/ShippingPackageDefaultsCard.tsx",
+      ),
+      "utf8",
+    );
 
-    expect(source).toContain("@/components/admin/settings/shipping/shippingSettingsView");
-    expect(source).toContain("buildShippingPackageSummary(");
+    expect(screenSource).toContain(
+      "@/components/admin/settings/shipping/ShippingPackageDefaultsCard",
+    );
+    expect(cardSource).toContain("@/components/admin/settings/shipping/shippingSettingsView");
+    expect(cardSource).toContain("buildShippingPackageSummary(");
   });
 });
