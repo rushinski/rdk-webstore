@@ -17,10 +17,14 @@ describe("admin pickups structure", () => {
       path.join(process.cwd(), "src/components/admin/pickups/AdminPickupsScreen.tsx"),
       "utf8",
     );
+    const paginationSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/admin/pickups/PickupsPagination.tsx"),
+      "utf8",
+    );
 
     expect(source).toContain("@/components/admin/pickups/pickupsView");
     expect(source).toContain("buildPickupSummary(");
     expect(source).toContain("buildFilteredPickupOrders(");
-    expect(source).toContain("buildPickupPaginationWindow(");
+    expect(paginationSource).toContain("buildPickupPaginationWindow(");
   });
 });

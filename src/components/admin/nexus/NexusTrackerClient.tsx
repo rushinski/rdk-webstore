@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import { AlertTriangle, Download, Home } from "lucide-react";
 
@@ -12,37 +12,36 @@ import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { NexusStateCoverageTable } from "@/components/admin/nexus/NexusStateCoverageTable";
 import { NexusTrackerFilters } from "@/components/admin/nexus/NexusTrackerFilters";
 import {
-  buildFilterRegisteredOptions,
   buildFilteredAndSortedStates,
-  buildLegendItems,
   buildNexusTrackerMetrics,
-  buildNexusTypeOptions,
-  type NexusTrackerFilterValues,
-  buildWindowOptions,
   formatNexusCurrency,
   getStateColor,
 } from "@/components/admin/nexus/nexusTrackerView";
 import { useNexusTrackerData } from "@/components/admin/nexus/useNexusTrackerData";
-import type { StateSummary } from "@/types/domain/nexus";
+import { useNexusTrackerUi } from "@/components/admin/nexus/useNexusTrackerUi";
 
 import HomeOfficeSetupModal from "./HomeOfficeSetupModal";
 import NexusMap from "./NexusMap";
 import StateDetailModal from "./StateDetailModal";
 
 export default function NexusTrackerClient() {
-  const [selectedState, setSelectedState] = useState<StateSummary | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortField, setSortField] = useState<keyof StateSummary>("percentageToThreshold");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [filterRegistered, setFilterRegistered] = useState<
-    "all" | "registered" | "unregistered"
-  >("all");
-  const [filterNexusType, setFilterNexusType] = useState<"all" | "physical" | "economic">(
-    "all",
-  );
-  const [filterWindow, setFilterWindow] = useState<"all" | "calendar" | "rolling">("all");
-  const [filterNeedsAction, setFilterNeedsAction] = useState(false);
-  const [showHomeSetup, setShowHomeSetup] = useState(false);
+  const {
+    filterRegisteredOptions,
+    handleFilterChange,
+    handleSort,
+    legendItems,
+    nexusTypeOptions,
+    searchQuery,
+    selectedState,
+    setSearchQuery,
+    setSelectedState,
+    setShowHomeSetup,
+    showHomeSetup,
+    sortDirection,
+    sortField,
+    values,
+    windowOptions,
+  } = useNexusTrackerUi();
   const {
     data,
     fetchNexusData,
@@ -58,43 +57,8 @@ export default function NexusTrackerClient() {
     setShowHomeSetup,
   });
 
-  const filterRegisteredOptions = useMemo(() => buildFilterRegisteredOptions(), []);
-  const nexusTypeOptions = useMemo(() => buildNexusTypeOptions(), []);
-  const windowOptions = useMemo(() => buildWindowOptions(), []);
-
   const handleDownloadTaxDocs = () => {
     window.open("/admin/settings/taxes", "_self");
-  };
-
-  const legendItems = useMemo(() => buildLegendItems(), []);
-
-  const handleSort = (field: keyof StateSummary) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection(field === "percentageToThreshold" ? "desc" : "asc");
-    }
-  };
-
-  const handleFilterChange = <K extends keyof NexusTrackerFilterValues>(
-    key: K,
-    value: NexusTrackerFilterValues[K],
-  ) => {
-    switch (key) {
-      case "filterNeedsAction":
-        setFilterNeedsAction(value as boolean);
-        break;
-      case "filterNexusType":
-        setFilterNexusType(value as NexusTrackerFilterValues["filterNexusType"]);
-        break;
-      case "filterRegistered":
-        setFilterRegistered(value as NexusTrackerFilterValues["filterRegistered"]);
-        break;
-      case "filterWindow":
-        setFilterWindow(value as NexusTrackerFilterValues["filterWindow"]);
-        break;
-    }
   };
 
   const filteredAndSortedStates = useMemo(() => {
@@ -103,25 +67,16 @@ export default function NexusTrackerClient() {
     }
 
     return buildFilteredAndSortedStates({
-      filterNeedsAction,
-      filterNexusType,
-      filterRegistered,
-      filterWindow,
+      filterNeedsAction: values.filterNeedsAction,
+      filterNexusType: values.filterNexusType,
+      filterRegistered: values.filterRegistered,
+      filterWindow: values.filterWindow,
       searchQuery,
       sortDirection,
       sortField,
       states: data.states,
     });
-  }, [
-    data,
-    filterNeedsAction,
-    filterNexusType,
-    filterRegistered,
-    filterWindow,
-    searchQuery,
-    sortDirection,
-    sortField,
-  ]);
+  }, [data, searchQuery, sortDirection, sortField, values]);
 
   if (loading) {
     return (
@@ -275,12 +230,7 @@ export default function NexusTrackerClient() {
         onFilterChange={handleFilterChange}
         onSearchQueryChange={setSearchQuery}
         searchQuery={searchQuery}
-        values={{
-          filterNeedsAction,
-          filterNexusType,
-          filterRegistered,
-          filterWindow,
-        }}
+        values={values}
         windowOptions={windowOptions}
       />
 

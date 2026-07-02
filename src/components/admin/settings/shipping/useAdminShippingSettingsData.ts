@@ -3,149 +3,34 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { logError } from "@/lib/utils/log";
-
-export const SHIPPING_CATEGORIES = [
-  { key: "sneakers", label: "Sneakers" },
-  { key: "clothing", label: "Clothing" },
-  { key: "accessories", label: "Accessories" },
-  { key: "electronics", label: "Electronics" },
-];
-
-export const AVAILABLE_CARRIERS = [
-  { key: "UPS", label: "UPS", description: "United Parcel Service" },
-  { key: "USPS", label: "USPS", description: "United States Postal Service" },
-  { key: "FedEx", label: "FedEx", description: "Federal Express" },
-];
-
-export type ShippingDefaultValues = {
-  shipping_cost_cents: number;
-  default_weight_oz: number;
-  default_length_in: number;
-  default_width_in: number;
-  default_height_in: number;
-};
-
-export const defaultPackage: ShippingDefaultValues = {
-  shipping_cost_cents: 0,
-  default_weight_oz: 16,
-  default_length_in: 12,
-  default_width_in: 12,
-  default_height_in: 12,
-};
-
-export const initialOrigin = {
-  name: "",
-  company: "",
-  phone: "",
-  line1: "",
-  line2: "",
-  city: "",
-  state: "",
-  postal_code: "",
-  country: "US",
-};
-
-export type ShippingOriginAddress = typeof initialOrigin;
-export type OriginField = keyof ShippingOriginAddress;
-export type OriginErrors = Partial<Record<OriginField, string>>;
-
-export function moneyToCents(raw: string) {
-  const cleaned = raw.replace(/[^\d.]/g, "");
-  if (!cleaned || cleaned === ".") {
-    return 0;
-  }
-
-  const firstDot = cleaned.indexOf(".");
-  let normalized = cleaned;
-
-  if (firstDot !== -1) {
-    const before = cleaned.slice(0, firstDot + 1);
-    const after = cleaned.slice(firstDot + 1).replace(/\./g, "");
-    normalized = before + after;
-  }
-
-  const [whole, frac = ""] = normalized.split(".");
-  const wholeNum = Number(whole || "0");
-  if (!Number.isFinite(wholeNum)) {
-    return 0;
-  }
-
-  const centsStr = `${frac}00`.slice(0, 2);
-  const centsNum = Number(centsStr || "0");
-  if (!Number.isFinite(centsNum)) {
-    return 0;
-  }
-
-  return wholeNum * 100 + centsNum;
-}
-
-export function centsToMoneyString(cents: number) {
-  const safe = Number.isFinite(cents) ? cents : 0;
-  return (safe / 100).toFixed(2);
-}
-
-function extractOriginErrors(
-  issues: Record<string, { _errors?: string[] }> | undefined,
-): OriginErrors {
-  const next: OriginErrors = {};
-  if (!issues || typeof issues !== "object") {
-    return next;
-  }
-
-  const fields: OriginField[] = [
-    "name",
-    "company",
-    "phone",
-    "line1",
-    "line2",
-    "city",
-    "state",
-    "postal_code",
-    "country",
-  ];
-
-  fields.forEach((field) => {
-    const entry = issues[field];
-    if (entry?._errors?.length) {
-      next[field] = entry._errors[0];
-    }
-  });
-
-  return next;
-}
-
-function validateOriginDraft(
-  draft: ShippingOriginAddress,
-  requiredNameMessage: string,
-): OriginErrors {
-  const errors: OriginErrors = {};
-  const name = draft.name.trim();
-  const company = (draft.company ?? "").trim();
-
-  if (!name && !company) {
-    errors.name = requiredNameMessage;
-    errors.company = requiredNameMessage;
-  }
-  if (!draft.line1.trim()) {
-    errors.line1 = "Street address is required.";
-  }
-  if (!draft.city.trim()) {
-    errors.city = "City is required.";
-  }
-  if (!draft.state.trim()) {
-    errors.state = "State is required.";
-  }
-  if (!draft.postal_code.trim()) {
-    errors.postal_code = "ZIP / postal code is required.";
-  }
-  if (!draft.country.trim()) {
-    errors.country = "Country is required.";
-  }
-
-  return errors;
-}
+import {
+  extractOriginErrors,
+  initialOrigin,
+  SHIPPING_CATEGORIES,
+  validateOriginDraft,
+  type OriginErrors,
+  type ShippingDefaultValues,
+  type ShippingOriginAddress,
+} from "@/components/admin/settings/shipping/shippingSettingsConfig";
+import {
+  loadShippingSettingsData,
+  saveShippingCarriersRequest,
+  saveShippingDefaultsRequest,
+  saveShippingOriginRequest,
+} from "@/components/admin/settings/shipping/shippingSettingsRequests";
+import {
+  applyShippingCostDraftValue,
+  applyShippingDimensionDraftValue,
+  cleanShippingDimensionInput,
+  clearOriginFieldError,
+  createClosedShippingDefaultsState,
+  createShippingDefaultsModalState,
+  toggleShippingCarrierSelection,
+  updateOriginDraftField,
+} from "@/components/admin/settings/shipping/shippingSettingsState";
 
 export function useAdminShippingSettingsData() {
+  const closedDefaultsState = createClosedShippingDefaultsState();
   const [shippingDefaults, setShippingDefaults] = useState<
     Record<string, ShippingDefaultValues>
   >({});
@@ -163,11 +48,13 @@ export function useAdminShippingSettingsData() {
   const [isDefaultsModalOpen, setIsDefaultsModalOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [defaultsDraft, setDefaultsDraft] = useState<ShippingDefaultValues | null>(null);
-  const [shippingCostInput, setShippingCostInput] = useState("0.00");
-  const [weightInput, setWeightInput] = useState("16");
-  const [lengthInput, setLengthInput] = useState("12");
-  const [widthInput, setWidthInput] = useState("12");
-  const [heightInput, setHeightInput] = useState("12");
+  const [shippingCostInput, setShippingCostInput] = useState(
+    closedDefaultsState.shippingCostInput,
+  );
+  const [weightInput, setWeightInput] = useState(closedDefaultsState.weightInput);
+  const [lengthInput, setLengthInput] = useState(closedDefaultsState.lengthInput);
+  const [widthInput, setWidthInput] = useState(closedDefaultsState.widthInput);
+  const [heightInput, setHeightInput] = useState(closedDefaultsState.heightInput);
   const [isOriginModalOpen, setIsOriginModalOpen] = useState(false);
   const [originDraft, setOriginDraft] = useState<ShippingOriginAddress>(initialOrigin);
 
@@ -179,35 +66,12 @@ export function useAdminShippingSettingsData() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [defaultsResponse, originResponse, carriersResponse] = await Promise.all([
-          fetch("/api/admin/shipping/defaults", { cache: "no-store" }),
-          fetch("/api/admin/shipping/origin", { cache: "no-store" }),
-          fetch("/api/admin/shipping/carriers", { cache: "no-store" }),
-        ]);
-
-        const defaultsData = await defaultsResponse.json();
-        const map: Record<string, ShippingDefaultValues> = {};
-        for (const entry of defaultsData.defaults || []) {
-          map[entry.category] = {
-            shipping_cost_cents: entry.shipping_cost_cents ?? 0,
-            default_weight_oz:
-              entry.default_weight_oz ?? defaultPackage.default_weight_oz,
-            default_length_in:
-              entry.default_length_in ?? defaultPackage.default_length_in,
-            default_width_in: entry.default_width_in ?? defaultPackage.default_width_in,
-            default_height_in:
-              entry.default_height_in ?? defaultPackage.default_height_in,
-          };
+        const data = await loadShippingSettingsData();
+        setShippingDefaults(data.shippingDefaults);
+        if (data.originAddress) {
+          setOriginAddress(data.originAddress);
         }
-        setShippingDefaults(map);
-
-        const originData = await originResponse.json();
-        if (originData.origin) {
-          setOriginAddress(originData.origin);
-        }
-
-        const carriersData = await carriersResponse.json();
-        setEnabledCarriers(carriersData.carriers || []);
+        setEnabledCarriers(data.enabledCarriers);
       } catch (error) {
         logError(error, { layer: "frontend", event: "admin_load_settings_shipping" });
       }
@@ -217,14 +81,15 @@ export function useAdminShippingSettingsData() {
   }, []);
 
   const openDefaultsModal = (categoryKey: string) => {
-    const current = shippingDefaults[categoryKey] ?? defaultPackage;
+    const current = shippingDefaults[categoryKey];
+    const modalState = createShippingDefaultsModalState(current);
     setActiveCategory(categoryKey);
-    setDefaultsDraft({ ...current });
-    setShippingCostInput(centsToMoneyString(current.shipping_cost_cents));
-    setWeightInput(String(current.default_weight_oz));
-    setLengthInput(String(current.default_length_in));
-    setWidthInput(String(current.default_width_in));
-    setHeightInput(String(current.default_height_in));
+    setDefaultsDraft(modalState.defaultsDraft);
+    setShippingCostInput(modalState.shippingCostInput);
+    setWeightInput(modalState.weightInput);
+    setLengthInput(modalState.lengthInput);
+    setWidthInput(modalState.widthInput);
+    setHeightInput(modalState.heightInput);
     setIsDefaultsModalOpen(true);
     setMessage("");
   };
@@ -233,11 +98,11 @@ export function useAdminShippingSettingsData() {
     setIsDefaultsModalOpen(false);
     setActiveCategory(null);
     setDefaultsDraft(null);
-    setShippingCostInput("0.00");
-    setWeightInput("16");
-    setLengthInput("12");
-    setWidthInput("12");
-    setHeightInput("12");
+    setShippingCostInput(closedDefaultsState.shippingCostInput);
+    setWeightInput(closedDefaultsState.weightInput);
+    setLengthInput(closedDefaultsState.lengthInput);
+    setWidthInput(closedDefaultsState.widthInput);
+    setHeightInput(closedDefaultsState.heightInput);
   };
 
   const openOriginModal = () => {
@@ -252,7 +117,7 @@ export function useAdminShippingSettingsData() {
     field: "weight" | "length" | "width" | "height",
     value: string,
   ) => {
-    const cleaned = value.replace(/[^\d.]/g, "");
+    const cleaned = cleanShippingDimensionInput(value);
 
     switch (field) {
       case "weight":
@@ -269,46 +134,18 @@ export function useAdminShippingSettingsData() {
         break;
     }
 
-    const numericValue = Number(cleaned);
-    if (!Number.isFinite(numericValue) || numericValue < 0) {
-      return;
-    }
-
-    setDefaultsDraft((prev) => {
-      if (!prev) {
-        return prev;
-      }
-
-      const fieldMap = {
-        height: "default_height_in" as const,
-        length: "default_length_in" as const,
-        weight: "default_weight_oz" as const,
-        width: "default_width_in" as const,
-      };
-
-      return { ...prev, [fieldMap[field]]: numericValue };
-    });
+    setDefaultsDraft((prev) => applyShippingDimensionDraftValue(prev, field, cleaned));
   };
 
   const handleShippingCostChange = (value: string) => {
     setShippingCostInput(value);
-    const cents = moneyToCents(value);
-    setDefaultsDraft((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      return { ...prev, shipping_cost_cents: cents };
-    });
+    setDefaultsDraft((prev) => applyShippingCostDraftValue(prev, value));
   };
 
   const handleOriginDraftChange = (field: keyof ShippingOriginAddress, value: string) => {
-    setOriginDraft((prev) => ({ ...prev, [field]: value }));
+    setOriginDraft((prev) => updateOriginDraftField(prev, field, value));
     if (originErrors[field]) {
-      setOriginErrors((prev) => {
-        const next = { ...prev };
-        delete next[field];
-        return next;
-      });
+      setOriginErrors((prev) => clearOriginFieldError(prev, field));
     }
     if (originError) {
       setOriginError("");
@@ -316,12 +153,7 @@ export function useAdminShippingSettingsData() {
   };
 
   const toggleCarrier = (carrierKey: string) => {
-    setEnabledCarriers((prev) => {
-      if (prev.includes(carrierKey)) {
-        return prev.filter((carrier) => carrier !== carrierKey);
-      }
-      return [...prev, carrierKey];
-    });
+    setEnabledCarriers((prev) => toggleShippingCarrierSelection(prev, carrierKey));
   };
 
   const saveDefaults = async () => {
@@ -338,29 +170,10 @@ export function useAdminShippingSettingsData() {
     };
 
     try {
-      const defaults = SHIPPING_CATEGORIES.map((category) => ({
-        category: category.key,
-        shipping_cost_cents: Math.round(
-          nextDefaults[category.key]?.shipping_cost_cents ?? 0,
-        ),
-        default_weight_oz:
-          nextDefaults[category.key]?.default_weight_oz ??
-          defaultPackage.default_weight_oz,
-        default_length_in:
-          nextDefaults[category.key]?.default_length_in ??
-          defaultPackage.default_length_in,
-        default_width_in:
-          nextDefaults[category.key]?.default_width_in ?? defaultPackage.default_width_in,
-        default_height_in:
-          nextDefaults[category.key]?.default_height_in ??
-          defaultPackage.default_height_in,
-      }));
-
-      const response = await fetch("/api/admin/shipping/defaults", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ defaults }),
-      });
+      const response = await saveShippingDefaultsRequest(
+        nextDefaults,
+        SHIPPING_CATEGORIES,
+      );
 
       if (response.ok) {
         setShippingDefaults(nextDefaults);
@@ -383,7 +196,7 @@ export function useAdminShippingSettingsData() {
     setOriginError("");
     setOriginErrors({});
 
-    const draftErrors = validateOriginDraft(originDraft, message);
+    const draftErrors = validateOriginDraft(originDraft);
     if (Object.keys(draftErrors).length > 0) {
       setOriginErrors(draftErrors);
       setOriginError("Please fix the highlighted fields.");
@@ -392,11 +205,7 @@ export function useAdminShippingSettingsData() {
     }
 
     try {
-      const response = await fetch("/api/admin/shipping/origin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(originDraft),
-      });
+      const response = await saveShippingOriginRequest(originDraft);
       const errorData = await response.json().catch(() => ({}));
 
       if (response.ok) {
@@ -424,11 +233,7 @@ export function useAdminShippingSettingsData() {
     setCarriersMessage("");
 
     try {
-      const response = await fetch("/api/admin/shipping/carriers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ carriers: enabledCarriers }),
-      });
+      const response = await saveShippingCarriersRequest(enabledCarriers);
 
       const data = await response.json().catch(() => ({}));
       if (response.ok) {

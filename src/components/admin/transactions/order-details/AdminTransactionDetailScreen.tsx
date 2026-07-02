@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
@@ -15,6 +14,7 @@ import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { Toast } from "@/components/ui/Toast";
 import { useAdminTransactionDetailData } from "@/components/admin/transactions/order-details/useAdminTransactionDetailData";
 import { useAdminTransactionDetailMutations } from "@/components/admin/transactions/order-details/useAdminTransactionDetailMutations";
+import { useAdminTransactionDetailUi } from "@/components/admin/transactions/order-details/useAdminTransactionDetailUi";
 import {
   buildTransactionDetailViewModel,
   fmtDate,
@@ -34,39 +34,29 @@ import { TransactionHeaderActions } from "./TransactionHeaderActions";
 import { TransactionFulfillmentPanels } from "./TransactionFulfillmentPanels";
 import { TransactionPriceBreakdownSection } from "./TransactionPriceBreakdownSection";
 import { TransactionSidebar } from "./TransactionSidebar";
-import type { EmailLog, OrderItem } from "./types";
 
 const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const fmtMoney = (value: number | null | undefined) => fmt.format(Number(value ?? 0));
-
-const getTransactionStatusTone = (
-  status: string | null | undefined,
-): "success" | "warning" | "danger" | "neutral" => {
-  if (status === "failed" || status === "refund_failed") {
-    return "danger";
-  }
-  if (
-    status === "review" ||
-    status === "refund_pending" ||
-    status === "partially_refunded"
-  ) {
-    return "warning";
-  }
-  return "success";
-};
 
 export function AdminTransactionDetailScreen() {
   const params = useParams();
   const router = useRouter();
   const orderId = params.orderId as string;
 
-  const [emailPreview, setEmailPreview] = useState<EmailLog | null>(null);
-  const [selectedPaymentEventId, setSelectedPaymentEventId] = useState<string | null>(
-    null,
-  );
-  const [isPaymentDrawerVisible, setIsPaymentDrawerVisible] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<AdminOrderItem | null>(null);
-  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const {
+    closeEmailPreview,
+    closeItemModal,
+    closePaymentDrawer,
+    emailPreview,
+    getStatusTone,
+    isPaymentDrawerVisible,
+    itemModalOpen,
+    openItemModal,
+    selectedItem,
+    selectedPaymentEventId,
+    setEmailPreview,
+    setSelectedPaymentEventId,
+  } = useAdminTransactionDetailUi();
 
   const {
     checkoutLogs,
@@ -97,32 +87,6 @@ export function AdminTransactionDetailScreen() {
     order,
     loadTransaction,
   });
-
-  useEffect(() => {
-    if (!selectedPaymentEventId) {
-      setIsPaymentDrawerVisible(false);
-      return;
-    }
-
-    const frame = window.requestAnimationFrame(() => {
-      setIsPaymentDrawerVisible(true);
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [selectedPaymentEventId]);
-
-  useEffect(() => {
-    if (!selectedPaymentEventId && !emailPreview) {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [emailPreview, selectedPaymentEventId]);
 
   if (isLoading) {
     return (
@@ -191,18 +155,6 @@ export function AdminTransactionDetailScreen() {
     ? getRelatedCheckoutLogs(selectedPaymentEvent, checkoutLogs)
     : [];
 
-  const closePaymentDrawer = () => {
-    setIsPaymentDrawerVisible(false);
-    window.setTimeout(() => {
-      setSelectedPaymentEventId(null);
-    }, 220);
-  };
-
-  const openItemModal = (item: OrderItem) => {
-    setSelectedItem(item as unknown as AdminOrderItem);
-    setItemModalOpen(true);
-  };
-
   return (
     <div className="space-y-6 max-w-8xl">
       <button
@@ -233,7 +185,7 @@ export function AdminTransactionDetailScreen() {
             refundOpen={refundOpen}
             refundableOrder={refundableOrder as RefundableOrder}
             statusLabel={statusMeta.label}
-            statusTone={getTransactionStatusTone(order.status)}
+            statusTone={getStatusTone(order.status)}
           />
         }
       />
@@ -321,7 +273,7 @@ export function AdminTransactionDetailScreen() {
       <EmailPreviewModal
         emailPreview={emailPreview}
         title={emailPreview ? getEmailTypeMeta(emailPreview.email_type).label : ""}
-        onClose={() => setEmailPreview(null)}
+        onClose={closeEmailPreview}
       />
 
       <PaymentEventDrawer
@@ -337,10 +289,7 @@ export function AdminTransactionDetailScreen() {
         open={itemModalOpen}
         item={selectedItem}
         showProfit={showOrderProfit && !Boolean(selectedItem?.refunded_at)}
-        onClose={() => {
-          setItemModalOpen(false);
-          setSelectedItem(null);
-        }}
+        onClose={closeItemModal}
       />
 
       {toast && (

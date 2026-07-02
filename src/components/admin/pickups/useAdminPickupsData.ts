@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 
 import type { PickupOrder, PickupTabKey } from "@/components/admin/pickups/pickupTypes";
 import { logError } from "@/lib/utils/log";
+import {
+  loadPickupCountsRequest,
+  loadPickupOrdersRequest,
+  markPickupCompleteRequest,
+} from "@/components/admin/pickups/pickupDataRequests";
 
 type PickupTabDefinition = {
   fulfillmentStatus: string;
@@ -58,21 +63,7 @@ export function useAdminPickupsData() {
   useEffect(() => {
     const loadCounts = async () => {
       try {
-        const results = await Promise.all(
-          PICKUP_TABS.map(async (tab) => {
-            const params = new URLSearchParams({
-              fulfillment: "pickup",
-              fulfillmentStatus: tab.fulfillmentStatus,
-              limit: "1",
-              page: "1",
-            });
-
-            PICKUP_ORDER_STATUSES.forEach((status) => params.append("status", status));
-            const response = await fetch(`/api/admin/orders?${params.toString()}`);
-            const data = await response.json();
-            return { key: tab.key, count: Number(data.count ?? 0) };
-          }),
-        );
+        const results = await loadPickupCountsRequest(PICKUP_TABS, PICKUP_ORDER_STATUSES);
 
         const nextCounts = createEmptyCounts();
         results.forEach((result) => {
@@ -91,24 +82,14 @@ export function useAdminPickupsData() {
     const loadOrders = async () => {
       setIsLoading(true);
       try {
-        const tab =
-          PICKUP_TABS.find((entry) => entry.key === activeTab) ?? PICKUP_TABS[0];
-        const params = new URLSearchParams({
-          fulfillment: "pickup",
-          fulfillmentStatus: tab.fulfillmentStatus,
-          limit: String(PAGE_SIZE),
-          page: String(currentPage),
+        const data = await loadPickupOrdersRequest({
+          activeTab,
+          currentPage,
+          pageSize: PAGE_SIZE,
+          pickupOrderStatuses: PICKUP_ORDER_STATUSES,
+          pickupTabs: PICKUP_TABS,
         });
-
-        PICKUP_ORDER_STATUSES.forEach((status) => params.append("status", status));
-        const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
-        }
-
-        const data = await response.json();
-        setOrders(data.orders || []);
+        setOrders(data.orders);
         if (typeof data.count === "number") {
           setCounts((prev) => ({ ...prev, [activeTab]: data.count }));
         }
@@ -140,16 +121,7 @@ export function useAdminPickupsData() {
 
     setMarkingId(order.id);
     try {
-      const response = await fetch(`/api/admin/orders/${order.id}/pickup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.success === false) {
-        throw new Error(data?.error ?? "Failed to mark pickup complete.");
-      }
-
+      await markPickupCompleteRequest(order.id);
       setToast({ message: "Pickup marked complete.", tone: "success" });
       setRefreshToken((token) => token + 1);
     } catch (error: unknown) {

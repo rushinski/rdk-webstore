@@ -25,11 +25,25 @@ describe("admin customer detail structure", () => {
       ),
       "utf8",
     );
+    const paymentsSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/customers/customer-details/CustomerPaymentsSection.tsx",
+      ),
+      "utf8",
+    );
+    const methodsSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/customers/customer-details/CustomerPaymentMethodsSection.tsx",
+      ),
+      "utf8",
+    );
 
     expect(source).toContain(
       "@/components/admin/customers/customer-details/customerDetailView",
     );
-    expect(source).toContain("formatCustomerDate(");
-    expect(source).toContain("buildPaymentMethodDetailRows(");
+    expect(paymentsSource).toContain("formatCustomerDate(");
+    expect(methodsSource).toContain("buildPaymentMethodDetailRows(");
   });
 });

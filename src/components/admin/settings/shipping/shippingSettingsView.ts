@@ -1,7 +1,7 @@
 import {
   defaultPackage,
   type ShippingDefaultValues,
-} from "@/components/admin/settings/shipping/useAdminShippingSettingsData";
+} from "@/components/admin/settings/shipping/shippingSettingsConfig";
 
 export function buildShippingPackageSummary(
   shippingDefaults: Record<string, ShippingDefaultValues>,

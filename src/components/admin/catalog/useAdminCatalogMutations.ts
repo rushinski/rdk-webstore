@@ -3,6 +3,22 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import { logError } from "@/lib/utils/log";
+import {
+  acceptCatalogCandidateRequest,
+  createCatalogAliasRequest,
+  createCatalogBrandRequest,
+  createCatalogModelRequest,
+  rejectCatalogCandidateRequest,
+  updateCatalogAliasRequest,
+  updateCatalogBrandRequest,
+  updateCatalogModelRequest,
+} from "@/components/admin/catalog/catalogMutationRequests";
+import {
+  validateCatalogEdit,
+  validateCreateAlias,
+  validateCreateBrand,
+  validateCreateModel,
+} from "@/components/admin/catalog/catalogMutationValidation";
 
 import type {
   Alias,
@@ -77,30 +93,22 @@ export function useAdminCatalogMutations({
   setModelTargetBrand,
 }: UseAdminCatalogMutationsArgs) {
   const handleCreateBrand = async () => {
-    if (!newBrand.label.trim()) {
-      setMessage("Brand label is required.");
+    const result = validateCreateBrand({
+      brands,
+      defaultGroupId,
+      label: newBrand.label,
+      normalizeLabel,
+      toTitleCase,
+    });
+    if (result.error) {
+      setMessage(result.error);
       return;
     }
-    if (!defaultGroupId) {
-      setMessage("Unable to create brand: missing default configuration.");
-      return;
-    }
+    const formattedLabel = result.formattedLabel as string;
 
-    const formattedLabel = toTitleCase(newBrand.label);
-    const normalized = normalizeLabel(formattedLabel);
-    const isDuplicate = brands.some(
-      (brand) => normalizeLabel(brand.canonical_label) === normalized,
-    );
-
-    if (isDuplicate) {
-      setMessage("Brand already exists.");
-      return;
-    }
-
-    const response = await fetch("/api/admin/catalog/brands", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ groupId: defaultGroupId, canonicalLabel: formattedLabel }),
+    const response = await createCatalogBrandRequest({
+      canonicalLabel: formattedLabel,
+      groupId: defaultGroupId as string,
     });
 
     if (!response.ok) {
@@ -114,28 +122,22 @@ export function useAdminCatalogMutations({
   };
 
   const handleCreateModel = async () => {
-    if (!newModel.brandId || !newModel.label.trim()) {
-      setMessage("Brand and model label are required.");
+    const result = validateCreateModel({
+      brandId: newModel.brandId,
+      label: newModel.label,
+      models,
+      normalizeLabel,
+      toTitleCase,
+    });
+    if (result.error) {
+      setMessage(result.error);
       return;
     }
+    const formattedLabel = result.formattedLabel as string;
 
-    const formattedLabel = toTitleCase(newModel.label);
-    const normalized = normalizeLabel(formattedLabel);
-    const isDuplicate = models.some(
-      (model) =>
-        model.brand_id === newModel.brandId &&
-        normalizeLabel(model.canonical_label) === normalized,
-    );
-
-    if (isDuplicate) {
-      setMessage("Model already exists for this brand.");
-      return;
-    }
-
-    const response = await fetch("/api/admin/catalog/models", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ brandId: newModel.brandId, canonicalLabel: formattedLabel }),
+    const response = await createCatalogModelRequest({
+      brandId: newModel.brandId,
+      canonicalLabel: formattedLabel,
     });
 
     if (!response.ok) {
@@ -150,37 +152,22 @@ export function useAdminCatalogMutations({
   };
 
   const handleCreateAlias = async () => {
-    if (!newAlias.label.trim() || !newAlias.entityId) {
-      setMessage("Alias label and entity are required.");
-      return;
-    }
-
-    const normalized = normalizeLabel(newAlias.label);
-    const isDuplicate = aliases.some((alias) => {
-      const targetId = alias.entity_type === "brand" ? alias.brand_id : alias.model_id;
-
-      return (
-        alias.entity_type === newAlias.entityType &&
-        targetId === newAlias.entityId &&
-        normalizeLabel(alias.alias_label) === normalized
-      );
+    const result = validateCreateAlias({
+      aliases,
+      newAlias,
+      normalizeLabel,
     });
-
-    if (isDuplicate) {
-      setMessage("Alias already exists for that item.");
+    if (result.error) {
+      setMessage(result.error);
       return;
     }
 
-    const response = await fetch("/api/admin/catalog/aliases", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entityType: newAlias.entityType,
-        brandId: newAlias.entityType === "brand" ? newAlias.entityId : null,
-        modelId: newAlias.entityType === "model" ? newAlias.entityId : null,
-        aliasLabel: newAlias.label.trim(),
-        priority: Number(newAlias.priority || 0),
-      }),
+    const response = await createCatalogAliasRequest({
+      entityType: newAlias.entityType,
+      brandId: newAlias.entityType === "brand" ? newAlias.entityId : null,
+      modelId: newAlias.entityType === "model" ? newAlias.entityId : null,
+      aliasLabel: newAlias.label.trim(),
+      priority: Number(newAlias.priority || 0),
     });
 
     if (!response.ok) {
@@ -198,15 +185,7 @@ export function useAdminCatalogMutations({
       return;
     }
 
-    const payload =
-      candidate.entity_type === "brand" && defaultGroupId
-        ? { groupId: defaultGroupId }
-        : {};
-    const response = await fetch(`/api/admin/catalog/candidates/${candidate.id}/accept`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const response = await acceptCatalogCandidateRequest(candidate, defaultGroupId);
 
     if (!response.ok) {
       setMessage("Failed to accept candidate.");
@@ -217,9 +196,7 @@ export function useAdminCatalogMutations({
   };
 
   const handleRejectCandidate = async (candidate: Candidate) => {
-    const response = await fetch(`/api/admin/catalog/candidates/${candidate.id}/reject`, {
-      method: "POST",
-    });
+    const response = await rejectCatalogCandidateRequest(candidate.id);
 
     if (!response.ok) {
       setMessage("Failed to reject candidate.");
@@ -235,79 +212,17 @@ export function useAdminCatalogMutations({
     }
 
     setMessage("");
-
-    if (editTarget.type === "brand") {
-      const draft = editDraft as BrandEditDraft;
-      const normalized = normalizeLabel(draft.canonical_label ?? "");
-
-      if (!normalized) {
-        setMessage("Brand label is required.");
-        return;
-      }
-
-      const isDuplicate = brands.some(
-        (brand) =>
-          brand.id !== editTarget.item.id &&
-          normalizeLabel(brand.canonical_label) === normalized,
-      );
-
-      if (isDuplicate) {
-        setMessage("Brand already exists.");
-        return;
-      }
-    }
-
-    if (editTarget.type === "model") {
-      const draft = editDraft as ModelEditDraft;
-      const normalized = normalizeLabel(draft.canonical_label ?? "");
-
-      if (!normalized || !draft.brand_id) {
-        setMessage("Brand and model label are required.");
-        return;
-      }
-
-      const isDuplicate = models.some(
-        (model) =>
-          model.id !== editTarget.item.id &&
-          model.brand_id === draft.brand_id &&
-          normalizeLabel(model.canonical_label) === normalized,
-      );
-
-      if (isDuplicate) {
-        setMessage("Model already exists for this brand.");
-        return;
-      }
-    }
-
-    if (editTarget.type === "alias") {
-      const draft = editDraft as AliasEditDraft;
-      const normalized = normalizeLabel(draft.alias_label ?? "");
-
-      if (!normalized) {
-        setMessage("Alias label is required.");
-        return;
-      }
-
-      const targetId =
-        editTarget.item.entity_type === "brand"
-          ? editTarget.item.brand_id
-          : editTarget.item.model_id;
-      const isDuplicate = aliases.some((alias) => {
-        const aliasTargetId =
-          alias.entity_type === "brand" ? alias.brand_id : alias.model_id;
-
-        return (
-          alias.id !== editTarget.item.id &&
-          alias.entity_type === editTarget.item.entity_type &&
-          aliasTargetId === targetId &&
-          normalizeLabel(alias.alias_label) === normalized
-        );
-      });
-
-      if (isDuplicate) {
-        setMessage("Alias already exists for that item.");
-        return;
-      }
+    const validation = validateCatalogEdit({
+      aliases,
+      brands,
+      editDraft,
+      editTarget,
+      models,
+      normalizeLabel,
+    });
+    if (validation.error) {
+      setMessage(validation.error);
+      return;
     }
 
     setIsSaving(true);
@@ -315,41 +230,29 @@ export function useAdminCatalogMutations({
     try {
       if (editTarget.type === "brand") {
         const draft = editDraft as BrandEditDraft;
-        await fetch(`/api/admin/catalog/brands/${editTarget.item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            canonicalLabel: draft.canonical_label,
-            isActive: draft.is_active,
-            isVerified: draft.is_verified,
-          }),
+        await updateCatalogBrandRequest(editTarget.item.id, {
+          canonicalLabel: draft.canonical_label,
+          isActive: draft.is_active,
+          isVerified: draft.is_verified,
         });
       }
 
       if (editTarget.type === "model") {
         const draft = editDraft as ModelEditDraft;
-        await fetch(`/api/admin/catalog/models/${editTarget.item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            brandId: draft.brand_id,
-            canonicalLabel: draft.canonical_label,
-            isActive: draft.is_active,
-            isVerified: draft.is_verified,
-          }),
+        await updateCatalogModelRequest(editTarget.item.id, {
+          brandId: draft.brand_id,
+          canonicalLabel: draft.canonical_label,
+          isActive: draft.is_active,
+          isVerified: draft.is_verified,
         });
       }
 
       if (editTarget.type === "alias") {
         const draft = editDraft as AliasEditDraft;
-        await fetch(`/api/admin/catalog/aliases/${editTarget.item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            aliasLabel: draft.alias_label,
-            priority: draft.priority ?? 0,
-            isActive: draft.is_active,
-          }),
+        await updateCatalogAliasRequest(editTarget.item.id, {
+          aliasLabel: draft.alias_label,
+          priority: draft.priority ?? 0,
+          isActive: draft.is_active,
         });
       }
 
@@ -373,26 +276,30 @@ export function useAdminCatalogMutations({
 
     try {
       if (confirmTarget.type === "brand") {
-        await fetch(`/api/admin/catalog/brands/${confirmTarget.item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: false }),
+        const item = confirmTarget.item;
+        await updateCatalogBrandRequest(item.id, {
+          canonicalLabel: item.canonical_label,
+          isActive: false,
+          isVerified: item.is_verified,
         });
       }
 
       if (confirmTarget.type === "model") {
-        await fetch(`/api/admin/catalog/models/${confirmTarget.item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: false }),
+        const item = confirmTarget.item;
+        await updateCatalogModelRequest(item.id, {
+          brandId: item.brand_id,
+          canonicalLabel: item.canonical_label,
+          isActive: false,
+          isVerified: item.is_verified,
         });
       }
 
       if (confirmTarget.type === "alias") {
-        await fetch(`/api/admin/catalog/aliases/${confirmTarget.item.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: false }),
+        const item = confirmTarget.item;
+        await updateCatalogAliasRequest(item.id, {
+          aliasLabel: item.alias_label,
+          priority: item.priority ?? 0,
+          isActive: false,
         });
       }
 

@@ -6,6 +6,12 @@ import { logError } from "@/lib/utils/log";
 import type { ShippingDefault, ShippingOrigin, TabKey } from "@/types/domain/shipping";
 
 import type { ShippingOrder } from "./shippingTypes";
+import {
+  loadShippingCountsRequest,
+  loadShippingDefaultsRequest,
+  loadShippingOrdersRequest,
+  loadShippingOriginRequest,
+} from "./shippingDataRequests";
 
 type ShippingTab = {
   key: TabKey;
@@ -52,19 +58,7 @@ export function useAdminShippingData({
 
   const loadShippingDefaults = async () => {
     try {
-      const response = await fetch("/api/admin/shipping/defaults", { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error("Failed to load shipping defaults");
-      }
-
-      const data = await response.json();
-      const defaultsMap: Record<string, ShippingDefault> = {};
-
-      (data.defaults ?? []).forEach((entry: ShippingDefault) => {
-        defaultsMap[entry.category] = entry;
-      });
-
-      setShippingDefaults(defaultsMap);
+      setShippingDefaults(await loadShippingDefaultsRequest());
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_shipping_defaults" });
     }
@@ -72,13 +66,7 @@ export function useAdminShippingData({
 
   const loadOriginAddress = async () => {
     try {
-      const response = await fetch("/api/admin/shipping/origin", { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error("Failed to load shipping origin");
-      }
-
-      const data = await response.json();
-      setOriginAddress(data.origin ?? null);
+      setOriginAddress(await loadShippingOriginRequest());
     } catch (error) {
       logError(error, { layer: "frontend", event: "admin_load_shipping_origin" });
       setOriginAddress(null);
@@ -88,23 +76,7 @@ export function useAdminShippingData({
   useEffect(() => {
     const loadCounts = async () => {
       try {
-        const results = await Promise.all(
-          tabs.map(async (tab) => {
-            const params = new URLSearchParams({
-              fulfillment: "ship",
-              fulfillmentStatus: tab.status,
-              limit: "1",
-              page: "1",
-            });
-
-            shippingOrderStatuses.forEach((status) => params.append("status", status));
-
-            const response = await fetch(`/api/admin/orders?${params.toString()}`);
-            const data = await response.json();
-
-            return { key: tab.key, count: Number(data.count ?? 0) };
-          }),
-        );
+        const results = await loadShippingCountsRequest(tabs, shippingOrderStatuses);
 
         setCounts((currentCounts) => {
           const nextCounts = { ...currentCounts };
@@ -133,24 +105,14 @@ export function useAdminShippingData({
       setIsLoading(true);
 
       try {
-        const tab = tabs.find((entry) => entry.key === activeTab) ?? tabs[0];
-        const params = new URLSearchParams({
-          fulfillment: "ship",
-          fulfillmentStatus: tab.status,
-          limit: String(pageSize),
-          page: String(currentPage),
+        const data = await loadShippingOrdersRequest({
+          activeTab,
+          currentPage,
+          pageSize,
+          shippingOrderStatuses,
+          tabs,
         });
-
-        shippingOrderStatuses.forEach((status) => params.append("status", status));
-
-        const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Failed to fetch orders: ${response.status} ${errorText}`);
-        }
-
-        const data = await response.json();
-        setOrders(data.orders || []);
+        setOrders(data.orders);
 
         if (typeof data.count === "number") {
           setCounts((prev) => ({ ...prev, [activeTab]: data.count }));

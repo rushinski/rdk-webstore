@@ -1,50 +1,25 @@
 // src/components/admin/inventory/InventoryClient.tsx
 "use client";
 
-import { useState, useRef } from "react";
-
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import type {
-  ProductWithDetails,
-  ProductVariantRow,
-  Category,
-  Condition,
-} from "@/types/domain/product";
+import type { ProductWithDetails } from "@/types/domain/product";
 import { InventoryClientContent } from "@/components/admin/inventory/InventoryClientContent";
 import { InventoryDialogs } from "@/components/admin/inventory/InventoryDialogs";
 import { InventoryPagination } from "@/components/admin/inventory/InventoryPagination";
 import { InventoryToolbar } from "@/components/admin/inventory/InventoryToolbar";
 import { InventoryClientHeaderActions } from "@/components/admin/inventory/InventoryClientHeaderActions";
-import type {
-  InventoryArchiveRequestState,
-  InventoryDeleteRequestState,
-  InventoryDetailsSelection,
-  InventoryRestoreRequestState,
-  InventoryToastState,
-} from "@/components/admin/inventory/inventoryClientContracts";
 import {
-  getPrimaryImageUrl,
-  getProductLiveState as deriveProductLiveState,
   getProductRawTitle,
-  getProductTotalStock,
   type InventoryFilters,
-  type StockStatus,
 } from "@/components/admin/inventory/inventoryClientData";
-import {
-  getInventorySelectionState,
-  toggleInventoryCurrentPageSelection,
-  toggleInventorySelection,
-} from "@/components/admin/inventory/inventoryClientSelection";
+import { getInventorySelectionState } from "@/components/admin/inventory/inventoryClientSelection";
 import { getInventoryHeaderDescription } from "@/components/admin/inventory/inventoryClientView";
 import { getInventoryDerivedState } from "@/components/admin/inventory/inventoryClientDerivedState";
-import {
-  createInventoryDetailsSelection,
-  toggleInventoryExpandedVariantState,
-  toggleInventoryOpenMenuId,
-} from "@/components/admin/inventory/inventoryClientUiState";
 import { useInventoryClientData } from "@/components/admin/inventory/useInventoryClientData";
 import { useInventoryClientEffects } from "@/components/admin/inventory/useInventoryClientEffects";
+import { useInventoryClientHandlers } from "@/components/admin/inventory/useInventoryClientHandlers";
 import { useInventoryClientMutations } from "@/components/admin/inventory/useInventoryClientMutations";
+import { useInventoryClientState } from "@/components/admin/inventory/useInventoryClientState";
 
 const PAGE_SIZE = 100;
 
@@ -63,40 +38,56 @@ export function InventoryClient({
   initialInventoryUnitTotal,
   initialFilters,
 }: InventoryClientProps) {
-  const [products, setProducts] = useState<ProductWithDetails[]>(initialProducts);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [selectAllMatching, setSelectAllMatching] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(initialFilters.q || "");
-  const [categoryFilter, setCategoryFilter] = useState<Category | "all">(
-    initialFilters.category || "all",
-  );
-  const [conditionFilter, setConditionFilter] = useState<Condition | "all">(
-    initialFilters.condition || "all",
-  );
-  const [stockStatusFilter, setStockStatusFilter] = useState<StockStatus>(
-    initialFilters.stockStatus || "in_stock",
-  );
-  const [page, setPage] = useState(initialFilters.page || 1);
-  const [totalCount, setTotalCount] = useState(initialTotal);
-  const [skuTotalCount, setSkuTotalCount] = useState(initialSkuTotal);
-  const [inventoryUnitTotalCount, setInventoryUnitTotalCount] = useState(
+  const {
+    categoryFilter,
+    conditionFilter,
+    detailsSelection,
+    expandedVariants,
+    filtersRef,
+    inventoryUnitTotalCount,
+    isLoading,
+    openMenuId,
+    page,
+    pendingArchive,
+    pendingDelete,
+    pendingMassDelete,
+    pendingRestore,
+    products,
+    refreshTimerRef,
+    searchQuery,
+    selectAllMatching,
+    selectedIds,
+    skuTotalCount,
+    stockStatusFilter,
+    toast,
+    totalCount,
+    setCategoryFilter,
+    setConditionFilter,
+    setDetailsSelection,
+    setExpandedVariants,
+    setInventoryUnitTotalCount,
+    setIsLoading,
+    setOpenMenuId,
+    setPage,
+    setPendingArchive,
+    setPendingDelete,
+    setPendingMassDelete,
+    setPendingRestore,
+    setProducts,
+    setSearchQuery,
+    setSelectAllMatching,
+    setSelectedIds,
+    setSkuTotalCount,
+    setStockStatusFilter,
+    setToast,
+    setTotalCount,
+  } = useInventoryClientState({
+    initialFilters,
     initialInventoryUnitTotal,
-  );
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [expandedVariants, setExpandedVariants] = useState<Record<string, boolean>>({});
-  const [detailsSelection, setDetailsSelection] =
-    useState<InventoryDetailsSelection>(null);
-  const [pendingDelete, setPendingDelete] = useState<InventoryDeleteRequestState>(null);
-  const [pendingMassDelete, setPendingMassDelete] = useState(false);
-  const [pendingArchive, setPendingArchive] =
-    useState<InventoryArchiveRequestState>(null);
-  const [pendingRestore, setPendingRestore] =
-    useState<InventoryRestoreRequestState>(null);
-  const [toast, setToast] = useState<InventoryToastState>(null);
-
-  const filtersRef = useRef<InventoryFilters>({});
-  const refreshTimerRef = useRef<number | null>(null);
+    initialProducts,
+    initialSkuTotal,
+    initialTotal,
+  });
 
   const { totalPages, showingStart, showingEnd, currentFilters } =
     getInventoryDerivedState({
@@ -146,27 +137,6 @@ export function InventoryClient({
     refreshTimerRef,
   });
 
-  const getProductLiveState = (product: ProductWithDetails) =>
-    deriveProductLiveState(product);
-
-  const toggleVariants = (productId: string) => {
-    setExpandedVariants((prev) => toggleInventoryExpandedVariantState(prev, productId));
-  };
-
-  const openDetailsModal = (product: ProductWithDetails, variant: ProductVariantRow) => {
-    setDetailsSelection(createInventoryDetailsSelection(product, variant));
-  };
-
-  const toggleSelection = (id: string) => {
-    setSelectAllMatching(false);
-    setSelectedIds((prev) => toggleInventorySelection(prev, id));
-  };
-
-  const toggleSelectCurrentPage = (checked: boolean) => {
-    setSelectAllMatching(false);
-    setSelectedIds(toggleInventoryCurrentPageSelection(currentPageIds, checked));
-  };
-
   const {
     clearSelection,
     confirmArchive,
@@ -203,6 +173,24 @@ export function InventoryClient({
     setToast,
     loadProducts,
     getProductRawTitle,
+  });
+
+  const {
+    getPrimaryImageUrl,
+    getProductLiveState,
+    getProductTotalStock,
+    openDetailsModal,
+    toggleMenu,
+    toggleSelectCurrentPage,
+    toggleSelection,
+    toggleVariants,
+  } = useInventoryClientHandlers({
+    currentPageIds,
+    setDetailsSelection,
+    setExpandedVariants,
+    setOpenMenuId,
+    setSelectAllMatching,
+    setSelectedIds,
   });
 
   return (
@@ -250,9 +238,7 @@ export function InventoryClient({
         onToggleCurrentPage={toggleSelectCurrentPage}
         onToggleSelection={toggleSelection}
         onToggleVariants={toggleVariants}
-        onToggleMenu={(productId) => {
-          setOpenMenuId((prev) => toggleInventoryOpenMenuId(prev, productId));
-        }}
+        onToggleMenu={toggleMenu}
         onRestoreProduct={(productId) => {
           void restoreProduct(productId);
         }}

@@ -7,33 +7,9 @@ import Link from "next/link";
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import type { FeaturedItem } from "@/components/admin/featured-items/featuredItemsTypes";
 
 import { featuredItemsStyles } from "./featuredItemsStyles";
-
-type FeaturedItem = {
-  id: string;
-  product_id: string;
-  sort_order: number;
-  product: {
-    id: string;
-    name: string;
-    brand: string;
-    model: string | null;
-    category: string;
-    is_active: boolean;
-    is_out_of_stock: boolean;
-    images?: Array<{
-      url: string;
-      is_primary: boolean;
-      sort_order: number;
-    }>;
-    variants?: Array<{
-      id: string;
-      sale_price_cents: number;
-      stock: number;
-    }>;
-  };
-};
 
 type FeaturedItemsListProps = {
   featuredItems: FeaturedItem[];

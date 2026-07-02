@@ -1,9 +1,8 @@
 // src/components/admin/shipping/AdminShippingScreen.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
-import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
@@ -15,6 +14,7 @@ import { ShippingTabBar } from "@/components/admin/shipping/ShippingTabBar";
 import { ShippingOriginBar } from "@/components/admin/shipping/ShippingOriginBar";
 import { useAdminShippingData } from "@/components/admin/shipping/useAdminShippingData";
 import { useAdminShippingMutations } from "@/components/admin/shipping/useAdminShippingMutations";
+import { useAdminShippingScreenUi } from "@/components/admin/shipping/useAdminShippingScreenUi";
 import {
   EMPTY_SHIPPING_ORIGIN,
   extractShippingOriginErrors,
@@ -34,24 +34,29 @@ import {
   getTrackingUrl,
   resolveShippingAddress,
 } from "@/components/admin/shipping/shippingView";
-import type { TabKey } from "@/types/domain/shipping";
-import type {
-  ShippingOrder,
-  ShippingOrderItem,
-} from "@/components/admin/shipping/shippingTypes";
-
-type OrderItem = ShippingOrderItem;
 
 export function AdminShippingScreen() {
-  const [activeTab, setActiveTab] = useState<TabKey>("label");
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
-  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
-  const [confirmMarkShipped, setConfirmMarkShipped] = useState<ShippingOrder | null>(
-    null,
-  );
-  const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
-  const [originModalOpen, setOriginModalOpen] = useState(false);
-  const [labelOrder, setLabelOrder] = useState<ShippingOrder | null>(null);
+  const {
+    activeTab,
+    closeConfirmMarkShipped,
+    closeLabelOrder,
+    closeOriginModal,
+    closeSelectedItem,
+    confirmMarkShipped,
+    expandedDetails,
+    expandedItems,
+    labelOrder,
+    openItemDetails,
+    originModalOpen,
+    selectedItem,
+    setActiveTab,
+    setConfirmMarkShipped,
+    setLabelOrder,
+    setOriginModalOpen,
+    toggleDetails,
+    toggleItems,
+    toggleOrderExpansion,
+  } = useAdminShippingScreenUi();
 
   const {
     counts,
@@ -102,27 +107,6 @@ export function AdminShippingScreen() {
     resetOriginFeedback();
     void loadOriginAddress();
   }, [loadOriginAddress, originModalOpen, resetOriginFeedback]);
-
-  const toggleItems = (orderId: string) => {
-    setExpandedItems((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
-  };
-
-  const toggleDetails = (orderId: string) => {
-    setExpandedDetails((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
-  };
-
-  const toggleOrderExpansion = (orderId: string) => {
-    const nextExpanded = !(
-      (expandedItems[orderId] ?? false) ||
-      (expandedDetails[orderId] ?? false)
-    );
-    setExpandedItems((prev) => ({ ...prev, [orderId]: nextExpanded }));
-    setExpandedDetails((prev) => ({ ...prev, [orderId]: nextExpanded }));
-  };
-
-  const openItemDetails = (item: OrderItem) => {
-    setSelectedItem(item);
-  };
 
   const originLine = formatOriginAddress(originAddress);
 
@@ -175,7 +159,7 @@ export function AdminShippingScreen() {
             onCreateLabel={setLabelOrder}
             onMarkShipped={setConfirmMarkShipped}
             onViewLabel={viewLabel}
-            onOpenItemDetails={(item) => openItemDetails(item as AdminOrderItem)}
+            onOpenItemDetails={openItemDetails}
             resolveShippingAddress={resolveShippingAddress}
             formatAddress={formatAddress}
             getTrackingUrl={getTrackingUrl}
@@ -207,21 +191,21 @@ export function AdminShippingScreen() {
             : null
         }
         labelOrder={labelOrder}
-        onCloseDetails={() => setSelectedItem(null)}
-        onCloseLabelForm={() => setLabelOrder(null)}
-        onCloseMarkShippedDialog={() => setConfirmMarkShipped(null)}
-        onCloseOriginModal={() => setOriginModalOpen(false)}
+        onCloseDetails={closeSelectedItem}
+        onCloseLabelForm={closeLabelOrder}
+        onCloseMarkShippedDialog={closeConfirmMarkShipped}
+        onCloseOriginModal={closeOriginModal}
         onConfirmMarkShipped={() => {
           if (confirmMarkShipped) {
             void handleMarkShipped(confirmMarkShipped).finally(() =>
-              setConfirmMarkShipped(null),
+              closeConfirmMarkShipped(),
             );
           }
         }}
         onLabelSuccess={handleLabelSuccess}
         onOriginChange={handleOriginChange}
         onSaveOrigin={() => {
-          void handleSaveOrigin(() => setOriginModalOpen(false));
+          void handleSaveOrigin(closeOriginModal);
         }}
         originAddress={originAddress}
         originError={originError}

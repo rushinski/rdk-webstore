@@ -130,7 +130,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory ui-state helpers to a focused module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientHandlers.ts",
+      ),
       "utf8",
     );
 

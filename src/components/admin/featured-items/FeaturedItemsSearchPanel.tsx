@@ -6,22 +6,14 @@ import Image from "next/image";
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import type { FeaturedItemsProduct } from "@/components/admin/featured-items/featuredItemsTypes";
 
 import { featuredItemsStyles } from "./featuredItemsStyles";
-
-type Product = {
-  id: string;
-  name: string;
-  brand: string;
-  category: string;
-  images: Array<{ url: string }>;
-  variants: Array<{ sale_price_cents: number }>;
-};
 
 type FeaturedItemsSearchPanelProps = {
   searchQuery: string;
   isSearching: boolean;
-  searchResults: Product[];
+  searchResults: FeaturedItemsProduct[];
   onSearchQueryChange: (value: string) => void;
   onAddFeaturedItem: (productId: string) => void;
   formatPrice: (cents: number) => string;

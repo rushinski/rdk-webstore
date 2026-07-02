@@ -17,9 +17,6 @@ import type {
 } from "@/components/admin/inventory/inventoryClientData";
 import {
   buildInventoryBulkSelectionArgs,
-  buildInventoryBulkMutationRequest,
-  buildInventoryItemActionUrl,
-  buildInventoryItemRequestInit,
   getInventoryMutationErrorMessage,
   getInventoryRestoreSuccessMessage,
   summarizeInventoryArchiveOutcome,
@@ -31,8 +28,24 @@ import type {
   InventoryRestoreRequestState,
   InventoryToastState,
 } from "@/components/admin/inventory/inventoryClientContracts";
+import {
+  confirmInventoryArchiveFlow,
+  confirmInventoryDeleteFlow,
+  confirmInventoryMassDeleteFlow,
+  confirmInventoryRestoreFlow,
+  duplicateInventoryProductFlow,
+  restoreInventoryProductFlow,
+} from "@/components/admin/inventory/inventoryMutationFlows";
+import {
+  archiveInventoryItemRequest,
+  archiveInventorySelectionRequest,
+  deleteInventoryItemRequest,
+  deleteInventorySelectionRequest,
+  duplicateInventoryItemRequest,
+  restoreInventoryItemRequest,
+  restoreInventorySelectionRequest,
+} from "@/components/admin/inventory/inventoryMutationRequests";
 import { clearInventorySelection } from "@/components/admin/inventory/inventoryClientSelection";
-import { filterInventorySelectionAfterRestore } from "@/components/admin/inventory/inventoryClientUiState";
 import type { Category, Condition, ProductWithDetails } from "@/types/domain/product";
 
 type UseInventoryClientMutationsArgs = {
@@ -86,6 +99,37 @@ export function useInventoryClientMutations({
     setToast({ message, tone });
   };
 
+  const mutationHelpers = {
+    buildInventoryBulkSelectionArgs,
+    getInventoryMutationErrorMessage,
+    getInventoryRestoreSuccessMessage,
+    summarizeInventoryArchiveOutcome,
+    summarizeInventoryDeleteOutcome,
+  };
+
+  const mutationRequests = {
+    archiveInventoryItemRequest: (productId: string) =>
+      archiveInventoryItemRequest(productId),
+    archiveInventorySelectionRequest: (
+      selectionArgs: Parameters<typeof archiveInventorySelectionRequest>[0],
+    ) =>
+      archiveInventorySelectionRequest(selectionArgs),
+    deleteInventoryItemRequest: (productId: string) =>
+      deleteInventoryItemRequest(productId),
+    deleteInventorySelectionRequest: (
+      selectionArgs: Parameters<typeof deleteInventorySelectionRequest>[0],
+    ) =>
+      deleteInventorySelectionRequest(selectionArgs),
+    duplicateInventoryItemRequest: (productId: string) =>
+      duplicateInventoryItemRequest(productId),
+    restoreInventoryItemRequest: (productId: string) =>
+      restoreInventoryItemRequest(productId),
+    restoreInventorySelectionRequest: (
+      selectionArgs: Parameters<typeof restoreInventorySelectionRequest>[0],
+    ) =>
+      restoreInventorySelectionRequest(selectionArgs),
+  };
+
   const clearSelection = () => {
     const nextState = clearInventorySelection();
     setSelectedIds(nextState.selectedIds);
@@ -109,168 +153,78 @@ export function useInventoryClientMutations({
   };
 
   const confirmDelete = async () => {
-    if (!pendingDelete) {
-      return;
-    }
-
-    const { id, label } = pendingDelete;
-    setPendingDelete(null);
-
-    try {
-      const response = await fetch(
-        buildInventoryItemActionUrl(id),
-        buildInventoryItemRequestInit("DELETE"),
-      );
-      const payload = await response.json().catch(() => null);
-      const errorMessage = getInventoryMutationErrorMessage(
-        payload,
-        "Failed to delete product.",
-      );
-
-      if (response.ok) {
-        showToast(`Deleted ${label}.`, "success");
-        await loadProducts(currentFilters);
-      } else {
-        showToast(errorMessage, "error");
-      }
-    } catch {
-      showToast("Error deleting product.", "error");
-    }
+    await confirmInventoryDeleteFlow({
+      pendingDelete,
+      setPendingDelete,
+      currentFilters,
+      loadProducts,
+      mutationHelpers,
+      mutationRequests,
+      showToast,
+    });
   };
 
   const confirmMassDelete = async () => {
-    setPendingMassDelete(false);
-    if (selectedCount === 0) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        "/api/admin/products",
-        buildInventoryBulkMutationRequest(
-          buildInventoryBulkSelectionArgs({
-            action: "delete",
-            selectAllMatching,
-            selectedIds,
-            searchQuery,
-            categoryFilter,
-            conditionFilter,
-            stockStatusFilter,
-          }),
-        ),
-      );
-      const payload = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        showToast(
-          getInventoryMutationErrorMessage(payload, "Failed to delete selected items."),
-          "error",
-        );
-        return;
-      }
-
-      const deleteOutcome = summarizeInventoryDeleteOutcome(payload);
-      showToast(deleteOutcome.message, deleteOutcome.tone);
-      clearSelection();
-      await loadProducts(currentFilters);
-    } catch {
-      showToast("Error deleting selected items.", "error");
-    }
+    await confirmInventoryMassDeleteFlow({
+      categoryFilter,
+      clearSelection,
+      conditionFilter,
+      currentFilters,
+      loadProducts,
+      mutationHelpers,
+      mutationRequests,
+      searchQuery,
+      selectedCount,
+      selectedIds,
+      selectAllMatching,
+      setPendingMassDelete,
+      showToast,
+      stockStatusFilter,
+    });
   };
 
   const restoreProduct = async (productId: string) => {
     setOpenMenuId(null);
-
-    try {
-      const response = await fetch(
-        buildInventoryItemActionUrl(productId, "restore"),
-        buildInventoryItemRequestInit("PATCH"),
-      );
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        showToast(
-          getInventoryMutationErrorMessage(payload, "Failed to restore product."),
-          "error",
-        );
-        return;
-      }
-
-      showToast("Product restored.", "success");
-      setSelectedIds((prev) => filterInventorySelectionAfterRestore(prev, productId));
-      await loadProducts(currentFilters);
-    } catch {
-      showToast("Error restoring product.", "error");
-    }
+    await restoreInventoryProductFlow({
+      currentFilters,
+      loadProducts,
+      mutationHelpers,
+      mutationRequests,
+      productId,
+      setSelectedIds,
+      showToast,
+    });
   };
 
   const confirmRestore = async () => {
-    if (!pendingRestore || selectedCount === 0) {
-      setPendingRestore(null);
-      return;
-    }
-
-    setPendingRestore(null);
-
-    try {
-      const response = await fetch(
-        "/api/admin/products",
-        buildInventoryBulkMutationRequest(
-          buildInventoryBulkSelectionArgs({
-            action: "restore",
-            selectAllMatching,
-            selectedIds,
-            searchQuery,
-            categoryFilter,
-            conditionFilter,
-            stockStatusFilter,
-            stockStatusOverride: "archived",
-          }),
-        ),
-      );
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        showToast(
-          getInventoryMutationErrorMessage(
-            payload,
-            "Failed to restore selected products.",
-          ),
-          "error",
-        );
-        return;
-      }
-
-      showToast(
-        getInventoryRestoreSuccessMessage({
-          payload,
-          pendingCount: pendingRestore.count,
-          selectedCount,
-        }),
-        "success",
-      );
-      clearSelection();
-      await loadProducts(currentFilters);
-    } catch {
-      showToast("Error restoring selected products.", "error");
-    }
+    await confirmInventoryRestoreFlow({
+      categoryFilter,
+      clearSelection,
+      conditionFilter,
+      currentFilters,
+      loadProducts,
+      mutationHelpers,
+      mutationRequests,
+      pendingRestore,
+      searchQuery,
+      selectedCount,
+      selectedIds,
+      selectAllMatching,
+      setPendingRestore,
+      showToast,
+      stockStatusFilter,
+    });
   };
 
   const handleDuplicate = async (id: string) => {
     setOpenMenuId(null);
-
-    try {
-      const response = await fetch(
-        `${buildInventoryItemActionUrl(id)}/duplicate`,
-        buildInventoryItemRequestInit("POST"),
-      );
-      if (response.ok) {
-        showToast("Product duplicated.", "success");
-        await loadProducts(currentFilters);
-      } else {
-        showToast("Failed to duplicate product.", "error");
-      }
-    } catch {
-      showToast("Error duplicating product.", "error");
-    }
+    await duplicateInventoryProductFlow({
+      currentFilters,
+      id,
+      loadProducts,
+      mutationRequests,
+      showToast,
+    });
   };
 
   const handleMassDelete = () => {
@@ -298,68 +252,23 @@ export function useInventoryClientMutations({
   };
 
   const confirmArchive = async () => {
-    if (!pendingArchive) {
-      return;
-    }
-
-    const archiveTarget = pendingArchive;
-    setPendingArchive(null);
-
-    try {
-      if (archiveTarget.mode === "single" && archiveTarget.id) {
-        const response = await fetch(
-          buildInventoryItemActionUrl(archiveTarget.id, "archive"),
-          buildInventoryItemRequestInit("PATCH"),
-        );
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          showToast(
-            getInventoryMutationErrorMessage(payload, "Failed to archive product."),
-            "error",
-          );
-          return;
-        }
-        showToast(`Archived ${archiveTarget.label}.`, "success");
-      } else {
-        const response = await fetch(
-          "/api/admin/products",
-          buildInventoryBulkMutationRequest(
-            buildInventoryBulkSelectionArgs({
-              action: "archive",
-              selectAllMatching,
-              selectedIds,
-              searchQuery,
-              categoryFilter,
-              conditionFilter,
-              stockStatusFilter,
-            }),
-          ),
-        );
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          showToast(
-            getInventoryMutationErrorMessage(
-              payload,
-              "Failed to archive selected products.",
-            ),
-            "error",
-          );
-          return;
-        }
-        showToast(
-          summarizeInventoryArchiveOutcome({
-            payload,
-            fallbackCount: archiveTarget.count ?? selectedCount,
-          }),
-          "success",
-        );
-        clearSelection();
-      }
-
-      await loadProducts(currentFilters);
-    } catch {
-      showToast("Error archiving product.", "error");
-    }
+    await confirmInventoryArchiveFlow({
+      categoryFilter,
+      clearSelection,
+      conditionFilter,
+      currentFilters,
+      loadProducts,
+      mutationHelpers,
+      mutationRequests,
+      pendingArchive,
+      searchQuery,
+      selectedCount,
+      selectedIds,
+      selectAllMatching,
+      setPendingArchive,
+      showToast,
+      stockStatusFilter,
+    });
   };
 
   const handleMassArchive = () => {

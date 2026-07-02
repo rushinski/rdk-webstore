@@ -11,6 +11,7 @@ import type {
 } from "@/components/admin/nexus/homeOfficeSetupTypes";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
+import { logError } from "@/lib/utils/log";
 
 type HomeOfficeSetupModalProps = {
   onClose: () => void;
@@ -89,7 +90,7 @@ export default function HomeOfficeSetupModal({
         setOldHomeState(summary.homeState);
       }
     } catch (err) {
-      console.error("Failed to fetch existing address:", err);
+      logError(err, { layer: "frontend", event: "nexus_home_office_fetch_failed" });
     } finally {
       setIsLoading(false);
     }

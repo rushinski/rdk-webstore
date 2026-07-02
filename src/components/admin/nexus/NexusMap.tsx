@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ComposableMap, Geographies, Geography } from "@vnedyalk0v/react19-simple-maps";
 
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { logError } from "@/lib/utils/log";
 import type { StateSummary } from "@/types/domain/nexus";
 
 type NexusMapProps = {
@@ -123,7 +124,7 @@ export default function NexusMap({
         }
       })
       .catch((err) => {
-        console.error("Failed to load map topology:", err);
+        logError(err, { layer: "frontend", event: "nexus_map_topology_failed" });
       });
 
     return () => {

@@ -3,11 +3,13 @@
 import React, { useState } from "react";
 import { AlertTriangle, DollarSign, X } from "lucide-react";
 
+import { loadStateSalesLogRequest } from "@/components/admin/nexus/stateDetailRequests";
 import { StateRegistrationSetupSection } from "@/components/admin/nexus/StateRegistrationSetupSection";
 import { StateSalesHistorySection } from "@/components/admin/nexus/StateSalesHistorySection";
 import type { SalesLog } from "@/components/admin/nexus/stateDetailTypes";
 import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { ModalPortal } from "@/components/ui/ModalPortal";
+import { logError } from "@/lib/utils/log";
 import type { StateSummary } from "@/types/domain/nexus";
 
 type StateDetailModalProps = {
@@ -51,20 +53,12 @@ export default function StateDetailModal({
   const fetchSalesLog = async (offset: number = 0) => {
     try {
       setLoadingSalesLog(true);
-      const res = await fetch(
-        `/api/admin/nexus/sales-log?stateCode=${state.stateCode}&limit=10&offset=${offset}`,
-        { cache: "no-store" },
-      );
-      if (!res.ok) {
-        throw new Error("Failed to fetch sales log");
-      }
-
-      const result = await res.json();
+      const result = await loadStateSalesLogRequest(state.stateCode, offset);
       setSalesLog(result.sales ?? []);
       setSalesLogTotal(result.total ?? 0);
       setHasCheckedSales(true);
     } catch (err) {
-      console.error("Failed to fetch sales log:", err);
+      logError(err, { layer: "frontend", event: "nexus_state_sales_log_failed" });
       setSalesLog([]);
       setSalesLogTotal(0);
       setHasCheckedSales(true);

@@ -3,16 +3,16 @@
 
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { ShippingDefaultsModal } from "@/components/admin/settings/shipping/ShippingDefaultsModal";
-import { ShippingOriginModal } from "@/components/admin/settings/shipping/ShippingOriginModal";
-import { buildShippingPackageSummary } from "@/components/admin/settings/shipping/shippingSettingsView";
 import {
   AVAILABLE_CARRIERS,
   centsToMoneyString,
   SHIPPING_CATEGORIES,
-  useAdminShippingSettingsData,
-} from "@/components/admin/settings/shipping/useAdminShippingSettingsData";
+} from "@/components/admin/settings/shipping/shippingSettingsConfig";
+import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { ShippingDefaultsModal } from "@/components/admin/settings/shipping/ShippingDefaultsModal";
+import { ShippingOriginModal } from "@/components/admin/settings/shipping/ShippingOriginModal";
+import { buildShippingPackageSummary } from "@/components/admin/settings/shipping/shippingSettingsView";
+import { useAdminShippingSettingsData } from "@/components/admin/settings/shipping/useAdminShippingSettingsData";
 export { ShippingSettingsModalShell } from "@/components/admin/settings/shipping/ShippingSettingsShared";
 
 const cardStyles = "space-y-3 border border-brand-border bg-brand-surface p-5";

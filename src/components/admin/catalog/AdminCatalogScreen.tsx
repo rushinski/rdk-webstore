@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 
+import { CatalogTabContent } from "@/components/admin/catalog/CatalogTabContent";
 import { CatalogInfoKey } from "@/components/admin/catalog/CatalogInfoKey";
+import { buildCatalogEditDraft } from "@/components/admin/catalog/catalogEditState";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { useAdminCatalogData } from "@/components/admin/catalog/useAdminCatalogData";
 import { useAdminCatalogDerivedState } from "@/components/admin/catalog/useAdminCatalogDerivedState";
 import { useAdminCatalogMutations } from "@/components/admin/catalog/useAdminCatalogMutations";
 
-import { AliasesTab } from "./components/AliasesTab";
-import { BrandsTab } from "./components/BrandsTab";
-import { CandidatesTab } from "./components/CandidatesTab";
 import { CatalogToolbar } from "./components/CatalogToolbar";
 import { TagModals } from "./components/TagModals";
 import {
@@ -19,16 +18,7 @@ import {
   normalizeLabel,
   toTitleCase,
 } from "./catalogConfig";
-import type {
-  ActiveTab,
-  AliasEditDraft,
-  Brand,
-  BrandEditDraft,
-  EditDraft,
-  EditTarget,
-  ModelEditDraft,
-  NewAliasDraft,
-} from "./types";
+import type { ActiveTab, Brand, EditTarget, NewAliasDraft, EditDraft } from "./types";
 
 export function AdminCatalogScreen() {
   const {
@@ -91,34 +81,7 @@ export function AdminCatalogScreen() {
       setEditDraft(null);
       return;
     }
-
-    if (editTarget.type === "brand") {
-      const draft: BrandEditDraft = {
-        canonical_label: editTarget.item.canonical_label,
-        is_active: editTarget.item.is_active,
-        is_verified: editTarget.item.is_verified,
-      };
-      setEditDraft(draft);
-    }
-
-    if (editTarget.type === "model") {
-      const draft: ModelEditDraft = {
-        canonical_label: editTarget.item.canonical_label,
-        brand_id: editTarget.item.brand_id,
-        is_active: editTarget.item.is_active,
-        is_verified: editTarget.item.is_verified,
-      };
-      setEditDraft(draft);
-    }
-
-    if (editTarget.type === "alias") {
-      const draft: AliasEditDraft = {
-        alias_label: editTarget.item.alias_label,
-        priority: editTarget.item.priority ?? 0,
-        is_active: editTarget.item.is_active,
-      };
-      setEditDraft(draft);
-    }
+    setEditDraft(buildCatalogEditDraft(editTarget));
   }, [editTarget]);
 
   const toggleMenu = (key: string) => {
@@ -208,57 +171,41 @@ export function AdminCatalogScreen() {
         onShowUnverifiedChange={setShowUnverified}
       />
 
-      {activeTab === "brands" ? (
-        <BrandsTab
-          isLoading={isLoading}
-          brands={filteredBrands}
-          filteredModelsByBrandId={filteredModelsByBrandId}
-          expandedBrands={expandedBrands}
-          openMenuKey={openMenuKey}
-          onToggleBrandExpansion={toggleBrandExpansion}
-          onToggleMenu={toggleMenu}
-          onOpenAddBrand={openAddBrandModal}
-          onOpenAddModel={openAddModelModal}
-          onEditBrand={(brand) => setEditTarget({ type: "brand", item: brand })}
-          onDeleteBrand={(brand) => setConfirmTarget({ type: "brand", item: brand })}
-          onEditModel={(model) => setEditTarget({ type: "model", item: model })}
-          onDeleteModel={(model) => setConfirmTarget({ type: "model", item: model })}
-        />
-      ) : null}
-
-      {activeTab === "aliases" ? (
-        <AliasesTab
-          isLoading={isLoading}
-          aliases={filteredAliases}
-          brands={brands}
-          models={models}
-          newAlias={newAlias}
-          openMenuKey={openMenuKey}
-          onToggleMenu={toggleMenu}
-          onNewAliasChange={setNewAlias}
-          onCreateAlias={() => {
-            void handleCreateAlias();
-          }}
-          onEditAlias={(alias) => setEditTarget({ type: "alias", item: alias })}
-          onDeleteAlias={(alias) => setConfirmTarget({ type: "alias", item: alias })}
-          resolveBrandLabel={resolveBrandLabel}
-          resolveModelLabel={resolveModelLabel}
-        />
-      ) : null}
-
-      {activeTab === "candidates" ? (
-        <CandidatesTab
-          isLoading={isLoading}
-          candidates={filteredCandidates}
-          onAcceptCandidate={(candidate) => {
-            void handleAcceptCandidate(candidate);
-          }}
-          onRejectCandidate={(candidate) => {
-            void handleRejectCandidate(candidate);
-          }}
-          resolveBrandLabel={resolveBrandLabel}
-        />
-      ) : null}
+      <CatalogTabContent
+        activeTab={activeTab}
+        brands={brands}
+        expandedBrands={expandedBrands}
+        filteredAliases={filteredAliases}
+        filteredBrands={filteredBrands}
+        filteredCandidates={filteredCandidates}
+        filteredModelsByBrandId={filteredModelsByBrandId}
+        isLoading={isLoading}
+        models={models}
+        newAlias={newAlias}
+        onAcceptCandidate={(candidate) => {
+          void handleAcceptCandidate(candidate);
+        }}
+        onDeleteAlias={(alias) => setConfirmTarget({ type: "alias", item: alias })}
+        onDeleteBrand={(brand) => setConfirmTarget({ type: "brand", item: brand })}
+        onDeleteModel={(model) => setConfirmTarget({ type: "model", item: model })}
+        onEditAlias={(alias) => setEditTarget({ type: "alias", item: alias })}
+        onEditBrand={(brand) => setEditTarget({ type: "brand", item: brand })}
+        onEditModel={(model) => setEditTarget({ type: "model", item: model })}
+        onNewAliasChange={setNewAlias}
+        onOpenAddBrand={openAddBrandModal}
+        onOpenAddModel={openAddModelModal}
+        onRejectCandidate={(candidate) => {
+          void handleRejectCandidate(candidate);
+        }}
+        onResolveBrandLabel={resolveBrandLabel}
+        onResolveModelLabel={resolveModelLabel}
+        onToggleBrandExpansion={toggleBrandExpansion}
+        onToggleMenu={toggleMenu}
+        onToggleCreateAlias={() => {
+          void handleCreateAlias();
+        }}
+        openMenuKey={openMenuKey}
+      />
 
       <TagModals
         showAddBrandModal={showAddBrandModal}

@@ -6,6 +6,16 @@ import type {
   RefundRequestPayload,
   RefundableOrder,
 } from "@/components/admin/orders/RefundOrderModal";
+import {
+  resendOrderEmailRequest,
+  refundOrderRequest,
+} from "@/components/admin/transactions/order-details/transactionDetailMutationRequests";
+import {
+  buildRefundableOrder as buildRefundableOrderView,
+  buildRefundSuccessToast,
+  getTransactionMutationError,
+  type TransactionMutationResponse,
+} from "@/components/admin/transactions/order-details/transactionDetailMutationView";
 
 import type { Order } from "./types";
 
@@ -36,31 +46,18 @@ export function useAdminTransactionDetailMutations({
     setIsRefundSubmitting(true);
 
     try {
-      const response = await fetch(`/api/admin/orders/${order.id}/refund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
+      const response = await refundOrderRequest(order.id, payload);
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as TransactionMutationResponse;
 
       if (response.ok && data?.success !== false) {
-        const label =
-          payload.type === "full"
-            ? "Full refund processed."
-            : payload.type === "product"
-              ? "Product refund processed."
-              : "Custom refund processed.";
-        const warning = typeof data?.warning === "string" ? data.warning : null;
-
-        setToast({
-          message: warning ? `${label} ${warning}` : label,
-          tone: warning ? "info" : "success",
-        });
+        setToast(buildRefundSuccessToast(data, payload));
         setRefundOpen(false);
         await loadTransaction();
       } else {
         setToast({
-          message: (data as { error?: string }).error ?? "Refund failed.",
+          message: getTransactionMutationError(data, "Refund failed."),
           tone: "error",
         });
       }
@@ -79,19 +76,17 @@ export function useAdminTransactionDetailMutations({
     setResendingEmail(emailType);
 
     try {
-      const response = await fetch(`/api/admin/orders/${order.id}/resend-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailType }),
-      });
-      const data = await response.json().catch(() => ({}));
+      const response = await resendOrderEmailRequest(order.id, emailType);
+      const data = (await response
+        .json()
+        .catch(() => ({}))) as TransactionMutationResponse;
 
       if (response.ok) {
         setToast({ message: "Email resent successfully.", tone: "success" });
         await loadTransaction();
       } else {
         setToast({
-          message: (data as { error?: string }).error ?? "Failed to resend email.",
+          message: getTransactionMutationError(data, "Failed to resend email."),
           tone: "error",
         });
       }
@@ -103,16 +98,7 @@ export function useAdminTransactionDetailMutations({
   };
 
   const buildRefundableOrder = (): RefundableOrder | null => {
-    if (!order) {
-      return null;
-    }
-
-    return {
-      id: order.id,
-      total: order.total,
-      refund_amount: order.refund_amount,
-      items: order.items as unknown as RefundableOrder["items"],
-    };
+    return buildRefundableOrderView(order);
   };
 
   return {

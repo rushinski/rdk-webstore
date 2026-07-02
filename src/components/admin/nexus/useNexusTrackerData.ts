@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  loadHomeOfficeStatusRequest,
+  loadNexusSummaryRequest,
+  updateNexusRegistrationRequest,
+  updateNexusTypeRequest,
+} from "@/components/admin/nexus/nexusTrackerRequests";
+import { logError } from "@/lib/utils/log";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
 
 type UseNexusTrackerDataParams = {
@@ -23,16 +30,9 @@ export function useNexusTrackerData({
   const fetchNexusData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/nexus/summary", { cache: "no-store" });
-
-      if (!res.ok) {
-        throw new Error(`Failed: ${res.status}`);
-      }
-
-      const json = await res.json();
-      setData(json as NexusData);
+      setData(await loadNexusSummaryRequest());
     } catch (err) {
-      console.error("Failed to fetch nexus data:", err);
+      logError(err, { layer: "frontend", event: "nexus_fetch_summary_failed" });
       setData(null);
     } finally {
       setLoading(false);
@@ -41,13 +41,10 @@ export function useNexusTrackerData({
 
   const checkHomeOfficeStatus = async () => {
     try {
-      const res = await fetch("/api/admin/nexus/home-office-status");
-      if (res.ok) {
-        const { configured } = await res.json();
-        setIsHomeOfficeConfigured(configured);
-      }
+      const { configured } = await loadHomeOfficeStatusRequest();
+      setIsHomeOfficeConfigured(configured);
     } catch (err) {
-      console.error("Failed to check home office status:", err);
+      logError(err, { layer: "frontend", event: "nexus_home_office_status_failed" });
     }
   };
 
@@ -68,25 +65,21 @@ export function useNexusTrackerData({
 
     try {
       setIsUpdating(true);
-      const res = await fetch("/api/admin/nexus/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        await updateNexusRegistrationRequest({
           stateCode,
-          registrationType: nexusType,
+          nexusType,
           isRegistered: !currentRegistered,
-        }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        if (result.error && result.error.includes("head office")) {
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to update registration";
+        if (message.includes("head office")) {
           setShowHomeSetup(true);
           alert("Please set up your home office address first.");
           return;
         }
-        throw new Error(result.error);
+        throw error;
       }
 
       await fetchNexusData();
@@ -98,7 +91,7 @@ export function useNexusTrackerData({
         }
       }
     } catch (err: unknown) {
-      console.error("Failed to toggle registration:", err);
+      logError(err, { layer: "frontend", event: "nexus_toggle_registration_failed" });
       const message =
         err instanceof Error ? err.message : "Failed to update registration";
       alert(message);
@@ -113,20 +106,10 @@ export function useNexusTrackerData({
   ) => {
     try {
       setIsUpdating(true);
-
-      const res = await fetch("/api/admin/nexus/nexus-type", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stateCode,
-          nexusType: newType,
-        }),
+      await updateNexusTypeRequest({
+        stateCode,
+        nexusType: newType,
       });
-
-      if (!res.ok) {
-        const result = await res.json();
-        throw new Error(result.error || "Failed to update nexus type");
-      }
 
       await fetchNexusData();
 
@@ -137,7 +120,7 @@ export function useNexusTrackerData({
         }
       }
     } catch (err) {
-      console.error("Failed to change nexus type:", err);
+      logError(err, { layer: "frontend", event: "nexus_type_change_failed" });
     } finally {
       setIsUpdating(false);
     }
