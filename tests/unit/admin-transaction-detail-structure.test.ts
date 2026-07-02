@@ -46,4 +46,17 @@ describe("admin transaction detail structure", () => {
     );
     expect(source).toContain("buildTransactionDetailViewModel({");
   });
+
+  it("delegates transaction header status and refund actions to a focused component", () => {
+    const source = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain("./TransactionHeaderActions");
+    expect(source).toContain("<TransactionHeaderActions");
+  });
 });

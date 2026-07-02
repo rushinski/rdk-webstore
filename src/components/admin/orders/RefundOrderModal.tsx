@@ -3,9 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 
+import { RefundCustomAmountPanel } from "@/components/admin/orders/RefundCustomAmountPanel";
+import { RefundProductSelectionPanel } from "@/components/admin/orders/RefundProductSelectionPanel";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import {
+  formatRefundMoney,
+  fromRefundCents,
+  toRefundCents,
+} from "@/components/admin/orders/refundOrderView";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 export type RefundRequestPayload =
@@ -30,24 +36,6 @@ type RefundOrderModalProps = {
   onConfirm: (payload: RefundRequestPayload) => Promise<void>;
 };
 
-const toCents = (value: number) => Math.max(0, Math.round(value * 100));
-const fromCents = (value: number) => value / 100;
-
-const formatMoney = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value);
-
-const getItemTitle = (item: AdminOrderItem) =>
-  item.product_name ?? item.product?.name ?? "Item";
-
-const getItemImage = (item: AdminOrderItem) => {
-  const images = item.product?.images ?? [];
-  const primary = images.find((entry) => entry.is_primary) ?? images[0];
-  return primary?.url ?? "/images/rdk-logo.png";
-};
-
 const panelStyles =
   "border border-brand-border bg-brand-surface p-4 text-sm text-brand-muted";
 
@@ -63,13 +51,16 @@ export function RefundOrderModal({
   const [customAmount, setCustomAmount] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const totalCents = useMemo(() => toCents(Number(order?.total ?? 0)), [order?.total]);
+  const totalCents = useMemo(
+    () => toRefundCents(Number(order?.total ?? 0)),
+    [order?.total],
+  );
   const refundedCents = useMemo(
     () => Math.max(0, Math.round(Number(order?.refund_amount ?? 0))),
     [order?.refund_amount],
   );
   const remainingCents = Math.max(0, totalCents - refundedCents);
-  const remainingDollars = fromCents(remainingCents);
+  const remainingDollars = fromRefundCents(remainingCents);
 
   const items = order?.items ?? [];
   const refundableItems = useMemo(
@@ -81,7 +72,7 @@ export function RefundOrderModal({
     () =>
       refundableItems
         .filter((item) => selectedItemIds.includes(item.id))
-        .reduce((sum, item) => sum + toCents(Number(item.line_total ?? 0)), 0),
+        .reduce((sum, item) => sum + toRefundCents(Number(item.line_total ?? 0)), 0),
     [refundableItems, selectedItemIds],
   );
 
@@ -90,7 +81,7 @@ export function RefundOrderModal({
     if (!Number.isFinite(parsed) || parsed <= 0) {
       return 0;
     }
-    return toCents(parsed);
+    return toRefundCents(parsed);
   }, [customAmount]);
 
   const canSelectAnyItems = refundableItems.length > 0;
@@ -145,7 +136,7 @@ export function RefundOrderModal({
         return;
       }
       setErrorMessage(null);
-      await onConfirm({ type: "custom", amount: fromCents(customAmountCents) });
+      await onConfirm({ type: "custom", amount: fromRefundCents(customAmountCents) });
       return;
     }
 
@@ -160,8 +151,8 @@ export function RefundOrderModal({
     (mode === "product" && (selectedItemIds.length === 0 || !canSelectAnyItems)) ||
     (mode === "custom" && (customAmountCents <= 0 || customAmountCents > remainingCents));
 
-  const modeButtonStyles = (m: RefundMode) =>
-    mode === m
+  const modeButtonStyles = (value: RefundMode) =>
+    mode === value
       ? "border-brand-text bg-brand-text text-brand-page"
       : "border-brand-border bg-brand-page text-brand-muted hover:border-brand-text hover:text-brand-text";
 
@@ -179,7 +170,7 @@ export function RefundOrderModal({
               Refund Order
             </h2>
             <p className="mt-0.5 text-xs text-brand-muted">
-              #{order?.id.slice(0, 8)} - Remaining {formatMoney(remainingDollars)}
+              #{order?.id.slice(0, 8)} - Remaining {formatRefundMoney(remainingDollars)}
             </p>
           </div>
           <button
@@ -219,98 +210,21 @@ export function RefundOrderModal({
           )}
 
           {mode === "product" && (
-            <div className="space-y-3">
-              <p className="text-sm text-brand-muted">
-                Select products to refund. Already-refunded products are excluded.
-              </p>
-              <div className="max-h-80 space-y-1.5 overflow-y-auto pr-1">
-                {items.map((item) => {
-                  const isRefunded = Boolean(item.refunded_at);
-                  const isSelected = selectedItemIds.includes(item.id);
-                  const lineTotal = Number(item.line_total ?? 0);
-
-                  return (
-                    <label
-                      key={item.id}
-                      className={`flex cursor-pointer items-center gap-3 border p-3 transition-colors ${
-                        isRefunded
-                          ? "border-brand-border bg-brand-page opacity-50"
-                          : isSelected
-                            ? "border-brand-text bg-brand-page"
-                            : "border-brand-border bg-brand-surface hover:border-brand-text"
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        className="rdk-checkbox"
-                        checked={isSelected}
-                        onChange={() => handleToggleItem(item.id)}
-                        disabled={isRefunded || submitting}
-                      />
-                      <img
-                        src={getItemImage(item)}
-                        alt={getItemTitle(item)}
-                        className="h-10 w-10 flex-shrink-0 border border-brand-border bg-brand-page object-cover"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm text-brand-text">
-                          {getItemTitle(item)}
-                        </div>
-                        <div className="text-xs text-brand-muted">
-                          Size {item.size_label ?? item.variant?.size_label ?? "N/A"} ·
-                          Qty {Number(item.quantity ?? 0)}
-                        </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm font-semibold text-brand-text">
-                          {formatMoney(lineTotal)}
-                        </div>
-                        {isRefunded && (
-                          <div className="text-[11px] uppercase tracking-wide text-brand-muted">
-                            Refunded
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-              <div className="border border-brand-border bg-brand-page px-3 py-2 text-sm text-brand-muted">
-                Selected total:{" "}
-                <span className="font-semibold text-brand-text">
-                  {formatMoney(fromCents(selectedProductRefundCents))}
-                </span>
-              </div>
-            </div>
+            <RefundProductSelectionPanel
+              items={items}
+              onToggleItem={handleToggleItem}
+              selectedItemIds={selectedItemIds}
+              selectedProductRefundCents={selectedProductRefundCents}
+              submitting={submitting}
+            />
           )}
 
           {mode === "custom" && (
-            <div className="space-y-2">
-              <label
-                className="block text-sm text-brand-text"
-                htmlFor="custom-refund-amount"
-              >
-                Refund amount
-              </label>
-              <input
-                id="custom-refund-amount"
-                type="text"
-                inputMode="decimal"
-                value={customAmount}
-                onChange={(event) => {
-                  const val = event.target.value;
-                  if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
-                    setCustomAmount(val);
-                  }
-                }}
-                className={adminFormStyles.input}
-                placeholder="0.00"
-              />
-              <p className="text-xs text-brand-muted">
-                Max refundable: {formatMoney(remainingDollars)}. Custom refunds do not
-                mark items as refunded.
-              </p>
-            </div>
+            <RefundCustomAmountPanel
+              customAmount={customAmount}
+              onCustomAmountChange={setCustomAmount}
+              remainingDollars={remainingDollars}
+            />
           )}
 
           {errorMessage && <p className="text-sm text-red-700">{errorMessage}</p>}

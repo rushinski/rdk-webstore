@@ -8,8 +8,60 @@ describe("inventory product list structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/inventory/inventoryProductListView");
-    expect(source).toContain("buildInventoryProductCardModel(");
-    expect(source).toContain("formatInventoryVariantMoney(");
+    expect(source).toContain("@/components/admin/inventory/InventoryProductTable");
+    expect(source).toContain("@/components/admin/inventory/InventoryProductMobileCards");
+  });
+
+  it("delegates expanded inventory variant surfaces to a focused component", () => {
+    const tableSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/InventoryProductTable.tsx",
+      ),
+      "utf8",
+    );
+    const mobileSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/InventoryProductMobileCards.tsx",
+      ),
+      "utf8",
+    );
+    const panelSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/InventoryProductVariantPanels.tsx",
+      ),
+      "utf8",
+    );
+
+    expect(tableSource).toContain(
+      "@/components/admin/inventory/InventoryProductVariantPanels",
+    );
+    expect(tableSource).toContain("buildInventoryProductCardModel(");
+    expect(mobileSource).toContain(
+      "@/components/admin/inventory/InventoryProductVariantPanels",
+    );
+    expect(mobileSource).toContain("buildInventoryProductCardModel(");
+    expect(panelSource).toContain("formatInventoryVariantMoney(");
+  });
+
+  it("shares the product list contract through a focused inventory list types module", () => {
+    const listSource = fs.readFileSync(
+      path.join(process.cwd(), "src/components/admin/inventory/InventoryProductList.tsx"),
+      "utf8",
+    );
+    const typesSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/inventoryProductListTypes.ts",
+      ),
+      "utf8",
+    );
+
+    expect(listSource).toContain(
+      "@/components/admin/inventory/inventoryProductListTypes",
+    );
+    expect(typesSource).toContain("export type InventoryProductListProps = {");
   });
 });

@@ -4,19 +4,14 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import {
-  RefundOrderModal,
-  type RefundableOrder,
-} from "@/components/admin/orders/RefundOrderModal";
+import { type RefundableOrder } from "@/components/admin/orders/RefundOrderModal";
 import {
   AdminOrderItemDetailsModal,
   getOrderItemFinancials,
 } from "@/components/admin/orders/OrderItemDetailsModal";
 import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { Toast } from "@/components/ui/Toast";
 import { useAdminTransactionDetailData } from "@/components/admin/transactions/order-details/useAdminTransactionDetailData";
 import { useAdminTransactionDetailMutations } from "@/components/admin/transactions/order-details/useAdminTransactionDetailMutations";
@@ -35,6 +30,7 @@ import { EmailChecklistSection } from "./EmailChecklistSection";
 import { EmailPreviewModal } from "./EmailPreviewModal";
 import { PaymentEventDrawer } from "./PaymentEventDrawer";
 import { SessionActivitySection } from "./SessionActivitySection";
+import { TransactionHeaderActions } from "./TransactionHeaderActions";
 import { TransactionFulfillmentPanels } from "./TransactionFulfillmentPanels";
 import { TransactionPriceBreakdownSection } from "./TransactionPriceBreakdownSection";
 import { TransactionSidebar } from "./TransactionSidebar";
@@ -42,6 +38,22 @@ import type { EmailLog, OrderItem } from "./types";
 
 const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const fmtMoney = (value: number | null | undefined) => fmt.format(Number(value ?? 0));
+
+const getTransactionStatusTone = (
+  status: string | null | undefined,
+): "success" | "warning" | "danger" | "neutral" => {
+  if (status === "failed" || status === "refund_failed") {
+    return "danger";
+  }
+  if (
+    status === "review" ||
+    status === "refund_pending" ||
+    status === "partially_refunded"
+  ) {
+    return "warning";
+  }
+  return "success";
+};
 
 export function AdminTransactionDetailScreen() {
   const params = useParams();
@@ -210,35 +222,19 @@ export function AdminTransactionDetailScreen() {
             : `${isPickup ? "Pickup" : "Shipping"} order activity, payment state, and customer session detail.`
         }
         actions={
-          <div className="flex flex-col items-end gap-2">
-            <AdminStatusBadge
-              tone={
-                order.status === "failed" || order.status === "refund_failed"
-                  ? "danger"
-                  : order.status === "review" ||
-                      order.status === "refund_pending" ||
-                      order.status === "partially_refunded"
-                    ? "warning"
-                    : "success"
-              }
-            >
-              {statusMeta.label}
-            </AdminStatusBadge>
-            {isRefundable && (
-              <button
-                type="button"
-                onClick={() => setRefundOpen(true)}
-                className={adminButtonStyles.danger}
-              >
-                Issue refund
-              </button>
-            )}
-            {refundedCents > 0 && (
-              <div className="text-right text-sm text-red-700">
-                -{fmtMoney(refundedAmount)} refunded
-              </div>
-            )}
-          </div>
+          <TransactionHeaderActions
+            isRefundSubmitting={isRefundSubmitting}
+            isRefundable={isRefundable}
+            onConfirmRefund={confirmRefund}
+            onOpenRefund={() => setRefundOpen(true)}
+            onCloseRefund={() => setRefundOpen(false)}
+            refundedAmount={refundedAmount}
+            refundedCents={refundedCents}
+            refundOpen={refundOpen}
+            refundableOrder={refundableOrder as RefundableOrder}
+            statusLabel={statusMeta.label}
+            statusTone={getTransactionStatusTone(order.status)}
+          />
         }
       />
 
@@ -335,14 +331,6 @@ export function AdminTransactionDetailScreen() {
         onClose={closePaymentDrawer}
         getEventMeta={getEventMeta}
         fmtDate={fmtDate}
-      />
-
-      <RefundOrderModal
-        open={refundOpen}
-        order={refundableOrder as RefundableOrder}
-        submitting={isRefundSubmitting}
-        onClose={() => setRefundOpen(false)}
-        onConfirm={confirmRefund}
       />
 
       <AdminOrderItemDetailsModal

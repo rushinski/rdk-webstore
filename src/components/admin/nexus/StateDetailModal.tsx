@@ -1,24 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertTriangle, DollarSign, ExternalLink, X } from "lucide-react";
+import { AlertTriangle, DollarSign, X } from "lucide-react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { StateRegistrationSetupSection } from "@/components/admin/nexus/StateRegistrationSetupSection";
+import { StateSalesHistorySection } from "@/components/admin/nexus/StateSalesHistorySection";
+import type { SalesLog } from "@/components/admin/nexus/stateDetailTypes";
 import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { ModalPortal } from "@/components/ui/ModalPortal";
-import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
-
-type SalesLog = {
-  order_id: string;
-  created_at: string;
-  total: number;
-  tax_amount: number;
-  customer_state: string;
-  fulfillment: string;
-  status: string;
-};
 
 type StateDetailModalProps = {
   state: StateSummary;
@@ -246,190 +236,27 @@ export default function StateDetailModal({
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-brand-text">Sales History</h3>
-              {salesLog.length === 0 && (
-                <button
-                  onClick={handleViewSalesLog}
-                  disabled={!hasSales || loadingSalesLog}
-                  className={[
-                    adminButtonStyles.secondary,
-                    !hasSales ? "cursor-not-allowed opacity-40" : "",
-                    "disabled:cursor-not-allowed disabled:opacity-50",
-                  ].join(" ")}
-                  title={!hasSales ? "No sales in this state yet" : "View all sales"}
-                >
-                  {loadingSalesLog
-                    ? "Loading..."
-                    : !hasSales
-                      ? "No Sales Yet"
-                      : "View All Sales"}
-                </button>
-              )}
-            </div>
+          <StateSalesHistorySection
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
+            hasCheckedSales={hasCheckedSales}
+            hasSales={hasSales}
+            loadingSalesLog={loadingSalesLog}
+            onSalesLogPageChange={handleSalesLogPageChange}
+            onViewSalesLog={handleViewSalesLog}
+            salesLog={salesLog}
+            salesLogPage={salesLogPage}
+            salesLogTotal={salesLogTotal}
+          />
 
-            {!hasSales && !hasCheckedSales && (
-              <AdminSectionCard>
-                <div className="text-center text-brand-muted">
-                  No sales recorded for this state yet
-                </div>
-              </AdminSectionCard>
-            )}
-
-            {salesLog.length > 0 && (
-              <div className="space-y-4">
-                <div className="overflow-hidden border border-brand-border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-brand-page">
-                      <tr>
-                        <th className="px-4 py-2 text-left text-brand-text">Date</th>
-                        <th className="px-4 py-2 text-left text-brand-text">Order ID</th>
-                        <th className="px-4 py-2 text-right text-brand-text">Total</th>
-                        <th className="px-4 py-2 text-right text-brand-text">Tax</th>
-                        <th className="px-4 py-2 text-left text-brand-text">Type</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-brand-border">
-                      {salesLog.map((sale) => (
-                        <tr key={sale.order_id} className="hover:bg-brand-page">
-                          <td className="px-4 py-2 text-brand-muted">
-                            {formatDate(sale.created_at)}
-                          </td>
-                          <td className="px-4 py-2 font-mono text-xs text-brand-muted">
-                            {sale.order_id.slice(0, 8)}...
-                          </td>
-                          <td className="px-4 py-2 text-right text-brand-text">
-                            {formatCurrency(sale.total)}
-                          </td>
-                          <td className="px-4 py-2 text-right font-medium text-emerald-700">
-                            {formatCurrency(sale.tax_amount)}
-                          </td>
-                          <td className="px-4 py-2 capitalize text-brand-muted">
-                            {sale.fulfillment}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-brand-muted">
-                    Showing {salesLogPage * 10 + 1} to{" "}
-                    {Math.min((salesLogPage + 1) * 10, salesLogTotal)} of {salesLogTotal}{" "}
-                    sales
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleSalesLogPageChange(salesLogPage - 1)}
-                      disabled={salesLogPage === 0 || loadingSalesLog}
-                      className={`${adminButtonStyles.secondary} disabled:opacity-50`}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => handleSalesLogPageChange(salesLogPage + 1)}
-                      disabled={
-                        (salesLogPage + 1) * 10 >= salesLogTotal || loadingSalesLog
-                      }
-                      className={`${adminButtonStyles.secondary} disabled:opacity-50`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {!state.isHomeState && (
-            <div className="flex gap-3">
-              <button
-                onClick={() => onNexusTypeChange(state.stateCode, "physical")}
-                disabled={isUpdating}
-                className={[
-                  "border px-4 py-2 text-sm",
-                  state.nexusType === "physical"
-                    ? "border-brand-text bg-brand-text text-brand-page"
-                    : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                ].join(" ")}
-              >
-                Physical Nexus
-              </button>
-              <button
-                onClick={() => onNexusTypeChange(state.stateCode, "economic")}
-                disabled={isUpdating}
-                className={[
-                  "border px-4 py-2 text-sm",
-                  state.nexusType === "economic"
-                    ? "border-brand-text bg-brand-text text-brand-page"
-                    : "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                ].join(" ")}
-              >
-                Economic Nexus
-              </button>
-            </div>
-          )}
-
-          <div className="border border-brand-border bg-brand-page p-4">
-            <div className="mb-2 text-sm font-semibold text-brand-text">
-              Registration & setup
-            </div>
-            <div className="text-sm text-brand-muted">
-              Mark your <span className="font-medium text-brand-text">state permit</span>{" "}
-              status here, and use the resources to complete state registration.
-            </div>
-
-            {!isHomeOfficeConfigured && (
-              <div className="mt-3 text-xs text-amber-700">
-                Home Office is required for tax registrations (Settings &gt; Home Office).
-                <button
-                  onClick={onOpenHomeOffice}
-                  className="ml-2 underline underline-offset-2 hover:text-amber-900"
-                >
-                  Open Home Office
-                </button>
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() =>
-                  onRegisterToggle(state.stateCode, state.isRegistered, state.nexusType)
-                }
-                disabled={isUpdating}
-                className={[
-                  state.isRegistered
-                    ? adminButtonStyles.secondary
-                    : adminButtonStyles.primary,
-                  "px-3 py-1.5 text-sm",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                ].join(" ")}
-                title={
-                  state.isRegistered ? "Mark as not registered" : "Mark as registered"
-                }
-              >
-                {state.isRegistered
-                  ? "Mark permit as not registered"
-                  : "Mark permit as registered"}
-              </button>
-
-              {STATE_REGISTRATION_URLS[state.stateCode] && (
-                <a
-                  href={STATE_REGISTRATION_URLS[state.stateCode]}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`${adminButtonStyles.secondary} gap-2 px-3 py-1.5 text-sm`}
-                >
-                  State registration site <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-            </div>
-          </div>
+          <StateRegistrationSetupSection
+            isHomeOfficeConfigured={isHomeOfficeConfigured}
+            isUpdating={isUpdating}
+            onNexusTypeChange={onNexusTypeChange}
+            onOpenHomeOffice={onOpenHomeOffice}
+            onRegisterToggle={onRegisterToggle}
+            state={state}
+          />
         </div>
       </div>
     </ModalPortal>

@@ -2,7 +2,7 @@ import type {
   InventoryFilters,
   StockStatus,
 } from "@/components/admin/inventory/inventoryClientData";
-import type { InventoryProductListProps } from "@/components/admin/inventory/InventoryProductList";
+import type { InventoryProductListProps } from "@/components/admin/inventory/inventoryProductListTypes";
 import type {
   Category,
   Condition,

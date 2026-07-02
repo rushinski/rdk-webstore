@@ -1,11 +1,14 @@
 import type { RdkSelectOption } from "@/components/ui/Select";
 import type { StateSummary } from "@/types/domain/nexus";
 
-type NexusTrackerFilters = {
+export type NexusTrackerFilterValues = {
   filterNeedsAction: boolean;
   filterNexusType: "all" | "physical" | "economic";
   filterRegistered: "all" | "registered" | "unregistered";
   filterWindow: "all" | "calendar" | "rolling";
+};
+
+type NexusTrackerFilters = NexusTrackerFilterValues & {
   searchQuery: string;
   sortDirection: "asc" | "desc";
   sortField: keyof StateSummary;

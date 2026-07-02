@@ -2,11 +2,8 @@ import { Fragment } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { type AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import {
-  buildPickupOrderItemModel,
-  buildPickupOrderRowModel,
-} from "@/components/admin/pickups/pickupOrdersTableView";
+import { PickupOrderExpansionPanels } from "@/components/admin/pickups/PickupOrderExpansionPanels";
+import { buildPickupOrderRowModel } from "@/components/admin/pickups/pickupOrdersTableView";
 
 import type { PickupOrder, PickupOrderItem } from "./pickupTypes";
 
@@ -15,9 +12,6 @@ const tableHeaderCellStyles =
 
 const rowStyles =
   "cursor-pointer border-b border-brand-border transition hover:bg-brand-page";
-const refundedPanelStyles = "border border-red-200 bg-red-50";
-const itemLabelStyles = "mb-0.5 text-[10px] uppercase tracking-tight text-brand-muted";
-const mobileItemActionStyles = "mt-1 text-xs text-brand-text transition hover:text-black";
 
 type PickupOrdersTableProps = {
   activeTab: "pending" | "completed";
@@ -76,6 +70,15 @@ export function PickupOrdersTable({
       </thead>
       <tbody>
         {filteredOrders.map((order) => {
+          const rowModel = buildPickupOrderRowModel({
+            activeTab,
+            expandedDetails,
+            expandedOrders,
+            getCustomerEmail,
+            getCustomerName,
+            markingId,
+            order,
+          });
           const {
             createdAt,
             customerEmail,
@@ -88,15 +91,7 @@ export function PickupOrdersTable({
             itemsExpanded,
             profit,
             profitPrefix,
-          } = buildPickupOrderRowModel({
-            activeTab,
-            expandedDetails,
-            expandedOrders,
-            getCustomerEmail,
-            getCustomerName,
-            markingId,
-            order,
-          });
+          } = rowModel;
           const colSpan = 9;
 
           return (
@@ -187,247 +182,16 @@ export function PickupOrdersTable({
                   </div>
                 </td>
               </tr>
-              {itemsExpanded && (
-                <tr className="hidden bg-brand-page md:table-row">
-                  <td colSpan={colSpan} className="border-b border-brand-border p-0">
-                    <div className="flex flex-col">
-                      {(order.items ?? []).map((item: PickupOrderItem) => {
-                        const {
-                          formattedLineTotal,
-                          formattedUnitProfit,
-                          imageUrl,
-                          isPositive,
-                          isRefunded,
-                          title,
-                        } = buildPickupOrderItemModel(
-                          item,
-                          getOrderTitle,
-                          getPrimaryImage,
-                        );
-
-                        return (
-                          <div
-                            key={item.id}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onOpenItemDetails(item);
-                            }}
-                            className={`group relative cursor-pointer px-6 py-4 transition-colors ${
-                              isRefunded ? refundedPanelStyles : "hover:bg-brand-surface"
-                            }`}
-                          >
-                            {isRefunded && (
-                              <span className="absolute inset-y-0 left-0 w-1 bg-red-300" />
-                            )}
-                            <div
-                              className={`flex items-center justify-start gap-8 ${
-                                isRefunded ? "opacity-60" : ""
-                              }`}
-                            >
-                              <div className="h-12 w-12 flex-shrink-0 overflow-hidden border border-brand-border bg-brand-page">
-                                <img
-                                  src={imageUrl}
-                                  alt={title}
-                                  className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100"
-                                />
-                              </div>
-                              <div className="w-48 flex-shrink-0">
-                                <div className={itemLabelStyles}>Product</div>
-                                <div
-                                  className="truncate text-sm font-semibold text-brand-text"
-                                  title={title}
-                                >
-                                  {title}
-                                </div>
-                              </div>
-                              <div className="w-28 flex-shrink-0">
-                                <div className={itemLabelStyles}>Size</div>
-                                <div className="text-sm font-medium text-brand-text">
-                                  {item.size_label ?? item.variant?.size_label ?? "N/A"}
-                                </div>
-                              </div>
-                              <div className="w-24 flex-shrink-0">
-                                <div className={itemLabelStyles}>Qty</div>
-                                <div className="text-sm font-medium text-brand-text">
-                                  {item.quantity}
-                                </div>
-                              </div>
-                              <div className="w-32 flex-shrink-0 text-left">
-                                <div className={itemLabelStyles}>Line Total</div>
-                                <div className="text-sm font-bold text-brand-text">
-                                  {formattedLineTotal}
-                                </div>
-                              </div>
-                              <div className="w-32 flex-shrink-0 text-left">
-                                <div className={itemLabelStyles}>Profit</div>
-                                <div
-                                  className={`text-sm font-bold ${
-                                    isPositive ? "text-emerald-700" : "text-red-700"
-                                  }`}
-                                >
-                                  {formattedUnitProfit}
-                                </div>
-                              </div>
-                              <div className="w-20 flex-shrink-0">
-                                {isRefunded ? (
-                                  <AdminStatusBadge tone="danger">
-                                    Refunded
-                                  </AdminStatusBadge>
-                                ) : (
-                                  <span className="text-xs font-medium text-brand-text transition-colors group-hover:text-black">
-                                    Details
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </td>
-                </tr>
-              )}
-              {detailsExpanded && (
-                <tr className="border-b border-brand-border bg-brand-page md:hidden">
-                  <td colSpan={colSpan} className="px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
-                    <div className="space-y-3 text-sm">
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-brand-muted">Placed</span>
-                        <span className="text-brand-text">
-                          {createdAt
-                            ? `${createdAt.toLocaleDateString()} ${createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                            : "-"}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-brand-muted">Customer</span>
-                        <span className="text-brand-text">{customerName}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-brand-muted">Email</span>
-                        <span className="truncate text-brand-text">{customerEmail}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-brand-muted">Fulfillment</span>
-                        <span className="text-brand-text">{fulfillmentLabel}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-brand-muted">Profit</span>
-                        <span
-                          className={profit >= 0 ? "text-emerald-700" : "text-red-700"}
-                        >
-                          {profitPrefix}${Math.abs(profit).toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-brand-muted">Pickup</span>
-                        {isPickedUp ? (
-                          <span className="text-brand-text">Completed</span>
-                        ) : (
-                          <label className="flex items-center gap-2 text-brand-text">
-                            <input
-                              type="checkbox"
-                              className="rdk-checkbox"
-                              checked={false}
-                              disabled={isDisabled}
-                              onChange={() => {
-                                void onMarkPickedUp(order);
-                              }}
-                              aria-label={`Mark order ${order.id} picked up`}
-                            />
-                            <span className="text-sm text-brand-text">
-                              {markingId === order.id ? "Marking..." : "Mark complete"}
-                            </span>
-                          </label>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 border-t border-brand-border pt-4">
-                      <div className="mb-2 text-[11px] uppercase tracking-wide text-brand-muted">
-                        Items
-                      </div>
-                      <div className="space-y-2">
-                        {(order.items ?? []).map((item: PickupOrderItem) => {
-                          const {
-                            formattedLineTotal,
-                            formattedUnitPrice,
-                            formattedUnitProfit,
-                            imageUrl,
-                            isRefunded,
-                            title,
-                          } = buildPickupOrderItemModel(
-                            item,
-                            getOrderTitle,
-                            getPrimaryImage,
-                          );
-
-                          return (
-                            <div
-                              key={item.id}
-                              onClick={() => onOpenItemDetails(item)}
-                              className={`relative flex cursor-pointer items-start gap-3 rounded-sm p-2 text-base transition ${
-                                isRefunded
-                                  ? refundedPanelStyles
-                                  : "hover:bg-brand-surface"
-                              }`}
-                            >
-                              {isRefunded && (
-                                <span className="absolute inset-y-0 left-0 w-1 rounded-l-sm bg-red-300" />
-                              )}
-                              <img
-                                src={imageUrl}
-                                alt={title}
-                                className="h-14 w-14 flex-shrink-0 border border-brand-border bg-brand-page object-cover"
-                              />
-                              <div className="min-w-0">
-                                <div className="truncate text-brand-text">{title}</div>
-                                <div className="text-sm text-brand-muted">
-                                  Size{" "}
-                                  {item.size_label ?? item.variant?.size_label ?? "N/A"} -
-                                  Qty {item.quantity}
-                                </div>
-                                <div className="mt-0.5 text-sm font-medium text-brand-text">
-                                  {formattedLineTotal}
-                                </div>
-                                <div className="mt-0.5 text-xs text-brand-muted">
-                                  Price {formattedUnitPrice} - Profit{" "}
-                                  <span
-                                    className={
-                                      formattedUnitProfit.startsWith("+")
-                                        ? "text-emerald-700"
-                                        : "text-red-700"
-                                    }
-                                  >
-                                    {formattedUnitProfit}
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    onOpenItemDetails(item);
-                                  }}
-                                  className={mobileItemActionStyles}
-                                >
-                                  View more details
-                                </button>
-                              </div>
-                              {isRefunded && (
-                                <div className="absolute right-2 top-2">
-                                  <AdminStatusBadge tone="danger">
-                                    Refunded
-                                  </AdminStatusBadge>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
+              <PickupOrderExpansionPanels
+                colSpan={colSpan}
+                getOrderTitle={getOrderTitle}
+                getPrimaryImage={getPrimaryImage}
+                markingId={markingId}
+                onMarkPickedUp={onMarkPickedUp}
+                onOpenItemDetails={onOpenItemDetails}
+                order={order}
+                rowModel={rowModel}
+              />
             </Fragment>
           );
         })}

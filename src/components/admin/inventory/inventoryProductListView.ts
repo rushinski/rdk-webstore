@@ -1,6 +1,6 @@
 import type { ProductWithDetails } from "@/types/domain/product";
 
-type InventoryLiveState = {
+export type InventoryLiveState = {
   isLive: boolean;
   label: string;
   detail: string | null;

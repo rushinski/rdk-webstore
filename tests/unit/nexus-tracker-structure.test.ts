@@ -22,4 +22,16 @@ describe("nexus tracker structure", () => {
     expect(source).toContain("buildFilteredAndSortedStates(");
     expect(source).toContain("buildNexusTrackerMetrics(");
   });
+
+  it("delegates tracker filters and state coverage table rendering to focused components", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "src/components/admin/nexus/NexusTrackerClient.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("@/components/admin/nexus/NexusTrackerFilters");
+    expect(source).toContain("@/components/admin/nexus/NexusStateCoverageTable");
+    expect(source).toContain("<NexusTrackerFilters");
+    expect(source).toContain("<NexusStateCoverageTable");
+  });
 });

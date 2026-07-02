@@ -57,6 +57,8 @@ export function buildPickupOrderRowModel({
   };
 }
 
+export type PickupOrderRowModel = ReturnType<typeof buildPickupOrderRowModel>;
+
 export function buildPickupOrderItemModel(
   item: PickupOrderItem,
   getOrderTitle: (item: PickupOrderItem) => string,
