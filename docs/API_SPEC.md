@@ -42,8 +42,6 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `GET /api/account/addresses` - list addresses
 - `POST /api/account/addresses` - add address
 - `DELETE /api/account/addresses/{addressId}` - delete address
-- `GET /api/account/notifications` - get chat notification preferences
-- `PATCH /api/account/notifications` - update chat notification preferences (inline zod schema)
 - `POST /api/account/password` - change password
 - `GET /api/account/shipping` - fetch shipping profile
 - `POST /api/account/shipping` - update shipping profile (inline zod schema)
@@ -64,8 +62,9 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 
 ## Checkout
 
-- `POST /api/checkout/session` - create Stripe checkout session (body: `checkoutSessionSchema`, optional `guestEmail`)
-- `POST /api/checkout/create-payment-intent` - create or update payment intent (body: `checkoutSessionSchema`)
+- `POST /api/checkout/init-checkout` - initialize checkout state and pricing for hosted payment entry
+- `POST /api/checkout/create-checkout` - submit checkout for payment authorization/capture
+- `POST /api/checkout/update-guest-email` - persist guest checkout email
 - `POST /api/checkout/update-fulfillment` - update fulfillment (body: `updateFulfillmentSchema`)
 - `POST /api/checkout/calculate-shipping` - calculate shipping (body: `calculateShippingSchema`)
 - `POST /api/checkout/confirm-payment` - confirm payment (body: `confirmPaymentSchema`)
@@ -83,19 +82,8 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 
 - `POST /api/contact` - contact form submission (body: `contactSchema`)
 
-## Chats
-
-- `GET /api/chats` - list chats (admin)
-- `POST /api/chats` - create chat
-- `GET /api/chats/current` - current chat for user
-- `GET /api/chats/{chatId}/messages` - list messages
-- `POST /api/chats/{chatId}/messages` - send message
-- `POST /api/chats/{chatId}/close` - close chat
-- Guest chat endpoints are disabled in MVP (return 403).
-
 ## Analytics
 
-- `POST /api/analytics/track` - record client events
 
 ## Invites
 
@@ -103,7 +91,6 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 
 ## Webhooks
 
-- `POST /api/webhooks/stripe` - Stripe webhook (signature required)
 - `POST /api/webhooks/shippo` - Shippo webhook (token required)
 - Intended use: carrier tracking lifecycle updates (`track_updated`, plus `transaction_updated` when it includes tracking data)
 - Not intended use: label-created notifications; those are sent during `POST /api/admin/shipping/labels`
@@ -159,25 +146,7 @@ This spec is derived from `app/api/**/route.ts`. It lists routes, methods, and p
 - `POST /api/admin/shipping/rates` - fetch Shippo rates
 - `POST /api/admin/shipping/labels` - purchase label
 
-### Stripe Connect (admin payouts)
-
-- `GET /api/admin/stripe/account` - get Stripe account summary
-- `POST /api/admin/stripe/account-session` - create account session
-- `POST /api/admin/stripe/payout-account` - create or update payout account
-- `POST /api/admin/stripe/bank-account-delete` - delete external account
-- `POST /api/admin/stripe/payout-schedule` - update payout schedule
-- `GET /api/admin/stripe/payouts` - list payouts
-- `POST /api/admin/stripe/payout-create` - create payout
-- `POST /api/admin/payout` - update payout settings (body: `payoutSettingsSchema`)
-
-### Invites and notifications
+### Invites
 
 - `POST /api/admin/invites` - create admin invite (body: `adminInviteCreateSchema`)
-- `GET /api/admin/notifications` - list notifications
-- `PATCH /api/admin/notifications` - mark notifications read (body: `adminNotificationUpdateSchema`)
-- `DELETE /api/admin/notifications` - clear notifications
-- `GET /api/admin/notifications/unread-count` - unread count
-
 ### Analytics
-
-- `GET /api/admin/analytics` - admin metrics

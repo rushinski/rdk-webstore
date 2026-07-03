@@ -6,8 +6,8 @@ describe("nexus logging structure", () => {
     const files = [
       "src/components/admin/nexus/useNexusTrackerLoading.ts",
       "src/components/admin/nexus/useNexusTrackerMutations.ts",
-      "src/components/admin/nexus/NexusMap.tsx",
-      "src/components/admin/nexus/StateDetailModal.tsx",
+      "src/components/admin/nexus/useNexusMapInteraction.ts",
+      "src/components/admin/nexus/useStateDetailSalesLog.ts",
       "src/components/admin/nexus/HomeOfficeSetupModal.tsx",
     ];
 

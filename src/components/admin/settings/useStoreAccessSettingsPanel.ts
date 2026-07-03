@@ -6,15 +6,12 @@ import { logError } from "@/lib/utils/log";
 
 import {
   DEFAULT_CHECKOUT_LOCK_MESSAGE,
-  toDateTimeLocalValue,
   type StoreAccessSettingsResponse,
 } from "./storeAccessSettingsShared";
 
 export function useStoreAccessSettingsPanel() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [siteLockEnabled, setSiteLockEnabled] = useState(false);
-  const [siteUnlockAt, setSiteUnlockAt] = useState("");
   const [checkoutLockEnabled, setCheckoutLockEnabled] = useState(false);
   const [checkoutLockMessage, setCheckoutLockMessage] = useState(
     DEFAULT_CHECKOUT_LOCK_MESSAGE,
@@ -32,8 +29,6 @@ export function useStoreAccessSettingsPanel() {
         }
 
         if (data.settings) {
-          setSiteLockEnabled(Boolean(data.settings.siteLockEnabled));
-          setSiteUnlockAt(toDateTimeLocalValue(data.settings.siteUnlockAt ?? null));
           setCheckoutLockEnabled(Boolean(data.settings.checkoutLockEnabled));
           setCheckoutLockMessage(
             data.settings.checkoutLockMessage ?? DEFAULT_CHECKOUT_LOCK_MESSAGE,
@@ -63,8 +58,6 @@ export function useStoreAccessSettingsPanel() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          siteLockEnabled,
-          siteUnlockAt: siteUnlockAt ? new Date(siteUnlockAt).toISOString() : null,
           checkoutLockEnabled,
           checkoutLockMessage,
         }),
@@ -77,8 +70,6 @@ export function useStoreAccessSettingsPanel() {
 
       setMessage("Store access settings updated.");
       if (data.settings) {
-        setSiteLockEnabled(Boolean(data.settings.siteLockEnabled));
-        setSiteUnlockAt(toDateTimeLocalValue(data.settings.siteUnlockAt ?? null));
         setCheckoutLockEnabled(Boolean(data.settings.checkoutLockEnabled));
         setCheckoutLockMessage(
           data.settings.checkoutLockMessage ?? DEFAULT_CHECKOUT_LOCK_MESSAGE,
@@ -103,9 +94,5 @@ export function useStoreAccessSettingsPanel() {
     save,
     setCheckoutLockEnabled,
     setCheckoutLockMessage,
-    setSiteLockEnabled,
-    setSiteUnlockAt,
-    siteLockEnabled,
-    siteUnlockAt,
   };
 }

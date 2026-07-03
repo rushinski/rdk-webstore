@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireUserApi } from "@/lib/auth/session";
-import { OrdersService } from "@/services/orders-service";
+import { OrdersService } from "@/modules/orders";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 

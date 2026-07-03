@@ -72,9 +72,9 @@ export type Order = {
 
 export type PaymentTransaction = {
   id: string;
-  payrilla_reference_number?: number | null;
-  payrilla_auth_code?: string | null;
-  payrilla_status?: string | null;
+  processorReference?: number | null;
+  authorizationCode?: string | null;
+  paymentStatus?: string | null;
   card_type?: string | null;
   card_last4?: string | null;
   card_expiry_month?: number | null;
@@ -82,8 +82,8 @@ export type PaymentTransaction = {
   avs_result_code?: string | null;
   cvv2_result_code?: string | null;
   three_ds_status?: string | null;
-  nofraud_transaction_id?: string | null;
-  nofraud_decision?: string | null;
+  riskReviewId?: string | null;
+  riskDecision?: string | null;
   amount_authorized?: number | null;
   amount_captured?: number | null;
   billing_name?: string | null;

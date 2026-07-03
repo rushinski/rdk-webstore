@@ -8,7 +8,7 @@ import { z } from "zod";
 import { env } from "@/config/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
-import { OrdersRepository } from "@/repositories/orders-repo";
+import { OrdersRepository } from "@/modules/orders";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { ShippoService } from "@/services/shipping-label-service";
 import { OrderEmailService } from "@/services/order-email-service";

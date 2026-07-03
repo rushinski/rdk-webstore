@@ -1,10 +1,7 @@
 "use client";
 
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import {
-  CheckoutLockCard,
-  SiteLockCard,
-} from "@/components/admin/settings/StoreAccessCards";
+import { CheckoutLockCard } from "@/components/admin/settings/StoreAccessCards";
 import { useStoreAccessSettingsPanel } from "@/components/admin/settings/useStoreAccessSettingsPanel";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 
@@ -18,10 +15,6 @@ export function StoreAccessSettingsPanel() {
     save,
     setCheckoutLockEnabled,
     setCheckoutLockMessage,
-    setSiteLockEnabled,
-    setSiteUnlockAt,
-    siteLockEnabled,
-    siteUnlockAt,
   } = useStoreAccessSettingsPanel();
 
   if (isLoading) {
@@ -33,14 +26,7 @@ export function StoreAccessSettingsPanel() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <SiteLockCard
-        siteLockEnabled={siteLockEnabled}
-        siteUnlockAt={siteUnlockAt}
-        onSiteLockEnabledChange={setSiteLockEnabled}
-        onSiteUnlockAtChange={setSiteUnlockAt}
-      />
-
+    <div className="grid gap-4">
       <CheckoutLockCard
         checkoutLockEnabled={checkoutLockEnabled}
         checkoutLockMessage={checkoutLockMessage}
@@ -48,7 +34,7 @@ export function StoreAccessSettingsPanel() {
         onCheckoutLockMessageChange={setCheckoutLockMessage}
       />
 
-      <div className="flex items-center justify-between gap-3 lg:col-span-2">
+      <div className="flex items-center justify-between gap-3">
         <span className="text-sm text-brand-muted">{message}</span>
         <button
           type="button"

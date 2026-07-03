@@ -15,7 +15,6 @@ export type CustomerDetail = {
   totalSpend: number;
   paymentCount: number;
   primaryPaymentMethod: string | null;
-  payrillaCustomerToken: string | null;
 };
 
 export type CustomerPayment = {

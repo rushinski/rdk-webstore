@@ -15,11 +15,6 @@ const schema = z.object({
 
   HERE_MAPS_API_KEY: z.string().min(1),
 
-  UPSTASH_REDIS_REST_URL: z.string().url(),
-  UPSTASH_REDIS_REST_TOKEN: z.string(),
-
-  ADMIN_SESSION_SECRET: z.string(),
-
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
 
@@ -35,27 +30,6 @@ const schema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string(),
 
   ORDER_ACCESS_TOKEN_SECRET: z.string().min(16),
-
-  PAYRILLA_WEBHOOK: z.string().optional().default(""),
-  PAYRILLA_API_URL: z
-    .string()
-    .url()
-    .optional()
-    .default("https://api.payrillagateway.com/api/v2"),
-  PAYRILLA_SOURCE_KEY: z.string().optional().default(""),
-  PAYRILLA_PIN: z.string().optional().default(""),
-  PAYRILLA_TOKEN: z.string().optional().default(""),
-  NEXT_PUBLIC_PAYRILLA_TOKENIZATION_URL: z
-    .string()
-    .url()
-    .default("https://tokenization.sandbox.payrillagateway.com/tokenization/v0.3"),
-  NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID: z.string().optional().default(""),
-  NEXT_PUBLIC_GOOGLE_PAY_GATEWAY_MERCHANT_ID: z.string().optional().default(""),
-
-  ZIPTAX_API_KEY: z.string().min(1),
-
-  NOFRAUD_API_KEY: z.string().min(1),
-  NEXT_PUBLIC_NOFRAUD_CUSTOMER_CODE: z.string().min(1),
 
   NODE_ENV: z
     .enum(["development", "test", "production"])

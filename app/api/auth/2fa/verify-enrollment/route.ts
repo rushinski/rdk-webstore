@@ -2,12 +2,11 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
-import { AdminAuthService } from "@/services/admin-auth-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import { twoFactorVerifyEnrollmentSchema } from "@/lib/validation/auth";
+import { AdminAuthService } from "@/services/admin-auth-service";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
@@ -26,7 +25,7 @@ export async function POST(req: NextRequest) {
     const supabase = await createSupabaseServerClient();
     const adminAuthService = new AdminAuthService(supabase);
 
-    const { userId } = await adminAuthService.requireAdminUser();
+    await adminAuthService.requireAdminUser();
 
     // Create challenge
     const { data: challengeData, error: challengeError } =
@@ -55,14 +54,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Success! Set admin session cookie and return
-    let res = NextResponse.json<{ ok: true }>(
+    return NextResponse.json<{ ok: true }>(
       { ok: true },
       { headers: { "Cache-Control": "no-store" } },
     );
-    res = await setAdminSessionCookie(res, userId);
-
-    return res;
   } catch (error) {
     logError(error, {
       layer: "auth",

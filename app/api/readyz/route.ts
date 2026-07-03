@@ -1,7 +1,6 @@
 // app/api/readyz/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { Redis } from "@upstash/redis";
 
 import { env } from "@/config/env"; // <-- Zod validation happens on import
 
@@ -22,37 +21,6 @@ export async function GET() {
           ready: false,
           error: "Supabase query failed",
           details: dbError.message,
-        },
-        { status: 500 },
-      );
-    }
-
-    // Redis readiness
-    const redis = new Redis({
-      url: env.UPSTASH_REDIS_REST_URL,
-      token: env.UPSTASH_REDIS_REST_TOKEN,
-    });
-
-    let pong: string;
-    try {
-      pong = await redis.ping();
-    } catch (redisErr) {
-      return NextResponse.json(
-        {
-          ready: false,
-          error: "Redis unreachable",
-          details: redisErr instanceof Error ? redisErr.message : "Unknown Redis error",
-        },
-        { status: 500 },
-      );
-    }
-
-    if (pong !== "PONG") {
-      return NextResponse.json(
-        {
-          ready: false,
-          error: "Upstash returned invalid response",
-          returned: pong,
         },
         { status: 500 },
       );

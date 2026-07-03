@@ -16,16 +16,24 @@ describe("admin transactions structure", () => {
   });
 
   it("delegates transaction search and row display helpers to a focused view module", () => {
-    const source = fs.readFileSync(
+    const screenSource = fs.readFileSync(
       path.join(
         process.cwd(),
         "src/components/admin/transactions/AdminTransactionsScreen.tsx",
       ),
       "utf8",
     );
+    const tableSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/transactions/TransactionsTable.tsx",
+      ),
+      "utf8",
+    );
 
-    expect(source).toContain("@/components/admin/transactions/transactionsView");
-    expect(source).toContain("buildFilteredTransactions(");
-    expect(source).toContain("buildTransactionRowModel(");
+    expect(screenSource).toContain("@/components/admin/transactions/transactionsView");
+    expect(screenSource).toContain("buildFilteredTransactions(");
+    expect(tableSource).toContain("@/components/admin/transactions/transactionsView");
+    expect(tableSource).toContain("buildTransactionRowModel(");
   });
 });

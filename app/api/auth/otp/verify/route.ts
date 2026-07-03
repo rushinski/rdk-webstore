@@ -2,14 +2,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AuthService } from "@/services/auth-service";
-import { setAdminSessionCookie } from "@/lib/http/admin-session-cookie";
-import { AdminAuthService } from "@/services/admin-auth-service";
+import { isAdminRole, isProfileRole } from "@/config/constants/roles";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
 import { otpVerifySchema } from "@/lib/validation/auth";
-import { isAdminRole, isProfileRole } from "@/config/constants/roles";
+import { AdminAuthService } from "@/services/admin-auth-service";
+import { AuthService } from "@/services/auth-service";
 
 export async function POST(req: NextRequest) {
   const requestId = getRequestIdFromHeaders(req.headers);
@@ -77,8 +76,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Already at aal2, set admin cookie
-    let res = NextResponse.json<{ ok: true; isAdmin: true; requestId: string }>(
+    return NextResponse.json<{ ok: true; isAdmin: true; requestId: string }>(
       {
         ok: true,
         isAdmin: true,
@@ -86,10 +84,6 @@ export async function POST(req: NextRequest) {
       },
       { headers: { "Cache-Control": "no-store" } },
     );
-
-    res = await setAdminSessionCookie(res, user.id);
-
-    return res;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Login failed";
 

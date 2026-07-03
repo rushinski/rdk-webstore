@@ -8,6 +8,7 @@ type OrderShipping = {
 type PaymentSummary = {
   card_type?: string | null;
   card_last4?: string | null;
+  paymentStatus?: string | null;
 } | null;
 
 export function getStatusMeta(status: string | null | undefined) {

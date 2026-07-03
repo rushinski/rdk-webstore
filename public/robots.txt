@@ -15,7 +15,6 @@ Disallow: /admin/
 Disallow: /auth/
 Disallow: /account/
 Disallow: /checkout/
-Disallow: /locked/
 Allow: /
 Allow: /store
 Allow: /store/*

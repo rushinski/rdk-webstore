@@ -22,7 +22,7 @@ type TransactionSidebarProps = {
   shippingAddr: OrderShipping | null;
   fmtDate: (iso: string | null | undefined, opts?: Intl.DateTimeFormatOptions) => string;
   fmtMoney: (value: number | null | undefined) => string;
-  getNoFraudBadge: (decision: string | null | undefined) => React.ReactNode;
+  getRiskBadge: (decision: string | null | undefined) => React.ReactNode;
   onOpenCustomer: (routeId: string) => void;
 };
 
@@ -40,7 +40,7 @@ export function TransactionSidebar({
   shippingAddr,
   fmtDate,
   fmtMoney,
-  getNoFraudBadge,
+  getRiskBadge,
   onOpenCustomer,
 }: TransactionSidebarProps) {
   return (
@@ -48,7 +48,7 @@ export function TransactionSidebar({
       <TransactionOrderDetailsPanel
         fmtDate={fmtDate}
         fmtMoney={fmtMoney}
-        getNoFraudBadge={getNoFraudBadge}
+        getRiskBadge={getRiskBadge}
         isPickup={isPickup}
         order={order}
         paymentTx={paymentTx}

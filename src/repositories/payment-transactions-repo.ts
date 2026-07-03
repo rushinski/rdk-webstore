@@ -25,9 +25,9 @@ export type PaymentTransactionInsert = {
 };
 
 export type PaymentTransactionUpdate = {
-  payrillaReferenceNumber?: number | null;
-  payrillaAuthCode?: string | null;
-  payrillaStatus?: string;
+  processorReference?: number | null;
+  authorizationCode?: string | null;
+  paymentStatus?: string;
   cardType?: string | null;
   cardLast4?: string | null;
   cardBin?: string | null;
@@ -35,11 +35,39 @@ export type PaymentTransactionUpdate = {
   cvv2ResultCode?: string | null;
   threeDsStatus?: string | null;
   threeDsEci?: string | null;
-  nofraudTransactionId?: string | null;
-  nofraudDecision?: string | null;
+  riskReviewId?: string | null;
+  riskDecision?: string | null;
   amountAuthorized?: number | null;
   amountCaptured?: number | null;
   amountRefunded?: number | null;
+};
+
+export type PaymentTransactionRecord = {
+  id: string;
+  processorReference: number | null;
+  authorizationCode: string | null;
+  paymentStatus: string | null;
+  cardType: string | null;
+  cardLast4: string | null;
+  cardBin: string | null;
+  avsResultCode: string | null;
+  cvv2ResultCode: string | null;
+  threeDsStatus: string | null;
+  threeDsEci: string | null;
+  riskReviewId: string | null;
+  riskDecision: string | null;
+  amountAuthorized: number | null;
+  amountCaptured: number | null;
+  amountRefunded: number | null;
+  billingName: string | null;
+  billingAddress: string | null;
+  billingCity: string | null;
+  billingState: string | null;
+  billingZip: string | null;
+  billingCountry: string | null;
+  billingPhone: string | null;
+  customerEmail: string | null;
+  customerIp: string | null;
 };
 
 export type PaymentEventInsert = {
@@ -61,7 +89,7 @@ export class PaymentTransactionsRepository {
         tenant_id: params.tenantId ?? null,
         amount_requested: params.amountRequested,
         currency: params.currency ?? "USD",
-        payrilla_status: "pending",
+        payment_status: "pending",
         billing_name: params.billingName ?? null,
         billing_address: params.billingAddress ?? null,
         billing_city: params.billingCity ?? null,
@@ -86,14 +114,14 @@ export class PaymentTransactionsRepository {
   async update(id: string, params: PaymentTransactionUpdate): Promise<void> {
     const patch: Record<string, unknown> = {};
 
-    if (params.payrillaReferenceNumber !== undefined) {
-      patch.payrilla_reference_number = params.payrillaReferenceNumber;
+    if (params.processorReference !== undefined) {
+      patch.processor_reference = params.processorReference;
     }
-    if (params.payrillaAuthCode !== undefined) {
-      patch.payrilla_auth_code = params.payrillaAuthCode;
+    if (params.authorizationCode !== undefined) {
+      patch.authorization_code = params.authorizationCode;
     }
-    if (params.payrillaStatus !== undefined) {
-      patch.payrilla_status = params.payrillaStatus;
+    if (params.paymentStatus !== undefined) {
+      patch.payment_status = params.paymentStatus;
     }
     if (params.cardType !== undefined) {
       patch.card_type = params.cardType;
@@ -116,11 +144,11 @@ export class PaymentTransactionsRepository {
     if (params.threeDsEci !== undefined) {
       patch.three_ds_eci = params.threeDsEci;
     }
-    if (params.nofraudTransactionId !== undefined) {
-      patch.nofraud_transaction_id = params.nofraudTransactionId;
+    if (params.riskReviewId !== undefined) {
+      patch.risk_review_id = params.riskReviewId;
     }
-    if (params.nofraudDecision !== undefined) {
-      patch.nofraud_decision = params.nofraudDecision;
+    if (params.riskDecision !== undefined) {
+      patch.risk_decision = params.riskDecision;
     }
     if (params.amountAuthorized !== undefined) {
       patch.amount_authorized = params.amountAuthorized;
@@ -146,7 +174,7 @@ export class PaymentTransactionsRepository {
     }
   }
 
-  async getByOrderId(orderId: string): Promise<Record<string, unknown> | null> {
+  async getByOrderId(orderId: string): Promise<PaymentTransactionRecord | null> {
     const { data, error } = await this.supabase
       .from("payment_transactions")
       .select("*")
@@ -158,7 +186,37 @@ export class PaymentTransactionsRepository {
     if (error) {
       throw error;
     }
-    return data as Record<string, unknown> | null;
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: data.id,
+      processorReference: data.processor_reference ?? null,
+      authorizationCode: data.authorization_code ?? null,
+      paymentStatus: data.payment_status ?? null,
+      cardType: data.card_type ?? null,
+      cardLast4: data.card_last4 ?? null,
+      cardBin: data.card_bin ?? null,
+      avsResultCode: data.avs_result_code ?? null,
+      cvv2ResultCode: data.cvv2_result_code ?? null,
+      threeDsStatus: data.three_ds_status ?? null,
+      threeDsEci: data.three_ds_eci ?? null,
+      riskReviewId: data.risk_review_id ?? null,
+      riskDecision: data.risk_decision ?? null,
+      amountAuthorized: data.amount_authorized ?? null,
+      amountCaptured: data.amount_captured ?? null,
+      amountRefunded: data.amount_refunded ?? null,
+      billingName: data.billing_name ?? null,
+      billingAddress: data.billing_address ?? null,
+      billingCity: data.billing_city ?? null,
+      billingState: data.billing_state ?? null,
+      billingZip: data.billing_zip ?? null,
+      billingCountry: data.billing_country ?? null,
+      billingPhone: data.billing_phone ?? null,
+      customerEmail: data.customer_email ?? null,
+      customerIp: data.customer_ip ?? null,
+    };
   }
 
   async logEvent(params: PaymentEventInsert): Promise<void> {

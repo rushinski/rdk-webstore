@@ -3,11 +3,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { ProfileRepository } from "@/repositories/profile-repo";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
-import { verifyAdminSessionToken } from "@/lib/http/admin-session";
 import { security } from "@/config/security";
 import { log } from "@/lib/utils/log";
+import { ProfileRepository } from "@/repositories/profile-repo";
 
 export async function protectAdminRoute(
   request: NextRequest,
@@ -17,9 +16,6 @@ export async function protectAdminRoute(
   const { pathname } = request.nextUrl;
 
   const isAdminApi = pathname.startsWith("/api/admin");
-  const adminCookieValue = request.cookies.get(
-    security.proxy.adminSession.cookieName,
-  )?.value;
 
   const respond = (
     status: number,
@@ -32,10 +28,7 @@ export async function protectAdminRoute(
 
     return NextResponse.redirect(new URL(pageRedirectPath, request.url));
   };
-
-  const signOutAndClearAdminCookie = async (
-    response: NextResponse,
-  ): Promise<NextResponse> => {
+  const signOut = async (response: NextResponse): Promise<NextResponse> => {
     try {
       await supabase.auth.signOut();
     } catch (signOutError) {
@@ -50,9 +43,6 @@ export async function protectAdminRoute(
           signOutError instanceof Error ? signOutError.message : String(signOutError),
       });
     }
-
-    response.cookies.delete(security.proxy.adminSession.cookieName);
-
     return response;
   };
 
@@ -75,7 +65,7 @@ export async function protectAdminRoute(
       security.proxy.admin.loginPath,
     );
 
-    return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
+    return response;
   }
 
   const user = userData.user;
@@ -122,7 +112,7 @@ export async function protectAdminRoute(
       security.proxy.admin.homePath,
     );
 
-    return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
+    return signOut(response);
   }
 
   const role = isProfileRole(profile.role) ? profile.role : "customer";
@@ -144,88 +134,7 @@ export async function protectAdminRoute(
       security.proxy.admin.homePath,
     );
 
-    return adminCookieValue ? signOutAndClearAdminCookie(response) : response;
-  }
-
-  if (!adminCookieValue) {
-    log({
-      level: "warn",
-      layer: "proxy",
-      message: "admin_guard_missing_admin_cookie",
-      requestId,
-      route: pathname,
-      userId: user.id,
-      event: "admin_guard",
-    });
-
-    const response = respond(
-      security.proxy.admin.unauthorizedStatus,
-      "Unauthorized",
-      security.proxy.admin.loginPath,
-    );
-
-    return signOutAndClearAdminCookie(response);
-  }
-
-  let adminSession: Awaited<ReturnType<typeof verifyAdminSessionToken>> | null;
-
-  try {
-    adminSession = await verifyAdminSessionToken(adminCookieValue);
-  } catch (verifyError) {
-    log({
-      level: "warn",
-      layer: "proxy",
-      message: "admin_guard_token_verify_error",
-      requestId,
-      route: pathname,
-      userId: user.id,
-      event: "admin_guard",
-      error: verifyError instanceof Error ? verifyError.message : String(verifyError),
-    });
-
-    adminSession = null;
-  }
-
-  if (!adminSession) {
-    log({
-      level: "warn",
-      layer: "proxy",
-      message: "admin_guard_invalid_admin_token",
-      requestId,
-      route: pathname,
-      userId: user.id,
-      event: "admin_guard",
-    });
-
-    const response = respond(
-      security.proxy.admin.unauthorizedStatus,
-      "Unauthorized",
-      security.proxy.admin.loginPath,
-    );
-
-    return signOutAndClearAdminCookie(response);
-  }
-
-  if (adminSession.sub !== user.id) {
-    log({
-      level: "error",
-      layer: "proxy",
-      message: "admin_guard_token_user_mismatch",
-      requestId,
-      route: pathname,
-      userId: user.id,
-      tokenUserId: adminSession.sub,
-      event: "admin_guard",
-      severity: "SECURITY_INCIDENT",
-    });
-
-    const response = respond(
-      security.proxy.admin.unauthorizedStatus,
-      "Unauthorized",
-      security.proxy.admin.loginPath,
-    );
-
-    return signOutAndClearAdminCookie(response);
+    return signOut(response);
   }
 
   const { data: aalData, error: aalError } =

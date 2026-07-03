@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { X } from "lucide-react";
 
 import { OrderItemImageGallery } from "@/components/admin/orders/OrderItemImageGallery";
 import { OrderItemMetadataPanel } from "@/components/admin/orders/OrderItemMetadataPanel";
+import { getOrderItemImages } from "@/components/admin/orders/orderItemDetailsImages";
 import {
   formatOrderItemDateTime,
   getOrderItemTagLabels,
   getOrderItemTitle,
 } from "@/components/admin/orders/orderItemDetailsView";
 import type { AdminOrderItemFinancials } from "@/components/admin/orders/orderItemTypes";
+import { useOrderItemDetailsModalState } from "@/components/admin/orders/useOrderItemDetailsModalState";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 export type AdminOrderItemImage = {
@@ -98,37 +100,14 @@ export function AdminOrderItemDetailsModal({
   onClose,
   showProfit = true,
 }: AdminOrderItemDetailsModalProps) {
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setSelectedImageIndex(0);
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose]);
+  const { selectedImageIndex, setSelectedImageIndex } =
+    useOrderItemDetailsModalState({
+      open,
+      onClose,
+    });
 
   const images = useMemo(() => {
-    const raw = (item?.product?.images ?? []).filter(
-      (entry): entry is AdminOrderItemImage => Boolean(entry?.url),
-    );
-    if (!raw.length) {
-      return [{ url: "/images/rdk-logo.png", is_primary: true, sort_order: 0 }];
-    }
-    return [...raw].sort((a, b) => {
-      const aPrimary = a.is_primary ? 0 : 1;
-      const bPrimary = b.is_primary ? 0 : 1;
-      if (aPrimary !== bPrimary) {
-        return aPrimary - bPrimary;
-      }
-      return Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0);
-    });
+    return getOrderItemImages(item?.product?.images);
   }, [item]);
 
   if (!item) {

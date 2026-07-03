@@ -7,8 +7,6 @@ interface CheckoutFooterSectionProps {
   displayTotal: number;
   isProcessing: boolean;
   isUpdatingFulfillment: boolean;
-  isPayrillaReady: boolean;
-  payrillaLoadError: string | null;
   hasAttemptedSubmit: boolean;
   uiSubmitError: string | null;
   uiValidationErrors: string[];
@@ -18,8 +16,6 @@ export function CheckoutFooterSection({
   displayTotal,
   isProcessing,
   isUpdatingFulfillment,
-  isPayrillaReady,
-  payrillaLoadError,
   hasAttemptedSubmit,
   uiSubmitError,
   uiValidationErrors,
@@ -28,18 +24,16 @@ export function CheckoutFooterSection({
     <>
       <button
         type="submit"
-        disabled={
-          isProcessing || isUpdatingFulfillment || !isPayrillaReady || !!payrillaLoadError
-        }
+        disabled={isProcessing || isUpdatingFulfillment}
         className="flex w-full items-center justify-center gap-2 border border-brand-text bg-brand-text px-4 py-4 text-base font-bold uppercase tracking-[0.08em] text-brand-page transition hover:bg-white disabled:cursor-not-allowed disabled:border-brand-border disabled:bg-brand-border disabled:text-brand-muted sm:text-lg"
       >
         {isProcessing ? (
           <>
-            <Loader2 className="h-5 w-5 animate-spin" /> Processing payment...
+            <Loader2 className="h-5 w-5 animate-spin" /> Submitting order...
           </>
         ) : (
           <>
-            <Lock className="h-5 w-5" /> Place Order / ${displayTotal.toFixed(2)}
+            <Lock className="h-5 w-5" /> Submit Order / ${displayTotal.toFixed(2)}
           </>
         )}
       </button>

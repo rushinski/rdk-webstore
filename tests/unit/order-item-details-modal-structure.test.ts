@@ -24,4 +24,16 @@ describe("order item details modal structure", () => {
     expect(source).toContain("formatOrderItemDateTime(");
     expect(source).toContain("getOrderItemTitle(");
   });
+
+  it("delegates image normalization and modal state wiring to focused helpers", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "src/components/admin/orders/OrderItemDetailsModal.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("@/components/admin/orders/orderItemDetailsImages");
+    expect(source).toContain("@/components/admin/orders/useOrderItemDetailsModalState");
+    expect(source).toContain("getOrderItemImages(");
+    expect(source).toContain("useOrderItemDetailsModalState(");
+  });
 });

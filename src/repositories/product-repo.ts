@@ -1,6 +1,16 @@
 //  src/repositories/product-repo.ts
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
+import {
+  buildOffset,
+  resolveProductSearchFields,
+  shouldIncludeOutOfStock,
+  shouldIncludeUnpublished,
+} from "@/repositories/product-repo-helpers";
+import {
+  PRODUCT_RELATIONS_SELECT,
+  PRODUCT_VARIANT_EXPORT_SELECT,
+} from "@/repositories/product-repo-selects";
 
 export interface ProductFilters {
   q?: string;
@@ -196,9 +206,7 @@ export class ProductRepository {
     while (true) {
       let query = this.supabase
         .from("products")
-        .select(
-          "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
-        )
+        .select(PRODUCT_RELATIONS_SELECT)
         .eq("tenant_id", tenantId);
 
       query = this.applyArchivedFilter(query, archivedStatus).order("created_at", {
@@ -228,13 +236,11 @@ export class ProductRepository {
   }
 
   async exportInventoryRows(filters: ProductFilters): Promise<InventoryExportRow[]> {
-    const includeOutOfStock = Boolean(filters.includeOutOfStock);
+    const includeOutOfStock = shouldIncludeOutOfStock(filters);
 
     let query = this.supabase
       .from("product_variants")
-      .select(
-        "sku, size_label, sale_price_cents, unit_cost_cents, stock, product:products!inner(name, condition, is_active, is_out_of_stock, tenant_id, category)",
-      )
+      .select(PRODUCT_VARIANT_EXPORT_SELECT)
       .eq("product.is_active", true);
 
     if (filters.tenantId) {
@@ -310,14 +316,15 @@ export class ProductRepository {
   async list(filters: ProductFilters = {}) {
     const { page = 1, limit = 20, sort = "newest", searchMode = "storefront" } = filters;
     const archivedStatus = filters.archivedStatus ?? "active";
-    const offset = (page - 1) * limit;
+    const offset = buildOffset(page, limit);
     const isPriceSort = sort === "price_asc" || sort === "price_desc";
-    const includeUnpublished = searchMode === "inventory";
+    const includeUnpublished = shouldIncludeUnpublished({ ...filters, searchMode });
     const nowIso = new Date().toISOString();
-    const searchFields =
-      searchMode === "inventory"
-        ? this.inventorySearchFields
-        : this.storefrontSearchFields;
+    const searchFields = resolveProductSearchFields(
+      { ...filters, searchMode },
+      this.storefrontSearchFields,
+      this.inventorySearchFields,
+    );
 
     const sizeProductIds = isPriceSort
       ? null
@@ -329,7 +336,7 @@ export class ProductRepository {
     // IMPORTANT:
     // - Storefront must not include out-of-stock items by default.
     // - Admin can include them by passing includeOutOfStock=true.
-    const includeOutOfStock = Boolean(filters.includeOutOfStock);
+    const includeOutOfStock = shouldIncludeOutOfStock(filters);
 
     let total = 0;
     let skuTotal = 0;
@@ -475,9 +482,7 @@ export class ProductRepository {
 
     let detailQuery = this.supabase
       .from("products")
-      .select(
-        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
-      )
+      .select(PRODUCT_RELATIONS_SELECT)
       .in("id", ids)
       .eq("is_active", true);
     detailQuery = this.applyArchivedFilter(detailQuery, archivedStatus);
@@ -702,14 +707,15 @@ export class ProductRepository {
   }
 
   async listIds(filters: ProductFilters = {}): Promise<string[]> {
-    const includeUnpublished = filters.searchMode === "inventory";
+    const includeUnpublished = shouldIncludeUnpublished(filters);
     const nowIso = new Date().toISOString();
-    const includeOutOfStock = Boolean(filters.includeOutOfStock);
+    const includeOutOfStock = shouldIncludeOutOfStock(filters);
     const archivedStatus = filters.archivedStatus ?? "active";
-    const searchFields =
-      filters.searchMode === "inventory"
-        ? this.inventorySearchFields
-        : this.storefrontSearchFields;
+    const searchFields = resolveProductSearchFields(
+      filters,
+      this.storefrontSearchFields,
+      this.inventorySearchFields,
+    );
 
     let query = this.supabase.from("products").select("id").eq("is_active", true);
     query = this.applyArchivedFilter(query, archivedStatus);
@@ -768,9 +774,7 @@ export class ProductRepository {
   ): Promise<ProductWithDetails | null> {
     let query = this.supabase
       .from("products")
-      .select(
-        "*, variants:product_variants(*), images:product_images(*), tags:product_tags(tag:tags(*))",
-      )
+      .select(PRODUCT_RELATIONS_SELECT)
       .eq("id", id);
     if (!opts?.includeInactive) {
       query = query.eq("is_active", true);

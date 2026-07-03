@@ -32,8 +32,6 @@ describe("StoreAccessSettingsRepository", () => {
     const repo = new StoreAccessSettingsRepository(supabase as never);
 
     await expect(repo.getByTenant("tenant-1")).resolves.toEqual({
-      siteLockEnabled: false,
-      siteUnlockAt: null,
       checkoutLockEnabled: false,
       checkoutLockMessage: DEFAULT_CHECKOUT_LOCK_MESSAGE,
     });
@@ -41,20 +39,6 @@ describe("StoreAccessSettingsRepository", () => {
 });
 
 describe("StoreAccessSettingsService", () => {
-  it("treats enabled lock with a future unlock time as locked", () => {
-    const service = new StoreAccessSettingsService({} as never);
-
-    expect(
-      service.isSiteLocked(
-        {
-          siteLockEnabled: true,
-          siteUnlockAt: "2099-01-01T00:00:00.000Z",
-        },
-        new Date("2026-05-15T12:00:00.000Z"),
-      ),
-    ).toBe(true);
-  });
-
   it("treats checkout lock as a direct toggle", () => {
     const service = new StoreAccessSettingsService({} as never);
 

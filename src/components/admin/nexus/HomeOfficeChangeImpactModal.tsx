@@ -4,6 +4,12 @@ import type {
   HomeOfficeFormData,
   OldHomeOfficeAction,
 } from "@/components/admin/nexus/homeOfficeSetupTypes";
+import {
+  getHomeOfficeActionButtonClassName,
+  getHomeOfficeChangeImpactIntro,
+  getHomeOfficeChangeImpactSubtitle,
+  updateOldHomeOfficeAction,
+} from "@/components/admin/nexus/homeOfficeChangeImpactView";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
@@ -19,10 +25,6 @@ type HomeOfficeChangeImpactModalProps = {
   onConfirm: () => void;
   onOldHomeActionChange: (value: OldHomeOfficeAction) => void;
 };
-
-const selectedButtonStyles = "border-brand-text bg-brand-text text-brand-page";
-const unselectedButtonStyles =
-  "border-brand-border bg-brand-surface text-brand-text hover:bg-brand-page";
 
 export function HomeOfficeChangeImpactModal({
   error,
@@ -48,7 +50,7 @@ export function HomeOfficeChangeImpactModal({
                 Update Previous Home Office
               </h2>
               <p className="mt-1 text-sm text-brand-muted">
-                What should we do with {STATE_NAMES[oldHomeState]} ({oldHomeState})?
+                {getHomeOfficeChangeImpactSubtitle(oldHomeState)}
               </p>
             </div>
           </div>
@@ -63,10 +65,7 @@ export function HomeOfficeChangeImpactModal({
         <div className="space-y-6 px-6 py-6">
           <div className="border border-amber-200 bg-amber-50 p-4">
             <p className="mb-2 text-sm text-amber-800">
-              You're moving your home office from{" "}
-              <strong>{STATE_NAMES[oldHomeState]}</strong> to{" "}
-              <strong>{STATE_NAMES[formData.stateCode]}</strong>. Please specify your
-              ongoing relationship with the old state.
+              {getHomeOfficeChangeImpactIntro(oldHomeState, formData)}
             </p>
             <p className="mt-2 text-xs text-amber-700">
               <strong>Important:</strong> Most states require you to continue collecting
@@ -85,34 +84,34 @@ export function HomeOfficeChangeImpactModal({
                 <button
                   type="button"
                   onClick={() =>
-                    onOldHomeActionChange({
-                      ...oldHomeAction,
-                      hasPhysicalNexus: true,
-                    })
+                    onOldHomeActionChange(
+                      updateOldHomeOfficeAction(
+                        oldHomeAction,
+                        "hasPhysicalNexus",
+                        true,
+                      ),
+                    )
                   }
-                  className={[
-                    "flex-1 border px-4 py-3 text-sm transition-colors",
-                    oldHomeAction.hasPhysicalNexus
-                      ? selectedButtonStyles
-                      : unselectedButtonStyles,
-                  ].join(" ")}
+                  className={getHomeOfficeActionButtonClassName(
+                    oldHomeAction.hasPhysicalNexus,
+                  )}
                 >
                   Yes, I have physical presence
                 </button>
                 <button
                   type="button"
                   onClick={() =>
-                    onOldHomeActionChange({
-                      ...oldHomeAction,
-                      hasPhysicalNexus: false,
-                    })
+                    onOldHomeActionChange(
+                      updateOldHomeOfficeAction(
+                        oldHomeAction,
+                        "hasPhysicalNexus",
+                        false,
+                      ),
+                    )
                   }
-                  className={[
-                    "flex-1 border px-4 py-3 text-sm transition-colors",
-                    !oldHomeAction.hasPhysicalNexus
-                      ? selectedButtonStyles
-                      : unselectedButtonStyles,
-                  ].join(" ")}
+                  className={getHomeOfficeActionButtonClassName(
+                    !oldHomeAction.hasPhysicalNexus,
+                  )}
                 >
                   No, only economic nexus
                 </button>
@@ -132,34 +131,34 @@ export function HomeOfficeChangeImpactModal({
                 <button
                   type="button"
                   onClick={() =>
-                    onOldHomeActionChange({
-                      ...oldHomeAction,
-                      continueCollecting: true,
-                    })
+                    onOldHomeActionChange(
+                      updateOldHomeOfficeAction(
+                        oldHomeAction,
+                        "continueCollecting",
+                        true,
+                      ),
+                    )
                   }
-                  className={[
-                    "flex-1 border px-4 py-3 text-sm transition-colors",
-                    oldHomeAction.continueCollecting
-                      ? selectedButtonStyles
-                      : unselectedButtonStyles,
-                  ].join(" ")}
+                  className={getHomeOfficeActionButtonClassName(
+                    oldHomeAction.continueCollecting,
+                  )}
                 >
                   Yes, keep collecting tax (Recommended)
                 </button>
                 <button
                   type="button"
                   onClick={() =>
-                    onOldHomeActionChange({
-                      ...oldHomeAction,
-                      continueCollecting: false,
-                    })
+                    onOldHomeActionChange(
+                      updateOldHomeOfficeAction(
+                        oldHomeAction,
+                        "continueCollecting",
+                        false,
+                      ),
+                    )
                   }
-                  className={[
-                    "flex-1 border px-4 py-3 text-sm transition-colors",
-                    !oldHomeAction.continueCollecting
-                      ? selectedButtonStyles
-                      : unselectedButtonStyles,
-                  ].join(" ")}
+                  className={getHomeOfficeActionButtonClassName(
+                    !oldHomeAction.continueCollecting,
+                  )}
                 >
                   No, stop collecting tax
                 </button>

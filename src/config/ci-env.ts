@@ -12,12 +12,6 @@ const ciSchema = z.object({
   SUPABASE_SECRET_KEY: z.string(),
   SUPABASE_DB_URL: z.string().url(),
 
-  STRIPE_SECRET_KEY: z.string(),
-  STRIPE_WEBHOOK_SECRET: z.string(),
-
-  UPSTASH_REDIS_REST_URL: z.string().url(),
-  UPSTASH_REDIS_REST_TOKEN: z.string(),
-
   SENTRY_DSN: z.string(),
   POSTHOG_API_KEY: z.string(),
 });

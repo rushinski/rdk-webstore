@@ -1,33 +1,19 @@
-// app/api/checkout/init-checkout/route.ts
-//
-// Initializes a pending order for the PayRilla checkout flow.
-// Called when the checkout page loads — before any card data is entered.
-//
-// Flow:
-//   1. Frontend calls this to create a pending order and get the tokenization key
-//   2. Frontend uses tokenizationKey to initialize PayRilla HostedTokenization
-//   3. Customer fills card form; frontend calls hostedTokenization.getNonceToken()
-//   4. Frontend POSTs nonce + order data to /api/checkout/create-checkout
-//
-// Returns: { orderId, tokenizationKey, subtotal, shipping, tax, total, fulfillment }
-
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
-import { OrdersRepository } from "@/repositories/orders-repo";
-import {
-  CheckoutPricingService,
-  CheckoutError,
-} from "@/services/checkout-pricing-service";
-import { PayrillaChargeService } from "@/services/payrilla-charge-service";
-import { createCartHash } from "@/lib/utils/crypto";
-import { createPaymentIntentSchema } from "@/lib/validation/checkout";
-import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { env } from "@/config/env";
 import { log, logError } from "@/lib/utils/log";
 import { logCheckoutEvent } from "@/lib/checkout/log-checkout-event";
-import { env } from "@/config/env";
+import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createPaymentIntentSchema } from "@/lib/validation/checkout";
+import { OrdersRepository } from "@/modules/orders";
+import {
+  CheckoutError,
+  CheckoutPricingService,
+} from "@/services/checkout-pricing-service";
+import { createCartHash } from "@/lib/utils/crypto";
 
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -62,30 +48,12 @@ export async function POST(request: NextRequest) {
     const ordersRepo = new OrdersRepository(userId ? supabase : adminSupabase);
     const cartHash = createCartHash(items, fulfillment);
 
-    // ---------- Idempotency ----------
     const existingOrder = await ordersRepo.getByIdempotencyKey(idempotencyKey);
-
     if (existingOrder) {
       const expiresAt = existingOrder.expires_at
         ? new Date(existingOrder.expires_at)
         : null;
       if (expiresAt && expiresAt < new Date()) {
-        void logCheckoutEvent(adminSupabase, {
-          orderId: existingOrder.id,
-          tenantId: existingOrder.tenant_id,
-          requestId,
-          route: "/api/checkout/init-checkout",
-          httpStatus: 409,
-          durationMs: Date.now() - startedAt,
-          eventLabel: "Idempotency key expired",
-          errorMessage: "IDEMPOTENCY_KEY_EXPIRED",
-          requestPayload: body,
-          responsePayload: {
-            error: "IDEMPOTENCY_KEY_EXPIRED",
-            code: "IDEMPOTENCY_KEY_EXPIRED",
-            requestId,
-          },
-        });
         return json(
           {
             error: "IDEMPOTENCY_KEY_EXPIRED",
@@ -98,138 +66,76 @@ export async function POST(request: NextRequest) {
       if (existingOrder.cart_hash !== cartHash) {
         return json({ error: "CART_MISMATCH", code: "CART_MISMATCH", requestId }, 409);
       }
-      if (existingOrder.status === "paid") {
-        return json({ status: "paid", orderId: existingOrder.id, requestId }, 200);
-      }
-
-      // If the previous payment attempt failed, reset the order to pending so the
-      // customer can retry without needing to start a new checkout session.
-      if (existingOrder.status === "failed") {
-        await ordersRepo.resetFailedOrderForRetry(
-          existingOrder.id,
-          new Date(Date.now() + 60 * 60 * 1000),
-        );
-        void logCheckoutEvent(adminSupabase, {
-          orderId: existingOrder.id,
-          tenantId: existingOrder.tenant_id,
-          requestId,
-          route: "/api/checkout/init-checkout",
-          httpStatus: 200,
-          durationMs: Date.now() - startedAt,
-          eventLabel: "Failed order reset — retry available",
-        });
-      }
-
       if (!existingOrder.user_id && guestEmail && !existingOrder.guest_email) {
         await ordersRepo.updateGuestEmail(existingOrder.id, guestEmail);
       }
 
-      // Return existing order with tokenization key
-      if (existingOrder.tenant_id) {
-        const payrillaService = new PayrillaChargeService(
-          adminSupabase,
-          existingOrder.tenant_id,
-        );
-        const creds = await payrillaService.getCredentials();
-        if (creds) {
-          void logCheckoutEvent(adminSupabase, {
-            orderId: existingOrder.id,
-            tenantId: existingOrder.tenant_id,
-            requestId,
-            route: "/api/checkout/init-checkout",
-            httpStatus: 200,
-            durationMs: Date.now() - startedAt,
-            eventLabel: "Checkout resumed",
-            requestPayload: body,
-            responsePayload: {
-              orderId: existingOrder.id,
-              subtotal: Number(existingOrder.subtotal ?? 0),
-              shipping: Number(existingOrder.shipping ?? 0),
-              tax: Number(existingOrder.tax_amount ?? 0),
-              total: Number(existingOrder.total ?? 0),
-              fulfillment: existingOrder.fulfillment ?? fulfillment,
-              requestId,
-            },
-          });
-          return json(
-            {
-              orderId: existingOrder.id,
-              tokenizationKey: creds.tokenizationKey,
-              subtotal: Number(existingOrder.subtotal ?? 0),
-              shipping: Number(existingOrder.shipping ?? 0),
-              tax: Number(existingOrder.tax_amount ?? 0),
-              total: Number(existingOrder.total ?? 0),
-              fulfillment: existingOrder.fulfillment ?? fulfillment,
-              requestId,
-            },
-            200,
-          );
-        }
-      }
+      void logCheckoutEvent(adminSupabase, {
+        orderId: existingOrder.id,
+        tenantId: existingOrder.tenant_id,
+        requestId,
+        route: "/api/checkout/init-checkout",
+        httpStatus: 200,
+        durationMs: Date.now() - startedAt,
+        eventLabel: "Checkout resumed",
+      });
+
+      return json(
+        {
+          orderId: existingOrder.id,
+          subtotal: Number(existingOrder.subtotal ?? 0),
+          shipping: Number(existingOrder.shipping ?? 0),
+          tax: Number(existingOrder.tax_amount ?? 0),
+          total: Number(existingOrder.total ?? 0),
+          fulfillment: existingOrder.fulfillment ?? fulfillment,
+          requestId,
+        },
+        200,
+      );
     }
 
-    // ---------- Pricing ----------
     const pricingService = new CheckoutPricingService(adminSupabase);
     let resolved;
     try {
       resolved = await pricingService.resolve({ items, fulfillment, shippingAddress });
-    } catch (err) {
-      if (err instanceof CheckoutError) {
-        return json({ error: err.message, code: err.code, requestId }, 400);
+    } catch (error) {
+      if (error instanceof CheckoutError) {
+        return json({ error: error.message, code: error.code, requestId }, 400);
       }
-      throw err;
+      throw error;
     }
     const { tenantId, lineItems, pricing } = resolved;
 
-    // ---------- Get tokenization key ----------
-    const payrillaService = new PayrillaChargeService(adminSupabase, tenantId);
-    const creds = await payrillaService.getCredentials();
-    if (!creds) {
-      return json(
-        {
-          error: "Payment system not configured",
-          code: "PAYMENT_NOT_CONFIGURED",
-          requestId,
-        },
-        400,
-      );
-    }
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const order = await ordersRepo.createPendingOrder({
+      userId,
+      guestEmail: guestEmail ?? null,
+      tenantId,
+      currency: "USD",
+      subtotal: pricing.subtotal,
+      shipping: pricing.shipping,
+      total: pricing.total,
+      fulfillment,
+      idempotencyKey,
+      cartHash,
+      expiresAt,
+      items: lineItems.map((li) => ({
+        productId: li.productId,
+        variantId: li.variantId,
+        variantSku: li.variantSku,
+        productName: li.titleDisplay,
+        brand: li.brand,
+        model: li.model,
+        category: li.category,
+        condition: li.condition,
+        sizeLabel: li.sizeLabel,
+        quantity: li.quantity,
+        unitPrice: li.unitPrice,
+        unitCost: li.unitCost,
+        lineTotal: li.lineTotal,
+      })),
+    });
 
-    // ---------- Create pending order ----------
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    const order =
-      existingOrder ??
-      (await ordersRepo.createPendingOrder({
-        userId,
-        guestEmail: guestEmail ?? null,
-        tenantId,
-        currency: "USD",
-        subtotal: pricing.subtotal,
-        shipping: pricing.shipping,
-        total: pricing.total,
-        fulfillment,
-        idempotencyKey,
-        cartHash,
-        expiresAt,
-        items: lineItems.map((li) => ({
-          productId: li.productId,
-          variantId: li.variantId,
-          variantSku: li.variantSku,
-          productName: li.titleDisplay,
-          brand: li.brand,
-          model: li.model,
-          category: li.category,
-          condition: li.condition,
-          sizeLabel: li.sizeLabel,
-          quantity: li.quantity,
-          unitPrice: li.unitPrice,
-          unitCost: li.unitCost,
-          lineTotal: li.lineTotal,
-        })),
-      }));
-
-    // Save tax info
     await adminSupabase
       .from("orders")
       .update({
@@ -257,22 +163,11 @@ export async function POST(request: NextRequest) {
       httpStatus: 200,
       durationMs: Date.now() - startedAt,
       eventLabel: "Checkout initialized",
-      requestPayload: body,
-      responsePayload: {
-        orderId: order.id,
-        subtotal: pricing.subtotal,
-        shipping: pricing.shipping,
-        tax: pricing.tax,
-        total: pricing.total,
-        fulfillment,
-        requestId,
-      },
     });
 
     return json(
       {
         orderId: order.id,
-        tokenizationKey: creds.tokenizationKey,
         subtotal: pricing.subtotal,
         shipping: pricing.shipping,
         tax: pricing.tax,

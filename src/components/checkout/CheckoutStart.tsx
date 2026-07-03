@@ -1,10 +1,3 @@
-// src/components/checkout/CheckoutStart.tsx
-//
-// Orchestrates the PayRilla checkout flow:
-//   1. Calls /api/checkout/init-checkout to create a pending order and get the tokenization key
-//   2. Passes tokenizationKey to CheckoutForm, which initializes HostedTokenization
-//   3. CheckoutForm calls /api/checkout/create-checkout on submit (auth + NoFraud + capture)
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,10 +28,10 @@ const buildCartSignature = (items: CartItem[]) => {
     `${a.productId}:${a.variantId}`.localeCompare(`${b.productId}:${b.variantId}`),
   );
   return JSON.stringify(
-    sorted.map((i) => ({
-      productId: i.productId,
-      variantId: i.variantId,
-      quantity: i.quantity,
+    sorted.map((item) => ({
+      productId: item.productId,
+      variantId: item.variantId,
+      quantity: item.quantity,
     })),
   );
 };
@@ -63,7 +56,6 @@ export function CheckoutStart() {
 
   const [idempotencyKey, setIdempotencyKey] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
-  const [tokenizationKey, setTokenizationKey] = useState<string | null>(null);
 
   const [subtotal, setSubtotal] = useState(0);
   const [shipping, setShipping] = useState(0);
@@ -86,38 +78,39 @@ export function CheckoutStart() {
 
   const isGuestFlow = searchParams.get("guest") === "1";
 
-  // Calculate initial subtotal from cart
   useEffect(() => {
     if (items.length > 0 && subtotal === 0) {
-      const calc = items.reduce((sum, i) => sum + (i.priceCents * i.quantity) / 100, 0);
-      setSubtotal(calc);
-      setTotal(calc);
+      const calculatedSubtotal = items.reduce(
+        (sum, item) => sum + (item.priceCents * item.quantity) / 100,
+        0,
+      );
+      setSubtotal(calculatedSubtotal);
+      setTotal(calculatedSubtotal);
     }
   }, [items, subtotal]);
 
-  // Clear guest shipping on unmount
   useEffect(() => {
     if (!isGuestFlow) {
       return;
     }
+
     return () => {
       clearGuestShippingAddress();
     };
   }, [isGuestFlow]);
 
-  // Check auth
   useEffect(() => {
     fetch("/api/auth/session", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setIsAuthenticated(Boolean(d?.user)))
+      .then((response) => response.json())
+      .then((data) => setIsAuthenticated(Boolean(data?.user)))
       .catch(() => setIsAuthenticated(false));
   }, []);
 
-  // Restore cart from snapshot if empty
   useEffect(() => {
     if (!isReady || items.length > 0) {
       return;
     }
+
     setIsRestoring(true);
     snapshotService
       .restoreCart()
@@ -131,48 +124,49 @@ export function CheckoutStart() {
       .finally(() => setIsRestoring(false));
   }, [isReady, items.length, router, setCartItems, snapshotService]);
 
-  // Redirect unauthenticated non-guest users
   useEffect(() => {
     if (isAuthenticated === null) {
       return;
     }
+
     if (!isAuthenticated && (!isGuestFlow || !guestEnabled)) {
       router.push("/checkout");
     }
   }, [isAuthenticated, isGuestFlow, router]);
 
-  // Generate idempotency key
   useEffect(() => {
     if (!isReady || items.length === 0) {
       return;
     }
-    const sig = buildCartSignature(items);
+
+    const signature = buildCartSignature(items);
     try {
-      const storedSig = sessionStorage.getItem("checkout_cart_signature");
+      const storedSignature = sessionStorage.getItem("checkout_cart_signature");
       const storedKey = getIdempotencyKeyFromStorage();
-      if (!storedKey || storedSig !== sig) {
-        const key = generateIdempotencyKey();
-        setIdempotencyKeyInStorage(key);
-        sessionStorage.setItem("checkout_cart_signature", sig);
-        setIdempotencyKey(key);
+
+      if (!storedKey || storedSignature !== signature) {
+        const nextKey = generateIdempotencyKey();
+        setIdempotencyKeyInStorage(nextKey);
+        sessionStorage.setItem("checkout_cart_signature", signature);
+        setIdempotencyKey(nextKey);
         setOrderId(null);
-        setTokenizationKey(null);
         lastPricingKeyRef.current = null;
         return;
       }
+
       setIdempotencyKey(storedKey);
     } catch {
-      const key = generateIdempotencyKey();
-      setIdempotencyKeyInStorage(key);
-      setIdempotencyKey(key);
+      const nextKey = generateIdempotencyKey();
+      setIdempotencyKeyInStorage(nextKey);
+      setIdempotencyKey(nextKey);
     }
   }, [isReady, items]);
 
-  // Build shipping payload
   const shippingPayload = useMemo<ShippingPayload>(() => {
     if (!shippingAddress) {
       return null;
     }
+
     return {
       name: shippingAddress.name?.trim() ?? "",
       phone: shippingAddress.phone?.trim() || null,
@@ -185,7 +179,6 @@ export function CheckoutStart() {
     };
   }, [shippingAddress]);
 
-  // ---------- Initialize checkout ----------
   useEffect(() => {
     if (!isReady || items.length === 0 || !idempotencyKey) {
       return;
@@ -196,7 +189,7 @@ export function CheckoutStart() {
     if (!isAuthenticated && !isGuestFlow) {
       return;
     }
-    if (orderId && tokenizationKey) {
+    if (orderId) {
       return;
     }
 
@@ -211,35 +204,34 @@ export function CheckoutStart() {
           idempotencyKey,
           fulfillment,
           shippingAddress: fulfillment === "ship" ? shippingPayload : null,
-          items: items.map((i) => ({
-            productId: i.productId,
-            variantId: i.variantId,
-            quantity: i.quantity,
+          items: items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
           })),
         };
+
         if (!isAuthenticated && guestEmail) {
           payload.guestEmail = guestEmail;
         }
 
-        const res = await fetch("/api/checkout/init-checkout", {
+        const response = await fetch("/api/checkout/init-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
 
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
           if (
             data?.code === "IDEMPOTENCY_KEY_EXPIRED" ||
             data?.code === "CART_MISMATCH"
           ) {
-            // Silently regenerate the key and let the effect re-run — no error shown to customer
             clearIdempotencyKeyFromStorage();
-            const newKey = generateIdempotencyKey();
-            setIdempotencyKeyInStorage(newKey);
-            setIdempotencyKey(newKey);
+            const nextKey = generateIdempotencyKey();
+            setIdempotencyKeyInStorage(nextKey);
+            setIdempotencyKey(nextKey);
             setOrderId(null);
-            setTokenizationKey(null);
             return;
           }
           if (data?.code === "GUEST_CHECKOUT_DISABLED") {
@@ -252,26 +244,16 @@ export function CheckoutStart() {
           return;
         }
 
-        if (data?.status === "paid") {
-          router.push(`/checkout/success?orderId=${data.orderId}`);
-          return;
-        }
-
-        if (!data?.orderId || !data?.tokenizationKey) {
-          throw new Error("Checkout response missing required fields");
-        }
-
         setOrderId(data.orderId);
-        setTokenizationKey(data.tokenizationKey);
         setSubtotal(Number(data.subtotal ?? 0));
         setShipping(Number(data.shipping ?? 0));
         setTax(Number(data.tax ?? 0));
         setTotal(Number(data.total ?? 0));
         setFulfillment(data.fulfillment ?? fulfillment);
         lastPricingKeyRef.current = null;
-      } catch (err: unknown) {
+      } catch (error: unknown) {
         if (active) {
-          setError(err instanceof Error ? err.message : "Failed to start checkout");
+          setError(error instanceof Error ? error.message : "Failed to start checkout");
         }
       } finally {
         if (active) {
@@ -280,7 +262,7 @@ export function CheckoutStart() {
       }
     };
 
-    init();
+    void init();
     return () => {
       active = false;
     };
@@ -295,10 +277,8 @@ export function CheckoutStart() {
     orderId,
     router,
     shippingPayload,
-    tokenizationKey,
   ]);
 
-  // ---------- Update pricing on fulfillment/address change ----------
   const addressKey = useMemo(() => {
     if (fulfillment !== "ship" || !shippingPayload) {
       return "pickup";
@@ -316,12 +296,12 @@ export function CheckoutStart() {
       return null;
     }
     return `${orderId}:${fulfillment}:${addressKey}`;
-  }, [orderId, fulfillment, addressKey]);
+  }, [addressKey, fulfillment, orderId]);
 
   const updatePricing = useCallback(
     async (
       nextFulfillment: "ship" | "pickup",
-      nextAddr: ShippingPayload,
+      nextAddress: ShippingPayload,
       dedupeKey?: string | null,
     ) => {
       if (!orderId) {
@@ -342,18 +322,18 @@ export function CheckoutStart() {
       setError(null);
 
       try {
-        const res = await fetch("/api/checkout/update-fulfillment", {
+        const response = await fetch("/api/checkout/update-fulfillment", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             orderId,
             fulfillment: nextFulfillment,
-            shippingAddress: nextAddr,
+            shippingAddress: nextAddress,
           }),
           signal: controller.signal,
         });
-        const data = await res.json().catch(() => null);
-        if (!res.ok) {
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
           throw new Error(data?.error || "Failed to update fulfillment");
         }
 
@@ -365,12 +345,12 @@ export function CheckoutStart() {
         if (dedupeKey) {
           lastPricingKeyRef.current = dedupeKey;
         }
-      } catch (err: unknown) {
+      } catch (error: unknown) {
         if (dedupeKey) {
           lastPricingKeyRef.current = null;
         }
-        if (!(err instanceof DOMException && err.name === "AbortError")) {
-          setError(err instanceof Error ? err.message : "Failed to update fulfillment");
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setError(error instanceof Error ? error.message : "Failed to update fulfillment");
         }
       } finally {
         inFlightRef.current = false;
@@ -380,18 +360,12 @@ export function CheckoutStart() {
     [orderId],
   );
 
-  // Auto-update pricing when shipping address changes
   useEffect(() => {
     if (
       fulfillment !== "ship" ||
       !orderId ||
-      !tokenizationKey ||
       !pricingKey ||
-      isUpdatingFulfillment
-    ) {
-      return;
-    }
-    if (
+      isUpdatingFulfillment ||
       !shippingPayload?.line1 ||
       !shippingPayload.city ||
       !shippingPayload.state ||
@@ -403,34 +377,35 @@ export function CheckoutStart() {
       return;
     }
 
-    const t = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       lastPricingKeyRef.current = pricingKey;
-      updatePricing("ship", shippingPayload, pricingKey);
+      void updatePricing("ship", shippingPayload, pricingKey);
     }, 350);
-    return () => clearTimeout(t);
+
+    return () => clearTimeout(timeoutId);
   }, [
     fulfillment,
     isUpdatingFulfillment,
     orderId,
     pricingKey,
     shippingPayload,
-    tokenizationKey,
     updatePricing,
   ]);
 
-  const handleFulfillmentChange = async (next: "ship" | "pickup") => {
-    if (next === fulfillment) {
+  const handleFulfillmentChange = async (nextFulfillment: "ship" | "pickup") => {
+    if (nextFulfillment === fulfillment) {
       return;
     }
     lastPricingKeyRef.current = null;
     if (!orderId) {
-      setFulfillment(next);
+      setFulfillment(nextFulfillment);
       return;
     }
-    await updatePricing(next, next === "ship" ? shippingPayload : null);
+    await updatePricing(
+      nextFulfillment,
+      nextFulfillment === "ship" ? shippingPayload : null,
+    );
   };
-
-  // ---------- Render ----------
 
   if (!isReady || isRestoring || items.length === 0) {
     return (
@@ -445,9 +420,7 @@ export function CheckoutStart() {
     );
   }
 
-  const showForm = Boolean(orderId && tokenizationKey);
-
-  if (!showForm || isInitializing) {
+  if (!orderId || isInitializing) {
     if (error) {
       return (
         <div className="mx-auto max-w-3xl px-4 py-20 text-center">
@@ -466,43 +439,18 @@ export function CheckoutStart() {
         </div>
       );
     }
+
     return (
       <div className="mx-auto max-w-3xl px-4 py-20 text-center">
         <div className="border border-brand-border bg-brand-surface p-10 shadow-[0_24px_80px_rgba(17,17,17,0.08)]">
           <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-brand-text" />
           <p className="text-sm font-semibold uppercase tracking-[0.08em] text-brand-text">
-            Loading secure checkout...
+            Loading checkout...
           </p>
         </div>
       </div>
     );
   }
-
-  const formProps = {
-    orderId: orderId ?? "pending",
-    tokenizationKey,
-    items,
-    total,
-    displayTotal: calculateCheckoutDisplayTotals({
-      subtotal,
-      shipping,
-      tax,
-      fulfillment,
-    }).displayTotal,
-    fulfillment,
-    shippingAddress,
-    onShippingAddressChange: (addr: ShippingAddress | null) => {
-      lastPricingKeyRef.current = null;
-      setShippingAddress(addr);
-    },
-    onFulfillmentChange: (next: "ship" | "pickup") => {
-      void handleFulfillmentChange(next);
-    },
-    isUpdatingFulfillment,
-    guestEmail,
-    onGuestEmailChange: setGuestEmail,
-    isGuestCheckout: isGuestFlow,
-  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-28 pt-0 sm:py-10 lg:pb-10">
@@ -511,7 +459,7 @@ export function CheckoutStart() {
           <h1 className="text-2xl font-bold uppercase tracking-[0.08em] text-brand-text sm:text-3xl">
             Checkout
           </h1>
-          <p className="text-sm text-brand-muted sm:text-base">Secure checkout</p>
+          <p className="text-sm text-brand-muted sm:text-base">Review and submit</p>
         </div>
         <Link
           href="/cart"
@@ -529,7 +477,31 @@ export function CheckoutStart() {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <CheckoutForm {...formProps} />
+          <CheckoutForm
+            orderId={orderId}
+            items={items}
+            displayTotal={
+              calculateCheckoutDisplayTotals({
+                subtotal,
+                shipping,
+                tax,
+                fulfillment,
+              }).displayTotal
+            }
+            fulfillment={fulfillment}
+            shippingAddress={shippingAddress}
+            onShippingAddressChange={(address) => {
+              lastPricingKeyRef.current = null;
+              setShippingAddress(address);
+            }}
+            onFulfillmentChange={(nextFulfillment: "ship" | "pickup") => {
+              void handleFulfillmentChange(nextFulfillment);
+            }}
+            isUpdatingFulfillment={isUpdatingFulfillment}
+            guestEmail={guestEmail}
+            onGuestEmailChange={setGuestEmail}
+            isGuestCheckout={isGuestFlow}
+          />
         </div>
         <div className="lg:col-span-1">
           <OrderSummary

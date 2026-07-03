@@ -1,14 +1,13 @@
-// src/components/shell/ClientShell.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import type { ProfileRole } from "@/config/constants/roles";
-import { StorefrontSearchOverlay } from "@/components/storefront/search/StorefrontSearchOverlay";
 import { StorefrontCartDrawer } from "@/components/storefront/cart/StorefrontCartDrawer";
 import { StorefrontFooter } from "@/components/storefront/shell/StorefrontFooter";
+import { StorefrontSearchOverlay } from "@/components/storefront/search/StorefrontSearchOverlay";
 
 export function ClientShell({
   children,
@@ -48,67 +47,7 @@ export function ClientShell({
   const isAdminRoute = pathname.startsWith("/admin");
   const isAuthRoute = pathname.startsWith("/auth");
   const isCheckoutRoute = pathname.startsWith("/checkout");
-  const isLockedRoute = pathname.startsWith("/locked");
-  const isStoreRoute =
-    !isAdminRoute && !isAuthRoute && !isCheckoutRoute && !isLockedRoute;
-
-  useEffect(() => {
-    if (!pathname) {
-      return;
-    }
-    if (pathname.startsWith("/admin") || pathname.startsWith("/auth")) {
-      return;
-    }
-
-    const visitorKey = "rdk_visitor_id";
-    const sessionKey = "rdk_session_id";
-    const lastTrackedKey = "rdk_last_tracked_path";
-
-    const getOrCreateId = (storage: Storage, key: string) => {
-      const existing = storage.getItem(key);
-      if (existing) {
-        return existing;
-      }
-      const nextId =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-      storage.setItem(key, nextId);
-      return nextId;
-    };
-
-    const visitorId = getOrCreateId(localStorage, visitorKey);
-    const sessionId = getOrCreateId(sessionStorage, sessionKey);
-
-    // OPTIMIZATION: Only track if pathname actually changed (ignore query params for deduplication)
-    const lastTracked = sessionStorage.getItem(lastTrackedKey);
-    if (lastTracked === pathname) {
-      return; // Already tracked this pathname in this session
-    }
-    sessionStorage.setItem(lastTrackedKey, pathname);
-
-    const path = `${window.location.pathname}${window.location.search}`;
-
-    const payload = JSON.stringify({
-      path,
-      referrer: document.referrer || null,
-      visitorId,
-      sessionId,
-    });
-
-    if (navigator.sendBeacon) {
-      const blob = new Blob([payload], { type: "application/json" });
-      navigator.sendBeacon("/api/analytics/track", blob);
-    } else {
-      fetch("/api/analytics/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        keepalive: true,
-      }).catch(() => undefined);
-    }
-  }, [pathname]); // ✅ OPTIMIZATION: Removed searchParams - only track pathname changes
-
+  const isStoreRoute = !isAdminRoute && !isAuthRoute && !isCheckoutRoute;
   const showAdminSidebar = isAdmin && isStoreRoute && Boolean(role);
 
   return (

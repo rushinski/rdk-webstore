@@ -6,9 +6,8 @@ This document describes the infrastructure components used by the RDK stack.
 
 - **Vercel**: hosting for Next.js (serverless + edge runtime)
 - **Supabase**: Postgres, Auth, Storage, and SSR helpers
-- **Stripe**: checkout payments and Connect payouts
+- **Hosted payment provider**: checkout payments
 - **Shippo**: shipping rates and label purchase
-- **Upstash Redis**: rate limiting (prod; memory fallback in dev/test)
 - **AWS SES**: transactional email
 
 ## Supabase
@@ -29,11 +28,10 @@ Local ports (default):
 - Product images are stored in Supabase Storage.
 - Next.js remote image config allows Supabase Storage domains.
 
-## Stripe
+## Payments
 
-- Server SDK usage in `src/lib/stripe/stripe-server.ts` and `src/services/checkout-service.ts`.
-- Stripe Connect flows in `src/services/stripe-admin-service.ts`.
-- Webhooks: `/api/webhooks/stripe`.
+- Active checkout payment flow lives under `app/api/checkout/*` and the supporting services in `src/services/**`.
+- Provider-specific integrations are being standardized; prefer code inspection over legacy assumptions when working in this area.
 
 ## Shippo
 
@@ -44,12 +42,6 @@ Local ports (default):
 - For Shippo-managed label-purchase events, subscribe separately to `transaction_created` or `transaction_updated`.
 - Shippo cannot deliver webhooks to `localhost`. For non-production testing, use a public HTTPS tunnel URL instead of `https://localhost:8444`.
 - Live carrier tracking updates require a live Shippo key. Test-mode tracking should use Shippo's mock tracking numbers.
-
-## Upstash Redis
-
-- Used by `src/proxy/rate-limit.ts` and `app/api/contact/route.ts`.
-- Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` for production.
-- Local/dev uses the in-memory limiter when `security.proxy.rateLimit.store` is `memory` or Upstash is not configured.
 
 ## Email (AWS SES)
 

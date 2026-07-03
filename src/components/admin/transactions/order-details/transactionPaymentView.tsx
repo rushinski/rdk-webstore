@@ -111,7 +111,7 @@ export function getCvvLabel(code: string | null | undefined) {
   return map[code] ?? { label: `Code: ${code}`, color: "text-brand-muted" };
 }
 
-export function getNoFraudBadge(decision: string | null | undefined) {
+export function getRiskBadge(decision: string | null | undefined) {
   if (!decision) {
     return <span className="text-brand-muted">-</span>;
   }
@@ -219,7 +219,7 @@ export function getEventMeta(
     case "fraud_check_review":
       return {
         icon: <Clock className="h-4 w-4 text-amber-400" />,
-        label: "Under review - NoFraud investigating",
+        label: "Under review",
       };
     case "fraud_check_skipped":
       return {

@@ -3,7 +3,7 @@ import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { log } from "@/lib/utils/log";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
-import { OrdersRepository } from "@/repositories/orders-repo";
+import { OrdersRepository } from "@/modules/orders";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import { OrderEmailService } from "@/services/order-email-service";
@@ -21,7 +21,7 @@ export async function sendOrderCompletionEmailsIfNeeded(params: {
   fulfillment: "ship" | "pickup";
   adminSupabase: AdminSupabaseClient;
   requestId: string;
-  logLayer: "api" | "payrilla";
+  logLayer: "api";
 }) {
   try {
     const ordersRepo = new OrdersRepository(params.adminSupabase);

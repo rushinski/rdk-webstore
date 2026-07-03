@@ -66,9 +66,9 @@ export const createPaymentIntentSchema = z
   })
   .strict();
 
-// ---------- create-checkout (PayRilla) ----------
-// The frontend tokenizes the card via PayRilla Hosted Tokenization and sends
-// the nonce + card metadata here. The server completes the charge in one step.
+// ---------- create-checkout ----------
+// The storefront submits a finalized checkout request once the customer
+// has confirmed fulfillment and contact information.
 
 export const createCheckoutSchema = z
   .object({
@@ -82,35 +82,8 @@ export const createCheckoutSchema = z
       .nullable()
       .transform((v) => v || null),
     shippingAddress: shippingAddressSchema.optional().nullable(),
-    billingAddress: billingAddressSchema.optional().nullable(),
-    // --- Card payment (PayRilla Hosted Tokenization) ---
-    nonce: z.string().trim().min(1).optional().nullable(),
-    expiryMonth: z.number().int().min(1).max(12).optional().nullable(),
-    expiryYear: z
-      .number()
-      .int()
-      .min(new Date().getFullYear())
-      .max(9999)
-      .optional()
-      .nullable(),
-    avsZip: z.string().trim().optional().nullable(),
-    cardholderName: z.string().trim().max(255).optional().nullable(),
-    // Device fingerprint token from NoFraud JS snippet cookie (optional but improves accuracy)
-    nfToken: z.string().trim().optional().nullable(),
-    // Card metadata from PayRilla tokenization result (used for NoFraud payment object)
-    last4: z.string().trim().length(4).optional().nullable(),
-    cardType: z.string().trim().max(30).optional().nullable(),
   })
-  .strict()
-  .superRefine((d, ctx) => {
-    if (d.nonce === null || d.expiryMonth === null || d.expiryYear === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["nonce"],
-        message: "Card nonce and expiry are required",
-      });
-    }
-  });
+  .strict();
 
 // ---------- confirm-payment ----------
 

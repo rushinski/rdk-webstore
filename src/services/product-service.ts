@@ -16,6 +16,12 @@ import type {
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductSkuService } from "@/services/product-sku-service";
 import { ProductTitleParserService } from "@/services/product-title-parser-service";
+import {
+  assertNoDuplicateVariantSizes,
+  normalizeArchiveFilters,
+  normalizeGoLiveAt,
+  normalizeVariantSortOrder,
+} from "@/services/product-write-helpers";
 
 import { upsertTags, type TagInputItem } from "./tag-service";
 
@@ -58,12 +64,12 @@ export class ProductService {
   }
 
   async exportInventory(filters: ProductFilters): Promise<InventoryExportRow[]> {
-    const normalized = this.normalizeArchiveFilters(filters);
+    const normalized = normalizeArchiveFilters(filters);
     return this.repo.exportInventoryRows(normalized);
   }
 
   async listProducts(filters: ProductFilters) {
-    return this.repo.list(this.normalizeArchiveFilters(filters));
+    return this.repo.list(normalizeArchiveFilters(filters));
   }
 
   async getProductById(
@@ -100,8 +106,8 @@ export class ProductService {
       throw new Error("Product title is required.");
     }
 
-    const normalizedVariants = this.normalizeVariantSortOrder(input.variants);
-    this.assertNoDuplicateVariantSizes(normalizedVariants);
+    const normalizedVariants = normalizeVariantSortOrder(input.variants);
+    assertNoDuplicateVariantSizes(normalizedVariants);
     const variantsWithSkus = await this.assignVariantSkus(
       ctx.tenantId,
       normalizedVariants,
@@ -126,7 +132,7 @@ export class ProductService {
       size_type: input.size_type,
       description: input.description || null,
       shipping_price_cents: input.shipping_price_cents ?? null,
-      go_live_at: this.normalizeGoLiveAt(input.go_live_at),
+      go_live_at: normalizeGoLiveAt(input.go_live_at),
       is_active: true,
       excluded_auto_tag_keys: input.excluded_auto_tag_keys ?? [],
       product_created_at: new Date().toISOString(),
@@ -182,8 +188,8 @@ export class ProductService {
       throw new Error("Archived products are read-only until restored.");
     }
 
-    const normalizedVariants = this.normalizeVariantSortOrder(input.variants);
-    this.assertNoDuplicateVariantSizes(normalizedVariants);
+    const normalizedVariants = normalizeVariantSortOrder(input.variants);
+    assertNoDuplicateVariantSizes(normalizedVariants);
 
     const tenantId = existing.tenant_id ?? ctx.tenantId;
     const parser = new ProductTitleParserService(this.supabase);
@@ -197,7 +203,7 @@ export class ProductService {
 
     const goLiveAt =
       input.go_live_at !== undefined
-        ? this.normalizeGoLiveAt(input.go_live_at)
+        ? normalizeGoLiveAt(input.go_live_at)
         : existing.go_live_at;
 
     const product = await this.repo.update(productId, {
@@ -620,7 +626,7 @@ export class ProductService {
       onBeforeDelete?: (productId: string) => Promise<void>;
     },
   ) {
-    const normalizedFilters = this.normalizeArchiveFilters({
+    const normalizedFilters = normalizeArchiveFilters({
       tenantId,
       q: filters.q,
       category: filters.category,
@@ -633,18 +639,6 @@ export class ProductService {
 
     const ids = await this.repo.listIds(normalizedFilters);
     return this.deleteProductsByIds(ids, tenantId, options);
-  }
-
-  private normalizeArchiveFilters(filters: ProductFilters): ProductFilters {
-    if (filters.stockStatus !== "archived") {
-      return filters;
-    }
-
-    return {
-      ...filters,
-      stockStatus: "all",
-      archivedStatus: "archived",
-    };
   }
 
   private async assignVariantSkus(
@@ -672,37 +666,6 @@ export class ProductService {
     });
   }
 
-  private normalizeVariantSortOrder(variants: VariantInput[]): VariantInput[] {
-    return variants.map((variant, index) => ({
-      ...variant,
-      sort_order: Number.isFinite(variant.sort_order) ? variant.sort_order : index,
-    }));
-  }
-
-  private assertNoDuplicateVariantSizes(variants: VariantInput[]) {
-    const seen = new Set<string>();
-
-    for (const variant of variants) {
-      const normalizedSizeLabel = variant.size_label.trim().toLowerCase();
-
-      if (seen.has(normalizedSizeLabel)) {
-        throw new Error(`Duplicate size "${variant.size_label}" found in variants.`);
-      }
-
-      seen.add(normalizedSizeLabel);
-    }
-  }
-
-  private normalizeGoLiveAt(goLiveAt?: string): string {
-    if (!goLiveAt?.trim()) {
-      return new Date().toISOString();
-    }
-    const parsed = new Date(goLiveAt);
-    if (Number.isNaN(parsed.getTime())) {
-      throw new Error("Invalid go-live date/time.");
-    }
-    return parsed.toISOString();
-  }
 
   private async createCatalogCandidates(
     parsed: {

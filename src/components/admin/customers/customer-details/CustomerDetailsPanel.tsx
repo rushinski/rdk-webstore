@@ -32,11 +32,6 @@ export function CustomerDetailsPanel({ customer }: CustomerDetailsPanelProps) {
         <CustomerDetailRow label="Primary payment method">
           {customer.primaryPaymentMethod ?? "-"}
         </CustomerDetailRow>
-        {customer.payrillaCustomerToken ? (
-          <CustomerDetailRow label="Payrilla token">
-            {customer.payrillaCustomerToken}
-          </CustomerDetailRow>
-        ) : null}
       </div>
     </AdminSectionCard>
   );

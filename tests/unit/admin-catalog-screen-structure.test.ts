@@ -9,6 +9,7 @@ describe("admin catalog screen structure", () => {
     );
 
     expect(source).toContain("@/components/admin/catalog/CatalogTabContent");
-    expect(source).toContain("@/components/admin/catalog/catalogEditState");
+    expect(source).toContain("@/components/admin/catalog/useAdminCatalogScreenState");
+    expect(source).toContain("useAdminCatalogScreenState({");
   });
 });

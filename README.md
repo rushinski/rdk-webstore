@@ -1,13 +1,12 @@
 ﻿# Real Deal Kickz (RDK)
 
-Real Deal Kickz is a full-stack ecommerce storefront and admin console built on Next.js App Router with Supabase and Stripe.
+Real Deal Kickz is a full-stack ecommerce storefront and admin console built on Next.js App Router with Supabase.
 
 ## Stack
 - Next.js 16 App Router (React 19)
 - Supabase Postgres + Auth (SSR helpers)
-- Stripe Checkout + Stripe Connect (admin payouts)
+- Hosted payment processing
 - Shippo (shipping rates and labels)
-- Upstash Redis (rate limiting; memory fallback in dev/test)
 - AWS SES (transactional email)
 - Tailwind CSS
 
@@ -33,7 +32,6 @@ cp .env.example .env.local
 # PowerShell: Copy-Item .env.example .env.local
 ```
 Fill in values in `.env.local`.
-Upstash is optional for local dev; the proxy uses an in-memory rate limiter when Upstash is not configured.
 
 3) Start Supabase locally:
 ```
@@ -64,6 +62,8 @@ E2E configuration flags:
 - `E2E_TEST_MODE=1` and `NEXT_PUBLIC_E2E_TEST_MODE=1` enable test-only bypasses
 
 See `package.json` and `tests/` for test entry points and coverage areas.
+
+The active checkout flow is provider-neutral. Historical provider-specific references may still exist in archived migrations or planning notes.
 
 ## Documentation
 - `docs/PROJECT_OVERVIEW.md` (full system overview for rebuild planning)

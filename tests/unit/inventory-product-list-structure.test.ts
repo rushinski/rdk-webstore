@@ -34,11 +34,19 @@ describe("inventory product list structure", () => {
       ),
       "utf8",
     );
+    const rowSource = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/InventoryProductTableRow.tsx",
+      ),
+      "utf8",
+    );
 
-    expect(tableSource).toContain(
+    expect(tableSource).toContain("@/components/admin/inventory/InventoryProductTableRow");
+    expect(rowSource).toContain(
       "@/components/admin/inventory/InventoryProductVariantPanels",
     );
-    expect(tableSource).toContain("buildInventoryProductCardModel(");
+    expect(rowSource).toContain("buildInventoryProductCardModel(");
     expect(mobileSource).toContain(
       "@/components/admin/inventory/InventoryProductVariantPanels",
     );

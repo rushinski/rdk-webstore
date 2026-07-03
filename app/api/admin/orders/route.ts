@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
-import { OrdersService } from "@/services/orders-service";
+import { OrdersService } from "@/modules/orders";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 
@@ -14,6 +14,32 @@ const fulfillmentSchema = z.enum(["ship", "pickup"]).optional();
 const fulfillmentStatusSchema = z.string().trim().min(1).optional();
 const pageSchema = z.number().int().min(1);
 const limitSchema = z.number().int().min(1).max(100);
+
+function normalizePaymentSummary(input: unknown) {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+
+  const payment = input as Record<string, unknown>;
+
+  return {
+    card_type: typeof payment.card_type === "string" ? payment.card_type : null,
+    card_last4: typeof payment.card_last4 === "string" ? payment.card_last4 : null,
+    paymentStatus:
+      typeof payment.paymentStatus === "string" ? payment.paymentStatus : null,
+  };
+}
+
+function normalizeOrderForResponse(input: Record<string, unknown>) {
+  const payment = input.payment;
+
+  return {
+    ...input,
+    payment: Array.isArray(payment)
+      ? payment.map((entry) => normalizePaymentSummary(entry))
+      : normalizePaymentSummary(payment),
+  };
+}
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -127,12 +153,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const ordersWithProfiles = (orders ?? []).map((order) => ({
-      ...order,
-      shipping_profile_name: order?.user_id
-        ? (shippingProfileNameByUserId.get(order.user_id) ?? null)
-        : null,
-    }));
+    const ordersWithProfiles = (orders ?? []).map((order) =>
+      normalizeOrderForResponse({
+        ...order,
+        shipping_profile_name: order?.user_id
+          ? (shippingProfileNameByUserId.get(order.user_id) ?? null)
+          : null,
+      }),
+    );
 
     return NextResponse.json(
       {

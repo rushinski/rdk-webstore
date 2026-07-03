@@ -4,7 +4,10 @@ import path from "node:path";
 describe("inventory client surface structure", () => {
   it("delegates inventory surface prop composition to a focused helper module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 

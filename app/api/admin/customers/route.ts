@@ -39,7 +39,6 @@ type CustomerOrderRow = {
 type PaymentRow = {
   id: string;
   order_id: string;
-  payrilla_status?: string | null;
   card_type?: string | null;
   card_last4?: string | null;
   amount_authorized?: number | null;
@@ -91,7 +90,7 @@ export async function GET(request: NextRequest) {
     let paymentsQuery = (admin as any)
       .from("payment_transactions")
       .select(
-        "id, order_id, payrilla_status, card_type, card_last4, amount_authorized, amount_captured, amount_refunded, customer_email, billing_name, created_at, updated_at",
+        "id, order_id, card_type, card_last4, amount_authorized, amount_captured, amount_refunded, customer_email, billing_name, created_at, updated_at",
       )
       .order("created_at", { ascending: false });
 

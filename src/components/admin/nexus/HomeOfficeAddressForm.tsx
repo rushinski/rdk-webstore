@@ -4,6 +4,12 @@ import type {
   ExistingAddress,
   HomeOfficeFormData,
 } from "@/components/admin/nexus/homeOfficeSetupTypes";
+import {
+  getHomeOfficeAddressFormDescription,
+  getHomeOfficeAddressFormNote,
+  getHomeOfficeAddressFormTitle,
+  updateHomeOfficeFormData,
+} from "@/components/admin/nexus/homeOfficeAddressFormView";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import { RdkSelect, type RdkSelectOption } from "@/components/ui/Select";
@@ -45,12 +51,10 @@ export function HomeOfficeAddressForm({
             <Building className="h-6 w-6 text-brand-text" />
             <div>
               <h2 className="text-xl font-semibold text-brand-text">
-                {title ?? (isConfigured ? "Change Office Location" : "Setup Home Office")}
+                {getHomeOfficeAddressFormTitle(isConfigured, title)}
               </h2>
               <p className="mt-1 text-sm text-brand-muted">
-                {isConfigured
-                  ? "Update your business address for tax registrations"
-                  : "Configure your business address to enable tax registrations"}
+                {getHomeOfficeAddressFormDescription(isConfigured)}
               </p>
             </div>
           </div>
@@ -93,10 +97,13 @@ export function HomeOfficeAddressForm({
                 type="text"
                 value={formData.businessName}
                 onChange={(event) =>
-                  onFormDataChange({
-                    ...formData,
-                    businessName: event.target.value,
-                  })
+                  onFormDataChange(
+                    updateHomeOfficeFormData(
+                      formData,
+                      "businessName",
+                      event.target.value,
+                    ),
+                  )
                 }
                 className={adminFormStyles.input}
                 placeholder="Your Business Name"
@@ -110,10 +117,7 @@ export function HomeOfficeAddressForm({
               <RdkSelect
                 value={formData.stateCode}
                 onChange={(value) =>
-                  onFormDataChange({
-                    ...formData,
-                    stateCode: value,
-                  })
+                  onFormDataChange(updateHomeOfficeFormData(formData, "stateCode", value))
                 }
                 options={stateOptions}
                 placeholder="Select..."
@@ -128,10 +132,9 @@ export function HomeOfficeAddressForm({
                 type="text"
                 value={formData.line1}
                 onChange={(event) =>
-                  onFormDataChange({
-                    ...formData,
-                    line1: event.target.value,
-                  })
+                  onFormDataChange(
+                    updateHomeOfficeFormData(formData, "line1", event.target.value),
+                  )
                 }
                 className={adminFormStyles.input}
                 placeholder="123 Main Street"
@@ -145,10 +148,9 @@ export function HomeOfficeAddressForm({
                 type="text"
                 value={formData.line2}
                 onChange={(event) =>
-                  onFormDataChange({
-                    ...formData,
-                    line2: event.target.value,
-                  })
+                  onFormDataChange(
+                    updateHomeOfficeFormData(formData, "line2", event.target.value),
+                  )
                 }
                 className={adminFormStyles.input}
                 placeholder="Suite 100"
@@ -164,10 +166,9 @@ export function HomeOfficeAddressForm({
                   type="text"
                   value={formData.city}
                   onChange={(event) =>
-                    onFormDataChange({
-                      ...formData,
-                      city: event.target.value,
-                    })
+                    onFormDataChange(
+                      updateHomeOfficeFormData(formData, "city", event.target.value),
+                    )
                   }
                   className={adminFormStyles.input}
                   placeholder="Charleston"
@@ -182,10 +183,13 @@ export function HomeOfficeAddressForm({
                   type="text"
                   value={formData.postalCode}
                   onChange={(event) =>
-                    onFormDataChange({
-                      ...formData,
-                      postalCode: event.target.value,
-                    })
+                    onFormDataChange(
+                      updateHomeOfficeFormData(
+                        formData,
+                        "postalCode",
+                        event.target.value,
+                      ),
+                    )
                   }
                   className={adminFormStyles.input}
                   placeholder="29401"
@@ -218,9 +222,8 @@ export function HomeOfficeAddressForm({
 
           <div className="mt-6 border border-brand-border bg-brand-page p-4">
             <p className="text-sm text-brand-muted">
-              <strong className="text-brand-text">Note:</strong> This address will be used
-              as your tax registration headquarters.{" "}
-              {!isConfigured && " It will mark your home state for physical nexus."}
+              <strong className="text-brand-text">Note:</strong>{" "}
+              {getHomeOfficeAddressFormNote(isConfigured)}
             </p>
           </div>
         </div>

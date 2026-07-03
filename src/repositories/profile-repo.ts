@@ -100,32 +100,6 @@ export class ProfileRepository {
     }
   }
 
-  async getPayrillaAccountIdForTenant(tenantId: string): Promise<string | null> {
-    const { data, error } = await this.supabase
-      .from("profiles")
-      .select("payrilla_account_id, is_primary_admin")
-      .eq("tenant_id", tenantId)
-      .not("payrilla_account_id", "is", null)
-      .order("is_primary_admin", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-    return data?.payrilla_account_id ?? null;
-  }
-
-  async setPayrillaAccountId(userId: string, payrillaAccountId: string) {
-    const { error } = await this.supabase
-      .from("profiles")
-      .update({ payrilla_account_id: payrillaAccountId })
-      .eq("id", userId);
-    if (error) {
-      throw error;
-    }
-  }
-
   async setTenantId(userId: string, tenantId: string) {
     const { error } = await this.supabase
       .from("profiles")

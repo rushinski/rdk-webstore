@@ -22,7 +22,7 @@ import {
   getCvvLabel,
   getEmailTypeMeta,
   getEventMeta,
-  getNoFraudBadge,
+  getRiskBadge,
   getRelatedCheckoutLogs,
 } from "@/components/admin/transactions/order-details/transactionDetailView";
 
@@ -265,7 +265,7 @@ export function AdminTransactionDetailScreen() {
           shippingAddr={shippingAddr ?? null}
           fmtDate={fmtDate}
           fmtMoney={fmtMoney}
-          getNoFraudBadge={getNoFraudBadge}
+          getRiskBadge={getRiskBadge}
           onOpenCustomer={(routeId) => router.push(`/admin/customers/${routeId}`)}
         />
       </div>

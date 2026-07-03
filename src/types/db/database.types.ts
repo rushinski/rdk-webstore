@@ -360,8 +360,6 @@ export type Database = {
           delivery_event_snapshot: Json | null
           device_fingerprint: string | null
           id: string
-          nofraud_decision: string | null
-          nofraud_transaction_id: string | null
           order_id: string
           order_snapshot: Json | null
           payment_amount: number | null
@@ -369,6 +367,8 @@ export type Database = {
           payment_method_last4: string | null
           payment_method_type: string | null
           payment_transaction_id: string | null
+          risk_decision: string | null
+          risk_review_id: string | null
           shipping_address_snapshot: Json | null
           tax_calculation_snapshot: Json | null
           tenant_id: string
@@ -386,8 +386,6 @@ export type Database = {
           delivery_event_snapshot?: Json | null
           device_fingerprint?: string | null
           id?: string
-          nofraud_decision?: string | null
-          nofraud_transaction_id?: string | null
           order_id: string
           order_snapshot?: Json | null
           payment_amount?: number | null
@@ -395,6 +393,8 @@ export type Database = {
           payment_method_last4?: string | null
           payment_method_type?: string | null
           payment_transaction_id?: string | null
+          risk_decision?: string | null
+          risk_review_id?: string | null
           shipping_address_snapshot?: Json | null
           tax_calculation_snapshot?: Json | null
           tenant_id: string
@@ -412,8 +412,6 @@ export type Database = {
           delivery_event_snapshot?: Json | null
           device_fingerprint?: string | null
           id?: string
-          nofraud_decision?: string | null
-          nofraud_transaction_id?: string | null
           order_id?: string
           order_snapshot?: Json | null
           payment_amount?: number | null
@@ -421,6 +419,8 @@ export type Database = {
           payment_method_last4?: string | null
           payment_method_type?: string | null
           payment_transaction_id?: string | null
+          risk_decision?: string | null
+          risk_review_id?: string | null
           shipping_address_snapshot?: Json | null
           tax_calculation_snapshot?: Json | null
           tenant_id?: string
@@ -1024,10 +1024,7 @@ export type Database = {
           label_created_at: string | null
           label_created_by: string | null
           label_url: string | null
-          nofraud_decision: string | null
-          nofraud_transaction_id: string | null
           payment_transaction_id: string | null
-          payrilla_transaction_id: string | null
           pickup_instructions: string | null
           pickup_location_id: string | null
           public_token: string | null
@@ -1038,7 +1035,6 @@ export type Database = {
           shipping: number
           shipping_carrier: string | null
           status: string | null
-          stripe_session_id: string | null
           subtotal: number
           tax_amount: number | null
           tax_calculation_id: string | null
@@ -1066,10 +1062,7 @@ export type Database = {
           label_created_at?: string | null
           label_created_by?: string | null
           label_url?: string | null
-          nofraud_decision?: string | null
-          nofraud_transaction_id?: string | null
           payment_transaction_id?: string | null
-          payrilla_transaction_id?: string | null
           pickup_instructions?: string | null
           pickup_location_id?: string | null
           public_token?: string | null
@@ -1080,7 +1073,6 @@ export type Database = {
           shipping: number
           shipping_carrier?: string | null
           status?: string | null
-          stripe_session_id?: string | null
           subtotal: number
           tax_amount?: number | null
           tax_calculation_id?: string | null
@@ -1108,10 +1100,7 @@ export type Database = {
           label_created_at?: string | null
           label_created_by?: string | null
           label_url?: string | null
-          nofraud_decision?: string | null
-          nofraud_transaction_id?: string | null
           payment_transaction_id?: string | null
-          payrilla_transaction_id?: string | null
           pickup_instructions?: string | null
           pickup_location_id?: string | null
           public_token?: string | null
@@ -1122,7 +1111,6 @@ export type Database = {
           shipping?: number
           shipping_carrier?: string | null
           status?: string | null
-          stripe_session_id?: string | null
           subtotal?: number
           tax_amount?: number | null
           tax_calculation_id?: string | null
@@ -1222,6 +1210,7 @@ export type Database = {
           amount_captured: number | null
           amount_refunded: number
           amount_requested: number
+          authorization_code: string | null
           avs_result_code: string | null
           billing_address: string | null
           billing_city: string | null
@@ -1241,12 +1230,11 @@ export type Database = {
           customer_ip: string | null
           cvv2_result_code: string | null
           id: string
-          nofraud_decision: string | null
-          nofraud_transaction_id: string | null
           order_id: string
-          payrilla_auth_code: string | null
-          payrilla_reference_number: number | null
-          payrilla_status: string
+          payment_status: string
+          processor_reference: number | null
+          risk_decision: string | null
+          risk_review_id: string | null
           tenant_id: string | null
           three_ds_eci: string | null
           three_ds_status: string | null
@@ -1257,6 +1245,7 @@ export type Database = {
           amount_captured?: number | null
           amount_refunded?: number
           amount_requested: number
+          authorization_code?: string | null
           avs_result_code?: string | null
           billing_address?: string | null
           billing_city?: string | null
@@ -1276,12 +1265,11 @@ export type Database = {
           customer_ip?: string | null
           cvv2_result_code?: string | null
           id?: string
-          nofraud_decision?: string | null
-          nofraud_transaction_id?: string | null
           order_id: string
-          payrilla_auth_code?: string | null
-          payrilla_reference_number?: number | null
-          payrilla_status?: string
+          payment_status?: string
+          processor_reference?: number | null
+          risk_decision?: string | null
+          risk_review_id?: string | null
           tenant_id?: string | null
           three_ds_eci?: string | null
           three_ds_status?: string | null
@@ -1292,6 +1280,7 @@ export type Database = {
           amount_captured?: number | null
           amount_refunded?: number
           amount_requested?: number
+          authorization_code?: string | null
           avs_result_code?: string | null
           billing_address?: string | null
           billing_city?: string | null
@@ -1311,12 +1300,11 @@ export type Database = {
           customer_ip?: string | null
           cvv2_result_code?: string | null
           id?: string
-          nofraud_decision?: string | null
-          nofraud_transaction_id?: string | null
           order_id?: string
-          payrilla_auth_code?: string | null
-          payrilla_reference_number?: number | null
-          payrilla_status?: string
+          payment_status?: string
+          processor_reference?: number | null
+          risk_decision?: string | null
+          risk_review_id?: string | null
           tenant_id?: string | null
           three_ds_eci?: string | null
           three_ds_status?: string | null
@@ -1335,44 +1323,6 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payment_webhook_events: {
-        Row: {
-          created: number
-          id: string
-          order_id: string | null
-          payload_hash: string
-          processed_at: string | null
-          type: string
-          webhook_event_id: string
-        }
-        Insert: {
-          created: number
-          id?: string
-          order_id?: string | null
-          payload_hash: string
-          processed_at?: string | null
-          type: string
-          webhook_event_id: string
-        }
-        Update: {
-          created?: number
-          id?: string
-          order_id?: string | null
-          payload_hash?: string
-          processed_at?: string | null
-          type?: string
-          webhook_event_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stripe_events_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -1577,10 +1527,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_primary_admin: boolean
-          payrilla_account_id: string | null
-          payrilla_customer_token: string | null
           role: string | null
-          stripe_customer_id: string | null
           tenant_id: string | null
         }
         Insert: {
@@ -1589,10 +1536,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_primary_admin?: boolean
-          payrilla_account_id?: string | null
-          payrilla_customer_token?: string | null
           role?: string | null
-          stripe_customer_id?: string | null
           tenant_id?: string | null
         }
         Update: {
@@ -1601,10 +1545,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_primary_admin?: boolean
-          payrilla_account_id?: string | null
-          payrilla_customer_token?: string | null
           role?: string | null
-          stripe_customer_id?: string | null
           tenant_id?: string | null
         }
         Relationships: [
@@ -1858,36 +1799,6 @@ export type Database = {
           },
         ]
       }
-      site_pageviews: {
-        Row: {
-          created_at: string
-          id: string
-          path: string
-          referrer: string | null
-          session_id: string
-          user_id: string | null
-          visitor_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          path: string
-          referrer?: string | null
-          session_id: string
-          user_id?: string | null
-          visitor_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          path?: string
-          referrer?: string | null
-          session_id?: string
-          user_id?: string | null
-          visitor_id?: string
-        }
-        Relationships: []
-      }
       state_sales_tracking: {
         Row: {
           created_at: string
@@ -1967,97 +1878,12 @@ export type Database = {
           },
         ]
       }
-      tax_rate_cache: {
-        Row: {
-          breakdown: Json | null
-          cached_at: string
-          city_rate: number | null
-          combined_rate: number
-          county_rate: number | null
-          district_rate: number | null
-          expires_at: string
-          id: string
-          state_code: string | null
-          state_rate: number | null
-          zip_code: string
-        }
-        Insert: {
-          breakdown?: Json | null
-          cached_at?: string
-          city_rate?: number | null
-          combined_rate: number
-          county_rate?: number | null
-          district_rate?: number | null
-          expires_at?: string
-          id?: string
-          state_code?: string | null
-          state_rate?: number | null
-          zip_code: string
-        }
-        Update: {
-          breakdown?: Json | null
-          cached_at?: string
-          city_rate?: number | null
-          combined_rate?: number
-          county_rate?: number | null
-          district_rate?: number | null
-          expires_at?: string
-          id?: string
-          state_code?: string | null
-          state_rate?: number | null
-          zip_code?: string
-        }
-        Relationships: []
-      }
-      tenant_payrilla_credentials: {
-        Row: {
-          api_key_encrypted: string
-          created_at: string
-          id: string
-          is_active: boolean
-          payrilla_merchant_id: string | null
-          tenant_id: string
-          tokenization_key_encrypted: string
-          updated_at: string
-        }
-        Insert: {
-          api_key_encrypted: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          payrilla_merchant_id?: string | null
-          tenant_id: string
-          tokenization_key_encrypted: string
-          updated_at?: string
-        }
-        Update: {
-          api_key_encrypted?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          payrilla_merchant_id?: string | null
-          tenant_id?: string
-          tokenization_key_encrypted?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tenant_payrilla_credentials_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: true
-            referencedRelation: "tenants"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       tenant_store_access_settings: {
         Row: {
           checkout_lock_enabled: boolean
           checkout_lock_message: string
           created_at: string
           id: string
-          site_lock_enabled: boolean
-          site_unlock_at: string | null
           tenant_id: string
           updated_at: string
         }
@@ -2066,8 +1892,6 @@ export type Database = {
           checkout_lock_message?: string
           created_at?: string
           id?: string
-          site_lock_enabled?: boolean
-          site_unlock_at?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -2076,8 +1900,6 @@ export type Database = {
           checkout_lock_message?: string
           created_at?: string
           id?: string
-          site_lock_enabled?: boolean
-          site_unlock_at?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -2457,4 +2279,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

@@ -10,9 +10,8 @@ multi-tenant expansion, but tenant scoping is not enabled in this release.
 ## 1) System at a glance
 
 RDK is a full-stack ecommerce storefront and admin console built on Next.js App Router,
-with Supabase as the database and auth provider. Payments are handled by Stripe
-(Checkout and Connect payouts). Shipping is handled by Shippo. Rate limiting is
-Upstash Redis in production and in-memory in local/dev/test. Transactional email
+with Supabase as the database and auth provider. Checkout uses a hosted payment flow,
+shipping is handled by Shippo. Transactional email
 is sent via AWS SES. Deployments run on Vercel via GitHub Actions.
 
 ## 2) Core stack and services
@@ -27,13 +26,11 @@ Data and auth:
 - Supabase Storage (product images)
 
 Payments and shipping:
-- Stripe Checkout (payments)
-- Stripe Connect (admin payouts)
+- Hosted card payment integration
 - Shippo (rates and labels)
 
 Infra and ops:
 - Vercel (hosting)
-- Upstash Redis (rate limiting)
 - AWS SES (transactional email)
 
 Observability:
@@ -50,15 +47,17 @@ Top-level structure:
 - `infra/`       local infrastructure (Caddy, etc.)
 - `tests/`       unit, integration, RLS, and E2E tests
 
-Layering rules (enforced by convention):
+Layering rules (enforced by convention, with an active migration toward `src/modules/**`):
 - Route handlers are thin (validation + orchestration).
 - Services contain domain logic.
 - Repositories are the only layer that queries the database.
 - Services do not create Supabase clients; callers pass them in.
 - UI components do not import server-only modules.
+- Business-capability slices are being introduced under `src/modules/**`.
 
 Key entry points:
 - `app/api/**/route.ts`         API routes
+- `src/modules/**`              feature-owned business modules
 - `src/services/**`             domain logic
 - `src/repositories/**`         data access
 - `src/jobs/**`                 async workflows
@@ -66,9 +65,11 @@ Key entry points:
 - `src/config/**`               env validation, security, constants
 - `proxy.ts` and `src/proxy/**` request proxy pipeline
 
+Architecture rules for the migration live in `docs/ARCHITECTURE_RULES.md`.
+
 ## 4) Runtime request flow (high level)
 
-1) Request enters `proxy.ts` for canonicalization, security checks, and rate limiting.
+1) Request enters `proxy.ts` for canonicalization, security checks, and admin gating.
 2) Route handler validates input (zod schemas under `src/lib/validation/**`).
 3) Route creates a Supabase client and calls services.
 4) Services coordinate repositories and external APIs.
@@ -83,12 +84,12 @@ Storefront and catalog:
 
 Cart and checkout:
 - Cart validation (`/api/cart/validate`)
-- Stripe Checkout session creation (server-side totals)
-- Confirm-payment flow for server verification
+- Checkout initialization and submission with server-side totals
+- Confirm-payment flow for server verification where still required
 
 Orders:
 - Orders and order items persisted in Postgres
-- Stripe event idempotency with `stripe_events`
+- Checkout/payment lifecycle persistence and idempotent completion tracking
 
 Shipping:
 - Shipping defaults, carriers, and origins
@@ -104,12 +105,7 @@ Admin:
 - Product CRUD and catalog tooling
 - Order refunds and fulfillment
 - Shipping configuration and label purchase
-- Stripe Connect payouts
-- Admin invites and notifications
-
-Messaging:
-- Chats and messages stored in `chats` and `chat_messages`
-- Admin notifications for chat events
+- Admin invites and audit controls
 
 Analytics and email:
 - Basic event tracking endpoint
@@ -125,9 +121,7 @@ Core entities:
 - Catalog: `products`, `product_variants`, `product_images`, `tags`, `catalog_*`
 - Orders: `orders`, `order_items`, `order_shipping`
 - Users: `profiles`, `user_addresses`, `shipping_profiles`
-- Admin: `admin_invites`, `admin_notifications`, `admin_audit_log`
-- Messaging: `chats`, `chat_messages`
-- Payments: `stripe_events` (idempotency)
+- Admin: `admin_invites`, `admin_audit_log`
 - Email: `email_subscribers`, `email_subscription_tokens`
 - Support: `contact_messages`
 
@@ -149,12 +143,10 @@ Proxy pipeline (in `proxy.ts`):
 - Canonicalization (lowercase, no duplicate slashes)
 - Bot filtering
 - CSRF protection for unsafe methods
-- Rate limiting (Upstash in prod, memory in dev/test)
 - Admin guard for `/admin` and `/api/admin`
 - Security headers (CSP, HSTS, etc.)
 
 Webhooks:
-- Stripe signature verification is required
 - Shippo webhook token verification is required
 
 Guest access:
@@ -222,8 +214,8 @@ Operational guidance:
 
 If you rebuild the backend, preserve these contracts and behaviors:
 - API surface in `docs/API_SPEC.md` (routes, shapes, auth assumptions)
-- Stripe Checkout and confirm-payment flow (server-side totals and verification)
-- Stripe and Shippo webhook verification and idempotency
+- Hosted checkout flow and confirm-payment behavior where still active
+- Shippo webhook verification and idempotency
 - Order lifecycle transitions and inventory decrement logic
 - Admin role checks and MFA enforcement
 - Guest order access token hashing and expiry
@@ -236,11 +228,10 @@ Recommended module boundaries in the new backend:
 - Service layer (business logic and orchestration)
 - Repository/data layer (DB access and transactions)
 - Job/worker layer (webhooks, email, async tasks)
-- Integration layer (Stripe, Shippo, SES, Supabase)
+- Integration layer (payments, shipping, email, Supabase)
 
 Suggested data ownership:
 - Orders and order_items are source of truth for fulfillment
-- Stripe events are the source of idempotency truth
 - Catalog tables drive storefront visibility and filtering
 
 ## 13) Document map

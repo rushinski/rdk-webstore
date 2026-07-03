@@ -9,7 +9,7 @@ import { NextResponse } from "next/server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
-import { OrdersRepository } from "@/repositories/orders-repo";
+import { OrdersRepository } from "@/modules/orders";
 import { ProductRepository } from "@/repositories/product-repo";
 import { AddressesRepository } from "@/repositories/addresses-repo";
 import { CheckoutPricingService } from "@/services/checkout-pricing-service";

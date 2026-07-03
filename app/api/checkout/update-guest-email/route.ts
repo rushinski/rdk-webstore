@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
-import { OrdersRepository } from "@/repositories/orders-repo";
+import { OrdersRepository } from "@/modules/orders";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { log, logError } from "@/lib/utils/log";
 

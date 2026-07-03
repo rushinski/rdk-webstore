@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { env } from "@/config/env";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
-import { OrdersRepository } from "@/repositories/orders-repo";
+import { OrdersRepository } from "@/modules/orders";
 import { ProfileRepository } from "@/repositories/profile-repo";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { OrderEmailService } from "@/services/order-email-service";

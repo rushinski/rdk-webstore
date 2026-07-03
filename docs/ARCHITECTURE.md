@@ -5,13 +5,16 @@ This document describes the current architecture of the RDK codebase. It is deri
 ## System overview
 - Next.js App Router handles all pages and API routes.
 - Supabase provides Postgres, Auth, Storage, and SSR session helpers.
-- Stripe handles checkout and Connect payouts.
+- Hosted payment processing handles checkout.
 - Shippo handles shipping rates and label purchase.
-- Upstash Redis provides rate limiting in production; local/dev/test uses an in-memory fallback.
 - AWS SES is used for transactional email.
 
 ## Layering and boundaries
-Code is organized into strict layers:
+Code is organized into strict layers and is migrating toward module-owned vertical slices.
+
+Implementation-facing rules live in `docs/ARCHITECTURE_RULES.md`.
+
+Current global layers:
 - `app/api/**/route.ts`: route handlers (thin controllers)
 - `app/**`: pages (thin composition)
 - `src/components/**`: UI components
@@ -22,13 +25,18 @@ Code is organized into strict layers:
 - `src/proxy/**` and `proxy.ts`: request proxy pipeline
 - `src/config/**`: env validation, security, constants
 
+Target migration roots:
+- `src/modules/**`: business-capability slices
+- `src/shared/**`: cross-cutting shared code
+
 Rules:
 - Services never create Supabase clients. Routes or jobs create clients and pass them in.
 - Repositories are the only layer that executes database queries.
 - UI components do not import server-only modules.
+- New domain-specific code should prefer `src/modules/**` over growing the global shared layers.
 
 ## Request flow
-1) Request enters `proxy.ts` (canonicalization, bot checks, CSRF, rate limits, admin guard).
+1) Request enters `proxy.ts` (canonicalization, CSRF checks, admin guard, security headers).
 2) Route handler validates input using `src/lib/validation/**`.
 3) Route creates Supabase client (SSR) and calls services.
 4) Services coordinate repositories and external APIs.
@@ -43,12 +51,12 @@ Rules:
 
 ### Cart and checkout
 - Cart validation in `/api/cart/validate`.
-- Checkout session creation in `CheckoutService` with server-side totals.
-- Payment confirmation verifies Stripe status, amount, and currency.
+- Checkout initialization and submission are handled by the `/api/checkout/*` routes with server-side totals.
+- Payment confirmation and order completion remain server-verified before fulfillment changes are applied.
 
 ### Orders
 - Orders and order items persisted in `orders` and `order_items`.
-- `stripe_events` stores processed event IDs for idempotency.
+- Payment transaction and checkout log tables are used to track checkout lifecycle and idempotent completion behavior.
 
 ### Shipping
 - Shipping defaults and carriers stored in `shipping_defaults` and `shipping_carriers`.
@@ -57,10 +65,7 @@ Rules:
 ### Admin
 - Admin guard is enforced in the proxy and in admin route handlers.
 - Admin roles are defined in `src/config/constants/roles.ts`.
-- Stripe Connect admin flows are handled by `stripe-admin-service`.
-
-### Messaging
-- Chats and chat messages are stored in `chats` and `chat_messages`.
+- Admin surfaces cover catalog, inventory, transactions, customers, shipping, nexus, and storefront settings.
 
 ## Supabase usage
 - Server clients: `src/lib/supabase/server.ts`

@@ -6,7 +6,7 @@ This document provides a high-level design view of the RDK platform.
 - Web UI: Next.js App Router
 - Data store: Supabase Postgres
 - Auth: Supabase Auth + MFA for admins
-- Payments: Stripe Checkout and webhook processing
+- Payments: hosted checkout and server-side order completion
 - Shipping: Shippo rates and label purchase
 
 ## Core entities (public schema)
@@ -16,26 +16,24 @@ This document provides a high-level design view of the RDK platform.
 - `orders`, `order_items`, `order_shipping`
 - `profiles`, `user_addresses`, `shipping_profiles`
 - `shipping_defaults`, `shipping_carriers`, `shipping_origins`
-- `admin_invites`, `admin_notifications`, `admin_audit_log`
-- `chats`, `chat_messages`
-- `stripe_events` (idempotency)
+- `admin_invites`, `admin_audit_log`
 - `email_subscribers`, `email_subscription_tokens`
 - `contact_messages`
 
 There are no database views.
 
 ## Checkout flow (high level)
-1) Client calls `/api/checkout/session` with cart and fulfillment.
-2) `CheckoutService` validates inventory and calculates totals.
-3) Stripe Checkout session is created with idempotency.
-4) User completes payment in Stripe.
-5) `/api/webhooks/stripe` receives the event and runs `StripeOrderJob`.
-6) Order state moves to `paid` and inventory is decremented.
+1) Client calls `/api/checkout/init-checkout` with cart and fulfillment.
+2) Server validates inventory and calculates totals.
+3) Checkout is initialized with hosted payment state and idempotency.
+4) Client submits the completed payment payload to `/api/checkout/create-checkout`.
+5) Server verifies the payment outcome before moving the order to `paid`.
+6) Inventory is decremented and order completion side effects are recorded.
 7) Confirmation email is sent asynchronously with retry logic.
 
 ## Confirm-payment flow (client-side)
-1) Client calls `/api/checkout/confirm-payment` with `orderId` and `paymentIntentId`.
-2) Server verifies Stripe status and totals.
+1) Client calls `/api/checkout/confirm-payment` with `orderId` and payment metadata.
+2) Server verifies payment status and totals.
 3) Order is marked paid transactionally and inventory is decremented.
 
 ## Shipping flow
@@ -48,10 +46,6 @@ There are no database views.
 1) Proxy enforces admin guard for `/admin` and `/api/admin`.
 2) Role permissions are enforced by server logic and RLS policies.
 3) Admin invites are constrained by role permissions.
-
-## Messaging flow
-- Chats and messages are stored in `chats` and `chat_messages`.
-- Admin notifications are generated for chat events.
 
 ## Observability
 - Structured JSON logs with request IDs.

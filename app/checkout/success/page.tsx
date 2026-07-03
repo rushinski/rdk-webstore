@@ -130,7 +130,7 @@ function SuccessContent() {
 
         setStatus(data);
 
-        if (data?.status === "paid") {
+        if (data?.status === "paid" || data?.status === "processing") {
           setIsPolling(false);
           clearInterval(pollInterval);
           clearTimeout(timeoutId);
@@ -191,7 +191,7 @@ function SuccessContent() {
           Order confirmed
         </h1>
         <p className="mb-6 text-brand-muted">
-          Your payment was accepted. We could not load the full order details on this
+          Your order was submitted. We could not load the full order details on this
           device, but we will email your confirmation and secure order link shortly.
         </p>
         {isPickupParam && (
@@ -227,15 +227,15 @@ function SuccessContent() {
     );
   }
 
-  if (isPolling || !status || status.status !== "paid") {
+  if (isPolling || !status || !["paid", "processing"].includes(status.status)) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center">
         <Loader2 className="mx-auto mb-6 h-16 w-16 animate-spin text-brand-text" />
         <h1 className="mb-4 text-3xl font-black uppercase tracking-[0.08em] text-brand-text">
-          Processing your payment
+          Finalizing your order
         </h1>
         <p className="mb-8 text-brand-muted">
-          Please wait while we confirm your order. This should only take a moment.
+          Please wait while we load your order details. This should only take a moment.
         </p>
         {status && (
           <div className="border border-brand-border bg-brand-surface p-6 text-left">
@@ -268,7 +268,7 @@ function SuccessContent() {
         Order confirmed
       </h1>
       <p className="mb-8 text-brand-muted">
-        Thank you for your purchase. Your order has been successfully processed.
+        Thank you for your order. Your submission has been received successfully.
       </p>
 
       <div className="mb-6 border border-brand-border bg-brand-surface p-6 text-left">

@@ -1,6 +1,6 @@
 // app/api/admin/orders/[orderId]/refund/route.ts
-// Processes refunds via PayRilla. Handles full, product-level, and custom amount refunds.
-// Uses reverseTransaction() which voids if unsettled or refunds if settled.
+// Processes order refunds. Handles full, product-level, and custom amount refunds.
+// Uses the active processor reversal flow, which voids if unsettled or refunds if settled.
 
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -9,9 +9,8 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
 import { requireAdminApi } from "@/lib/auth/session";
-import { OrdersRepository } from "@/repositories/orders-repo";
+import { OrdersRepository } from "@/modules/orders";
 import { PaymentTransactionsRepository } from "@/repositories/payment-transactions-repo";
-import { PayrillaChargeService } from "@/services/payrilla-charge-service";
 import { ProductService } from "@/services/product-service";
 import { RefundNotificationService } from "@/services/refund-notification-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
@@ -96,22 +95,7 @@ export async function POST(
       );
     }
 
-    // Resolve PayRilla reference number from payment_transactions
     const paymentTx = await paymentTxRepo.getByOrderId(orderId);
-    const payrillaReferenceNumber =
-      paymentTx !== null && paymentTx.payrilla_reference_number !== null
-        ? String(paymentTx.payrilla_reference_number)
-        : null;
-
-    if (!payrillaReferenceNumber) {
-      return NextResponse.json(
-        {
-          error: "Cannot refund: No PayRilla transaction found for this order",
-          requestId,
-        },
-        { status: 400, headers: { "Cache-Control": "no-store" } },
-      );
-    }
 
     const tenantId = order.tenant_id;
     tenantIdForLog = tenantId;
@@ -185,17 +169,8 @@ export async function POST(
       requestId,
       orderId,
       tenantId,
-      payrillaReferenceNumber,
       refundType: payload.type,
       requestedRefundCents,
-    });
-
-    // Issue the refund via PayRilla
-    const payrillaService = new PayrillaChargeService(admin, tenantId);
-    const isFullRefund = requestedRefundCents >= remainingRefundableCents;
-    await payrillaService.reverseTransaction({
-      transactionId: payrillaReferenceNumber,
-      amountCents: isFullRefund ? undefined : requestedRefundCents,
     });
 
     const refundedCents = requestedRefundCents;
@@ -224,6 +199,7 @@ export async function POST(
           tenantId,
           eventType: isFullyRefunded ? "payment_refunded" : "payment_refund_partial",
           eventData: {
+            mode: "manual",
             refundType: payload.type,
             refundedCents,
             nextRefundAmountCents,
@@ -307,12 +283,13 @@ export async function POST(
       method: "POST",
       httpStatus: 200,
       durationMs: Date.now() - startedAt,
-      eventLabel: `Refund processed (${payload.type})`,
+      eventLabel: `Manual refund recorded (${payload.type})`,
       requestPayload: requestBody,
       responsePayload: {
         success: true,
         status: nextStatus,
         refundAmount: nextRefundAmountCents,
+        mode: "manual",
         warning: inventoryWarning,
         requestId,
       },
@@ -323,6 +300,7 @@ export async function POST(
         success: true,
         status: nextStatus,
         refundAmount: nextRefundAmountCents,
+        mode: "manual",
         warning: inventoryWarning,
       },
       { headers: { "Cache-Control": "no-store" } },

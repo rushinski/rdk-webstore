@@ -64,7 +64,9 @@ export async function GET(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: paymentTxRows } = await (admin as any)
       .from("payment_transactions")
-      .select("*")
+      .select(
+        "id, processorReference:processor_reference, authorizationCode:authorization_code, paymentStatus:payment_status, card_type, card_last4, card_expiry_month, card_expiry_year, avs_result_code, cvv2_result_code, three_ds_status, riskReviewId:risk_review_id, riskDecision:risk_decision, amount_authorized, amount_captured, billing_name, billing_address, billing_city, billing_state, billing_zip, billing_country, billing_phone, customer_email, customer_ip",
+      )
       .eq("order_id", orderId)
       .order("created_at", { ascending: false })
       .limit(1);

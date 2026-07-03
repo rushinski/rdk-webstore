@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   Globe,
   LayoutDashboard,
   Package,
@@ -10,7 +9,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type AdminSidebarGroupKey = "analytics" | "orders" | "settings";
+export type AdminSidebarGroupKey = "orders" | "settings";
 
 export type AdminSidebarLinkItem = {
   type: "link";
@@ -34,17 +33,6 @@ export const adminSidebarItems: AdminSidebarItem[] = [
   { type: "link", href: "/", label: "Website", icon: Globe },
   { type: "link", href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { type: "link", href: "/admin/inventory", label: "Inventory", icon: Package },
-  {
-    type: "group",
-    label: "Analytics",
-    icon: BarChart3,
-    groupKey: "analytics",
-    isActive: (pathname: string) => pathname.startsWith("/admin/analytics"),
-    children: [
-      { href: "/admin/analytics/traffic", label: "Traffic" },
-      { href: "/admin/analytics/financials", label: "Financials" },
-    ],
-  },
   {
     type: "group",
     label: "Activity",
@@ -74,7 +62,6 @@ export const adminSidebarItems: AdminSidebarItem[] = [
     children: [
       { href: "/admin/settings/store-access", label: "Store Access" },
       { href: "/admin/settings/shipping", label: "Shipping" },
-      { href: "/admin/settings/taxes", label: "Taxes" },
     ],
   },
 ];
@@ -83,7 +70,6 @@ export function getAdminSidebarActiveGroups(
   pathname: string,
 ): Record<AdminSidebarGroupKey, boolean> {
   return {
-    analytics: pathname.startsWith("/admin/analytics"),
     orders:
       pathname.startsWith("/admin/transactions") ||
       pathname.startsWith("/admin/customers") ||

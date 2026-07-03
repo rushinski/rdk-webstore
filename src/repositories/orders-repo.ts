@@ -2,6 +2,17 @@
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { Tables, TablesInsert, TablesUpdate } from "@/types/db/database.types";
+import {
+  buildPagedRange,
+  buildPendingOrderInsert,
+  buildPendingOrderItemsInsert,
+  buildReadyToShipUpdate,
+  ORDER_ANALYTICS_SELECT,
+  ORDER_ITEMS_DETAILED_SELECT,
+  ORDER_LIST_SELECT,
+  ORDER_PAGED_SELECT,
+  USER_ORDERS_SELECT,
+} from "@/repositories/orders-repo-helpers";
 
 type OrderRow = Tables<"orders">;
 type OrderUpdate = TablesUpdate<"orders">;
@@ -101,23 +112,7 @@ export class OrdersRepository {
   async createPendingOrder(input: CreatePendingOrderInput): Promise<OrderRow> {
     const { data: order, error: orderError } = await this.supabase
       .from("orders")
-      .insert({
-        user_id: input.userId,
-        guest_email: input.guestEmail ?? null,
-        tenant_id: input.tenantId,
-        seller_id: input.sellerId ?? null,
-        currency: input.currency,
-        subtotal: input.subtotal,
-        shipping: input.shipping,
-        total: input.total,
-        status: "pending",
-        fulfillment: input.fulfillment,
-        idempotency_key: input.idempotencyKey,
-        cart_hash: input.cartHash,
-        expires_at: input.expiresAt.toISOString(),
-        pickup_location_id: input.pickupLocationId ?? null,
-        pickup_instructions: input.pickupInstructions ?? null,
-      })
+      .insert(buildPendingOrderInsert(input))
       .select()
       .single();
 
@@ -125,22 +120,10 @@ export class OrdersRepository {
       throw orderError;
     }
 
-    const orderItems: OrderItemInsert[] = input.items.map((item) => ({
-      order_id: order.id,
-      product_id: item.productId,
-      variant_id: item.variantId,
-      variant_sku: item.variantSku,
-      product_name: item.productName,
-      brand: item.brand,
-      model: item.model,
-      category: item.category,
-      condition: item.condition,
-      size_label: item.sizeLabel,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      unit_cost: item.unitCost,
-      line_total: item.lineTotal,
-    }));
+    const orderItems: OrderItemInsert[] = buildPendingOrderItemsInsert(
+      order.id,
+      input.items,
+    );
 
     const { error: itemsError } = await this.supabase
       .from("order_items")
@@ -286,9 +269,7 @@ export class OrdersRepository {
   }) {
     let query = this.supabase
       .from("orders")
-      .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, category, created_at, description, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)), shipping:order_shipping(*)",
-      )
+      .select(ORDER_LIST_SELECT)
       .order("created_at", { ascending: false });
 
     if (params?.status?.length) {
@@ -314,9 +295,7 @@ export class OrdersRepository {
   async listOrdersForAnalytics(params?: { status?: string[]; since?: string }) {
     let query = this.supabase
       .from("orders")
-      .select(
-        "id, created_at, subtotal, total, refund_amount, items:order_items(quantity, unit_cost, refunded_at)",
-      )
+      .select(ORDER_ANALYTICS_SELECT)
       .order("created_at", { ascending: false });
 
     if (params?.status?.length) {
@@ -346,10 +325,7 @@ export class OrdersRepository {
   }) {
     let query = this.supabase
       .from("orders")
-      .select(
-        "*, profiles!user_id(email), items:order_items(*, product:products(id, name, brand, model, category, created_at, description, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)), shipping:order_shipping(*), payment:payment_transactions(card_type, card_last4, payrilla_status)",
-        { count: "exact" },
-      )
+      .select(ORDER_PAGED_SELECT, { count: "exact" })
       .order("created_at", { ascending: false });
 
     if (params?.incomplete) {
@@ -369,9 +345,7 @@ export class OrdersRepository {
       query = query.eq("fulfillment_status", params.fulfillmentStatus);
     }
     if (params?.limit) {
-      const page = Math.max(params.page ?? 1, 1);
-      const start = (page - 1) * params.limit;
-      const end = start + params.limit - 1;
+      const { end, start } = buildPagedRange(params.page ?? 1, params.limit);
       query = query.range(start, end);
     }
 
@@ -385,9 +359,7 @@ export class OrdersRepository {
   async getOrderItemsDetailed(orderId: string) {
     const { data, error } = await this.supabase
       .from("order_items")
-      .select(
-        "*, product:products(id, name, brand, model, category, created_at, description, images:product_images(url, is_primary, sort_order), tags:product_tags(tag:tags(label, group_key))), variant:product_variants(id, sku, size_label, sale_price_cents, unit_cost_cents)",
-      )
+      .select(ORDER_ITEMS_DETAILED_SELECT)
       .eq("order_id", orderId);
 
     if (error) {
@@ -399,9 +371,7 @@ export class OrdersRepository {
   async listOrdersForUser(userId: string) {
     const { data, error } = await this.supabase
       .from("orders")
-      .select(
-        "*, items:order_items(*, product:products(id, name, brand, model), variant:product_variants(id, sku, size_label, sale_price_cents))",
-      )
+      .select(USER_ORDERS_SELECT)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -551,25 +521,7 @@ export class OrdersRepository {
       actualShippingCost?: number | null;
     },
   ): Promise<OrderRow> {
-    const updateData: OrderUpdate = {
-      fulfillment_status: "ready_to_ship",
-      shipping_carrier: input.carrier ?? null,
-      tracking_number: input.trackingNumber ?? null,
-      shipped_at: null,
-    };
-
-    if (input.labelUrl) {
-      updateData.label_url = input.labelUrl;
-      updateData.label_created_at = new Date().toISOString();
-    }
-
-    if (input.labelCreatedBy) {
-      updateData.label_created_by = input.labelCreatedBy;
-    }
-
-    if (input.actualShippingCost !== null && input.actualShippingCost !== undefined) {
-      updateData.actual_shipping_cost_cents = input.actualShippingCost;
-    }
+    const updateData: OrderUpdate = buildReadyToShipUpdate(input);
 
     const { data, error } = await this.supabase
       .from("orders")

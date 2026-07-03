@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireAdminApi } from "@/lib/auth/session";
-import { OrdersService } from "@/services/orders-service";
+import { OrdersService } from "@/modules/orders";
 import { OrderEventsRepository } from "@/repositories/order-events-repo";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";

@@ -4,7 +4,7 @@ import type { Order, PaymentTransaction } from "./types";
 type TransactionOrderDetailsPanelProps = {
   fmtDate: (iso: string | null | undefined, opts?: Intl.DateTimeFormatOptions) => string;
   fmtMoney: (value: number | null | undefined) => string;
-  getNoFraudBadge: (decision: string | null | undefined) => React.ReactNode;
+  getRiskBadge: (decision: string | null | undefined) => React.ReactNode;
   isPickup: boolean;
   order: Order;
   paymentTx: PaymentTransaction | null;
@@ -16,7 +16,7 @@ type TransactionOrderDetailsPanelProps = {
 export function TransactionOrderDetailsPanel({
   fmtDate,
   fmtMoney,
-  getNoFraudBadge,
+  getRiskBadge,
   isPickup,
   order,
   paymentTx,
@@ -34,13 +34,13 @@ export function TransactionOrderDetailsPanel({
         <DetailRow label="Fulfillment">{isPickup ? "Pickup" : "Shipping"}</DetailRow>
         <DetailRow label="Created">{fmtDate(order.created_at)}</DetailRow>
         <DetailRow label="Updated">{fmtDate(order.updated_at)}</DetailRow>
-        {paymentTx?.payrilla_status && (
-          <DetailRow label="Payment status">{paymentTx.payrilla_status}</DetailRow>
+        {paymentTx?.paymentStatus && (
+          <DetailRow label="Payment status">{paymentTx.paymentStatus}</DetailRow>
         )}
-        {paymentTx?.payrilla_reference_number !== null &&
-          paymentTx?.payrilla_reference_number !== undefined && (
-            <DetailRow label="Reference #">
-              {paymentTx.payrilla_reference_number}
+        {paymentTx?.processorReference !== null &&
+          paymentTx?.processorReference !== undefined && (
+            <DetailRow label="Processor reference">
+              {paymentTx.processorReference}
             </DetailRow>
           )}
         {paymentTx?.id && (
@@ -60,16 +60,16 @@ export function TransactionOrderDetailsPanel({
               {fmtMoney(paymentTx.amount_captured)}
             </DetailRow>
           )}
-        {paymentTx?.payrilla_auth_code && (
-          <DetailRow label="Auth code">{paymentTx.payrilla_auth_code}</DetailRow>
+        {paymentTx?.authorizationCode && (
+          <DetailRow label="Authorization code">{paymentTx.authorizationCode}</DetailRow>
         )}
         {paymentTx && (
-          <DetailRow label="NoFraud decision">
-            {getNoFraudBadge(paymentTx.nofraud_decision)}
+          <DetailRow label="Risk review">
+            {getRiskBadge(paymentTx.riskDecision)}
           </DetailRow>
         )}
-        {paymentTx?.nofraud_transaction_id && (
-          <DetailRow label="NoFraud ID">{paymentTx.nofraud_transaction_id}</DetailRow>
+        {paymentTx?.riskReviewId && (
+          <DetailRow label="Risk review ID">{paymentTx.riskReviewId}</DetailRow>
         )}
         {paymentTx?.customer_ip && (
           <DetailRow label="Customer IP">{paymentTx.customer_ip}</DetailRow>

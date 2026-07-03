@@ -23,7 +23,6 @@ export function AdminSidebar({
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const [openGroups, setOpenGroups] = useState({
-    analytics: false,
     orders: false,
     settings: false,
   });
@@ -43,11 +42,10 @@ export function AdminSidebar({
   // Auto-open group when you're inside it
   useEffect(() => {
     setOpenGroups((prev) => ({
-      analytics: prev.analytics || activeGroups.analytics,
       orders: prev.orders || activeGroups.orders,
       settings: prev.settings || activeGroups.settings,
     }));
-  }, [activeGroups.analytics, activeGroups.orders, activeGroups.settings]);
+  }, [activeGroups.orders, activeGroups.settings]);
 
   const handleToggleGroup = (groupKey: AdminSidebarGroupKey) => {
     setOpenGroups((prev) => ({

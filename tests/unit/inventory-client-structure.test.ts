@@ -34,7 +34,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory query and product-display logic to focused helpers", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 
@@ -43,7 +46,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory selection logic to focused helpers", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 
@@ -76,7 +82,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory view metadata formatting to focused helpers", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 
@@ -97,7 +106,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory derived pagination and filter state to focused helpers", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 
@@ -162,7 +174,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory side effects to a focused hook", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 
@@ -172,7 +187,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory mutation and confirmation flows to a focused hook", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 
@@ -182,7 +200,10 @@ describe("inventory client structure", () => {
 
   it("delegates inventory data loading and export orchestration to a focused hook", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/inventory/InventoryClient.tsx"),
+      path.join(
+        process.cwd(),
+        "src/components/admin/inventory/useInventoryClientController.ts",
+      ),
       "utf8",
     );
 

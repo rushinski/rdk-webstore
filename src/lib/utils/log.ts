@@ -14,7 +14,6 @@ export type LogLayer =
   | "service"
   | "repository"
   | "job"
-  | "payrilla"
   | "cache"
   | "infra"
   | "lib"

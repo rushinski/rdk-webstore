@@ -8,12 +8,11 @@
 //   - transaction_audit_log (append-only event trail)
 //
 // The evidence locker is designed to win three types of disputes:
-//   1. Fraud / unauthorized card use  → NoFraud transaction ID + AVS/CVV codes
+//   1. Fraud / unauthorized card use  → risk review ID + AVS/CVV codes
 //   2. Item not received              → Carrier tracking events + delivery confirmation
 //   3. Item not as described          → Order snapshot with product descriptions + images
 
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-import type { NoFraudDecision } from "@/services/nofraud-service";
 import type { Json } from "@/types/db/database.types";
 import { log, logError } from "@/lib/utils/log";
 
@@ -65,8 +64,8 @@ export class EvidenceService {
     paymentCurrency: string;
     paymentMethodLast4?: string | null;
     paymentMethodType?: string | null;
-    nofraudTransactionId?: string | null;
-    nofraudDecision?: NoFraudDecision | null;
+    riskReviewId?: string | null;
+    riskDecision?: string | null;
     avsResultCode?: string | null;
     cvvResultCode?: string | null;
     customerIp?: string | null;
@@ -79,8 +78,8 @@ export class EvidenceService {
         {
           order_id: params.orderId,
           tenant_id: params.tenantId,
-          nofraud_transaction_id: params.nofraudTransactionId ?? null,
-          nofraud_decision: params.nofraudDecision ?? null,
+          risk_review_id: params.riskReviewId ?? null,
+          risk_decision: params.riskDecision ?? null,
           avs_result_code: params.avsResultCode ?? null,
           cvv_result_code: params.cvvResultCode ?? null,
           customer_ip: params.customerIp ?? null,
@@ -111,22 +110,22 @@ export class EvidenceService {
         layer: "service",
         message: "evidence_payment_collected",
         orderId: params.orderId,
-        nofraudDecision: params.nofraudDecision,
+        riskDecision: params.riskDecision,
       });
 
       // Also write to the immutable audit log
       await this.writeAuditEvent({
         orderId: params.orderId,
         tenantId: params.tenantId,
-        eventType: params.nofraudDecision
-          ? `nofraud_${params.nofraudDecision}`
+        eventType: params.riskDecision
+          ? `risk_review_${params.riskDecision}`
           : "payment_succeeded",
         actor: "system",
         data: {
           paymentTransactionId: params.paymentTransactionId,
           paymentAmount: params.paymentAmount,
-          nofraudTransactionId: params.nofraudTransactionId,
-          nofraudDecision: params.nofraudDecision,
+          riskReviewId: params.riskReviewId,
+          riskDecision: params.riskDecision,
           avsResultCode: params.avsResultCode,
           cvvResultCode: params.cvvResultCode,
         },

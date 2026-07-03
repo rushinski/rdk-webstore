@@ -1,12 +1,13 @@
-import nextEnv from "@next/env";
+import { loadEnvConfig } from "@next/env";
 import { createClient } from "@supabase/supabase-js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
-const { loadEnvConfig } = nextEnv;
-loadEnvConfig(process.cwd());
+function loadEnvironment() {
+  loadEnvConfig(process.cwd());
+}
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   let tenantId = null;
   let includeArchived = false;
   let json = false;
@@ -91,6 +92,7 @@ async function resolveTenantId(supabase, explicitTenantId) {
 }
 
 async function main() {
+  loadEnvironment();
   const args = parseArgs(process.argv.slice(2));
   const supabase = createAdminClient();
   const tenantId = await resolveTenantId(supabase, args.tenantId);
@@ -171,13 +173,15 @@ async function main() {
   process.stdout.write(`Wrote list: ${outPath}\n`);
 }
 
-main().catch((error) => {
-  const message =
-    error instanceof Error
-      ? (error.stack ?? error.message)
-      : typeof error === "object" && error !== null
-        ? JSON.stringify(error, null, 2)
-        : String(error);
-  process.stderr.write(`${message}\n`);
-  process.exitCode = 1;
-});
+if (process.env.NODE_ENV !== "test") {
+  main().catch((error) => {
+    const message =
+      error instanceof Error
+        ? (error.stack ?? error.message)
+        : typeof error === "object" && error !== null
+          ? JSON.stringify(error, null, 2)
+          : String(error);
+    process.stderr.write(`${message}\n`);
+    process.exitCode = 1;
+  });
+}

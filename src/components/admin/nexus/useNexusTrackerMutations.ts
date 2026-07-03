@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 
+import {
+  isHomeOfficeSetupError,
+  resolveUpdatedSelectedState,
+  shouldPromptForHomeOffice,
+} from "@/components/admin/nexus/nexusTrackerMutationState";
 import { updateNexusRegistrationRequest, updateNexusTypeRequest } from "@/components/admin/nexus/nexusTrackerRequests";
 import { logError } from "@/lib/utils/log";
 import type { NexusData, StateSummary } from "@/types/domain/nexus";
@@ -30,7 +35,7 @@ export function useNexusTrackerMutations({
     currentRegistered: boolean,
     nexusType: "physical" | "economic",
   ) => {
-    if (!isHomeOfficeConfigured && !currentRegistered) {
+    if (shouldPromptForHomeOffice(isHomeOfficeConfigured, currentRegistered)) {
       setShowHomeSetup(true);
       return;
     }
@@ -46,7 +51,7 @@ export function useNexusTrackerMutations({
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to update registration";
-        if (message.includes("head office")) {
+        if (isHomeOfficeSetupError(message)) {
           setShowHomeSetup(true);
           alert("Please set up your home office address first.");
           return;
@@ -56,11 +61,9 @@ export function useNexusTrackerMutations({
 
       await fetchNexusData();
 
-      if (selectedState?.stateCode === stateCode) {
-        const updatedState = data?.states.find((s) => s.stateCode === stateCode);
-        if (updatedState) {
-          setSelectedState({ ...updatedState, isRegistered: !currentRegistered });
-        }
+      const updatedState = resolveUpdatedSelectedState(data, selectedState, stateCode);
+      if (updatedState) {
+        setSelectedState({ ...updatedState, isRegistered: !currentRegistered });
       }
     } catch (err: unknown) {
       logError(err, { layer: "frontend", event: "nexus_toggle_registration_failed" });
@@ -85,11 +88,9 @@ export function useNexusTrackerMutations({
 
       await fetchNexusData();
 
-      if (selectedState?.stateCode === stateCode) {
-        const updatedState = data?.states.find((s) => s.stateCode === stateCode);
-        if (updatedState) {
-          setSelectedState({ ...updatedState, nexusType: newType });
-        }
+      const updatedState = resolveUpdatedSelectedState(data, selectedState, stateCode);
+      if (updatedState) {
+        setSelectedState({ ...updatedState, nexusType: newType });
       }
     } catch (err) {
       logError(err, { layer: "frontend", event: "nexus_type_change_failed" });

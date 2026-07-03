@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { fetchTransactionDetailPayload } from "@/components/admin/transactions/order-details/transactionDetailDataSource";
 import type {
   CheckoutLog,
   EmailLog,
@@ -9,27 +10,8 @@ import type {
   PaymentEvent,
   PaymentTransaction,
   TrackingEvent,
-  TransactionPayload,
 } from "./types";
-
-async function fetchTransactionData(orderId: string): Promise<TransactionPayload> {
-  const response = await fetch(`/api/admin/transactions/${orderId}`);
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error ?? "Failed to load transaction");
-  }
-
-  return {
-    order: data.order,
-    paymentTransaction: data.paymentTransaction ?? null,
-    paymentEvents: data.paymentEvents ?? [],
-    emailLogs: data.emailLogs ?? [],
-    trackingEvents: data.trackingEvents ?? [],
-    checkoutLogs: data.checkoutLogs ?? [],
-    customer: data.customer ?? null,
-  };
-}
+import type { TransactionPayload } from "./types";
 
 type UseAdminTransactionDetailDataParams = {
   orderId: string;
@@ -54,7 +36,7 @@ export function useAdminTransactionDetailData({
     setError(null);
 
     try {
-      const data = await fetchTransactionData(orderId);
+      const data = await fetchTransactionDetailPayload(orderId);
       setOrder(data.order);
       setPaymentTx(data.paymentTransaction);
       setPaymentEvents(data.paymentEvents);

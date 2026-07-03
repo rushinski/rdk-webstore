@@ -1,11 +1,10 @@
 // src/app/api/auth/logout/route.ts
 import { NextResponse } from "next/server";
 
-import { AuthService } from "@/services/auth-service";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { clearAdminSessionCookie } from "@/lib/http/admin-session-cookie";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { logError } from "@/lib/utils/log";
+import { AuthService } from "@/services/auth-service";
 
 export async function POST(request: Request) {
   const requestId = getRequestIdFromHeaders(request.headers);
@@ -16,13 +15,10 @@ export async function POST(request: Request) {
 
     await authService.signOut();
 
-    let res = NextResponse.json(
+    return NextResponse.json(
       { ok: true },
       { headers: { "Cache-Control": "no-store" } },
     );
-    res = clearAdminSessionCookie(res);
-
-    return res; // IMPORTANT: return the response you mutated
   } catch (error: unknown) {
     logError(error, {
       layer: "auth",

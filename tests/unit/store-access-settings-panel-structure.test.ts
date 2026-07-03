@@ -25,7 +25,7 @@ describe("store access settings panel structure", () => {
     );
 
     expect(source).toContain("@/components/admin/settings/StoreAccessCards");
-    expect(source).toContain("<SiteLockCard");
     expect(source).toContain("<CheckoutLockCard");
+    expect(source).not.toContain("<SiteLockCard");
   });
 });

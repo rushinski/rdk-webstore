@@ -14,8 +14,6 @@ import { StoreAccessSettingsService } from "@/services/store-access-settings-ser
 
 function normalizeSettings(input: StoreAccessSettings): StoreAccessSettings {
   return {
-    siteLockEnabled: input.siteLockEnabled,
-    siteUnlockAt: input.siteUnlockAt,
     checkoutLockEnabled: input.checkoutLockEnabled,
     checkoutLockMessage:
       input.checkoutLockMessage?.trim() || DEFAULT_CHECKOUT_LOCK_MESSAGE,
@@ -65,8 +63,6 @@ export async function POST(request: Request) {
 
     const settings = normalizeSettings(
       await service.saveSettings(tenantId, {
-        siteLockEnabled: parsed.data.siteLockEnabled,
-        siteUnlockAt: parsed.data.siteUnlockAt ?? null,
         checkoutLockEnabled: parsed.data.checkoutLockEnabled,
         checkoutLockMessage:
           parsed.data.checkoutLockMessage?.trim() || DEFAULT_CHECKOUT_LOCK_MESSAGE,

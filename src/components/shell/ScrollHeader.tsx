@@ -24,8 +24,7 @@ export function ScrollHeader({
   const isAuthRoute = pathname.startsWith("/auth");
   const isAdminRoute = pathname.startsWith("/admin");
   const isCheckoutRoute = pathname.startsWith("/checkout");
-  const isLockedRoute = pathname.startsWith("/locked");
-  const hideHeader = isAuthRoute || isAdminRoute || isCheckoutRoute || isLockedRoute;
+  const hideHeader = isAuthRoute || isAdminRoute || isCheckoutRoute;
 
   // ✅ Hooks must be unconditional
   const [isVisible, setIsVisible] = useState(true);

@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 
+import {
+  fetchLabelRatesRequest,
+  purchaseShippingLabelRequest,
+} from "@/components/admin/shipping/createLabelFormRequests";
 import type {
   AddressErrors,
   EasyPostRate,
@@ -95,36 +99,12 @@ export function useCreateLabelFormMutations({
     setShipmentId(null);
 
     try {
-      const res = await fetch("/api/admin/shipping/rates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const { rates: nextRates, shipmentId: nextShipmentId } =
+        await fetchLabelRatesRequest({
           orderId,
-          weight: parcel.weight,
-          length: parcel.length,
-          width: parcel.width,
-          height: parcel.height,
-          recipient: {
-            name: recipient.name || null,
-            phone: recipient.phone || null,
-            line1: recipient.line1,
-            line2: recipient.line2 || null,
-            city: recipient.city,
-            state: recipient.state,
-            postal_code: recipient.postal_code,
-            country: recipient.country,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setError(getErrorMessage(data?.error || "Failed to fetch rates."));
-        return;
-      }
-
-      const nextShipmentId = data?.shipment?.id ?? null;
-      const nextRates = (data?.shipment?.rates ?? []) as EasyPostRate[];
+          parcel,
+          recipient,
+        });
 
       if (!nextShipmentId) {
         setError("Rates response missing shipment ID. Please try again.");
@@ -162,22 +142,20 @@ export function useCreateLabelFormMutations({
     setIsPurchasing(true);
 
     try {
-      const res = await fetch("/api/admin/shipping/labels", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, shipmentId, rateId: selectedRateId }),
+      const { data, ok, status } = await purchaseShippingLabelRequest({
+        orderId,
+        selectedRateId,
+        shipmentId,
       });
 
-      const data = await res.json();
-
-      if (res.status === 409) {
+      if (status === 409) {
         setError(
           getErrorMessage(data?.error || "Label already purchased for this order."),
         );
         return;
       }
 
-      if (!res.ok) {
+      if (!ok) {
         setError(getErrorMessage(data?.error || "Failed to purchase label."));
         return;
       }

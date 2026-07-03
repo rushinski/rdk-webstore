@@ -6,13 +6,10 @@ import { security, startsWithAny, isCsrfUnsafeMethod } from "@/config/security";
 import { createSupabaseProxyClient } from "@/lib/supabase/proxy";
 import { refreshSession } from "@/lib/supabase/session-refresh";
 import { generateRequestId } from "@/lib/http/request-id";
-import { applyRateLimit } from "@/proxy/rate-limit";
 import { protectAdminRoute } from "@/proxy/auth";
 import { checkCsrf } from "@/proxy/csrf";
-import { checkBot } from "@/proxy/bot";
 import { canonicalizePath } from "@/proxy/canonicalize";
 import { finalizeProxyResponse } from "@/proxy/finalize";
-import { checkSiteLock } from "@/proxy/site-lock";
 
 /**
  * @see docs/PROXY_PIPELINE.md
@@ -20,10 +17,6 @@ import { checkSiteLock } from "@/proxy/site-lock";
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const requestId = generateRequestId();
   const { pathname, hostname } = request.nextUrl;
-  const isLocalhost =
-    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
-  const isLocalDev = isLocalhost;
-
   const canonicalizeResponse = canonicalizePath(request, requestId);
 
   if (canonicalizeResponse) {
@@ -47,44 +40,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     response.cookies.set(cookie.name, cookie.value, cookie);
   });
 
-  // Site lock gate (storefront lock with admin bypass)
-  const siteLockResponse = await checkSiteLock(request, requestId);
-  if (siteLockResponse) {
-    // preserve refreshed auth cookies on the lock response
-    sessionResponse.cookies.getAll().forEach((cookie) => {
-      siteLockResponse.cookies.set(cookie.name, cookie.value, cookie);
-    });
-
-    return finalizeProxyResponse(siteLockResponse, requestId);
-  }
-
   response = finalizeProxyResponse(response, requestId);
-
-  if (!isLocalDev && startsWithAny(pathname, security.proxy.botCheckPrefixes)) {
-    const botResponse = checkBot(request, requestId);
-
-    if (botResponse) {
-      return finalizeProxyResponse(botResponse, requestId);
-    }
-  }
 
   if (isCsrfUnsafeMethod(request.method)) {
     const csrfResponse = checkCsrf(request, requestId);
 
     if (csrfResponse) {
       return finalizeProxyResponse(csrfResponse, requestId);
-    }
-  }
-
-  const shouldApplyRateLimit =
-    (security.proxy.rateLimit.applyInLocalDev || !isLocalDev) &&
-    startsWithAny(pathname, security.proxy.rateLimitPrefixes);
-
-  if (shouldApplyRateLimit) {
-    const rateLimitResponse = await applyRateLimit(request, requestId);
-
-    if (rateLimitResponse) {
-      return finalizeProxyResponse(rateLimitResponse, requestId);
     }
   }
 

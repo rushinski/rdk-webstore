@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { logError } from "@/lib/utils/log";
+import {
+  fetchTransactionCounts,
+  fetchTransactionOrders,
+} from "@/components/admin/transactions/transactionsDataSource";
 
 export type TabKey =
   | "all"
@@ -15,7 +19,7 @@ export type TabKey =
 type PaymentSummary = {
   card_type?: string | null;
   card_last4?: string | null;
-  payrilla_status?: string | null;
+  paymentStatus?: string | null;
 } | null;
 
 type OrderShipping = {
@@ -68,7 +72,7 @@ export const TRANSACTION_TABS: Array<{
   { key: "blocked", label: "Blocked", statuses: ["blocked", "review"] },
 ];
 
-function createEmptyTabCounts(): Record<TabKey, number> {
+export function createEmptyTabCounts(): Record<TabKey, number> {
   return {
     all: 0,
     succeeded: 0,
@@ -90,44 +94,17 @@ export function useAdminTransactionsData() {
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  const buildParams = (
-    tab: (typeof TRANSACTION_TABS)[number],
-    extra?: Record<string, string>,
-  ) => {
-    const params = new URLSearchParams();
-    if (tab.statuses) {
-      tab.statuses.forEach((status) => params.append("status", status));
-    }
-    if (tab.incomplete) {
-      params.set("incomplete", "true");
-    }
-    if (tab.includeAll) {
-      params.set("includeAll", "true");
-    }
-    params.set("limit", String(PAGE_SIZE));
-    params.set("page", String(page));
-    if (extra) {
-      Object.entries(extra).forEach(([key, value]) => params.set(key, value));
-    }
-    return params;
-  };
-
   useEffect(() => {
     setPage(1);
   }, [activeTab]);
 
   useEffect(() => {
-    const tab =
-      TRANSACTION_TABS.find((entry) => entry.key === activeTab) ?? TRANSACTION_TABS[0];
-
     const loadOrders = async () => {
       setIsLoading(true);
       try {
-        const params = buildParams(tab);
-        const response = await fetch(`/api/admin/orders?${params.toString()}`);
-        const data = await response.json();
-        setOrders(data.orders ?? []);
-        setTotalCount(Number(data.count ?? 0));
+        const data = await fetchTransactionOrders(activeTab, page);
+        setOrders(data.orders);
+        setTotalCount(data.totalCount);
       } catch (error) {
         logError(error, { layer: "frontend", event: "admin_load_transactions" });
       } finally {
@@ -140,24 +117,7 @@ export function useAdminTransactionsData() {
 
   useEffect(() => {
     const loadCounts = async () => {
-      try {
-        const results = await Promise.all(
-          TRANSACTION_TABS.map(async (tab) => {
-            const params = buildParams(tab, { limit: "1", page: "1" });
-            const response = await fetch(`/api/admin/orders?${params.toString()}`);
-            const data = await response.json();
-            return { key: tab.key, count: Number(data.count ?? 0) };
-          }),
-        );
-
-        const nextCounts = createEmptyTabCounts();
-        results.forEach(({ key, count }) => {
-          nextCounts[key] = count;
-        });
-        setCounts(nextCounts);
-      } catch (error) {
-        logError(error, { layer: "frontend", event: "admin_load_transaction_counts" });
-      }
+      setCounts(await fetchTransactionCounts());
     };
 
     void loadCounts();

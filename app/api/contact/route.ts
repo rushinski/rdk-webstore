@@ -2,8 +2,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/service-role";
@@ -13,7 +11,6 @@ import { ContactMessagesRepository } from "@/repositories/contact-messages-repo"
 import { ContactAttachmentService } from "@/services/contact-attachment-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
-import { env } from "@/config/env";
 import { security } from "@/config/security";
 import { BUG_REPORT_EMAIL, SUPPORT_EMAIL } from "@/config/constants/contact";
 
@@ -38,19 +35,6 @@ const MAX_ATTACHMENT_SIZE_MB = Math.max(
   1,
   Math.round(attachmentConfig.maxBytes / (1024 * 1024)),
 );
-
-const redis = new Redis({
-  url: env.UPSTASH_REDIS_REST_URL!,
-  token: env.UPSTASH_REDIS_REST_TOKEN!,
-});
-
-const contactRateLimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.slidingWindow(
-    security.contact.rateLimit.maxRequests,
-    security.contact.rateLimit.window,
-  ),
-});
 
 const isFileValue = (value: FormDataEntryValue): value is File =>
   typeof value === "object" && value !== null && "arrayBuffer" in value;
@@ -105,57 +89,10 @@ const sanitizeFilename = (name: string, fallback: string) => {
   return safe.length > 0 ? safe : fallback;
 };
 
-const getClientIp = (request: NextRequest): string => {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) {
-      return firstIp;
-    }
-  }
-
-  const realIp = request.headers.get("x-real-ip");
-  if (realIp) {
-    return realIp;
-  }
-
-  return "unknown";
-};
-
 export async function POST(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    // Rate limit
-    const clientIp = getClientIp(request);
-    let rateResult: Awaited<ReturnType<typeof contactRateLimit.limit>> | null = null;
-
-    try {
-      rateResult = await contactRateLimit.limit(`contact:${clientIp}`);
-    } catch (rateLimitError) {
-      logError(rateLimitError, {
-        layer: "api",
-        requestId,
-        route: "/api/contact",
-        message: "contact_rate_limit_failed",
-      });
-    }
-
-    if (rateResult && !rateResult.success) {
-      return NextResponse.json(
-        { ok: false, error: "Rate limit exceeded. Please try again later.", requestId },
-        {
-          status: security.contact.rateLimit.blockStatus,
-          headers: {
-            "Cache-Control": "no-store",
-            "X-RateLimit-Limit": String(rateResult.limit),
-            "X-RateLimit-Remaining": String(rateResult.remaining),
-            "X-RateLimit-Reset": String(rateResult.reset),
-          },
-        },
-      );
-    }
-
     const contentType = request.headers.get("content-type") ?? "";
     const isMultipart = contentType.includes("multipart/form-data");
 

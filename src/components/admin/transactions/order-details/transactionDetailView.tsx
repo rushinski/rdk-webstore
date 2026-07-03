@@ -10,7 +10,7 @@ import {
   getAvsLabel,
   getCvvLabel,
   getEventMeta,
-  getNoFraudBadge,
+  getRiskBadge,
   getOrderStatusMeta,
 } from "@/components/admin/transactions/order-details/transactionPaymentView";
 
@@ -169,7 +169,7 @@ export {
   getCvvLabel,
   getEmailTypeMeta,
   getEventMeta,
-  getNoFraudBadge,
+  getRiskBadge,
   getOrderStatusMeta,
   getRelatedCheckoutLogs,
 };

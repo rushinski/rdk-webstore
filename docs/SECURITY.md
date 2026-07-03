@@ -13,7 +13,6 @@ This document describes the current security posture of the codebase. It is deri
 - Admin access requires:
   - an authenticated Supabase user
   - profile role in `admin`, `super_admin`, or `dev`
-  - a short-lived admin session cookie (`admin_session`)
   - MFA when required by Supabase AAL policies
 
 ## RBAC
@@ -27,16 +26,13 @@ All requests pass through the proxy pipeline in `proxy.ts`:
 - Canonicalization (lowercase, no duplicate slashes)
 - Bot filtering (UA checks)
 - CSRF protection for unsafe methods
-- Rate limiting for all routes (prefix-configurable) with Upstash in prod and memory fallback in dev/test
 - Admin guard for `/admin` and `/api/admin`
 - Response finalization with security headers and `x-request-id`
 
 Configuration lives in `src/config/security.ts`. Rate limiting can be scoped with `rateLimitPrefixes`, bypassed for webhooks, and toggled locally via `rateLimit.applyInLocalDev`. The proxy is the enforcement point for request IDs, security headers, and admin guardrails.
 
 ## Webhooks
-- Stripe webhooks must validate signatures before processing.
 - Shippo webhooks must validate their shared secret.
-- Stripe events are persisted for idempotency in the `stripe_events` table.
 
 ## Guest order access links
 - Guest order status links use expiring access tokens.
@@ -64,7 +60,7 @@ Configuration lives in `src/config/security.ts`. Rate limiting can be scoped wit
 
 ## Vulnerability reporting
 - Report security issues to the engineering owner.
-- Include request IDs, timestamps, and any Stripe/Shippo event IDs.
+- Include request IDs, timestamps, and any relevant Shippo event IDs.
 
 ## Incident response
 See `docs/RUNBOOK.md` for triage steps and escalation.

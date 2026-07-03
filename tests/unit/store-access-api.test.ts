@@ -31,14 +31,10 @@ describe("storeAccessSettingsSchema", () => {
   it("accepts a valid payload", () => {
     expect(
       storeAccessSettingsSchema.parse({
-        siteLockEnabled: true,
-        siteUnlockAt: "2026-05-16T16:00:00.000Z",
         checkoutLockEnabled: false,
         checkoutLockMessage: "Temporarily unavailable",
       }),
     ).toEqual({
-      siteLockEnabled: true,
-      siteUnlockAt: "2026-05-16T16:00:00.000Z",
       checkoutLockEnabled: false,
       checkoutLockMessage: "Temporarily unavailable",
     });
@@ -69,8 +65,6 @@ describe("/api/admin/store-access", () => {
 
   it("returns settings on GET", async () => {
     mockGetSettings.mockResolvedValue({
-      siteLockEnabled: true,
-      siteUnlockAt: "2026-05-16T16:00:00.000Z",
       checkoutLockEnabled: false,
       checkoutLockMessage: "Temporarily unavailable",
     });
@@ -83,8 +77,6 @@ describe("/api/admin/store-access", () => {
 
     await expect(response.json()).resolves.toEqual({
       settings: {
-        siteLockEnabled: true,
-        siteUnlockAt: "2026-05-16T16:00:00.000Z",
         checkoutLockEnabled: false,
         checkoutLockMessage: "Temporarily unavailable",
       },
@@ -101,7 +93,7 @@ describe("/api/admin/store-access", () => {
           "x-request-id": "req-2",
         },
         body: JSON.stringify({
-          siteLockEnabled: "yes",
+          checkoutLockEnabled: "yes",
         }),
       }),
     );
