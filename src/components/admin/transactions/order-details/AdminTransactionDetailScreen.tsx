@@ -3,19 +3,16 @@
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { type RefundableOrder } from "@/components/admin/orders/RefundOrderModal";
+import { type RefundableOrder } from "@/modules/orders/presentation/admin/refund-order";
 import {
   AdminOrderItemDetailsModal,
   getOrderItemFinancials,
-} from "@/components/admin/orders/OrderItemDetailsModal";
-import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { Toast } from "@/components/ui/Toast";
-import { useAdminTransactionDetailData } from "@/components/admin/transactions/order-details/useAdminTransactionDetailData";
-import { useAdminTransactionDetailMutations } from "@/components/admin/transactions/order-details/useAdminTransactionDetailMutations";
-import { useAdminTransactionDetailUi } from "@/components/admin/transactions/order-details/useAdminTransactionDetailUi";
+  type AdminOrderItem,
+} from "@/modules/orders/presentation/admin/order-item-details";
 import {
+  useAdminTransactionDetailMutations,
+  useAdminTransactionDetailData,
+  useAdminTransactionDetailUi,
   buildTransactionDetailViewModel,
   fmtDate,
   getAvsLabel,
@@ -24,7 +21,10 @@ import {
   getEventMeta,
   getRiskBadge,
   getRelatedCheckoutLogs,
-} from "@/components/admin/transactions/order-details/transactionDetailView";
+} from "@/modules/orders/presentation/admin/transaction-detail";
+import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { Toast } from "@/components/ui/Toast";
 
 import { EmailChecklistSection } from "./EmailChecklistSection";
 import { EmailPreviewModal } from "./EmailPreviewModal";

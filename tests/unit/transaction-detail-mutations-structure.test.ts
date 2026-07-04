@@ -6,13 +6,13 @@ describe("transaction detail mutations structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailMutations.ts",
+        "src/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailMutations.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/transactions/order-details/transactionDetailMutationRequests",
+      "@/modules/orders/presentation/admin/transaction-detail/transactionDetailMutationRequests",
     );
     expect(source).toContain("refundOrderRequest(");
     expect(source).toContain("resendOrderEmailRequest(");
@@ -22,13 +22,13 @@ describe("transaction detail mutations structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailMutations.ts",
+        "src/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailMutations.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/transactions/order-details/transactionDetailMutationView",
+      "@/modules/orders/presentation/admin/transaction-detail/transactionDetailMutationView",
     );
     expect(source).toContain("buildRefundSuccessToast(");
     expect(source).toContain("buildRefundableOrderView(");

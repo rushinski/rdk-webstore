@@ -1,7 +1,7 @@
 import {
   type RefundableOrder,
   RefundOrderModal,
-} from "@/components/admin/orders/RefundOrderModal";
+} from "@/modules/orders/presentation/admin/refund-order";
 import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 

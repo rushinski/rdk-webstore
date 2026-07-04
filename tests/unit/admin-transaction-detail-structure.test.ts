@@ -11,9 +11,7 @@ describe("admin transaction detail structure", () => {
       "utf8",
     );
 
-    expect(source).toContain(
-      "@/components/admin/transactions/order-details/useAdminTransactionDetailData",
-    );
+    expect(source).toContain("@/modules/orders/presentation/admin/transaction-detail");
     expect(source).toContain("useAdminTransactionDetailData({");
   });
 
@@ -26,9 +24,7 @@ describe("admin transaction detail structure", () => {
       "utf8",
     );
 
-    expect(source).toContain(
-      "@/components/admin/transactions/order-details/useAdminTransactionDetailMutations",
-    );
+    expect(source).toContain("@/modules/orders/presentation/admin/transaction-detail");
     expect(source).toContain("useAdminTransactionDetailMutations({");
   });
 
@@ -41,9 +37,7 @@ describe("admin transaction detail structure", () => {
       "utf8",
     );
 
-    expect(source).toContain(
-      "@/components/admin/transactions/order-details/transactionDetailView",
-    );
+    expect(source).toContain("@/modules/orders/presentation/admin/transaction-detail");
     expect(source).toContain("buildTransactionDetailViewModel({");
   });
 

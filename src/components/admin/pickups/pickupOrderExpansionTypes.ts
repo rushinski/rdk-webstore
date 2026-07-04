@@ -1,4 +1,4 @@
-import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import type { AdminOrderItem } from "@/modules/orders/presentation/admin/order-item-details";
 import type { PickupOrderRowModel } from "@/components/admin/pickups/pickupOrdersTableView";
 
 import type { PickupOrder, PickupOrderItem } from "./pickupTypes";

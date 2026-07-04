@@ -3,7 +3,7 @@
 import {
   AdminOrderItemDetailsModal,
   type AdminOrderItem,
-} from "@/components/admin/orders/OrderItemDetailsModal";
+} from "@/modules/orders/presentation/admin/order-item-details";
 import { Toast } from "@/components/ui/Toast";
 
 type PickupToastState = {

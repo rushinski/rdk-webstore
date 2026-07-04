@@ -11,9 +11,7 @@ describe("admin transaction detail ui structure", () => {
       "utf8",
     );
 
-    expect(source).toContain(
-      "@/components/admin/transactions/order-details/useAdminTransactionDetailUi",
-    );
+    expect(source).toContain("@/modules/orders/presentation/admin/transaction-detail");
     expect(source).toContain("useAdminTransactionDetailUi()");
   });
 
@@ -21,7 +19,7 @@ describe("admin transaction detail ui structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailUi.ts",
+        "src/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailUi.ts",
       ),
       "utf8",
     );

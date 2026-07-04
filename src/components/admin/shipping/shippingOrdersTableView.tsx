@@ -1,7 +1,7 @@
 import {
   getOrderItemFinancials,
   type AdminOrderItem,
-} from "@/components/admin/orders/OrderItemDetailsModal";
+} from "@/modules/orders/presentation/admin/order-item-details";
 import type { ShippingAddress, TabKey } from "@/types/domain/shipping";
 
 import type { ShippingOrder, ShippingOrderItem } from "./shippingTypes";

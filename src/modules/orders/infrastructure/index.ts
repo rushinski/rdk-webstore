@@ -1,2 +1,2 @@
-export { OrdersRepository } from "@/repositories/orders-repo";
-export type { CreatePendingOrderInput } from "@/repositories/orders-repo";
+export { OrdersRepository } from "@/modules/orders/infrastructure/orders-repo";
+export type { CreatePendingOrderInput } from "@/modules/orders/infrastructure/orders-repo";

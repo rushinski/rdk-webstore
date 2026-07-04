@@ -3,7 +3,7 @@
 import {
   AdminOrderItemDetailsModal,
   type AdminOrderItem,
-} from "@/components/admin/orders/OrderItemDetailsModal";
+} from "@/modules/orders/presentation/admin/order-item-details";
 import { CreateLabelForm } from "@/components/admin/shipping/CreateLabelForm";
 import { OriginModal } from "@/components/admin/shipping/OriginModal";
 import type { ShippingOrder } from "@/components/admin/shipping/shippingTypes";

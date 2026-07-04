@@ -6,21 +6,19 @@ describe("admin transaction detail data source structure", () => {
     const hookSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailData.ts",
+        "src/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailData.ts",
       ),
       "utf8",
     );
     const dataSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailDataSource.ts",
+        "src/modules/orders/presentation/admin/transaction-detail/transactionDetailDataSource.ts",
       ),
       "utf8",
     );
 
-    expect(hookSource).toContain(
-      "@/components/admin/transactions/order-details/transactionDetailDataSource",
-    );
+    expect(hookSource).toContain("@/modules/orders/presentation/admin/transaction-detail/transactionDetailDataSource");
     expect(dataSource).toContain("fetchTransactionDetailPayload");
     expect(dataSource).toContain("paymentEvents");
     expect(dataSource).toContain("checkoutLogs");

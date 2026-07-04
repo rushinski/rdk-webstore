@@ -1,7 +1,7 @@
 import {
   getOrderItemFinancials,
   type AdminOrderItem,
-} from "@/components/admin/orders/OrderItemDetailsModal";
+} from "@/modules/orders/presentation/admin/order-item-details";
 import { getOrderNetProfitDollars } from "@/lib/orders/metrics";
 
 import type { PickupOrder, PickupOrderItem } from "./pickupTypes";

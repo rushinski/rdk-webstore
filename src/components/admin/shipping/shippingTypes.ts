@@ -1,4 +1,4 @@
-import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import type { AdminOrderItem } from "@/modules/orders/presentation/admin/order-item-details";
 
 export type ShippingOrderItem = AdminOrderItem;
 

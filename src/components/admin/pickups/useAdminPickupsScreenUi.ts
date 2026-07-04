@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import type { AdminOrderItem } from "@/components/admin/orders/OrderItemDetailsModal";
+import type { AdminOrderItem } from "@/modules/orders/presentation/admin/order-item-details";
 import type { PickupOrderItem } from "@/components/admin/pickups/pickupTypes";
 
 export function useAdminPickupsScreenUi() {

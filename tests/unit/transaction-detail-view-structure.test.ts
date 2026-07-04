@@ -6,13 +6,13 @@ describe("transaction detail view structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailView.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/transactionDetailView.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/transactions/order-details/transactionPaymentView",
+      "@/modules/orders/presentation/admin/transaction-detail/transactionPaymentView",
     );
     expect(source).toContain("getOrderStatusMeta");
     expect(source).toContain("getEventMeta");
@@ -22,13 +22,13 @@ describe("transaction detail view structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailView.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/transactionDetailView.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/transactions/order-details/transactionEmailView",
+      "@/modules/orders/presentation/admin/transaction-detail/transactionEmailView",
     );
     expect(source).toContain("getEmailTypeMeta");
     expect(source).toContain("getRelatedCheckoutLogs");
