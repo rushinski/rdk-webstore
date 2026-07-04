@@ -1,11 +1,5 @@
-export function getInventoryRealtimeChannelName() {
-  return "admin-inventory";
-}
-
-export function getInventoryRealtimeTables() {
-  return ["product_variants", "products"];
-}
-
-export function shouldClearInventoryRefreshTimer(timerId: number | null) {
-  return timerId !== null;
-}
+export {
+  getInventoryRealtimeChannelName,
+  getInventoryRealtimeTables,
+  shouldClearInventoryRefreshTimer,
+} from "@/modules/catalog/presentation/admin/inventory/inventoryClientRealtime";

@@ -1,7 +1,7 @@
 import {
   getInventoryExportFileName,
   getInventoryHeaderDescription,
-} from "@/components/admin/inventory/inventoryClientView";
+} from "@/modules/catalog/presentation/admin/inventory/inventoryClientView";
 
 describe("inventoryClientView", () => {
   it("builds the inventory header summary line", () => {

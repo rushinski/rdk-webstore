@@ -1,5 +1,5 @@
 // app/admin/nexus/page.tsx
-import NexusTrackerClient from "@/components/admin/nexus/NexusTrackerClient";
+import NexusTrackerClient from "@/modules/nexus/presentation/admin/NexusTrackerClient";
 
 export const metadata = {
   title: "Sales Tax Nexus Tracker | Admin",

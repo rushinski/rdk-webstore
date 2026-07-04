@@ -7,7 +7,7 @@ import {
   createInventoryArchiveRequest,
   createInventoryDeleteRequest,
   createInventoryRestoreRequest,
-} from "@/components/admin/inventory/inventoryClientActions";
+} from "@/modules/catalog/presentation/admin/inventory/inventoryClientActions";
 
 describe("inventoryClientActions", () => {
   it("builds a pending delete request from product data", () => {

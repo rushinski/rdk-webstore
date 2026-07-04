@@ -6,12 +6,14 @@ describe("inventory mutation requests structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/inventory/useInventoryClientMutations.ts",
+        "src/modules/catalog/presentation/admin/inventory/useInventoryClientMutations.ts",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/inventory/inventoryMutationRequests");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/inventory/inventoryMutationRequests",
+    );
     expect(source).toContain("deleteInventoryItemRequest(");
     expect(source).toContain("archiveInventorySelectionRequest(");
   });
@@ -20,7 +22,7 @@ describe("inventory mutation requests structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/inventory/inventoryMutationRequests.ts",
+        "src/modules/catalog/presentation/admin/inventory/inventoryMutationRequests.ts",
       ),
       "utf8",
     );

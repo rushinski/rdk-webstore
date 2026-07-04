@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { InventoryClientHeaderActions } from "@/components/admin/inventory/InventoryClientHeaderActions";
+import { InventoryClientHeaderActions } from "@/modules/catalog/presentation/admin/inventory/InventoryClientHeaderActions";
 
 describe("InventoryClientHeaderActions", () => {
   it("renders export and create product controls", () => {

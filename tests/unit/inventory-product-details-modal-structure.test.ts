@@ -6,19 +6,21 @@ describe("inventory product details modal structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/inventory/InventoryProductDetailsModal.tsx",
+        "src/modules/catalog/presentation/admin/inventory/InventoryProductDetailsModal.tsx",
       ),
       "utf8",
     );
     const viewSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/inventory/inventoryProductDetailsView.ts",
+        "src/modules/catalog/presentation/admin/inventory/inventoryProductDetailsView.ts",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/inventory/inventoryProductDetailsView");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/inventory/inventoryProductDetailsView",
+    );
     expect(viewSource).toContain("formatInventoryDetailsDateTime");
     expect(viewSource).toContain("getInventoryDetailsImages");
   });
@@ -27,14 +29,16 @@ describe("inventory product details modal structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/inventory/InventoryProductDetailsModal.tsx",
+        "src/modules/catalog/presentation/admin/inventory/InventoryProductDetailsModal.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/inventory/InventoryProductImageGallery");
     expect(source).toContain(
-      "@/components/admin/inventory/InventoryProductMetadataPanel",
+      "@/modules/catalog/presentation/admin/inventory/InventoryProductImageGallery",
+    );
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/inventory/InventoryProductMetadataPanel",
     );
   });
 });

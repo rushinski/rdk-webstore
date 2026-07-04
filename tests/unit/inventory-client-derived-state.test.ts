@@ -1,5 +1,5 @@
-import type { InventoryFilters } from "@/components/admin/inventory/inventoryClientData";
-import { getInventoryDerivedState } from "@/components/admin/inventory/inventoryClientDerivedState";
+import type { InventoryFilters } from "@/modules/catalog/presentation/admin/inventory/inventoryClientData";
+import { getInventoryDerivedState } from "@/modules/catalog/presentation/admin/inventory/inventoryClientDerivedState";
 
 describe("inventoryClientDerivedState", () => {
   it("builds current filters and pagination state", () => {

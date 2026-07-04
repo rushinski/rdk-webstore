@@ -6,12 +6,14 @@ describe("inventory mutation flows structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/inventory/useInventoryClientMutations.ts",
+        "src/modules/catalog/presentation/admin/inventory/useInventoryClientMutations.ts",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/inventory/inventoryMutationFlows");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/inventory/inventoryMutationFlows",
+    );
     expect(source).toContain("confirmInventoryDeleteFlow(");
     expect(source).toContain("confirmInventoryMassDeleteFlow(");
     expect(source).toContain("confirmInventoryArchiveFlow(");

@@ -7,7 +7,7 @@ import {
   getInventoryRestoreSuccessMessage,
   summarizeInventoryDeleteOutcome,
   summarizeInventoryArchiveOutcome,
-} from "@/components/admin/inventory/inventoryClientMutations";
+} from "@/modules/catalog/presentation/admin/inventory/inventoryClientMutations";
 
 describe("inventoryClientMutations", () => {
   it("builds item action urls", () => {

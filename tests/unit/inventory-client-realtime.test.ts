@@ -2,7 +2,7 @@ import {
   getInventoryRealtimeChannelName,
   getInventoryRealtimeTables,
   shouldClearInventoryRefreshTimer,
-} from "@/components/admin/inventory/inventoryClientRealtime";
+} from "@/modules/catalog/presentation/admin/inventory/inventoryClientRealtime";
 
 describe("inventoryClientRealtime", () => {
   it("exposes the realtime channel name", () => {
