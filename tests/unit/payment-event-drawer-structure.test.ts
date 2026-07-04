@@ -6,13 +6,13 @@ describe("payment event drawer structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/PaymentEventDrawer.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/PaymentEventDrawer.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("./PaymentEventSummaryPanel");
-    expect(source).toContain("./PaymentEventRelatedLogsPanel");
+    expect(source).toContain("PaymentEventSummaryPanel");
+    expect(source).toContain("PaymentEventRelatedLogsPanel");
     expect(source).toContain("<PaymentEventSummaryPanel");
     expect(source).toContain("<PaymentEventRelatedLogsPanel");
   });

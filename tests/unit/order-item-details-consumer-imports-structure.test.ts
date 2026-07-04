@@ -7,7 +7,7 @@ const read = (relativePath: string) =>
 describe("order item details consumer imports", () => {
   it("points downstream admin surfaces at the module entrypoint instead of the legacy shim", () => {
     const transactionDetailScreen = read(
-      "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+      "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
     );
     const shippingDialogs = read("src/components/admin/shipping/ShippingDialogs.tsx");
     const pickupsFeedback = read("src/components/admin/pickups/PickupsFeedback.tsx");

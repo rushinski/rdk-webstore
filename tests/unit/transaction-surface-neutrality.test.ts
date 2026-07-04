@@ -6,7 +6,7 @@ describe("transaction surface neutrality", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/TransactionOrderDetailsPanel.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/TransactionOrderDetailsPanel.tsx",
       ),
       "utf8",
     );

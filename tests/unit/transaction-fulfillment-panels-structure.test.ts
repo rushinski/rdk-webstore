@@ -6,13 +6,13 @@ describe("transaction fulfillment panels structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/TransactionFulfillmentPanels.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/TransactionFulfillmentPanels.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("./TransactionShippingPanel");
-    expect(source).toContain("./TransactionPaymentMethodPanel");
+    expect(source).toContain("TransactionShippingPanel");
+    expect(source).toContain("TransactionPaymentMethodPanel");
     expect(source).toContain("<TransactionShippingPanel");
     expect(source).toContain("<TransactionPaymentMethodPanel");
   });

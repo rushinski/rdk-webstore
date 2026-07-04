@@ -1,4 +1,4 @@
-import { AdminTransactionDetailScreen } from "@/components/admin/transactions/order-details/AdminTransactionDetailScreen";
+import { AdminTransactionDetailScreen } from "@/modules/orders/presentation/admin/transaction-detail";
 
 export default function TransactionDetailPage() {
   return <AdminTransactionDetailScreen />;

@@ -6,12 +6,12 @@ describe("admin transactions structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/AdminTransactionsScreen.tsx",
+        "src/modules/orders/presentation/admin/transactions/AdminTransactionsScreen.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/transactions/useAdminTransactionsData");
+    expect(source).toContain("@/modules/orders/presentation/admin/transactions/useAdminTransactionsData");
     expect(source).toContain("useAdminTransactionsData()");
   });
 
@@ -19,21 +19,21 @@ describe("admin transactions structure", () => {
     const screenSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/AdminTransactionsScreen.tsx",
+        "src/modules/orders/presentation/admin/transactions/AdminTransactionsScreen.tsx",
       ),
       "utf8",
     );
     const tableSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/TransactionsTable.tsx",
+        "src/modules/orders/presentation/admin/transactions/TransactionsTable.tsx",
       ),
       "utf8",
     );
 
-    expect(screenSource).toContain("@/components/admin/transactions/transactionsView");
+    expect(screenSource).toContain("@/modules/orders/presentation/admin/transactions/transactionsView");
     expect(screenSource).toContain("buildFilteredTransactions(");
-    expect(tableSource).toContain("@/components/admin/transactions/transactionsView");
+    expect(tableSource).toContain("@/modules/orders/presentation/admin/transactions/transactionsView");
     expect(tableSource).toContain("buildTransactionRowModel(");
   });
 });

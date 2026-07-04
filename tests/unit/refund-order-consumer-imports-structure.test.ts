@@ -14,10 +14,10 @@ describe("refund order consumer imports", () => {
       "src/components/admin/orders/RefundCustomAmountPanel.tsx",
     );
     const transactionHeaderActions = read(
-      "src/components/admin/transactions/order-details/TransactionHeaderActions.tsx",
+      "src/modules/orders/presentation/admin/transaction-detail/TransactionHeaderActions.tsx",
     );
     const transactionDetailMutations = read(
-      "src/components/admin/transactions/order-details/useAdminTransactionDetailMutations.ts",
+      "src/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailMutations.ts",
     );
 
     expect(refundProductSelectionPanel).toContain(

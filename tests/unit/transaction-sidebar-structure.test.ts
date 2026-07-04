@@ -6,13 +6,13 @@ describe("transaction sidebar structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/TransactionSidebar.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/TransactionSidebar.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("./TransactionOrderDetailsPanel");
-    expect(source).toContain("./TransactionCustomerPanel");
+    expect(source).toContain("TransactionOrderDetailsPanel");
+    expect(source).toContain("TransactionCustomerPanel");
     expect(source).toContain("<TransactionOrderDetailsPanel");
     expect(source).toContain("<TransactionCustomerPanel");
   });

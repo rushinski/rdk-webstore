@@ -6,7 +6,7 @@ describe("admin transaction detail structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
       ),
       "utf8",
     );
@@ -19,7 +19,7 @@ describe("admin transaction detail structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
       ),
       "utf8",
     );
@@ -32,7 +32,7 @@ describe("admin transaction detail structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
       ),
       "utf8",
     );
@@ -45,12 +45,12 @@ describe("admin transaction detail structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("./TransactionHeaderActions");
+    expect(source).toContain("@/modules/orders/presentation/admin/transaction-detail");
     expect(source).toContain("<TransactionHeaderActions");
   });
 });

@@ -6,7 +6,7 @@ describe("admin transaction detail ui structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
       ),
       "utf8",
     );

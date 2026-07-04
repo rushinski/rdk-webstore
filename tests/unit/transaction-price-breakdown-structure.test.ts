@@ -6,13 +6,13 @@ describe("transaction price breakdown structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/TransactionPriceBreakdownSection.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/TransactionPriceBreakdownSection.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("./TransactionPriceBreakdownItemList");
-    expect(source).toContain("./TransactionPriceBreakdownTotals");
+    expect(source).toContain("TransactionPriceBreakdownItemList");
+    expect(source).toContain("TransactionPriceBreakdownTotals");
     expect(source).toContain("<TransactionPriceBreakdownItemList");
     expect(source).toContain("<TransactionPriceBreakdownTotals");
   });
@@ -21,12 +21,12 @@ describe("transaction price breakdown structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/transactions/order-details/TransactionPriceBreakdownItemList.tsx",
+        "src/modules/orders/presentation/admin/transaction-detail/TransactionPriceBreakdownItemList.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("./transactionPriceBreakdownView");
+    expect(source).toContain("transactionPriceBreakdownView");
     expect(source).toContain("buildTransactionPriceBreakdownItemModel");
   });
 });
