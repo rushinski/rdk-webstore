@@ -6,22 +6,22 @@ describe("admin customer detail screen structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/customers/customer-details/AdminCustomerDetailScreen.tsx",
+        "src/modules/customers/presentation/admin/customer-detail/AdminCustomerDetailScreen.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/customers/customer-details/CustomerPaymentsSection",
+      "@/modules/customers/presentation/admin/customer-detail/CustomerPaymentsSection",
     );
     expect(source).toContain(
-      "@/components/admin/customers/customer-details/CustomerPaymentMethodsSection",
+      "@/modules/customers/presentation/admin/customer-detail/CustomerPaymentMethodsSection",
     );
     expect(source).toContain(
-      "@/components/admin/customers/customer-details/CustomerActivitySection",
+      "@/modules/customers/presentation/admin/customer-detail/CustomerActivitySection",
     );
     expect(source).toContain(
-      "@/components/admin/customers/customer-details/CustomerDetailsPanel",
+      "@/modules/customers/presentation/admin/customer-detail/CustomerDetailsPanel",
     );
   });
 });

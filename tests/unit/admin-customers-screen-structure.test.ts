@@ -8,7 +8,7 @@ describe("admin customers screen structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/customers/AdminCustomersScreen");
+    expect(source).toContain("@/modules/customers/presentation/admin");
     expect(source).toContain("<AdminCustomersScreen />");
   });
 
@@ -16,15 +16,15 @@ describe("admin customers screen structure", () => {
     const screenSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/customers/AdminCustomersScreen.tsx",
+        "src/modules/customers/presentation/admin/AdminCustomersScreen.tsx",
       ),
       "utf8",
     );
 
     expect(screenSource).toContain(
-      "@/components/admin/customers/useAdminCustomersData",
+      "@/modules/customers/presentation/admin/useAdminCustomersData",
     );
-    expect(screenSource).toContain("@/components/admin/customers/customersView");
+    expect(screenSource).toContain("@/modules/customers/presentation/admin/customersView");
     expect(screenSource).toContain("buildFilteredCustomers(");
     expect(screenSource).toContain("getCustomerTypeMeta(");
   });

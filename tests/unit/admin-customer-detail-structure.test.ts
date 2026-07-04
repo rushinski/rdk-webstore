@@ -6,13 +6,13 @@ describe("admin customer detail structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/customers/customer-details/AdminCustomerDetailScreen.tsx",
+        "src/modules/customers/presentation/admin/customer-detail/AdminCustomerDetailScreen.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/customers/customer-details/useAdminCustomerDetailData",
+      "@/modules/customers/presentation/admin/customer-detail/useAdminCustomerDetailData",
     );
     expect(source).toContain("useAdminCustomerDetailData(");
   });
@@ -21,27 +21,27 @@ describe("admin customer detail structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/customers/customer-details/AdminCustomerDetailScreen.tsx",
+        "src/modules/customers/presentation/admin/customer-detail/AdminCustomerDetailScreen.tsx",
       ),
       "utf8",
     );
     const paymentsSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/customers/customer-details/CustomerPaymentsSection.tsx",
+        "src/modules/customers/presentation/admin/customer-detail/CustomerPaymentsSection.tsx",
       ),
       "utf8",
     );
     const methodsSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/customers/customer-details/CustomerPaymentMethodsSection.tsx",
+        "src/modules/customers/presentation/admin/customer-detail/CustomerPaymentMethodsSection.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/customers/customer-details/customerDetailView",
+      "@/modules/customers/presentation/admin/customer-detail/customerDetailView",
     );
     expect(paymentsSource).toContain("formatCustomerDate(");
     expect(methodsSource).toContain("buildPaymentMethodDetailRows(");
