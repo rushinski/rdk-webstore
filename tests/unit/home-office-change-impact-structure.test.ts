@@ -6,13 +6,13 @@ describe("home office change impact modal structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/nexus/HomeOfficeChangeImpactModal.tsx",
+        "src/modules/nexus/presentation/admin/HomeOfficeChangeImpactModal.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/nexus/homeOfficeChangeImpactView",
+      "@/modules/nexus/presentation/admin/homeOfficeChangeImpactView",
     );
     expect(source).toContain("getHomeOfficeChangeImpactSubtitle(");
     expect(source).toContain("getHomeOfficeChangeImpactIntro(");

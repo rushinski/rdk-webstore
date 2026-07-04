@@ -2,12 +2,12 @@
 
 import React, { useMemo } from "react";
 
-import HomeOfficeSetupModal from "@/components/admin/nexus/HomeOfficeSetupModal";
-import StateDetailModal from "@/components/admin/nexus/StateDetailModal";
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import HomeOfficeSetupModal from "@/modules/nexus/presentation/admin/HomeOfficeSetupModal";
 import NexusMap from "@/modules/nexus/presentation/admin/NexusMap";
+import StateDetailModal from "@/modules/nexus/presentation/admin/StateDetailModal";
 import { NexusStateCoverageTable } from "@/modules/nexus/presentation/admin/NexusStateCoverageTable";
 import { NexusTrackerFilters } from "@/modules/nexus/presentation/admin/NexusTrackerFilters";
 import { NexusTrackerHeaderActions } from "@/modules/nexus/presentation/admin/NexusTrackerHeaderActions";

@@ -4,11 +4,11 @@ import path from "node:path";
 describe("nexus logging structure", () => {
   it("uses the shared frontend logger across nexus data and modal surfaces", () => {
     const files = [
-      "src/components/admin/nexus/useNexusTrackerLoading.ts",
-      "src/components/admin/nexus/useNexusTrackerMutations.ts",
-      "src/components/admin/nexus/useNexusMapInteraction.ts",
-      "src/components/admin/nexus/useStateDetailSalesLog.ts",
-      "src/components/admin/nexus/HomeOfficeSetupModal.tsx",
+      "src/modules/nexus/presentation/admin/useNexusTrackerLoading.ts",
+      "src/modules/nexus/presentation/admin/useNexusTrackerMutations.ts",
+      "src/modules/nexus/presentation/admin/useNexusMapInteraction.ts",
+      "src/modules/nexus/presentation/admin/useStateDetailSalesLog.ts",
+      "src/modules/nexus/presentation/admin/HomeOfficeSetupModal.tsx",
     ];
 
     for (const file of files) {
