@@ -1,4 +1,4 @@
-// src/components/admin/charts/AdminLineChart.tsx
+// src/modules/dashboard/presentation/admin/AdminLineChart.tsx
 "use client";
 
 import { useMemo } from "react";
@@ -10,8 +10,8 @@ import {
   normalizeLineChartData,
   toNumber,
   type NormalizedLineChartRow,
-} from "@/components/admin/charts/adminLineChartData";
-import { useAdminLineChartSizing } from "@/components/admin/charts/useAdminLineChartSizing";
+} from "@/modules/dashboard/presentation/admin/adminLineChartData";
+import { useAdminLineChartSizing } from "@/modules/dashboard/presentation/admin/useAdminLineChartSizing";
 
 type AdminLineChartProps<T extends Record<string, unknown>> = {
   data: T[];

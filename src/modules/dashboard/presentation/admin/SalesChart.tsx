@@ -2,7 +2,7 @@
 
 import React from "react";
 
-import { AdminLineChart } from "@/components/admin/charts/AdminLineChart";
+import { AdminLineChart } from "@/modules/dashboard/presentation/admin/AdminLineChart";
 
 export function SalesChart(props: { data: Array<{ date: string; revenue: number }> }) {
   const money = new Intl.NumberFormat("en-US", {
