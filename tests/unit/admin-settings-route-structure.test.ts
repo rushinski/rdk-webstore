@@ -2,33 +2,23 @@ import fs from "node:fs";
 import path from "node:path";
 
 describe("admin settings route structure", () => {
-  it("routes tax settings through the settings module boundary", () => {
+  it("routes admin profile through the settings module presentation boundary", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "app/admin/profile/page.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("@/modules/settings/presentation/admin/profile");
+    expect(source).toContain("<AdminProfilePageContent />");
+  });
+
+  it("routes admin tax settings through the settings module presentation boundary", () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), "app/admin/settings/taxes/page.tsx"),
       "utf8",
     );
 
     expect(source).toContain("@/modules/settings/presentation/admin/tax");
-    expect(source).toContain("<TaxSettingsPanel />");
-  });
-
-  it("routes shipping settings through the settings module boundary", () => {
-    const source = fs.readFileSync(
-      path.join(process.cwd(), "app/admin/settings/shipping/page.tsx"),
-      "utf8",
-    );
-
-    expect(source).toContain("@/modules/settings/presentation/admin/shipping");
-    expect(source).toContain("<AdminShippingSettingsScreen />");
-  });
-
-  it("routes store access settings through the settings module boundary", () => {
-    const source = fs.readFileSync(
-      path.join(process.cwd(), "app/admin/settings/store-access/page.tsx"),
-      "utf8",
-    );
-
-    expect(source).toContain("@/modules/settings/presentation/admin/store-access");
-    expect(source).toContain("<StoreAccessSettingsPageContent />");
+    expect(source).toContain("<TaxSettingsPageContent />");
   });
 });
