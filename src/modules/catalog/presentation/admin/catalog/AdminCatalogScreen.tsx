@@ -2,23 +2,22 @@
 
 import { useState } from "react";
 
-import { CatalogTabContent } from "@/components/admin/catalog/CatalogTabContent";
-import { CatalogInfoKey } from "@/components/admin/catalog/CatalogInfoKey";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { useAdminCatalogData } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogData";
-import { useAdminCatalogDerivedState } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogDerivedState";
-import { useAdminCatalogMutations } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogMutations";
-import { useAdminCatalogScreenState } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogScreenState";
-
-import { CatalogToolbar } from "@/components/admin/catalog/components/CatalogToolbar";
-import { TagModals } from "@/components/admin/catalog/components/TagModals";
+import { CatalogInfoKey } from "@/modules/catalog/presentation/admin/catalog/CatalogInfoKey";
+import { CatalogTabContent } from "@/modules/catalog/presentation/admin/catalog/CatalogTabContent";
 import {
   catalogTabs,
   emptyCatalogDraft,
   normalizeLabel,
   toTitleCase,
-} from "@/components/admin/catalog/catalogConfig";
-import type { EditTarget } from "@/components/admin/catalog/types";
+} from "@/modules/catalog/presentation/admin/catalog/catalogConfig";
+import type { EditTarget } from "@/modules/catalog/presentation/admin/catalog/types";
+import { useAdminCatalogData } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogData";
+import { useAdminCatalogDerivedState } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogDerivedState";
+import { useAdminCatalogMutations } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogMutations";
+import { useAdminCatalogScreenState } from "@/modules/catalog/presentation/admin/catalog/useAdminCatalogScreenState";
+import { CatalogToolbar } from "@/modules/catalog/presentation/admin/catalog/components/CatalogToolbar";
+import { TagModals } from "@/modules/catalog/presentation/admin/catalog/components/TagModals";
 
 export function AdminCatalogScreen() {
   const {

@@ -18,7 +18,9 @@ describe("admin catalog screen structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/catalog/CatalogTabContent");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/catalog/CatalogTabContent",
+    );
     expect(source).toContain(
       "@/modules/catalog/presentation/admin/catalog/useAdminCatalogScreenState",
     );

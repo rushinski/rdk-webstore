@@ -31,7 +31,7 @@ import type {
   Model,
   ModelEditDraft,
   NewAliasDraft,
-} from "@/components/admin/catalog/types";
+} from "@/modules/catalog/presentation/admin/catalog/types";
 
 type CatalogMutationDrafts = {
   brand: { label: string };

@@ -11,7 +11,7 @@ import type {
   BrandGroup,
   Candidate,
   Model,
-} from "@/components/admin/catalog/types";
+} from "@/modules/catalog/presentation/admin/catalog/types";
 
 export function useAdminCatalogData() {
   const [groups, setGroups] = useState<BrandGroup[]>([]);

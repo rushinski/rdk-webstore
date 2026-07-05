@@ -8,7 +8,7 @@ import type {
   BrandGroup,
   Candidate,
   Model,
-} from "@/components/admin/catalog/types";
+} from "@/modules/catalog/presentation/admin/catalog/types";
 
 type UseAdminCatalogDerivedStateParams = {
   groups: BrandGroup[];

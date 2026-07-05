@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-import { buildCatalogEditDraft } from "@/components/admin/catalog/catalogEditState";
-import { emptyCatalogDraft } from "@/components/admin/catalog/catalogConfig";
+import { buildCatalogEditDraft } from "@/modules/catalog/presentation/admin/catalog/catalogEditState";
+import { emptyCatalogDraft } from "@/modules/catalog/presentation/admin/catalog/catalogConfig";
 import type {
   ActiveTab,
   Brand,
   EditDraft,
   EditTarget,
   NewAliasDraft,
-} from "@/components/admin/catalog/types";
+} from "@/modules/catalog/presentation/admin/catalog/types";
 
 export function useAdminCatalogScreenState(params: {
   editTarget: EditTarget | null;
