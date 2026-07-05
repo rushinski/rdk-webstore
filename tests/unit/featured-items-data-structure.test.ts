@@ -11,7 +11,9 @@ describe("featured items data structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/featured-items/featuredItemsRequests");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/featured-items/featuredItemsRequests",
+    );
     expect(source).toContain("loadFeaturedItemsRequest()");
     expect(source).toContain("addFeaturedItemRequest(");
     expect(source).toContain("removeFeaturedItemRequest(");
@@ -22,13 +24,13 @@ describe("featured items data structure", () => {
     const searchSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/featured-items/useFeaturedItemsSearch.ts",
+        "src/modules/catalog/presentation/admin/featured-items/useFeaturedItemsSearch.ts",
       ),
       "utf8",
     );
 
     expect(searchSource).toContain(
-      "@/components/admin/featured-items/featuredItemsRequests",
+      "@/modules/catalog/presentation/admin/featured-items/featuredItemsRequests",
     );
     expect(searchSource).toContain("searchFeaturedItemProductsRequest(");
   });

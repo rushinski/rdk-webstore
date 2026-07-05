@@ -2,9 +2,9 @@
 
 import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { FeaturedItemsFeedback } from "@/components/admin/featured-items/FeaturedItemsFeedback";
-import { FeaturedItemsList } from "@/components/admin/featured-items/FeaturedItemsList";
-import { FeaturedItemsSearchPanel } from "@/components/admin/featured-items/FeaturedItemsSearchPanel";
+import { FeaturedItemsFeedback } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsFeedback";
+import { FeaturedItemsList } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsList";
+import { FeaturedItemsSearchPanel } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsSearchPanel";
 import { useFeaturedItemsScreen } from "@/modules/catalog/presentation/admin/featured-items/useFeaturedItemsScreen";
 import {
   formatFeaturedItemPrice,

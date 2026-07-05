@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from "react";
 
+import { logError } from "@/lib/utils/log";
 import {
   addFeaturedItemRequest,
   loadFeaturedItemsRequest,
   removeFeaturedItemRequest,
   reorderFeaturedItemsRequest,
-} from "@/components/admin/featured-items/featuredItemsRequests";
+} from "@/modules/catalog/presentation/admin/featured-items/featuredItemsRequests";
 import type {
   FeaturedItem,
   FeaturedItemsToastState,
-} from "@/components/admin/featured-items/featuredItemsTypes";
-import { useFeaturedItemsSearch } from "@/components/admin/featured-items/useFeaturedItemsSearch";
-import { logError } from "@/lib/utils/log";
+} from "@/modules/catalog/presentation/admin/featured-items/featuredItemsTypes";
+import { useFeaturedItemsSearch } from "@/modules/catalog/presentation/admin/featured-items/useFeaturedItemsSearch";
 
 export function useFeaturedItemsScreen() {
   const [featuredItems, setFeaturedItems] = useState<FeaturedItem[]>([]);

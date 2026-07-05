@@ -46,7 +46,9 @@ describe("featured items screen structure", () => {
     expect(source).toContain(
       "@/modules/catalog/presentation/admin/featured-items/featuredItemsView",
     );
-    expect(source).toContain("@/components/admin/featured-items/FeaturedItemsFeedback");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsFeedback",
+    );
     expect(viewSource).toContain("formatFeaturedItemPrice");
     expect(viewSource).toContain("getFeaturedItemMinPrice");
   });

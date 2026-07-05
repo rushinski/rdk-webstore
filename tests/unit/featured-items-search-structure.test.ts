@@ -11,7 +11,9 @@ describe("featured items search structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/featured-items/useFeaturedItemsSearch");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/featured-items/useFeaturedItemsSearch",
+    );
     expect(source).toContain("useFeaturedItemsSearch({");
   });
 });
