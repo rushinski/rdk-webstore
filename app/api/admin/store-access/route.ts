@@ -6,10 +6,8 @@ import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { storeAccessSettingsSchema } from "@/lib/validation/admin";
 import { logError } from "@/lib/utils/log";
-import {
-  DEFAULT_CHECKOUT_LOCK_MESSAGE,
-  type StoreAccessSettings,
-} from "@/repositories/store-access-settings-repo";
+import { DEFAULT_CHECKOUT_LOCK_MESSAGE } from "@/modules/settings/shared/storeAccessSettings";
+import type { StoreAccessSettings } from "@/repositories/store-access-settings-repo";
 import { StoreAccessSettingsService } from "@/services/store-access-settings-service";
 
 function normalizeSettings(input: StoreAccessSettings): StoreAccessSettings {

@@ -1,7 +1,5 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
-
-export const DEFAULT_CHECKOUT_LOCK_MESSAGE =
-  "sorry we currently can not accept payments please message @realdealkickzsc on instagram the items you would like to purchase.";
+import { DEFAULT_CHECKOUT_LOCK_MESSAGE } from "@/modules/settings/shared/storeAccessSettings";
 
 export type StoreAccessSettings = {
   checkoutLockEnabled: boolean;

@@ -1,7 +1,7 @@
 import {
-  DEFAULT_CHECKOUT_LOCK_MESSAGE,
   StoreAccessSettingsRepository,
 } from "@/repositories/store-access-settings-repo";
+import { DEFAULT_CHECKOUT_LOCK_MESSAGE } from "@/modules/settings/shared/storeAccessSettings";
 import { StoreAccessSettingsService } from "@/services/store-access-settings-service";
 
 type SelectChain = {
