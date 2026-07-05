@@ -4,12 +4,12 @@ import { createElement } from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
-import { SalesChart } from "@/components/admin/charts/SalesChart";
-import { buildAdminDashboardStats } from "@/components/admin/dashboard/adminDashboardView";
-import { useAdminDashboardData } from "@/components/admin/dashboard/useAdminDashboardData";
 import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { buildAdminDashboardStats } from "@/modules/dashboard/presentation/admin/adminDashboardView";
+import { SalesChart } from "@/modules/dashboard/presentation/admin/SalesChart";
+import { useAdminDashboardData } from "@/modules/dashboard/presentation/admin/useAdminDashboardData";
 
 export function AdminDashboardScreen() {
   const { productsCount, recentOrders, salesTrend, summary } = useAdminDashboardData();

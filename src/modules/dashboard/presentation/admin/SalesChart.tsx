@@ -1,0 +1,26 @@
+"use client";
+
+import React from "react";
+
+import { AdminLineChart } from "@/components/admin/charts/AdminLineChart";
+
+export function SalesChart(props: { data: Array<{ date: string; revenue: number }> }) {
+  const money = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  });
+
+  return (
+    <AdminLineChart
+      data={props.data || []}
+      xKey="date"
+      yKey="revenue"
+      yLabel="Revenue"
+      seriesName="Revenue"
+      stroke="#111111"
+      valueFormatter={(v) => money.format(v)}
+      emptyLabel="No revenue recorded for this range yet."
+    />
+  );
+}

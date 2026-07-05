@@ -19,10 +19,13 @@ describe("admin dashboard screen structure", () => {
     );
 
     expect(screenSource).toContain(
-      "@/components/admin/dashboard/useAdminDashboardData",
+      "@/modules/dashboard/presentation/admin/useAdminDashboardData",
     );
     expect(screenSource).toContain(
-      "@/components/admin/dashboard/adminDashboardView",
+      "@/modules/dashboard/presentation/admin/adminDashboardView",
+    );
+    expect(screenSource).toContain(
+      "@/modules/dashboard/presentation/admin/SalesChart",
     );
     expect(screenSource).toContain("buildAdminDashboardStats(");
   });
