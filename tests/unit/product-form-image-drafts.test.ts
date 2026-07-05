@@ -3,8 +3,8 @@ import {
   normalizeImageDrafts,
   removeImageDraftAt,
   setPrimaryImageDraftAt,
-} from "@/components/inventory/product-form/imageDrafts";
-import type { ImageDraft } from "@/components/inventory/product-form/types";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/imageDrafts";
+import type { ImageDraft } from "@/modules/catalog/presentation/admin/inventory/product-form/types";
 
 describe("product form image drafts", () => {
   it("normalizes sort order and falls back to the first image as primary", () => {

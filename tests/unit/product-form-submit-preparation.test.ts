@@ -1,4 +1,4 @@
-import { buildProductCreateInput } from "@/components/inventory/product-form/buildProductCreateInput";
+import { buildProductCreateInput } from "@/modules/catalog/presentation/admin/inventory/product-form/buildProductCreateInput";
 
 describe("buildProductCreateInput", () => {
   it("builds a normalized payload for valid product drafts", () => {

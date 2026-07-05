@@ -1,4 +1,4 @@
-import { runProductImageUploadBatch } from "@/components/inventory/product-form/runProductImageUploadBatch";
+import { runProductImageUploadBatch } from "@/modules/catalog/presentation/admin/inventory/product-form/runProductImageUploadBatch";
 
 describe("runProductImageUploadBatch", () => {
   it("reports progress and collects uploaded urls across successes and failures", async () => {

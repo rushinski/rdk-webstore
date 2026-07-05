@@ -5,8 +5,8 @@ import {
   resolveBrandOverrideChange,
   resolveEffectiveBrandId,
   resolveModelOverrideChange,
-} from "@/components/inventory/product-form/catalogOverrides";
-import type { CatalogOption } from "@/components/inventory/product-form/types";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/catalogOverrides";
+import type { CatalogOption } from "@/modules/catalog/presentation/admin/inventory/product-form/types";
 
 const brandOptions: CatalogOption[] = [
   { id: "brand-1", label: "Nike" },

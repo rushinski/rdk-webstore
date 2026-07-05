@@ -4,8 +4,8 @@ import {
   reorderVariantsByDraftId,
   resetVariantsForSizeType,
   updateVariantFieldAt,
-} from "@/components/inventory/product-form/variantHelpers";
-import type { VariantDraft } from "@/components/inventory/product-form/types";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/variantHelpers";
+import type { VariantDraft } from "@/modules/catalog/presentation/admin/inventory/product-form/types";
 
 describe("product form variant helpers", () => {
   it("creates a new empty variant using the active size type", () => {

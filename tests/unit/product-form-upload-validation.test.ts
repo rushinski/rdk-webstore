@@ -1,4 +1,4 @@
-import { validateProductImageFiles } from "@/components/inventory/product-form/validateProductImageFiles";
+import { validateProductImageFiles } from "@/modules/catalog/presentation/admin/inventory/product-form/validateProductImageFiles";
 
 describe("validateProductImageFiles", () => {
   it("accepts supported image files and extension-only iOS uploads", () => {

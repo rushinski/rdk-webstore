@@ -1,4 +1,4 @@
-import { executeProductImageUpload } from "@/components/inventory/product-form/executeProductImageUpload";
+import { executeProductImageUpload } from "@/modules/catalog/presentation/admin/inventory/product-form/executeProductImageUpload";
 
 describe("executeProductImageUpload", () => {
   it("posts the file and returns uploaded urls", async () => {

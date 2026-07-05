@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { ProductForm } from "@/components/inventory/ProductForm";
+import { ProductForm } from "@/modules/catalog/presentation/admin/inventory/ProductForm";
 import type {
   ProductFormBrandOption,
   ProductFormShippingDefault,

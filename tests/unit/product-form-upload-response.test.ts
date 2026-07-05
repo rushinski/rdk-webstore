@@ -1,4 +1,4 @@
-import { parseProductImageUploadResponse } from "@/components/inventory/product-form/parseProductImageUploadResponse";
+import { parseProductImageUploadResponse } from "@/modules/catalog/presentation/admin/inventory/product-form/parseProductImageUploadResponse";
 
 describe("parseProductImageUploadResponse", () => {
   it("extracts upload urls from batch and single-upload payloads", () => {

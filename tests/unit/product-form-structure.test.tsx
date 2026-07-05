@@ -3,12 +3,12 @@ import path from "node:path";
 
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { ProductForm } from "@/components/inventory/ProductForm";
+import { ProductForm } from "@/modules/catalog/presentation/admin/inventory/ProductForm";
 
 describe("product form structure", () => {
   it("delegates major sections to focused product-form components", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/inventory/ProductForm.tsx"),
+      path.join(process.cwd(), "src/modules/catalog/presentation/admin/inventory/ProductForm.tsx"),
       "utf8",
     );
 

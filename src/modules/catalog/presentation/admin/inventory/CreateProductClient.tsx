@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
-import { ProductForm } from "@/components/inventory/ProductForm";
+import { ProductForm } from "@/modules/catalog/presentation/admin/inventory/ProductForm";
 import type {
   ProductFormBrandOption,
   ProductFormShippingDefault,

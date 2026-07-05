@@ -2,7 +2,7 @@ import {
   applyBrandOverrideState,
   applyModelOverrideState,
   finalizeProductImageUploadUi,
-} from "@/components/inventory/product-form/stateAppliers";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/stateAppliers";
 
 describe("product form state appliers", () => {
   it("applies a brand override state across all related setters", () => {

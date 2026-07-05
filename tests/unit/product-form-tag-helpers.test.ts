@@ -1,4 +1,4 @@
-import type { TagChip } from "@/components/inventory/TagInput";
+import type { TagChip } from "@/modules/catalog/presentation/admin/inventory/TagInput";
 import {
   appendUniqueCustomTag,
   buildAutoTags,
@@ -6,8 +6,8 @@ import {
   getTagKey,
   mergeUniqueTags,
   removeTagSelection,
-} from "@/components/inventory/product-form/tagHelpers";
-import type { VariantDraft } from "@/components/inventory/product-form/types";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/tagHelpers";
+import type { VariantDraft } from "@/modules/catalog/presentation/admin/inventory/product-form/types";
 
 describe("product form tag helpers", () => {
   it("builds auto tags from parsed data, inventory metadata, and in-stock sizes", () => {

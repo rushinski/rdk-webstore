@@ -1,4 +1,4 @@
-import { handleProductImageUpload } from "@/components/inventory/product-form/handleProductImageUpload";
+import { handleProductImageUpload } from "@/modules/catalog/presentation/admin/inventory/product-form/handleProductImageUpload";
 
 describe("handleProductImageUpload", () => {
   it("returns early when no files are provided", async () => {

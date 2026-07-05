@@ -1,4 +1,4 @@
-import { compressProductImageFile } from "@/components/inventory/product-form/compressProductImageFile";
+import { compressProductImageFile } from "@/modules/catalog/presentation/admin/inventory/product-form/compressProductImageFile";
 
 describe("compressProductImageFile", () => {
   it("skips compression for small files", async () => {

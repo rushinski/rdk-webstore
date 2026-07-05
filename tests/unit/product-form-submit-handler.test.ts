@@ -1,4 +1,4 @@
-import { submitProductForm } from "@/components/inventory/product-form/submitProductForm";
+import { submitProductForm } from "@/modules/catalog/presentation/admin/inventory/product-form/submitProductForm";
 import type { ProductCreateInput } from "@/services/product-service";
 
 describe("submitProductForm", () => {

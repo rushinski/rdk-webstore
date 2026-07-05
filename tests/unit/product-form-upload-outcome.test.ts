@@ -1,4 +1,4 @@
-import { summarizeProductImageUploadOutcome } from "@/components/inventory/product-form/summarizeProductImageUploadOutcome";
+import { summarizeProductImageUploadOutcome } from "@/modules/catalog/presentation/admin/inventory/product-form/summarizeProductImageUploadOutcome";
 
 describe("summarizeProductImageUploadOutcome", () => {
   it("returns a success toast when all uploads succeed", () => {

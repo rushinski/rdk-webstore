@@ -3,7 +3,7 @@ import {
   fetchModelCatalogOptions,
   fetchShippingDefaults,
   requestTitleParse,
-} from "@/components/inventory/product-form/catalogRequests";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/catalogRequests";
 
 describe("product form catalog requests", () => {
   it("loads shipping defaults and returns a status based result", async () => {

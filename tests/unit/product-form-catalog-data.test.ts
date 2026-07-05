@@ -5,8 +5,8 @@ import {
   mapBrandCatalogOptions,
   mapModelCatalogOptions,
   shouldClearInvalidModelOverride,
-} from "@/components/inventory/product-form/catalogData";
-import type { CatalogOption } from "@/components/inventory/product-form/types";
+} from "@/modules/catalog/presentation/admin/inventory/product-form/catalogData";
+import type { CatalogOption } from "@/modules/catalog/presentation/admin/inventory/product-form/types";
 
 describe("product form catalog data helpers", () => {
   it("builds shipping defaults from mixed cents fields", () => {
