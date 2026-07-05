@@ -1,7 +1,7 @@
-import type { ProductCreateInput } from "@/services/product-service";
 import type { Category, Condition, SizeType } from "@/types/domain/product";
 
 import type { TagChip } from "../TagInput";
+import type { ProductFormSubmitInput } from "../productEditorTypes";
 
 import type { ImageDraft, PublishMode, VariantDraft } from "./types";
 
@@ -68,7 +68,7 @@ export function buildProductCreateInput({
   allTags,
   excludedAutoTagKeys,
   now = new Date(),
-}: BuildProductCreateInputArgs): ProductCreateInput {
+}: BuildProductCreateInputArgs): ProductFormSubmitInput {
   const trimmedTitle = titleRaw.trim();
   if (!trimmedTitle) {
     throw new Error("Full title is required.");

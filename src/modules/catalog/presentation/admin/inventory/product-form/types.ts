@@ -1,4 +1,4 @@
-import type { ProductCreateInput } from "@/services/product-service";
+import type { ProductFormImageInput } from "../productEditorTypes";
 
 export type VariantDraft = {
   draft_id: string;
@@ -10,7 +10,7 @@ export type VariantDraft = {
   stock: string;
 };
 
-export type ImageDraft = ProductCreateInput["images"][number];
+export type ImageDraft = ProductFormImageInput;
 
 export type CatalogOption = {
   id: string;

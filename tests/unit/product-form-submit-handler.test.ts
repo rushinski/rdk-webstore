@@ -1,9 +1,9 @@
 import { submitProductForm } from "@/modules/catalog/presentation/admin/inventory/product-form/submitProductForm";
-import type { ProductCreateInput } from "@/services/product-service";
+import type { ProductFormSubmitInput } from "@/modules/catalog/presentation/admin/inventory/productEditorTypes";
 
 describe("submitProductForm", () => {
   it("builds the product input and submits it", async () => {
-    const builtInput = { name: "Nike Air Max 1" } as ProductCreateInput;
+    const builtInput = { name: "Nike Air Max 1" } as ProductFormSubmitInput;
     const buildInput = jest.fn().mockReturnValue(builtInput);
     const onSubmit = jest.fn().mockResolvedValue(undefined);
 

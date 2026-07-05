@@ -12,11 +12,11 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
 import type { Category, Condition, SizeType } from "@/types/domain/product";
-import type { ProductCreateInput } from "@/services/product-service";
 import { logError } from "@/lib/utils/log";
 import { Toast } from "@/components/ui/Toast";
 
 import type { TagChip } from "./TagInput";
+import type { ProductFormSubmitInput } from "./productEditorTypes";
 import {
   applyBrandOverrideOption,
   applyCatalogSuggestion,
@@ -80,8 +80,8 @@ import type { CatalogOption, ImageDraft, VariantDraft } from "./product-form/typ
 const loadImageCompression = () => import("browser-image-compression");
 
 interface ProductFormProps {
-  initialData?: Partial<ProductCreateInput> & { id?: string };
-  onSubmit: (data: ProductCreateInput) => Promise<void>;
+  initialData?: Partial<ProductFormSubmitInput> & { id?: string };
+  onSubmit: (data: ProductFormSubmitInput) => Promise<void>;
   onCancel: () => void;
 
   // NEW: Server-side data props
@@ -233,10 +233,10 @@ export function ProductForm({
   const [customTags, setCustomTags] = useState<TagChip[]>(() => {
     const tags = initialData?.tags ?? [];
     return tags
-      .filter((tag) => !AUTO_TAG_GROUP_KEYS.has(tag.group_key))
+      .filter((tag) => !AUTO_TAG_GROUP_KEYS.has(tag.group_key ?? ""))
       .map((tag) => ({
         label: tag.label,
-        group_key: tag.group_key,
+        group_key: tag.group_key ?? "custom",
         source: "custom",
       }));
   });

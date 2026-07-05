@@ -1,9 +1,9 @@
 import type { LogEntry } from "@/lib/utils/log";
-import type { ProductCreateInput } from "@/services/product-service";
+import type { ProductFormSubmitInput } from "../productEditorTypes";
 
 interface SubmitProductFormArgs {
-  buildInput: () => ProductCreateInput;
-  onSubmit: (data: ProductCreateInput) => Promise<void>;
+  buildInput: () => ProductFormSubmitInput;
+  onSubmit: (data: ProductFormSubmitInput) => Promise<void>;
   logError: (error: unknown, entry?: Partial<LogEntry>) => void;
 }
 
