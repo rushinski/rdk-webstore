@@ -14,10 +14,7 @@ describe("admin dashboard screen structure", () => {
 
   it("delegates dashboard loading and stat mapping to focused modules", () => {
     const screenSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/dashboard/AdminDashboardScreen.tsx",
-      ),
+      path.join(process.cwd(), "src/modules/dashboard/presentation/admin/AdminDashboardScreen.tsx"),
       "utf8",
     );
 

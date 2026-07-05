@@ -1,1 +1,1 @@
-export { AdminDashboardScreen } from "@/components/admin/dashboard/AdminDashboardScreen";
+export { AdminDashboardScreen } from "@/modules/dashboard/presentation/admin/AdminDashboardScreen";
