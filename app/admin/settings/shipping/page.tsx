@@ -1,7 +1,7 @@
 import {
   AdminShippingSettingsScreen,
   ShippingSettingsModalShell,
-} from "@/components/admin/settings/shipping/AdminShippingSettingsScreen";
+} from "@/modules/settings/presentation/admin/shipping";
 
 export { ShippingSettingsModalShell };
 
