@@ -30,31 +30,15 @@ describe("order item details module migration structure", () => {
     expect(stateSource).toContain("useOrderItemDetailsModalState");
   });
 
-  it("keeps legacy helper paths as thin presentation shims", () => {
-    const legacyViewSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/orderItemDetailsView.ts"),
-      "utf8",
-    );
-    const legacyImageSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/orderItemDetailsImages.ts"),
-      "utf8",
-    );
-    const legacyStateSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/orders/useOrderItemDetailsModalState.ts",
-      ),
-      "utf8",
-    );
+  it("removes legacy order item detail helper duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/orders/orderItemDetailsView.ts",
+      "src/components/admin/orders/orderItemDetailsImages.ts",
+      "src/components/admin/orders/useOrderItemDetailsModalState.ts",
+    ];
 
-    expect(legacyViewSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/orderItemDetailsView",
-    );
-    expect(legacyImageSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/orderItemDetailsImages",
-    );
-    expect(legacyStateSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/useOrderItemDetailsModalState",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

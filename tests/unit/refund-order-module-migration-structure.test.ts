@@ -38,31 +38,15 @@ describe("refund order module migration structure", () => {
     expect(typesSource).toContain("export type RefundRequestPayload");
   });
 
-  it("keeps legacy refund paths as thin shims", () => {
-    const legacyModalSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/RefundOrderModal.tsx"),
-      "utf8",
-    );
-    const legacyHookSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/useRefundOrderState.ts"),
-      "utf8",
-    );
-    const legacyViewSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/refundOrderView.ts"),
-      "utf8",
-    );
+  it("removes legacy refund-order duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/orders/RefundOrderModal.tsx",
+      "src/components/admin/orders/useRefundOrderState.ts",
+      "src/components/admin/orders/refundOrderView.ts",
+    ];
 
-    expect(legacyModalSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/RefundOrderModal",
-    );
-    expect(legacyModalSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/refundOrderTypes",
-    );
-    expect(legacyHookSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/useRefundOrderState",
-    );
-    expect(legacyViewSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/refundOrderView",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

@@ -22,21 +22,14 @@ describe("order item details components module migration structure", () => {
     expect(metadataPanelSource).toContain("export function OrderItemMetadataPanel");
   });
 
-  it("keeps legacy component paths as thin presentation shims", () => {
-    const legacyImageGallerySource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/OrderItemImageGallery.tsx"),
-      "utf8",
-    );
-    const legacyMetadataPanelSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/OrderItemMetadataPanel.tsx"),
-      "utf8",
-    );
+  it("removes legacy order item detail component duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/orders/OrderItemImageGallery.tsx",
+      "src/components/admin/orders/OrderItemMetadataPanel.tsx",
+    ];
 
-    expect(legacyImageGallerySource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/OrderItemImageGallery",
-    );
-    expect(legacyMetadataPanelSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/OrderItemMetadataPanel",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

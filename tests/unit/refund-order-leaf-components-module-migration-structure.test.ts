@@ -30,28 +30,15 @@ describe("refund order leaf components module migration structure", () => {
     expect(productSelectionSource).toContain("export function RefundProductSelectionPanel");
   });
 
-  it("keeps legacy leaf component paths as thin shims", () => {
-    const legacyModeTabsSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/RefundModeTabs.tsx"),
-      "utf8",
-    );
-    const legacyCustomAmountSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/RefundCustomAmountPanel.tsx"),
-      "utf8",
-    );
-    const legacyProductSelectionSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/RefundProductSelectionPanel.tsx"),
-      "utf8",
-    );
+  it("removes legacy refund-order leaf component duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/orders/RefundModeTabs.tsx",
+      "src/components/admin/orders/RefundCustomAmountPanel.tsx",
+      "src/components/admin/orders/RefundProductSelectionPanel.tsx",
+    ];
 
-    expect(legacyModeTabsSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/RefundModeTabs",
-    );
-    expect(legacyCustomAmountSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/RefundCustomAmountPanel",
-    );
-    expect(legacyProductSelectionSource).toContain(
-      "@/modules/orders/presentation/admin/refund-order/RefundProductSelectionPanel",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

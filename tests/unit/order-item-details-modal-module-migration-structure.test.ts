@@ -30,20 +30,11 @@ describe("order item details modal module migration structure", () => {
     expect(financialsSource).toContain("getOrderItemFinancials");
   });
 
-  it("keeps the legacy modal path as a thin shim", () => {
-    const legacyModalSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/orders/OrderItemDetailsModal.tsx"),
-      "utf8",
-    );
-
-    expect(legacyModalSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/OrderItemDetailsModal",
-    );
-    expect(legacyModalSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/orderItemDetailsTypes",
-    );
-    expect(legacyModalSource).toContain(
-      "@/modules/orders/presentation/admin/order-item-details/orderItemFinancials",
-    );
+  it("removes the legacy order item details modal duplicate after module migration", () => {
+    expect(
+      fs.existsSync(
+        path.join(process.cwd(), "src/components/admin/orders/OrderItemDetailsModal.tsx"),
+      ),
+    ).toBe(false);
   });
 });
