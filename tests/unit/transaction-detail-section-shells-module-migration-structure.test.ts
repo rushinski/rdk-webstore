@@ -21,7 +21,7 @@ describe("transaction detail section shells module migration structure", () => {
     }
   });
 
-  it("keeps the legacy section shell paths as thin shims", () => {
+  it("removes legacy section shell duplicates after module migration", () => {
     const legacyPaths = [
       "src/components/admin/transactions/order-details/TransactionHeaderActions.tsx",
       "src/components/admin/transactions/order-details/TransactionPriceBreakdownSection.tsx",
@@ -33,9 +33,7 @@ describe("transaction detail section shells module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/orders/presentation/admin/transaction-detail/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

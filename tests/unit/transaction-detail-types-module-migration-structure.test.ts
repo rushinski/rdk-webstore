@@ -16,17 +16,14 @@ describe("transaction detail types module migration structure", () => {
     expect(typesSource).toContain("export type SessionEntry");
   });
 
-  it("keeps the legacy transaction detail types path as a thin shim", () => {
-    const legacyTypesSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/types.ts",
+  it("removes the legacy transaction detail types duplicate after module migration", () => {
+    expect(
+      fs.existsSync(
+        path.join(
+          process.cwd(),
+          "src/components/admin/transactions/order-details/types.ts",
+        ),
       ),
-      "utf8",
-    );
-
-    expect(legacyTypesSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/types",
-    );
+    ).toBe(false);
   });
 });

@@ -30,37 +30,15 @@ describe("transaction detail view module migration structure", () => {
     expect(emailViewSource).toContain("getEmailTypeMeta");
   });
 
-  it("keeps legacy transaction detail view paths as thin shims", () => {
-    const legacyDetailViewSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailView.tsx",
-      ),
-      "utf8",
-    );
-    const legacyPaymentViewSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/transactionPaymentView.tsx",
-      ),
-      "utf8",
-    );
-    const legacyEmailViewSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/transactionEmailView.tsx",
-      ),
-      "utf8",
-    );
+  it("removes legacy transaction detail view duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/transactions/order-details/transactionDetailView.tsx",
+      "src/components/admin/transactions/order-details/transactionPaymentView.tsx",
+      "src/components/admin/transactions/order-details/transactionEmailView.tsx",
+    ];
 
-    expect(legacyDetailViewSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/transactionDetailView",
-    );
-    expect(legacyPaymentViewSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/transactionPaymentView",
-    );
-    expect(legacyEmailViewSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/transactionEmailView",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

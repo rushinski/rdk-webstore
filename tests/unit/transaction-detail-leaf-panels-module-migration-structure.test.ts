@@ -22,7 +22,7 @@ describe("transaction detail leaf panels module migration structure", () => {
     }
   });
 
-  it("keeps legacy leaf panel and helper paths as thin shims", () => {
+  it("removes legacy leaf panel and helper duplicates after module migration", () => {
     const legacyPaths = [
       "src/components/admin/transactions/order-details/TransactionOrderDetailsPanel.tsx",
       "src/components/admin/transactions/order-details/TransactionCustomerPanel.tsx",
@@ -35,9 +35,7 @@ describe("transaction detail leaf panels module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/orders/presentation/admin/transaction-detail/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

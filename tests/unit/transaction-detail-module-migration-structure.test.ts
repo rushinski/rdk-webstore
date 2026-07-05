@@ -30,37 +30,15 @@ describe("transaction detail module migration structure", () => {
     expect(dataSource).toContain("fetchTransactionDetailPayload");
   });
 
-  it("keeps legacy transaction detail controller paths as thin shims", () => {
-    const legacyDataHookSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailData.ts",
-      ),
-      "utf8",
-    );
-    const legacyUiHookSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailUi.ts",
-      ),
-      "utf8",
-    );
-    const legacyDataSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailDataSource.ts",
-      ),
-      "utf8",
-    );
+  it("removes legacy transaction detail controller duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/transactions/order-details/useAdminTransactionDetailData.ts",
+      "src/components/admin/transactions/order-details/useAdminTransactionDetailUi.ts",
+      "src/components/admin/transactions/order-details/transactionDetailDataSource.ts",
+    ];
 
-    expect(legacyDataHookSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailData",
-    );
-    expect(legacyUiHookSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailUi",
-    );
-    expect(legacyDataSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/transactionDetailDataSource",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

@@ -30,37 +30,15 @@ describe("transaction detail mutations module migration structure", () => {
     expect(viewSource).toContain("buildRefundSuccessToast");
   });
 
-  it("keeps legacy mutation controller paths as thin shims", () => {
-    const legacyHookSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/useAdminTransactionDetailMutations.ts",
-      ),
-      "utf8",
-    );
-    const legacyRequestSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailMutationRequests.ts",
-      ),
-      "utf8",
-    );
-    const legacyViewSource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/transactionDetailMutationView.ts",
-      ),
-      "utf8",
-    );
+  it("removes legacy mutation controller duplicates after module migration", () => {
+    const legacyPaths = [
+      "src/components/admin/transactions/order-details/useAdminTransactionDetailMutations.ts",
+      "src/components/admin/transactions/order-details/transactionDetailMutationRequests.ts",
+      "src/components/admin/transactions/order-details/transactionDetailMutationView.ts",
+    ];
 
-    expect(legacyHookSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/useAdminTransactionDetailMutations",
-    );
-    expect(legacyRequestSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/transactionDetailMutationRequests",
-    );
-    expect(legacyViewSource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/transactionDetailMutationView",
-    );
+    for (const legacyPath of legacyPaths) {
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
+    }
   });
 });

@@ -27,17 +27,14 @@ describe("admin transaction detail screen module migration structure", () => {
     expect(moduleSource).toContain("buildTransactionDetailViewModel({");
   });
 
-  it("keeps the legacy admin transaction detail screen path as a thin shim", () => {
-    const legacySource = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+  it("removes the legacy admin transaction detail screen duplicate after module migration", () => {
+    expect(
+      fs.existsSync(
+        path.join(
+          process.cwd(),
+          "src/components/admin/transactions/order-details/AdminTransactionDetailScreen.tsx",
+        ),
       ),
-      "utf8",
-    );
-
-    expect(legacySource).toContain(
-      "@/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen",
-    );
+    ).toBe(false);
   });
 });

@@ -17,7 +17,7 @@ describe("transaction detail support panels module migration structure", () => {
     }
   });
 
-  it("keeps the legacy support panel paths as thin shims", () => {
+  it("removes legacy support panel duplicates after module migration", () => {
     const legacyPaths = [
       "src/components/admin/transactions/order-details/EmailChecklistSection.tsx",
       "src/components/admin/transactions/order-details/PaymentEventSummaryPanel.tsx",
@@ -25,9 +25,7 @@ describe("transaction detail support panels module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/orders/presentation/admin/transaction-detail/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
