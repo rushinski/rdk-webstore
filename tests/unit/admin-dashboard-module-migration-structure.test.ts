@@ -18,7 +18,7 @@ describe("admin dashboard module migration structure", () => {
     }
   });
 
-  it("keeps the legacy dashboard paths as thin shims", () => {
+  it("removes the legacy dashboard shims after module migration", () => {
     const legacyPaths = [
       "src/components/admin/dashboard/AdminDashboardScreen.tsx",
       "src/components/admin/dashboard/adminDashboardView.ts",
@@ -27,7 +27,7 @@ describe("admin dashboard module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain("@/modules/dashboard/presentation/admin/");
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
