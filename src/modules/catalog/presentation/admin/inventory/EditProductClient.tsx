@@ -1,4 +1,3 @@
-// app/admin/inventory/[id]/edit/client.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -6,25 +5,20 @@ import { useRouter } from "next/navigation";
 import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
 import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
 import { ProductForm } from "@/components/inventory/ProductForm";
-import type { ProductCreateInput } from "@/services/product-service";
+import type {
+  ProductFormBrandOption,
+  ProductFormShippingDefault,
+  ProductFormSubmitInput,
+} from "@/modules/catalog/presentation/admin/inventory/productEditorTypes";
 import type { ProductWithDetails } from "@/types/domain/product";
 
-interface EditProductClientProps {
+type EditProductClientProps = {
   productId: string;
   product: ProductWithDetails;
   isArchived?: boolean;
-  initialShippingDefaults: Array<{
-    category: string;
-    shipping_cost_cents?: number;
-    default_price_cents?: number;
-    default_price?: number;
-  }>;
-  initialBrands: Array<{
-    id: string;
-    label: string;
-    groupKey?: string | null;
-  }>;
-}
+  initialShippingDefaults: ProductFormShippingDefault[];
+  initialBrands: ProductFormBrandOption[];
+};
 
 export function EditProductClient({
   productId,
@@ -57,7 +51,7 @@ export function EditProductClient({
     router.refresh();
   };
 
-  const handleSubmit = async (data: ProductCreateInput) => {
+  const handleSubmit = async (data: ProductFormSubmitInput) => {
     const response = await fetch(`/api/admin/products/${productId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -79,10 +73,6 @@ export function EditProductClient({
       // ignore parse errors
     }
     throw new Error(message);
-  };
-
-  const handleCancel = () => {
-    router.push("/admin/inventory");
   };
 
   const initialData = {
@@ -122,7 +112,7 @@ export function EditProductClient({
             </button>
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={() => router.push("/admin/inventory")}
               className={adminButtonStyles.secondary}
             >
               Back To Inventory
@@ -137,7 +127,7 @@ export function EditProductClient({
     <ProductForm
       initialData={initialData}
       onSubmit={handleSubmit}
-      onCancel={handleCancel}
+      onCancel={() => router.push("/admin/inventory")}
       initialShippingDefaults={initialShippingDefaults}
       initialBrands={initialBrands}
     />
