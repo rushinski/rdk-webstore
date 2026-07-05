@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
-import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminSidebar } from "@/components/admin/shell/AdminSidebar";
 import type { ProfileRole } from "@/config/constants/roles";
 import { StorefrontCartDrawer } from "@/components/storefront/cart/StorefrontCartDrawer";
 import { StorefrontFooter } from "@/components/storefront/shell/StorefrontFooter";

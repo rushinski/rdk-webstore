@@ -1,4 +1,4 @@
-// src/components/admin/AdminSidebar.tsx
+// src/components/admin/shell/AdminSidebar.tsx
 "use client";
 
 import { useEffect, useState } from "react";

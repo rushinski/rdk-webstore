@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { AdminTopbar } from "@/components/admin/AdminTopbar";
+import { AdminTopbar } from "@/components/admin/shell/AdminTopbar";
 
 describe("AdminTopbar", () => {
   it("renders solesneakers admin branding", () => {

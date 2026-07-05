@@ -4,7 +4,7 @@ import path from "node:path";
 describe("admin sidebar structure", () => {
   it("delegates navigation schema to a focused sidebar navigation module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/AdminSidebar.tsx"),
+      path.join(process.cwd(), "src/components/admin/shell/AdminSidebar.tsx"),
       "utf8",
     );
     const navSource = fs.readFileSync(
@@ -19,7 +19,7 @@ describe("admin sidebar structure", () => {
 
   it("delegates the sidebar body rendering to a focused content component", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/AdminSidebar.tsx"),
+      path.join(process.cwd(), "src/components/admin/shell/AdminSidebar.tsx"),
       "utf8",
     );
     const contentSource = fs.readFileSync(
