@@ -8,7 +8,8 @@ describe("nexus tracker top-level module migration structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/modules/nexus/presentation/admin/NexusTrackerClient");
+    expect(source).toContain("@/modules/nexus");
+    expect(source).toContain("<NexusTrackerClient />");
   });
 
   it("keeps the module tracker client composed from module-owned tracker pieces", () => {
