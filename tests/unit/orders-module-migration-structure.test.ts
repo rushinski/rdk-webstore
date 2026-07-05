@@ -38,15 +38,7 @@ describe("orders module migration structure", () => {
     expect(ordersRepoHelperSource).toContain("ORDER_LIST_SELECT");
   });
 
-  it("keeps legacy shared paths as thin re-export shims", () => {
-    const legacyOrdersServiceSource = fs.readFileSync(
-      path.join(process.cwd(), "src/services/orders-service.ts"),
-      "utf8",
-    );
-    const legacyOrderStatusHelperSource = fs.readFileSync(
-      path.join(process.cwd(), "src/services/order-status-helpers.ts"),
-      "utf8",
-    );
+  it("keeps only the legacy order repository shims that are still needed", () => {
     const legacyOrdersRepoSource = fs.readFileSync(
       path.join(process.cwd(), "src/repositories/orders-repo.ts"),
       "utf8",
@@ -56,12 +48,12 @@ describe("orders module migration structure", () => {
       "utf8",
     );
 
-    expect(legacyOrdersServiceSource.trim()).toBe(
-      'export { OrdersService } from "@/modules/orders/application/orders-service";',
-    );
-    expect(legacyOrderStatusHelperSource).toContain(
-      '@/modules/orders/application/order-status-helpers',
-    );
+    expect(
+      fs.existsSync(path.join(process.cwd(), "src/services/orders-service.ts")),
+    ).toBe(false);
+    expect(
+      fs.existsSync(path.join(process.cwd(), "src/services/order-status-helpers.ts")),
+    ).toBe(false);
     expect(legacyOrdersRepoSource).toContain(
       '@/modules/orders/infrastructure/orders-repo',
     );
