@@ -6,12 +6,14 @@ describe("store access settings panel structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/StoreAccessSettingsPanel.tsx",
+        "src/modules/settings/presentation/admin/store-access/StoreAccessSettingsPanel.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/settings/useStoreAccessSettingsPanel");
+    expect(source).toContain(
+      "@/modules/settings/presentation/admin/store-access/useStoreAccessSettingsPanel",
+    );
     expect(source).toContain("useStoreAccessSettingsPanel()");
   });
 
@@ -19,12 +21,14 @@ describe("store access settings panel structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/StoreAccessSettingsPanel.tsx",
+        "src/modules/settings/presentation/admin/store-access/StoreAccessSettingsPanel.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/settings/StoreAccessCards");
+    expect(source).toContain(
+      "@/modules/settings/presentation/admin/store-access/StoreAccessCards",
+    );
     expect(source).toContain("<CheckoutLockCard");
     expect(source).not.toContain("<SiteLockCard");
   });

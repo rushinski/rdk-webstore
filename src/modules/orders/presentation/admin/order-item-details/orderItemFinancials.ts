@@ -1,6 +1,5 @@
-import type { AdminOrderItemFinancials } from "@/components/admin/orders/orderItemTypes";
-
 import type { AdminOrderItem } from "@/modules/orders/presentation/admin/order-item-details/orderItemDetailsTypes";
+import type { AdminOrderItemFinancials } from "@/modules/orders/presentation/admin/order-item-details/orderItemTypes";
 
 export const getOrderItemFinancials = (
   item: AdminOrderItem,

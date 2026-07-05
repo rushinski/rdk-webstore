@@ -1,8 +1,8 @@
 import type { ComponentType, ReactNode } from "react";
 import { Hash, Layers, Package, Tag } from "lucide-react";
 
-import type { AdminOrderItemFinancials } from "@/components/admin/orders/orderItemTypes";
 import type { AdminOrderItem } from "@/modules/orders/presentation/admin/order-item-details/orderItemDetailsTypes";
+import type { AdminOrderItemFinancials } from "@/modules/orders/presentation/admin/order-item-details/orderItemTypes";
 import {
   formatOrderItemMoney,
   getOrderItemTagLabels,
