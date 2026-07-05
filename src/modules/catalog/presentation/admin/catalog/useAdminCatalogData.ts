@@ -2,8 +2,8 @@
 
 import { useCallback, useState } from "react";
 
-import { loadAdminCatalogDataRequest } from "@/components/admin/catalog/catalogDataRequests";
 import { logError } from "@/lib/utils/log";
+import { loadAdminCatalogDataRequest } from "@/modules/catalog/presentation/admin/catalog/catalogDataRequests";
 
 import type {
   Alias,

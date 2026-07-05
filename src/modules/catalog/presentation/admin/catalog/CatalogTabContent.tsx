@@ -1,8 +1,8 @@
 "use client";
 
-import { AliasesTab } from "@/components/admin/catalog/components/AliasesTab";
-import { BrandsTab } from "@/components/admin/catalog/components/BrandsTab";
-import { CandidatesTab } from "@/components/admin/catalog/components/CandidatesTab";
+import { AliasesTab } from "@/modules/catalog/presentation/admin/catalog/components/AliasesTab";
+import { BrandsTab } from "@/modules/catalog/presentation/admin/catalog/components/BrandsTab";
+import { CandidatesTab } from "@/modules/catalog/presentation/admin/catalog/components/CandidatesTab";
 import type {
   ActiveTab,
   Alias,

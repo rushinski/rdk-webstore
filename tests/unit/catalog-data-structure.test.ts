@@ -11,13 +11,18 @@ describe("catalog data structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/catalog/catalogDataRequests");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/catalog/catalogDataRequests",
+    );
     expect(source).toContain("loadAdminCatalogDataRequest()");
   });
 
   it("keeps catalog endpoint fan-out in the request module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/catalog/catalogDataRequests.ts"),
+      path.join(
+        process.cwd(),
+        "src/modules/catalog/presentation/admin/catalog/catalogDataRequests.ts",
+      ),
       "utf8",
     );
 

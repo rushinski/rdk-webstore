@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
 import type { ActiveTab } from "@/modules/catalog/presentation/admin/catalog/types";
 
-import { catalogStyles } from "@/components/admin/catalog/components/catalogStyles";
+import { catalogStyles } from "@/modules/catalog/presentation/admin/catalog/components/catalogStyles";
 
 type CatalogToolbarProps = {
   activeTab: ActiveTab;

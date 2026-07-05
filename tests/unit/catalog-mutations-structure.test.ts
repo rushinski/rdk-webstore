@@ -11,7 +11,9 @@ describe("catalog mutations structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/catalog/catalogMutationRequests");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/catalog/catalogMutationRequests",
+    );
     expect(source).toContain("createCatalogBrandRequest(");
     expect(source).toContain("updateCatalogModelRequest(");
   });
@@ -25,7 +27,9 @@ describe("catalog mutations structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/catalog/catalogMutationValidation");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/catalog/catalogMutationValidation",
+    );
     expect(source).toContain("validateCreateAlias(");
     expect(source).toContain("validateCatalogEdit(");
   });

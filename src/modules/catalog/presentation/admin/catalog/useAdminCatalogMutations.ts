@@ -3,23 +3,6 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import { logError } from "@/lib/utils/log";
-import {
-  acceptCatalogCandidateRequest,
-  createCatalogAliasRequest,
-  createCatalogBrandRequest,
-  createCatalogModelRequest,
-  rejectCatalogCandidateRequest,
-  updateCatalogAliasRequest,
-  updateCatalogBrandRequest,
-  updateCatalogModelRequest,
-} from "@/components/admin/catalog/catalogMutationRequests";
-import {
-  validateCatalogEdit,
-  validateCreateAlias,
-  validateCreateBrand,
-  validateCreateModel,
-} from "@/components/admin/catalog/catalogMutationValidation";
-
 import type {
   Alias,
   AliasEditDraft,
@@ -32,6 +15,22 @@ import type {
   ModelEditDraft,
   NewAliasDraft,
 } from "@/modules/catalog/presentation/admin/catalog/types";
+import {
+  acceptCatalogCandidateRequest,
+  createCatalogAliasRequest,
+  createCatalogBrandRequest,
+  createCatalogModelRequest,
+  rejectCatalogCandidateRequest,
+  updateCatalogAliasRequest,
+  updateCatalogBrandRequest,
+  updateCatalogModelRequest,
+} from "@/modules/catalog/presentation/admin/catalog/catalogMutationRequests";
+import {
+  validateCatalogEdit,
+  validateCreateAlias,
+  validateCreateBrand,
+  validateCreateModel,
+} from "@/modules/catalog/presentation/admin/catalog/catalogMutationValidation";
 
 type CatalogMutationDrafts = {
   brand: { label: string };

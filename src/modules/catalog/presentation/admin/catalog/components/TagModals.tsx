@@ -2,9 +2,9 @@
 
 import type { Dispatch, SetStateAction } from "react";
 
-import { ConfirmDisableTagModal } from "@/components/admin/catalog/components/ConfirmDisableTagModal";
-import { CreateTagModals } from "@/components/admin/catalog/components/CreateTagModals";
-import { EditTagModal } from "@/components/admin/catalog/components/EditTagModal";
+import { ConfirmDisableTagModal } from "@/modules/catalog/presentation/admin/catalog/components/ConfirmDisableTagModal";
+import { CreateTagModals } from "@/modules/catalog/presentation/admin/catalog/components/CreateTagModals";
+import { EditTagModal } from "@/modules/catalog/presentation/admin/catalog/components/EditTagModal";
 import type {
   Brand,
   EditDraft,
