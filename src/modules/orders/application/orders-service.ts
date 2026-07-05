@@ -1,9 +1,9 @@
 import type { TypedSupabaseClient } from "@/lib/supabase/server";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { log } from "@/lib/utils/log";
-import { OrderEventsRepository } from "@/repositories/order-events-repo";
+import { OrderAccessTokenService } from "@/modules/orders/infrastructure/order-access-token-service";
+import { OrderEventsRepository } from "@/modules/orders/infrastructure/order-events-repo";
 import { OrdersRepository } from "@/modules/orders/infrastructure/orders-repo";
-import { OrderAccessTokenService } from "@/services/order-access-token-service";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import {
   buildOrderStatusResponse,

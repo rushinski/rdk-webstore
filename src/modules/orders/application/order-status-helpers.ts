@@ -2,8 +2,8 @@ import { env } from "@/config/env";
 import { PICKUP_INSTRUCTIONS } from "@/config/pickup";
 import type { AdminSupabaseClient } from "@/lib/supabase/service-role";
 import { log } from "@/lib/utils/log";
+import type { OrderEventsRepository } from "@/modules/orders/infrastructure/order-events-repo";
 import type { OrdersRepository } from "@/modules/orders/infrastructure/orders-repo";
-import type { OrderEventsRepository } from "@/repositories/order-events-repo";
 import type { OrderStatusResponse } from "@/types/domain/checkout";
 import type { Tables } from "@/types/db/database.types";
 
