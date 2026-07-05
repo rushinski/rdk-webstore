@@ -1,1 +1,1 @@
-export { AdminCatalogScreen } from "@/components/admin/catalog/AdminCatalogScreen";
+export { AdminCatalogScreen } from "@/modules/catalog/presentation/admin/catalog/AdminCatalogScreen";

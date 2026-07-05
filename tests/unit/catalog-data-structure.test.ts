@@ -4,7 +4,10 @@ import path from "node:path";
 describe("catalog data structure", () => {
   it("delegates catalog loading requests to a focused request module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/catalog/useAdminCatalogData.ts"),
+      path.join(
+        process.cwd(),
+        "src/modules/catalog/presentation/admin/catalog/useAdminCatalogData.ts",
+      ),
       "utf8",
     );
 

@@ -6,7 +6,7 @@ describe("catalog mutations structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/catalog/useAdminCatalogMutations.ts",
+        "src/modules/catalog/presentation/admin/catalog/useAdminCatalogMutations.ts",
       ),
       "utf8",
     );
@@ -20,7 +20,7 @@ describe("catalog mutations structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/catalog/useAdminCatalogMutations.ts",
+        "src/modules/catalog/presentation/admin/catalog/useAdminCatalogMutations.ts",
       ),
       "utf8",
     );
