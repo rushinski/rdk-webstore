@@ -1,10 +1,4 @@
-// app/admin/inventory/page.tsx (SERVER-SIDE VERSION)
-
-import type { Category, Condition } from "@/types/domain/product";
-import { getInventoryProducts } from "@/modules/catalog/application/adminInventory";
-import { InventoryClient } from "@/modules/catalog/presentation/admin/inventory";
-
-type StockStatus = "in_stock" | "archived";
+import { InventoryPageContent } from "@/modules/catalog/presentation/admin/inventory";
 
 interface InventoryPageProps {
   searchParams: Promise<{
@@ -17,27 +11,5 @@ interface InventoryPageProps {
 }
 
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
-  const params = await searchParams;
-
-  // Parse search params
-  const filters = {
-    q: params.q,
-    category: (params.category as Category | "all") || "all",
-    condition: (params.condition as Condition | "all") || "all",
-    stockStatus: (params.stockStatus as StockStatus) || "in_stock",
-    page: params.page ? parseInt(params.page, 10) : 1,
-  };
-
-  // SERVER-SIDE: Load products before rendering
-  const result = await getInventoryProducts(filters);
-
-  return (
-    <InventoryClient
-      initialProducts={result.products}
-      initialTotal={result.total}
-      initialSkuTotal={result.skuTotal ?? result.total}
-      initialInventoryUnitTotal={result.inventoryUnitTotal ?? 0}
-      initialFilters={filters}
-    />
-  );
+  return <InventoryPageContent searchParams={searchParams} />;
 }

@@ -8,10 +8,8 @@ describe("inventory editor route structure", () => {
       "utf8",
     );
 
-    expect(source).toContain(
-      "@/modules/catalog/application/adminInventory",
-    );
-    expect(source).toContain("getInventoryProducts(filters)");
+    expect(source).toContain("@/modules/catalog/presentation/admin/inventory");
+    expect(source).toContain("<InventoryPageContent");
   });
 
   it("routes inventory create through the catalog inventory module boundary", () => {
