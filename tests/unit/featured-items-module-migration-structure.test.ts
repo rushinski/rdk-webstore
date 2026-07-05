@@ -24,7 +24,7 @@ describe("featured items module migration structure", () => {
     }
   });
 
-  it("keeps the legacy featured items shell, hook, and view helpers as thin shims", () => {
+  it("removes the legacy featured items duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/featured-items/FeaturedItemsScreen.tsx",
       "src/components/admin/featured-items/FeaturedItemsFeedback.tsx",
@@ -39,9 +39,7 @@ describe("featured items module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/featured-items/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
