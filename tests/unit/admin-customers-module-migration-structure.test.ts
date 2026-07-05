@@ -25,7 +25,7 @@ describe("admin customers module migration structure", () => {
     }
   });
 
-  it("keeps legacy admin customer paths as thin shims", () => {
+  it("removes legacy admin customer duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/customers/AdminCustomersScreen.tsx",
       "src/components/admin/customers/useAdminCustomersData.ts",
@@ -41,7 +41,7 @@ describe("admin customers module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain("@/modules/customers/presentation/admin/");
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
