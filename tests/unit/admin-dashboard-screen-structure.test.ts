@@ -8,7 +8,7 @@ describe("admin dashboard screen structure", () => {
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/dashboard/AdminDashboardScreen");
+    expect(source).toContain("@/modules/dashboard/presentation/admin");
     expect(source).toContain("<AdminDashboardScreen />");
   });
 

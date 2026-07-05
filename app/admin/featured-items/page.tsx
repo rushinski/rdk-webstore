@@ -1,4 +1,4 @@
-import { FeaturedItemsScreen } from "@/components/admin/featured-items/FeaturedItemsScreen";
+import { FeaturedItemsScreen } from "@/modules/catalog/presentation/admin/featured-items";
 
 export default function FeaturedItemsPage() {
   return <FeaturedItemsScreen />;

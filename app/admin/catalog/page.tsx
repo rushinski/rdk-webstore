@@ -1,4 +1,4 @@
-import { AdminCatalogScreen } from "@/components/admin/catalog/AdminCatalogScreen";
+import { AdminCatalogScreen } from "@/modules/catalog/presentation/admin/catalog";
 
 export default function TagsPage() {
   return <AdminCatalogScreen />;
