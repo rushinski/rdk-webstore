@@ -3,8 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { getEditProductFormInitialData } from "@/modules/catalog/application/adminInventory";
 import { EditProductClient } from "@/modules/catalog/presentation/admin/inventory/EditProductClient";
-import { getEditProductFormInitialData } from "@/modules/catalog/presentation/admin/inventory/inventoryProductEditorData";
 
 export async function EditProductPageContent({ productId }: { productId: string }) {
   const initialData = await getEditProductFormInitialData(productId);

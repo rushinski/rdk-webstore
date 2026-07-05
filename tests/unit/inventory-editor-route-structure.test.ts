@@ -9,7 +9,7 @@ describe("inventory editor route structure", () => {
     );
 
     expect(source).toContain(
-      "@/modules/catalog/presentation/admin/inventory/inventoryProductEditorData",
+      "@/modules/catalog/application/adminInventory",
     );
     expect(source).toContain("getInventoryProducts(filters)");
   });

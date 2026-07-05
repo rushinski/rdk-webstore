@@ -1,8 +1,8 @@
 // app/admin/inventory/page.tsx (SERVER-SIDE VERSION)
 
 import type { Category, Condition } from "@/types/domain/product";
+import { getInventoryProducts } from "@/modules/catalog/application/adminInventory";
 import { InventoryClient } from "@/modules/catalog/presentation/admin/inventory";
-import { getInventoryProducts } from "@/modules/catalog/presentation/admin/inventory/inventoryProductEditorData";
 
 type StockStatus = "in_stock" | "archived";
 

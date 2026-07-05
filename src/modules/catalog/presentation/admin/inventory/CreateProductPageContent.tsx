@@ -2,8 +2,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { getCreateProductFormInitialData } from "@/modules/catalog/application/adminInventory";
 import { CreateProductClient } from "@/modules/catalog/presentation/admin/inventory/CreateProductClient";
-import { getCreateProductFormInitialData } from "@/modules/catalog/presentation/admin/inventory/inventoryProductEditorData";
 
 export async function CreateProductPageContent() {
   const initialData = await getCreateProductFormInitialData();
