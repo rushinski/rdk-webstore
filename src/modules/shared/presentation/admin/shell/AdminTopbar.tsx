@@ -1,4 +1,4 @@
-// src/components/admin/shell/AdminTopbar.tsx
+// src/modules/shared/presentation/admin/shell/AdminTopbar.tsx
 
 export function AdminTopbar() {
   return (

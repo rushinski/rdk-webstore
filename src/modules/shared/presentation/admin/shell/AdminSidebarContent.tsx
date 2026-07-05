@@ -4,10 +4,10 @@ import { createElement } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight, Globe, LayoutDashboard } from "lucide-react";
 
-import { AdminNavItem } from "@/components/admin/shell/AdminNavItem";
-import { AdminSidebarProfileDock } from "@/components/admin/shell/AdminSidebarProfileDock";
-import type { AdminSidebarGroupKey } from "@/components/admin/shell/adminSidebarNavigation";
-import { adminSidebarItems } from "@/components/admin/shell/adminSidebarNavigation";
+import { AdminNavItem } from "@/modules/shared/presentation/admin/shell/AdminNavItem";
+import { AdminSidebarProfileDock } from "@/modules/shared/presentation/admin/shell/AdminSidebarProfileDock";
+import type { AdminSidebarGroupKey } from "@/modules/shared/presentation/admin/shell/adminSidebarNavigation";
+import { adminSidebarItems } from "@/modules/shared/presentation/admin/shell/adminSidebarNavigation";
 
 type AdminSidebarContentProps = {
   openGroups: Record<AdminSidebarGroupKey, boolean>;

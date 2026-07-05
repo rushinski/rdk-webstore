@@ -1,16 +1,16 @@
-// src/components/admin/shell/AdminSidebar.tsx
+// src/modules/shared/presentation/admin/shell/AdminSidebar.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
-import { AdminBrandHeader } from "@/components/admin/shell/AdminBrandHeader";
-import { AdminSidebarContent } from "@/components/admin/shell/AdminSidebarContent";
+import { AdminBrandHeader } from "@/modules/shared/presentation/admin/shell/AdminBrandHeader";
+import { AdminSidebarContent } from "@/modules/shared/presentation/admin/shell/AdminSidebarContent";
 import {
   getAdminSidebarActiveGroups,
   type AdminSidebarGroupKey,
-} from "@/components/admin/shell/adminSidebarNavigation";
+} from "@/modules/shared/presentation/admin/shell/adminSidebarNavigation";
 import type { ProfileRole } from "@/config/constants/roles";
 
 export function AdminSidebar({

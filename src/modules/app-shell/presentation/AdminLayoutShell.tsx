@@ -1,5 +1,5 @@
-import { AdminSidebar } from "@/components/admin/shell/AdminSidebar";
-import { AdminTopbar } from "@/components/admin/shell/AdminTopbar";
+import { AdminSidebar } from "@/modules/shared/presentation/admin/shell/AdminSidebar";
+import { AdminTopbar } from "@/modules/shared/presentation/admin/shell/AdminTopbar";
 import { requireAdmin } from "@/lib/auth/session";
 
 export async function AdminLayoutShell({ children }: { children: React.ReactNode }) {
