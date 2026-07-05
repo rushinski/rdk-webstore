@@ -40,7 +40,7 @@ describe("admin catalog module migration structure", () => {
     }
   });
 
-  it("keeps the legacy catalog shell and orchestration hooks as thin shims", () => {
+  it("removes the legacy catalog duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/catalog/AdminCatalogScreen.tsx",
       "src/components/admin/catalog/CatalogInfoKey.tsx",
@@ -71,9 +71,7 @@ describe("admin catalog module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/catalog/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
