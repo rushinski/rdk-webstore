@@ -1,7 +1,7 @@
 // app/admin/inventory/page.tsx (SERVER-SIDE VERSION)
 
 import type { Category, Condition } from "@/types/domain/product";
-import { InventoryClient } from "@/components/admin/inventory/InventoryClient";
+import { InventoryClient } from "@/modules/catalog/presentation/admin/inventory";
 
 import { getInventoryProducts } from "./actions";
 
