@@ -4,11 +4,14 @@ import path from "node:path";
 describe("pickup data structure", () => {
   it("delegates pickup request orchestration to a focused request module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/pickups/useAdminPickupsData.ts"),
+      path.join(
+        process.cwd(),
+        "src/modules/orders/presentation/admin/pickups/useAdminPickupsData.ts",
+      ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/pickups/pickupDataRequests");
+    expect(source).toContain("@/modules/orders/presentation/admin/pickups/pickupDataRequests");
     expect(source).toContain("loadPickupCountsRequest(");
     expect(source).toContain("loadPickupOrdersRequest(");
     expect(source).toContain("markPickupCompleteRequest(");
@@ -16,7 +19,10 @@ describe("pickup data structure", () => {
 
   it("keeps pickup orders query construction inside the request module", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/pickups/pickupDataRequests.ts"),
+      path.join(
+        process.cwd(),
+        "src/modules/orders/presentation/admin/pickups/pickupDataRequests.ts",
+      ),
       "utf8",
     );
 

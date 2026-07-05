@@ -1,4 +1,4 @@
-import { AdminPickupsScreen } from "@/components/admin/pickups/AdminPickupsScreen";
+import { AdminPickupsScreen } from "@/modules/orders/presentation/admin/pickups";
 
 export default function PickupsPage() {
   return <AdminPickupsScreen />;

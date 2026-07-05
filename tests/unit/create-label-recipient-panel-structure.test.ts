@@ -6,14 +6,22 @@ describe("create label recipient panel structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/CreateLabelRecipientPanel.tsx",
+        "src/modules/orders/presentation/admin/shipping/CreateLabelRecipientPanel.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/shipping/CreateLabelOriginSummary");
-    expect(source).toContain("@/components/admin/shipping/CreateLabelAddressFields");
-    expect(source).toContain("@/components/admin/shipping/CreateLabelPackageFields");
-    expect(source).toContain("@/components/admin/shipping/CreateLabelRateRequestPanel");
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/CreateLabelOriginSummary",
+    );
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/CreateLabelAddressFields",
+    );
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/CreateLabelPackageFields",
+    );
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/CreateLabelRateRequestPanel",
+    );
   });
 });

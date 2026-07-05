@@ -4,11 +4,14 @@ import path from "node:path";
 describe("admin shipping screen ui structure", () => {
   it("delegates shipping screen local tab and dialog state to a focused hook", () => {
     const source = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/shipping/AdminShippingScreen.tsx"),
+      path.join(
+        process.cwd(),
+        "src/modules/orders/presentation/admin/shipping/AdminShippingScreen.tsx",
+      ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/shipping/useAdminShippingScreenUi");
+    expect(source).toContain("@/modules/orders/presentation/admin/shipping/useAdminShippingScreenUi");
     expect(source).toContain("useAdminShippingScreenUi()");
   });
 
@@ -16,7 +19,7 @@ describe("admin shipping screen ui structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/useAdminShippingScreenUi.ts",
+        "src/modules/orders/presentation/admin/shipping/useAdminShippingScreenUi.ts",
       ),
       "utf8",
     );

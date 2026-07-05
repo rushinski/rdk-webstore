@@ -6,23 +6,29 @@ describe("pickup order expansion panels structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/pickups/PickupOrderExpansionPanels.tsx",
+        "src/modules/orders/presentation/admin/pickups/PickupOrderExpansionPanels.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/pickups/PickupExpandedItemsRow");
-    expect(source).toContain("@/components/admin/pickups/PickupMobileDetailsRow");
-    expect(source).toContain("@/components/admin/pickups/pickupOrderExpansionTypes");
+    expect(source).toContain("@/modules/orders/presentation/admin/pickups/PickupExpandedItemsRow");
+    expect(source).toContain("@/modules/orders/presentation/admin/pickups/PickupMobileDetailsRow");
+    expect(source).toContain("@/modules/orders/presentation/admin/pickups/pickupOrderExpansionTypes");
   });
 
   it("keeps pickup item formatting in the shared pickup orders table view helper", () => {
     const desktopSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/pickups/PickupExpandedItemsRow.tsx"),
+      path.join(
+        process.cwd(),
+        "src/modules/orders/presentation/admin/pickups/PickupExpandedItemsRow.tsx",
+      ),
       "utf8",
     );
     const mobileSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/pickups/PickupMobileDetailsRow.tsx"),
+      path.join(
+        process.cwd(),
+        "src/modules/orders/presentation/admin/pickups/PickupMobileDetailsRow.tsx",
+      ),
       "utf8",
     );
 

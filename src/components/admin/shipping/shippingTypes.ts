@@ -1,15 +1,4 @@
-import type { AdminOrderItem } from "@/modules/orders/presentation/admin/order-item-details";
-
-export type ShippingOrderItem = AdminOrderItem;
-
-export type ShippingOrder = {
-  id: string;
-  created_at?: string | null;
-  shipping?: unknown;
-  user_id?: string | null;
-  shipping_profile_name?: string | null;
-  items?: ShippingOrderItem[] | null;
-  shipping_carrier?: string | null;
-  tracking_number?: string | null;
-  label_url?: string | null;
-};
+export type {
+  ShippingOrder,
+  ShippingOrderItem,
+} from "@/modules/orders/presentation/admin/shipping/shippingTypes";

@@ -6,28 +6,34 @@ describe("shipping order expansion panels structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/ShippingOrderExpansionPanels.tsx",
+        "src/modules/orders/presentation/admin/shipping/ShippingOrderExpansionPanels.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/shipping/ShippingExpandedItemsRow");
-    expect(source).toContain("@/components/admin/shipping/ShippingMobileDetailsRow");
-    expect(source).toContain("@/components/admin/shipping/shippingOrderExpansionTypes");
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/ShippingExpandedItemsRow",
+    );
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/ShippingMobileDetailsRow",
+    );
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/shippingOrderExpansionTypes",
+    );
   });
 
   it("keeps shipping item formatting in the shared shipping orders table view helper", () => {
     const desktopSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/ShippingExpandedItemsRow.tsx",
+        "src/modules/orders/presentation/admin/shipping/ShippingExpandedItemsRow.tsx",
       ),
       "utf8",
     );
     const mobileSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/ShippingMobileDetailsRow.tsx",
+        "src/modules/orders/presentation/admin/shipping/ShippingMobileDetailsRow.tsx",
       ),
       "utf8",
     );

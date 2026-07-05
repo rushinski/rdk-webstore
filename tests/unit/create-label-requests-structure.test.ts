@@ -6,19 +6,21 @@ describe("create label requests structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/useCreateLabelFormMutations.ts",
+        "src/modules/orders/presentation/admin/shipping/useCreateLabelFormMutations.ts",
       ),
       "utf8",
     );
     const requestSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/shipping/createLabelFormRequests.ts",
+        "src/modules/orders/presentation/admin/shipping/createLabelFormRequests.ts",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/shipping/createLabelFormRequests");
+    expect(source).toContain(
+      "@/modules/orders/presentation/admin/shipping/createLabelFormRequests",
+    );
     expect(requestSource).toContain("fetchLabelRatesRequest");
     expect(requestSource).toContain("purchaseShippingLabelRequest");
   });
