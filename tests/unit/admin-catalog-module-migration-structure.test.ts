@@ -17,8 +17,15 @@ describe("admin catalog module migration structure", () => {
       "src/modules/catalog/presentation/admin/catalog/useAdminCatalogMutations.ts",
       "src/modules/catalog/presentation/admin/catalog/useAdminCatalogDerivedState.ts",
       "src/modules/catalog/presentation/admin/catalog/useAdminCatalogScreenState.ts",
+      "src/modules/catalog/presentation/admin/catalog/components/AliasesTab.tsx",
+      "src/modules/catalog/presentation/admin/catalog/components/BrandsTab.tsx",
+      "src/modules/catalog/presentation/admin/catalog/components/CandidatesTab.tsx",
+      "src/modules/catalog/presentation/admin/catalog/components/CatalogActionMenu.tsx",
+      "src/modules/catalog/presentation/admin/catalog/components/CatalogBrandModelsList.tsx",
+      "src/modules/catalog/presentation/admin/catalog/components/CatalogBrandRow.tsx",
       "src/modules/catalog/presentation/admin/catalog/components/CatalogToolbar.tsx",
       "src/modules/catalog/presentation/admin/catalog/components/TagModals.tsx",
+      "src/modules/catalog/presentation/admin/catalog/components/catalogStyles.ts",
     ];
 
     for (const modulePath of modulePaths) {
@@ -38,8 +45,15 @@ describe("admin catalog module migration structure", () => {
       "src/components/admin/catalog/useAdminCatalogMutations.ts",
       "src/components/admin/catalog/useAdminCatalogDerivedState.ts",
       "src/components/admin/catalog/useAdminCatalogScreenState.ts",
+      "src/components/admin/catalog/components/AliasesTab.tsx",
+      "src/components/admin/catalog/components/BrandsTab.tsx",
+      "src/components/admin/catalog/components/CandidatesTab.tsx",
+      "src/components/admin/catalog/components/CatalogActionMenu.tsx",
+      "src/components/admin/catalog/components/CatalogBrandModelsList.tsx",
+      "src/components/admin/catalog/components/CatalogBrandRow.tsx",
       "src/components/admin/catalog/components/CatalogToolbar.tsx",
       "src/components/admin/catalog/components/TagModals.tsx",
+      "src/components/admin/catalog/components/catalogStyles.ts",
     ];
 
     for (const legacyPath of legacyPaths) {
