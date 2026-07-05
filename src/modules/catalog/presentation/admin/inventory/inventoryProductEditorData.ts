@@ -6,10 +6,22 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { CatalogRepository } from "@/repositories/catalog-repo";
 import { ProductService } from "@/services/product-service";
 import { ShippingDefaultsService } from "@/services/shipping-defaults-service";
+import type { Category, Condition } from "@/types/domain/product";
 import type {
   CreateProductFormInitialData,
   EditProductFormInitialData,
 } from "@/modules/catalog/presentation/admin/inventory/productEditorTypes";
+
+type StockStatus = "in_stock" | "archived";
+
+export interface InventoryFilters {
+  q?: string;
+  category?: Category | "all";
+  condition?: Condition | "all";
+  stockStatus?: StockStatus;
+  page?: number;
+  limit?: number;
+}
 
 export async function getCreateProductFormInitialData(): Promise<CreateProductFormInitialData> {
   const session = await requireAdmin();
@@ -65,4 +77,33 @@ export async function getEditProductFormInitialData(
       groupKey: brand.group?.key ?? null,
     })),
   };
+}
+
+export async function getInventoryProducts(filters: InventoryFilters = {}) {
+  const session = await requireAdmin();
+  const supabase = await createSupabaseServerClient();
+  const tenantId = await ensureTenantId(session, supabase);
+
+  const service = new ProductService(supabase);
+
+  const {
+    q,
+    category,
+    condition,
+    stockStatus = "in_stock",
+    page = 1,
+    limit = 100,
+  } = filters;
+
+  return service.listProducts({
+    q,
+    category: category && category !== "all" ? [category] : undefined,
+    condition: condition && condition !== "all" ? [condition] : undefined,
+    limit,
+    page,
+    includeOutOfStock: true,
+    stockStatus,
+    tenantId,
+    searchMode: "inventory",
+  });
 }

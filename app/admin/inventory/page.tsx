@@ -2,8 +2,7 @@
 
 import type { Category, Condition } from "@/types/domain/product";
 import { InventoryClient } from "@/modules/catalog/presentation/admin/inventory";
-
-import { getInventoryProducts } from "./actions";
+import { getInventoryProducts } from "@/modules/catalog/presentation/admin/inventory/inventoryProductEditorData";
 
 type StockStatus = "in_stock" | "archived";
 
