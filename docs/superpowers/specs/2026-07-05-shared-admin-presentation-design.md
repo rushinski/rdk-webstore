@@ -23,12 +23,12 @@ This design does not introduce new user-facing behavior, redesign existing admin
 
 ## Problem
 
-Most admin feature surfaces have already been migrated into module-owned presentation directories, but the repo still retains a special-case namespace for shared admin presentation:
+Most admin feature surfaces were already migrated into module-owned presentation directories, but the repo retained a special-case namespace for shared admin presentation:
 
 - `src/components/admin/shell/*`
 - `src/components/admin/ui/*`
 
-That structure is cleaner than the old feature-specific component trees, but it still preserves an architectural split between:
+That structure was cleaner than the old feature-specific component trees, but it still preserved an architectural split between:
 
 - module-owned presentation code
 - non-module shared admin presentation code

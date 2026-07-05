@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { logError } from "@/lib/utils/log";
 
 export function AdminErrorPageContent({
@@ -44,3 +44,4 @@ export function AdminErrorPageContent({
     </div>
   );
 }
+
