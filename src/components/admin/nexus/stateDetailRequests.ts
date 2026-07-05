@@ -1,1 +1,1 @@
-export { loadStateSalesLogRequest } from "@/modules/nexus/presentation/admin/stateDetailRequests";
+export * from "@/modules/nexus/presentation/admin/stateDetailRequests";

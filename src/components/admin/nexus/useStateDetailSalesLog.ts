@@ -1,1 +1,1 @@
-export { useStateDetailSalesLog } from "@/modules/nexus/presentation/admin/useStateDetailSalesLog";
+export * from "@/modules/nexus/presentation/admin/useStateDetailSalesLog";

@@ -1,4 +1,1 @@
-export {
-  loadHomeOfficeSetupDataRequest,
-  submitHomeOfficeSetupRequest,
-} from "@/modules/nexus/presentation/admin/homeOfficeSetupRequests";
+export * from "@/modules/nexus/presentation/admin/homeOfficeSetupRequests";

@@ -2,6 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 describe("admin settings route structure", () => {
+  it("routes tax settings through the settings module boundary", () => {
+    const source = fs.readFileSync(
+      path.join(process.cwd(), "app/admin/settings/taxes/page.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("@/modules/settings/presentation/admin/tax");
+    expect(source).toContain("<TaxSettingsPanel />");
+  });
+
   it("routes shipping settings through the settings module boundary", () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), "app/admin/settings/shipping/page.tsx"),

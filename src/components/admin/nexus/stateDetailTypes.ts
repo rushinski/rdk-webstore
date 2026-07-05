@@ -1,1 +1,1 @@
-export type * from "@/modules/nexus/presentation/admin/stateDetailTypes";
+export * from "@/modules/nexus/presentation/admin/stateDetailTypes";

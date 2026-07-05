@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import NexusMap from "@/components/admin/nexus/NexusMap";
+import NexusMap from "@/modules/nexus/presentation/admin/NexusMap";
 
 jest.mock("@vnedyalk0v/react19-simple-maps", () => ({
   ComposableMap: ({ children }: { children: React.ReactNode }) => <svg>{children}</svg>,

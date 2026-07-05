@@ -1,1 +1,1 @@
-export { useHomeOfficeSetupState } from "@/modules/nexus/presentation/admin/useHomeOfficeSetupState";
+export * from "@/modules/nexus/presentation/admin/useHomeOfficeSetupState";
