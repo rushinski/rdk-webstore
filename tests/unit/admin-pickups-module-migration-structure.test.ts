@@ -34,7 +34,7 @@ describe("admin pickups module migration structure", () => {
     }
   });
 
-  it("keeps legacy pickups paths as thin shims", () => {
+  it("removes legacy pickups duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/pickups/AdminPickupsScreen.tsx",
       "src/components/admin/pickups/useAdminPickupsData.ts",
@@ -59,7 +59,7 @@ describe("admin pickups module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain("@/modules/orders/presentation/admin/pickups/");
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

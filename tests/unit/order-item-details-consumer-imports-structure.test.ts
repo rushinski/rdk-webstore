@@ -9,13 +9,17 @@ describe("order item details consumer imports", () => {
     const transactionDetailScreen = read(
       "src/modules/orders/presentation/admin/transaction-detail/AdminTransactionDetailScreen.tsx",
     );
-    const shippingDialogs = read("src/components/admin/shipping/ShippingDialogs.tsx");
-    const pickupsFeedback = read("src/components/admin/pickups/PickupsFeedback.tsx");
+    const shippingDialogs = read(
+      "src/modules/orders/presentation/admin/shipping/ShippingDialogs.tsx",
+    );
+    const pickupsFeedback = read(
+      "src/modules/orders/presentation/admin/pickups/PickupsFeedback.tsx",
+    );
     const shippingOrdersTableView = read(
-      "src/components/admin/shipping/shippingOrdersTableView.tsx",
+      "src/modules/orders/presentation/admin/shipping/shippingOrdersTableView.tsx",
     );
     const pickupOrdersTableView = read(
-      "src/components/admin/pickups/pickupOrdersTableView.ts",
+      "src/modules/orders/presentation/admin/pickups/pickupOrdersTableView.ts",
     );
 
     expect(transactionDetailScreen).toContain(
