@@ -23,7 +23,7 @@ describe("admin shipping table module migration structure", () => {
     }
   });
 
-  it("keeps legacy shipping table files as thin shims", () => {
+  it("removes legacy shipping table duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/shipping/ShippingOrdersTable.tsx",
       "src/components/admin/shipping/ShippingOrdersTableHeader.tsx",
@@ -37,9 +37,7 @@ describe("admin shipping table module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/orders/presentation/admin/shipping/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

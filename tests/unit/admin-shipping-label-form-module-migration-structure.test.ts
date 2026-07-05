@@ -29,7 +29,7 @@ describe("admin shipping label form module migration structure", () => {
     }
   });
 
-  it("keeps legacy origin modal and create-label files as thin shims", () => {
+  it("removes legacy origin modal and create-label duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/shipping/OriginModal.tsx",
       "src/components/admin/shipping/OriginAddressFields.tsx",
@@ -49,9 +49,7 @@ describe("admin shipping label form module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/orders/presentation/admin/shipping/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

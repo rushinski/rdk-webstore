@@ -22,7 +22,7 @@ describe("admin shipping top-level module migration structure", () => {
     }
   });
 
-  it("keeps legacy top-level shipping files as thin shims", () => {
+  it("removes legacy top-level shipping duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/shipping/AdminShippingScreen.tsx",
       "src/components/admin/shipping/useAdminShippingData.ts",
@@ -35,7 +35,7 @@ describe("admin shipping top-level module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain("@/modules/orders/presentation/admin/shipping/");
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

@@ -19,7 +19,7 @@ describe("admin shipping support module migration structure", () => {
     }
   });
 
-  it("keeps legacy screen-level shipping support files as thin shims", () => {
+  it("removes legacy screen-level shipping support duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/shipping/ShippingDialogs.tsx",
       "src/components/admin/shipping/ShippingReadyAlert.tsx",
@@ -29,9 +29,7 @@ describe("admin shipping support module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/orders/presentation/admin/shipping/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
