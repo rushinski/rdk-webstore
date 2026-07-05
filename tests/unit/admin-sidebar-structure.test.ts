@@ -8,11 +8,11 @@ describe("admin sidebar structure", () => {
       "utf8",
     );
     const navSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/sidebar/adminSidebarNavigation.ts"),
+      path.join(process.cwd(), "src/components/admin/shell/adminSidebarNavigation.ts"),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/sidebar/adminSidebarNavigation");
+    expect(source).toContain("@/components/admin/shell/adminSidebarNavigation");
     expect(navSource).toContain("export const adminSidebarItems");
     expect(navSource).toContain("getAdminSidebarActiveGroups");
   });
@@ -23,12 +23,12 @@ describe("admin sidebar structure", () => {
       "utf8",
     );
     const contentSource = fs.readFileSync(
-      path.join(process.cwd(), "src/components/admin/sidebar/AdminSidebarContent.tsx"),
+      path.join(process.cwd(), "src/components/admin/shell/AdminSidebarContent.tsx"),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/sidebar/AdminSidebarContent");
-    expect(contentSource).toContain("@/components/admin/sidebar/AdminSidebarProfileDock");
+    expect(source).toContain("@/components/admin/shell/AdminSidebarContent");
+    expect(contentSource).toContain("@/components/admin/shell/AdminSidebarProfileDock");
     expect(contentSource).toContain("@/components/admin/shell/AdminNavItem");
   });
 });

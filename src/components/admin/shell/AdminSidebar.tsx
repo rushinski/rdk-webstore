@@ -6,11 +6,11 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 
 import { AdminBrandHeader } from "@/components/admin/shell/AdminBrandHeader";
-import { AdminSidebarContent } from "@/components/admin/sidebar/AdminSidebarContent";
+import { AdminSidebarContent } from "@/components/admin/shell/AdminSidebarContent";
 import {
   getAdminSidebarActiveGroups,
   type AdminSidebarGroupKey,
-} from "@/components/admin/sidebar/adminSidebarNavigation";
+} from "@/components/admin/shell/adminSidebarNavigation";
 import type { ProfileRole } from "@/config/constants/roles";
 
 export function AdminSidebar({

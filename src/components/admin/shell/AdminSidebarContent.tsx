@@ -5,9 +5,9 @@ import Link from "next/link";
 import { ChevronDown, ChevronRight, Globe, LayoutDashboard } from "lucide-react";
 
 import { AdminNavItem } from "@/components/admin/shell/AdminNavItem";
-import { AdminSidebarProfileDock } from "@/components/admin/sidebar/AdminSidebarProfileDock";
-import type { AdminSidebarGroupKey } from "@/components/admin/sidebar/adminSidebarNavigation";
-import { adminSidebarItems } from "@/components/admin/sidebar/adminSidebarNavigation";
+import { AdminSidebarProfileDock } from "@/components/admin/shell/AdminSidebarProfileDock";
+import type { AdminSidebarGroupKey } from "@/components/admin/shell/adminSidebarNavigation";
+import { adminSidebarItems } from "@/components/admin/shell/adminSidebarNavigation";
 
 type AdminSidebarContentProps = {
   openGroups: Record<AdminSidebarGroupKey, boolean>;
