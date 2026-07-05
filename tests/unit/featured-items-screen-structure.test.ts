@@ -16,12 +16,14 @@ describe("featured items screen structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/featured-items/FeaturedItemsScreen.tsx",
+        "src/modules/catalog/presentation/admin/featured-items/FeaturedItemsScreen.tsx",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/featured-items/useFeaturedItemsScreen");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/featured-items/useFeaturedItemsScreen",
+    );
     expect(source).toContain("useFeaturedItemsScreen()");
   });
 
@@ -29,19 +31,21 @@ describe("featured items screen structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/featured-items/FeaturedItemsScreen.tsx",
+        "src/modules/catalog/presentation/admin/featured-items/FeaturedItemsScreen.tsx",
       ),
       "utf8",
     );
     const viewSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/featured-items/featuredItemsView.ts",
+        "src/modules/catalog/presentation/admin/featured-items/featuredItemsView.ts",
       ),
       "utf8",
     );
 
-    expect(source).toContain("@/components/admin/featured-items/featuredItemsView");
+    expect(source).toContain(
+      "@/modules/catalog/presentation/admin/featured-items/featuredItemsView",
+    );
     expect(source).toContain("@/components/admin/featured-items/FeaturedItemsFeedback");
     expect(viewSource).toContain("formatFeaturedItemPrice");
     expect(viewSource).toContain("getFeaturedItemMinPrice");

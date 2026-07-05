@@ -1,1 +1,1 @@
-export { FeaturedItemsScreen } from "@/components/admin/featured-items/FeaturedItemsScreen";
+export { FeaturedItemsScreen } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsScreen";

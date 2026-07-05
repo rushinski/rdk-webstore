@@ -6,7 +6,7 @@ describe("featured items search structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/featured-items/useFeaturedItemsScreen.ts",
+        "src/modules/catalog/presentation/admin/featured-items/useFeaturedItemsScreen.ts",
       ),
       "utf8",
     );
