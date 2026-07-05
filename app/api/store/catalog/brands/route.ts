@@ -3,11 +3,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { StorefrontService } from "@/services/storefront-service";
 import { storeBrandQuerySchema } from "@/lib/validation/storefront";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
+import { createServerStorefrontService } from "@/modules/storefront/infrastructure/storefront-data";
 
 // OPTIMIZATION: Brands are static data, cache aggressively
 export const revalidate = 1800; // 30 minutes
@@ -29,8 +28,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const service = new StorefrontService(supabase);
+    const service = await createServerStorefrontService();
     const brands = await service.listBrandsByGroupKey(parsed.data.groupKey ?? null);
 
     return NextResponse.json(

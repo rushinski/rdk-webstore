@@ -3,13 +3,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getServerSession } from "@/lib/auth/session";
-import { StorefrontService } from "@/services/storefront-service";
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
 import { isAdminRole, isProfileRole } from "@/config/constants/roles";
+import { createServerStorefrontService } from "@/modules/storefront/infrastructure/storefront-data";
 
 // OPTIMIZATION: Cache public catalog queries (5 minutes)
 // Note: Admin queries (out_of_stock, all) remain uncached
@@ -55,9 +54,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const service = new StorefrontService(supabase);
-
+    const service = await createServerStorefrontService();
     const result = await service.listProducts(parsed.data);
 
     // OPTIMIZATION: Only cache public catalog queries (not admin out-of-stock queries)

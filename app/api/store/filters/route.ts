@@ -4,10 +4,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { StorefrontService } from "@/services/storefront-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
+import { createServerStorefrontService } from "@/modules/storefront/infrastructure/storefront-data";
 
 // OPTIMIZATION 1: Cache filter data for 5 minutes
 // Filters don't change often, so we can cache aggressively
@@ -18,9 +17,7 @@ export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const service = new StorefrontService(supabase);
-
+    const service = await createServerStorefrontService();
     // OPTIMIZATION 2: You could optionally parse filter params here
     // and only return relevant filters based on current selection
     // This reduces the payload size significantly

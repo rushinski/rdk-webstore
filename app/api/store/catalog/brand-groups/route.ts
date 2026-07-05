@@ -3,10 +3,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { StorefrontService } from "@/services/storefront-service";
 import { getRequestIdFromHeaders } from "@/lib/http/request-id";
 import { logError } from "@/lib/utils/log";
+import { createServerStorefrontService } from "@/modules/storefront/infrastructure/storefront-data";
 
 const NAVBAR_GROUP_KEYS = new Set(["nike", "jordan", "asics", "designer"]);
 
@@ -18,8 +17,7 @@ export async function GET(request: NextRequest) {
   const requestId = getRequestIdFromHeaders(request.headers);
 
   try {
-    const supabase = await createSupabaseServerClient();
-    const service = new StorefrontService(supabase);
+    const service = await createServerStorefrontService();
     const groups = await service.listBrandGroupsByKeys(NAVBAR_GROUP_KEYS);
 
     return NextResponse.json(
