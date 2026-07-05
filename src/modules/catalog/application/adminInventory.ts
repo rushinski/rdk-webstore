@@ -3,9 +3,9 @@
 import { requireAdmin } from "@/lib/auth/session";
 import { ensureTenantId } from "@/lib/auth/tenant";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { CatalogRepository } from "@/repositories/catalog-repo";
-import { ProductService } from "@/services/product-service";
-import { ShippingDefaultsService } from "@/services/shipping-defaults-service";
+import { CatalogRepository } from "@/modules/catalog/infrastructure/catalog-repo";
+import { ProductService } from "@/modules/catalog/infrastructure/product-service";
+import { ShippingDefaultsService } from "@/modules/catalog/infrastructure/shipping-defaults-service";
 import type { Category, Condition } from "@/types/domain/product";
 import type {
   CreateProductFormInitialData,

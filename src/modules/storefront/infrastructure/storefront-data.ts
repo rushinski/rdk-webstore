@@ -2,8 +2,8 @@ import { unstable_cache } from "next/cache";
 
 import { createSupabasePublicClient } from "@/lib/supabase/public";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { ProductRepository } from "@/repositories/product-repo";
-import { StorefrontService } from "@/services/storefront-service";
+import { ProductRepository } from "@/modules/storefront/infrastructure/product-repo";
+import { StorefrontService } from "@/modules/storefront/infrastructure/storefront-service";
 
 const PRODUCT_REVALIDATE_SECONDS = 60;
 
