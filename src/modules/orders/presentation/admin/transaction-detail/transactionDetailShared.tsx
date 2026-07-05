@@ -1,4 +1,4 @@
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 export function DetailRow({
   label,
@@ -51,3 +51,4 @@ export function PayloadBlock({ label, payload }: { label: string; payload: unkno
     </div>
   );
 }
+

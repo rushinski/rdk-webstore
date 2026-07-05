@@ -1,4 +1,4 @@
-import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
+import { AdminMetricCard } from "@/modules/shared/presentation/admin/ui/AdminMetricCard";
 
 type NexusTrackerOverviewCardsProps = {
   atRiskStates: number;
@@ -31,3 +31,4 @@ export function NexusTrackerOverviewCards({
     </div>
   );
 }
+

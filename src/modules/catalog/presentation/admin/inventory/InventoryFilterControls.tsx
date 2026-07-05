@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type { InventoryToolbarFilters } from "@/modules/catalog/presentation/admin/inventory/inventoryClientContracts";
 import { RdkSelect } from "@/components/ui/Select";
 import type { Category, Condition } from "@/types/domain/product";
@@ -62,3 +62,4 @@ export function InventoryFilterControls({
     </div>
   );
 }
+

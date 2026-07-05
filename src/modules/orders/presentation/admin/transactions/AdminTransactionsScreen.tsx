@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { buildFilteredTransactions } from "@/modules/orders/presentation/admin/transactions/transactionsView";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { useAdminTransactionsData } from "@/modules/orders/presentation/admin/transactions/useAdminTransactionsData";
 import { TransactionsPagination } from "@/modules/orders/presentation/admin/transactions/TransactionsPagination";
 import { TransactionsSearchBar } from "@/modules/orders/presentation/admin/transactions/TransactionsSearchBar";
@@ -58,3 +58,4 @@ export function AdminTransactionsScreen() {
     </div>
   );
 }
+

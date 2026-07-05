@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { RdkSelect } from "@/components/ui/Select";
 import {
   canInviteAdmins,
@@ -155,3 +155,4 @@ export function AdminProfilePageContent() {
     </div>
   );
 }
+

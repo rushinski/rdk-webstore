@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 
 import { TaxSettingsPanel } from "./TaxSettingsPanel";
 
@@ -15,3 +15,4 @@ export function TaxSettingsPageContent() {
     </div>
   );
 }
+

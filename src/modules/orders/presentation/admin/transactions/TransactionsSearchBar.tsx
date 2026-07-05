@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 
 type TransactionsSearchBarProps = {
   searchQuery: string;
@@ -26,3 +26,4 @@ export function TransactionsSearchBar({
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import type { EditTarget } from "@/modules/catalog/presentation/admin/catalog/types";
 import { TagModalShell } from "@/modules/catalog/presentation/admin/catalog/components/TagModalShell";
 
@@ -49,3 +49,4 @@ export function ConfirmDisableTagModal({
     </TagModalShell>
   );
 }
+

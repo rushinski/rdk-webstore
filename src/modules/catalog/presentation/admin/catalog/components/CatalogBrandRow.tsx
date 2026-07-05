@@ -2,8 +2,8 @@
 
 import { ChevronDown } from "lucide-react";
 
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { CatalogActionMenu } from "@/modules/catalog/presentation/admin/catalog/components/CatalogActionMenu";
 import { CatalogBrandModelsList } from "@/modules/catalog/presentation/admin/catalog/components/CatalogBrandModelsList";
 import { catalogStyles } from "@/modules/catalog/presentation/admin/catalog/components/catalogStyles";
@@ -117,3 +117,4 @@ export function CatalogBrandRow({
     </tr>
   );
 }
+

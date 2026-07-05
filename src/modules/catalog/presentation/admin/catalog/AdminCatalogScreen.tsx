@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { CatalogInfoKey } from "@/modules/catalog/presentation/admin/catalog/CatalogInfoKey";
 import { CatalogTabContent } from "@/modules/catalog/presentation/admin/catalog/CatalogTabContent";
 import {
@@ -232,3 +232,4 @@ export function AdminCatalogScreen() {
     </div>
   );
 }
+

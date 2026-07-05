@@ -2,7 +2,7 @@
 
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 const statusPanelClass = "flex items-start gap-2 rounded border p-3 text-sm";
 
@@ -51,3 +51,4 @@ export function CreateLabelRateRequestPanel({
     </div>
   );
 }
+

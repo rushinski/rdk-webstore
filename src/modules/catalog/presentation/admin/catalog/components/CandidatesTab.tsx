@@ -1,9 +1,9 @@
 "use client";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { catalogStyles } from "@/modules/catalog/presentation/admin/catalog/components/catalogStyles";
 import type { Candidate } from "@/modules/catalog/presentation/admin/catalog/types";
 
@@ -103,3 +103,4 @@ export function CandidatesTab({
     </AdminSectionCard>
   );
 }
+

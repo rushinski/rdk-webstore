@@ -4,9 +4,9 @@ import { createElement } from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
-import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminMetricCard } from "@/modules/shared/presentation/admin/ui/AdminMetricCard";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { buildAdminDashboardStats } from "@/modules/dashboard/presentation/admin/adminDashboardView";
 import { SalesChart } from "@/modules/dashboard/presentation/admin/SalesChart";
 import { useAdminDashboardData } from "@/modules/dashboard/presentation/admin/useAdminDashboardData";
@@ -115,3 +115,4 @@ export function AdminDashboardScreen() {
     </div>
   );
 }
+

@@ -2,7 +2,7 @@
 
 import { Download, Home } from "lucide-react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 type NexusTrackerHeaderActionsProps = {
   homeState: string;
@@ -54,3 +54,4 @@ export function NexusTrackerHeaderActions({
     </div>
   );
 }
+

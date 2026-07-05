@@ -2,7 +2,7 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { getEditProductFormInitialData } from "@/modules/catalog/application/adminInventory";
 import { EditProductClient } from "@/modules/catalog/presentation/admin/inventory/EditProductClient";
 
@@ -40,3 +40,4 @@ export async function EditProductPageContent({ productId }: { productId: string 
     </div>
   );
 }
+

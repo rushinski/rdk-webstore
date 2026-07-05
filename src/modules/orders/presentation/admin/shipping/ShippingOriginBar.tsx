@@ -1,6 +1,6 @@
 "use client";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 type ShippingOriginBarProps = {
   originLine: string | null;
@@ -26,3 +26,4 @@ export function ShippingOriginBar({
     </div>
   );
 }
+

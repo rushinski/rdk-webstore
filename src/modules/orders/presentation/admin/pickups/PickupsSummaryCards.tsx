@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
+import { AdminMetricCard } from "@/modules/shared/presentation/admin/ui/AdminMetricCard";
 
 type PickupsSummary = {
   profit: number;
@@ -55,3 +55,4 @@ export function PickupsSummaryCards({ summary }: PickupsSummaryCardsProps) {
     </div>
   );
 }
+

@@ -3,7 +3,7 @@
 import { CustomerDetailRow } from "@/modules/customers/presentation/admin/customer-detail/CustomerDetailRow";
 import { formatCustomerDate } from "@/modules/customers/presentation/admin/customer-detail/customerDetailView";
 import type { CustomerDetail } from "@/modules/customers/presentation/admin/customer-detail/useAdminCustomerDetailData";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 type CustomerDetailsPanelProps = {
   customer: CustomerDetail;
@@ -36,3 +36,4 @@ export function CustomerDetailsPanel({ customer }: CustomerDetailsPanelProps) {
     </AdminSectionCard>
   );
 }
+

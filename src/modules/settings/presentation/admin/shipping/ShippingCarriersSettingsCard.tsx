@@ -1,6 +1,6 @@
 import { AVAILABLE_CARRIERS } from "@/modules/settings/presentation/admin/shipping/shippingSettingsConfig";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 type ShippingCarriersSettingsCardProps = {
   carriersMessage: string | null;
@@ -62,3 +62,4 @@ export function ShippingCarriersSettingsCard({
     </AdminSectionCard>
   );
 }
+

@@ -1,7 +1,7 @@
 "use client";
 
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { CheckoutLockCard } from "@/modules/settings/presentation/admin/store-access/StoreAccessCards";
 import { useStoreAccessSettingsPanel } from "@/modules/settings/presentation/admin/store-access/useStoreAccessSettingsPanel";
 
@@ -50,3 +50,4 @@ export function StoreAccessSettingsPanel() {
     </div>
   );
 }
+

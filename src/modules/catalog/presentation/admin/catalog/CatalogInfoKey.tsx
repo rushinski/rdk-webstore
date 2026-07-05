@@ -1,4 +1,4 @@
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 const infoItems = [
   { label: "Brands", description: "Canonical brand labels used for products, filters, and parsing." },
@@ -62,3 +62,4 @@ export function CatalogInfoKey() {
     </AdminSectionCard>
   );
 }
+

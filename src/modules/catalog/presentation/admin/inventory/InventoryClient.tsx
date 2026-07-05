@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { InventoryClientContent } from "@/modules/catalog/presentation/admin/inventory/InventoryClientContent";
 import { InventoryClientHeaderActions } from "@/modules/catalog/presentation/admin/inventory/InventoryClientHeaderActions";
 import { InventoryDialogs } from "@/modules/catalog/presentation/admin/inventory/InventoryDialogs";
@@ -59,3 +59,4 @@ export function InventoryClient({
     </div>
   );
 }
+

@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { ProductForm } from "@/modules/catalog/presentation/admin/inventory/ProductForm";
 import type {
   ProductFormBrandOption,
@@ -133,3 +133,4 @@ export function EditProductClient({
     />
   );
 }
+

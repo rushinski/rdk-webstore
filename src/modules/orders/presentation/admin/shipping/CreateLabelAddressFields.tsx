@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type {
   AddressErrors,
   AddressValidationStatus,
@@ -149,3 +149,4 @@ export function CreateLabelAddressFields({
     </div>
   );
 }
+

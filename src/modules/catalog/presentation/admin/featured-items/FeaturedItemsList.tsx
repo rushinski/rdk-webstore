@@ -4,9 +4,9 @@ import { GripVertical, Star, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { featuredItemsStyles } from "@/modules/catalog/presentation/admin/featured-items/featuredItemsStyles";
 import type { FeaturedItem } from "@/modules/catalog/presentation/admin/featured-items/featuredItemsTypes";
 
@@ -119,3 +119,4 @@ export function FeaturedItemsList({
     </AdminSectionCard>
   );
 }
+

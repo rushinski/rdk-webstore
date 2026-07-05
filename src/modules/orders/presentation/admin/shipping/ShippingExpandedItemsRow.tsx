@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 import { buildShippingOrderItemModel } from "@/modules/orders/presentation/admin/shipping/shippingOrdersTableView";
 import type { ShippingOrderExpansionPanelsProps } from "@/modules/orders/presentation/admin/shipping/shippingOrderExpansionTypes";
 import type { ShippingOrderItem } from "@/modules/orders/presentation/admin/shipping/shippingTypes";
@@ -120,3 +120,4 @@ export function ShippingExpandedItemsRow({
     </tr>
   );
 }
+

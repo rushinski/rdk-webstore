@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import { RdkSelect } from "@/components/ui/Select";
 import type {
   AliasEditDraft,
@@ -194,3 +194,4 @@ export function EditTagModal({
     </TagModalShell>
   );
 }
+

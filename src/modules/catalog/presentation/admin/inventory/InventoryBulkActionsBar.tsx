@@ -6,7 +6,7 @@ import type {
   InventoryToolbarSelection,
   InventoryToolbarSummary,
 } from "@/modules/catalog/presentation/admin/inventory/inventoryClientContracts";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 type InventoryBulkActionsBarProps = Pick<
   InventoryToolbarActions,
@@ -91,3 +91,4 @@ export function InventoryBulkActionsBar({
     </div>
   );
 }
+

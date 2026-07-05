@@ -10,8 +10,8 @@ import {
   getHomeOfficeChangeImpactSubtitle,
   updateOldHomeOfficeAction,
 } from "@/modules/nexus/presentation/admin/homeOfficeChangeImpactView";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import { STATE_NAMES } from "@/config/constants/nexus-thresholds";
 
@@ -193,3 +193,4 @@ export function HomeOfficeChangeImpactModal({
     </ModalPortal>
   );
 }
+

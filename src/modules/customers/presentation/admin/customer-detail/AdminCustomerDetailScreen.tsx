@@ -12,11 +12,11 @@ import {
   getCustomerKindMeta,
 } from "@/modules/customers/presentation/admin/customer-detail/customerDetailView";
 import { useAdminCustomerDetailData } from "@/modules/customers/presentation/admin/customer-detail/useAdminCustomerDetailData";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminMetricCard } from "@/components/admin/ui/AdminMetricCard";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminMetricCard } from "@/modules/shared/presentation/admin/ui/AdminMetricCard";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 export function AdminCustomerDetailScreen() {
   const params = useParams();
@@ -97,3 +97,4 @@ export function AdminCustomerDetailScreen() {
     </div>
   );
 }
+

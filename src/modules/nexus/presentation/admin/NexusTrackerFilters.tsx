@@ -1,8 +1,8 @@
 import { Search } from "lucide-react";
 
 import type { NexusTrackerFilterValues } from "@/modules/nexus/presentation/admin/nexusTrackerView";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import { RdkSelect, type RdkSelectOption } from "@/components/ui/Select";
 
 type NexusTrackerFiltersProps = {
@@ -98,3 +98,4 @@ export function NexusTrackerFilters({
     </AdminSectionCard>
   );
 }
+

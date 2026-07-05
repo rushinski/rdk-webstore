@@ -1,7 +1,7 @@
 "use client";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { FeaturedItemsFeedback } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsFeedback";
 import { FeaturedItemsList } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsList";
 import { FeaturedItemsSearchPanel } from "@/modules/catalog/presentation/admin/featured-items/FeaturedItemsSearchPanel";
@@ -82,3 +82,4 @@ export function FeaturedItemsScreen() {
     </div>
   );
 }
+

@@ -2,8 +2,8 @@ import {
   type RefundableOrder,
   RefundOrderModal,
 } from "@/modules/orders/presentation/admin/refund-order";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 type TransactionHeaderActionsProps = {
   isRefundSubmitting: boolean;
@@ -75,3 +75,4 @@ export function TransactionHeaderActions({
     </>
   );
 }
+

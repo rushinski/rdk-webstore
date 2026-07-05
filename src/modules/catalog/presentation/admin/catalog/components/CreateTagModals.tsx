@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type { Brand } from "@/modules/catalog/presentation/admin/catalog/types";
 import { TagModalShell } from "@/modules/catalog/presentation/admin/catalog/components/TagModalShell";
 
@@ -126,3 +126,4 @@ export function CreateTagModals({
     </>
   );
 }
+

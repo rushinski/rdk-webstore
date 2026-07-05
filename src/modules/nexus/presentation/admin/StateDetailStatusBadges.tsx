@@ -1,4 +1,4 @@
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 import type { StateSummary } from "@/types/domain/nexus";
 
 type StateDetailStatusBadgesProps = {
@@ -20,3 +20,4 @@ export function StateDetailStatusBadges({ state }: StateDetailStatusBadgesProps)
     </div>
   );
 }
+

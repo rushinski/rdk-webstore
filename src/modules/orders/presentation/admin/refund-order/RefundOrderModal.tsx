@@ -11,7 +11,7 @@ import type {
   RefundableOrder,
 } from "@/modules/orders/presentation/admin/refund-order/refundOrderTypes";
 import { useRefundOrderState } from "@/modules/orders/presentation/admin/refund-order/useRefundOrderState";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 
 type RefundOrderModalProps = {
@@ -144,3 +144,4 @@ export function RefundOrderModal({
     </ModalPortal>
   );
 }
+

@@ -30,8 +30,8 @@ import {
   getRiskBadge,
   getRelatedCheckoutLogs,
 } from "@/modules/orders/presentation/admin/transaction-detail";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { Toast } from "@/components/ui/Toast";
 
 const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
@@ -302,3 +302,4 @@ export function AdminTransactionDetailScreen() {
     </div>
   );
 }
+

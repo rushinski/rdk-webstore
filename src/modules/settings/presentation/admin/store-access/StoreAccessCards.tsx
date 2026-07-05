@@ -1,7 +1,7 @@
 "use client";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 type CheckoutLockCardProps = {
   checkoutLockEnabled: boolean;
@@ -46,3 +46,4 @@ export function CheckoutLockCard({
     </AdminSectionCard>
   );
 }
+

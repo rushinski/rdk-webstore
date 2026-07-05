@@ -4,8 +4,8 @@ import type {
   InventoryClientContentState,
   InventoryProductListContractProps,
 } from "@/modules/catalog/presentation/admin/inventory/inventoryClientContracts";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { InventoryProductList } from "@/modules/catalog/presentation/admin/inventory/InventoryProductList";
 
 type InventoryClientContentProps = InventoryClientContentState &
@@ -31,3 +31,4 @@ export function InventoryClientContent({
     </AdminSectionCard>
   );
 }
+

@@ -1,7 +1,7 @@
 "use client";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 import { CatalogActionMenu } from "@/modules/catalog/presentation/admin/catalog/components/CatalogActionMenu";
 import type { Model } from "@/modules/catalog/presentation/admin/catalog/types";
 
@@ -61,3 +61,4 @@ export function CatalogBrandModelsList({
     </div>
   );
 }
+

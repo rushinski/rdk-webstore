@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type { ParcelDraft } from "@/modules/orders/presentation/admin/shipping/createLabelFormTypes";
 
 type CreateLabelPackageFieldsProps = {
@@ -68,3 +68,4 @@ export function CreateLabelPackageFields({
     </div>
   );
 }
+

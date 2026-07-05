@@ -1,4 +1,4 @@
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import type { EasyPostRate } from "@/modules/orders/presentation/admin/shipping/createLabelFormTypes";
 import {
   formatDeliveryEstimate,
@@ -112,3 +112,4 @@ export function CreateLabelRatesPanel({
     </div>
   );
 }
+

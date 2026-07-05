@@ -1,5 +1,5 @@
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import type { SalesLog } from "@/modules/nexus/presentation/admin/stateDetailTypes";
 
 type StateSalesHistorySectionProps = {
@@ -124,3 +124,4 @@ export function StateSalesHistorySection({
     </div>
   );
 }
+

@@ -11,11 +11,11 @@ import {
   getCustomerTypeMeta,
 } from "@/modules/customers/presentation/admin/customersView";
 import { useAdminCustomersData } from "@/modules/customers/presentation/admin/useAdminCustomersData";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 
 export function AdminCustomersScreen() {
   const router = useRouter();
@@ -143,3 +143,4 @@ export function AdminCustomersScreen() {
     </div>
   );
 }
+

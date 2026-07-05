@@ -4,9 +4,9 @@ import {
   getSortIndicator,
   getStateColor,
 } from "@/modules/nexus/presentation/admin/nexusTrackerView";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 import type { StateSummary } from "@/types/domain/nexus";
 
 type NexusStateCoverageTableProps = {
@@ -157,3 +157,4 @@ export function NexusStateCoverageTable({
     </AdminSectionCard>
   );
 }
+

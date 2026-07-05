@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { ComposableMap, Geographies, Geography } from "@vnedyalk0v/react19-simple-maps";
 
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { useNexusMapInteraction } from "@/modules/nexus/presentation/admin/useNexusMapInteraction";
 import type { StateSummary } from "@/types/domain/nexus";
 
@@ -213,3 +213,4 @@ export default function NexusMap({
     </AdminSectionCard>
   );
 }
+

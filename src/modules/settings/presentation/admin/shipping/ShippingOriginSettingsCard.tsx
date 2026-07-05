@@ -1,5 +1,5 @@
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 type ShippingOriginSettingsCardProps = {
   originLine: string | null;
@@ -32,3 +32,4 @@ export function ShippingOriginSettingsCard({
     </AdminSectionCard>
   );
 }
+

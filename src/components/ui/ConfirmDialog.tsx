@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -85,3 +85,4 @@ export function ConfirmDialog({
     </div>
   );
 }
+

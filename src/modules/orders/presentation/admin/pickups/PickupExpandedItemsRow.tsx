@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 import { buildPickupOrderItemModel } from "@/modules/orders/presentation/admin/pickups/pickupOrdersTableView";
 import type { PickupOrderExpansionPanelsProps } from "@/modules/orders/presentation/admin/pickups/pickupOrderExpansionTypes";
 import type { PickupOrderItem } from "@/modules/orders/presentation/admin/pickups/pickupTypes";
@@ -115,3 +115,4 @@ export function PickupExpandedItemsRow({
     </tr>
   );
 }
+

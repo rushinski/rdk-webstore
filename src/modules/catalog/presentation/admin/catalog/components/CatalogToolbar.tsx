@@ -2,7 +2,7 @@
 
 import { Search } from "lucide-react";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type { ActiveTab } from "@/modules/catalog/presentation/admin/catalog/types";
 
 import { catalogStyles } from "@/modules/catalog/presentation/admin/catalog/components/catalogStyles";
@@ -89,3 +89,4 @@ export function CatalogToolbar({
     </div>
   );
 }
+

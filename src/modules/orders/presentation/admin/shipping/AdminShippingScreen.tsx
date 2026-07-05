@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo } from "react";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { ShippingDialogs } from "@/modules/orders/presentation/admin/shipping/ShippingDialogs";
 import { ShippingOrdersTable } from "@/modules/orders/presentation/admin/shipping/ShippingOrdersTable";
 import { ShippingPagination } from "@/modules/orders/presentation/admin/shipping/ShippingPagination";
@@ -218,3 +218,4 @@ export function AdminShippingScreen() {
     </div>
   );
 }
+

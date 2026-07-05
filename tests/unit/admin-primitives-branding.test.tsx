@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 
 describe("admin primitives", () => {
   it("render with solesneakers admin tokens", () => {

@@ -3,9 +3,9 @@
 import { Plus, Search } from "lucide-react";
 import Image from "next/image";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import { featuredItemsStyles } from "@/modules/catalog/presentation/admin/featured-items/featuredItemsStyles";
 import type { FeaturedItemsProduct } from "@/modules/catalog/presentation/admin/featured-items/featuredItemsTypes";
 
@@ -109,3 +109,4 @@ export function FeaturedItemsSearchPanel({
     </AdminSectionCard>
   );
 }
+

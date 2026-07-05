@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { centsToMoneyString } from "@/modules/settings/presentation/admin/shipping/shippingSettingsConfig";
 import { ShippingCarriersSettingsCard } from "@/modules/settings/presentation/admin/shipping/ShippingCarriersSettingsCard";
 import { ShippingDefaultsModal } from "@/modules/settings/presentation/admin/shipping/ShippingDefaultsModal";
@@ -112,3 +112,4 @@ export function AdminShippingSettingsScreen() {
     </div>
   );
 }
+

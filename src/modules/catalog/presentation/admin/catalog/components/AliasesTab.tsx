@@ -2,11 +2,11 @@
 
 import type { Dispatch, SetStateAction } from "react";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import { RdkSelect } from "@/components/ui/Select";
 import { CatalogActionMenu } from "@/modules/catalog/presentation/admin/catalog/components/CatalogActionMenu";
 import { catalogStyles } from "@/modules/catalog/presentation/admin/catalog/components/catalogStyles";
@@ -193,3 +193,4 @@ export function AliasesTab({
     </AdminSectionCard>
   );
 }
+

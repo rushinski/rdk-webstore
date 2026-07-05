@@ -7,8 +7,8 @@ import {
   formatCustomerDate,
   formatCustomerMoney,
 } from "@/modules/customers/presentation/admin/customer-detail/customerDetailView";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 type CustomerPaymentsSectionProps = {
   payments: CustomerPayment[];
@@ -61,3 +61,4 @@ export function CustomerPaymentsSection({ payments }: CustomerPaymentsSectionPro
     </AdminSectionCard>
   );
 }
+

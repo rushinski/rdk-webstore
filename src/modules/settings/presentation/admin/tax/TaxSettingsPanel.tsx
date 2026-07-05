@@ -1,8 +1,8 @@
 "use client";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
 import { TaxCodeCategoryCard } from "@/modules/settings/presentation/admin/tax/TaxCodeCategoryCard";
 import { useTaxSettingsPanel } from "@/modules/settings/presentation/admin/tax/useTaxSettingsPanel";
@@ -99,3 +99,4 @@ export function TaxSettingsPanel() {
     </div>
   );
 }
+

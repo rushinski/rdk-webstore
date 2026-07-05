@@ -1,5 +1,5 @@
 import { formatRefundMoney } from "@/modules/orders/presentation/admin/refund-order";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 
 type RefundCustomAmountPanelProps = {
   customAmount: string;
@@ -38,3 +38,4 @@ export function RefundCustomAmountPanel({
     </div>
   );
 }
+

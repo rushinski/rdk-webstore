@@ -1,7 +1,7 @@
 "use client";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type { TaxCategoryCodeState } from "@/modules/settings/presentation/admin/tax/useTaxSettingsPanel";
 
 type TaxCodeCategoryCardProps = {
@@ -56,3 +56,4 @@ export function TaxCodeCategoryCard({
     </div>
   );
 }
+

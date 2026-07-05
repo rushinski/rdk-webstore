@@ -1,8 +1,8 @@
 import type { ShippingDefaultValues } from "@/modules/settings/presentation/admin/shipping/shippingSettingsConfig";
 import { SHIPPING_CATEGORIES } from "@/modules/settings/presentation/admin/shipping/shippingSettingsConfig";
 import { buildShippingPackageSummary } from "@/modules/settings/presentation/admin/shipping/shippingSettingsView";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 
 type ShippingPackageDefaultsCardProps = {
   message: string | null;
@@ -63,3 +63,4 @@ export function ShippingPackageDefaultsCard({
     </AdminSectionCard>
   );
 }
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import type { ShippingOrigin } from "@/types/domain/shipping";
 
 import { ORIGIN_MODAL_FIELDS } from "@/modules/orders/presentation/admin/shipping/originModalFields";
@@ -52,3 +52,4 @@ export function OriginAddressFields({
     </div>
   );
 }
+

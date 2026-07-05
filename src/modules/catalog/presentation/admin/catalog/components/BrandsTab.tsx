@@ -1,8 +1,8 @@
 "use client";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { CatalogBrandRow } from "@/modules/catalog/presentation/admin/catalog/components/CatalogBrandRow";
 import { catalogStyles } from "@/modules/catalog/presentation/admin/catalog/components/catalogStyles";
 import type { Brand, Model } from "@/modules/catalog/presentation/admin/catalog/types";
@@ -102,3 +102,4 @@ export function BrandsTab({
     </AdminSectionCard>
   );
 }
+

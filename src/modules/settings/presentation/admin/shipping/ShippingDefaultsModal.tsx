@@ -1,5 +1,5 @@
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 import {
   ShippingSettingsField,
   ShippingSettingsModalShell,
@@ -125,3 +125,4 @@ export function ShippingDefaultsModal({
     </ShippingSettingsModalShell>
   );
 }
+

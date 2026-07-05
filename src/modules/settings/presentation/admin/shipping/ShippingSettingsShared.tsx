@@ -1,4 +1,4 @@
-import { adminFormStyles } from "@/components/admin/ui/adminFormStyles";
+import { adminFormStyles } from "@/modules/shared/presentation/admin/ui/adminFormStyles";
 
 const modalShellStyles = "w-full border border-brand-border bg-brand-surface shadow-xl";
 const modalContentStyles = "space-y-5 p-6";
@@ -67,3 +67,4 @@ export function ShippingSettingsField({
     </div>
   );
 }
+

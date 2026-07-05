@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import { PickupOrdersTable } from "@/modules/orders/presentation/admin/pickups/PickupOrdersTable";
 import { PickupsFeedback } from "@/modules/orders/presentation/admin/pickups/PickupsFeedback";
 import { PickupsPagination } from "@/modules/orders/presentation/admin/pickups/PickupsPagination";
@@ -116,3 +116,4 @@ export function AdminPickupsScreen() {
     </div>
   );
 }
+

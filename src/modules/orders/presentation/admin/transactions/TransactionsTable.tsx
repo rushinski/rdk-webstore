@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 
 import { buildTransactionRowModel } from "@/modules/orders/presentation/admin/transactions/transactionsView";
 import type { TransactionOrder } from "@/modules/orders/presentation/admin/transactions/useAdminTransactionsData";
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminStatusBadge } from "@/components/admin/ui/AdminStatusBadge";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminStatusBadge } from "@/modules/shared/presentation/admin/ui/AdminStatusBadge";
 
 type TransactionsTableProps = {
   isLoading: boolean;
@@ -127,3 +127,4 @@ export function TransactionsTable({ isLoading, orders }: TransactionsTableProps)
     </div>
   );
 }
+

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Download, Plus } from "lucide-react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 
 type InventoryClientHeaderActionsProps = {
   onExport: () => void;
@@ -35,3 +35,4 @@ export function InventoryClientHeaderActions({
     </div>
   );
 }
+

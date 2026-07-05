@@ -1,6 +1,6 @@
 "use client";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { ModalPortal } from "@/components/ui/ModalPortal";
 import type { ShippingOrigin } from "@/types/domain/shipping";
 
@@ -88,3 +88,4 @@ export function OriginModal({
     </ModalPortal>
   );
 }
+

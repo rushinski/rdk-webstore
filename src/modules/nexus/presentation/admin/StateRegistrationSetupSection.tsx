@@ -1,6 +1,6 @@
 import { ExternalLink } from "lucide-react";
 
-import { adminButtonStyles } from "@/components/admin/ui/adminButtonStyles";
+import { adminButtonStyles } from "@/modules/shared/presentation/admin/ui/adminButtonStyles";
 import { STATE_REGISTRATION_URLS } from "@/config/constants/nexus-thresholds";
 import type { StateSummary } from "@/types/domain/nexus";
 
@@ -114,3 +114,4 @@ export function StateRegistrationSetupSection({
     </>
   );
 }
+

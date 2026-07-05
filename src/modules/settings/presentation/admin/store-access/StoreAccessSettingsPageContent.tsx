@@ -1,6 +1,6 @@
 "use client";
 
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
 import { StoreAccessSettingsPanel } from "@/modules/settings/presentation/admin/store-access/StoreAccessSettingsPanel";
 
 export function StoreAccessSettingsPageContent() {
@@ -15,3 +15,4 @@ export function StoreAccessSettingsPageContent() {
     </div>
   );
 }
+

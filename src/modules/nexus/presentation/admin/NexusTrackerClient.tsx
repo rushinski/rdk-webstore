@@ -2,9 +2,9 @@
 
 import React, { useMemo } from "react";
 
-import { AdminEmptyState } from "@/components/admin/ui/AdminEmptyState";
-import { AdminPageHeader } from "@/components/admin/ui/AdminPageHeader";
-import { AdminSectionCard } from "@/components/admin/ui/AdminSectionCard";
+import { AdminEmptyState } from "@/modules/shared/presentation/admin/ui/AdminEmptyState";
+import { AdminPageHeader } from "@/modules/shared/presentation/admin/ui/AdminPageHeader";
+import { AdminSectionCard } from "@/modules/shared/presentation/admin/ui/AdminSectionCard";
 import HomeOfficeSetupModal from "@/modules/nexus/presentation/admin/HomeOfficeSetupModal";
 import NexusMap from "@/modules/nexus/presentation/admin/NexusMap";
 import StateDetailModal from "@/modules/nexus/presentation/admin/StateDetailModal";
@@ -190,3 +190,4 @@ export default function NexusTrackerClient() {
     </div>
   );
 }
+
