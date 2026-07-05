@@ -1,8 +1,20 @@
 import { storeProductsQuerySchema } from "@/lib/validation/storefront";
-import type { ProductFilters } from "@/repositories/product-repo";
 import { createStorefrontService } from "@/modules/storefront/infrastructure/storefront-data";
 
 export type StoreSearchParams = Record<string, string | string[] | undefined> | undefined;
+export type StorefrontCatalogFilters = {
+  q?: string;
+  category?: string[];
+  brand?: string[];
+  model?: string[];
+  sizeShoe?: string[];
+  sizeClothing?: string[];
+  condition?: string[];
+  sort?: "newest" | "price_asc" | "price_desc" | "name_asc" | "name_desc";
+  page?: number;
+  limit?: number;
+  includeOutOfStock?: boolean;
+};
 
 const getArrayParam = (searchParams: StoreSearchParams, key: string) => {
   const value = searchParams?.[key];
@@ -46,7 +58,7 @@ export async function getStoreCatalogPageData(searchParams: StoreSearchParams) {
   };
 
   const parsed = storeProductsQuerySchema.safeParse(rawFilters);
-  const filters: ProductFilters = parsed.success
+  const filters: StorefrontCatalogFilters = parsed.success
     ? parsed.data
     : {
         ...rawFilters,
