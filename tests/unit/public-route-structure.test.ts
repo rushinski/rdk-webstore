@@ -35,8 +35,18 @@ describe("public route structure", () => {
       path.join(process.cwd(), "app/contact/page.tsx"),
       "utf8",
     );
+    const bugReportSource = fs.readFileSync(
+      path.join(process.cwd(), "app/bug-report/page.tsx"),
+      "utf8",
+    );
+    const emailConfirmSource = fs.readFileSync(
+      path.join(process.cwd(), "app/email/confirm/page.tsx"),
+      "utf8",
+    );
 
     expect(accountSource).toContain("@/modules/account/presentation/public");
     expect(contactSource).toContain("@/modules/support/presentation/public");
+    expect(bugReportSource).toContain("@/modules/support/presentation/public");
+    expect(emailConfirmSource).toContain("@/modules/marketing/presentation/public");
   });
 });
