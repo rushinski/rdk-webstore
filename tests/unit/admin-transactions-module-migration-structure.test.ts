@@ -22,7 +22,7 @@ describe("admin transactions module migration structure", () => {
     }
   });
 
-  it("keeps legacy admin transactions paths as thin shims", () => {
+  it("removes legacy admin transactions listing duplicates after module migration", () => {
     const legacyPaths = [
       "src/components/admin/transactions/AdminTransactionsScreen.tsx",
       "src/components/admin/transactions/useAdminTransactionsData.ts",
@@ -35,7 +35,7 @@ describe("admin transactions module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain("@/modules/orders/presentation/admin/transactions/");
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
