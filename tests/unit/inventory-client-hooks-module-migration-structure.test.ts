@@ -19,7 +19,7 @@ describe("inventory client hooks module migration structure", () => {
     }
   });
 
-  it("keeps legacy inventory hook files as thin shims", () => {
+  it("removes legacy inventory hook duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/inventory/useInventoryClientData.ts",
       "src/components/admin/inventory/useInventoryClientEffects.ts",
@@ -29,9 +29,7 @@ describe("inventory client hooks module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/inventory/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

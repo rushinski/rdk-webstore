@@ -19,7 +19,7 @@ describe("inventory client top-level module migration structure", () => {
     }
   });
 
-  it("keeps legacy inventory top-level files as thin shims", () => {
+  it("removes legacy inventory top-level duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/inventory/InventoryClient.tsx",
       "src/components/admin/inventory/useInventoryClientController.ts",
@@ -29,9 +29,7 @@ describe("inventory client top-level module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/inventory/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

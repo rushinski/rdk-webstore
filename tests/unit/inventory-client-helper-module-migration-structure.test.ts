@@ -25,7 +25,7 @@ describe("inventory client helper module migration structure", () => {
     }
   });
 
-  it("keeps legacy inventory helper files as thin shims", () => {
+  it("removes legacy inventory helper duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/inventory/inventoryClientData.ts",
       "src/components/admin/inventory/inventoryClientDerivedState.ts",
@@ -41,9 +41,7 @@ describe("inventory client helper module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/inventory/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

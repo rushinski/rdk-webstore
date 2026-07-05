@@ -22,7 +22,7 @@ describe("inventory dialogs module migration structure", () => {
     }
   });
 
-  it("keeps legacy inventory dialog and details files as thin shims", () => {
+  it("removes legacy inventory dialog and details duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/inventory/InventoryDialogs.tsx",
       "src/components/admin/inventory/InventoryDeleteDialogs.tsx",
@@ -35,9 +35,7 @@ describe("inventory dialogs module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/inventory/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

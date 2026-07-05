@@ -21,7 +21,7 @@ describe("inventory product list module migration structure", () => {
     }
   });
 
-  it("keeps legacy inventory product list files as thin shims", () => {
+  it("removes legacy inventory product list duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/inventory/InventoryProductList.tsx",
       "src/components/admin/inventory/InventoryProductTable.tsx",
@@ -33,9 +33,7 @@ describe("inventory product list module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/inventory/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });

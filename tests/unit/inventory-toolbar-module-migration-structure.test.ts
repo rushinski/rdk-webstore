@@ -19,7 +19,7 @@ describe("inventory toolbar module migration structure", () => {
     }
   });
 
-  it("keeps legacy inventory toolbar files as thin shims", () => {
+  it("removes legacy inventory toolbar duplicate files after module migration", () => {
     const legacyPaths = [
       "src/components/admin/inventory/InventoryToolbar.tsx",
       "src/components/admin/inventory/InventoryFilterControls.tsx",
@@ -29,9 +29,7 @@ describe("inventory toolbar module migration structure", () => {
     ];
 
     for (const legacyPath of legacyPaths) {
-      expect(read(legacyPath)).toContain(
-        "@/modules/catalog/presentation/admin/inventory/",
-      );
+      expect(fs.existsSync(path.join(process.cwd(), legacyPath))).toBe(false);
     }
   });
 });
