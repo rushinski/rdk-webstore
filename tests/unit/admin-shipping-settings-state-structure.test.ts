@@ -6,13 +6,13 @@ describe("admin shipping settings state structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/useAdminShippingSettingsData.ts",
+        "src/modules/settings/presentation/admin/shipping/useAdminShippingSettingsData.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/shippingSettingsState",
+      "@/modules/settings/presentation/admin/shipping/shippingSettingsState",
     );
     expect(source).toContain("toggleShippingCarrierSelection(");
   });
@@ -21,13 +21,13 @@ describe("admin shipping settings state structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/useShippingDefaultsModalState.ts",
+        "src/modules/settings/presentation/admin/shipping/useShippingDefaultsModalState.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/shippingSettingsState",
+      "@/modules/settings/presentation/admin/shipping/shippingSettingsState",
     );
     expect(source).toContain("createShippingDefaultsModalState(");
     expect(source).toContain("createClosedShippingDefaultsState()");

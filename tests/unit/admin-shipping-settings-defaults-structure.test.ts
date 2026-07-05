@@ -6,13 +6,13 @@ describe("admin shipping settings defaults structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/useAdminShippingSettingsData.ts",
+        "src/modules/settings/presentation/admin/shipping/useAdminShippingSettingsData.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/useShippingDefaultsModalState",
+      "@/modules/settings/presentation/admin/shipping/useShippingDefaultsModalState",
     );
     expect(source).toContain("useShippingDefaultsModalState(");
   });

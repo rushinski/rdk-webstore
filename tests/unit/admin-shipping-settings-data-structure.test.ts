@@ -6,13 +6,13 @@ describe("admin shipping settings data structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/useAdminShippingSettingsData.ts",
+        "src/modules/settings/presentation/admin/shipping/useAdminShippingSettingsData.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/shippingSettingsConfig",
+      "@/modules/settings/presentation/admin/shipping/shippingSettingsConfig",
     );
     expect(source).toContain("validateOriginDraft(");
   });
@@ -21,13 +21,13 @@ describe("admin shipping settings data structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/useAdminShippingSettingsData.ts",
+        "src/modules/settings/presentation/admin/shipping/useAdminShippingSettingsData.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/shippingSettingsRequests",
+      "@/modules/settings/presentation/admin/shipping/shippingSettingsRequests",
     );
     expect(source).toContain("loadShippingSettingsData()");
     expect(source).toContain("saveShippingDefaultsRequest(");

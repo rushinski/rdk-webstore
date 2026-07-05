@@ -6,13 +6,13 @@ describe("admin shipping settings structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/AdminShippingSettingsScreen.tsx",
+        "src/modules/settings/presentation/admin/shipping/AdminShippingSettingsScreen.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/useAdminShippingSettingsData",
+      "@/modules/settings/presentation/admin/shipping/useAdminShippingSettingsData",
     );
     expect(source).toContain("useAdminShippingSettingsData()");
   });
@@ -21,22 +21,24 @@ describe("admin shipping settings structure", () => {
     const screenSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/AdminShippingSettingsScreen.tsx",
+        "src/modules/settings/presentation/admin/shipping/AdminShippingSettingsScreen.tsx",
       ),
       "utf8",
     );
     const cardSource = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/ShippingPackageDefaultsCard.tsx",
+        "src/modules/settings/presentation/admin/shipping/ShippingPackageDefaultsCard.tsx",
       ),
       "utf8",
     );
 
     expect(screenSource).toContain(
-      "@/components/admin/settings/shipping/ShippingPackageDefaultsCard",
+      "@/modules/settings/presentation/admin/shipping/ShippingPackageDefaultsCard",
     );
-    expect(cardSource).toContain("@/components/admin/settings/shipping/shippingSettingsView");
+    expect(cardSource).toContain(
+      "@/modules/settings/presentation/admin/shipping/shippingSettingsView",
+    );
     expect(cardSource).toContain("buildShippingPackageSummary(");
   });
 });

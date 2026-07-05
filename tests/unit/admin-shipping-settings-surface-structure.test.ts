@@ -6,19 +6,19 @@ describe("admin shipping settings surface structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/AdminShippingSettingsScreen.tsx",
+        "src/modules/settings/presentation/admin/shipping/AdminShippingSettingsScreen.tsx",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/ShippingOriginSettingsCard",
+      "@/modules/settings/presentation/admin/shipping/ShippingOriginSettingsCard",
     );
     expect(source).toContain(
-      "@/components/admin/settings/shipping/ShippingCarriersSettingsCard",
+      "@/modules/settings/presentation/admin/shipping/ShippingCarriersSettingsCard",
     );
     expect(source).toContain(
-      "@/components/admin/settings/shipping/ShippingPackageDefaultsCard",
+      "@/modules/settings/presentation/admin/shipping/ShippingPackageDefaultsCard",
     );
     expect(source).toContain("<ShippingOriginSettingsCard");
     expect(source).toContain("<ShippingCarriersSettingsCard");

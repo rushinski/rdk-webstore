@@ -6,13 +6,13 @@ describe("admin shipping settings origin structure", () => {
     const source = fs.readFileSync(
       path.join(
         process.cwd(),
-        "src/components/admin/settings/shipping/useAdminShippingSettingsData.ts",
+        "src/modules/settings/presentation/admin/shipping/useAdminShippingSettingsData.ts",
       ),
       "utf8",
     );
 
     expect(source).toContain(
-      "@/components/admin/settings/shipping/useShippingOriginModalState",
+      "@/modules/settings/presentation/admin/shipping/useShippingOriginModalState",
     );
     expect(source).toContain("useShippingOriginModalState(");
   });
